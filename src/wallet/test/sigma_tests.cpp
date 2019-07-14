@@ -31,7 +31,7 @@ static std::list<std::pair<uint256, CBlockIndex>> blocks;
 
 struct WalletSigmaTestingSetup : WalletTestingSetup
 {
-    WalletSigmaTestingSetup() 
+    WalletSigmaTestingSetup()
         : sigmaState(sigma::CSigmaState::GetState())
     {
     }
@@ -75,15 +75,21 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     block->second.nHeight = block->second.pprev->nHeight + 1;
 
     // generate coins
+    CHDMint dMint;
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
             sigma::PrivateCoin priv(params, coin.first);
+
+            // Generate and store secrets deterministically in the following function.
+            dMint.SetNull();
+            zwalletMain->GenerateMint(priv.getPublicCoin().getDenomination(), priv, dMint, boost::none);
+
             auto& pub = priv.getPublicCoin();
 
             block->second.sigmaMintedPubCoins[std::make_pair(coin.first, 1)].push_back(pub);
 
             if (addToWallet) {
-                AddSigmaCoin(priv, coin.first);
+                zwalletMain->GetTracker().Add(dMint, true);
             }
         }
     }
@@ -188,18 +194,22 @@ static bool CheckSpend(const CTxIn& vin, const CSigmaEntry& expected)
 
 static CAmount GetCoinSetByDenominationAmount(
     std::vector<std::pair<sigma::CoinDenomination, int>>& coins,
+    int D005 = 0,
     int D01 = 0,
     int D05 = 0,
     int D1 = 0,
     int D10 = 0,
+    int D25 = 0,
     int D100 = 0)
 {
     coins.clear();
 
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_0_05, D005));
     coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_0_1, D01));
     coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_0_5, D05));
     coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_1, D1));
     coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_10, D10));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_25, D25));
     coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_100, D100));
 
     CAmount sum(0);
@@ -215,7 +225,7 @@ static CAmount GetCoinSetByDenominationAmount(
 static void AddOneCoinForEachGroup()
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> coins;
-    GetCoinSetByDenominationAmount(coins, 1, 1, 1, 1, 1);
+    GetCoinSetByDenominationAmount(coins, 1, 1, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(coins, false);
 }
 
@@ -250,56 +260,54 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
+    AddOneCoinForEachGroup();
+    GetCoinSetByDenominationAmount(newCoins, 1, 2, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
+    CAmount require(13675 * CENT); // 136.75
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    BOOST_CHECK_NO_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint));
     sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_round_up)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
+    AddOneCoinForEachGroup();
+    GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5, 5, 5);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    // This must get rounded up to 111.8
-    CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
+    // This must get rounded up to 111.65
+    CAmount require(11164 * CENT); // 111.64
 
     std::vector<CSigmaEntry> coinsToSpend;
     std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coinsToSpend, coinsToMint),
       "Expect enough for requirement");
 
-    // We would expect to spend 100 + 10 + 1 + 1 and re-mint 0.1 + 0.1.
+    // We would expect to spend 100 + 10 + 1 + 0.5 + 0.1 + 0.05
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedToSpend;
-    GetCoinSetByDenominationAmount(expectedToSpend, 0, 0, 2, 1, 1);
-
-    std::vector<std::pair<sigma::CoinDenomination, int>> expectedToMint;
-    GetCoinSetByDenominationAmount(expectedToMint, 2, 0, 0, 0, 0);
+    GetCoinSetByDenominationAmount(expectedToSpend, 1, 1, 1, 1, 1, 0, 1);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedToSpend, coinsToSpend),
-      "Expected to get coins to spend with denominations 100 + 10 + 1 + 1.");
+      "Expected to get coins to spend with denominations 100 + 10 + 1 + 0.5 + 0.1 + 0.05.");
 
-    BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedToMint, coinsToMint),
-      "Expected to re-mint coins with denominations 0.1 + 0.1.");
     sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 {
+    AddOneCoinForEachGroup();
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(11170 * CENT); // 111.7
+    CAmount require(13666 * CENT); // 136.66
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
@@ -309,13 +317,14 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 
 BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
 {
+    AddOneCoinForEachGroup();
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     // Intentionally do not create 5 more blocks after this one, so coins can not be spent.
     // GenerateEmptyBlocks(5);
 
-    CAmount require(111 * COIN + 5 * COIN / 10); // 111.5
+    CAmount require(11150 * CENT); // 111.5
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
@@ -327,7 +336,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     AddOneCoinForEachGroup();
-    GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
+    GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 0, 10, 0, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
@@ -339,7 +348,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
       "Expect enough coin and equal to one SIGMA_DENOM_100");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
-    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 0, 1);
+    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 0, 0, 0, 1);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_100");
@@ -350,11 +359,11 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     AddOneCoinForEachGroup();
-    GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
+    GetCoinSetByDenominationAmount(newCoins, 0, 1, 0, 2, 1, 0, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(17 * COIN);
+    CAmount require(12 * COIN);
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
@@ -362,10 +371,10 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
       "Coins to spend value is not equal to required amount.");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
-    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 7, 1, 0);
+    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 2, 1, 0, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
-      "Expect only one SIGMA_DENOM_10 and 7 SIGMA_DENOM_1");
+      "Expect only one SIGMA_DENOM_10 and 2 SIGMA_DENOM_1");
     sigmaState->Reset();
 }
 
@@ -373,11 +382,11 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     AddOneCoinForEachGroup();
-    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(9 * COIN / 10); // 0.9
+    CAmount require(90 * CENT); // 0.9
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
@@ -385,7 +394,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
-    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 1, 0, 0);
+    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 1, 0, 0, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_1");
@@ -394,12 +403,13 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
 BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
 {
+    AddOneCoinForEachGroup();
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 0, 0, 2, 0, 0);
+    GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 2, 0, 0, 0);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(1 * COIN + 10 * CENT); // 1.1
+    CAmount require(110 * CENT); // 1.1
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
@@ -416,7 +426,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     CAmount fee;
     CWalletTx tx;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
@@ -451,7 +461,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
@@ -485,7 +495,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
@@ -508,7 +518,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
@@ -531,8 +541,8 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_CHECK(tx.vin.size() == 2);
 
     // 2 outputs to recipients 5 + 10 xzc
-    // 9 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 xzc
-    BOOST_CHECK(tx.vout.size() == 11);
+    // 10 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 + 0.05 xzc
+    BOOST_CHECK(tx.vout.size() == 12);
     BOOST_CHECK(fee > 0);
 
     BOOST_CHECK(selected.size() == 2);
@@ -551,14 +561,13 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         return c + (v.scriptPubKey.IsSigmaMint() ? v.nValue : 0);
     });
 
-    BOOST_CHECK(remintsSum == 49 * COIN / 10);
+    BOOST_CHECK(remintsSum == 495 * CENT);
 
     // check walletdb
-    std::list<CSigmaEntry> coinList;
     std::list<CSigmaSpendEntry> spends;
     CWalletDB db(pwalletMain->strWalletFile);
 
-    db.ListSigmaPubCoin(coinList);
+    std::list<CHDMint> coinList = db.ListHDMints();
     BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
@@ -567,10 +576,10 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     pwalletMain->SpendSigma(recipients, tx, fee);
 
     coinList.clear();
-    db.ListSigmaPubCoin(coinList);
-    BOOST_CHECK(coinList.size() == 11);
+    coinList = db.ListHDMints();
+    BOOST_CHECK(coinList.size() == 12);
     BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
-        [](const CSigmaEntry& coin){return !coin.IsUsed;}) == 9);
+        [](const CHDMint& coin){return !coin.IsUsed();}) == 10);
 
     spends.clear();
     db.ListCoinSpendSerial(spends);
@@ -600,8 +609,7 @@ BOOST_AUTO_TEST_CASE(spend)
     std::list<CSigmaSpendEntry> spends;
     db.ListCoinSpendSerial(spends);
 
-    std::list<CSigmaEntry> coins;
-    db.ListSigmaPubCoin(coins);
+    std::list<CHDMint> coins = db.ListHDMints();
 
     BOOST_CHECK(selected.size() == 1);
     BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
@@ -620,16 +628,15 @@ BOOST_AUTO_TEST_CASE(spend)
         if (std::find_if(
             selected.begin(),
             selected.end(),
-            [&coin](const CSigmaEntry& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            [&coin](const CSigmaEntry& e) { return e.value == coin.GetPubcoinValue(); }) != selected.end()) {
             continue;
         }
 
-        BOOST_CHECK(coin.IsUsed == false);
-        BOOST_CHECK(coin.id == -1);
-        BOOST_CHECK(coin.nHeight == -1);
+        BOOST_CHECK(coin.IsUsed() == false);
+        BOOST_CHECK(coin.GetId() == -1);
+        BOOST_CHECK(coin.GetHeight() == -1);
     }
     sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-

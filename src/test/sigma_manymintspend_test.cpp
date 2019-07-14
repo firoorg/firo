@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     vector<pair<std::string, int>> denominationPairs;
 
-    for(int i = 0; i < 4; i++)
+    for(size_t i = 0; i < denominations.size() - 1; i++)
     {
         thirdPartyAddress = "";
         denominationsForTx.clear();
@@ -152,23 +152,23 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->GetSpends();
+        sigmaState->containers.usedCoinSerials.clear();
 
         wtx.Init(NULL);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after used coin serials removed");
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after block created");
         vtxid.clear();
         mempool.queryHashes(vtxid);
         vtxid.resize(1);
-        tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         mempool.clear();
         previousHeight = chainActive.Height();
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     thirdPartyAddress = "";
 
     // create transactions using the same denomination
-    for(int i = 0; i < 5; i++)
+    for(size_t i = 0; i < denominations.size(); i++)
     {
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
@@ -295,8 +295,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     // attempt to add a mixed input spend in one block, and use of the inputs into another tx in the next block.
     denominationsForTx.clear();
-    denominationsForTx.push_back(denominations[rand() % 5]);
-    denominationsForTx.push_back(denominations[rand() % 5]);
+    denominationsForTx.push_back(denominations[rand() % 7]);
+    denominationsForTx.push_back(denominations[rand() % 7]);
     printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
     string stringError;
 

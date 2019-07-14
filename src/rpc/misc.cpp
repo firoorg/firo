@@ -557,6 +557,8 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
     } else if(zerocoin::utils::isSigma(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::sigmaMint));
         addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    } else if(zerocoin::utils::isZerocoinRemint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
     } else {
         CBitcoinAddress address(addr);
         uint160 hashBytes;
@@ -1054,7 +1056,7 @@ bool getZerocoinSupply(CAmount & amount) {
             return true;
         if(lhs.first.blockHeight > rhs.first.blockHeight)
             return false;
-        return lhs.first.txindex < lhs.first.txindex;
+        return lhs.first.txindex < rhs.first.txindex;
     };
 
     if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))

@@ -34,15 +34,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;
-    std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
-    for(int i = 0; i < 5; i++)
+    for(auto denomination : denominations)
     {
-        denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         // Make sure that transactions get to mempool
@@ -138,22 +137,22 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
         vtxid.clear();
         mempool.queryHashes(vtxid);
         vtxid.resize(1);
-        tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         mempool.clear();
         previousHeight = chainActive.Height();

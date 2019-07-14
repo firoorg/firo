@@ -1098,7 +1098,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &in
 int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &inputs, int flags) {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint())
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
@@ -1177,7 +1177,7 @@ bool CheckTransaction(
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+            if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend() || txin.IsZerocoinRemint())) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
@@ -1407,7 +1407,7 @@ bool AcceptToMemoryPoolWorker(
                 return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-known");
             }
 
-            if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && fCheckInputs) {
+            if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && fCheckInputs) {
                 // do all inputs exist?
                 // Note that this does not check for the presence of actual outputs (see the next check for that),
                 // and only helps with filling in pfMissingInputs (to determine missing vs spent).
@@ -1450,7 +1450,7 @@ bool AcceptToMemoryPoolWorker(
             view.SetBackend(dummy);
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinRemint() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1800,10 +1800,18 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
-    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial)
-        sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-
+    if (tx.IsSigmaSpend()){
+        if(markZcoinSpendTransactionSerial)
+            sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
+        LogPrintf("Updating mint tracker state from Mempool..");
+#ifdef ENABLE_WALLET
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
+        }
+#endif
+    }
     SyncWithWallets(tx, NULL, NULL);
+
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
 
     return true;
@@ -2247,7 +2255,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 
 void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight) {
     // mark inputs spent
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
         txundo.vprevout.reserve(tx.vin.size());
         BOOST_FOREACH(
         const CTxIn &txin, tx.vin) {
@@ -2599,7 +2607,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -2892,7 +2900,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         nInputs += tx.vin.size();
 
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
             if (!view.HaveInputs(tx))
                 return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
                                  REJECT_INVALID, "bad-txns-inputs-missingorspent");
@@ -2922,7 +2930,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
         }
 
-        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsSigmaSpend() || tx.IsSigmaMint() ) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsSigmaSpend() || tx.IsSigmaMint() || tx.IsZerocoinRemint()) {
             if( tx.IsSigmaSpend())
                 nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
 
@@ -2945,7 +2953,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                              REJECT_INVALID, "bad-blk-sigops");
 
         txdata.emplace_back(tx);
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
 
             std::vector <CScriptCheck> vChecks;
@@ -3342,6 +3350,13 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
 
+    // retrieve all mints
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    for (auto const& tx : block.vtx) {
+        CheckTransaction(tx, state, tx.GetHash(), false, pindexDelete->pprev->nHeight,
+            false, false, nullptr, block.sigmaTxInfo.get());
+    }
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -3405,6 +3420,19 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
+
+#ifdef ENABLE_WALLET
+    // update mint/spend wallet
+    if (zwalletMain) {
+        if (block.sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+        }
+
+        if (block.sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+        }
+    }
+#endif
 
     //! Exodus: begin block disconnect notification
     auto fExodus = isExodusEnabled();
@@ -3525,6 +3553,19 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
             if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
     }
+
+#ifdef ENABLE_WALLET
+    // Sync with HDMint wallet
+    if (zwalletMain) {
+        if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+        }
+
+        if (pblock->sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+        }
+    }
+#endif
 
     //! Exodus: end of block connect notification
     if (fExodus) {
@@ -4336,8 +4377,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
         if (!CheckZerocoinFoundersInputs(block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
-            return state.Invalid(
-                    false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
+            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
         }
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
@@ -4480,6 +4520,32 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
 
     return true;
+}
+
+bool IsBlockHashInChain(const uint256& hashBlock)
+{
+    if (hashBlock.IsNull() || !mapBlockIndex.count(hashBlock))
+        return false;
+
+    return chainActive.Contains(mapBlockIndex[hashBlock]);
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransaction& tx)
+{
+    uint256 hashBlock;
+    if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock, true))
+        return false;
+    if (!IsBlockHashInChain(hashBlock))
+        return false;
+
+    nHeightTx = mapBlockIndex.at(hashBlock)->nHeight;
+    return true;
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
+{
+    CTransaction tx;
+    return IsTransactionInChain(txId, nHeightTx, tx);
 }
 
 bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIndex *const pindexPrev) {

@@ -1,4 +1,4 @@
-#include "hash_functions.h"
+#include "coin_containers.h"
 #include "crypto/sha256.h"
 
 #include <vector>
@@ -30,5 +30,22 @@ std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const no
     std::memcpy(&result, hash, sizeof(std::size_t));
     return result;
 }
+
+
+CMintedCoinInfo CMintedCoinInfo::make(CoinDenomination denomination,  int coinGroupId, int nHeight) {
+    CMintedCoinInfo coinInfo;
+    coinInfo.denomination = denomination;
+    coinInfo.coinGroupId = coinGroupId;
+    coinInfo.nHeight = nHeight;
+    return coinInfo;
+}
+
+CSpendCoinInfo CSpendCoinInfo::make(CoinDenomination denomination,  int coinGroupId) {
+    CSpendCoinInfo coinInfo;
+    coinInfo.denomination = denomination;
+    coinInfo.coinGroupId = coinGroupId;
+    return coinInfo;
+}
+
 
 } // namespace sigma

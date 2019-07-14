@@ -5,12 +5,16 @@
 #include "../secp256k1/include/Scalar.h"
 #include "../zerocoin_v3.h"
 #include "./test_bitcoin.h"
+#include "../wallet/wallet.h"
+
+#include "test/fixtures.h"
+#include "test/testutil.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <stdlib.h>
 
-BOOST_FIXTURE_TEST_SUITE(sigma_state_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(sigma_state_tests, ZerocoinTestingSetup200)
 
 static const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
 
@@ -21,6 +25,14 @@ CBlockIndex CreateBlockIndex(int nHeight)
     index.pprev = chainActive.Tip();
     index.phashBlock = new uint256();
     return index;
+}
+
+CBlock CreateBlockWithMints(const std::vector<sigma::PublicCoin> mints)
+{
+    CBlock block;
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    block.sigmaTxInfo->mints = mints;
+    return block;
 }
 
 std::vector<sigma::PrivateCoin> generateCoins(
@@ -63,9 +75,9 @@ BOOST_AUTO_TEST_CASE(sigma_addspend)
     sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
 
     auto coinSerial = coin.getCoinSerialNumber();
-    auto initSize = sigmaState->usedCoinSerials.count(coinSerial);
-    sigmaState->AddSpend(coinSerial);
-    auto actSize = sigmaState->usedCoinSerials.count(coinSerial);
+    auto initSize = sigmaState->GetSpends().count(coinSerial);
+    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    auto actSize = sigmaState->GetSpends().count(coinSerial);
 
     BOOST_CHECK_MESSAGE(initSize + 1 == actSize, "Serial was not added to usedCoinSerials.");
     sigmaState->Reset();
@@ -97,8 +109,9 @@ BOOST_AUTO_TEST_CASE(sigma_hascoin_true)
     sigma::PublicCoin pubcoin;
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
+    auto mintsBlock = CreateBlockWithMints({pubcoin});
 
-    sigmaState->AddMint(&index, pubcoin);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
     auto hasCoin = sigmaState->HasCoin(pubcoin);
 
     BOOST_CHECK_MESSAGE(hasCoin, "The coin should not be in mintedPubCoins.");
@@ -116,8 +129,9 @@ BOOST_AUTO_TEST_CASE(sigma_getmintcoinheightandid_true)
     sigma::PublicCoin pubcoin;
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
+    auto mintsBlock = CreateBlockWithMints({pubcoin});
 
-    sigmaState->AddMint(&index, pubcoin);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
     auto cnData = sigmaState->GetMintedCoinHeightAndId(pubcoin);
 
     BOOST_CHECK_MESSAGE(cnData.first == 1, "Unexpected minted coin height.");
@@ -154,15 +168,16 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_double)
     sigma::PublicCoin pubcoin;
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
+    auto mintsBlock = CreateBlockWithMints({pubcoin});
 
-    sigmaState->AddMint(&index, pubcoin);
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+    auto mintedPubCoin = sigmaState->GetMints();
 
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 1,
         "Unexpected mintedPubCoin size after first call.");
 
-    sigmaState->AddMint(&index, pubcoin);
-    mintedPubCoin = sigmaState->mintedPubCoins;
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+    mintedPubCoin = sigmaState->GetMints();
 
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 1,
          "Unexpected mintedPubCoin size after second call.");
@@ -185,65 +200,81 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_two)
     sigma::PublicCoin pubcoin2;
     pubcoin2 = privcoin2.getPublicCoin();
 
-    CBlockIndex index = CreateBlockIndex(1);
-    sigmaState->AddMint(&index, pubcoin1);
-    sigmaState->AddMint(&index, pubcoin2);
+    auto mintsBlock = CreateBlockWithMints({pubcoin1, pubcoin2});
 
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
+    CBlockIndex index = CreateBlockIndex(1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+
+    auto mintedPubCoin = sigmaState->GetMints();
 
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 2, "Unexpected mintedPubCoin size.");
 
     sigmaState->Reset();
 }
 
-// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on one block should pass
-BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_one)
+// Checking AddMint ZC_SPEND_V3_COINSPERID_LIMIT and check group id increase.
+BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    CScript scriptPubKey2;
-    CBlockIndex index = CreateBlockIndex(1);
-    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
-        auto params = sigma::Params::get_default();
-        const sigma::PrivateCoin privcoin(params, sigma::CoinDenomination::SIGMA_DENOM_1);
-        auto pubcoin = privcoin.getPublicCoin();
-        sigmaState->AddMint(&index, pubcoin);
+    const sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
+    const auto testDenomStr = sigma::DenominationToString(testDenomination);
+
+    // To make sure have coin more than ZC_SPEND_V3_COINSPERID in first group.
+    auto mintsPerBlock = 100;
+
+    std::string strError;
+    // Make sure that transactions get to mempool
+    pwalletMain->SetBroadcastTransactions(true);
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+
+    // Generate mints ZC_SPEND_V3_COINSPERID - 1, last group ID should be 1.
+    int allMints = 0;
+    while (allMints < ZC_SPEND_V3_COINSPERID_LIMIT - 1) {
+        auto mintThisBlock = std::min(ZC_SPEND_V3_COINSPERID_LIMIT - 1 - allMints, mintsPerBlock);
+        allMints += mintThisBlock;
+
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+            strError, {{testDenomStr, mintThisBlock}}, SIGMA), strError + " - Create Mint failed");
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        CreateAndProcessBlock({}, scriptPubKey);
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
     }
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
-    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001, "Unexpected mintedPubCoin size in one block of one group.");
+
+    sigma::CSigmaState::SigmaCoinGroupInfo group1;
+    sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
+    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID_LIMIT - 1);
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 1);
+
+    // Try to generate more coins to make exceed hardcap, new coins should be push to new group instead.
+    auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_LIMIT + 1;
+    auto moreMintsToMakeExceedLimit =  exceedHardCapAmount - group1.nCoins;
+
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+        strError, {{testDenomStr, moreMintsToMakeExceedLimit}}, SIGMA), strError + " - Create Mint failed");
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+    CreateAndProcessBlock({}, scriptPubKey);
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
+
+    // New Mints should not be added to first group.
+    sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
+    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID_LIMIT - 1);
+
+    // New Mints should be added to news group.
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 2);
+    sigma::CSigmaState::SigmaCoinGroupInfo group2;
+    sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
+    BOOST_CHECK_EQUAL(group2.nCoins, moreMintsToMakeExceedLimit);
+
+    // Remove last block, coin ID should be decrease back.
+    DisconnectBlocks(1);
+
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 1);
 
     sigmaState->Reset();
 }
-
-// This is a correct case, but should be commented till fix of code
-// Cause code of creating another coin group is not in the state class itself
-/*
-// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
-BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
-{
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    CScript scriptPubKey2;
-    sigma::PublicCoin pubcoin;
-    CBlockIndex index;
-    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
-        index = CreateBlockIndex(i+1);
-        auto params = sigma::Params::get_default();
-        const sigma::PrivateCoin privcoin(params);
-        pubcoin = privcoin.getPublicCoin();
-        sigmaState->AddMint(&index, pubcoin);
-    }
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
-    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001,
-         "Unexpected mintedPubCoin size in diff block of one group.");
-
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 2,
-        "Unexpected latest coin id of common denomination.");
-
-    sigmaState->RemoveBlock(&index);
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 1,
-         "Unexpected latestcoin id of common denomination after remove 15001 block.");
-
-    sigmaState->Reset();
-} */
 
 // Checking RemoveSpendFromMempool, when coin is in mempool
 BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_in)
@@ -266,11 +297,11 @@ BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_in)
     auto coinSerial = coin.getCoinSerialNumber();
 
     sigmaState->AddSpendToMempool(coinSerial, txHash);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size after call AddSpendToMempool.");
 
     sigmaState->RemoveSpendFromMempool(coinSerial);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mempoolCoinSerials size after call AddSpendToMempool.");
     sigmaState->Reset();
 }
@@ -296,7 +327,7 @@ BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_not_in)
     auto coinSerial = coin.getCoinSerialNumber();
 
     sigmaState->RemoveSpendFromMempool(coinSerial);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mempoolCoinSerials size after call AddSpendToMempool.");
     sigmaState->Reset();
 }
@@ -320,12 +351,12 @@ BOOST_AUTO_TEST_CASE(sigma_addspend_to_mempool_coin_used)
 
     auto coinSerial = coin.getCoinSerialNumber();
 
-    sigmaState->AddSpend(coinSerial);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 0,
+    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mempoolCoinSerials size before call AddSpendToMempool.");
 
     sigmaState->AddSpendToMempool(coinSerial, txHash);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mempoolCoinSerials size after call AddSpendToMempool.");
 
     sigmaState->Reset();
@@ -352,7 +383,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspendtomempool)
     auto coinSerial = coin.getCoinSerialNumber();
 
     sigmaState->AddSpendToMempool(coinSerial, txHash);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size after call AddSpendToMempool.");
 
     sigmaState->Reset();
@@ -380,10 +411,10 @@ BOOST_AUTO_TEST_CASE(sigma_addspendtomempool_coinin)
 
     sigmaState->AddSpendToMempool(coinSerial, txHash);
 
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size after first call AddSpendToMempool.");
     sigmaState->AddSpendToMempool(coinSerial, txHash);
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size after second call AddSpendToMempool.");
 
     sigmaState->Reset();
@@ -440,7 +471,7 @@ BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_used)
 
     auto coinSerial = coin.getCoinSerialNumber();
 
-    sigmaState->AddSpend(coinSerial);
+    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
 
     BOOST_CHECK_MESSAGE(!sigmaState->CanAddSpendToMempool(coinSerial),
       "CanAddSpendToMempool return true, which means coin not in use, but should be.");
@@ -462,11 +493,12 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
 
     // Let's add data to zerocoinstate before reset
 
-    sigmaState->AddMint(&index, pubcoin);
+    auto mintsBlock = CreateBlockWithMints({pubcoin});
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
 
-    BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 1,
       "Unexpected mintedPubCoin size before reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->coinGroups.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetCoinGroups().size() == 1,
       "Unexpected coinGroups size before reset.");
 
     std::vector<sigma::PublicCoin> anonymity_set;
@@ -481,27 +513,27 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
 
     sigmaState->AddSpendToMempool(coinSerial, txHash);
 
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size before reset.");
 
-    sigmaState->AddSpend(coinSerial);
+    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
 
-    BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 1,
       "Unexpected usedCoinSerials size before reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds.size() == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().size() == 1,
       "Unexpected mintedPubCoin size before reset.");
 
     sigmaState->Reset();
 
-    BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 0,
       "Unexpected mintedPubCoin size after reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->coinGroups.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetCoinGroups().size() == 0,
       "Unexpected coinGroups size after reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
       "Unexpected usedCoinSerials size after reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().size() == 0,
       "Unexpected mintedPubCoin size after reset.");
-    BOOST_CHECK_MESSAGE(sigmaState->mempoolCoinSerials.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mintedPubCoin size after reset.");
 }
 
@@ -516,9 +548,10 @@ BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_existing)
     sigma::PublicCoin pubcoin;
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
+    auto mintsBlock = CreateBlockWithMints({pubcoin});
 
-    sigmaState->AddMint(&index, pubcoin);
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+    auto mintedPubCoin = sigmaState->GetMints();
 
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 1,
         "Unexpected mintedPubCoin size after first call.");
@@ -567,10 +600,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
     CBlockIndex index = CreateBlockIndex(1);
 
 	sigmaState->AddBlock(&index);
-	BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 0,
+	BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 0,
 	  "Unexpected mintedPubCoins size, add new block without minted txs.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 0,
+	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
 	  "Unexpected usedCoinSerials size, add new block without spend txs.");
 
     sigmaState->Reset();
@@ -598,10 +631,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
 	index.sigmaMintedPubCoins[denomination1Group1].push_back(pubcoin2);
 
 	sigmaState->AddBlock(&index);
-	BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 2,
+	BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 2,
 	  "Unexpected mintedPubCoins size, add new block with 2 minted txs.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 0,
+	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
 	  "Unexpected usedCoinSerials size, add new block without spend txs.");
 
 	// spend
@@ -619,12 +652,12 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
 
     CBlockIndex index2 = CreateBlockIndex(2);
 	index2.sigmaSpentSerials.clear();
-	index2.sigmaSpentSerials.insert(spendSerial);
+	index2.sigmaSpentSerials.insert(std::make_pair(spendSerial, sigma::CSpendCoinInfo::make(coinSpend.getDenomination(), 0)));
 	sigmaState->AddBlock(&index2);
-	BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 2,
+	BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 2,
 	  "Unexpected mintedPubCoins size, add new block without additional minted.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 1,
+	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 1,
 	  "Unexpected usedCoinSerials size, add new block with 1 spend txs.");
 
     // minted more coin
@@ -635,10 +668,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
 
     index3.sigmaMintedPubCoins[denomination1Group1].push_back(pubcoin3);
     sigmaState->AddBlock(&index3);
-    BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 3,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 3,
 	  "Unexpected mintedPubCoins size, add new block with one more minted.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 1,
+	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 1,
 	  "Unexpected usedCoinSerials size, add new block without new spend");
 
     sigmaState->Reset();
@@ -672,25 +705,25 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData);
 
     index2.sigmaSpentSerials.clear();
-	index2.sigmaSpentSerials.insert(coinSpend.getCoinSerialNumber());
+    index2.sigmaSpentSerials.insert(std::make_pair(coinSpend.getCoinSerialNumber(), sigma::CSpendCoinInfo::make(coinSpend.getDenomination(), 0)));
 
     sigmaState->AddBlock(&index1);
     sigmaState->AddBlock(&index2);
 
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[sigma::CoinDenomination::SIGMA_DENOM_1] == 2,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().find(sigma::CoinDenomination::SIGMA_DENOM_1)->second == 2,
       "Unexpected lastestcoinId");
     BOOST_CHECK_MESSAGE(sigmaState->HasCoin(pubCoins2[0]),
       "Coin isn't in state before remove index 2");
 
     // remove one
     sigmaState->RemoveBlock(&index2);
-    BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 10,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 10,
 	  "Unexpected mintedPubCoins size, remove index contain 10 minteds.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 0,
-	  "Unexpected usedCoinSerials size, remove index contain 1 spend.");
+    BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
+      "Unexpected usedCoinSerials size, remove index contain 1 spend.");
 
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[sigma::CoinDenomination::SIGMA_DENOM_1] == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().find(sigma::CoinDenomination::SIGMA_DENOM_1)->second == 1,
       "Unexpected lastestcoinId");
 
     BOOST_CHECK_MESSAGE(sigmaState->HasCoin(pubCoins[0]),
@@ -700,13 +733,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 
     // remove all
     sigmaState->RemoveBlock(&index1);
-    BOOST_CHECK_MESSAGE(sigmaState->mintedPubCoins.size() == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetMints().size() == 0,
 	  "Unexpected mintedPubCoins size, remove index contain 10 minteds.");
 
-	BOOST_CHECK_MESSAGE(sigmaState->usedCoinSerials.size() == 0,
+	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain no spend.");
 
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[sigma::CoinDenomination::SIGMA_DENOM_1] == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().find(sigma::CoinDenomination::SIGMA_DENOM_1) == sigmaState->GetLatestCoinIds().end(),
       "Unexpected lastestcoinId remove all");
 
     BOOST_CHECK_MESSAGE(!sigmaState->HasCoin(pubCoins[0]),
@@ -903,7 +936,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     secp_primitives::Scalar serial;
     serial.randomize();
 
-    index2.sigmaSpentSerials.insert(serial);
+    index2.sigmaSpentSerials.insert(std::make_pair(serial, sigma::CSpendCoinInfo::make(sigma::CoinDenomination::SIGMA_DENOM_1, 0)));
 
     index2.sigmaMintedPubCoins[denomination1Group1] = pubCoins2;
     index2.sigmaMintedPubCoins[denomination10Group1] = pubCoins3;
@@ -1031,7 +1064,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     secp_primitives::Scalar serial;
     serial.randomize();
 
-    indexes[nextIndex].sigmaSpentSerials.insert(serial);
+    indexes[nextIndex].sigmaSpentSerials.insert(std::make_pair(serial, sigma::CSpendCoinInfo::make(sigma::CoinDenomination::SIGMA_DENOM_1, 0)));
     indexes[nextIndex].sigmaMintedPubCoins[denomination1Group1] = pubCoins2;
     indexes[nextIndex].sigmaMintedPubCoins[denomination10Group1] = pubCoins3;
 
@@ -1075,5 +1108,96 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 
     sigmaState->Reset();
 }
+
+namespace {
+    Scalar generateSpend(sigma::CoinDenomination denom) {
+        auto params = sigma::Params::get_default();
+
+        const sigma::PrivateCoin privcoin(params, denom);
+        sigma::PublicCoin pubcoin;
+        pubcoin = privcoin.getPublicCoin();
+
+        std::vector<sigma::PublicCoin> anonymity_set;
+        anonymity_set.push_back(pubcoin);
+
+        // Doesn't really matter what metadata we give here, it must pass.
+        sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
+
+        sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+
+        return coin.getCoinSerialNumber();
+    }
+
+    CBlock generateMint(sigma::CoinDenomination denom) {
+        auto params = sigma::Params::get_default();
+
+        const sigma::PrivateCoin privcoin(params, denom);
+
+        return CreateBlockWithMints({privcoin.getPublicCoin()});
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_positive)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    CBlockIndex index = CreateBlockIndex(1);
+    CBlock mintsBlock = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_reset)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    sigmaState->Reset();
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    CBlockIndex index = CreateBlockIndex(1);
+    CBlock mintsBlock = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
+// Check that failure in any [denom, group] makes it failed for all other
+// combinations of [denom,group]
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_failure_anywhere)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    sigmaState->Reset();
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_100, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    CBlockIndex index = CreateBlockIndex(1);
+    CBlock mintsBlock1 = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    CBlock mintsBlock100 = generateMint(sigma::CoinDenomination::SIGMA_DENOM_100);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock100);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

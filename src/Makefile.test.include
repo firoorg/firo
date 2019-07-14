@@ -51,6 +51,7 @@ BITCOIN_TESTS =\
   test/zerocoin_tests3.cpp \
   test/zerocoin_tests2_v3.cpp \
   test/zerocoin_tests3_v3.cpp \
+  test/remint_tests.cpp \
   test/znode_tests.cpp \
   test/mtp_trans_tests.cpp \
   test/mtp_halving_tests.cpp \
@@ -77,6 +78,7 @@ BITCOIN_TESTS =\
   test/DoS_tests.cpp \
   test/getarg_tests.cpp \
   test/hash_tests.cpp \
+  test/hdmint_tests.cpp \
   test/key_tests.cpp \
   test/limitedmap_tests.cpp \
   test/dbwrapper_tests.cpp \
@@ -105,7 +107,6 @@ BITCOIN_TESTS =\
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
   test/sigma_partialspend_mempool_tests.cpp \
-  test/spend_all_oldmints_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \

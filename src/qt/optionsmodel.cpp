@@ -111,7 +111,6 @@ void OptionsModel::Init(bool resetSettings)
 #endif
 
     // Network
-
     if (!settings.contains("fTorSetup"))
         settings.setValue("fTorSetup", DEFAULT_TOR_SETUP);
     if (!SoftSetBoolArg("-torsetup", settings.value("fTorSetup").toBool()))

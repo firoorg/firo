@@ -11,6 +11,7 @@
 #include "support/allocators/secure.h"
 
 #include "wallet/walletdb.h"
+#include "wallet/wallet.h"
 
 #include <map>
 #include <vector>
@@ -194,7 +195,7 @@ public:
     bool havePrivKey(const CKeyID &address) const;
     void getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs);
     bool isSpent(const COutPoint& outpoint) const;
-    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins) const;
+    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType=ALL_COINS) const;
 
     bool isLockedCoin(uint256 hash, unsigned int n) const;
     void lockCoin(COutPoint& output);
@@ -212,16 +213,18 @@ public:
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes);
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
+        const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes);
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Mint sigma
-    void sigmaMint(const CAmount& n);
+    void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);
     void checkSigmaAmount(bool forced);
 
+    std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
 private:
     CWallet *wallet;
@@ -284,7 +287,7 @@ Q_SIGNALS:
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
     // Update sigma changed
-    void notifySigmaChanged(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending);
+    void notifySigmaChanged(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
 
 public Q_SLOTS:
     /* Wallet status might have changed */

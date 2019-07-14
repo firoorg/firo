@@ -6,7 +6,8 @@
 
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
-#include "sigmapage.h"
+#include "sigmadialog.h"
+#include "zc2sigmapage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
@@ -51,7 +52,9 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     walletModel(0),
     overviewPage(0),
     sendExodusView(0),
-    sigmaPage(0),
+    sigmaView(0),
+    blankSigmaView(0),
+    zc2SigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
     platformStyle(platformStyle),
@@ -65,7 +68,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
-    sigmaPage = new SigmaPage(platformStyle, this);
+    sigmaPage = new QWidget(this);
+    zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
     toolboxPage = new QWidget(this);
     znodeListPage = new ZnodeList(platformStyle);
@@ -73,6 +77,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     setupTransactionPage();
     setupSendCoinPage();
     setupToolboxPage();
+    setupSigmaPage();
 
     addWidget(overviewPage);
     addWidget(exoAssetsPage);
@@ -81,15 +86,13 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
+    addWidget(zc2SigmaPage);
     addWidget(toolboxPage);
     addWidget(znodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
     connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), this, SLOT(focusExodusTransaction(uint256)));
-
-    // Subscribe message from sigma tab.
-    connect(sigmaPage, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 }
 
 WalletView::~WalletView()
@@ -175,6 +178,23 @@ void WalletView::setupSendCoinPage()
     sendCoinsPage->setLayout(pageLayout);
 }
 
+void WalletView::setupSigmaPage()
+{
+    // Set layout for Sigma page
+    auto pageLayout = new QVBoxLayout();
+
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView = new SigmaDialog(platformStyle);
+        connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+        pageLayout->addWidget(sigmaView);
+        sigmaPage->setLayout(pageLayout);
+    } else {
+        blankSigmaView = new BlankSigmaDialog();
+        pageLayout->addWidget(blankSigmaView);
+        sigmaPage->setLayout(pageLayout);
+    }
+}
+
 void WalletView::setupToolboxPage()
 {
     // Create tools widget
@@ -222,7 +242,10 @@ void WalletView::setClientModel(ClientModel *clientModel)
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
     exoAssetsPage->setClientModel(clientModel);
-    sigmaPage->setClientModel(clientModel);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView->setClientModel(clientModel);
+    }
+    zc2SigmaPage->setClientModel(clientModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setClientModel(clientModel);
@@ -242,12 +265,16 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
-    sigmaPage->setWalletModel(walletModel);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView->setWalletModel(walletModel);
+    }
+    zc2SigmaPage->createModel();
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
     sendZcoinView->setModel(walletModel);
     exoAssetsPage->setWalletModel(walletModel);
+    zc2SigmaPage->setWalletModel(walletModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setWalletModel(walletModel);
@@ -368,6 +395,14 @@ void WalletView::gotoSigmaPage()
     setCurrentWidget(sigmaPage);
 }
 
+void WalletView::gotoZc2SigmaPage()
+{
+    if (pwalletMain->IsHDSeedAvailable()) {
+        setCurrentWidget(zc2SigmaPage);
+    } else {
+        setCurrentWidget(sigmaPage);
+    }
+}
 
 void WalletView::gotoToolboxPage()
 {

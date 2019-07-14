@@ -8,7 +8,7 @@
 #include "amount.h"
 #include "exoassetsdialog.h"
 #include "znodelist.h"
-#include "sigmapage.h"
+#include "sigmadialog.h"
 
 #include <QStackedWidget>
 
@@ -31,6 +31,7 @@ class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 class ZerocoinPage;
+class Zc2SigmaPage;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -71,6 +72,7 @@ private:
     void setupTransactionPage();
     void setupSendCoinPage();
     void setupToolboxPage();
+    void setupSigmaPage();
 
 private:
     ClientModel *clientModel;
@@ -91,7 +93,10 @@ private:
     MetaDExDialog *metaDExTab;
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
-    SigmaPage *sigmaPage;
+    SigmaDialog *sigmaView;
+    BlankSigmaDialog *blankSigmaView;
+    QWidget *sigmaPage;
+    Zc2SigmaPage *zc2SigmaPage;
     TransactionView *zcoinTransactionList;
     TXHistoryDialog *exodusTransactionsView;
     QWidget *zcoinTransactionsView;
@@ -128,6 +133,8 @@ public Q_SLOTS:
     void gotoZerocoinPage();
     /** Switch to sigma page */
     void gotoSigmaPage();
+    /** Switch to ZC to Sigma page */
+    void gotoZc2SigmaPage();
     /** Switch to utility page */
     void gotoToolboxPage();
 

@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     std::vector<uint256> vtxid;
     // Can't test denomination 0.1, because we're unable to pay the fees.
-    std::vector<std::string> denominations = {"0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.5", "1", "10", "25", "100"};
 
     // Get smallest denomination value
     std::vector<sigma::CoinDenomination> denoms;
@@ -101,15 +101,15 @@ BOOST_AUTO_TEST_CASE(partialspend)
         CWalletTx dtx;
         CAmount dFee;
         std::vector<CSigmaEntry> dSelected;
-        std::vector<CSigmaEntry> dChanges;
+        std::vector<CHDMint> dChanges;
 
-        CAmount denomAmount01;
-        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
+        CAmount denomAmount005;
+        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_05, denomAmount005);
 
         // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
+            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
         dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
 
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         std::vector<CRecipient> recipients = {
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
+            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
 
         // Create two spend transactions using the same mint.
@@ -153,15 +153,15 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         // Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
 
         // Add invalid transaction to mempool, this will pass because we have removed serials from state
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
         // Bring serials back to zerocoin state
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
@@ -174,12 +174,12 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
         vtxid.resize(1);
-        tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
 
         // Bring serials back
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         // Create new block, last block should be remove because it contain invalid spend tx
         mempool.clear();
@@ -327,7 +327,7 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Create tx
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     // Expect 2 spends

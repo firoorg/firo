@@ -36,6 +36,7 @@
 #include "znodeman.h"
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
+#include "sigma/remint.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -257,17 +258,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(!params.IsMain() || nHeight > HF_ZEROSPEND_FIX){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
-    if(!params.IsMain() ||
-        nHeight > SWITCH_TO_MORE_SPEND_TXS ||
-        Params().NetworkIDString() == CBaseChainParams::REGTEST){
-        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
-    }
-
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
     CTxMemPool::setEntries waitSet;
@@ -413,27 +403,30 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 continue;
             }
 
-            if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
-                LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
+            if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+                sigma::CSigmaState * sigmaState = sigma::CSigmaState::GetState();
+                if(sigmaState->IsSurgeConditionDetected())
+                    continue;
+            }
 
-                if (tx.IsSigmaSpend()) {
-                    auto spendAmount = sigma::GetSpendAmount(tx);
-                    if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
-                       spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
-                        continue;
-                    }
-                    if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
-                        continue;
-                    }
-                    if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
-                        continue;
-                    }
-                } else {
-                    LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
-                    LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
-                    if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
-                        continue;
-                    }
+            // temporarily disable zerocoin. Re-enable after sigma release
+            // Make exception for regtest network (for remint tests)
+            if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
+                continue;
+
+            if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
+                // Sigma spend and zerocoin->sigma remint are subject to the same limits
+                CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
+
+                if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
+                    spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
+                    continue;
+                }
+                if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
+                    continue;
+                }
+                if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+                    continue;
                 }
 
                 //mempool.countZCSpend--;
@@ -461,10 +454,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                     continue;
                 }
 
-                CAmount nTxFees(0);
-                if (tx.IsSigmaSpend()) {
-                    nTxFees = iter->GetFee();
-                }
+                CAmount nTxFees = iter->GetFee();
 
                 pblock->vtx.push_back(tx);
                 pblocktemplate->vTxFees.push_back(nTxFees);
@@ -473,14 +463,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                COUNT_SPEND_ZC_TX += tx.vin.size();
-                if (tx.IsSigmaSpend()) {
-                    nSigmaSpend += tx.vin.size();
-                    nValueSigmaSpend += sigma::GetSpendAmount(tx);
-                }
+                nSigmaSpend += tx.vin.size();
+                nValueSigmaSpend += spendAmount;
                 inBlock.insert(iter);
                 continue;
             }
+
 
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
@@ -958,7 +946,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -1316,4 +1304,3 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
-

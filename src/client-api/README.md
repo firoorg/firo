@@ -460,10 +460,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 { 
     txids: {
-       STRING (txid),
-       STRING (txid),
-       STRING (txid),
-       ...
+       STRING (txid)
    },
     meta:{
        status: 200
@@ -591,26 +588,11 @@ OPTIONAL: not a necessary parameter to pass.
 { 
     data: {
         txids: {
-           STRING (txid),
-           STRING (txid),
-           STRING (txid),
-           ...
+           STRING (txid)
        }
     }, 
     meta:{
         status: 200
-    }
-}
-```
-
-*Returns:*
-```
-{ 
-    data: {
-        true
-    }, 
-    meta:{
-       status: 200
     }
 }
 ```

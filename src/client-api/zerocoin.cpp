@@ -37,6 +37,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoin> privCoins;
     CWalletTx wtx;
+    vector<CHDMint> vHdMints;
 
     UniValue sendTo = data[0].get_obj();
     sigma::CoinDenomination denomination;
@@ -69,6 +70,10 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             // embed this into a Zerocoin 'MINT' transaction along with a series
             // of currency inputs totaling the assigned value of one zerocoin.
 
+            // Generate and store secrets deterministically in the following function.
+            CHDMint fHdMint;
+            zwalletMain->GenerateMint(newCoin.getPublicCoin().getDenomination(), newCoin, fHdMint);
+
             sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
             // Create script for coin
@@ -88,10 +93,11 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 
             vecSend.push_back(recipient);
             privCoins.push_back(newCoin);
+            vHdMints.push_back(fHdMint);
         }
     }
 
-    string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, wtx);
+    string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vHdMints, wtx);
 
     if (strError != "")
         throw runtime_error(strError);
@@ -191,9 +197,11 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             string txid;
 
             BOOST_FOREACH(CSigmaEntry coin, coins){
-                if(!pwalletMain->GetTxInfoForSigmaPubcoin(coin, txid, index)){
+                COutPoint outpoint;
+                if(!sigma::GetOutPoint(outpoint, coin.value))
                     throw runtime_error("Mint tx not found!");
-                }
+                txid = outpoint.hash.ToString();
+                index = outpoint.n;
                 string key = txid + to_string(index);
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("txid", txid));
@@ -225,25 +233,21 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 
     EnsureWalletIsUnlocked();
 
-    list <CSigmaEntry> listPubcoin;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListSigmaPubCoin(listPubcoin);
+    list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(true, false);
     UniValue results(UniValue::VOBJ);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
-        if (!zerocoinItem.IsUsed) {
-            uint256 serialNumberHash = sigma::GetSerialHash(zerocoinItem.serialNumber);
+        uint256 serialNumberHash = primitives::GetSerialHash(zerocoinItem.serialNumber);
 
-            UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("id", zerocoinItem.id));
-            entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
-            entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
-            entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
-            entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
-            entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
-            entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
-            results.push_back(Pair(serialNumberHash.ToString(), entry));
-        }
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("id", zerocoinItem.id));
+        entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+        entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
+        entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+        entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+        entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+        entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+        results.push_back(Pair(serialNumberHash.ToString(), entry));
     }
 
     return results;

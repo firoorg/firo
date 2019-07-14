@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     CWalletTx wtx;
     string stringError;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     // Test with small denominations to limit required coins.
     int denominationIndexA = 0; // 0.1
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than inputs limit.
-    printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
+    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){

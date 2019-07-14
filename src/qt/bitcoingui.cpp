@@ -37,6 +37,7 @@
 #include "znode-sync.h"
 #include "znodelist.h"
 #include "exodus_qtutils.h"
+#include "zc2sigmapage.h"
 
 #include <exodus/exodus.h>
 
@@ -110,7 +111,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
-    znodeAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
@@ -122,6 +122,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    zc2SigmaAction(0),
+    znodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -329,12 +331,21 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
-	sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
-	sigmaAction->setStatusTip(tr("Show the list of public coins that have been minted"));
-	sigmaAction->setToolTip(sigmaAction->statusTip());
-	sigmaAction->setCheckable(true);
-	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-	tabGroup->addAction(sigmaAction);
+    sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
+    sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
+    sigmaAction->setToolTip(sigmaAction->statusTip());
+    sigmaAction->setCheckable(true);
+    sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(sigmaAction);
+    sigmaAction->setVisible(true);
+
+    zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
+    zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
+    zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
+    zc2SigmaAction->setCheckable(true);
+    zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(zc2SigmaAction);
+    zc2SigmaAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -383,6 +394,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
+        connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
     if (exodusEnabled) {
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -525,6 +537,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
+        toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
 
         if (isExodusEnabled()) {
@@ -581,6 +594,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
+        checkZc2SigmaVisibility(clientModel->getNumBlocks());
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -824,6 +838,11 @@ void BitcoinGUI::gotoSigmaPage()
     if (walletFrame) walletFrame->gotoSigmaPage();
 }
 
+void BitcoinGUI::gotoZc2SigmaPage()
+{
+    if (walletFrame) walletFrame->gotoZc2SigmaPage();
+}
+
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
     if (walletFrame) walletFrame->gotoVerifyMessageTab(addr);
@@ -948,6 +967,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
+
+    checkZc2SigmaVisibility(count);
 }
 
 
@@ -1317,6 +1338,15 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
     uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
+}
+
+void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
+    if(!zc2SigmaAction->isVisible() && sigma::IsRemintWindow(numBlocks)) {
+        const bool show = Zc2SigmaPage::showZc2SigmaPage();
+
+        if(show)
+            zc2SigmaAction->setVisible(true);
+    }
 }
 
 UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle *platformStyle) :

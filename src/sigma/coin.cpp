@@ -26,17 +26,23 @@ bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out, CValidati
     switch (denom) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
+        case CoinDenomination::SIGMA_DENOM_0_05:
+            denom_out = 5 * CENT;
+            break;
         case CoinDenomination::SIGMA_DENOM_0_1:
-            denom_out = COIN / 10;
+            denom_out = 10 * CENT;
             break;
         case CoinDenomination::SIGMA_DENOM_0_5:
-            denom_out = COIN / 2;
+            denom_out = 50 * CENT;
             break;
         case CoinDenomination::SIGMA_DENOM_1:
             denom_out = COIN;
             break;
         case CoinDenomination::SIGMA_DENOM_10:
             denom_out = 10 * COIN;
+            break;
+        case CoinDenomination::SIGMA_DENOM_25:
+            denom_out = 25 * COIN;
             break;
         case CoinDenomination::SIGMA_DENOM_100:
             denom_out = 100 * COIN;
@@ -50,6 +56,10 @@ bool RealNumberToDenomination(const double& value, CoinDenomination& denom_out) 
 }
 
 bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
+    if (str == "0.05") {
+        denom_out = CoinDenomination::SIGMA_DENOM_0_05;
+        return true;
+    }
     if (str == "0.1") {
         denom_out = CoinDenomination::SIGMA_DENOM_0_1;
         return true;
@@ -66,6 +76,10 @@ bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
         denom_out = CoinDenomination::SIGMA_DENOM_10;
         return true;
     }
+    if (str == "25") {
+        denom_out = CoinDenomination::SIGMA_DENOM_25;
+        return true;
+    }
     if (str == "100") {
         denom_out = CoinDenomination::SIGMA_DENOM_100;
         return true;
@@ -74,6 +88,9 @@ bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
 }
 
 std::string DenominationToString(const CoinDenomination& denom) {
+    if (denom == CoinDenomination::SIGMA_DENOM_0_05) {
+        return "0.05";
+    }
     if (denom == CoinDenomination::SIGMA_DENOM_0_1) {
         return "0.1";
     }
@@ -85,6 +102,9 @@ std::string DenominationToString(const CoinDenomination& denom) {
     }
     if (denom == CoinDenomination::SIGMA_DENOM_10) {
         return "10";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_25) {
+        return "25";
     }
     if (denom == CoinDenomination::SIGMA_DENOM_100) {
         return "100";
@@ -101,10 +121,13 @@ bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidati
     switch (value) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
-        case COIN / 10:
+        case 5 * CENT:
+            denom_out = CoinDenomination::SIGMA_DENOM_0_05;
+            break;
+        case 10 * CENT:
             denom_out = CoinDenomination::SIGMA_DENOM_0_1;
             break;
-        case COIN / 2:
+        case 50 * CENT:
             denom_out = CoinDenomination::SIGMA_DENOM_0_5;
             break;
         case 1 * COIN:
@@ -112,6 +135,9 @@ bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidati
             break;
         case 10 * COIN:
             denom_out = CoinDenomination::SIGMA_DENOM_10;
+            break;
+        case 25 * COIN:
+            denom_out = CoinDenomination::SIGMA_DENOM_25;
             break;
         case 100 * COIN:
             denom_out = CoinDenomination::SIGMA_DENOM_100;
@@ -122,10 +148,12 @@ return true;
 
 void GetAllDenoms(std::vector<sigma::CoinDenomination>& denominations_out) {
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_100);
+    denominations_out.push_back(CoinDenomination::SIGMA_DENOM_25);
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_10);
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_1);
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_0_5);
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_0_1);
+    denominations_out.push_back(CoinDenomination::SIGMA_DENOM_0_05);
 }
 
 //class PublicCoin
@@ -196,6 +224,13 @@ const unsigned char* PrivateCoin::getEcdsaSeckey() const {
 void PrivateCoin::setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
     if (seckey.size() == sizeof(ecdsaSeckey))
         std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
+    else
+        throw std::invalid_argument("EcdsaSeckey size does not match.");
+}
+
+void PrivateCoin::setEcdsaSeckey(uint256 &seckey) {
+    if (seckey.size() == sizeof(ecdsaSeckey))
+        std::copy(seckey.begin(), seckey.end(), &ecdsaSeckey[0]);
     else
         throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
@@ -275,6 +310,8 @@ namespace std {
 string to_string(::sigma::CoinDenomination denom)
 {
     switch (denom) {
+    case ::sigma::CoinDenomination::SIGMA_DENOM_0_05:
+        return "0.05";
     case ::sigma::CoinDenomination::SIGMA_DENOM_0_1:
         return "0.1";
     case ::sigma::CoinDenomination::SIGMA_DENOM_0_5:
@@ -283,6 +320,8 @@ string to_string(::sigma::CoinDenomination denom)
         return "1";
     case ::sigma::CoinDenomination::SIGMA_DENOM_10:
         return "10";
+    case ::sigma::CoinDenomination::SIGMA_DENOM_25:
+        return "25";
     case ::sigma::CoinDenomination::SIGMA_DENOM_100:
         return "100";
     default:

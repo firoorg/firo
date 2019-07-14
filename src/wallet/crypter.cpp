@@ -9,6 +9,9 @@
 #include "script/script.h"
 #include "script/standard.h"
 #include "util.h"
+#include "init.h"
+#include "wallet/walletdb.h"
+#include "wallet/wallet.h"
 
 #include <string>
 #include <vector>
@@ -168,7 +171,7 @@ bool CCryptoKeyStore::Lock()
     return true;
 }
 
-bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
+bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fFirstUnlock)
 {
     {
         LOCK(cs_KeyStore);
@@ -201,6 +204,11 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
             return false;
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
+        if(!fFirstUnlock && zwalletMain){
+            uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+            zwalletMain->SetupWallet(hashSeedMaster, false);
+            zwalletMain->SyncWithChain();
+        }
     }
     NotifyStatusChanged(this);
     return true;

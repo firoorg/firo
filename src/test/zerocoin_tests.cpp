@@ -1,3 +1,6 @@
+//In late April 2019 the Zerocoin functionality has been disabled.
+//The tests are changed so to verify it is disabled but change as little functionality as possible
+//The initial functionality is left in here after comment //DZC
 #include "util.h"
 
 #include "clientversion.h"
@@ -41,6 +44,8 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 {
+    FakeTestnet fakeTestnet;
+
     string denomination;
     vector<uint256> vtxid;
     std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
@@ -56,10 +61,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         vector<pair<std::string, int>> denominationPairs;
         std::pair<std::string, int> denominationPair(denomination, 1);
         denominationPairs.push_back(denominationPair);
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+        //DZC BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint not failed");
 
         //Verify Mint gets in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        //DZC BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mint was added to mempool");
+        return;
 
         int previousHeight = chainActive.Height();
         CBlock b = CreateAndProcessBlock({}, scriptPubKey);
@@ -167,6 +175,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 {
+    FakeTestnet FakeTestnet;
+
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
     string thirdPartyAddress;
@@ -198,11 +208,14 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
              std::pair<std::string, int> denominationPair(denominationsForTx[i], 1);
              denominationPairs.push_back(denominationPair);
         }
-                
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+
+        //DZC BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint not failed");
 
         //Verify mint tx get added in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
+        //DZC BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mint tx was added to mempool");
+        return;
 
         int previousHeight = chainActive.Height();
         b = CreateAndProcessBlock(vtxid, scriptPubKey);
@@ -409,6 +422,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
+
+    return;
+    
     vector<string> denominationsForTx;
     vector<pair<std::string, int>> denominationPairs;
     vector<uint256> vtxid;
@@ -488,6 +504,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs){
+    return;
+    
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
     string thirdPartyAddress;
@@ -505,7 +523,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs){
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than ZC_SPEND_LIMIT inputs.
-    printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
+    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (int i = 0; i < (ZC_SPEND_LIMIT+1)*2; i++){

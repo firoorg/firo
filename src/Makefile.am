@@ -164,8 +164,10 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
+  primitives/zerocoin.h \
   fixed.h \
   pow.h \
+  hdmint/hdmint.h \
   protocol.h \
   random.h \
   reverselock.h \
@@ -212,9 +214,12 @@ BITCOIN_CORE_H = \
   zmqserver/zmqinterface.h \
   zmqserver/zmqpublisher.h \
   zmqserver/zmqreplier.h \
+  hdmint/mintpool.h \
+  hdmint/tracker.h \
+  hdmint/wallet.h \
   zerocoin.h \
   zerocoin_v3.h \
-  hash_functions.h \
+  coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
   mtpstate.h
@@ -247,6 +252,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
+  primitives/zerocoin.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -268,7 +274,7 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   zerocoin.cpp \
   zerocoin_v3.cpp \
-  hash_functions.cpp \
+  coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
@@ -296,12 +302,15 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   darksend.cpp \
+  hdmint/hdmint.cpp \
   znode.cpp \
   instantx.cpp \
   znode-payments.cpp \
   znode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
+  hdmint/mintpool.cpp \
+  hdmint/wallet.cpp \
   zerocoin_v3.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
@@ -313,7 +322,9 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
+  hdmint/tracker.cpp \
   policy/rbf.cpp \
+  primitives/zerocoin.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -412,6 +423,7 @@ libbitcoin_common_a_SOURCES = \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
+  hdmint/hdmint.cpp \
   key.cpp \
   keystore.cpp \
   netbase.cpp \
@@ -496,6 +508,9 @@ libsigma_a_SOURCES = \
   sigma/coinspend.h \
   sigma/spend_metadata.cpp \
   sigma/spend_metadata.h \
+  sigma/remint.h \
+  sigma/remint.cpp \
+  sigma/remint-blacklist.cpp \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h
@@ -669,6 +684,9 @@ endif
 
 if ENABLE_TESTS
 include Makefile.test.include
+else
+check-local:
+	$(error Please rerun configure with tests enabling flag)
 endif
 
 # Exodus
