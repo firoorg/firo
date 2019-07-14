@@ -1,3 +1,4 @@
+#include "chainparams.h"
 #include "params.h"
 
 namespace sigma {
@@ -10,6 +11,13 @@ Params* Params::get_default() {
         //fixing generator G;
         GroupElement g("9216064434961179932092223867844635691966339998754536116709681652691785432045",
                        "33986433546870000256104618635743654523665060392313886665479090285075695067131");
+
+        if((::Params().NetworkIDString() == CBaseChainParams::MAIN)) {
+            unsigned char buff[32] = {0};
+            g.sha256(buff);
+            g.generate(buff);
+        }
+
         //fixing n and m; N = n^m = 16,384
         int n = 4;
         int m = 7;
