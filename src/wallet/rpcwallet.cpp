@@ -607,7 +607,7 @@ UniValue getreceivedbyaddress(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "getreceivedbyaddress \"zcoinaddress\" ( minconf )\n"
-            "\nReturns the total amount received by the given bitcoinaddress in transactions with at least minconf confirmations.\n"
+            "\nReturns the total amount received by the given zcoinaddress in transactions with at least minconf confirmations.\n"
             "\nArguments:\n"
             "1. \"zcoinaddress\"  (string, required) The zcoin address for transactions.\n"
             "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
