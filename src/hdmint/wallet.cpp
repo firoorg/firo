@@ -483,7 +483,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
-    if(!tracker.Get(hashSerial, mMeta))
+    if(!tracker.GetMetaFromSerial(hashSerial, mMeta))
         return false;
 
     txidSpend = mMeta.txid;

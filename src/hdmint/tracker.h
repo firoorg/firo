@@ -27,15 +27,13 @@ public:
     void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     void Add(const CSigmaEntry& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
-    bool HasPubcoin(const GroupElement& pubcoin) const;
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
-    bool HasSerial(const Scalar& bnSerial) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool HasMintTx(const uint256& txid);
     bool IsEmpty() const { return mapSerialHashes.empty(); }
     void Init();
-    bool Get(const uint256& hashSerial, CMintMeta& mMeta);
-    CMintMeta GetMetaFromPubcoin(const uint256& hashPubcoin);
+    bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
+    bool GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta);
     CAmount GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const;
     std::vector<uint256> GetSerialHashes();
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
@@ -50,7 +48,6 @@ public:
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
     void SetPubcoinNotUsed(const uint256& hashPubcoin);
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
-    bool UpdateZerocoinEntry(const CSigmaEntry& zerocoin);
     bool UpdateState(const CMintMeta& meta);
     void SetMetaNonDeterministic();
     void Clear();
