@@ -1810,6 +1810,21 @@ bool AcceptToMemoryPoolWorker(
         }
 #endif
     }
+#ifdef ENABLE_WALLET
+    vector<GroupElement> zcMintPubcoinsV3;
+    if(tx.IsSigmaMint()){
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if(txout.scriptPubKey.IsSigmaMint()){
+                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                zcMintPubcoinsV3.push_back(pubCoinValue);
+            }
+        }
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        }
+    }
+#endif
     SyncWithWallets(tx, NULL, NULL);
 
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
