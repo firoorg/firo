@@ -1091,7 +1091,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
             uint256 hashSerial = primitives::GetSerialHash(serial);
             CMintMeta meta;
             if(zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta)){
-                meta.isUsed = true;
+                meta.isUsed = false;
                 zwalletMain->GetTracker().UpdateState(meta);
 
                 // erase zerocoin spend entry
