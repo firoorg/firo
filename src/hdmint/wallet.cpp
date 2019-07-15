@@ -64,6 +64,33 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
     return true;
 }
 
+// Regenerate mintPool entry from given values
+void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
+{
+    CWalletDB walletdb(strWalletFile);
+    //Is locked
+    if (pwalletMain->IsLocked())
+        return;
+
+    uint512 seedZerocoin;
+    if(!CreateZerocoinSeed(seedZerocoin, nCount, seedId, false))
+        return;
+
+    GroupElement commitmentValue;
+    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+    if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
+        return;
+
+    uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
+
+    MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
+    mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
+    CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+    CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
+    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nCount);
+
+}
+
 // Add up to nIndex + 20 new mints to the mint pool (defaults to adding 20 mints if no param passed)
 void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 {
@@ -102,7 +129,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
         CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : %s count=%d\n", __func__, hashPubcoin.GetHex(), nLastCount);
+        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nLastCount);
     }
 
     // Update local + DB entries for count last generated

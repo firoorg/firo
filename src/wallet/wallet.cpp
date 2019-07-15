@@ -145,6 +145,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     // Create new metadata
     int64_t nCreationTime = GetTime();
     CKeyMetadata metadata(nCreationTime);
+    metadata.nChange = nChange;
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
