@@ -11,7 +11,7 @@ Params* Params::get_default() {
         //fixing generator G;
         GroupElement g;
 
-        if(::Params().GetConsensus().IsMain()) {
+        if(!(::Params().GetConsensus().IsTestnet())) {
             unsigned char buff[32] = {0};
             GroupElement base;
             base.set_base_g();
