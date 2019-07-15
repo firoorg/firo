@@ -2424,7 +2424,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(sigma::SigmaParams, serializedCoinSpend);
+            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
             uint64_t denom = newSpend.getIntDenomination();
             totalInputValue += denom;
         }
