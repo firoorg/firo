@@ -548,7 +548,8 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
             }
-            CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
+            CMintMeta meta;
+            GetMetaFromPubcoin(hashPubcoin, meta);
             if(UpdateMetaStatus(setMempool, meta)){
                 updatedMeta.emplace_back(meta);
             }
