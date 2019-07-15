@@ -574,13 +574,12 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const {
             return data.IsUsed;
         } else if (script.IsSigmaMint()) {
             auto pub = sigma::ParseSigmaMintScript(script);
-            CSigmaEntry data;
-
-            if (!db.ReadZerocoinEntry(pub, data)) {
+            uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+            CMintMeta meta;
+            if(!zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, meta)){
                 return false;
             }
-
-            return data.IsUsed;
+            return meta.isUsed;
         }
     }
 
@@ -1089,25 +1088,16 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
             Scalar serial = spend.getCoinSerialNumber();
 
             // mark corresponding mint as unspent
-            list <CSigmaEntry> pubCoins;
-            walletdb.ListSigmaPubCoin(pubCoins);
+            uint256 hashSerial = primitives::GetSerialHash(serial);
+            CMintMeta meta;
+            if(zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta)){
+                meta.isUsed = false;
+                zwalletMain->GetTracker().UpdateState(meta);
 
-            BOOST_FOREACH(const CSigmaEntry &zerocoinItem, pubCoins) {
-                if (zerocoinItem.serialNumber == serial) {
-                    CSigmaEntry modifiedItem = zerocoinItem;
-                    modifiedItem.IsUsed = false;
-                    pwalletMain->NotifyZerocoinChanged(
-                        pwalletMain,
-                        zerocoinItem.value.GetHex(),
-                        std::string("New (") + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + "mint)",
-                        CT_UPDATED);
-                    walletdb.WriteZerocoinEntry(modifiedItem);
-
-                    // erase zerocoin spend entry
-                    CSigmaSpendEntry spendEntry;
-                    spendEntry.coinSerial = serial;
-                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
-                }
+                // erase zerocoin spend entry
+                CSigmaSpendEntry spendEntry;
+                spendEntry.coinSerial = serial;
+                walletdb.EraseCoinSpendSerialEntry(spendEntry);
             }
         }
     }
@@ -5520,7 +5510,7 @@ bool CWallet::CreateSigmaSpendTransaction(
                         return false;
                     }
                     CMintMeta meta;
-                    zwalletMain->GetTracker().Get(hashSerial, meta);
+                    zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta);
                     meta.isUsed = true;
                     zwalletMain->GetTracker().UpdateState(meta);
                     LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
@@ -6219,7 +6209,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                             return false;
                         }
                         CMintMeta meta;
-                        zwalletMain->GetTracker().Get(hashSerial, meta);
+                        zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta);
                         meta.isUsed = true;
                         zwalletMain->GetTracker().UpdateState(meta);
                         LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
@@ -6744,7 +6734,8 @@ string CWallet::SpendSigma(
     uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
     zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, txidSpend);
 
-    CMintMeta metaCheck = zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin);
+    CMintMeta metaCheck;
+    zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
     if (!metaCheck.isUsed) {
         strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
@@ -6887,7 +6878,8 @@ string CWallet::SpendMultipleSigma(
     BOOST_FOREACH(GroupElement zcSelectedValue, zcSelectedValues){
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, txidSpend);
-        CMintMeta metaCheck = zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin);
+        CMintMeta metaCheck; 
+        zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
         if (!metaCheck.isUsed) {
             strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
             LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
@@ -6965,7 +6957,8 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         //Set spent mint as used in memory
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
         zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
-        CMintMeta metaCheck = zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin);
+        CMintMeta metaCheck;
+        zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
         if (!metaCheck.isUsed) {
             string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
             LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
@@ -7011,7 +7004,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
     }
 
     CMintMeta meta;
-    if(!zwalletMain->GetTracker().Get(hashSerial, meta))
+    if(!zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta))
         return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
 
     CWalletDB walletdb(strWalletFile);
