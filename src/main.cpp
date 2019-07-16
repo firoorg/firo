@@ -6350,7 +6350,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
-            if (pfrom->cleanSubVer == "/Satoshi:0.13.8.1/") {
+            if (nHeight > chainparams.GetConsensus().nOldSigmaBanBlock && pfrom->cleanSubVer == "/Satoshi:0.13.8.1/") {
                 pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network");
                 pfrom->fDisconnect = 1;
                 LOCK(cs_main);
