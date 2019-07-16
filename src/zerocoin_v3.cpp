@@ -77,6 +77,9 @@ secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
 
     secp_primitives::GroupElement pub;
+    if (serialized.size() < pub.memoryRequired()) {
+        throw std::invalid_argument("Script is not a valid Sigma mint");
+    }
     pub.deserialize(serialized.data());
 
     return pub;
@@ -202,7 +205,8 @@ bool CheckSigmaSpendTransaction(
 
         try {
             std::tie(spend, coinGroupId) = ParseSigmaSpend(txin);
-        } catch (CBadTxIn&) {
+        }
+        catch (CBadTxIn&) {
             return state.DoS(100,
                 false,
                 REJECT_MALFORMED,

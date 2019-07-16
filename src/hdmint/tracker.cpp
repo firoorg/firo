@@ -357,7 +357,14 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
             if (txin.IsSigmaSpend()) {
                 std::unique_ptr<sigma::CoinSpend> spend;
                 uint32_t pubcoinId;
-                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                try {
+                    std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                } catch (CBadTxIn &) {
+                    return false;
+                } catch (std::ios_base::failure &) {
+                    return false;
+                }
+
                 uint256 mempoolHashSerial = primitives::GetSerialHash(spend->getCoinSerialNumber());
                 if(mempoolHashSerial==hashSerial){
                     return true;
