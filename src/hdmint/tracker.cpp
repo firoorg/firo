@@ -360,7 +360,14 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
             if (txin.IsSigmaSpend()) {
                 std::unique_ptr<sigma::CoinSpend> spend;
                 uint32_t pubcoinId;
-                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                try {
+                    std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                } catch (CBadTxIn &) {
+                    return false;
+                } catch (std::ios_base::failure &) {
+                    return false;
+                }
+
                 uint256 mempoolHashSerial = primitives::GetSerialHash(spend->getCoinSerialNumber());
                 if(mempoolHashSerial==hashSerial){
                     return true;
@@ -551,7 +558,8 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
             }
-            CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
+            CMintMeta meta;
+            GetMetaFromPubcoin(hashPubcoin, meta);
             if(UpdateMetaStatus(setMempool, meta)){
                 updatedMeta.emplace_back(meta);
             }
