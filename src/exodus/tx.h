@@ -44,8 +44,6 @@ private:
     unsigned int type;
     unsigned short version; // = MP_TX_PKT_V0;
 
-    exodus::InputMode inputMode;
-
     // SimpleSend, SendToOwners, TradeOffer, MetaDEx, AcceptOfferBTC,
     // CreatePropertyFixed, CreatePropertyVariable, GrantTokens, RevokeTokens
     uint64_t nValue;
@@ -266,19 +264,17 @@ public:
     }
 
     /** Sets the given values. */
-    void Set(const uint256& t, int b, unsigned int idx, int64_t bt, exodus::InputMode input)
+    void Set(const uint256& t, int b, unsigned int idx, int64_t bt)
     {
         txid = t;
         block = b;
         tx_idx = idx;
         blockTime = bt;
-        inputMode = input;
     }
 
     /** Sets the given values. */
     void Set(const std::string& s, const std::string& r, uint64_t n, const uint256& t,
-        int b, unsigned int idx, unsigned char *p, unsigned int size, int encodingClassIn, uint64_t txf,
-        exodus::InputMode input)
+        int b, unsigned int idx, unsigned char *p, unsigned int size, int encodingClassIn, uint64_t txf)
     {
         sender = s;
         receiver = r;
@@ -290,7 +286,6 @@ public:
         nNewValue = n;
         encodingClass = encodingClassIn;
         tx_fee_paid = txf;
-        inputMode = input;
         memcpy(&pkt, p, pkt_size);
     }
 

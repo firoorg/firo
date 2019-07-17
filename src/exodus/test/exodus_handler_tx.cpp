@@ -2,6 +2,7 @@
 #include "exodus/errors.h"
 #include "exodus/encoding.h"
 #include "exodus/exodus.h"
+#include "exodus/tx.h"
 #include "exodus/wallettxs.h"
 
 #include "base58.h"
@@ -53,14 +54,15 @@ static std::vector<unsigned char> createMockSpendPayload()
     return payload;
 }
 
-CBlock getBlockHeighest() {
+CBlock getHeighestBlock()
+{
     CBlock block;
     auto idx = chainActive.Tip();
     BOOST_CHECK(ReadBlockFromDisk(block, idx, Params().GetConsensus()));
     return block;
 }
 
-BOOST_AUTO_TEST_CASE(exodus_handler_normal_tx)
+BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx)
 {
     pwalletMain->SetBroadcastTransactions(true);
     std::string fromAddress = CBitcoinAddress(pubkey.GetID()).ToString();
@@ -82,15 +84,16 @@ BOOST_AUTO_TEST_CASE(exodus_handler_normal_tx)
     );
 
     CreateAndProcessBlock({}, scriptPubKey);
-    auto block = getBlockHeighest();
+    auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
     CTransaction exodusTx = block.vtx[1];
+    CMPTransaction mp_obj;
 
-    BOOST_CHECK(exodus_handler_tx(exodusTx, chainActive.Height(), 1, chainActive.Tip()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_handler_normal_tx_with_spend)
+BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx_with_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     std::string fromAddress = CBitcoinAddress(pubkey.GetID()).ToString();
@@ -111,15 +114,16 @@ BOOST_AUTO_TEST_CASE(exodus_handler_normal_tx_with_spend)
 
     CreateAndProcessBlock({}, scriptPubKey);
 
-    auto block = getBlockHeighest();
+    auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
     CTransaction exodusTx = block.vtx[1];
+    CMPTransaction mp_obj;
 
-    BOOST_CHECK(!exodus_handler_tx(exodusTx, chainActive.Height(), 1, chainActive.Tip()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_handler_sigma_tx_with_non_spend)
+BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_non_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
@@ -149,15 +153,16 @@ BOOST_AUTO_TEST_CASE(exodus_handler_sigma_tx_with_non_spend)
 
     CreateAndProcessBlock({}, scriptPubKey);
 
-    auto block = getBlockHeighest();
+    auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
     CTransaction sigmaTx = block.vtx[1];
+    CMPTransaction mp_obj;
 
-    BOOST_CHECK(!exodus_handler_tx(sigmaTx, chainActive.Height(), 1, chainActive.Tip()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_handler_sigma_tx_with_spend)
+BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
@@ -180,12 +185,13 @@ BOOST_AUTO_TEST_CASE(exodus_handler_sigma_tx_with_spend)
 
     CreateAndProcessBlock({}, scriptPubKey);
 
-    auto block = getBlockHeighest();
+    auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
     CTransaction sigmaTx = block.vtx[1];
+    CMPTransaction mp_obj;
 
-    BOOST_CHECK(exodus_handler_tx(sigmaTx, chainActive.Height(), 1, chainActive.Tip()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
