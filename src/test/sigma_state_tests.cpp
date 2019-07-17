@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspend)
 
     auto coinSerial = coin.getCoinSerialNumber();
     auto initSize = sigmaState->GetSpends().count(coinSerial);
-    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    sigmaState->AddSpend(coinSerial, pubcoin.getDenomination(), 0);
     auto actSize = sigmaState->GetSpends().count(coinSerial);
 
     BOOST_CHECK_MESSAGE(initSize + 1 == actSize, "Serial was not added to usedCoinSerials.");
@@ -351,7 +351,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspend_to_mempool_coin_used)
 
     auto coinSerial = coin.getCoinSerialNumber();
 
-    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    sigmaState->AddSpend(coinSerial, pubcoin.getDenomination(), 0);
     BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 0,
       "Unexpected mempoolCoinSerials size before call AddSpendToMempool.");
 
@@ -471,7 +471,7 @@ BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_used)
 
     auto coinSerial = coin.getCoinSerialNumber();
 
-    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    sigmaState->AddSpend(coinSerial, pubcoin.getDenomination(), 0);
 
     BOOST_CHECK_MESSAGE(!sigmaState->CanAddSpendToMempool(coinSerial),
       "CanAddSpendToMempool return true, which means coin not in use, but should be.");
@@ -516,7 +516,7 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
     BOOST_CHECK_MESSAGE(sigmaState->GetMempoolCoinSerials().size() == 1,
       "Unexpected mempoolCoinSerials size before reset.");
 
-    sigmaState->AddSpend(coinSerial, pubcoin.denomination, 0);
+    sigmaState->AddSpend(coinSerial, pubcoin.getDenomination(), 0);
 
     BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 1,
       "Unexpected usedCoinSerials size before reset.");
