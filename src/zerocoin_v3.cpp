@@ -657,7 +657,7 @@ bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin) {
     if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
         LogPrintf("can't read block from disk.\n");
 
-    return GetOutPointFromBlock(outPoint, pubCoin.value, block);
+    return GetOutPointFromBlock(outPoint, pubCoin.getValue(), block);
 }
 
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue) {
@@ -986,9 +986,9 @@ bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
 
 bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
     for ( auto it = GetMints().begin(); it != GetMints().end(); ++it ){
-    	const sigma::PublicCoin pubCoin = (*it).first;
-        if(primitives::GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
-            pubCoinValue = pubCoin.value;
+        const sigma::PublicCoin & pubCoin = (*it).first;
+        if(pubCoin.getValueHash()==pubCoinValueHash){
+            pubCoinValue = pubCoin.getValue();
             return true;
         }
     }

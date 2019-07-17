@@ -19,8 +19,8 @@ std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
 }
 
 std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const noexcept {
-    vector<unsigned char> bnData(coin.value.memoryRequired());
-    coin.value.serialize(&bnData[0]);
+    vector<unsigned char> bnData(coin.getValue().memoryRequired());
+    coin.getValue().serialize(&bnData[0]);
 
     unsigned char hash[CSHA256::OUTPUT_SIZE];
     CSHA256().Write(&bnData[0], bnData.size()).Finalize(hash);
