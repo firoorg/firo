@@ -19,15 +19,10 @@ std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
 }
 
 std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const noexcept {
-    vector<unsigned char> bnData(coin.getValue().memoryRequired());
-    coin.getValue().serialize(&bnData[0]);
+    uint256 hash = coin.getValueHash();
 
-    unsigned char hash[CSHA256::OUTPUT_SIZE];
-    CSHA256().Write(&bnData[0], bnData.size()).Finalize(hash);
-
-    // take the first bytes of "hash".
     std::size_t result;
-    std::memcpy(&result, hash, sizeof(std::size_t));
+    std::memcpy(&result, hash.begin(), sizeof(std::size_t));
     return result;
 }
 
