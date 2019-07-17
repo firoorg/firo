@@ -17,7 +17,7 @@ SigmaPrivateKey::SigmaPrivateKey(const sigma::Params *params) : params(params)
 
 bool SigmaPrivateKey::IsValid() const
 {
-    return serial.isMember() && secret.isMember();
+    return serial.isMember() && randomness.isMember();
 }
 
 void SigmaPrivateKey::SetSerial(const secp_primitives::Scalar& v)
@@ -25,21 +25,21 @@ void SigmaPrivateKey::SetSerial(const secp_primitives::Scalar& v)
     serial = v;
 }
 
-void SigmaPrivateKey::SetSecret(const secp_primitives::Scalar& v)
+void SigmaPrivateKey::SetRandomness(const secp_primitives::Scalar& v)
 {
-    secret = v;
+    randomness = v;
 }
 
-void SigmaPrivateKey::Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& secret)
+void SigmaPrivateKey::Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness)
 {
     SetSerial(serial);
-    SetSecret(secret);
+    SetRandomness(randomness);
 }
 
 void SigmaPrivateKey::Generate()
 {
     serial.randomize();
-    secret.randomize();
+    randomness.randomize();
 }
 
 // SigmaPublicKey Implementation.
@@ -73,7 +73,7 @@ void SigmaPublicKey::Generate(const SigmaPrivateKey& pkey)
         pkey.GetParams()->get_g(),
         pkey.GetSerial(),
         pkey.GetParams()->get_h0(),
-        pkey.GetSecret()
+        pkey.GetRandomness()
     );
 }
 

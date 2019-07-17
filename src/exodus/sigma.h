@@ -27,19 +27,19 @@ public:
 
     const sigma::Params * GetParams() const { return params; };
     const secp_primitives::Scalar& GetSerial() const { return serial; }
-    const secp_primitives::Scalar& GetSecret() const { return secret; }
+    const secp_primitives::Scalar& GetRandomness() const { return randomness; }
 
     bool IsValid() const;
 
     void SetSerial(const secp_primitives::Scalar& v);
-    void SetSecret(const secp_primitives::Scalar& v);
-    void Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& secret);
+    void SetRandomness(const secp_primitives::Scalar& v);
+    void Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness);
     void Generate();
 
 private:
     const sigma::Params *params;
     secp_primitives::Scalar serial;
-    secp_primitives::Scalar secret;
+    secp_primitives::Scalar randomness;
 };
 
 class SigmaPublicKey
@@ -136,7 +136,7 @@ public:
             proof.params->get_m()
         );
 
-        prover.proof(commits, *index, priv.GetSecret(), proof);
+        prover.proof(commits, *index, priv.GetRandomness(), proof);
     }
 
 private:

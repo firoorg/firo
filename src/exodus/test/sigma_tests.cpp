@@ -11,13 +11,13 @@ BOOST_AUTO_TEST_CASE(private_key)
     exodus::SigmaPrivateKey key;
 
     auto serial = key.GetSerial();
-    auto secret = key.GetSecret();
+    auto randomness = key.GetRandomness();
 
     key.Generate();
 
-    BOOST_CHECK_EQUAL(key.IsValid(), true);
+    BOOST_CHECK(key.IsValid());
     BOOST_CHECK_NE(key.GetSerial(), serial);
-    BOOST_CHECK_NE(key.GetSecret(), secret);
+    BOOST_CHECK_NE(key.GetRandomness(), randomness);
 }
 
 BOOST_AUTO_TEST_CASE(public_key)
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(public_key)
     priv.Generate();
     pub.Generate(priv);
 
-    BOOST_CHECK_EQUAL(pub.IsValid(), true);
+    BOOST_CHECK(pub.IsValid());
     BOOST_CHECK_NE(pub.GetCommitment(), commit);
 
     // Try a second time to see if we still get the same result.
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(proof)
     proof.Generate(key2, pubs.begin(), pubs.end());
 
     BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end()), true);
-    BOOST_CHECK_NE(proof.Verify(pubs.begin(), pubs.end() - 1), true);
+    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
