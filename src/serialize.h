@@ -17,6 +17,8 @@
 #include <stdint.h>
 #include <string>
 #include <string.h>
+#include <unordered_set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <deque>
@@ -48,7 +50,7 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
-/** 
+/**
  * Get begin pointer of vector (non-const version).
  * @note These functions avoid the undefined case of indexing into an empty
  * vector, as well as that of indexing after the end of the vector.
@@ -179,11 +181,11 @@ enum
 
 #define READWRITE(obj)      (::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 
-/** 
+/**
  * Implement three methods for serializable objects. These are actually wrappers over
  * "SerializationOp" template, which implements the body of each class' serialization
  * code. Adding "ADD_SERIALIZE_METHODS" in the body of the class causes these wrappers to be
- * added as members. 
+ * added as members.
  */
 #define ADD_SERIALIZE_METHODS                                                          \
     size_t GetSerializeSize(int nType, int nVersion) const {                         \
@@ -347,16 +349,16 @@ uint64_t ReadCompactSize(Stream& is)
  * sure the encoding is one-to-one, one is subtracted from all but the last digit.
  * Thus, the byte sequence a[] with length len, where all but the last byte
  * has bit 128 set, encodes the number:
- * 
+ *
  *  (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
- * 
+ *
  * Properties:
  * * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
  * * Every integer has exactly one encoding
  * * Encoding does not depend on size of original integer type
  * * No redundancy: every (infinite) byte sequence corresponds to a list
  *   of encoded integers.
- * 
+ *
  * 0:         [0x00]  256:        [0x81 0x00]
  * 1:         [0x01]  16383:      [0xFE 0x7F]
  * 127:       [0x7F]  16384:      [0xFF 0x00]
@@ -414,7 +416,7 @@ I ReadVarInt(Stream& is)
 #define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
-/** 
+/**
  * Wrapper for serializing arrays and POD.
  */
 class CFlatData
@@ -601,20 +603,6 @@ template<typename Stream, typename T0, typename T1, typename T2> void Unserializ
 template<typename T0, typename T1, typename T2, typename T3> unsigned int GetSerializeSize(const std::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Serialize(Stream& os, const std::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
-
-/**
- * map
- */
-template<typename K, typename T, typename Pred, typename A> unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename T, typename Pred, typename A> void Serialize(Stream& os, const std::map<K, T, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename T, typename Pred, typename A> void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion);
-
-/**
- * set
- */
-template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
 
 
 /**
@@ -1044,29 +1032,30 @@ void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nV
 /**
  * map
  */
-template<typename K, typename T, typename Pred, typename A>
-unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion)
+
+template <typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
-    for (typename std::map<K, T, Pred, A>::const_iterator mi = m.begin(); mi != m.end(); ++mi)
+    for (typename MapType::const_iterator mi = m.begin(); mi != m.end(); ++mi)
         nSize += GetSerializeSize((*mi), nType, nVersion);
     return nSize;
 }
 
-template<typename Stream, typename K, typename T, typename Pred, typename A>
-void Serialize(Stream& os, const std::map<K, T, Pred, A>& m, int nType, int nVersion)
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
-    for (typename std::map<K, T, Pred, A>::const_iterator mi = m.begin(); mi != m.end(); ++mi)
+    for (typename MapType::const_iterator mi = m.begin(); mi != m.end(); ++mi)
         Serialize(os, (*mi), nType, nVersion);
 }
 
-template<typename Stream, typename K, typename T, typename Pred, typename A>
-void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion)
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 {
     m.clear();
     unsigned int nSize = ReadCompactSize(is);
-    typename std::map<K, T, Pred, A>::iterator mi = m.begin();
+    typename MapType::iterator mi = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
         std::pair<K, T> item;
@@ -1076,36 +1065,39 @@ void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion
 }
 
 
-
 /**
  * set
  */
-template<typename K, typename Pred, typename A>
-unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion)
+
+template <typename SetType>
+using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
+
+template<typename SetType, typename Enabled = CIsSet<SetType>>
+unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
-    for (typename std::set<K, Pred, A>::const_iterator it = m.begin(); it != m.end(); ++it)
+    for (typename SetType::const_iterator it = m.begin(); it != m.end(); ++it)
         nSize += GetSerializeSize((*it), nType, nVersion);
     return nSize;
 }
 
-template<typename Stream, typename K, typename Pred, typename A>
-void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion)
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>>
+void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
-    for (typename std::set<K, Pred, A>::const_iterator it = m.begin(); it != m.end(); ++it)
+    for (typename SetType::const_iterator it = m.begin(); it != m.end(); ++it)
         Serialize(os, (*it), nType, nVersion);
 }
 
-template<typename Stream, typename K, typename Pred, typename A>
-void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>>
+void Unserialize(Stream& is, SetType & m, int nType, int nVersion)
 {
     m.clear();
     unsigned int nSize = ReadCompactSize(is);
-    typename std::set<K, Pred, A>::iterator it = m.begin();
+    typename SetType::iterator it = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
-        K key;
+        typename SetType::key_type key;
         Unserialize(is, key, nType, nVersion);
         it = m.insert(it, key);
     }

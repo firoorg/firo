@@ -12,12 +12,18 @@
 #include "tinyformat.h"
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include <secp256k1/include/Scalar.h>
+#include <secp256k1/include/GroupElement.h>
+#include "sigma/coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"
+#include "coin_containers.h"
 #include "streams.h"
 
 #include <vector>
+#include <unordered_set>
+
 
 
 class CBlockFileInfo
@@ -220,12 +226,21 @@ public:
     //! Accumulator updates. Contains only changes made by mints in this block
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
     map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
-	
+
 	//! Same as accumulatorChanges but for alternative modulus
 	map<pair<int,int>, pair<CBigNum,int>> alternativeAccumulatorChanges;
-	
+
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
+
+/////////////////////// Sigma index entries. ////////////////////////////////////////////
+
+    //! Public coin values of mints in this block, ordered by serialized value of public coin
+    //! Maps <denomination,id> to vector of public coins
+    std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+
+    //! Values of coin serials spent in this block
+    sigma::spend_info_container sigmaSpentSerials;
 
     void SetNull()
     {
@@ -252,8 +267,10 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         mintedPubCoins.clear();
+        sigmaMintedPubCoins.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
+        sigmaSpentSerials.clear();
     }
 
     CBlockIndex()
@@ -448,6 +465,11 @@ public:
 		    READWRITE(accumulatorChanges);
             READWRITE(spentSerials);
 	    }
+
+        if (!(nType & SER_GETHASH) && nHeight >= Params().GetConsensus().nSigmaStartBlock) {
+            READWRITE(sigmaMintedPubCoins);
+            READWRITE(sigmaSpentSerials);
+        }
 
         nDiskBlockVersion = nVersion;
     }

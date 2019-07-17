@@ -11,6 +11,8 @@
 #include <QWidget>
 #include <memory>
 
+#include <QSettings>
+
 class ClientModel;
 class TransactionFilterProxy;
 class TxViewDelegate;
@@ -60,6 +62,8 @@ private:
     CAmount currentWatchOnlyBalance;
     CAmount currentWatchUnconfBalance;
     CAmount currentWatchImmatureBalance;
+
+    QSettings settings;
 
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;

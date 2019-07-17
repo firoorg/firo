@@ -444,6 +444,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
     bool fGood = true;
 
+    bool fMintUpdate = false;
+
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
@@ -473,6 +475,10 @@ UniValue importwallet(const UniValue& params, bool fHelp)
         int64_t nTime = DecodeDumpTime(vstr[1]);
         std::string strLabel;
         bool fLabel = true;
+        // CKeyMetadata
+        bool fHd = false;
+        std::string hdKeypath;
+        CKeyID hdMasterKeyID;
         for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
             if (boost::algorithm::starts_with(vstr[nStr], "#"))
                 break;
@@ -484,13 +490,36 @@ UniValue importwallet(const UniValue& params, bool fHelp)
                 strLabel = DecodeDumpString(vstr[nStr].substr(6));
                 fLabel = true;
             }
+            if(boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
+                hdKeypath = vstr[nStr].substr(10);
+                fHd = true;
+            }
+            if(boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
+                hdMasterKeyID.SetHex(vstr[nStr].substr(14));
+            }
         }
         LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+
+        // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
+        pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+        if(fHd){
+            pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
+            pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
+            pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+        }
+
         if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
             fGood = false;
             continue;
         }
-        pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+
+        if(fHd){
+            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
+            if(pwalletMain->mapKeyMetadata[keyid].nChange==2){
+                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild);
+                fMintUpdate = true;
+            }
+        }
         if (fLabel)
             pwalletMain->SetAddressBook(keyid, strLabel, "receive");
         nTimeBegin = std::min(nTimeBegin, nTime);
@@ -508,6 +537,9 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     LogPrintf("Rescanning last %i blocks\n", chainActive.Height() - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->MarkDirty();
+
+    if(fMintUpdate)
+        zwalletMain->SyncWithChain();
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
@@ -599,7 +631,6 @@ UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
     return dumpprivkey(dumpParams, false);
 }
 
-//This method intentionally left unchanged.
 UniValue dumpwallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -679,7 +710,13 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapKeyMetadata[keyid].hdKeypath.size() > 0 ? " hdkeypath="+pwalletMain->mapKeyMetadata[keyid].hdKeypath : ""));
+            if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
+                if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
+                    file << strprintf(" hdKeypath=%s", pwalletMain->mapKeyMetadata[keyid].hdKeypath);
+                    file << strprintf(" hdMasterKeyID=%s", pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID.ToString());
+                }
+            }
+            file << strprintf(" # addr=%s\n", strAddr);
         }
     }
     file << "\n";
@@ -690,6 +727,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
 
 UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
 {
+#ifndef UNSAFE_DUMPPRIVKEY
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "dumpwallet \"filename\"\n"
@@ -720,6 +758,7 @@ UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
             ;
         throw runtime_error(warning);
     }
+#endif
 
     UniValue dumpParams;
     dumpParams.setArray();

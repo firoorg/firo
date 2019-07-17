@@ -103,7 +103,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *platformStyle, QWidget *pa
         settings.setValue("nTransactionFee", (qint64)DEFAULT_TRANSACTION_FEE);
     if (!settings.contains("fPayOnlyMinFee"))
         settings.setValue("fPayOnlyMinFee", false);
-    ui->customFee->setValue(CENT/10);
+    ui->customFee->setValue(DEFAULT_MIN_RELAY_TX_FEE);
     ui->checkBoxMinimumFee->setChecked(true);
     minimizeFeeSection(false);
 }
