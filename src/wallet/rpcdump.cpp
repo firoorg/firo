@@ -712,8 +712,12 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             }
             if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
                 if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
-                    file << strprintf(" hdKeypath=%s", pwalletMain->mapKeyMetadata[keyid].hdKeypath);
-                    file << strprintf(" hdMasterKeyID=%s", pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID.ToString());
+                    string hdKeypath = pwalletMain->mapKeyMetadata[keyid].hdKeypath;
+                    uint160 hdMasterKeyID = pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID;
+                    if(hdKeypath != "")
+                        file << strprintf(" hdKeypath=%s", hdKeypath);
+                    if(!hdMasterKeyID.IsNull())
+                        file << strprintf(" hdMasterKeyID=%s", hdMasterKeyID.ToString());
                 }
             }
             file << strprintf(" # addr=%s\n", strAddr);
