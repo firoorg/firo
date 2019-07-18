@@ -39,8 +39,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
 // Block after which sigma mints are activated.
-#define ZC_SIGMA_STARTING_BLOCK         182030 //Approx July 23rd, 2019, 8:00 AM UTC
+#define ZC_SIGMA_STARTING_BLOCK         184200 //Approx July 30th, 2019, 8:00 AM UTC
 #define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
+
+// The block number after which old sigma clients are banned.
+#define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500

@@ -1,3 +1,4 @@
+#include "chainparams.h"
 #include "params.h"
 
 namespace sigma {
@@ -8,8 +9,19 @@ Params* Params::get_default() {
         return instance;
     else {
         //fixing generator G;
-        GroupElement g("9216064434961179932092223867844635691966339998754536116709681652691785432045",
-                       "33986433546870000256104618635743654523665060392313886665479090285075695067131");
+        GroupElement g;
+
+        if(!(::Params().GetConsensus().IsTestnet())) {
+            unsigned char buff[32] = {0};
+            GroupElement base;
+            base.set_base_g();
+            base.sha256(buff);
+            g.generate(buff);
+        }
+        else
+            g = GroupElement("9216064434961179932092223867844635691966339998754536116709681652691785432045",
+                             "33986433546870000256104618635743654523665060392313886665479090285075695067131");
+
         //fixing n and m; N = n^m = 16,384
         int n = 4;
         int m = 7;

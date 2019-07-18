@@ -148,8 +148,8 @@ testScripts = [
     # 'nulldummy.py',
     'transations_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
+    'sigma_zapwalletmints.py',
     'sigma_nonhd_wallet.py',
-    'sigma_zapsigmamints.py',
     'sigma_remint.py',
     'sigma_remint_validation.py',
     'sigma_meetspend.py',
@@ -164,7 +164,9 @@ testScripts = [
     'sigma_spend_extra_validation.py',
     'sigma_mint_validation.py',
     'sigma_mintspend.py',
-    'sigma_blocklimit.py'
+    'sigma_blocklimit.py',
+    'hdmint_mempool_zap.py',
+    'sigma_zapwalletmints_unconf_trans.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
