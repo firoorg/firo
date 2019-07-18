@@ -25,6 +25,7 @@ EXODUS_H = \
   exodus/rpcvalues.h \
   exodus/rules.h \
   exodus/script.h \
+  exodus/sigma.h \
   exodus/sp.h \
   exodus/sto.h \
   exodus/tally.h \
@@ -62,6 +63,7 @@ EXODUS_CPP = \
   exodus/rpcvalues.cpp \
   exodus/rules.cpp \
   exodus/script.cpp \
+  exodus/sigma.cpp \
   exodus/sp.cpp \
   exodus/sto.cpp \
   exodus/tally.cpp \
