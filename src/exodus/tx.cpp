@@ -431,9 +431,21 @@ bool CMPTransaction::interpret_MetaDExCancelEcosystem()
 /** Tx 50 */
 bool CMPTransaction::interpret_CreatePropertyFixed()
 {
-    if (pkt_size < 25) {
+    switch (version) {
+    case 0:
+        if (pkt_size < 25) {
+            return false;
+        }
+        break;
+    case 1:
+        if (pkt_size < 26) {
+            return false;
+        }
+        break;
+    default:
         return false;
     }
+
     const char* p = 11 + (char*) &pkt;
     std::vector<std::string> spstr;
     memcpy(&ecosystem, &pkt[4], 1);
@@ -456,6 +468,11 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
     p += 8;
     nNewValue = nValue;
 
+    if (version == 1) {
+        memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
@@ -466,6 +483,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t           value: %s\n", FormatByType(nValue, prop_type));
+        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
     }
 
     if (isOverrun(p)) {
@@ -555,9 +573,21 @@ bool CMPTransaction::interpret_CloseCrowdsale()
 /** Tx 54 */
 bool CMPTransaction::interpret_CreatePropertyManaged()
 {
-    if (pkt_size < 17) {
+    switch (version) {
+    case 0:
+        if (pkt_size < 17) {
+            return false;
+        }
+        break;
+    case 1:
+        if (pkt_size < 18) {
+            return false;
+        }
+        break;
+    default:
         return false;
     }
+
     const char* p = 11 + (char*) &pkt;
     std::vector<std::string> spstr;
     memcpy(&ecosystem, &pkt[4], 1);
@@ -576,6 +606,11 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
     memcpy(url, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(url)-1)); i++;
     memcpy(data, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(data)-1)); i++;
 
+    if (version == 1) {
+        memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
@@ -585,6 +620,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         PrintToLog("\t            name: %s\n", name);
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
+        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
     }
 
     if (isOverrun(p)) {
@@ -1574,6 +1610,11 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -37);
     }
 
+    if (!IsSigmaStatusValid(sigmaStatus)) {
+        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+        return PKT_ERROR_SP - 100;
+    }
+
     // ------------------------------------------
 
     CMPSPInfo::Entry newSP;
@@ -1589,6 +1630,7 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
     newSP.fixed = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
+    newSP.sigmaStatus = sigmaStatus;
 
     const uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);
@@ -1808,6 +1850,11 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -37);
     }
 
+    if (!IsSigmaStatusValid(sigmaStatus)) {
+        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+        return PKT_ERROR_SP - 100;
+    }
+
     // ------------------------------------------
 
     CMPSPInfo::Entry newSP;
@@ -1823,6 +1870,7 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
     newSP.manual = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
+    newSP.sigmaStatus = sigmaStatus;
 
     uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);

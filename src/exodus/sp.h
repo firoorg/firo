@@ -1,5 +1,5 @@
-#ifndef EXODUS_SP_H
-#define EXODUS_SP_H
+#ifndef ZCOIN_EXODUS_SP_H
+#define ZCOIN_EXODUS_SP_H
 
 #include "exodus/log.h"
 #include "exodus/exodus.h"
@@ -18,10 +18,18 @@ class uint256;
 #include <stdio.h>
 
 #include <fstream>
+#include <ios>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+enum class SigmaStatus : uint8_t {
+    SoftDisabled    = 0,
+    SoftEnabled     = 1,
+    HardDisabled    = 2,
+    HardEnabled     = 3
+};
 
 /** LevelDB based storage for currencies, smart properties and tokens.
  *
@@ -85,6 +93,7 @@ public:
         uint256 update_block;
         bool fixed;
         bool manual;
+        SigmaStatus sigmaStatus;
 
         // For crowdsale properties:
         //   txid -> amount invested, crowdsale deadline, user issued tokens, issuer issued tokens
@@ -98,6 +107,8 @@ public:
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+            auto sigmaStatus = static_cast<uint8_t>(this->sigmaStatus);
+
             READWRITE(issuer);
             READWRITE(prop_type);
             READWRITE(prev_prop_id);
@@ -122,6 +133,20 @@ public:
             READWRITE(fixed);
             READWRITE(manual);
             READWRITE(historicalData);
+
+            if (ser_action.ForRead()) {
+                // If it is EOF when trying to read additional field that mean it is data before we introduced it.
+                try {
+                    READWRITE(sigmaStatus);
+                } catch (std::ios_base::failure&) {
+                    // Assume it is EOF due to no other better way to check.
+                    sigmaStatus = static_cast<uint8_t>(SigmaStatus::SoftDisabled);
+                }
+            } else {
+                READWRITE(sigmaStatus);
+            }
+
+            this->sigmaStatus = static_cast<SigmaStatus>(sigmaStatus);
         }
 
         bool isDivisible() const;
@@ -218,6 +243,7 @@ std::string strEcosystem(uint8_t ecosystem);
 std::string getPropertyName(uint32_t propertyId);
 bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
+bool IsSigmaStatusValid(SigmaStatus status);
 
 CMPCrowd* getCrowd(const std::string& address);
 
@@ -238,4 +264,4 @@ unsigned int eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex);
 }
 
 
-#endif // EXODUS_SP_H
+#endif // ZCOIN_EXODUS_SP_H
