@@ -2835,7 +2835,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_main, cs_wallet);
         list <CZerocoinEntry> listOwnCoins;
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listOwnCoins);
