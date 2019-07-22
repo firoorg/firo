@@ -22,16 +22,16 @@
 
 
 static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
-                   uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
-                   std::vector<unsigned char> extraNonce) {
+        uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
+        std::vector<unsigned char> extraNonce) {
     CMutableTransaction txNew;
     txNew.nVersion = 1;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
-//    CScriptNum csn = CScriptNum(4);
-//    std::cout << "CScriptNum(4):" << csn.GetHex();
-//    CBigNum cbn = CBigNum(4);
-//    std::cout << "CBigNum(4):" << cbn.GetHex();
+    //    CScriptNum csn = CScriptNum(4);
+    //    std::cout << "CScriptNum(4):" << csn.GetHex();
+    //    CBigNum cbn = CBigNum(4);
+    //    std::cout << "CBigNum(4):" << cbn.GetHex();
     txNew.vin[0].scriptSig = CScript() << 504365040 << CBigNum(4).getvch() << std::vector < unsigned char >
     ((const unsigned char *) pszTimestamp, (const unsigned char *) pszTimestamp + strlen(pszTimestamp)) << extraNonce;
     txNew.vout[0].nValue = genesisReward;
@@ -60,8 +60,8 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
  *   vMerkleTree: 4a5e1e
  */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
-                   std::vector<unsigned char> extraNonce) {
-//    const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
+        std::vector<unsigned char> extraNonce) {
+    //    const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
     //btzc: zcoin timestamp
     const char *pszTimestamp = "Times 2014/10/31 Maine Judge Says Nurse Must Follow Ebola Quarantine for Now";
     const CScript genesisOutputScript = CScript();
@@ -85,8 +85,12 @@ public:
     CMainParams() {
         strNetworkID = "main";
 
-        consensus.chainType = Consensus::chainMain;        
-        consensus.nSubsidyHalvingInterval = 305000;
+        consensus.chainType = Consensus::chainMain;
+
+        consensus.nSubsidyHalvingFirst = 302438;
+        consensus.nSubsidyHalvingInterval = 420000;
+        consensus.nSubsidyHalvingStopBlock = 3646849;
+
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -157,6 +161,8 @@ public:
         consensus.nInitialMTPDifficulty = 0x1c021e57;
         consensus.nMTPRewardReduction = 2;
 
+        consensus.nDisableZerocoinStartBlock = 157000;
+
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         nPoolMaxTransactions = 3;
@@ -222,18 +228,47 @@ public:
 
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
-                        (0, uint256S("0xf11046292ff76af48b66de6f1a210c09825d2ab4f56975ec507766ebf9c9f443"))
-                        (14000, uint256S("0xeab9b7e451284cb75ada7609e0220bee2b4f289fed9d9cf2a9e3aa548b2d38eb"))
-                        (14001, uint256S("0x98641539b9b8ff4e6a8053ec904a14a99f95cf7655c71625104419b22016c9a0"))
-                        (14002, uint256S("0x8c8c67106b0b612b08edd13e846c97c24ad0b59066efdb3ad6666e20f90d4bfa"))
-                        (14003, uint256S("0xaccfa7c7bb153135def08bb54dadb1835744d9521afb36661a91aa2f70df9abd"))
-                        (14271, uint256S("0xf15088099a30f98e85a09789880f74cadca42f725c0cc1666484865539d2f335"))
-                        (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026")),
-                1486809257, // * UNIX timestamp of last checkpoint block
-                109007,    // * total number of transactions between genesis and last checkpoint
+                    (0, uint256S("0xf11046292ff76af48b66de6f1a210c09825d2ab4f56975ec507766ebf9c9f443"))
+                    (14000, uint256S("0xeab9b7e451284cb75ada7609e0220bee2b4f289fed9d9cf2a9e3aa548b2d38eb"))
+                    (14001, uint256S("0x98641539b9b8ff4e6a8053ec904a14a99f95cf7655c71625104419b22016c9a0"))
+                    (14002, uint256S("0x8c8c67106b0b612b08edd13e846c97c24ad0b59066efdb3ad6666e20f90d4bfa"))
+                    (14003, uint256S("0xaccfa7c7bb153135def08bb54dadb1835744d9521afb36661a91aa2f70df9abd"))
+                    (14271, uint256S("0xf15088099a30f98e85a09789880f74cadca42f725c0cc1666484865539d2f335"))
+                        (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026"))
+			(121378, uint256S("0xa7d9a56dd2986442b5c10ad036eb4e6555eaa8d9f6645c7b9620597792a153ac")),
+                1545712287, // * UNIX timestamp of last checkpoint block
+                933513,    // * total number of transactions between genesis and last checkpoint
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
+        consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
+        consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
+        consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
+        consensus.nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
+        consensus.nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
+        consensus.nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
+        consensus.nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
+        consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+
+        // Sigma related values.
+        consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+
+        // Dandelion related values.
+        consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
+        consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
+        consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+        consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+        consensus.nDandelionFluff = DANDELION_FLUFF;
     }
 };
 
@@ -248,7 +283,11 @@ public:
         strNetworkID = "test";
 
         consensus.chainType = Consensus::chainTestnet;
-        consensus.nSubsidyHalvingInterval = 305000;
+
+        consensus.nSubsidyHalvingFirst = 302438;
+        consensus.nSubsidyHalvingInterval = 420000;
+        consensus.nSubsidyHalvingStopBlock = 3646849;
+
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
@@ -286,18 +325,18 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
-	    consensus.nSpendV15StartBlock = 5000;
+        consensus.nSpendV15StartBlock = 5000;
         consensus.nCheckBugFixedAtBlock = 1;
         consensus.nZnodePaymentsBugFixedAtBlock = 1;
 
-	    consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
-	    consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
-	    consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
-	    consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
-	    consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
-	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+        consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+        consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+        consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+        consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+        consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
-	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
         consensus.nDontAllowDupTxsStartBlock = 18825;
 
@@ -319,6 +358,8 @@ public:
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;
 
+        consensus.nDisableZerocoinStartBlock = 50500;
+
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
         strSporkPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
@@ -331,10 +372,10 @@ public:
         nDefaultPort = 18168;
         nPruneAfterHeight = 1000;
         /**
-          * btzc: testnet params
-          * nTime: 1414776313
-          * nNonce: 1620571
-          */
+         * btzc: testnet params
+         * nTime: 1414776313
+         * nNonce: 1620571
+         */
         std::vector<unsigned char> extraNonce(4);
         extraNonce[0] = 0x08;
         extraNonce[1] = 0x00;
@@ -346,9 +387,9 @@ public:
         //std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
         assert(consensus.hashGenesisBlock ==
-               uint256S("0x1e3487fdb1a7d46dac3e8f3e58339c6eff54abf6aef353485f3ed64250a35e89"));
+                uint256S("0x1e3487fdb1a7d46dac3e8f3e58339c6eff54abf6aef353485f3ed64250a35e89"));
         assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+                uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
@@ -356,8 +397,10 @@ public:
         // vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
         // vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
         // vSeeds.push_back(CDNSSeedData("45.76.182.254", "45.76.182.254", false));
-        vSeeds.push_back(CDNSSeedData("MTP1", "mtp1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("MTP2", "mtp2.zcoin.io", false));
+        // vSeeds.push_back(CDNSSeedData("MTP1", "mtp1.zcoin.io", false));
+        // vSeeds.push_back(CDNSSeedData("MTP2", "mtp2.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("SIGMA1", "sigma1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("SIGMA2", "sigma2.zcoin.io", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
@@ -379,11 +422,40 @@ public:
 
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
-                        (0, uint256S("0x")),
-                        1414776313,
-                        0,
-                        100.0
+                    (0, uint256S("0x")),
+                    1414776313,
+                    0,
+                    100.0
         };
+
+        consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+        consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+        consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+        consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+        consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+        consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+        consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+        consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+
+        // Sigma related values.
+        consensus.nSigmaStartBlock = ZC_SIGMA_TESTNET_STARTING_BLOCK;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+            consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+
+            // Dandelion related values.
+            consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
+            consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
+            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+            consensus.nDandelionFluff = DANDELION_FLUFF;
     }
 };
 
@@ -398,7 +470,11 @@ public:
         strNetworkID = "regtest";
 
         consensus.chainType = Consensus::chainRegtest;
-        consensus.nSubsidyHalvingInterval = 305000;
+
+        consensus.nSubsidyHalvingFirst = 302438;
+        consensus.nSubsidyHalvingInterval = 420000;
+        consensus.nSubsidyHalvingStopBlock = 3646849;
+
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -453,6 +529,8 @@ public:
         consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;
 
+        consensus.nDisableZerocoinStartBlock = INT_MAX;
+
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
         pchMessageStart[2] = 0xb5;
@@ -491,8 +569,8 @@ public:
         fTestnetToBeDeprecatedFieldRPC = false;
 
         checkpointData = (CCheckpointData) {
-                boost::assign::map_list_of
-                        (0, uint256S("0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206")),
+            boost::assign::map_list_of
+                (0, uint256S("0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206")),
                 0,
                 0,
                 0
@@ -502,6 +580,35 @@ public:
         base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
+
+        nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+        nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+        nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+        nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+        nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+        nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+        nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+        nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+
+        // Sigma related values.
+        consensus.nSigmaStartBlock = 400;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
+        consensus.nZerocoinV2MintGracefulPeriod = 5;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
+        consensus.nZerocoinV2SpendGracefulPeriod = 20;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+            consensus.nZerocoinToSigmaRemintWindowSize = 1000;
+
+            // Dandelion related values.
+            consensus.nDandelionEmbargoMinimum = 0;
+            consensus.nDandelionEmbargoAvgAdd = 1;
+            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+            consensus.nDandelionFluff = DANDELION_FLUFF;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
@@ -538,4 +645,3 @@ void SelectParams(const std::string &network) {
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
- 

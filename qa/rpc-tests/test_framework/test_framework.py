@@ -12,6 +12,7 @@ import sys
 import shutil
 import tempfile
 import traceback
+import unittest
 
 from .util import (
     initialize_chain,
@@ -200,10 +201,10 @@ class ComparisonTestFramework(BitcoinTestFramework):
 
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
+                          default=os.getenv("ZCOIND", "zcoind"),
                           help="bitcoind binary to test")
         parser.add_option("--refbinary", dest="refbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
+                          default=os.getenv("ZCOIND", "zcoind"),
                           help="bitcoind binary to use for reference nodes (if any)")
 
     def setup_network(self):

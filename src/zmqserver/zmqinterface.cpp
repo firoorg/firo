@@ -111,6 +111,8 @@ CZMQReplierInterface* CZMQReplierInterface::Create()
 
 CZMQPublisherInterface::CZMQPublisherInterface()
 {
+    // Create worker
+    worker = new boost::thread(boost::bind(&CZMQThreadPublisher::Thread));
 }
 
 CZMQPublisherInterface::~CZMQPublisherInterface()
@@ -121,6 +123,9 @@ CZMQPublisherInterface::~CZMQPublisherInterface()
     {
         delete *i;
     }
+
+    //destroy worker
+    worker->interrupt();
 }
 
 CZMQPublisherInterface* CZMQPublisherInterface::Create()
@@ -136,15 +141,22 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
     factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
     factories["pubmintstatus"] = CZMQAbstract::Create<CZMQMintStatusTopic>;
+    factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
+    factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     
-    std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
-
     for (std::map<string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {
+        string index = i->first;
+        string address = BaseParams().APIAddr();
+        string port = index=="pubstatus" ? to_string(BaseParams().APIOpenPUBPort()) :
+                                           to_string(BaseParams().APIAuthPUBPort());
+
         CZMQFactory factory = factories[i->first];
         CZMQAbstract *notifier = factory();
         notifier->SetType("zmq" + i->first);
         notifier->SetAddress(address);
+        notifier->SetPort(port);
+        notifier->SetAuthority(address + port);
         notifiers.push_back(notifier);
     }
 
@@ -167,6 +179,23 @@ void CZMQPublisherInterface::UpdateSyncStatus()
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyStatus())
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::NotifyAPIStatus()
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyAPIStatus())
         {
             i++;
         }
@@ -252,6 +281,23 @@ void CZMQPublisherInterface::UpdatedMintStatus(std::string update)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyMintStatusUpdate(update))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::UpdatedSettings(std::string update)
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifySettingsUpdate(update))
         {
             i++;
         }

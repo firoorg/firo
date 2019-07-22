@@ -38,6 +38,7 @@ class InvalidateTest(BitcoinTestFramework):
 
         print("Connect nodes to force a reorg")
         connect_nodes_bi(self.nodes,0,1)
+
         sync_blocks(self.nodes[0:2])
         assert(self.nodes[0].getblockcount() == 6)
         badhash = self.nodes[1].getblockhash(2)

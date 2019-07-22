@@ -16,6 +16,11 @@
 #include "utilstrencodings.h"
 #include "utiltime.h"
 #include "univalue.h"
+#include <zlib.h>
+#include <fstream>
+
+#include "minizip/zip.h"
+// #include "minizip/unzip.h"
 
 #include <stdarg.h>
 
@@ -98,8 +103,6 @@ namespace boost {
 
 } // namespace boost
 
-using namespace std;
-
 // znode fZnode
 bool fZNode = false;
 bool fLiteMode = false;
@@ -107,14 +110,6 @@ int nWalletBackups = 10;
 
 const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
 const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
-
-const char * const PERSISTENT_FILENAME = "persistent";
-
-const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
-const char * const TX_METADATA_FILENAME = "tx_metadata.json";
-const char * const ZEROCOIN_FILENAME = "zerocoin.json";
-const char * const SETTINGS_FILENAME = "settings.json";
-const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -635,6 +630,13 @@ boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
     return pathConfigFile;
 }
 
+void CreatePersistentFiles(bool fNetSpecific){
+    CreatePaymentRequestFile(fNetSpecific);
+    CreateTxTimestampFile(fNetSpecific);
+    CreateTxMetadataFile(fNetSpecific);
+    CreateZerocoinFile(fNetSpecific);
+}
+
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific)
 {
     boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);
@@ -683,9 +685,6 @@ boost::filesystem::path CreateSettingsFile(bool fNetSpecific)
         UniValue settingsUni(UniValue::VOBJ);
         UniValue dataUni(UniValue::VOBJ);
         settingsUni.push_back(Pair("type", "settings"));
-        dataUni.push_back(Pair("daemon", NullUniValue));
-        dataUni.push_back(Pair("client", NullUniValue));
-        dataUni.push_back(Pair("restartNow", NullUniValue));
         settingsUni.push_back(Pair("data", dataUni));
         
         //write back UniValue
@@ -749,7 +748,6 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
     ClearDatadirCache();
 }
 
-#ifndef WIN32
 boost::filesystem::path GetPidFile()
 {
     boost::filesystem::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
@@ -766,7 +764,82 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
         fclose(file);
     }
 }
-#endif
+
+/*
+ * Creates a ZIP file -
+    after specifying an absolute path to a "root" directory, all filepaths derived from this path are stored in the ZIP file,
+    with only files and their paths from the root preserved.
+    eg. root path:                 /a/b/c/d/
+        filepaths(from root path): e/f.txt
+                                   g.dat
+
+    paths to folders (again, from a root) can be provided - in this case the method derives all sub-files and adds to "filePaths".
+    eg. folder path:  h/i
+        derives files: h/i/j.exe
+                       h/i/k.o
+                       h/i/l/m.jpeg
+
+    Breaking up the root and derived paths allows for easy unzipping from the same directory - the layout is preserved.
+*/
+bool CreateZipFile (std::string rootPath, std::vector<string> folderPaths, vector<string> filePaths, std::string destinationPath)
+{
+    zipFile zf = zipOpen(destinationPath.c_str(), APPEND_STATUS_CREATE);
+    if (zf == NULL)
+        return false;
+
+    BOOST_FOREACH(std::string folderPath, folderPaths){
+        std::string fullFolderPath = rootPath + folderPath;
+        for (const auto & entry : boost::filesystem::directory_iterator(fullFolderPath)){
+            std::string fullFolderFilePath = entry.path().string();
+            std::string folderFilePath = fullFolderFilePath.substr(rootPath.length());
+            filePaths.push_back(folderFilePath);
+        }
+    }
+
+    bool failed = false;
+    BOOST_FOREACH(string filePath, filePaths)
+    {
+        if(failed){
+            break;
+        }
+        std::string fullPath = rootPath + filePath;
+        std::fstream file(fullPath.c_str(), std::ios::binary | std::ios::in);
+        if (file.is_open())
+        {
+            file.seekg(0, std::ios::end);
+            long size = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+            std::vector<char> buffer(size);
+            if (size == 0 || file.read(&buffer[0], size)){
+                zip_fileinfo zfi = { 0 };
+                if (ZIP_OK == zipOpenNewFileInZip(zf, filePath.c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION))
+                {
+                    if (ZIP_OK != zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size)){
+                        failed = true;
+                    }
+
+                    if (ZIP_OK != zipCloseFileInZip(zf)){
+                        failed = true;
+                    }
+
+                    file.close();
+                    continue;
+                }
+            }
+            file.close();
+        }
+        failed = true;
+    }
+
+    zipClose(zf, NULL);
+
+    if (failed){
+        return false;
+    }
+
+    return true;
+}
 
 bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest)
 {
@@ -1015,40 +1088,9 @@ std::string CopyrightHolders(const std::string& strPrefix)
 
     // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
+        strCopyrightHolders
+                += '\n' + strPrefix + "The Bitcoin Core developers"
+                +  '\n' + strPrefix + "The Dash Core developers";
     }
     return strCopyrightHolders;
-}
-
-std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_t maxsize)
-{
-    FILE *f = fopen(filename.c_str(), "rb");
-    if (f == NULL)
-        return std::make_pair(false,"");
-    std::string retval;
-    char buffer[128];
-    size_t n;
-    while ((n=fread(buffer, 1, sizeof(buffer), f)) > 0) {
-        retval.append(buffer, buffer+n);
-        if (retval.size() > maxsize)
-            break;
-    }
-    fclose(f);
-    return std::make_pair(true,retval);
-}
-
-/** Write contents of std::string to a file.
- * @return true on success.
- */
-bool WriteBinaryFileTor(const std::string &filename, const std::string &data)
-{
-    FILE *f = fopen(filename.c_str(), "wb");
-    if (f == NULL)
-        return false;
-    if (fwrite(data.data(), 1, data.size(), f) != data.size()) {
-        fclose(f);
-        return false;
-    }
-    fclose(f);
-    return true;
 }

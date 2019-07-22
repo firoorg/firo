@@ -83,8 +83,8 @@ struct ZmqServerTestingSetup : public TestingSetup {
 
         CZMQAbstract::createCerts(true);
 
-        pzmqPublisherInterface = CZMQPublisherInterface::Create();
-        pzmqReplierInterface = CZMQReplierInterface::Create();
+        pzmqPublisherInterface = pzmqPublisherInterface->Create();
+        pzmqReplierInterface = pzmqReplierInterface->Create();
  
         // register publisher with validation interface
         RegisterValidationInterface(pzmqPublisherInterface);
@@ -119,7 +119,7 @@ struct ZmqServerTestingSetup : public TestingSetup {
             zmq_setsockopt(pSubSocket, ZMQ_CURVE_PUBLICKEY, public_key.c_str(), 40); 
         }
 
-        string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
+        string address = BaseParams().APIAddr() + to_string(BaseParams().APIAuthPUBPort());
         int rc = zmq_connect(pSubSocket, address.c_str());
         BOOST_CHECK(rc!=-1);
 
@@ -345,7 +345,7 @@ BOOST_AUTO_TEST_CASE(event_tests)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
 
     // // mintUpdates
-    entry.push_back(Pair("used", true));
+    entry.push_back(Pair("available", false));
     // use an arbitrary hash for the index.
     mintUpdates.push_back(Pair(chainActive.Tip()->phashBlock->ToString(), entry));
     cout << "Calling UpdatedMintStatus.." << endl;

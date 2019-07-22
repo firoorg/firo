@@ -32,6 +32,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -64,6 +65,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
         CZerocoinState::GetZerocoinState()->Reset();
+        CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
         RegisterAllCoreAPICommands(tableAPI);
         ClearDatadirCache();
@@ -89,6 +91,24 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         RegisterNodeSignals(GetNodeSignals());
 
         StartAPI();
+        // Init HD mint
+
+        // Create new keyUser and set as default key
+        // generate a new master key
+        CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
+        pwalletMain->SetHDMasterKey(masterPubKey);
+        CPubKey newDefaultKey;
+        if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
+            pwalletMain->SetDefaultKey(newDefaultKey);
+            pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive");
+        }
+
+        pwalletMain->SetBestChain(chainActive.GetLocator());
+
+        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+        zwalletMain->GetTracker().Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
 }
 
 TestingSetup::~TestingSetup()
@@ -98,6 +118,8 @@ TestingSetup::~TestingSetup()
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();
+        delete pwalletMain;
+        pwalletMain = NULL;
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;
@@ -110,7 +132,7 @@ TestingSetup::~TestingSetup()
 			boost::filesystem::remove_all(std::wstring(L"\\\\?\\") + pathTemp.wstring());
 		}
 		catch(...) {
-				
+
 		}
 	}
         bitdb.RemoveDb("wallet_test.dat");
@@ -141,7 +163,7 @@ CBlock
 TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
 {
     const CChainParams& chainparams = Params();
-    CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
+    CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey, {});
     CBlock& block = pblocktemplate->block;
 
     // Replace mempool-selected txns with just coinbase plus passed-in txns:

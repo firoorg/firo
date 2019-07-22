@@ -447,13 +447,16 @@ void CZnodeMan::DsegUpdate(CNode* pnode)
     LogPrint("znode", "CZnodeMan::DsegUpdate -- asked %s for the list\n", pnode->addr.ToString());
 }
 
-CZnode* CZnodeMan::Find(const std::string &txHash)
+CZnode* CZnodeMan::Find(const std::string &txHash, const std::string outputIndex)
 {
     LOCK(cs);
 
     BOOST_FOREACH(CZnode& mn, vZnodes)
     {
-        if(txHash==mn.vin.prevout.hash.ToString().substr(0,64))
+        COutPoint outpoint = mn.vin.prevout;
+
+        if(txHash==outpoint.hash.ToString().substr(0,64) &&
+           outputIndex==to_string(outpoint.n))
             return &mn;
     }
     return NULL;

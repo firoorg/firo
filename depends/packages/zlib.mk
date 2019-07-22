@@ -24,4 +24,3 @@ endef
 define $(package)_stage_cmds
   $(MAKE) DESTDIR=$($(package)_staging_dir) install $($(package)_build_opts)
 endef
-

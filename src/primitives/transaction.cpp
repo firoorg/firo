@@ -52,6 +52,16 @@ bool CTxIn::IsZerocoinSpend() const
     return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
 }
 
+bool CTxIn::IsSigmaSpend() const
+{
+    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_SIGMASPEND) );
+}
+
+bool CTxIn::IsZerocoinRemint() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINTOSIGMAREMINT));
+}
+
 std::string CTxIn::ToString() const
 {
     std::string str;
@@ -200,7 +210,7 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
 
 bool CTransaction::IsCoinBase() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || vin[0].scriptSig[0] != OP_ZEROCOINSPEND) );
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)));
 }
 
 bool CTransaction::IsZerocoinSpend() const
@@ -212,12 +222,52 @@ bool CTransaction::IsZerocoinSpend() const
     return false;
 }
 
+bool CTransaction::IsSigmaSpend() const
+{
+    for (const CTxIn &txin: vin) {
+        if (txin.IsSigmaSpend())
+            return true;
+    }
+    return false;
+}
+
 bool CTransaction::IsZerocoinMint() const
 {
     for (const CTxOut &txout: vout) {
         if (txout.scriptPubKey.IsZerocoinMint()){
             return true;
         }
+    }
+    return false;
+}
+
+bool CTransaction::IsSigmaMint() const
+{
+    if (IsZerocoinRemint())
+        return false;
+        
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsSigmaMint())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsZerocoinTransaction() const
+{
+    return IsZerocoinSpend() || IsZerocoinMint();
+}
+
+bool CTransaction::IsZerocoinV3SigmaTransaction() const
+{
+    return IsSigmaSpend() || IsSigmaMint() || IsZerocoinRemint();
+}
+
+bool CTransaction::IsZerocoinRemint() const
+{
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinRemint())
+            return true;
     }
     return false;
 }

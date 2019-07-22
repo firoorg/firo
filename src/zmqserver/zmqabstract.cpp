@@ -37,12 +37,22 @@ bool CZMQAbstract::NotifyStatus()
     return true;
 }
 
+bool CZMQAbstract::NotifyAPIStatus()
+{
+    return true;
+}
+
 bool CZMQAbstract::NotifyZnodeUpdate(CZnode &znode)
 {
     return true;
 }
 
 bool CZMQAbstract::NotifyMintStatusUpdate(std::string update)
+{
+    return true;
+}
+
+bool CZMQAbstract::NotifySettingsUpdate(std::string update)
 {
     return true;
 }
@@ -76,8 +86,6 @@ bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
             return -1;
         }
 
-        LogPrintf("ZMQ: message sent.\n");
-
         zmq_msg_close(&msg);
 
         if (!data)
@@ -91,8 +99,6 @@ bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 bool CZMQAbstract::SendMessage()
 {
     assert(psocket);
-
-    LogPrintf("zmq: in SendMessage\n");
 
     /* send three parts, command & data & a LE 4byte sequence number */
     unsigned char msgseq[sizeof(uint32_t)];

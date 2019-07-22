@@ -25,7 +25,6 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
@@ -34,6 +33,14 @@
 static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
 static const bool DEFAULT_LOGTIMESTAMPS = true;
+
+const char * const PERSISTENT_FILENAME = "persistent/";
+
+const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
+const char * const TX_METADATA_FILENAME = "tx_metadata.json";
+const char * const ZEROCOIN_FILENAME = "zerocoin.json";
+const char * const SETTINGS_FILENAME = "settings.json";
+const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
 
 /** Signals for translation. */
 class CTranslationInterface
@@ -141,16 +148,17 @@ void ClearDatadirCache();
 boost::filesystem::path GetPersistentDataDir(bool fNetSpecific = true);
 boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename);
 boost::filesystem::path GetConfigFile();
+void CreatePersistentFiles(bool fNetSpecific=true);
 boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific=true);
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
 boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
-#ifndef WIN32
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
-#endif
+
+bool CreateZipFile(std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath);
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
@@ -277,15 +285,5 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 }
 
 std::string CopyrightHolders(const std::string& strPrefix);
-
-
-
-std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_t maxsize=std::numeric_limits<size_t>::max());
-
-
-/** Write contents of std::string to a file.
- * @return true on success.
- */
-bool WriteBinaryFileTor(const std::string &filename, const std::string &data);
 
 #endif // BITCOIN_UTIL_H

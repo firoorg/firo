@@ -15,6 +15,8 @@
 #include "client-api/protocol.h"
 #include "univalue.h"
 
+#include <boost/thread/thread.hpp>
+
 extern CWallet *pwalletMain;
 
 static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
@@ -22,6 +24,7 @@ static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
 bool CZMQAbstractPublisher::Initialize()
 {
     LogPrint(NULL, "zmq: Initialize notification interface\n");
+
     assert(!pcontext);
 
     pcontext = zmq_init(1);
@@ -47,10 +50,10 @@ bool CZMQAbstractPublisher::Initialize()
     // set publish univalue as an object
     publish.setObject();
 
-    // check if address is being used by other publish notifier
-    std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(address);
+    // check if authority is being used by any other publisher notifier
+    std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(authority);
 
-    // check if address is being used by other publisher
+    // check if authority is being used by other publisher
     if (i==mapPublishers.end())
     {
         psocket = zmq_socket(pcontext, ZMQ_PUB);
@@ -59,8 +62,8 @@ bool CZMQAbstractPublisher::Initialize()
             zmqError("Failed to create socket");
             return false;
         }
-
-        if(CZMQAbstract::DEV_AUTH){
+        // TODO latter condition is a short term hack. make into proper inheritence hierarchy
+        if(CZMQAbstract::DEV_AUTH && this->topic != "apiStatus"){
             // Set up PUB auth.
             vector<string> keys = readCert(CZMQAbstract::Server);
 
@@ -71,24 +74,24 @@ bool CZMQAbstractPublisher::Initialize()
             zmq_setsockopt(psocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
         }
 
-        int rc = zmq_bind(psocket, address.c_str());
+        int rc = zmq_bind(psocket, authority.c_str());
         if (rc!=0)
         {
-            zmqError("Failed to bind address");
+            zmqError("Failed to bind authority");
             zmq_close(psocket);
             return false;
         }
 
-        // register this publisher for the address, so it can be reused for other publish publisher
-        mapPublishers.insert(std::make_pair(address, this));
+        // register this publisher for the authority, so it can be reused for another publish notifier
+        mapPublishers.insert(std::make_pair(authority, this));
         return true;
     }
     else
     {
-        LogPrint(NULL, "zmq: Reusing socket for address %s\n", address);
+        LogPrint(NULL, "zmq: Reusing socket for authority %s\n", authority);
 
         psocket = i->second->psocket;
-        mapPublishers.insert(std::make_pair(address, this));
+        mapPublishers.insert(std::make_pair(authority, this));
 
         return true;
     }
@@ -100,11 +103,11 @@ void CZMQAbstractPublisher::Shutdown()
     {
         assert(psocket);
 
-        int count = mapPublishers.count(address);
+        int count = mapPublishers.count(authority);
 
-        // remove this notifier from the list of publishers using this address
+        // remove this notifier from the list of publishers using this authority
         typedef std::multimap<std::string, CZMQAbstractPublisher*>::iterator iterator;
-        std::pair<iterator, iterator> iterpair = mapPublishers.equal_range(address);
+        std::pair<iterator, iterator> iterpair = mapPublishers.equal_range(authority);
 
         for (iterator it = iterpair.first; it != iterpair.second; ++it)
         {
@@ -187,6 +190,12 @@ bool CZMQStatusEvent::NotifyStatus()
     return true;
 }
 
+bool CZMQAPIStatusEvent::NotifyAPIStatus()
+{
+    Execute();
+    return true;
+}
+
 
 bool CZMQConnectionsEvent::NotifyConnections()
 {
@@ -262,6 +271,20 @@ bool CZMQMintStatusEvent::NotifyMintStatusUpdate(std::string update){
         updateObj.read(update);
     }catch(const std::exception& e){
        throw JSONAPIError(API_PARSE_ERROR, "Could not read mint update"); 
+    }
+    request.replace("data", updateObj);
+    Execute();
+
+    return true;
+}
+
+bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
+    LogPrintf("update in NotifySettingsUpdate: %s\n", update);
+    UniValue updateObj(UniValue::VOBJ);
+    try{
+        updateObj.read(update);
+    }catch(const std::exception& e){
+       throw JSONAPIError(API_PARSE_ERROR, "Could not read settings update");
     }
     request.replace("data", updateObj);
     Execute();

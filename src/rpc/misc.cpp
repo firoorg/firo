@@ -547,6 +547,18 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
         addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinMint));
     } else if(zerocoin::utils::isZerocoinSpend(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    } else if(zerocoin::utils::isZerocoin(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinMint));
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    } else if(zerocoin::utils::isSigmaMint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sigmaMint));
+    } else if(zerocoin::utils::isSigmaSpend(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    } else if(zerocoin::utils::isSigma(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sigmaMint));
+        addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    } else if(zerocoin::utils::isZerocoinRemint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
     } else {
         CBitcoinAddress address(addr);
         uint160 hashBytes;
@@ -1044,13 +1056,14 @@ bool getZerocoinSupply(CAmount & amount) {
             return true;
         if(lhs.first.blockHeight > rhs.first.blockHeight)
             return false;
-        return lhs.first.txindex < lhs.first.txindex;
+        return lhs.first.txindex < rhs.first.txindex;
     };
 
     if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
         std::sort(addressIndex.begin(), addressIndex.end(), predicate);
 
-    std::map<CBigNum, uint256> originalSerials;
+    using spend_value = std::pair<uint256, size_t>;
+    std::map<CBigNum, spend_value> originalSerials;
     CAmount amt = 0;
 
     for(idx_rec const & idr : addressIndex) {
@@ -1060,19 +1073,32 @@ bool getZerocoinSupply(CAmount & amount) {
         if(!GetTransaction(idr.first.txhash, tx, Params().GetConsensus(), hash, true))
             return false;
 
+        size_t num = 0;
         for(CTxIn const & in : tx.vin) {
+            ++num;
             if(!in.IsZerocoinSpend())
                 continue;
 
-            CBigNum const zspendSerial = ZerocoinGetSpendSerialNumber(tx, in);
-            if(zspendSerial == CBigNum(0))
-                return false;
+            CBigNum zspendSerial = CBigNum(0);
+            libzerocoin::CoinDenomination zspendAmount;
+
+            try {
+                CDataStream serializedCoinSpend((const char *)&*(in.scriptSig.begin() + 4),
+                                            (const char *)&*in.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+                libzerocoin::CoinSpend spend(in.nSequence >= ZC_MODULUS_V2_BASE_ID ? ZCParamsV2 : ZCParams, serializedCoinSpend);
+                zspendSerial = spend.getCoinSerialNumber();
+                zspendAmount = spend.getDenomination();
+            }
+            catch (const std::runtime_error &) {
+                continue;
+            }
 
             auto const iter = originalSerials.find(zspendSerial);
             if(iter == originalSerials.end())
-                originalSerials.insert({zspendSerial, tx.GetHash()});
-            else if(iter->second != tx.GetHash()){
-                amt += -idr.second;
+                originalSerials.insert({zspendSerial, spend_value(tx.GetHash(), num)});
+            else if(iter->second != spend_value(tx.GetHash(), num)){
+                amt += zspendAmount * COIN;
             }
         }
     }

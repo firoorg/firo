@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BlankSigmaDialog</class>
+ <widget class="QWidget" name="BlankSigmaDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>835</width>
+    <height>593</height>
+   </rect>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout_1">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_1">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>We have detected that your wallet does not use a HD seed. A HD seed allows you to restore all your private keys and also Sigma mints even when restoring from an old backup.
+
+To have Sigma private transactions functionality, a HD wallet is required. We highly recommend that you create a new wallet and move your funds over to the new wallet version or use the dumpwallet in conjunction with importprivkey commands to move the keys to the new wallet.
+</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

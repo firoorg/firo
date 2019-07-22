@@ -4,6 +4,7 @@
 
 #include "amount.h"
 #include "main.h"
+#include "send.h"
 #include "client-api/server.h"
 #include "util.h"
 #include "wallet/wallet.h"
@@ -17,6 +18,12 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 
+std::map<std::string, int> nStates = {
+        {"active",0},
+        {"deleted",1},
+        {"hidden",2},
+        {"archived",3}
+};
 
 bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData){
     fs::path const &path = CreateTxMetadataFile();
@@ -115,29 +122,6 @@ UniValue getNewAddress()
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {   
-    UniValue feePerKb;
-    UniValue sendTo(UniValue::VOBJ);
-    try{
-        feePerKb = find_value(data,"feePerKb");
-        sendTo = find_value(data,"addresses").get_obj();
-    }catch (const std::exception& e){
-        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-    }
-
-    UniValue txid(UniValue::VOBJ);
-    setTxFee(feePerKb);
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    int nMinDepth = 1;
-
-    CWalletTx wtx;
-
-    UniValue subtractFeeFromAmount(UniValue::VARR);
-
-    set<CBitcoinAddress> setAddress;
-    vector<CRecipient> vecSend;
-
     UniValue txMetadataUni(UniValue::VOBJ);
     UniValue txMetadataData(UniValue::VOBJ);
     UniValue txMetadataEntry(UniValue::VOBJ);
@@ -150,92 +134,123 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     if(txMetadataData.empty()){
         UniValue txMetadataData(UniValue::VOBJ);
     }
+    switch(type){
+        case Create: {
+            UniValue feePerKb;
+            UniValue sendTo(UniValue::VOBJ);
+            try{
+                feePerKb = find_value(data,"feePerKb");
+                sendTo = find_value(data,"addresses").get_obj();
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            }
 
-    CAmount totalAmount = 0;
-    vector<string> keys = sendTo.getKeys();
-    BOOST_FOREACH(const string& name_, keys)
-    {
-        
-        UniValue entry(UniValue::VOBJ);
-        try{
-            entry = find_value(sendTo, name_).get_obj();
-        }catch (const std::exception& e){
-            throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            UniValue txid(UniValue::VOBJ);
+            setTxFee(feePerKb);
+
+            LOCK2(cs_main, pwalletMain->cs_wallet);
+
+            int nMinDepth = 1;
+
+            CWalletTx wtx;
+
+            UniValue subtractFeeFromAmount(UniValue::VARR);
+
+            set<CBitcoinAddress> setAddress;
+            vector<CRecipient> vecSend;
+
+            CAmount totalAmount = 0;
+            vector<string> keys = sendTo.getKeys();
+            BOOST_FOREACH(const string& name_, keys)
+            {
+                
+                UniValue entry(UniValue::VOBJ);
+                try{
+                    entry = find_value(sendTo, name_).get_obj();
+                }catch (const std::exception& e){
+                    throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+                }
+                UniValue txMetadataSubEntry(UniValue::VOBJ);
+
+                CBitcoinAddress address(name_);
+                if (!address.IsValid())
+                    throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+
+                if (setAddress.count(address))
+                    throw JSONAPIError(API_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+                setAddress.insert(address);
+
+                CScript scriptPubKey = GetScriptForDestination(address.Get());
+                CAmount nAmount = find_value(entry, "amount").get_int64();
+                string label = find_value(entry, "label").get_str();
+                if (nAmount <= 0)
+                    throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
+                totalAmount += nAmount;
+
+                bool fSubtractFeeFromAmount = false;
+                for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
+                    const UniValue& addr = subtractFeeFromAmount[idx];
+                    if (addr.get_str() == name_)
+                        fSubtractFeeFromAmount = true;
+                }
+
+                CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+                vecSend.push_back(recipient);
+
+                // write label and amount to entry object
+                txMetadataSubEntry.push_back(Pair("amount", nAmount));
+                txMetadataSubEntry.push_back(Pair("label", label));
+                txMetadataEntry.push_back(Pair(name_, txMetadataSubEntry));
+            }
+
+            // Try each of our accounts looking for one with enough balance
+            vector<string> accounts = GetMyAccountNames();
+            bool isValid = false;
+            BOOST_FOREACH(string strAccount, accounts){      
+                CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_ALL);
+                LogPrintf("nBalance: %s\n", nBalance);
+                LogPrintf("totalAmount: %s\n", totalAmount);
+                if (totalAmount <= nBalance){
+                   LogPrintf("ZMQ: found valid address. address: %s\n", strAccount);
+                   wtx.strFromAccount = strAccount;
+                   isValid = true; 
+                   break;
+                }
+            }
+            if(!isValid){
+                throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds. Consider moving enough funds to a single account");
+            }
+            
+            // Send
+            CReserveKey keyChange(pwalletMain);
+            CAmount nFeeRequired = 0;
+            int nChangePosRet = -1;
+            string strFailReason;
+            bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+            if (!fCreated)
+                throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+
+            string txidStr = wtx.GetHash().GetHex();
+
+            // write back tx metadata object
+            txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
+            if(!txMetadataUni.replace("data", txMetadataData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+            setTxMetadata(txMetadataUni);
+
+            if (!pwalletMain->CommitTransaction(wtx, keyChange))
+                throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
+
+            txid.push_back(Pair("txid", txidStr));
+            return txid;
         }
-        UniValue txMetadataSubEntry(UniValue::VOBJ);
+        default: {
 
-        CBitcoinAddress address(name_);
-        if (!address.IsValid())
-            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
-
-        if (setAddress.count(address))
-            throw JSONAPIError(API_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
-        setAddress.insert(address);
-
-        CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = find_value(entry, "amount").get_int64();
-        string label = find_value(entry, "label").get_str();
-        if (nAmount <= 0)
-            throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
-        totalAmount += nAmount;
-
-        bool fSubtractFeeFromAmount = false;
-        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
-            const UniValue& addr = subtractFeeFromAmount[idx];
-            if (addr.get_str() == name_)
-                fSubtractFeeFromAmount = true;
-        }
-
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
-        vecSend.push_back(recipient);
-
-        // write label and amount to entry object
-        txMetadataSubEntry.push_back(Pair("amount", nAmount));
-        txMetadataSubEntry.push_back(Pair("label", label));
-        txMetadataEntry.push_back(Pair(name_, txMetadataSubEntry));
-    }
-
-    // Try each of our accounts looking for one with enough balance
-    vector<string> accounts = GetMyAccountNames();
-    bool isValid = false;
-    BOOST_FOREACH(string strAccount, accounts){      
-        CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_ALL);
-        LogPrintf("nBalance: %s\n", nBalance);
-        LogPrintf("totalAmount: %s\n", totalAmount);
-        if (totalAmount <= nBalance){
-           LogPrintf("ZMQ: found valid address. address: %s\n", strAccount);
-           wtx.strFromAccount = strAccount;
-           isValid = true; 
-           break;
         }
     }
-    if(!isValid){
-        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds. Consider moving enough funds to a single account");
-    }
-    
-    // Send
-    CReserveKey keyChange(pwalletMain);
-    CAmount nFeeRequired = 0;
-    int nChangePosRet = -1;
-    string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
-    if (!fCreated)
-        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
 
-    string txidStr = wtx.GetHash().GetHex();
-
-    // write back tx metadata object
-    txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-    if(!txMetadataUni.replace("data", txMetadataData)){
-        throw runtime_error("Could not replace key/value pair.");
-    }
-    setTxMetadata(txMetadataUni);
-
-    if (!pwalletMain->CommitTransaction(wtx, keyChange))
-        throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
-
-    txid.push_back(Pair("txid", txidStr));
-    return txid;
+    return NullUniValue;
 }
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -302,19 +317,99 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         vecSend.push_back(recipient);
     }
 
-    EnsureWalletIsUnlocked();
-
     CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, false);
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     
     LogPrintf("API: returning from txfee\n");
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
+}
+
+UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    UniValue txMetadataUni(UniValue::VOBJ);
+    UniValue txMetadataData(UniValue::VOBJ);
+
+    UniValue txidValue(UniValue::VOBJ);
+    UniValue addressValue(UniValue::VOBJ);
+
+    string txidKey;
+    UniValue addressKeyObj(UniValue::VOBJ);
+    string addressKey;
+
+    string label;
+
+    UniValue returnObj(UniValue::VOBJ);
+
+    getTxMetadata(txMetadataUni, txMetadataData);
+
+    if(txMetadataUni.empty()){
+        txMetadataUni.setObject();
+    }
+
+    if(txMetadataData.empty()){
+        txMetadataData.setObject();
+    }
+
+    try {
+        txidKey = find_value(data, "txid").get_str();
+        label = find_value(data, "label").get_str();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
+
+    /* 
+     * If txid object found, we proceed with an update. 
+     * Otherwise this is new data, so the logic following this block will create it.
+     */
+    txidValue = find_value(txMetadataData, txidKey);
+    if(!txidValue.isNull()){
+        /* 
+         * If no "address" key in the call, this is a private spend label update.
+         * therefore we simply select the only address in the txid and modify that.
+         *
+         * if "address" key exists, we check for the existince of the object for that address, and use it if found.
+         * if not found, reset the object so it can be used again. 
+         */
+        addressKeyObj = find_value(data, "address");
+        if(addressKeyObj.isNull()){
+            addressKey = txidValue.getKeys()[0];
+            addressValue = txidValue.getValues()[0];
+        }else{
+            addressKey = addressKeyObj.get_str();
+            addressValue = find_value(txidValue, addressKey);
+            if(addressValue.isNull()){
+                addressValue.setObject();
+            }
+        }
+    }else{
+        try{
+            addressKey = find_value(data, "address").get_str();
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
+        } 
+        txidValue.setObject();
+    }
+
+    addressValue.replace("label", label);
+    txidValue.replace(addressKey, addressValue);
+    txMetadataData.replace(txidKey, txidValue);
+
+    if(!txMetadataUni.replace("data", txMetadataData)){
+        throw runtime_error("Could not replace key/value pair.");
+    }
+    setTxMetadata(txMetadataUni);
+
+    returnObj.push_back(Pair("txid",txidKey));
+    returnObj.push_back(Pair("address",addressKey));
+    returnObj.push_back(Pair("label", label));
+
+    return returnObj;
 }
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -346,6 +441,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
+            entry.push_back(Pair("state", "active"));
 
             try{
                 entry.push_back(Pair("amount", find_value(data, "amount")));
@@ -385,7 +481,11 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             return true;
             break;      
         }
-
+        /*
+          "Update" can be used to either:
+            - Update an existing address and metadata associated with a payment request
+            - Create a new entry for address and metadata that was NOT created through a payment request (eg. created with the Qt application).
+        */
         case Update: {
             string id;
             std::vector<std::string> dataKeys;
@@ -397,14 +497,23 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             }
 
             entry = find_value(paymentRequestData, id);
-            if(entry.isNull()){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
-            }
+
+            // If null, declare the object again.
+             if(entry.isNull()){
+                 entry.setObject();
+                 entry.push_back(Pair("address", id));
+             }
 
             for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
                 string key = (*it);
+                UniValue value = find_value(data, key);
                 if(!(key=="id")){
-                    entry.replace(key, find_value(data, key)); //todo might have to specify type
+                    if(key=="state"){
+                        // Only update state should it be a valid value
+                        if(!(value.getType()==UniValue::VSTR) && !nStates.count(value.get_str()))
+                          throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+                    }
+                    entry.replace(key, value); //todo might have to specify type
                 }
             }
 
@@ -436,7 +545,9 @@ static const CAPICommand commands[] =
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "send",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "send",            "txFee",           &txfee,                   true,      false,           false  },
+    { "send",            "updateLabels",    &updatelabels,            true,      false,           false  },
     { "send",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
+
 };
 
 void RegisterSendAPICommands(CAPITable &tableAPI)

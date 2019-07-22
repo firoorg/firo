@@ -5,18 +5,15 @@
 #include "univalue.h"
 namespace fs = boost::filesystem;
 
-bool SettingsStartup();
+void ReadAPISettingsFile();
 
-bool WriteAPISetting(UniValue& data, UniValue& setting, string program);
+bool WriteAPISetting(UniValue& data, string name, UniValue& setting);
 
 bool GetSettings(UniValue& settings, fs::path& path);
 
 UniValue ReadSettingsData();
 
-bool WriteSettingsData(UniValue& data);
-
-bool WriteDaemonSettings();
-
+bool WriteSettingsToFS(UniValue& data);
 
 
 

@@ -8,6 +8,7 @@
 #include "validationinterface.h"
 #include <string>
 #include <map>
+#include <boost/thread/thread.hpp>
 
 class CBlockIndex;
 class CZMQAbstract;
@@ -20,15 +21,16 @@ public:
 
 protected:
     std::list<CZMQAbstract*> notifiers;
+    boost::thread* worker;
 };
 
 
 class CZMQPublisherInterface : public CValidationInterface, CZMQInterface
 {
 public:
+    CZMQPublisherInterface();
     virtual ~CZMQPublisherInterface();
-
-    static CZMQPublisherInterface* Create();
+    CZMQPublisherInterface* Create();
 
 protected:
     // CValidationInterface
@@ -36,22 +38,19 @@ protected:
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void NumConnectionsChanged();
     void UpdateSyncStatus();
+    void NotifyAPIStatus();
     void UpdatedZnode(CZnode &znode);
     void UpdatedMintStatus(std::string update);
-
-private:
-    CZMQPublisherInterface();
+    void UpdatedSettings(std::string update);
+    
 };
 
 class CZMQReplierInterface : public CZMQInterface
 {
 public:
-    virtual ~CZMQReplierInterface();
-
-    static CZMQReplierInterface* Create();
-
-private:
     CZMQReplierInterface();
+    virtual ~CZMQReplierInterface();
+    CZMQReplierInterface* Create();
 };
 
 #endif // BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H

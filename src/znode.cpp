@@ -389,7 +389,7 @@ void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
 void CZnode::SetRank(int newRank, bool nPublish) {
      if(nRank!=newRank){
         nRank = newRank;
-        if(nRank < 0) nRank = 0;
+        if(nRank < 0 || nRank > mnodeman.GetFullZnodeVector().size()) nRank = 0;
         if(nPublish){
             GetMainSignals().UpdatedZnode(*this);
         }
@@ -433,13 +433,20 @@ UniValue CZnode::ToJSON() const {
     std::string ip   = authority.substr(0, authority.find(":"));
     std::string port = authority.substr(authority.find(":")+1, authority.length());
     authorityObj.push_back(Pair("ip", ip));
-    authorityObj.push_back(Pair("port", stoi(port)));
+    authorityObj.push_back(Pair("port", port));
     
-    // get outpoints of znodes in znodeConfig
-    vector<std::string> myZnodes;
+    // get myZnode data
+    bool isMine = false;
+    string label;
+    int fIndex=0;
     BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-        CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-        myZnodes.push_back(vin.prevout.ToStringShort());
+        CTxIn myVin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+        if(outpoint.ToStringShort()==myVin.prevout.ToStringShort()){
+            isMine = true;
+            label = mne.getAlias();
+            break;
+        }
+        fIndex++;
     }
 
     ret.push_back(Pair("rank", nRank));
@@ -452,8 +459,11 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("lastPaidTime", (int64_t) GetLastPaidTime() * 1000));
     ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
     ret.push_back(Pair("authority", authorityObj));
-    ret.push_back(Pair("isMine", find(myZnodes.begin(), myZnodes.end(), outpoint.ToStringShort()) != myZnodes.end()));
-
+    ret.push_back(Pair("isMine", isMine));
+    if(isMine){
+        ret.push_back(Pair("label", label));
+        ret.push_back(Pair("position", fIndex));
+    }
 
     UniValue qualify(UniValue::VOBJ);
 

@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y \
     openjdk-8-jdk \
     pkg-config \
     libzmq3-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    libminizip-dev
 
 # Install Berkeley DB 4.8
 RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
@@ -57,8 +58,16 @@ USER zcoind
 RUN mkdir /home/zcoind/.zcoin
 VOLUME [ "/home/zcoind/.zcoin" ]
 
+# Main network ports
 EXPOSE 8168
 EXPOSE 8888
+
+# Test network ports
+EXPOSE 18168
+EXPOSE 18888
+
+# Regression test network ports
 EXPOSE 18444
+EXPOSE 28888
 
 ENTRYPOINT [ "/usr/bin/zcoind" ]

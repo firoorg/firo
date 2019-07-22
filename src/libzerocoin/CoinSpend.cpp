@@ -82,7 +82,9 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
 		}
 		secp256k1_ec_pubkey_serialize(ctx, &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED);
 
-		secp256k1_ecdsa_sign(ctx, &sig, metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL);
+		if (1 != secp256k1_ecdsa_sign(ctx, &sig, metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL)) {
+		    throw ZerocoinException("Unable to sign transaction with EcdsaSeckey.");
+        }
 		secp256k1_ecdsa_signature_serialize_compact(ctx, &this->ecdsaSignature[0], &sig);
 	}
 }

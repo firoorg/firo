@@ -5,7 +5,9 @@
 #include "znodeman.h"
 #include "main.h"
 #include "init.h"
+#include "util.h"
 #include "client-api/server.h"
+#include "client-api/protocol.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -15,6 +17,7 @@
 #include "univalue.h"
 
 namespace fs = boost::filesystem;
+using namespace boost::chrono;
 using namespace std;
 
 UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -44,8 +47,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
         obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
-    }
-    if (pwalletMain){
         obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
         if(nWalletUnlockTime>0){
             obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
@@ -58,31 +59,38 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
+#ifdef WIN32
+    obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
+#else
+    obj.push_back(Pair("pid",           getpid()));
+#endif
     obj.push_back(Pair("modules",       modules));
 
     return obj;
 }
 
-
 UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     string directory = find_value(data, "directory").get_str();
-    UniValue filenameUni = find_value(data, "filename");
-    string filename = DEFAULT_WALLET_DAT;
-    if(!filenameUni.isNull()){
-        if(filenameUni.get_str().size() > 0){
-            filename = filenameUni.get_str() + ".dat";
-        }
-    }
 
-    fs::path walletPath = GetDataDir() / DEFAULT_WALLET_DAT;
+    milliseconds secs = duration_cast< milliseconds >(
+        system_clock::now().time_since_epoch()
+    );
+    UniValue firstSeenAt = secs.count();
+    string filename = "zcoin_backup-" + to_string(firstSeenAt.get_int64()) + ".zip";
 
-    LogPrintf("API: wallet path: %s\n", walletPath.string());
     fs::path backupPath (directory);
     backupPath /= filename;
-    LogPrintf("API: backup path: %s\n", backupPath.string());
 
-    fs::copy_file(walletPath, backupPath);
+    vector<string> filePaths;
+    vector<string> folderPaths;
+
+    filePaths.push_back(DEFAULT_WALLET_DAT);
+    folderPaths.push_back(PERSISTENT_FILENAME);
+
+    if(!CreateZipFile(GetDataDir().string() + "/", folderPaths, filePaths, backupPath.string())){
+        throw JSONRPCError(API_MISC_ERROR, "Failed to create backup");
+    }
 
     return true;
 }

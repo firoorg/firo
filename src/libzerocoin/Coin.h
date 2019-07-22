@@ -102,17 +102,17 @@ public:
     const Bignum& getRandomness() const;
     const unsigned char* getEcdsaSeckey() const;
     unsigned int getVersion() const;
-    static const Bignum serialNumberFromSerializedPublicKey(secp256k1_context *ctx, secp256k1_pubkey *pubkey);
+    static Bignum serialNumberFromSerializedPublicKey(secp256k1_context *ctx, secp256k1_pubkey *pubkey);
 
-    void setPublicCoin(PublicCoin p){
+    void setPublicCoin(const PublicCoin& p){
         publicCoin = p;
     }
 
-    void setRandomness(Bignum n){
+    void setRandomness(const Bignum& n){
         randomness = n;
     }
 
-    void setSerialNumber(Bignum n){
+    void setSerialNumber(const Bignum& n){
         serialNumber = n;
     }
 
@@ -120,7 +120,7 @@ public:
         version = nVersion;
     };
 
-    void setEcdsaSeckey(const vector<unsigned char> &seckey) {
+    void setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
         if (seckey.size() == sizeof(ecdsaSeckey))
             std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
     }
