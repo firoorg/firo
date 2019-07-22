@@ -1,18 +1,20 @@
-#include "exodus/rpcrequirements.h"
+#include "rpcrequirements.h"
 
-#include "exodus/dex.h"
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
-#include "exodus/utilsbitcoin.h"
+#include "dex.h"
+#include "exodus.h"
+#include "rules.h"
+#include "sp.h"
+#include "utilsbitcoin.h"
 
-#include "amount.h"
-#include "main.h"
-#include "rpc/protocol.h"
-#include "sync.h"
-#include "tinyformat.h"
+#include "../amount.h"
+#include "../main.h"
+#include "../rpc/protocol.h"
+#include "../sync.h"
+#include "../tinyformat.h"
+
+#include <string>
 
 #include <stdint.h>
-#include <string>
 
 void RequireBalance(const std::string& address, uint32_t propertyId, int64_t amount)
 {
@@ -157,5 +159,16 @@ void RequireHeightInChain(int blockHeight)
 {
     if (blockHeight < 0 || exodus::GetHeight() < blockHeight) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height is out of range");
+    }
+}
+
+void RequireSigmaStatus(SigmaStatus status)
+{
+    if (!exodus::IsSigmaStatusValid(status)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma status is not valid");
+    }
+
+    if (!exodus::IsFeatureActivated(exodus::FEATURE_SIGMA, exodus::GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma status is not accepted");
     }
 }

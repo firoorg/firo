@@ -127,16 +127,19 @@ std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint6
 }
 
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
-                                                       std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount)
+                                                       std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
+                                                       boost::optional<SigmaStatus> sigmaStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = 50;
-    uint16_t messageVer = 0;
+    uint16_t messageVer = sigmaStatus ? 1 : 0;
+
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(propertyType);
     exodus::swapByteOrder32(previousPropertyId);
     exodus::swapByteOrder64(amount);
+
     if (category.size() > 255) category = category.substr(0,255);
     if (subcategory.size() > 255) subcategory = subcategory.substr(0,255);
     if (name.size() > 255) name = name.substr(0,255);
@@ -159,6 +162,10 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
     payload.insert(payload.end(), data.begin(), data.end());
     payload.push_back('\0');
     PUSH_BACK_BYTES(payload, amount);
+
+    if (sigmaStatus) {
+        PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    }
 
     return payload;
 }
@@ -208,15 +215,18 @@ std::vector<unsigned char> CreatePayload_IssuanceVariable(uint8_t ecosystem, uin
 }
 
 std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
-                                                       std::string subcategory, std::string name, std::string url, std::string data)
+                                                       std::string subcategory, std::string name, std::string url, std::string data,
+                                                       boost::optional<SigmaStatus> sigmaStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = 54;
-    uint16_t messageVer = 0;
+    uint16_t messageVer = sigmaStatus ? 1 : 0;
+
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(propertyType);
     exodus::swapByteOrder32(previousPropertyId);
+
     if (category.size() > 255) category = category.substr(0,255);
     if (subcategory.size() > 255) subcategory = subcategory.substr(0,255);
     if (name.size() > 255) name = name.substr(0,255);
@@ -238,6 +248,10 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
     payload.push_back('\0');
     payload.insert(payload.end(), data.begin(), data.end());
     payload.push_back('\0');
+
+    if (sigmaStatus) {
+        PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    }
 
     return payload;
 }

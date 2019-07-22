@@ -36,7 +36,7 @@ CMPSPInfo::Entry::Entry()
   : prop_type(0), prev_prop_id(0), num_tokens(0), property_desired(0),
     deadline(0), early_bird(0), percentage(0),
     close_early(false), max_tokens(false), missedTokens(0), timeclosed(0),
-    fixed(false), manual(false) {}
+    fixed(false), manual(false), sigmaStatus(SigmaStatus::SoftDisabled) {}
 
 bool CMPSPInfo::Entry::isDivisible() const
 {
@@ -580,6 +580,14 @@ bool exodus::IsPropertyIdValid(uint32_t propertyId)
     }
 
     return false;
+}
+
+bool exodus::IsSigmaStatusValid(SigmaStatus status)
+{
+    return status == SigmaStatus::SoftDisabled ||
+           status == SigmaStatus::SoftEnabled ||
+           status == SigmaStatus::HardDisabled ||
+           status == SigmaStatus::HardEnabled;
 }
 
 bool exodus::isPropertyDivisible(uint32_t propertyId)

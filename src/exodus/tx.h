@@ -1,20 +1,20 @@
-#ifndef EXODUS_TX_H
-#define EXODUS_TX_H
+#ifndef ZCOIN_EXODUS_TX_H
+#define ZCOIN_EXODUS_TX_H
 
 class CMPMetaDEx;
 class CMPOffer;
 class CTransaction;
 
-#include "exodus/exodus.h"
+#include "exodus.h"
+#include "sp.h"
 
-#include "uint256.h"
-#include "utilstrencodings.h"
+#include "../uint256.h"
+#include "../utilstrencodings.h"
+
+#include <string>
 
 #include <stdint.h>
 #include <string.h>
-
-#include <string.h>
-#include <string>
 
 using exodus::strTransactionType;
 
@@ -92,6 +92,9 @@ private:
     uint16_t feature_id;
     uint32_t activation_block;
     uint32_t min_client_version;
+
+    // Sigma
+    SigmaStatus sigmaStatus;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -261,6 +264,7 @@ public:
         activation_block = 0;
         min_client_version = 0;
         distribution_property = 0;
+        sigmaStatus = SigmaStatus::SoftDisabled;
     }
 
     /** Sets the given values. */
@@ -310,4 +314,4 @@ public:
 int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTransaction& mptx, unsigned int nTime=0);
 
 
-#endif // EXODUS_TX_H
+#endif // ZCOIN_EXODUS_TX_H

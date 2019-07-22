@@ -1,8 +1,13 @@
-#ifndef EXODUS_CREATEPAYLOAD_H
-#define EXODUS_CREATEPAYLOAD_H
+#ifndef ZCOIN_EXODUS_CREATEPAYLOAD_H
+#define ZCOIN_EXODUS_CREATEPAYLOAD_H
+
+#include "sp.h"
+
+#include <boost/optional.hpp>
 
 #include <string>
 #include <vector>
+
 #include <stdint.h>
 
 std::vector<unsigned char> CreatePayload_SimpleSend(uint32_t propertyId, uint64_t amount);
@@ -11,12 +16,14 @@ std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t a
 std::vector<unsigned char> CreatePayload_DExAccept(uint32_t propertyId, uint64_t amount);
 std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint64_t amount, uint32_t distributionProperty);
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
-                                                       std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount);
+                                                       std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
+                                                       boost::optional<SigmaStatus> sigmaStatus = boost::none);
 std::vector<unsigned char> CreatePayload_IssuanceVariable(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                           std::string subcategory, std::string name, std::string url, std::string data, uint32_t propertyIdDesired,
                                                           uint64_t amountPerUnit, uint64_t deadline, uint8_t earlyBonus, uint8_t issuerPercentage);
 std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
-                                                       std::string subcategory, std::string name, std::string url, std::string data);
+                                                       std::string subcategory, std::string name, std::string url, std::string data,
+                                                       boost::optional<SigmaStatus> sigmaStatus = boost::none);
 std::vector<unsigned char> CreatePayload_CloseCrowdsale(uint32_t propertyId);
 std::vector<unsigned char> CreatePayload_Grant(uint32_t propertyId, uint64_t amount, std::string memo);
 std::vector<unsigned char> CreatePayload_Revoke(uint32_t propertyId, uint64_t amount, std::string memo);
@@ -33,4 +40,4 @@ std::vector<unsigned char> CreatePayload_ExodusAlert(uint16_t alertType, uint32_
 std::vector<unsigned char> CreatePayload_DeactivateFeature(uint16_t featureId);
 std::vector<unsigned char> CreatePayload_ActivateFeature(uint16_t featureId, uint32_t activationBlock, uint32_t minClientVersion);
 
-#endif // EXODUS_CREATEPAYLOAD_H
+#endif // ZCOIN_EXODUS_CREATEPAYLOAD_H
