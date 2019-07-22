@@ -1,15 +1,18 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
-#include "compat_threads.h"
-#include "onion.h"
-#include "workqueue.h"
-#include "crypto_curve25519.h"
-#include "crypto_rand.h"
-#include "compat_libevent.h"
+#include "core/or/or.h"
+#include "lib/thread/threads.h"
+#include "core/or/onion.h"
+#include "lib/evloop/workqueue.h"
+#include "lib/crypt_ops/crypto_curve25519.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "lib/net/alertsock.h"
+#include "lib/evloop/compat_libevent.h"
+#include "lib/intmath/weakrng.h"
+#include "lib/crypt_ops/crypto_init.h"
 
 #include <stdio.h>
 
@@ -450,4 +453,3 @@ main(int argc, char **argv)
     return 0;
   }
 }
-

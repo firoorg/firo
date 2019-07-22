@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -11,27 +11,34 @@
 #define HS_SERVICE_PRIVATE
 #define NODELIST_PRIVATE
 
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
-#include "hs_test_helpers.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
+#include "test/hs_test_helpers.h"
 
-#include "connection_edge.h"
-#include "crypto_rand.h"
-#include "hs_common.h"
-#include "hs_client.h"
-#include "hs_service.h"
-#include "config.h"
-#include "networkstatus.h"
-#include "directory.h"
-#include "dirauth/dirvote.h"
-#include "nodelist.h"
-#include "routerlist.h"
-#include "statefile.h"
-#include "circuitlist.h"
-#include "dirauth/shared_random.h"
-#include "util.h"
-#include "voting_schedule.h"
+#include "core/or/connection_edge.h"
+#include "lib/crypt_ops/crypto_format.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/hs/hs_common.h"
+#include "feature/hs/hs_client.h"
+#include "feature/hs/hs_service.h"
+#include "app/config/config.h"
+#include "feature/nodelist/networkstatus.h"
+#include "feature/dirclient/dirclient.h"
+#include "feature/dirauth/dirvote.h"
+#include "feature/nodelist/nodelist.h"
+#include "feature/nodelist/routerlist.h"
+#include "app/config/statefile.h"
+#include "core/or/circuitlist.h"
+#include "feature/dirauth/shared_random.h"
+#include "feature/dircommon/voting_schedule.h"
+
+#include "feature/nodelist/microdesc_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "feature/nodelist/node_st.h"
+#include "app/config/or_state_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "feature/nodelist/routerstatus_st.h"
 
 /** Test the validation of HS v3 addresses */
 static void
@@ -421,11 +428,13 @@ mock_directory_initiate_request(directory_request_t *req)
 
 static int
 mock_hs_desc_encode_descriptor(const hs_descriptor_t *desc,
-                           const ed25519_keypair_t *signing_kp,
-                           char **encoded_out)
+                               const ed25519_keypair_t *signing_kp,
+                               const uint8_t *descriptor_cookie,
+                               char **encoded_out)
 {
   (void)desc;
   (void)signing_kp;
+  (void)descriptor_cookie;
 
   tor_asprintf(encoded_out, "lulu");
   return 0;
@@ -621,7 +630,7 @@ test_disaster_srv(void *arg)
   get_disaster_srv(1, srv_one);
   get_disaster_srv(2, srv_two);
 
-  /* Check that the cached ones where updated */
+  /* Check that the cached ones were updated */
   tt_mem_op(cached_disaster_srv_one, OP_EQ, srv_one, DIGEST256_LEN);
   tt_mem_op(cached_disaster_srv_two, OP_EQ, srv_two, DIGEST256_LEN);
 
@@ -1337,6 +1346,10 @@ run_reachability_scenario(const reachability_cfg_t *cfg, int num_scenario)
                       &mock_service_ns->fresh_until);
   voting_schedule_recalculate_timing(get_options(),
                                      mock_service_ns->valid_after);
+  /* Check that service is in the right time period point */
+  tt_int_op(hs_in_period_between_tp_and_srv(mock_service_ns, 0), OP_EQ,
+            cfg->service_in_new_tp);
+
   /* Set client consensus time. */
   set_consensus_times(cfg->client_valid_after,
                       &mock_client_ns->valid_after);
@@ -1346,10 +1359,7 @@ run_reachability_scenario(const reachability_cfg_t *cfg, int num_scenario)
                       &mock_client_ns->fresh_until);
   voting_schedule_recalculate_timing(get_options(),
                                      mock_client_ns->valid_after);
-
-  /* New time period checks for this scenario. */
-  tt_int_op(hs_in_period_between_tp_and_srv(mock_service_ns, 0), OP_EQ,
-            cfg->service_in_new_tp);
+  /* Check that client is in the right time period point */
   tt_int_op(hs_in_period_between_tp_and_srv(mock_client_ns, 0), OP_EQ,
             cfg->client_in_new_tp);
 
@@ -1360,7 +1370,8 @@ run_reachability_scenario(const reachability_cfg_t *cfg, int num_scenario)
   mock_service_ns->sr_info.previous_srv = cfg->service_previous_srv;
 
   /* Initialize a service to get keys. */
-  service = helper_init_service(time(NULL));
+  update_approx_time(mock_service_ns->valid_after);
+  service = helper_init_service(mock_service_ns->valid_after+1);
 
   /*
    * === Client setup ===
@@ -1826,4 +1837,3 @@ struct testcase_t hs_common_tests[] = {
 
   END_OF_TESTCASES
 };
-

@@ -1,21 +1,21 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 
 #define CRYPTO_RAND_PRIVATE
 
-#include "crypto_rand.h"
-#include "util.h"
-#include "util_format.h"
-#include "compat.h"
-#include "test.h"
+#include "lib/crypt_ops/compat_openssl.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "lib/encoding/binascii.h"
+#include "lib/malloc/malloc.h"
+#include "test/test.h"
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include "compat_openssl.h"
+#include <string.h>
 
 /* Test for rectifying openssl RAND engine. */
 static void
@@ -104,4 +104,3 @@ struct testcase_t crypto_openssl_tests[] = {
     TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-

@@ -172,7 +172,6 @@ deviations from our C whitespace style.  Generally, we use:
    - Unix-style line endings
    - K&R-style indentation
    - No space before newlines
-   - A blank line at the end of each file
    - Never more than one blank line in a row
    - Always spaces, never tabs
    - No more than 79-columns per line.
@@ -184,6 +183,9 @@ deviations from our C whitespace style.  Generally, we use:
    - No space between a function name and an opening paren. `puts(x)`, not
      `puts (x)`.
    - Function declarations at the start of the line.
+
+If you use an editor that has plugins for editorconfig.org, the file
+`.editorconfig` will help you to conform this coding style.
 
 We try hard to build without warnings everywhere.  In particular, if
 you're using gcc, you should invoke the configure script with the
@@ -198,8 +200,8 @@ We have some wrapper functions like `tor_malloc`, `tor_free`, `tor_strdup`, and
 always succeed or exit.)
 
 You can get a full list of the compatibility functions that Tor provides by
-looking through `src/common/util*.h` and `src/common/compat*.h`.  You can see the
-available containers in `src/common/containers*.h`.  You should probably
+looking through `src/lib/*/*.h`.  You can see the
+available containers in `src/lib/containers/*.h`.  You should probably
 familiarize yourself with these modules before you write too much code, or
 else you'll wind up reinventing the wheel.
 
@@ -211,6 +213,24 @@ We don't call `memcmp()` directly.  Use `fast_memeq()`, `fast_memneq()`,
 
 Also see a longer list of functions to avoid in:
 https://people.torproject.org/~nickm/tor-auto/internal/this-not-that.html
+
+What code can use what other code?
+----------------------------------
+
+We're trying to simplify Tor's structure over time.  In the long run, we want
+Tor to be structured as a set of modules with *no circular dependencies*.
+
+This property is currently provided by the modules in src/lib, but not
+throughout the rest of Tor.  In general, higher-level libraries may use
+lower-level libraries, but never the reverse.
+
+To prevent new circular dependencies from landing, we have a tool that
+you can invoke with `make check-includes`, and which is run
+automatically as part of `make check`.  This tool will verify that, for
+every source directory with a `.may_include` file, no local headers are
+included except those specifically permitted by the `.may_include` file.
+When editing one of these files, please make sure that you are not
+introducing any cycles into Tor's dependency graph.
 
 Floating point math is hard
 ---------------------------
@@ -434,4 +454,3 @@ the functions that call your function rely on it doing something, then your
 function should mention that it does that something in the documentation.  If
 you rely on a function doing something beyond what is in its documentation,
 then you should watch out, or it might do something else later.
-
