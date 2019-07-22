@@ -26,6 +26,7 @@
 #include "libzerocoin/Zerocoin.h"
 
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/erase.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -124,9 +125,11 @@ public:
         std::vector<std::string> nComponents;
         if(hdKeypath=="m")
             return false;
-        boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
-        nChange = boost::lexical_cast<int64_t>(nComponents[4]);
-        nChild = boost::lexical_cast<int64_t>(nComponents[5]);
+        std::string hdKeypathNonHardened = hdKeypath;
+        boost::erase_all(hdKeypathNonHardened, "'");
+        boost::split(nComponents, hdKeypathNonHardened, boost::is_any_of("/"), boost::token_compress_on);
+        nChange = boost::lexical_cast<int64_t>(nComponents[nComponents.size()-2]);
+        nChild = boost::lexical_cast<int64_t>(nComponents[nComponents.size()-1]);
         return true;
     }
 
