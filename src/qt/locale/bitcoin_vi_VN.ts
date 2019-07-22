@@ -238,7 +238,7 @@
         <translation>Thanh công cụ (toolbar)</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
         <translation>Yêu cầu thanh toán(tạo mã QR và địa chỉ Zcoin: URLs)</translation>
     </message>
     <message>
@@ -250,8 +250,8 @@
         <translation>Hiện thỉ danh sách các địa chỉ và nhãn đã dùng để nhận.</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
-        <translation>Mở zcoin:URL hoặc yêu cầu thanh toán</translation>
+        <source>Open a Zcoin: URI or payment request</source>
+        <translation>Mở Zcoin:URL hoặc yêu cầu thanh toán</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

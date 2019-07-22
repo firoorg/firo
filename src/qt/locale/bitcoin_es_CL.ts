@@ -143,7 +143,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Enviar monedas a una dirección zcoin</translation>
+        <translation>Enviar monedas a una dirección Zcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -206,8 +206,8 @@
         <translation>Barra de pestañas</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Pide pagos (genera codigos QR and zcoin: URls)</translation>
+        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <translation>Pide pagos (genera codigos QR and Zcoin: URls)</translation>
     </message>
     <message>
         <source>%1 and %2</source>
@@ -775,7 +775,7 @@
     </message>
     <message>
         <source>Zcoin Core</source>
-        <translation>zcoin core</translation>
+        <translation>Zcoin Core</translation>
     </message>
     <message>
         <source>Connect only to the specified node(s)</source>

@@ -57,7 +57,7 @@ post_outputs_no_funds = [
     (None, None),
     (None, None),
     (None, None),
-    (-5, 'Invalid zcoin address: '),
+    (-5, 'Invalid Zcoin address: '),
     (-3, 'Invalid amount'),
 ]
 

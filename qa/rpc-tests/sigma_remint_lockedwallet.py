@@ -9,7 +9,7 @@ from test_framework.util import *
 #Locking wallet disable mint/spend functionality
 
 #1. Generate some blocks
-#2. Mint zcoins
+#2. Mint Zcoins
 #4. Encrypt wallet
 #5. Try to remint
 #6. Unlock wallet
@@ -47,7 +47,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         zcoin_mints = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mints) == 10, 'Should be 10 Zcoin mints after zcoin mint, but was: {}' \
+        assert len(zcoin_mints) == 10, 'Should be 10 Zcoin mints after Zcoin mint, but was: {}' \
             .format(len(zcoin_mints))
 
 

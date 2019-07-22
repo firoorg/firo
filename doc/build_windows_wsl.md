@@ -105,12 +105,12 @@ For the more complex second execution method, you need to install
 
     Now do either step **7** OR step **8**, not both.
 
-6. Build 32-bit debug build (from the zcoin root directory)
+6. Build 32-bit debug build (from the Zcoin root directory)
     
         ./configure --prefix=$HOME/zcoin-depends/i686-w64-mingw32
         make -j`nproc`
 
-7. Build 64-bit debug build (from the zcoin root directory)
+7. Build 64-bit debug build (from the Zcoin root directory)
      
         ./configure --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
         make -j`nproc`

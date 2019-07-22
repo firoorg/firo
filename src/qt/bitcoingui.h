@@ -60,7 +60,7 @@ public:
 
 #ifdef ENABLE_WALLET
     /** Set the wallet model.
-        The wallet model represents a zcoin wallet, and offers access to the list of transactions, address book and sending
+        The wallet model represents a Zcoin wallet, and offers access to the list of transactions, address book and sending
         functionality.
     */
     bool addWallet(const QString& name, WalletModel *walletModel);
@@ -200,7 +200,7 @@ private Q_SLOTS:
     void gotoHistoryPage();
     /** Switch directly to Exodus history tab */
     void gotoExodusHistoryTab();
-    /** Switch directly to zcoin history tab */
+    /** Switch directly to Zcoin history tab */
     void gotoBitcoinHistoryTab();
     /** Switch to utility page */
     void gotoToolboxPage();

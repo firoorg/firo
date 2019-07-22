@@ -1,4 +1,4 @@
-Debugging zcoin code using Visual Studio 2017
+Debugging Zcoin code using Visual Studio 2017
 ---------------------------------------------
 
 Prerequisites:
@@ -37,7 +37,7 @@ Building
     From Explorer create a directory named
       C:\Users\<username>\zcoin
     From Ubuntu bash window create a link to it
-      ln -s /mnt/c/Users/<username>/zcoin zcoin 
+      ln -s /mnt/c/Users/<username>/zcoin Zcoin 
 
  4. Clone git resository into newly created directory and go to the right branch
       git clone https://github.com/zcoinofficial/zcoin.git
@@ -76,12 +76,12 @@ Building
     Now do either step 10 or step 11, not both. Add -Wno-deprecated-declarations to CXXFLAGS if you want to reduce
     nonessential output
 
-10. Build 32-bit debug build (from the zcoin root directory)
+10. Build 32-bit debug build (from the Zcoin root directory)
       make clean
       ./configure "LDFLAGS=-g -Wl,--no-dynamicbase" --enable-debug --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/i686-w64-mingw32
       make -j4
      
-11. Build 64-bit debug build (from the zcoin root directory)
+11. Build 64-bit debug build (from the Zcoin root directory)
       make clean
       ./configure "CXXFLAGS=-Og -g" "CFLAGS=-Og -g" "LDFLAGS=-g -Wl,--no-dynamicbase" --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
       make -j4

@@ -900,7 +900,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
             "  \"data\" : \"information\",          (string) additional information or a description\n"
             "  \"url\" : \"uri\",                   (string) an URI, for example pointing to a website\n"
             "  \"divisible\" : true|false,        (boolean) whether the tokens are divisible\n"
-            "  \"issuer\" : \"address\",            (string) the zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",            (string) the Zcoin address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",         (string) the hex-encoded creation transaction hash\n"
             "  \"fixedissuance\" : true|false,    (boolean) whether the token supply is fixed\n"
             "  \"managedissuance\" : true|false,    (boolean) whether the token supply is managed\n"
@@ -1012,7 +1012,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
             "  \"propertyid\" : n,                     (number) the identifier of the crowdsale\n"
             "  \"name\" : \"name\",                      (string) the name of the tokens issued via the crowdsale\n"
             "  \"active\" : true|false,                (boolean) whether the crowdsale is still active\n"
-            "  \"issuer\" : \"address\",                 (string) the zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",                 (string) the Zcoin address of the issuer on record\n"
             "  \"propertyiddesired\" : n,              (number) the identifier of the tokens eligible to participate in the crowdsale\n"
             "  \"tokensperunit\" : \"n.nnnnnnnn\",       (string) the amount of tokens granted per unit invested in the crowdsale\n"
             "  \"earlybonus\" : n,                     (number) an early bird bonus for participants in percent per week\n"
@@ -1153,7 +1153,7 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
             "  {\n"
             "    \"propertyid\" : n,                 (number) the identifier of the crowdsale\n"
             "    \"name\" : \"name\",                  (string) the name of the tokens issued via the crowdsale\n"
-            "    \"issuer\" : \"address\",             (string) the zcoin address of the issuer on record\n"
+            "    \"issuer\" : \"address\",             (string) the Zcoin address of the issuer on record\n"
             "    \"propertyiddesired\" : n,          (number) the identifier of the tokens eligible to participate in the crowdsale\n"
             "    \"tokensperunit\" : \"n.nnnnnnnn\",   (string) the amount of tokens granted per unit invested in the crowdsale\n"
             "    \"earlybonus\" : n,                 (number) an early bird bonus for participants in percent per week\n"
@@ -1222,7 +1222,7 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
             "{\n"
             "  \"propertyid\" : n,               (number) the identifier of the managed tokens\n"
             "  \"name\" : \"name\",                (string) the name of the tokens\n"
-            "  \"issuer\" : \"address\",           (string) the zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",           (string) the Zcoin address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",        (string) the hex-encoded creation transaction hash\n"
             "  \"totaltokens\" : \"n.nnnnnnnn\",   (string) the total number of tokens in existence\n"
             "  \"issuances\": [                  (array of JSON objects) a list of the granted and revoked tokens\n"
@@ -1378,7 +1378,7 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
             "    \"sendingaddress\" : \"address\",                  (string) the Zcoin address of the trader\n"
             "    \"ismine\" : true|false,                         (boolean) whether the order involes an address in the wallet\n"
             "    \"confirmations\" : nnnnnnnnnn,                  (number) the number of transaction confirmations\n"
-            "    \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in Zcoins\n"
             "    \"blocktime\" : nnnnnnnnnn,                      (number) the timestamp of the block that contains the transaction\n"
             "    \"valid\" : true|false,                          (boolean) whether the transaction is valid\n"
             "    \"version\" : n,                                 (number) the transaction version\n"
@@ -1507,7 +1507,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
             "    \"propertyid\" : n,                   (number) the identifier of the tokens for sale\n"
             "    \"seller\" : \"address\",               (string) the Zcoin address of the seller\n"
             "    \"amountavailable\" : \"n.nnnnnnnn\",   (string) the number of tokens still listed for sale and currently available\n"
-            "    \"zcoindesired\" : \"n.nnnnnnnn\",    (string) the number of zcoins desired in exchange\n"
+            "    \"zcoindesired\" : \"n.nnnnnnnn\",    (string) the number of Zcoins desired in exchange\n"
             "    \"unitprice\" : \"n.nnnnnnnn\" ,        (string) the unit price (XZC/token)\n"
             "    \"timelimit\" : nn,                   (number) the time limit in blocks a buyer has to pay following a successful accept\n"
             "    \"minimumfee\" : \"n.nnnnnnnn\",        (string) the minimum mining fee a buyer has to pay to accept this offer\n"
@@ -1518,7 +1518,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
             "        \"block\" : nnnnnn,                   (number) the index of the block that contains the \"accept\" order\n"
             "        \"blocksleft\" : nn,                  (number) the number of blocks left to pay\n"
             "        \"amount\" : \"n.nnnnnnnn\"             (string) the amount of tokens accepted and reserved\n"
-            "        \"amounttopay\" : \"n.nnnnnnnn\"        (string) the amount in zcoins needed finalize the trade\n"
+            "        \"amounttopay\" : \"n.nnnnnnnn\"        (string) the amount in Zcoins needed finalize the trade\n"
             "      },\n"
             "      ...\n"
             "    ]\n"
@@ -1563,7 +1563,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
         // TODO: no math, and especially no rounding here (!)
         // TODO: no math, and especially no rounding here (!)
 
-        // calculate unit price and updated amount of zcoin desired
+        // calculate unit price and updated amount of Zcoin desired
         double unitPriceFloat = 0.0;
         if ((sellOfferAmount > 0) && (sellBitcoinDesired > 0)) {
             unitPriceFloat = (double) sellBitcoinDesired / (double) sellOfferAmount; // divide by zero protection
@@ -1682,7 +1682,7 @@ UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
             "  \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
             "  \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,     (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in Zcoins\n"
             "  \"blocktime\" : nnnnnnnnnn,         (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,             (boolean) whether the transaction is valid\n"
             "  \"invalidreason\" : \"reason\",     (string) if a transaction is invalid, the reason \n"
@@ -1725,7 +1725,7 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
             "    \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
             "    \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
             "    \"confirmations\" : nnnnnnnnnn,     (number) the number of transaction confirmations\n"
-            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in Zcoins\n"
             "    \"blocktime\" : nnnnnnnnnn,         (number) the timestamp of the block that contains the transaction\n"
             "    \"valid\" : true|false,             (boolean) whether the transaction is valid\n"
             "    \"version\" : n,                    (number) the transaction version\n"
@@ -1805,7 +1805,7 @@ UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
             "    \"sendingaddress\" : \"address\",     (string) the Zcoin address of the sender\n"
             "    \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
             "    \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
-            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in Zcoins\n"
             "    \"version\" : n,                    (number) the transaction version\n"
             "    \"type_int\" : n,                   (number) the transaction type as number\n"
             "    \"type\" : \"type\",                  (string) the transaction type as string\n"
@@ -1869,7 +1869,7 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
 
     UniValue infoResponse(UniValue::VOBJ);
 
-    // provide the exodus and zcoin version
+    // provide the Exodus and Zcoin version
     infoResponse.push_back(Pair("exodusversion_int", EXODUS_VERSION));
     infoResponse.push_back(Pair("exodusversion", ExodusVersion()));
     infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
@@ -1998,7 +1998,7 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
             "  \"sendingaddress\" : \"address\",   (string) the Zcoin address of the sender\n"
             "  \"ismine\" : true|false,          (boolean) whether the transaction involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,   (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",           (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",           (string) the transaction fee in Zcoins\n"
             "  \"blocktime\" : nnnnnnnnnn,       (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,           (boolean) whether the transaction is valid\n"
             "  \"version\" : n,                  (number) the transaction version\n"
@@ -2046,7 +2046,7 @@ UniValue exodus_gettrade(const UniValue& params, bool fHelp)
             "  \"sendingaddress\" : \"address\",                  (string) the Zcoin address of the trader\n"
             "  \"ismine\" : true|false,                         (boolean) whether the order involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,                  (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in Zcoins\n"
             "  \"blocktime\" : nnnnnnnnnn,                      (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,                          (boolean) whether the transaction is valid\n"
             "  \"version\" : n,                                 (number) the transaction version\n"

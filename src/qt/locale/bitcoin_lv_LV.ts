@@ -218,12 +218,12 @@
         <translation>Ciļņu rīkjosla</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Pieprasīt maksājumus (izveido QR kodu un zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <translation>Pieprasīt maksājumus (izveido QR kodu un Zcoin: URIs)</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
-        <translation>Atvērt zcoin URI vai maksājuma pieprasījumu</translation>
+        <source>Open a Zcoin: URI or payment request</source>
+        <translation>Atvērt Zcoin URI vai maksājuma pieprasījumu</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -504,7 +504,7 @@
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>Ieslēgt zcoin &amp;kontroles funkcijas</translation>
+        <translation>Ieslēgt Zcoin &amp;kontroles funkcijas</translation>
     </message>
     <message>
         <source>&amp;Spend unconfirmed change</source>

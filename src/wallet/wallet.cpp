@@ -5119,7 +5119,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5366,7 +5366,7 @@ bool CWallet::CreateSigmaSpendTransaction(
             } else {
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5643,7 +5643,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5965,7 +5965,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
             }else{
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()) {
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address

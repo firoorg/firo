@@ -234,7 +234,7 @@
         <translation>Fül eszköztár</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
         <translation>Fizetési kérelem (QR-kódot és "zcoin:" URI azonosítót hoz létre)</translation>
     </message>
     <message>
@@ -246,7 +246,7 @@
         <translation>A használt fogadó címek és címkék megtekintése</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
+        <source>Open a Zcoin: URI or payment request</source>
         <translation>"zcoin:" URI azonosító vagy fizetési kérelem megnyitása</translation>
     </message>
     <message>
@@ -1571,7 +1571,7 @@
     </message>
     <message>
         <source>Insufficient funds</source>
-        <translation>Nincs elég zcoinod.</translation>
+        <translation>Nincs elég Zcoinod.</translation>
     </message>
     <message>
         <source>Loading block index...</source>

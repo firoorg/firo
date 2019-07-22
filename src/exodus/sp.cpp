@@ -696,7 +696,7 @@ void exodus::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_
     issuerPercentage_ *= precision_;
     issuerPercentage_ /= percentage_precision;
 
-    // Precision for zcoin amounts (satoshi)
+    // Precision for Zcoin amounts (satoshi)
     arith_uint256 satoshi_precision_ = ConvertTo256(100000000L);
 
     // Total tokens including remainders
