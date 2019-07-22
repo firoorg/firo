@@ -5,6 +5,7 @@
 #include <openssl/rand.h>
 #include <sstream>
 #include "openssl_context.h"
+#include "primitives/zerocoin.h"
 
 namespace sigma {
 
@@ -172,6 +173,13 @@ PublicCoin::PublicCoin(const GroupElement& coin, const CoinDenomination d)
 const GroupElement& PublicCoin::getValue() const{
     return this->value;
 }
+
+uint256 const & PublicCoin::getValueHash() const {
+    if(valueHash.IsNull())
+        valueHash = primitives::GetPubCoinValueHash(value);
+    return valueHash;
+}
+
 
 CoinDenomination PublicCoin::getDenomination() const {
     return denomination;

@@ -25,6 +25,10 @@
 #include <vector>
 #include "libzerocoin/Zerocoin.h"
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
+
 static const bool DEFAULT_FLUSHWALLET = true;
 
 class CAccount;
@@ -102,6 +106,7 @@ public:
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
     std::string hdKeypath; //optional HD/bip32 keypath
+    int64_t nChange; // HD/bip32 keypath change counter
     int64_t nChild; // HD/bip32 keypath child counter
     CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
 
@@ -113,6 +118,16 @@ public:
     {
         SetNull();
         nCreateTime = nCreateTime_;
+    }
+
+    bool ParseComponents(){
+        std::vector<std::string> nComponents;
+        if(hdKeypath=="m")
+            return false;
+        boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
+        nChange = boost::lexical_cast<int64_t>(nComponents[4]);
+        nChild = boost::lexical_cast<int64_t>(nComponents[5]);
+        return true;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -135,6 +150,7 @@ public:
         nCreateTime = 0;
         hdKeypath.clear();
         nChild = 0;
+        nChange = 0;
         hdMasterKeyID.SetNull();
     }
 };

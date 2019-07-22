@@ -62,10 +62,10 @@ bool CZMQAbstractPublisher::Initialize()
             zmqError("Failed to create socket");
             return false;
         }
-        // TODO latter condition is a short term hack. make into proper inheritence hierarchy
-        if(CZMQAbstract::DEV_AUTH && this->topic != "apiStatus"){
+        
+        if(CZMQAbstract::DEV_AUTH){
             // Set up PUB auth.
-            vector<string> keys = readCert(CZMQAbstract::Server);
+            vector<string> keys = ReadCert(CZMQAbstract::Server);
 
             string server_secret_key = keys.at(1);
 

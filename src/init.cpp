@@ -966,10 +966,12 @@ void InitParameterInteraction() {
             LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
     }
 
-    // -zapwalletmints implies a reindex
+    // -zapwalletmints implies a reindex and zapwallettxes=1
     if (GetBoolArg("-zapwalletmints", false)) {
         if (SoftSetBoolArg("-reindex", true))
             LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -reindex=1\n", __func__);
+        if (SoftSetArg("-zapwallettxes", std::string("1")))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -zapwallettxes=1\n", __func__);
     }
 
     // -zapwallettx implies a rescan
@@ -1453,7 +1455,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         CreateZerocoinFile();
 
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-        CZMQAbstract::createCerts(resetapicerts);
+        CZMQAbstract::CreateCerts(resetapicerts);
     }
 
     int64_t nStart;

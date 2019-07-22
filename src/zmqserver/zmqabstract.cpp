@@ -123,7 +123,7 @@ string CZMQAbstract::GetAuthType(KeyType type){
     return (type == Server) ? "server" : "client";
 }
 
-bool CZMQAbstract::writeCert(string publicKey, string privateKey, KeyType type, bool reset){
+bool CZMQAbstract::WriteCert(string publicKey, string privateKey, KeyType type, bool reset){
 
     boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type);
 
@@ -156,7 +156,7 @@ bool CZMQAbstract::writeCert(string publicKey, string privateKey, KeyType type, 
     return true;
 }
 
-vector<string> CZMQAbstract::readCert(KeyType type){
+vector<string> CZMQAbstract::ReadCert(KeyType type){
     boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type) / "keys.json"; 
 
     LogPrintf("ZMQ: path @ read: %s\n", cert.string());
@@ -180,15 +180,15 @@ vector<string> CZMQAbstract::readCert(KeyType type){
     return result;
 }
 
-bool CZMQAbstract::createCerts(bool reset){
+bool CZMQAbstract::CreateCerts(bool reset){
     // Generate client/server keys for auth over zmq.
     char serverPublicKey[41], serverSecretKey[41];
     char clientPublicKey[41], clientSecretKey[41];
     zmq_curve_keypair(serverPublicKey, serverSecretKey);
     zmq_curve_keypair(clientPublicKey, clientSecretKey);
 
-    writeCert(serverPublicKey, serverSecretKey, Server, reset);
-    writeCert(clientPublicKey, clientSecretKey, Client, reset);
+    WriteCert(serverPublicKey, serverSecretKey, Server, reset);
+    WriteCert(clientPublicKey, clientSecretKey, Client, reset);
 
     return true;
 }

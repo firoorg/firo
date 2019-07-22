@@ -81,7 +81,7 @@ struct ZmqServerTestingSetup : public TestingSetup {
 
         SetAPIWarmupFinished();
 
-        CZMQAbstract::createCerts(true);
+        CZMQAbstract::CreateCerts(true);
 
         pzmqPublisherInterface = pzmqPublisherInterface->Create();
         pzmqReplierInterface = pzmqReplierInterface->Create();
@@ -105,8 +105,8 @@ struct ZmqServerTestingSetup : public TestingSetup {
         BOOST_CHECK(pSubSocket);
 
         if(CZMQAbstract::DEV_AUTH){
-            vector<string> clientKeys = CZMQAbstract::readCert(CZMQAbstract::Client);
-            vector<string> serverKeys = CZMQAbstract::readCert(CZMQAbstract::Server);
+            vector<string> clientKeys = CZMQAbstract::ReadCert(CZMQAbstract::Client);
+            vector<string> serverKeys = CZMQAbstract::ReadCert(CZMQAbstract::Server);
 
             string server_key = serverKeys.at(0);
             string secret_key = clientKeys.at(1);
@@ -195,8 +195,8 @@ struct ZmqServerTestingSetup : public TestingSetup {
         BOOST_CHECK((isAuth) ? pAuthSocket : pOpenSocket);
 
         if(CZMQAbstract::DEV_AUTH && isAuth){
-            vector<string> clientKeys = CZMQAbstract::readCert(CZMQAbstract::Client);
-            vector<string> serverKeys = CZMQAbstract::readCert(CZMQAbstract::Server);
+            vector<string> clientKeys = CZMQAbstract::ReadCert(CZMQAbstract::Client);
+            vector<string> serverKeys = CZMQAbstract::ReadCert(CZMQAbstract::Server);
 
             string server_key = serverKeys.at(0);
             string secret_key = clientKeys.at(1);

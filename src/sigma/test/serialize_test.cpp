@@ -4,7 +4,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(sigma_serialize_tests)
+#include "../../test/fixtures.h"
+
+BOOST_FIXTURE_TEST_SUITE(sigma_serialize_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(group_element_serialize)
 {

@@ -390,8 +390,6 @@ void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins) {
 
 void CTxMemPool::getTransactions(std::set<uint256>& setTxid)
 {
-    setTxid.clear();
-
      LOCK(cs);
     for (indexed_transaction_set::const_iterator mi = mapTx.begin(); mi != mapTx.end(); ++mi){
         setTxid.insert((*mi).GetTx().GetHash());

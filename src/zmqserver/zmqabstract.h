@@ -43,9 +43,9 @@ public:
     void SetAuthority(const std::string &a) { authority = a; }
 
     /* static certificate handling */
-    static vector<string> readCert(KeyType type);
-    static bool writeCert(string publicKey, string privateKey, KeyType type, bool reset=false);
-    static bool createCerts(bool reset=false);
+    static vector<string> ReadCert(KeyType type);
+    static bool WriteCert(string publicKey, string privateKey, KeyType type, bool reset=false);
+    static bool CreateCerts(bool reset=false);
     static std::string GetAuthType(KeyType type);
 
     /* define pure virtual functions (implemented by every derived instance) */ 

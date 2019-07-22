@@ -158,7 +158,7 @@ bool CZMQAbstractReplier::Socket(){
 
 bool CZMQAuthReplier::Auth(){
     if(CZMQAbstract::DEV_AUTH){
-        vector<string> keys = readCert(CZMQAbstract::Server);
+        vector<string> keys = ReadCert(CZMQAbstract::Server);
 
         string server_secret_key = keys.at(1);
 
