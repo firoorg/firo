@@ -22,9 +22,6 @@ namespace zerocoin_tests3_v3 { struct zerocoin_mintspend_v3; }
 
 namespace sigma {
 
-// zerocoin parameters
-extern Params *SigmaParams;
-
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
 // index
 class CSigmaTxInfo {

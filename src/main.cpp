@@ -1810,6 +1810,21 @@ bool AcceptToMemoryPoolWorker(
         }
 #endif
     }
+#ifdef ENABLE_WALLET
+    vector<GroupElement> zcMintPubcoinsV3;
+    if(tx.IsSigmaMint()){
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if(txout.scriptPubKey.IsSigmaMint()){
+                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                zcMintPubcoinsV3.push_back(pubCoinValue);
+            }
+        }
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        }
+    }
+#endif
     SyncWithWallets(tx, NULL, NULL);
 
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -2424,7 +2439,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(sigma::SigmaParams, serializedCoinSpend);
+            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
             uint64_t denom = newSpend.getIntDenomination();
             totalInputValue += denom;
         }
@@ -6335,6 +6350,13 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
+            if (nHeight > chainparams.GetConsensus().nOldSigmaBanBlock && pfrom->cleanSubVer == "/Satoshi:0.13.8.1/") {
+                pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network");
+                pfrom->fDisconnect = 1;
+                LOCK(cs_main);
+                Misbehaving(pfrom->GetId(), 100);
+                return false;
+            }
         }
         if (!vRecv.empty()) {
             vRecv >> pfrom->nStartingHeight;
