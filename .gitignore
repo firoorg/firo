@@ -80,7 +80,8 @@ src/tor.timestamp*
 
 # Compilation and Qt preprocessor part
 *.qm
-Makefile
+/Makefile
+/src/Makefile
 zcoin-qt
 Zcoin-Qt.app
 
