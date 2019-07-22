@@ -1453,7 +1453,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         CreateZerocoinFile();
 
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-        CZMQAbstract::createCerts(resetapicerts);
+        CZMQAbstract::CreateCerts(resetapicerts);
     }
 
     int64_t nStart;

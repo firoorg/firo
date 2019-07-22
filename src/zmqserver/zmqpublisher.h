@@ -49,7 +49,7 @@ public:
 };
 
 /* Event classes. Each one is a specific notifier in ValidationInterface. 
-   virtual to allow multiple inheritence by topic classses */
+   virtual to allow multiple inheritence by topic classes */
 class CZMQBlockEvent : virtual public CZMQAbstractPublisher
 {
     /* Data related to a new block (updatedblocktip)
