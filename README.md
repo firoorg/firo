@@ -10,6 +10,11 @@ What is Zcoin?
 
 Zcoin developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
 
+How Zcoin’s Privacy Technology Compares to the Competition
+--------------
+![A comparison chart of Zcoin’s solutions with other leading privacy technologies can be found below](https://zcoin.io/wp-content/uploads/2019/04/zcoin_table_coloured5-01.png) 
+read more https://zcoin.io/zcoins-privacy-technology-compares-competition/
+
 Running with Docker
 ===================
 
