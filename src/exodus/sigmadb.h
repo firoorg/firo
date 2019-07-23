@@ -44,7 +44,7 @@ public:
 
     void RecordLastGroupID(uint32_t propertyId, uint32_t denomination, uint32_t groupId);
     void RecordMintCount(uint32_t propertyId, uint32_t denomination, uint32_t groupId, size_t mintCount);
-    void RecordMintKeyIndex(leveldb::Slice mintKey);
+    void RecordMintKeyIndex(const leveldb::Slice& mintKey);
     void RecordLastSequence(uint64_t lastSequence);
 
     uint32_t GetLastGroupID(uint32_t propertyId, uint32_t denomination);

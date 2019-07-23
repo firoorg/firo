@@ -1,5 +1,5 @@
+#include "exodus/convert.h"
 #include "exodus/exodus.h"
-
 #include "exodus/encoding.h"
 #include "exodus/errors.h"
 #include "exodus/log.h"
@@ -8,37 +8,12 @@
 #include "exodus/tally.h"
 #include "exodus/tx.h"
 
-#include "chainparams.h"
-#include "init.h"
-#include "main.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
 #include "secp256k1/include/GroupElement.h"
-#include "sync.h"
 #include "tinyformat.h"
-#include "uint256.h"
-#include "ui_interface.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "utiltime.h"
-#include "zerocoin_v3.h"
-#ifdef ENABLE_WALLET
-#include "script/ismine.h"
-#include "wallet/wallet.h"
-#endif
 
-#include <univalue.h>
-
-#include <boost/endian/conversion.hpp>
 #include <boost/filesystem.hpp>
 
 #include "leveldb/db.h"
-
-#include <assert.h>
-#include <stdint.h>
-#include <stdio.h>
 
 #include <string>
 #include <vector>
@@ -76,7 +51,7 @@ inline It SerializeKey(It it)
 template<typename T, typename ...R, typename It>
 inline It SerializeKey(It it, T t, R ...r)
 {
-    t = boost::endian::native_to_big(t);
+    exodus::swapByteOrder(t);
     std::copy_n((unsigned char*)&t, sizeof(t), it);
     return SerializeKey(it + sizeof(t), r...);
 }
@@ -169,10 +144,10 @@ static bool ParseMintKey(
         groupID = out[2];
         idx = out[3];
 
-        propertyID = boost::endian::big_to_native(propertyID);
-        denomination = boost::endian::big_to_native(denomination);
-        groupID = boost::endian::big_to_native(groupID);
-        idx = boost::endian::big_to_native(idx);
+        exodus::swapByteOrder(propertyID);
+        exodus::swapByteOrder(denomination);
+        exodus::swapByteOrder(groupID);
+        exodus::swapByteOrder(idx);
 
         return true;
     }
@@ -372,7 +347,7 @@ void CMPMintList::RecordMintCount(
     }
 }
 
-void CMPMintList::RecordMintKeyIndex(leveldb::Slice mintKey)
+void CMPMintList::RecordMintKeyIndex(const leveldb::Slice& mintKey)
 {
     auto nextSequence = GetNextSequence();
 
