@@ -213,6 +213,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string category;
             string voutIndex = to_string(s.vout);
             
+            // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint() ||
                wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
                 category = "mint";
@@ -225,8 +226,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", isAvailable));
                 }
             }
-            else if(wtx.vin[s.vout].IsZerocoinSpend() ||
-                    wtx.vin[s.vout].IsSigmaSpend()){
+            else if((wtx.IsZerocoinSpend() || wtx.IsSigmaSpend())){
+                // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
             else {
@@ -332,8 +333,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 else
                     category = "mined";
             }
-            else if(wtx.vin[r.vout].IsZerocoinSpend() ||
-                    wtx.vin[r.vout].IsSigmaSpend()){
+            else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
+                // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             }
             else {
