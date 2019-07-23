@@ -12,7 +12,7 @@
 class CHDMint
 {
 private:
-    uint32_t nCount;
+    int32_t nCount;
     CKeyID seedId;
     uint256 hashSerial;
     GroupElement pubCoinValue;
@@ -24,7 +24,7 @@ private:
 
 public:
     CHDMint();
-    CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
+    CHDMint(const int32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
 
     boost::optional<sigma::CoinDenomination> GetDenomination() const {
         sigma::CoinDenomination value;
@@ -36,13 +36,13 @@ public:
     int64_t GetDenominationValue() const {
         return denom;
     }
-    uint32_t GetCount() const { return nCount; }
+    int32_t GetCount() const { return nCount; }
     int GetHeight() const { return nHeight; }
     int GetId() const { return nId; }
     CKeyID GetSeedId() const { return seedId; }
     uint256 GetSerialHash() const { return hashSerial; }
     GroupElement GetPubcoinValue() const { return pubCoinValue; }
-    uint256 GetPubCoinHash() const { return sigma::GetPubCoinValueHash(pubCoinValue); }
+    uint256 GetPubCoinHash() const { return primitives::GetPubCoinValueHash(pubCoinValue); }
     uint256 GetTxHash() const { return txid; }
     bool IsUsed() const { return isUsed; }
     void SetDenomination(const sigma::CoinDenomination value) {

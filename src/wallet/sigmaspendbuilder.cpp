@@ -103,7 +103,9 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
     return signer;
 }
 
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, const CCoinControl *coinControl) : TxBuilder(wallet)
+SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl) :
+    TxBuilder(wallet),
+    mintWallet(mintWallet)
 {
     cs_main.lock();
 
@@ -155,26 +157,18 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
     auto params = sigma::Params::get_default();
 
     CHDMint hdMint;
-
-     uint32_t nCountLastUsed = zwalletMain->GetCount();
-
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         hdMint.SetNull();
-        zwalletMain->GenerateHDMint(denomination, newCoin, hdMint);
+        mintWallet.GenerateMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
-            // reset countLastUsed value
-            zwalletMain->SetCount(nCountLastUsed);
             throw std::runtime_error("Unable to mint a V3 sigma coin.");
         }
-
-        // Update local count (don't write back to DB until we know coin is verified && change has been decided)
-        zwalletMain->UpdateCountLocal();
 
         // Create script for coin
         CScript scriptSerializedCoin;

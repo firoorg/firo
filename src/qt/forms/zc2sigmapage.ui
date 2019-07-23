@@ -67,7 +67,7 @@
      <item>
       <widget class="QPushButton" name="remintButton">
        <property name="toolTip">
-        <string>Spend Zerocoin</string>
+        <string>Remint Zerocoin</string>
        </property>
        <property name="text">
         <string>&amp;Remint</string>

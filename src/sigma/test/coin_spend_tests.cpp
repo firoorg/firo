@@ -5,9 +5,11 @@
 #include "../../streams.h"
 #include "../../uint256.h"
 
+#include "../../test/fixtures.h"
+
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(sigma_coin_spend_tests)
+BOOST_FIXTURE_TEST_SUITE(sigma_coin_spend_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(serialize_deserialize_test)
 {

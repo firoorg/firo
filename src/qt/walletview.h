@@ -108,6 +108,7 @@ private:
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
     SigmaDialog *sigmaView;
+    BlankSigmaDialog *blankSigmaView;
     QWidget *sigmaPage;
     Zc2SigmaPage *zc2SigmaPage;
     TransactionView *zcoinTransactionList;

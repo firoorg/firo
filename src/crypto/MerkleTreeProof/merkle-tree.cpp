@@ -70,6 +70,7 @@ MerkleTree::Buffer MerkleTree::combinedHash(const Buffer& first,
         const Buffer& second, bool preserveOrder)
 {
     Buffer buffer;
+    buffer.reserve(first.size() + second.size());
     if (preserveOrder || (first > second)) {
         std::copy(first.begin(), first.end(), std::back_inserter(buffer));
         std::copy(second.begin(), second.end(), std::back_inserter(buffer));

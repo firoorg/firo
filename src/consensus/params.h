@@ -128,6 +128,9 @@ struct Params {
     // The block number after which sigma are accepted.
     int nSigmaStartBlock;
 
+    // The block number after which old sigma clients are banned.
+    int nOldSigmaBanBlock;
+
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
     int nZerocoinV2MintMempoolGracefulPeriod;
 

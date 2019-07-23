@@ -97,6 +97,7 @@ QT_TS = \
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
   qt/forms/zerocoinpage.ui \
+  qt/forms/blanksigmadialog.ui \
   qt/forms/sigmadialog.ui \
   qt/forms/sigmacoincontroldialog.ui \
   qt/forms/askpassphrasedialog.ui \

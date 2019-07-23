@@ -4,7 +4,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(sigma_protocol_tests)
+#include "../../test/fixtures.h"
+
+BOOST_FIXTURE_TEST_SUITE(sigma_protocol_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(one_out_of_n)
 {

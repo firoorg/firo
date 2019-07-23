@@ -7,6 +7,7 @@
 
 #include <amount.h>
 #include <streams.h>
+#include <boost/optional.hpp>
 #include <limits.h>
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "libzerocoin/Zerocoin.h"
@@ -20,7 +21,9 @@ struct CMintMeta
 {
     int nHeight;
     int nId;
-    GroupElement pubCoinValue;
+    GroupElement const & GetPubCoinValue() const;
+    void SetPubCoinValue(GroupElement const & other);
+    uint256 GetPubCoinValueHash() const;
     uint256 hashSerial;
     uint8_t nVersion;
     sigma::CoinDenomination denom;
@@ -29,6 +32,9 @@ struct CMintMeta
     bool isArchived;
     bool isDeterministic;
     bool isSeedCorrect;
+private:
+    GroupElement pubCoinValue;
+    mutable boost::optional<uint256> pubCoinValueHash;
 };
 
 class CZerocoinEntry
@@ -320,5 +326,10 @@ private:
     // I.E. it is set to 100.000.000 for 1 zcoin.
     int64_t denomination;
 };
+
+namespace primitives {
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+}
 
 #endif //PRIMITIVES_ZEROCOIN_H

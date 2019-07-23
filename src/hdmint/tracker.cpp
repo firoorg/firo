@@ -14,6 +14,7 @@
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
 #include "zerocoin_v3.h"
+#include "txmempool.h"
 
 using namespace std;
 using namespace sigma;
@@ -36,31 +37,24 @@ void CHDMintTracker::Init()
 {
     //Load all CZerocoinEntries and CHDMints from the database
     if (!fInitialized) {
-        ListMints(false, false);
+        ListMints(false, false, false, true);
         fInitialized = true;
     }
 }
 
 bool CHDMintTracker::Archive(CMintMeta& meta)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
 
     if (HasSerialHash(meta.hashSerial))
         mapSerialHashes.at(meta.hashSerial).isArchived = true;
 
-    CWalletDB walletdb(strWalletFile);
-    CSigmaEntry zerocoin;
-    // if (walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin)) {
-    //     if (!CWalletDB(strWalletFile).ArchiveMintOrphan(zerocoin))
-    //         return error("%s: failed to archive zerocoinmint", __func__);
-    // } else {
-    //     //failed to read mint from DB, try reading deterministic
-    //     CHDMint dMint;
-    //     if (!walletdb.ReadHDMint(hashPubcoin, dMint))
-    //         return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
-    //     if (!walletdb.ArchiveDeterministicOrphan(dMint))
-    //         return error("%s: failed to archive deterministic ophaned mint", __func__);
-    // }
+   CWalletDB walletdb(strWalletFile);
+    CHDMint dMint;
+    if (!walletdb.ReadHDMint(hashPubcoin, dMint))
+        return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
+    if (!walletdb.ArchiveDeterministicOrphan(dMint))
+        return error("%s: failed to archive deterministic ophaned mint", __func__);
 
     LogPrintf("%s: archived pubcoinhash %s\n", __func__, hashPubcoin.GetHex());
     return true;
@@ -85,7 +79,7 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
     return true;
 }
 
-bool CHDMintTracker::Get(const uint256 &hashSerial, CMintMeta& mMeta)
+bool CHDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, CMintMeta& mMeta)
 {
     auto it = mapSerialHashes.find(hashSerial);
     if(it == mapSerialHashes.end())
@@ -95,15 +89,16 @@ bool CHDMintTracker::Get(const uint256 &hashSerial, CMintMeta& mMeta)
     return true;
 }
 
-CMintMeta CHDMintTracker::GetMetaFromPubcoin(const uint256& hashPubcoin)
+bool CHDMintTracker::GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta)
 {
     for (auto it : mapSerialHashes) {
-        CMintMeta meta = it.second;
-        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
-            return meta;
+        if (it.second.GetPubCoinValueHash() == hashPubcoin){
+            mMeta = it.second;
+            return true;
+        }
     }
 
-    return CMintMeta();
+    return false;
 }
 
 std::vector<uint256> CHDMintTracker::GetSerialHashes()
@@ -187,27 +182,14 @@ bool CHDMintTracker::HasMintTx(const uint256& txid)
     return false;
 }
 
-bool CHDMintTracker::HasPubcoin(const GroupElement &pubcoin) const
-{
-    // Check if this mint's pubcoin value belongs to our mapSerialHashes (which includes hashpubcoin values)
-    uint256 hash = sigma::GetPubCoinValueHash(pubcoin);
-    return HasPubcoinHash(hash);
-}
-
 bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 {
-    for (auto it : mapSerialHashes) {
+    for (auto const & it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
+        if (meta.GetPubCoinValueHash() == hashPubcoin)
             return true;
     }
     return false;
-}
-
-bool CHDMintTracker::HasSerial(const Scalar& bnSerial) const
-{
-    uint256 hash = GetSerialHash(bnSerial);
-    return HasSerialHash(hash);
 }
 
 bool CHDMintTracker::HasSerialHash(const uint256& hashSerial) const
@@ -216,28 +198,9 @@ bool CHDMintTracker::HasSerialHash(const uint256& hashSerial) const
     return it != mapSerialHashes.end();
 }
 
-bool CHDMintTracker::UpdateZerocoinEntry(const CSigmaEntry& zerocoin)
-{
-    if (!HasSerial(zerocoin.serialNumber))
-        return error("%s: zerocoin %s is not known", __func__, zerocoin.value.GetHex());
-
-    uint256 hashSerial = GetSerialHash(zerocoin.serialNumber);
-
-    //Update the meta object
-    CMintMeta meta;
-    Get(hashSerial, meta);
-    meta.isUsed = zerocoin.IsUsed;
-    meta.denom = zerocoin.get_denomination();
-    meta.nHeight = zerocoin.nHeight;
-    mapSerialHashes.at(hashSerial) = meta;
-
-    //Write to db
-    return CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoin);
-}
-
 bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
     CWalletDB walletdb(strWalletFile);
 
     if (meta.isDeterministic) {
@@ -277,7 +240,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
             CT_UPDATED);
     } else {
         CSigmaEntry zerocoin;
-        if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
+        if (!walletdb.ReadZerocoinEntry(meta.GetPubCoinValue(), zerocoin))
             return error("%s: failed to read mint from database", __func__);
 
         zerocoin.nHeight = meta.nHeight;
@@ -300,11 +263,10 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
     return true;
 }
 
-void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDMintWallet* zerocoinWallet)
+void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
 {
-    bool iszerocoinWalletInitialized = (NULL != zerocoinWallet);
     CMintMeta meta;
-    meta.pubCoinValue = dMint.GetPubcoinValue();
+    meta.SetPubCoinValue(dMint.GetPubcoinValue());
     meta.nHeight = dMint.GetHeight();
     meta.nId = dMint.GetId();
     meta.txid = dMint.GetTxHash();
@@ -313,12 +275,14 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
     meta.denom = dMint.GetDenomination().get();
     meta.isArchived = isArchived;
     meta.isDeterministic = true;
-    if (! iszerocoinWalletInitialized)
-        zerocoinWallet = new CHDMintWallet(strWalletFile);
     meta.isSeedCorrect = true;
-    if (! iszerocoinWalletInitialized)
-        delete zerocoinWallet;
     mapSerialHashes[meta.hashSerial] = meta;
+
+    pwalletMain->NotifyZerocoinChanged(
+        pwalletMain,
+        dMint.GetPubcoinValue().GetHex(),
+        std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
+        CT_UPDATED);
 
     if (isNew)
         CWalletDB(strWalletFile).WriteHDMint(dMint);
@@ -327,12 +291,12 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
 void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchived)
 {
     CMintMeta meta;
-    meta.pubCoinValue = zerocoin.value;
+    meta.SetPubCoinValue(zerocoin.value);
     meta.nHeight = zerocoin.nHeight;
     meta.nId = zerocoin.id;
     //meta.txid = zerocoin.GetTxHash();
     meta.isUsed = zerocoin.IsUsed;
-    meta.hashSerial = GetSerialHash(zerocoin.serialNumber);
+    meta.hashSerial = primitives::GetSerialHash(zerocoin.serialNumber);
     meta.denom = zerocoin.get_denomination();
     meta.isArchived = isArchived;
     meta.isDeterministic = false;
@@ -345,9 +309,9 @@ void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchive
 
 void CHDMintTracker::SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid)
 {
-    if (!HasPubcoinHash(hashPubcoin))
+    CMintMeta meta;
+    if(!GetMetaFromPubcoin(hashPubcoin, meta))
         return;
-    CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
     meta.isUsed = true;
     mapPendingSpends.insert(make_pair(meta.hashSerial, txid));
     UpdateState(meta);
@@ -355,9 +319,9 @@ void CHDMintTracker::SetPubcoinUsed(const uint256& hashPubcoin, const uint256& t
 
 void CHDMintTracker::SetPubcoinNotUsed(const uint256& hashPubcoin)
 {
-    if (!HasPubcoinHash(hashPubcoin))
+    CMintMeta meta;
+    if(!GetMetaFromPubcoin(hashPubcoin, meta))
         return;
-    CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
     meta.isUsed = false;
 
     if (mapPendingSpends.count(meta.hashSerial))
@@ -379,33 +343,63 @@ void CHDMintTracker::RemovePending(const uint256& txid)
         mapPendingSpends.erase(hashSerial);
 }
 
-bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint)
+bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial){
+    // get transaction back from mempool
+    // if spend, get hash of serial
+    // if matches mint.hashSerial, mark pending spend.
+    for(auto& mempoolTxid : setMempool){
+        auto it = mempool.mapTx.find(mempoolTxid);
+        if (it == mempool.mapTx.end()){
+            it = stempool.mapTx.find(mempoolTxid);
+            if (it == stempool.mapTx.end())
+                continue;
+        }
+
+        const CTransaction &tx = it->GetTx();
+        for (const CTxIn& txin : tx.vin) {
+            if (txin.IsSigmaSpend()) {
+                std::unique_ptr<sigma::CoinSpend> spend;
+                uint32_t pubcoinId;
+                try {
+                    std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                } catch (CBadTxIn &) {
+                    return false;
+                } catch (std::ios_base::failure &) {
+                    return false;
+                }
+
+                uint256 mempoolHashSerial = primitives::GetSerialHash(spend->getCoinSerialNumber());
+                if(mempoolHashSerial==hashSerial){
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.pubCoinValue);
+    uint256 hashPubcoin = mint.GetPubCoinValueHash();
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
     // If there is not a record of the block height, then look it up and assign it
     COutPoint outPoint;
-    sigma::PublicCoin pubCoin(mint.pubCoinValue, mint.denom);
+    sigma::PublicCoin pubCoin(mint.GetPubCoinValue(), mint.denom);
     bool isMintInChain = GetOutPoint(outPoint, pubCoin);
     const uint256& txidMint = outPoint.hash;
 
-    //See if there is internal record of spending this mint (note this is memory only, would reset on restart)
+    //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
+
+    // Mempool might hold pending spend
+    if(!isPendingSpend && fSpend)
+        isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
 
     // See if there is a blockchain record of spending this mint
     CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     Scalar bnSerial;
     bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
-
-    // Double check the mempool for pending spend
-    if (isPendingSpend) {
-        uint256 txidPendingSpend = mapPendingSpends.at(mint.hashSerial);
-        if (!setMempool.count(txidPendingSpend) || isConfirmedSpend) {
-            RemovePending(txidPendingSpend);
-            isPendingSpend = false;
-            LogPrintf("%s : Pending txid %s removed because not in mempool\n", __func__, txidPendingSpend.GetHex());
-        }
-    }
 
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
@@ -427,13 +421,16 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
             mint.txid = txidMint;
         }
 
-        if (setMempool.count(mint.txid))
+        if (setMempool.count(mint.txid)) {
+            if(mint.nHeight>-1) mint.nHeight = -1;
+            if(mint.nId>-1) mint.nId = -1;
             return true;
+        }
 
         // Check the transaction associated with this mint
-        if (!IsInitialBlockDownload() && !GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
+        if (!GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
             LogPrintf("%s : Failed to find tx for mint txid=%s\n", __func__, mint.txid.GetHex());
-            mint.isArchived = true;
+            mint.isArchived = true; 
             Archive(mint);
             return true;
         }
@@ -449,7 +446,7 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
 
                 return true;
             }else if((mint.nHeight==-1) || (mint.nId<=0)){ // assign nHeight if not present
-                sigma::PublicCoin pubcoin(mint.pubCoinValue, mint.denom);
+                sigma::PublicCoin pubcoin(mint.GetPubCoinValue(), mint.denom);
                 auto MintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubcoin);
                 mint.nHeight = MintedCoinHeightAndId.first;
                 mint.nId = MintedCoinHeightAndId.second;
@@ -472,103 +469,137 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
     return false;
 }
 
-bool CHDMintTracker::MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> listMints) const {
-    CSigmaEntry entry;
-    for (const CMintMeta& mint : listMints) {
-        if (pwalletMain->GetMint(mint.hashSerial, entry))
-            entries.push_back(entry);
+void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta){
+    if (mintPoolEntries.size() > 0) {
+        zwalletMain->SyncWithChain(false, mintPoolEntries);
     }
-    return true;
-}
 
-bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bool fUpdateStatus, bool fStatus){
-    // if list is populated, only update mints with these serials
-    bool fSelection = serialHashes.size()>0;
-    // Only allow updates for one or the other
-    if(fReset && fUpdateStatus)
-        return false;
-
-    std::list<CSigmaEntry> listMintsDB;
-    CWalletDB walletdb(strWalletFile);
-    walletdb.ListSigmaPubCoin(listMintsDB);
-    for (auto& mint : listMintsDB){
-        if(fReset){
-            mint.nHeight = -1;
-            mint.IsUsed = false;
-        }
-        else if(fUpdateStatus){
-            mint.IsUsed = fStatus;
-        }
-
-        if((!fSelection) ||
-            (fSelection && (serialHashes.find(GetSerialHash(mint.serialNumber)) != serialHashes.end()))){
-            Add(mint);
-        }
-    }
-    std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
-
-    CHDMintWallet* zerocoinWallet = new CHDMintWallet(strWalletFile);
-    for (auto& dMint : listDeterministicDB) {
-        if(fReset){
-            dMint.SetHeight(-1);
-            dMint.SetUsed(false);
-        }
-        else if(fUpdateStatus){
-            dMint.SetUsed(fStatus);
-        }
-
-        if((!fSelection) ||
-            (fSelection && (serialHashes.find(dMint.GetSerialHash()) != serialHashes.end()))){
-            Add(dMint, true, false, zerocoinWallet);
-        }
-    }
-    delete zerocoinWallet;
-
-    return true;
+    //overwrite any updates
+    for (CMintMeta meta : updatedMeta)
+        UpdateState(meta);
 }
 
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
+    CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
-    std::set<uint256> setMempool;
-    {
-        LOCK(mempool.cs);
-        mempool.getTransactions(setMempool);
-    }
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& mint : mints) {
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.getValue());
-        if(!HasPubcoinHash(hashPubcoin))
-            continue;
-        CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
-        if(UpdateStatusInternal(setMempool, meta)){
-            updatedMeta.emplace_back(meta);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(mint.getValue());
+        CMintMeta meta;
+        // Check hashPubcoin in db
+        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+            // If found in db but not in memory - this is likely a resync
+            if(!GetMetaFromPubcoin(hashPubcoin, meta)){
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                continue;
+            }
+            if(UpdateMetaStatus(setMempool, meta)){
+                updatedMeta.emplace_back(meta);
+            }
         }
     }
 
-    //overwrite any updates
-    for (CMintMeta& meta : updatedMeta)
-        UpdateState(meta);
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
 void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials){
+    CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
-    std::set<uint256> setMempool;
-    {
-        LOCK(mempool.cs);
-        mempool.getTransactions(setMempool);
-    }
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool = GetMempoolTxids();
     for(auto& spentSerial : spentSerials){
-        uint256 spentSerialHash = sigma::GetSerialHash(spentSerial.first);
+        uint256 spentSerialHash = primitives::GetSerialHash(spentSerial.first);
         CMintMeta meta;
-        if(!Get(spentSerialHash, meta))
-            continue;
-        if(UpdateStatusInternal(setMempool, meta)){
-            updatedMeta.emplace_back(meta);
+        GroupElement pubcoin;
+        // Check serialHash in db
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
+            // If found in db but not in memory - this is likely a resync
+            if(!GetMetaFromSerial(spentSerialHash, meta)){
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+                    continue;
+                }
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                continue;
+            }
+            if(UpdateMetaStatus(setMempool, meta, true)){
+                updatedMeta.emplace_back(meta);
+            }
         }
     }
 
-    //overwrite any updates
-    for (CMintMeta& meta : updatedMeta)
-        UpdateState(meta);
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
+}
+
+void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins){
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CMintMeta> updatedMeta;
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool = GetMempoolTxids();
+    for (auto& pubcoin : pubCoins) {
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+        // Check hashPubcoin in db
+        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+            // If found in db but not in memory - this is likely a resync
+            if(!HasPubcoinHash(hashPubcoin)){
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                continue;
+            }
+            CMintMeta meta;
+            GetMetaFromPubcoin(hashPubcoin, meta);
+            if(UpdateMetaStatus(setMempool, meta)){
+                updatedMeta.emplace_back(meta);
+            }
+        }
+    }
+
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
+}
+
+void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials){
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CMintMeta> updatedMeta;
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool = GetMempoolTxids();
+    for(auto& spentSerial : spentSerials){
+        uint256 spentSerialHash = primitives::GetSerialHash(spentSerial);
+        CMintMeta meta;
+        GroupElement pubcoin;
+        // Check serialHash in db
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
+            // If found in db but not in memory - this is likely a resync
+            if(!GetMetaFromSerial(spentSerialHash, meta)){
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+                    continue;
+                }
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                continue;
+            }
+            if(UpdateMetaStatus(setMempool, meta, true)){
+                updatedMeta.emplace_back(meta);
+            }
+        }
+    }
+
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
 list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){
@@ -584,11 +615,12 @@ list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool 
     return listPubcoin;
 }
 
-std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed)
+std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
     std::vector<CMintMeta> setMints;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
-    if (fUpdateStatus) {
+    if (fLoad) {
         std::list<CSigmaEntry> listMintsDB;
         walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){
@@ -597,21 +629,14 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
         LogPrint("zero", "%s: added %d zerocoinmints from DB\n", __func__, listMintsDB.size());
 
         std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
-
-        CHDMintWallet* zerocoinWallet = new CHDMintWallet(strWalletFile);
         for (auto& dMint : listDeterministicDB) {
-            Add(dMint, false, false, zerocoinWallet);
+            Add(dMint, false, false);
         }
-        delete zerocoinWallet;
         LogPrint("zero", "%s: added %d hdmint from DB\n", __func__, listDeterministicDB.size());
     }
 
     std::vector<CMintMeta> vOverWrite;
-    std::set<uint256> setMempool;
-    {
-        LOCK(mempool.cs);
-        mempool.getTransactions(setMempool);
-    }
+    std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& it : mapSerialHashes) {
         CMintMeta mint = it.second;
 
@@ -620,12 +645,14 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
             continue;
 
         // Update the metadata of the mints if requested
-        if (fUpdateStatus && UpdateStatusInternal(setMempool, mint)) {
-            if (mint.isArchived)
-                continue;
+        if (fUpdateStatus){
+            if(UpdateMetaStatus(setMempool, mint)) {
+                if (mint.isArchived)
+                    continue;
 
-            // Mint was updated, queue for overwrite
-            vOverWrite.emplace_back(mint);
+                // Mint was updated, queue for overwrite
+                vOverWrite.emplace_back(mint);
+            }
         }
 
         if (fUnusedOnly && mint.isUsed)
@@ -648,6 +675,17 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
         UpdateState(meta);
 
     return setMints;
+}
+
+std::set<uint256> CHDMintTracker::GetMempoolTxids(){
+    std::set<uint256> setMempool;
+    setMempool.clear();
+    {
+        LOCK(mempool.cs);
+        mempool.getTransactions(setMempool);
+        stempool.getTransactions(setMempool);
+    }
+    return setMempool;
 }
 
 void CHDMintTracker::Clear()

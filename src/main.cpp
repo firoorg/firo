@@ -1808,10 +1808,33 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
-    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial)
-        sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-
+    if (tx.IsSigmaSpend()){
+        if(markZcoinSpendTransactionSerial)
+            sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
+        LogPrintf("Updating mint tracker state from Mempool..");
+#ifdef ENABLE_WALLET
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
+        }
+#endif
+    }
+#ifdef ENABLE_WALLET
+    vector<GroupElement> zcMintPubcoinsV3;
+    if(tx.IsSigmaMint()){
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if(txout.scriptPubKey.IsSigmaMint()){
+                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                zcMintPubcoinsV3.push_back(pubCoinValue);
+            }
+        }
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        }
+    }
+#endif
     SyncWithWallets(tx, NULL, NULL);
+
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
 
     return true;
@@ -2424,7 +2447,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(sigma::SigmaParams, serializedCoinSpend);
+            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
             uint64_t denom = newSpend.getIntDenomination();
             totalInputValue += denom;
         }
@@ -3350,6 +3373,13 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
 
+    // retrieve all mints
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    for (auto const& tx : block.vtx) {
+        CheckTransaction(tx, state, tx.GetHash(), false, pindexDelete->pprev->nHeight,
+            false, false, nullptr, block.sigmaTxInfo.get());
+    }
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -3413,6 +3443,19 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
+
+#ifdef ENABLE_WALLET
+    // update mint/spend wallet
+    if (zwalletMain) {
+        if (block.sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+        }
+
+        if (block.sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+        }
+    }
+#endif
 
 #ifdef ENABLE_EXODUS
     //! Exodus: begin block disconnect notification
@@ -3542,12 +3585,18 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
 #endif
     }
 
+#ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if(pblock->sigmaTxInfo->spentSerials.size() > 0)
-        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+    if (zwalletMain) {
+        if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+        }
 
-    if(pblock->sigmaTxInfo->mints.size() > 0)
-        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+        if (pblock->sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+        }
+    }
+#endif
 
 #ifdef ENABLE_EXODUS
     //! Exodus: end of block connect notification
@@ -6319,6 +6368,13 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
+            if (nHeight > chainparams.GetConsensus().nOldSigmaBanBlock && pfrom->cleanSubVer == "/Satoshi:0.13.8.1/") {
+                pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network");
+                pfrom->fDisconnect = 1;
+                LOCK(cs_main);
+                Misbehaving(pfrom->GetId(), 100);
+                return false;
+            }
         }
         if (!vRecv.empty()) {
             vRecv >> pfrom->nStartingHeight;

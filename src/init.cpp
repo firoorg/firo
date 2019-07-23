@@ -798,9 +798,10 @@ void CleanupBlockRevFiles() {
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false)) {
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         //Load zerocoin mint hashes to memory
-        pwalletMain->hdMintTracker->Init();
+        LogPrintf("Loading mints to wallet..\n");
+        zwalletMain->GetTracker().Init();
         zwalletMain->LoadMintPoolFromDB();
     }
 #endif
@@ -869,8 +870,11 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false)) {
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
+    }
+    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+        zwalletMain->GetTracker().ListMints();
     }
 #endif
 }
@@ -960,6 +964,14 @@ void InitParameterInteraction() {
         // Rewrite just private keys: rescan to find transactions
         if (SoftSetBoolArg("-rescan", true))
             LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
+    }
+
+    // -zapwalletmints implies a reindex and zapwallettxes=1
+    if (GetBoolArg("-zapwalletmints", false)) {
+        if (SoftSetBoolArg("-reindex", true))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -reindex=1\n", __func__);
+        if (SoftSetArg("-zapwallettxes", std::string("1")))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -zapwallettxes=1\n", __func__);
     }
 
     // -zapwallettx implies a rescan
@@ -1704,7 +1716,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
                 if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
-                    LogPrintf("Genesis block hash %s not found.\n", 
+                    LogPrintf("Genesis block hash %s not found.\n",
                         chainparams.GetConsensus().hashGenesisBlock.ToString());
                     LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));

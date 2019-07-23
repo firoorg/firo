@@ -44,6 +44,7 @@ public:
 
     const GroupElement& getValue() const;
     CoinDenomination getDenomination() const;
+    uint256 const & getValueHash() const;
 
     bool operator==(const PublicCoin& other) const;
     bool operator!=(const PublicCoin& other) const;
@@ -70,9 +71,10 @@ public:
         std::memcpy(&denomination, buffer + size, sizeof(denomination));
     }
 
-// private: TODO(martun): change back to private
+private:
     GroupElement value;
     CoinDenomination denomination;
+    mutable uint256 valueHash;
 };
 
 class PrivateCoin {

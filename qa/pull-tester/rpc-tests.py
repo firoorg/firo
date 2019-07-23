@@ -124,7 +124,7 @@ testScripts = [
      'httpbasics.py',
      'reindex.py',
      'multi_rpc.py',
-    # 'zapwallettxes.py',
+     'zapwallettxes.py',
      'proxy_test.py',
     # 'merkle_blocks.py',
     # 'fundrawtransaction.py',
@@ -146,6 +146,12 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'transations_verification_after_restart.py',
+    'sigma_remint_lockedwallet.py',
+    'sigma_zapwalletmints.py',
+    'sigma_nonhd_wallet.py',
+    'sigma_remint.py',
+    'sigma_remint_validation.py',
     'sigma_meetspend.py',
     'sigma_listsigmamints_validation.py',
     'sigma_listsigmaspends_validation.py',
@@ -158,7 +164,9 @@ testScripts = [
     'sigma_spend_extra_validation.py',
     'sigma_mint_validation.py',
     'sigma_mintspend.py',
-    'sigma_blocklimit.py'
+    'sigma_blocklimit.py',
+    'hdmint_mempool_zap.py',
+    'sigma_zapwalletmints_unconf_trans.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
