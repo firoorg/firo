@@ -185,6 +185,14 @@ std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
     const exodus::SigmaPublicKey& pubKey,
     int nBlock)
 {
+    // Logic:
+    // Get next group id and index for new pubkey by get last group id and amount of coin in group
+    // If the count is equal to limit then move to new group
+    // Record mint by key `0<prob_id><denom><group_id><idx>` with value `<GroupElement><int>`
+    // Record the key `0<prob_id><denom><group_id><idx>` as value of `1<sequence>`
+    // Record Last group ID
+    // Record Mint count for group
+
     auto lastGroup = GetLastGroupID(propertyID, denomination);
     auto mints = GetMintCount(propertyID, denomination, lastGroup);
     uint32_t nextIDx = mints;

@@ -53,7 +53,8 @@ public:
     uint64_t GetNextSequence();
     std::pair<exodus::SigmaPublicKey, int> GetMint(uint32_t propertyId, uint32_t denomination, uint32_t groupID, uint32_t index);
 
-    uint32_t MaxCoinsPerGroup = 15000;
+private:
+    const uint32_t MaxCoinsPerGroup = 15000;
 };
 
 #endif // SIGMA_EXODUS_DB_H
