@@ -1016,7 +1016,7 @@ public:
 
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
-    // If dontSpendSigma is set, spends only old Zcoin mints if any. Used in old unit tests.
+    // If dontSpendSigma is set, spends only old zcoin mints if any. Used in old unit tests.
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false, bool dontSpendSigma = false);
 
     bool CreateSigmaSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);

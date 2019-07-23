@@ -200,7 +200,7 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
             "1. fromaddress          (string, required) the address to send from\n"
             "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for EXODUS or 2 for TEXODUS)\n"
             "3. amountforsale        (string, required) the amount of tokens to list for sale\n"
-            "4. amountdesired        (string, required) the amount of Zcoins desired\n"
+            "4. amountdesired        (string, required) the amount of zcoins desired\n"
             "5. paymentwindow        (number, required) a time limit in blocks a buyer has to pay following a successful accepting order\n"
             "6. minacceptfee         (string, required) a minimum mining fee a buyer has to pay to accept the offer\n"
             "7. action               (number, required) the action to take (1 for new offers, 2 to update\", 3 to cancel)\n"

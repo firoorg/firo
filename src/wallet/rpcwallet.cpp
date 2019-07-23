@@ -1985,7 +1985,7 @@ UniValue walletpassphrase(const UniValue& params, bool fHelp)
         throw runtime_error(
             "walletpassphrase \"passphrase\" timeout\n"
             "\nStores the wallet decryption key in memory for 'timeout' seconds.\n"
-            "This is needed prior to performing transactions related to private keys such as sending Zcoins\n"
+            "This is needed prior to performing transactions related to private keys such as sending zcoins\n"
             "\nArguments:\n"
             "1. \"passphrase\"     (string, required) The wallet passphrase\n"
             "2. timeout            (numeric, required) The time to keep the decryption key in seconds.\n"
@@ -3251,7 +3251,7 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
                 "4. \"comment\"             (string, optional) A comment\n"
                 "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
                 "                           The fee will be equally deducted from the amount of each selected address.\n"
-                "                           Those recipients will receive less Zcoins than you enter in their corresponding amount field.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
                 "                           If no addresses are specified here, the sender pays the fee.\n"
                 "    [\n"
                 "      \"address\"            (string) Subtract fee from this address\n"

@@ -2301,7 +2301,7 @@ bool CWallet::GetCoinsToSpend(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {

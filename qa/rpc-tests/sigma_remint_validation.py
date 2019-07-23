@@ -51,7 +51,7 @@ class RemintSigmaValidationTest(BitcoinTestFramework):
                 assert False, "Could not remint denomination {} with next exception {}." \
                     .format(denom, e.error['message'])
 
-        #should fail cause no Zcoin mints
+        #should fail cause no zcoin mints
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, 1)
         
 

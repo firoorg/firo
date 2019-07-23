@@ -171,7 +171,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Poslať Zcoins na adresu</translation>
+        <translation>Poslať zcoins na adresu</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -1401,7 +1401,7 @@
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
-        <translation>Poslať Zcoins</translation>
+        <translation>Poslať zcoins</translation>
     </message>
     <message>
         <source>Coin Control Features</source>
@@ -1599,7 +1599,7 @@
         <translation>Odstrániť túto položku</translation>
     </message>
     <message>
-        <source>The fee will be deducted from the amount being sent. The recipient will receive less Zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
+        <source>The fee will be deducted from the amount being sent. The recipient will receive less zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
         <translation>Poplatok sa odpočíta od čiastky, ktorú odosielate. Príjemca dostane menej Zcoinov ako zadáte. Ak je vybraných viacero príjemcov, poplatok je rozdelený rovným dielom.</translation>
     </message>
     <message>
