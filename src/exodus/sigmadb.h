@@ -29,33 +29,27 @@ public:
     }
 
     // Index height and commitment
-    // 0<prob_id><denom><group_id><idx>=<commitment><height>
-    // Index key sorted by block to optimal deletion
+    // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
+    // Index key sorted by block to optimized deletion
     // 1<seq uint64>=key
     // Index last group
-    // 2<propertyId><denomination>=key
+    // 2<propertyId><denomination>=<uint32_t>
     // Index last coin index
-    // 3<propertyId><denomination><cointGroupId>=key
+    // 3<propertyId><denomination><cointGroupId>=<uint32_t>
+    // Last index of key to key of mint
+    // 4=<uint64_t>
     std::pair<uint32_t, uint32_t> RecordMint(uint32_t propertyId, uint32_t denomination, const exodus::SigmaPublicKey& pubKey, int nBlock);
     std::vector<exodus::SigmaPublicKey> GetAnonimityGroup(uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint32_t idx);
     void DeleteAll(int nBlock);
 
-    // Tested
     void RecordLastGroupID(uint32_t propertyId, uint32_t denomination, uint32_t groupId);
-    // Tested
     void RecordMintCount(uint32_t propertyId, uint32_t denomination, uint32_t groupId, size_t mintCount);
-    // Tested
     void RecordMintKeyIndex(leveldb::Slice mintKey);
-    // Tested
     void RecordLastSequence(uint64_t lastSequence);
 
-    // Tested
     uint32_t GetLastGroupID(uint32_t propertyId, uint32_t denomination);
-    // Tested
     size_t GetMintCount(uint32_t propertyId, uint32_t denomination, uint32_t groupId);
-    // Tested
     std::string GetLastMintKeyIndex();
-    // Tested
     uint64_t GetNextSequence();
     std::pair<exodus::SigmaPublicKey, int> GetMint(uint32_t propertyId, uint32_t denomination, uint32_t groupID, uint32_t index);
 
