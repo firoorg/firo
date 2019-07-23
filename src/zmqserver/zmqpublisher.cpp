@@ -63,7 +63,7 @@ bool CZMQAbstractPublisher::Initialize()
             return false;
         }
         
-        if(CZMQAbstract::DEV_AUTH){
+        if(CZMQAbstract::DEV_AUTH && this->topic != "apiStatus"){
             // Set up PUB auth.
             vector<string> keys = ReadCert(CZMQAbstract::Server);
 
