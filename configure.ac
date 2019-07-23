@@ -1151,7 +1151,7 @@ if test x$need_bundled_univalue = xyes; then
 fi
 
 AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh]])
-AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-system-torrc], [--disable-systemd], [--disable-unittests], [--disable-lzma], [--disable-zstd], [--disable-asciidoc]])
+AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-zstd], [--disable-asciidoc]])
 
 
 AC_OUTPUT
