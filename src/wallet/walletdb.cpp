@@ -520,8 +520,14 @@ bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
     return Read(make_pair(std::string("hdmint"), hashPubcoin), dMint);
 }
 
+bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
+    nWalletDBUpdated++;
+    uint256 hash = dMint.GetPubCoinHash();
+    return Erase(std::make_pair(std::string("hdmint"), hash));
+}
+
 bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("hdmint"), sigma::GetPubCoinValueHash(pub)));
+    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub)));
 }
 
 class CWalletScanState {
@@ -977,6 +983,31 @@ DBErrors CWalletDB::ZapSelectTx(CWallet *pwallet, vector <uint256> &vTxHashIn, v
     return DB_LOAD_OK;
 }
 
+DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
+    // get list of HD Mints
+    std::list<CHDMint> vHDMints = ListHDMints();
+
+    // get list of non HD Mints
+    std::list <CSigmaEntry> sigmaEntries;
+    ListSigmaPubCoin(sigmaEntries);
+
+    // erase each HD Mint
+    BOOST_FOREACH(CHDMint & hdMint, vHDMints)
+    {
+        if (!EraseHDMint(hdMint))
+            return DB_CORRUPT;
+    }
+
+    // erase each non HD Mint
+    BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
+    {
+        if (!EraseZerocoinEntry(sigmaEntry))
+            return DB_CORRUPT;
+    }
+
+    return DB_LOAD_OK;
+}
+
 DBErrors CWalletDB::ZapWalletTx(CWallet *pwallet, vector <CWalletTx> &vWtx) {
     // build list of wallet TXs
     vector <uint256> vTxHash;
@@ -1266,35 +1297,101 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
-bool CWalletDB::ReadCurrentSeedHash(uint160& hashSeed)
-{
-    return Read(string("seedhash"), hashSeed);
-}
-
-bool CWalletDB::WriteCurrentSeedHash(const uint160& hashSeed)
-{
-    return Write(string("seedhash"), hashSeed);
-}
-
-bool CWalletDB::ReadZerocoinCount(uint32_t& nCount)
+bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
 {
     return Read(string("dzc"), nCount);
 }
 
-bool CWalletDB::WriteZerocoinCount(const uint32_t& nCount)
+bool CWalletDB::WriteZerocoinCount(const int32_t& nCount)
 {
     return Write(string("dzc"), nCount);
 }
 
-bool CWalletDB::WriteMintPoolPair(const uint160& hashMasterSeed, const CKeyID& seedId, const uint32_t& nCount)
+bool CWalletDB::ReadZerocoinSeedCount(int32_t& nCount)
 {
-    return Write(make_pair(string("mintpool"), seedId), make_pair(hashMasterSeed, nCount));
+    return Read(string("dzsc"), nCount);
 }
 
-//! map with hashMasterSeed as the key, paired with vector of hashPubcoins and their count
-std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > CWalletDB::MapMintPool()
+bool CWalletDB::WriteZerocoinSeedCount(const int32_t& nCount)
 {
-    std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > mapPool;
+    return Write(string("dzsc"), nCount);
+}
+
+bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)
+{
+    return Write(make_pair(string("pubcoin"), hashSerial), pubcoin);
+}
+
+bool CWalletDB::ReadPubcoin(const uint256& hashSerial, GroupElement& pubcoin)
+{
+    return Read(make_pair(string("pubcoin"), hashSerial), pubcoin);
+}
+
+std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs()
+{
+    std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("pubcoin"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "pubcoin")
+            break;
+
+        uint256 hashSerial;
+        ssKey >> hashSerial;
+
+        GroupElement pubcoin;
+        ssValue >> pubcoin;
+
+        listSerialPubcoin.push_back(make_pair(hashSerial, pubcoin));
+    }
+
+    pcursor->close();
+
+    return listSerialPubcoin;
+
+}
+
+bool CWalletDB::WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool)
+{
+    return Write(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool);
+}
+
+bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount)
+{
+    std::tuple<uint160, CKeyID, int32_t> hashSeedMintPool;
+    if(!Read(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool))
+        return false;
+    hashSeedMaster = get<0>(hashSeedMintPool);
+    seedId = get<1>(hashSeedMintPool);
+    nCount = get<2>(hashSeedMintPool);
+    return true;
+}
+
+//! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs
+std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
+{
+    std::vector<std::pair<uint256, MintPoolEntry>> listPool;
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
@@ -1317,35 +1414,36 @@ std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > CWalletDB::MapMintPool(
         }
 
         // Unserialize
-        string strType;
-        ssKey >> strType;
-        if (strType != "mintpool")
-            break;
 
-        CKeyID seedId;
-        ssKey >> seedId;
+        try {
+            string strType;
+            ssKey >> strType;
+            if (strType != "mintpool")
+                break;
 
-        uint160 hashMasterSeed;
-        ssValue >> hashMasterSeed;
+            uint256 hashPubcoin;
+            ssKey >> hashPubcoin;
 
-        uint32_t nCount;
-        ssValue >> nCount;
+            uint160 hashSeedMaster;
+            ssValue >> hashSeedMaster;
 
-        pair<CKeyID, uint32_t> pMint;
-        pMint.first = seedId;
-        pMint.second = nCount;
-        if (mapPool.count(hashMasterSeed)) {
-            mapPool.at(hashMasterSeed).emplace_back(pMint);
-        } else {
-            vector<pair<CKeyID, uint32_t> > vPairs;
-            vPairs.emplace_back(pMint);
-            mapPool.insert(make_pair(hashMasterSeed, vPairs));
+            CKeyID seedId;
+            ssValue >> seedId;
+
+            int32_t nCount;
+            ssValue >> nCount;
+
+            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+
+            listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+        } catch (std::ios_base::failure const &) {
+            // There maybe some old entries that don't conform to the latest version. Just skipping those.
         }
     }
 
     pcursor->close();
 
-    return mapPool;
+    return listPool;
 }
 
 std::list<CHDMint> CWalletDB::ListHDMints()
@@ -1443,7 +1541,7 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& z
     if (!WriteZerocoinEntry(zerocoin))
         return error("%s: failed to write zerocoinmint", __func__);
 
-    uint256 hash = sigma::GetPubCoinValueHash(zerocoin.value);
+    uint256 hash = primitives::GetPubCoinValueHash(zerocoin.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

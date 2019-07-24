@@ -214,7 +214,7 @@ private Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-     /** Switch to sigma page */
+    /** Switch to sigma page */
     void gotoSigmaPage();
     /** Switch to ZC->sigma page */
     void gotoZc2SigmaPage();

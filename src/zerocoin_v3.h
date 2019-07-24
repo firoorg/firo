@@ -22,9 +22,6 @@ namespace zerocoin_tests3_v3 { struct zerocoin_mintspend_v3; }
 
 namespace sigma {
 
-// zerocoin parameters
-extern Params *SigmaParams;
-
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
 // index
 class CSigmaTxInfo {
@@ -84,9 +81,6 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
 bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin);
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
-
-uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
-uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
 
 bool BuildSigmaStateFromIndex(CChain *chain);
 

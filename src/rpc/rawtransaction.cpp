@@ -91,6 +91,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
             } catch (CBadTxIn&) {
                 throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+            } catch (std::ios_base::failure &) {
+                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
             }
             in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
             fillStdFields(in, txin);

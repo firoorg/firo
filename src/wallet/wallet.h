@@ -680,8 +680,6 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
-    CHDMintWallet* zwallet;
-
     bool fFileBacked;
     std::string strWalletFile;
 
@@ -693,8 +691,6 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
-
-    std::unique_ptr<CHDMintTracker> hdMintTracker;
 
     CWallet()
     {
@@ -751,12 +747,6 @@ public:
 
     int64_t nTimeFirstKey;
 
-    void setZWallet(CHDMintWallet* zwallet)
-    {
-        this->zwallet = zwallet;
-        hdMintTracker = std::unique_ptr<CHDMintTracker>(new CHDMintTracker(strWalletFile));
-    }
-
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     //! check whether we are allowed to upgrade (or already support) to the named feature
@@ -766,6 +756,8 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
+
+    bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -831,7 +823,7 @@ public:
     //! Adds a watch-only address to the store, without saving it to disk (used by LoadWallet)
     bool LoadWatchOnly(const CScript &dest);
 
-    bool Unlock(const SecureString& strWalletPassphrase);
+    bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
@@ -1099,6 +1091,9 @@ public:
     DBErrors LoadWallet(bool& fFirstRunRet);
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
+
+    // Remove all CSigmaEntry and CHDMint objects from WalletDB.
+    DBErrors ZapSigmaMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 

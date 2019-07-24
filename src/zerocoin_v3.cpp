@@ -28,9 +28,6 @@
 
 namespace sigma {
 
-// Set up the Sigma Params object
-sigma::Params* SigmaParams = sigma::Params::get_default();
-
 static CSigmaState sigmaState;
 
 static bool CheckSigmaSpendSerial(
@@ -80,6 +77,9 @@ secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
 
     secp_primitives::GroupElement pub;
+    if (serialized.size() < pub.memoryRequired()) {
+        throw std::invalid_argument("Script is not a valid Sigma mint");
+    }
     pub.deserialize(serialized.data());
 
     return pub;
@@ -99,7 +99,7 @@ std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTx
         PROTOCOL_VERSION
     );
 
-    std::unique_ptr<sigma::CoinSpend> spend(new sigma::CoinSpend(SigmaParams, serialized));
+    std::unique_ptr<sigma::CoinSpend> spend(new sigma::CoinSpend(sigma::Params::get_default(), serialized));
 
     return std::make_pair(std::move(spend), groupId);
 }
@@ -205,7 +205,8 @@ bool CheckSigmaSpendTransaction(
 
         try {
             std::tie(spend, coinGroupId) = ParseSigmaSpend(txin);
-        } catch (CBadTxIn&) {
+        }
+        catch (CBadTxIn&) {
             return state.DoS(100,
                 false,
                 REJECT_MALFORMED,
@@ -459,7 +460,7 @@ bool CheckSigmaTransaction(
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(SigmaParams, serializedCoinSpend);
+            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
             uint64_t denom = newSpend.getIntDenomination();
             totalValue += denom;
             sigma::CoinDenomination denomination;
@@ -488,8 +489,8 @@ void RemoveSigmaSpendsReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex
     for (CTxMemPool::txiter mi = pool.mapTx.begin(); mi != pool.mapTx.end(); ++mi) {
         const CTransaction& tx = mi->GetTx();
         if (tx.IsSigmaSpend()) {
-            // Run over all the inputs, check if their Accumulator block hash is equal to 
-            // block removed. If any one is equal, remove txn from mempool. 
+            // Run over all the inputs, check if their Accumulator block hash is equal to
+            // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
                 if (txin.IsSigmaSpend()) {
                     std::unique_ptr<sigma::CoinSpend> spend;
@@ -533,7 +534,7 @@ Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
                 (const char *)&*(txin.scriptSig.begin() + 1),
                 (const char *)&*txin.scriptSig.end(),
                 SER_NETWORK, PROTOCOL_VERSION);
-        sigma::CoinSpend spend(SigmaParams, serializedCoinSpend);
+        sigma::CoinSpend spend(sigma::Params::get_default(), serializedCoinSpend);
         return spend.getCoinSerialNumber();
     }
     catch (const std::ios_base::failure &) {
@@ -555,7 +556,7 @@ CAmount GetSigmaSpendInput(const CTransaction &tx) {
                     (const char *)&*(txin.scriptSig.begin() + 1),
                     (const char *)&*txin.scriptSig.end(),
                     SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend spend(SigmaParams, serializedCoinSpend);
+            sigma::CoinSpend spend(sigma::Params::get_default(), serializedCoinSpend);
             sum += spend.getIntDenomination();
         }
         return sum;
@@ -619,23 +620,21 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
     secp_primitives::GroupElement txPubCoinValue;
     // cycle transaction hashes, looking for this pubcoin.
     BOOST_FOREACH(CTransaction tx, block.vtx){
-        if(tx.IsSigmaMint()){
-            uint32_t nIndex = 0;
-            for (const CTxOut &txout: tx.vout) {
-                if (txout.scriptPubKey.IsSigmaMint()){
+        uint32_t nIndex = 0;
+        for (const CTxOut &txout: tx.vout) {
+            if (txout.scriptPubKey.IsSigmaMint()){
 
-                    // If you wonder why +1, go to file wallet.cpp and read the comments in function
-                    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-                    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                                          txout.scriptPubKey.end());
-                    txPubCoinValue.deserialize(&coin_serialised[0]);
-                    if(pubCoinValue==txPubCoinValue){
-                        outPoint = COutPoint(tx.GetHash(), nIndex);
-                        return true;
-                    }
+                // If you wonder why +1, go to file wallet.cpp and read the comments in function
+                // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+                vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+                                                      txout.scriptPubKey.end());
+                txPubCoinValue.deserialize(&coin_serialised[0]);
+                if(pubCoinValue==txPubCoinValue){
+                    outPoint = COutPoint(tx.GetHash(), nIndex);
+                    return true;
                 }
-                nIndex++;
             }
+            nIndex++;
         }
     }
 
@@ -658,7 +657,7 @@ bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin) {
     if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
         LogPrintf("can't read block from disk.\n");
 
-    return GetOutPointFromBlock(outPoint, pubCoin.value, block);
+    return GetOutPointFromBlock(outPoint, pubCoin.getValue(), block);
 }
 
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue) {
@@ -714,20 +713,6 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
         sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_10),
         sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_100));
     return true;
-}
-
-uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnSerial;
-    return Hash(ss.begin(), ss.end());
-}
-
-uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnValue;
-    return Hash(ss.begin(), ss.end());
 }
 
 // CZerocoinTxInfoV3
@@ -987,7 +972,7 @@ bool CSigmaState::IsUsedCoinSerial(const Scalar &coinSerial) {
 
 bool CSigmaState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
     for ( auto it = GetSpends().begin(); it != GetSpends().end(); ++it ){
-        if(GetSerialHash(it->first)==coinSerialHash){
+        if(primitives::GetSerialHash(it->first)==coinSerialHash){
             coinSerial = it->first;
             return true;
         }
@@ -1001,9 +986,9 @@ bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
 
 bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
     for ( auto it = GetMints().begin(); it != GetMints().end(); ++it ){
-    	const sigma::PublicCoin pubCoin = (*it).first;
-        if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
-            pubCoinValue = pubCoin.value;
+        const sigma::PublicCoin & pubCoin = (*it).first;
+        if(pubCoin.getValueHash()==pubCoinValueHash){
+            pubCoinValue = pubCoin.getValue();
             return true;
         }
     }

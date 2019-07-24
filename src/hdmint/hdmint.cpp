@@ -10,7 +10,7 @@ CHDMint::CHDMint()
     SetNull();
 }
 
-CHDMint::CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue)
+CHDMint::CHDMint(const int32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue)
 {
     SetNull();
     this->nCount = nCount;

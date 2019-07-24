@@ -3,6 +3,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 DIST_SUBDIRS = secp256k1 univalue tor
+SUBDIRS = tor
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS)
@@ -161,10 +162,10 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
+  primitives/zerocoin.h \
   fixed.h \
   pow.h \
   hdmint/hdmint.h \
-  primitives/zerocoin.h \
   protocol.h \
   random.h \
   reverselock.h \
@@ -248,6 +249,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
+  primitives/zerocoin.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -312,6 +314,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/authhelper.cpp \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
+  primitives/zerocoin.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -670,6 +673,9 @@ endif
 
 if ENABLE_TESTS
 include Makefile.test.include
+else
+check-local:
+	$(error Please rerun configure with tests enabling flag)
 endif
 
 if ENABLE_EXODUS
