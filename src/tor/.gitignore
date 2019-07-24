@@ -1,4 +1,5 @@
 # Editor droppings
+/.idea
 \#*\#
 .#*
 *~
@@ -73,7 +74,8 @@ uptime-*.json
 /Tor*Bundle.dmg
 /tor-*-win32.exe
 /warning_flags
-
+/.appveyor.yml
+/.travis.yml
 /coverage_html/
 /callgraph/
 
