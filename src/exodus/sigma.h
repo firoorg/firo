@@ -29,6 +29,9 @@ public:
     const secp_primitives::Scalar& GetSerial() const { return serial; }
     const secp_primitives::Scalar& GetRandomness() const { return randomness; }
 
+    bool operator==(const SigmaPrivateKey& other) const;
+    bool operator!=(const SigmaPrivateKey& other) const;
+
     bool IsValid() const;
 
     void SetSerial(const secp_primitives::Scalar& v);

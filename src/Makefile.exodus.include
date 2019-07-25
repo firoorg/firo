@@ -74,6 +74,15 @@ EXODUS_CPP = \
   exodus/walletcache.cpp \
   exodus/wallettxs.cpp
 
+if ENABLE_WALLET
+EXODUS_H += \
+  exodus/exoduswallet/wallet.h \
+  exodus/exoduswallet/walletdb.h
+
+EXODUS_CPP += \
+  exodus/exoduswallet/wallet.cpp
+endif
+
 libbitcoin_server_a_SOURCES += \
   $(EXODUS_CPP) \
   $(EXODUS_H)

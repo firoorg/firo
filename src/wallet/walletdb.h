@@ -13,6 +13,7 @@
 #include "hdmint/hdmint.h"
 #include "hdmint/mintpool.h"
 #include "wallet/db.h"
+#include "streams.h"
 #include "key.h"
 
 #include "../secp256k1/include/GroupElement.h"
@@ -268,6 +269,60 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+
+#ifdef ENABLE_EXODUS
+    template<typename K, typename V>
+    bool WriteExodusEntry(const K& k, const V& v) {
+        return Write(std::make_pair(std::string("exodus_entry"), k), v);
+    }
+
+    template<typename K, typename V>
+    bool ReadExodusEntry(const K& k, V& v) {
+        return Read(std::make_pair(std::string("exodus_entry"), k), v);
+    }
+
+    template<typename K>
+    bool HasExodusEntry(const K& k) {
+        return Exists(std::make_pair(std::string("exodus_entry"), k));
+    }
+
+    template<typename K, typename V>
+    void ListExodusEntries(std::list<V>& entries) {
+        Dbc *pcursor = GetCursor();
+        if (!pcursor)
+            throw runtime_error(
+                "ExodusWalletDB::ListSigmaEntries() : cannot create DB cursor");
+
+        unsigned int fFlags = DB_SET_RANGE;
+        while (true) {
+            // Read next record
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            if (fFlags == DB_SET_RANGE)
+                ssKey << make_pair(std::string("exodus_entry"), K());
+
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+            fFlags = DB_NEXT;
+            if (ret == DB_NOTFOUND)
+                break;
+            else if (ret != 0) {
+                pcursor->close();
+                throw runtime_error("CWalletDB::ListPubCoin() : error scanning DB");
+            }
+            // Unserialize
+            std::string strType;
+            ssKey >> strType;
+            if (strType != "exodus_entry")
+                break;
+            K k;
+            ssKey >> k;
+            V v;
+            ssValue >> v;
+            entries.push_back(v);
+        }
+    }
+
+#endif
 
 private:
     CWalletDB(const CWalletDB&);

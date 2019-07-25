@@ -30,6 +30,16 @@ void SigmaPrivateKey::SetRandomness(const secp_primitives::Scalar& v)
     randomness = v;
 }
 
+bool SigmaPrivateKey::operator==(const SigmaPrivateKey& other) const
+{
+    return params == other.params && serial == other.serial && randomness == other.randomness;
+}
+
+bool SigmaPrivateKey::operator!=(const SigmaPrivateKey& other) const
+{
+    return !(*this == other);
+}
+
 void SigmaPrivateKey::Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness)
 {
     SetSerial(serial);
