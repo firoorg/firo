@@ -411,7 +411,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Obre una Zcoin: sol·licitud d'URI o pagament</translation>
+        <translation>Obre una zcoin: sol·licitud d'URI o pagament</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

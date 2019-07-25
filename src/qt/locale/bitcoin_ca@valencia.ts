@@ -235,7 +235,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Obri una Zcoin: sol·licitud d'URI o pagament</translation>
+        <translation>Obri una zcoin: sol·licitud d'URI o pagament</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
