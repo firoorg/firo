@@ -3779,7 +3779,7 @@
 <context>
     <name>Zcoin-core</name>
     <message>
-        <location filename="../zcoinstrings.cpp" line="+297"/>
+        <location filename="../bitcoinstrings.cpp" line="+297"/>
         <source>Options:</source>
         <translation>Options:</translation>
     </message>
