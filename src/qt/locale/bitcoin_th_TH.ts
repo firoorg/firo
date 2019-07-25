@@ -151,11 +151,11 @@
     </message>
     <message>
         <source>&amp;Sending addresses...</source>
-        <translation>&amp;ที่เก็บเงิน ที่จะส่ง Zcoin</translation>
+        <translation>&amp;Address สำหรับส่ง zcoins</translation>
     </message>
     <message>
         <source>&amp;Receiving addresses...</source>
-        <translation>&amp;ที่เก็บเงิน ที่จะรับ Zcoin</translation>
+        <translation>&amp;Address ที่ใช้รับ zcoins</translation>
     </message>
     <message>
         <source>Open &amp;URI...</source>
@@ -219,7 +219,7 @@
     </message>
     <message>
         <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>เซ็นชื่อด้วยข้อความ ที่เก็บ Zcoin เพื่อแสดงว่าท่านเป็นเจ้าของ Zcoin นี้จริง</translation>
+        <translation>สร้างลายเซ็นสำหรับข้อความด้วย Zcoin address เพื่อยันยันว่าคุณคือเจ้าของ Address</translation>
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
@@ -243,19 +243,19 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>เรียกเก็บ การชำระเงิน (สร้าง QR codes และ zcoin: URIs)</translation>
+        <translation>สร้างแบบฟอร์มการชำระเงิน (QR codes และ URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
-        <translation>แสดงรายการ ที่เก็บเงินที่จะส่ง Zcoin ออก และป้ายชื่อ ที่ใช้ไปแล้ว</translation>
+        <translation>แสดงรายการ Address ที่ถูกใช้ในการส่ง</translation>
     </message>
     <message>
         <source>Show the list of used receiving addresses and labels</source>
-        <translation>แสดงรายการ ที่เก็บเงินที่จะรับ Zcoin เข้า และป้ายชื่อ ที่ใช้ไปแล้ว</translation>
+        <translation>แสดงรายการ Address ที่ถูกใช้ในการรับ</translation>
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>เปิด zcoin: URI หรือ การเรียกเก็บเงิน (การเรียกให้ชำระเงิน)</translation>
+        <translation>เปิด URI zcoin: หรือแบบฟอร์มการชำระเงิน</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

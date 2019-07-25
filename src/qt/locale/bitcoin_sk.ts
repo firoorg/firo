@@ -829,8 +829,8 @@
         <translation>&amp;Zobrazovať hodnoty v jednotkách:</translation>
     </message>
     <message>
-        <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Zvoľte ako deliť Zcoin pri zobrazovaní pri platbách a užívateľskom rozhraní.</translation>
+        <source>Choose the default subdivision unit to show in the interface and when sending zcoins.</source>
+        <translation>Zvoľte ako deliť zcoin pri zobrazovaní pri platbách a užívateľskom rozhraní.</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>

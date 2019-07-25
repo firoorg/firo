@@ -2105,7 +2105,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Zcoin:URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过零币网络传输。</translation>
+        <translation>zcoin: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过零币网络传输。</translation>
     </message>
     <message>
         <source>Pay To:</source>

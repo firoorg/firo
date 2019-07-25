@@ -1808,7 +1808,7 @@ Var vänlig och försök igen.</translation>
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Ett meddelande som bifogades Zcoin-URI, vilket lagras med transaktionen som referens. NB: Meddelandet kommer inte att sändas över Zcoinnätverket.</translation>
+        <translation>Ett meddelande som bifogades zcoin-URI, vilket lagras med transaktionen som referens. NB: Meddelandet kommer inte att sändas över Zcoinnätverket.</translation>
     </message>
     <message>
         <source>Pay To:</source>

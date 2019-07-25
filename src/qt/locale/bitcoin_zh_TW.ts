@@ -399,7 +399,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>要求付款(產生 QR Code 和 Zcoin 付款協議的資源識別碼: URI)</translation>
+        <translation>要求付款(產生 QR Code 和 zcoin 付款協議的資源識別碼: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -411,7 +411,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>開啓 Zcoin 協議的資源識別碼(URI)或付款要求</translation>
+        <translation>開啓 zcoin 協議的資源識別碼(URI)或付款要求</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

@@ -243,7 +243,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Deschidere Zcoin: o adresa URI sau o cerere de plată</translation>
+        <translation>Deschidere zcoin: o adresa URI sau o cerere de plată</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

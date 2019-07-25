@@ -1519,7 +1519,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Повідомлення, що було додане до Zcoin:URI та буде збережено разом з транзакцією для довідки. Примітка: Це повідомлення не буде відправлено в мережу Zcoin.</translation>
+        <translation>Повідомлення, що було додане до zcoin: URI та буде збережено разом з транзакцією для довідки. Примітка: Це повідомлення не буде відправлено в мережу Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
