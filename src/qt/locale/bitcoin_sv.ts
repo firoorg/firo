@@ -400,7 +400,7 @@ Var vänlig och försök igen.</translation>
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Begär betalning (genererar QR-koder och Zcoin-URI)</translation>
+        <translation>Begär betalning (genererar QR-koder och zcoin-URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>

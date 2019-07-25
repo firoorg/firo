@@ -231,7 +231,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Cereţi plăţi (generează coduri QR şi Zcoin-uri: URls)</translation>
+        <translation>Cereţi plăţi (generează coduri QR şi zcoin: URIs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -741,8 +741,8 @@
         <translation>&amp;Unitatea de măsură pentru afişarea sumelor:</translation>
     </message>
     <message>
-        <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de Zcoin.</translation>
+        <source>Choose the default subdivision unit to show in the interface and when sending zcoins.</source>
+        <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de zcoin.</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>

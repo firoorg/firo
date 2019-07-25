@@ -259,7 +259,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Otvoriť Zcoin URI alebo výzvu k platbe</translation>
+        <translation>Otvoriť zcoin URI alebo výzvu k platbe</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1600,7 +1600,7 @@
     </message>
     <message>
         <source>The fee will be deducted from the amount being sent. The recipient will receive less zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>Poplatok sa odpočíta od čiastky, ktorú odosielate. Príjemca dostane menej Zcoinov ako zadáte. Ak je vybraných viacero príjemcov, poplatok je rozdelený rovným dielom.</translation>
+        <translation>Poplatok sa odpočíta od čiastky, ktorú odosielate. Príjemca dostane menej zcoinov ako zadáte. Ak je vybraných viacero príjemcov, poplatok je rozdelený rovným dielom.</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>

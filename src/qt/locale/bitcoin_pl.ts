@@ -335,7 +335,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Żądaj płatności (generuje kod QR oraz Zcoinowe URI)</translation>
+        <translation>Żądaj płatności (generuje kod QR oraz zcoin: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>

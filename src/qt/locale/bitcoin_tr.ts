@@ -243,7 +243,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Ödeme talep et (QR kodu ve Zcoin URI'si oluşturur)</translation>
+        <translation>Ödeme talep et (QR kodu ve zcoin URI'si oluşturur)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>

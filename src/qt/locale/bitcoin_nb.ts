@@ -1551,7 +1551,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>En melding som var tilknyttet Zcoinen: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Zcoin-nettverket.</translation>
+        <translation>En melding som var tilknyttet zcoin: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Zcoin-nettverket.</translation>
     </message>
     <message>
         <source>Pay To:</source>

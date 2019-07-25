@@ -2231,7 +2231,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>En besked, som blev føjet til "bitcon:"-URI'en, som vil gemmes med transaktionen til din reference. Bemærk: Denne besked vil ikke blive sendt over Zcoin-netværket.</translation>
+        <translation>En besked, som blev føjet til zcoin:-URI'en, som vil gemmes med transaktionen til din reference. Bemærk: Denne besked vil ikke blive sendt over Zcoin-netværket.</translation>
     </message>
     <message>
         <source>Pay To:</source>

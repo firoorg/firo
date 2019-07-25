@@ -399,7 +399,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Запросить платежи (создаёт QR-коды и Zcoin: ссылки)</translation>
+        <translation>Запросить платежи (создаёт QR-коды и zcoin: ссылки)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>

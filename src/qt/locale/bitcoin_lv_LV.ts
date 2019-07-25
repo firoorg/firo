@@ -223,7 +223,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Atvērt Zcoin URI vai maksājuma pieprasījumu</translation>
+        <translation>Atvērt zcoin URI vai maksājuma pieprasījumu</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -504,7 +504,7 @@
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>Ieslēgt Zcoin &amp;kontroles funkcijas</translation>
+        <translation>Ieslēgt monēta &amp;kontroles funkcijas</translation>
     </message>
     <message>
         <source>&amp;Spend unconfirmed change</source>

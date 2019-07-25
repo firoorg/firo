@@ -219,7 +219,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>გადახდის მოთხოვნა (შეიქმნება QR-კოდები და Zcoin: ბმულები)</translation>
+        <translation>გადახდის მოთხოვნა (შეიქმნება QR-კოდები და zcoin: ბმულები)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>

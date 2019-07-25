@@ -819,7 +819,7 @@ Per specificare più URL separarli con una barra verticale "|".</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Scegli l'unità di suddivisione predefinita da utilizzare per l'interfaccia e per l'invio di Zcoin.</translation>
+        <translation>Scegli l'unità di suddivisione predefinita da utilizzare per l'interfaccia e per l'invio di zcoin.</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1576,7 +1576,7 @@ Per specificare più URL separarli con una barra verticale "|".</translation>
     </message>
     <message>
         <source>The fee will be deducted from the amount being sent. The recipient will receive less zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>La commissione sarà sottratta dall'importo che si sta inviando. Il beneficiario riceverà un totale di Zcoin inferiore al valore digitato. Nel caso in cui siano stati selezionati più beneficiari la commissione sarà suddivisa in parti uguali.</translation>
+        <translation>La commissione sarà sottratta dall'importo che si sta inviando. Il beneficiario riceverà un totale di zcoin inferiore al valore digitato. Nel caso in cui siano stati selezionati più beneficiari la commissione sarà suddivisa in parti uguali.</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -1600,7 +1600,7 @@ Per specificare più URL separarli con una barra verticale "|".</translation>
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Messaggio incluso nel Zcoin URI e che sarà memorizzato con la transazione per vostro riferimento. Nota: Questo messaggio non sarà inviato attraverso la rete Zcoin.</translation>
+        <translation>Messaggio incluso nel zcoin URI e che sarà memorizzato con la transazione per vostro riferimento. Nota: Questo messaggio non sarà inviato attraverso la rete Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
