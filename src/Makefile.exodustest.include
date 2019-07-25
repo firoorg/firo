@@ -15,7 +15,7 @@ EXODUS_TEST_CPP = \
   exodus/test/exodus_tests.cpp \
   exodus/test/lock_tests.cpp \
   exodus/test/marker_tests.cpp \
-  exodus/test/mint_db_test.cpp \
+  exodus/test/sigmadb_tests.cpp \
   exodus/test/obfuscation_tests.cpp \
   exodus/test/output_restriction_tests.cpp \
   exodus/test/parsing_b_tests.cpp \
