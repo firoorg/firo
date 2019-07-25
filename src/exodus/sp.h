@@ -94,6 +94,7 @@ public:
         bool fixed;
         bool manual;
         SigmaStatus sigmaStatus;
+        std::vector<int64_t> denominations;
 
         // For crowdsale properties:
         //   txid -> amount invested, crowdsale deadline, user issued tokens, issuer issued tokens
@@ -142,8 +143,15 @@ public:
                     // Assume it is EOF due to no other better way to check.
                     sigmaStatus = static_cast<uint8_t>(SigmaStatus::SoftDisabled);
                 }
+
+                try {
+                    READWRITE(denominations);
+                } catch (std::ios_base::failure&) {
+                    denominations.clear();
+                }
             } else {
                 READWRITE(sigmaStatus);
+                READWRITE(denominations);
             }
 
             this->sigmaStatus = static_cast<SigmaStatus>(sigmaStatus);
