@@ -169,6 +169,9 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
             return interpret_UnfreezeTokens();
 
+        case EXODUS_TYPE_CREATE_DENOMINATION:
+            return interpret_CreateDenomination();
+
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
@@ -797,6 +800,26 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     return true;
 }
 
+/** Tx 1025 */
+bool CMPTransaction::interpret_CreateDenomination()
+{
+    if (pkt_size < 16) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    swapByteOrder32(property);
+    memcpy(&nValue, &pkt[8], 8);
+    swapByteOrder64(nValue);
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
+    }
+
+    return true;
+}
+
 /** Tx 65533 */
 bool CMPTransaction::interpret_Deactivation()
 {
@@ -951,6 +974,9 @@ int CMPTransaction::interpretPacket()
 
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
             return logicMath_UnfreezeTokens();
+
+        case EXODUS_TYPE_CREATE_DENOMINATION:
+            return logicMath_CreateDenomination();
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return logicMath_Deactivation();
@@ -2331,6 +2357,59 @@ int CMPTransaction::logicMath_UnfreezeTokens()
     }
 
     unfreezeAddress(receiver, property);
+
+    return 0;
+}
+
+/** Tx 1025 */
+int CMPTransaction::logicMath_CreateDenomination()
+{
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+                __func__,
+                type,
+                version,
+                property,
+                block);
+        return PKT_ERROR_TOKENS - 22;
+    }
+
+    if (!nValue || nValue > MAX_INT_8_BYTES) {
+        PrintToLog("%s(): rejected: value out of range or zero: %d", __func__, nValue);
+        return PKT_ERROR_TOKENS - 23;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_TOKENS - 24;
+    }
+
+    CMPSPInfo::Entry sp;
+    assert(_my_sps->getSP(property, sp));
+
+    if (sender != sp.issuer) {
+        PrintToLog("%s(): rejected: sender %s is not issuer of property %d [issuer=%s]\n", __func__, sender, property, sp.issuer);
+        return PKT_ERROR_TOKENS - 43;
+    }
+
+    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
+        PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, property);
+        return PKT_ERROR_TOKENS - 101;
+    }
+
+    if (std::find(sp.denominations.begin(), sp.denominations.end(), nValue) != sp.denominations.end()) {
+        PrintToLog(
+            "%s(): rejected: denomination with value %s is already exists for property %d\n",
+            __func__,
+            FormatMP(property, nValue),
+            property
+        );
+        return PKT_ERROR_TOKENS - 102;
+    }
+
+    sp.denominations.push_back(nValue);
+
+    assert(_my_sps->updateSP(property, sp));
 
     return 0;
 }

@@ -549,5 +549,25 @@ std::vector<unsigned char> CreatePayload_ExodusAlert(uint16_t alertType, uint32_
     return payload;
 }
 
+std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId, uint64_t value)
+{
+    std::vector<unsigned char> payload;
+
+    uint16_t messageType = 1025;
+    uint16_t messageVer = 0;
+
+    exodus::swapByteOrder16(messageVer);
+    exodus::swapByteOrder16(messageType);
+    exodus::swapByteOrder32(propertyId);
+    exodus::swapByteOrder64(value);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, value);
+
+    return payload;
+}
+
 #undef PUSH_BACK_BYTES
 #undef PUSH_BACK_BYTES_PTR
