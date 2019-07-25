@@ -59,7 +59,7 @@ enum DBErrors
 };
 
 // {value, isHardened}
-typedef pair<int64_t,bool> Component;
+typedef pair<uint32_t,bool> Component;
 
 /* simple HD chain data model */
 class CHDChain
