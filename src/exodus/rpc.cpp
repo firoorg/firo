@@ -1563,7 +1563,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
         // TODO: no math, and especially no rounding here (!)
         // TODO: no math, and especially no rounding here (!)
 
-        // calculate unit price and updated amount of Zcoin desired
+        // calculate unit price and updated amount of zcoin desired
         double unitPriceFloat = 0.0;
         if ((sellOfferAmount > 0) && (sellBitcoinDesired > 0)) {
             unitPriceFloat = (double) sellBitcoinDesired / (double) sellOfferAmount; // divide by zero protection

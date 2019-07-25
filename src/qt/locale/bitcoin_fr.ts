@@ -398,8 +398,8 @@
         <translation>Barre d'outils des onglets</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Demander des paiements (génère des codes QR et des URI Zcoin:)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Demander des paiements (génère des codes QR et des URI zcoin:)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -410,8 +410,8 @@
         <translation>Afficher la liste d'adresses de réception et d'étiquettes utilisées</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Ouvrir une URI Zcoin: ou une demande de paiement</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Ouvrir une URI zcoin: ou une demande de paiement</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -2226,8 +2226,8 @@
         <translation>Saisir une étiquette pour cette adresse afin de l'ajouter à la liste d'adresses utilisées</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Un message qui était joint à l'URI Zcoin: et qui sera stocké avec la transaction pour référence. Note : ce message ne sera pas envoyé par le réseau Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>Un message qui était joint à l'URI zcoin: et qui sera stocké avec la transaction pour référence. Note : ce message ne sera pas envoyé par le réseau Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

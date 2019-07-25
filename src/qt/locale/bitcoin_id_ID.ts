@@ -230,8 +230,8 @@
         <translation>Baris tab</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Permintaan pembayaran (membuat kode QR dan Zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Permintaan pembayaran (membuat kode QR dan zcoin: URIs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -242,8 +242,8 @@
         <translation>Tampilkan daftar alamat dan label yang diterima</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Buka URI Zcoin: atau permintaan pembayaran</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Buka URI zcoin: atau permintaan pembayaran</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

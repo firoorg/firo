@@ -222,8 +222,8 @@
         <translation>Barra d'eines de les pestanyes</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Sol·licita pagaments (genera codis QR i Zcoin: URI)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Sol·licita pagaments (genera codis QR i zcoin: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -234,7 +234,7 @@
         <translation>Mostra la llista d'adreces de recepció i etiquetes utilitzades</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Obri una Zcoin: sol·licitud d'URI o pagament</translation>
     </message>
     <message>
@@ -1386,8 +1386,8 @@
         <translation>Introduïu una etiqueta per a esta adreça per afegir-la a la llista d'adreces utilitzades</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Un missatge que s'ha adjuntat al Zcoin: URI que s'emmagatzemarà amb la transacció per a la vostra referència. Nota: el missatge no s'enviarà a través de la xarxa Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>Un missatge que s'ha adjuntat al zcoin: URI que s'emmagatzemarà amb la transacció per a la vostra referència. Nota: el missatge no s'enviarà a través de la xarxa Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

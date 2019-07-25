@@ -218,11 +218,11 @@
         <translation>Ciļņu rīkjosla</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Pieprasīt maksājumus (izveido QR kodu un Zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Pieprasīt maksājumus (izveido QR kodu un zcoin: URIs)</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Atvērt Zcoin URI vai maksājuma pieprasījumu</translation>
     </message>
     <message>

@@ -37,7 +37,7 @@ Building
     From Explorer create a directory named
       C:\Users\<username>\zcoin
     From Ubuntu bash window create a link to it
-      ln -s /mnt/c/Users/<username>/zcoin Zcoin 
+      ln -s /mnt/c/Users/<username>/zcoin zcoin 
 
  4. Clone git resository into newly created directory and go to the right branch
       git clone https://github.com/zcoinofficial/zcoin.git
@@ -52,7 +52,7 @@ Building
  5. Install cross-compilation tools
       sudo apt-get install g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl
 
- 6. Build fails when there are special symbols (space, parentheses etc) in path directories. Reset path to the simple 
+ 6. Build fails when there are special symbols (space, parentheses etc) in path directories. Reset path to the simple
     one
       export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -80,7 +80,7 @@ Building
       make clean
       ./configure "LDFLAGS=-g -Wl,--no-dynamicbase" --enable-debug --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/i686-w64-mingw32
       make -j4
-     
+
 11. Build 64-bit debug build (from the Zcoin root directory)
       make clean
       ./configure "CXXFLAGS=-Og -g" "CFLAGS=-Og -g" "LDFLAGS=-g -Wl,--no-dynamicbase" --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
@@ -115,7 +115,7 @@ Free option
      pacman -Suy
    Install gdb
      pacman -S gdb
- 
+
 2. Create a new project with Visual Studio. Select "General\Makefile project" as a project type (DO NOT create a
    cross-platform Linux project).
      Name: zcoin
@@ -133,13 +133,13 @@ Free option
    Replace all the paths with actual ones, adjust architecture if needed, set executable you want to debug and set
    needed arguments for the program
 
-     <PipeLaunchOptions xmlns="http://schemas.microsoft.com/vstudio/MDDDebuggerOptions/2014" 
-        PipePath="C:\msys64\usr\bin\gdb.exe" 
-        PipeArguments="--interpreter=mi" 
-        ExePath="C:/Users/<username>/zcoin/src/zcoind.exe" ExeArguments="" 
-        TargetArchitecture="X64" 
-        WorkingDirectory="C:/Users/<username>/zcoin" 
-        AdditionalSOLibSearchPath=""> 
+     <PipeLaunchOptions xmlns="http://schemas.microsoft.com/vstudio/MDDDebuggerOptions/2014"
+        PipePath="C:\msys64\usr\bin\gdb.exe"
+        PipeArguments="--interpreter=mi"
+        ExePath="C:/Users/<username>/zcoin/src/zcoind.exe" ExeArguments=""
+        TargetArchitecture="X64"
+        WorkingDirectory="C:/Users/<username>/zcoin"
+        AdditionalSOLibSearchPath="">
      </PipeLaunchOptions>
 
 4. If you need to set a breakpoint before you launch debugger just open the source file (normal File\Open) and set

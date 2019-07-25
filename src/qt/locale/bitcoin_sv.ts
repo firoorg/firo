@@ -399,7 +399,7 @@ Var vänlig och försök igen.</translation>
         <translation>Verktygsfält för tabbar</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Begär betalning (genererar QR-koder och Zcoin-URI)</translation>
     </message>
     <message>
@@ -411,8 +411,8 @@ Var vänlig och försök igen.</translation>
         <translation>Visa listan av använda mottagningsadresser och etiketter</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Öppna en Zcoin: URI eller betalningsbegäran</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Öppna en zcoin: URI eller betalningsbegäran</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1807,7 +1807,7 @@ Var vänlig och försök igen.</translation>
         <translation>Ange en etikett för denna adress att adderas till listan över använda adresser</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
         <translation>Ett meddelande som bifogades Zcoin-URI, vilket lagras med transaktionen som referens. NB: Meddelandet kommer inte att sändas över Zcoinnätverket.</translation>
     </message>
     <message>

@@ -230,7 +230,7 @@
         <translation>Orodna vrstica zavihkov</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Zahtevajte plačilo (ustvarite zahtevek s kodo QR in URI tipa Zcoin:)</translation>
     </message>
     <message>
@@ -242,7 +242,7 @@
         <translation>Preglejte in uredite seznam naslovov, na katere ste kdaj prejeli plačila</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Izvedite plačilo iz zahtevka v datoteki ali iz URI tipa Zcoin:</translation>
     </message>
     <message>
@@ -1426,7 +1426,7 @@
         <translation>Če vnesete oznako za zgornji naslov, se bo skupaj z naslovom shranila v imenk že uporabljenih naslovov</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
         <translation>Sporočilo, ki ste ga pripeli na URI tipa Zcoin:. Shranjeno bo skupaj s podatki o transakciji. Opomba: Sporočilo ne bo poslano preko omrežja Zcoin.</translation>
     </message>
     <message>

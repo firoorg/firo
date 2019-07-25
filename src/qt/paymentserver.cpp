@@ -80,7 +80,7 @@ namespace // Anon namespace
 //
 static QString ipcServerName()
 {
-    QString name("ZcoinQt");
+    QString name("BitcoinQt");
 
     // Append a simple hash of the datadir
     // Note that GetDataDir(true) returns a different path
@@ -341,7 +341,7 @@ PaymentServer::~PaymentServer()
 }
 
 //
-// OSX-specific way of handling ztcoin: URIs and PaymentRequest mime types.
+// OSX-specific way of handling zcoin: URIs and PaymentRequest mime types.
 // Also used by paymentservertests.cpp and when opening a payment request file
 // via "Open URI..." menu entry.
 //

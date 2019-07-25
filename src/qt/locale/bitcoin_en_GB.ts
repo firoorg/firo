@@ -302,8 +302,8 @@
         <translation>Tabs toolbar</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Request payments (generates QR codes and Zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Request payments (generates QR codes and zcoin: URIs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -314,8 +314,8 @@
         <translation>Show the list of used receiving addresses and labels</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Open a Zcoin: URI or payment request</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Open a zcoin: URI or payment request</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1686,8 +1686,8 @@
         <translation>Enter a label for this address to add it to the list of used addresses</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</translation>
     </message>
     <message>
         <source>Pay To:</source>

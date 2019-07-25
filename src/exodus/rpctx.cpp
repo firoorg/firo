@@ -44,7 +44,7 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
             "2. rawtransaction       (string, required) the hex-encoded raw transaction\n"
             "3. referenceaddress     (string, optional) a reference address (none by default)\n"
             "4. redeemaddress        (string, optional) an address that can spent the transaction dust (sender by default)\n"
-            "5. referenceamount      (string, optional) a Zcoin amount that is sent to the receiver (minimal by default)\n"
+            "5. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -89,7 +89,7 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
             "3. propertyid           (number, required) the identifier of the tokens to send\n"
             "4. amount               (string, required) the amount to send\n"
             "5. redeemaddress        (string, optional) an address that can spend the transaction dust (sender by default)\n"
-            "6. referenceamount      (string, optional) a Zcoin amount that is sent to the receiver (minimal by default)\n"
+            "6. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -146,7 +146,7 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
             "2. toaddress            (string, required) the address of the receiver\n"
             "3. ecosystem            (number, required) the ecosystem of the tokens to send (1 for main ecosystem, 2 for test ecosystem)\n"
             "4. redeemaddress        (string, optional) an address that can spend the transaction dust (sender by default)\n"
-            "5. referenceamount      (string, optional) a Zcoin amount that is sent to the receiver (minimal by default)\n"
+            "5. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"

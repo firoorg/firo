@@ -398,7 +398,7 @@
         <translation>Barra de pestañas</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Solicitar pagos (generando códigos QR e identificadores URI "zcoin:")</translation>
     </message>
     <message>
@@ -410,7 +410,7 @@
         <translation>Muestra la lista de direcciones de recepción y etiquetas</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Abrir un identificador URI "zcoin:" o una petición de pago</translation>
     </message>
     <message>
@@ -2226,8 +2226,8 @@
         <translation>Introduce una etiqueta para esta dirección para añadirla a la lista de direcciones utilizadas</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Un mensaje que se adjuntó a la Zcoin: URL que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>Un mensaje que se adjuntó a la zcoin: URL que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

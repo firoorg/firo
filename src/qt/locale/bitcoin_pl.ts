@@ -334,7 +334,7 @@
         <translation>Pasek zakładek</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Żądaj płatności (generuje kod QR oraz Zcoinowe URI)</translation>
     </message>
     <message>
@@ -346,8 +346,8 @@
         <translation>Pokaż listę adresów i etykiet użytych do odbierania</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Otwórz URI Zcoin: lub żądanie zapłaty</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Otwórz URI zcoin: lub żądanie zapłaty</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1810,8 +1810,8 @@
         <translation>Wprowadź etykietę dla tego adresu by dodać go do listy użytych adresów</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Wiadomość, która została dołączona do URI Zcoin:, która będzie przechowywana wraz z transakcją w celach informacyjnych. Uwaga: Ta wiadomość nie będzie rozsyłana w sieci Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>Wiadomość, która została dołączona do URI zcoin:, która będzie przechowywana wraz z transakcją w celach informacyjnych. Uwaga: Ta wiadomość nie będzie rozsyłana w sieci Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

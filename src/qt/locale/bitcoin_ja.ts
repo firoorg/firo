@@ -398,7 +398,7 @@
         <translation>タブツールバー</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>支払いを要求する (QRコードとzcoin:ではじまるURIを生成する)</translation>
     </message>
     <message>
@@ -410,7 +410,7 @@
         <translation>支払いを受け取るアドレスとラベルのリストを表示する</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>zcoin: URIまたは支払いリクエストを開く</translation>
     </message>
     <message>
@@ -2226,7 +2226,7 @@
         <translation>このアドレスに対するラベルを入力することで、使用済みアドレスの一覧に追加することができます</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
         <translation>zcoin: URIに添付されていたメッセージです。これは参照用としてトランザクションとともに保存されます。注意：このメッセージはZcoinネットワークを通して送信されるわけではありません。</translation>
     </message>
     <message>

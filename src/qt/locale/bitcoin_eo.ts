@@ -222,7 +222,7 @@
         <translation>Langeto-breto</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Peti pagon (kreas QR-kodojn kaj URI-ojn kun prefikso Zcoin:)</translation>
     </message>
     <message>
@@ -234,7 +234,7 @@
         <translation>Vidigi la liston de uzitaj ricevaj adresoj kaj etikedoj</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Malfermi Zcoin:-URI-on aŭ pagpeton</translation>
     </message>
     <message>

@@ -234,8 +234,8 @@
         <translation>Панель вкладок</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Створити запит платежу (генерує QR-код та Zcoin: URI)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Створити запит платежу (генерує QR-код та zcoin: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -246,8 +246,8 @@
         <translation>Показати список адрес і міток, що були використані для отримання</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Відкрити Zcoin: URI чи запит платежу</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Відкрити zcoin: URI чи запит платежу</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1518,7 +1518,7 @@
         <translation>Введіть мітку для цієї адреси для додавання її в список використаних адрес</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
         <translation>Повідомлення, що було додане до Zcoin:URI та буде збережено разом з транзакцією для довідки. Примітка: Це повідомлення не буде відправлено в мережу Zcoin.</translation>
     </message>
     <message>

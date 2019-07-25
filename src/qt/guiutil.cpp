@@ -150,7 +150,7 @@ void setupAmountWidget(QLineEdit *widget, QWidget *parent)
 
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
 {
-    // return if URI is not valid or is no Zcoin: URI
+    // return if URI is not valid or is no zcoin: URI
     if(!uri.isValid() || uri.scheme() != QString("zcoin"))
         return false;
 

@@ -250,8 +250,8 @@
         <translation>Traka kartica</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Zatraži uplatu (stvara QR kod i Zcoin: URI adresu)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Zatraži uplatu (stvara QR kod i zcoin: URI adresu)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -262,8 +262,8 @@
         <translation>Prikaži popis korištenih adresa i oznaka za primanje novca</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Otvori Zcoin: URI adresu ili zahtjev za uplatu</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Otvori zcoin: URI adresu ili zahtjev za uplatu</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

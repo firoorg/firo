@@ -238,8 +238,8 @@
         <translation>Thanh công cụ (toolbar)</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Yêu cầu thanh toán(tạo mã QR và địa chỉ Zcoin: URLs)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Yêu cầu thanh toán(tạo mã QR và địa chỉ zcoin: URLs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -250,7 +250,7 @@
         <translation>Hiện thỉ danh sách các địa chỉ và nhãn đã dùng để nhận.</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Mở Zcoin:URL hoặc yêu cầu thanh toán</translation>
     </message>
     <message>

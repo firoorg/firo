@@ -226,7 +226,7 @@
         <translation>Εργαλειοθήκη καρτελών</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Αίτηση πληρωμών (δημιουργεί QR codes και διευθύνσεις Zcoin: )</translation>
     </message>
     <message>
@@ -238,8 +238,8 @@
         <translation>Προβολή της λίστας των χρησιμοποιημένων διευθύνσεων και ετικετών λήψεως</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Άνοιγμα Zcoin: URI αίτησης πληρωμής</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Άνοιγμα zcoin: URI αίτησης πληρωμής</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

@@ -218,7 +218,7 @@
         <translation>Barra de pestañas</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Solicitar pagos (genera codigo QR y URL's de Zcoin)</translation>
     </message>
     <message>
@@ -230,8 +230,8 @@
         <translation>Muestra la lista de direcciones de recepción y etiquetas</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Abrir un Zcoin: URI o petición de pago</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Abrir un zcoin: URI o petición de pago</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

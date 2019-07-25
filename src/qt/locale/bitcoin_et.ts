@@ -362,12 +362,12 @@
         <translation>Vahelehe tööriistariba</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Loo maksepäring (genereerib QR koodid ja Zcoini: URId)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Loo maksepäring (genereerib QR koodid ja zcoini: URId)</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Ava Zcoini: URI või maksepäring</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Ava zcoini: URI või maksepäring</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

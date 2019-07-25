@@ -214,12 +214,12 @@
         <translation>&amp;Ajutor</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Cerere plată (generează coduri QR și Zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Cerere plată (generează coduri QR și zcoin: URIs)</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Deschide un Zcoin: URI sau cerere de plată</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Deschide un zcoin: URI sau cerere de plată</translation>
     </message>
     <message>
         <source>%1 and %2</source>

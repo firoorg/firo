@@ -398,8 +398,8 @@
         <translation>Tab-werkbalk</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
-        <translation>Vraag betaling aan (genereert QR-codes en Zcoin: URI's)</translation>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <translation>Vraag betaling aan (genereert QR-codes en zcoin: URI's)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -410,8 +410,8 @@
         <translation>Toon de lijst met gebruikte ontvangst adressen en labels</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
-        <translation>Open een Zcoin: URI of betalingsverzoek</translation>
+        <source>Open a zcoin: URI or payment request</source>
+        <translation>Open een zcoin: URI of betalingsverzoek</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -2222,8 +2222,8 @@
         <translation>Vul een label voor dit adres in om het aan de lijst met gebruikte adressen toe te voegen</translation>
     </message>
     <message>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Een bericht dat werd toegevoegd aan de Zcoin: URI welke wordt opgeslagen met de transactie ter referentie. Opmerking: Dit bericht zal niet worden verzonden over het Zcoinnetwerk.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <translation>Een bericht dat werd toegevoegd aan de zcoin: URI welke wordt opgeslagen met de transactie ter referentie. Opmerking: Dit bericht zal niet worden verzonden over het Zcoinnetwerk.</translation>
     </message>
     <message>
         <source>Pay To:</source>

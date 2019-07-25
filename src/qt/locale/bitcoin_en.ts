@@ -505,7 +505,7 @@
     </message>
     <message>
         <location line="-158"/>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -520,7 +520,7 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2879,7 +2879,7 @@
     </message>
     <message>
         <location line="+47"/>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

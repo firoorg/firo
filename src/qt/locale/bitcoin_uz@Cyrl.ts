@@ -222,7 +222,7 @@
         <translation>Ички ойналар асбоблар панели</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and zcoin: URIs)</source>
         <translation>Тўловлар (QR кодлари ва Zcoin ёрдамида яратишлар: URI’лар) сўраш</translation>
     </message>
     <message>
@@ -234,7 +234,7 @@
         <translation>Фойдаланилган қабул қилинган манзиллар ва ёрлиқлар рўйхатини кўрсатиш</translation>
     </message>
     <message>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a zcoin: URI or payment request</source>
         <translation>Zcoin’ни очиш: URI ёки тўлов сўрови</translation>
     </message>
     <message>
