@@ -58,6 +58,9 @@ enum DBErrors
     DB_NEED_REWRITE
 };
 
+// {value, isHardened}
+typedef pair<int64_t,bool> Component;
+
 /* simple HD chain data model */
 class CHDChain
 {
@@ -107,8 +110,8 @@ public:
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
     std::string hdKeypath; //optional HD/bip32 keypath
-    int64_t nChange; // HD/bip32 keypath change counter
-    int64_t nChild; // HD/bip32 keypath child counter
+    Component nChange; // HD/bip32 keypath change counter
+    Component nChild; // HD/bip32 keypath child counter
     CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
 
     CKeyMetadata()
@@ -125,11 +128,18 @@ public:
         std::vector<std::string> nComponents;
         if(hdKeypath=="m")
             return false;
-        std::string hdKeypathNonHardened = hdKeypath;
-        boost::erase_all(hdKeypathNonHardened, "'");
-        boost::split(nComponents, hdKeypathNonHardened, boost::is_any_of("/"), boost::token_compress_on);
-        nChange = boost::lexical_cast<int64_t>(nComponents[nComponents.size()-2]);
-        nChild = boost::lexical_cast<int64_t>(nComponents[nComponents.size()-1]);
+        boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
+        std::string nChangeStr = nComponents[nComponents.size()-2];
+        std::string nChildStr  = nComponents[nComponents.size()-1];
+
+        nChange.second = (nChangeStr.find("'") != string::npos);
+        boost::erase_all(nChangeStr, "'");
+        nChange.first = boost::lexical_cast<int64_t>(nChangeStr);
+
+        nChild.second = (nChildStr.find("'") != string::npos);
+        boost::erase_all(nChildStr, "'");
+        nChild.first = boost::lexical_cast<int64_t>(nChildStr);
+
         return true;
     }
 
@@ -152,8 +162,8 @@ public:
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
         hdKeypath.clear();
-        nChild = 0;
-        nChange = 0;
+        nChild = Component(0, false);
+        nChange = Component(0, false);
         hdMasterKeyID.SetNull();
     }
 };
