@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -6,14 +6,16 @@
  * \brief Test our smaller buffer-based protocol functions
  */
 
-#include "or.h"
-#include "test.h"
-#include "buffers.h"
-#include "connection_or.h"
-#include "ext_orport.h"
-#include "proto_cell.h"
-#include "proto_control0.h"
-#include "proto_ext_or.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "lib/buf/buffers.h"
+#include "core/or/connection_or.h"
+#include "feature/relay/ext_orport.h"
+#include "core/proto/proto_cell.h"
+#include "core/proto/proto_control0.h"
+#include "core/proto/proto_ext_or.h"
+
+#include "core/or/var_cell_st.h"
 
 static void
 test_proto_var_cell(void *arg)

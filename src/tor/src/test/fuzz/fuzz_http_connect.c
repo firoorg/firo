@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -6,16 +6,19 @@
 #define BUFFERS_PRIVATE
 #define CONNECTION_EDGE_PRIVATE
 
-#include "or.h"
-#include "backtrace.h"
-#include "buffers.h"
-#include "config.h"
-#include "connection.h"
-#include "connection_edge.h"
-#include "proto_socks.h"
-#include "torlog.h"
+#include "core/or/or.h"
+#include "lib/err/backtrace.h"
+#include "lib/buf/buffers.h"
+#include "app/config/config.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_edge.h"
+#include "core/proto/proto_socks.h"
+#include "lib/log/log.h"
 
-#include "fuzzing.h"
+#include "core/or/entry_connection_st.h"
+#include "core/or/socks_request_st.h"
+
+#include "test/fuzz/fuzzing.h"
 
 static void
 mock_connection_write_to_buf_impl_(const char *string, size_t len,

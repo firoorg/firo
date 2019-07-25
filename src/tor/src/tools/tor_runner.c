@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -23,8 +23,8 @@
  * functions.  Don't add more dependencies!
  */
 
-#include "tor_api.h"
-#include "tor_api_internal.h"
+#include "feature/api/tor_api.h"
+#include "feature/api/tor_api_internal.h"
 
 #include "orconfig.h"
 #ifdef HAVE_UNISTD_H
@@ -45,6 +45,12 @@
 
 static void child(const tor_main_configuration_t *cfg)
   __attribute__((noreturn));
+
+const char *
+tor_api_get_provider_version(void)
+{
+  return "libtorrunner " VERSION;
+}
 
 int
 tor_run_main(const tor_main_configuration_t *cfg)
@@ -80,22 +86,27 @@ tor_run_main(const tor_main_configuration_t *cfg)
 /* circumlocution to avoid getting warned about calling calloc instead of
  * tor_calloc. */
 #define real_calloc calloc
+#define real_free free
 
 static void
 child(const tor_main_configuration_t *cfg)
 {
   /* XXXX Close unused file descriptors. */
 
-  char **args = real_calloc(cfg->argc+1, sizeof(char *));
+  char **args = real_calloc(cfg->argc + cfg->argc_owned+1, sizeof(char *));
   memcpy(args, cfg->argv, cfg->argc * sizeof(char *));
-  args[cfg->argc] = NULL;
+  if (cfg->argc_owned)
+    memcpy(args + cfg->argc, cfg->argv_owned,
+           cfg->argc_owned * sizeof(char *));
+
+  args[cfg->argc + cfg->argc_owned] = NULL;
 
   int rv = execv(BINDIR "/tor", args);
 
   if (rv < 0) {
+    real_free(args);
     exit(254);
   } else {
     abort(); /* Unreachable */
   }
 }
-

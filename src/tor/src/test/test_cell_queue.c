@@ -1,12 +1,17 @@
-/* Copyright (c) 2013-2017, The Tor Project, Inc. */
+/* Copyright (c) 2013-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CIRCUITLIST_PRIVATE
 #define RELAY_PRIVATE
-#include "or.h"
-#include "circuitlist.h"
-#include "relay.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "core/or/circuitlist.h"
+#include "core/or/relay.h"
+#include "test/test.h"
+
+#include "core/or/cell_st.h"
+#include "core/or/cell_queue_st.h"
+#include "core/or/or_circuit_st.h"
+#include "core/or/origin_circuit_st.h"
 
 static void
 test_cq_manip(void *arg)

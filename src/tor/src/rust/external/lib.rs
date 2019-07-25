@@ -1,4 +1,4 @@
-//! Copyright (c) 2016-2018, The Tor Project, Inc. */
+//! Copyright (c) 2016-2019, The Tor Project, Inc. */
 //! See LICENSE for licensing information */
 
 //! Interface for external calls to tor C ABI
@@ -8,7 +8,7 @@
 //! module implementing this functionality repeatedly.
 
 extern crate libc;
-
+extern crate tor_allocate;
 extern crate smartlist;
 
 pub mod crypto_digest;

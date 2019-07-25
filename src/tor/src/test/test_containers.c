@@ -1,13 +1,17 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
-#include "or.h"
-#include "crypto_rand.h"
-#include "fp_pair.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/dircommon/fp_pair.h"
+#include "test/test.h"
+
+#include "lib/container/bitarray.h"
+#include "lib/container/order.h"
+#include "lib/crypt_ops/digestset.h"
 
 /** Helper: return a tristate based on comparing the strings in *<b>a</b> and
  * *<b>b</b>. */
@@ -90,6 +94,30 @@ test_container_smartlist_basic(void *arg)
   tor_free(v22);
   tor_free(v99);
   tor_free(v555);
+}
+
+/** Test SMARTLIST_FOREACH_REVERSE_BEGIN loop macro */
+static void
+test_container_smartlist_foreach_reverse(void *arg)
+{
+  smartlist_t *sl = smartlist_new();
+  int i;
+
+  (void) arg;
+
+  /* Add integers to smartlist in increasing order */
+  for (i=0;i<100;i++) {
+    smartlist_add(sl, (void*)(uintptr_t)i);
+  }
+
+  /* Pop them out in reverse and test their value */
+  SMARTLIST_FOREACH_REVERSE_BEGIN(sl, void*, k) {
+    i--;
+    tt_ptr_op(k, OP_EQ, (void*)(uintptr_t)i);
+  } SMARTLIST_FOREACH_END(k);
+
+ done:
+  smartlist_free(sl);
 }
 
 /** Run unit tests for smartlist-of-strings functionality. */
@@ -640,18 +668,18 @@ test_container_digestset(void *arg)
   }
   set = digestset_new(1000);
   SMARTLIST_FOREACH(included, const char *, cp,
-                    if (digestset_contains(set, cp))
+                    if (digestset_probably_contains(set, cp))
                       ok = 0);
   tt_assert(ok);
   SMARTLIST_FOREACH(included, const char *, cp,
                     digestset_add(set, cp));
   SMARTLIST_FOREACH(included, const char *, cp,
-                    if (!digestset_contains(set, cp))
+                    if (!digestset_probably_contains(set, cp))
                       ok = 0);
   tt_assert(ok);
   for (i = 0; i < 1000; ++i) {
     crypto_rand(d, DIGEST_LEN);
-    if (digestset_contains(set, d))
+    if (digestset_probably_contains(set, d))
       ++false_positives;
   }
   tt_int_op(50, OP_GT, false_positives); /* Should be far lower. */
@@ -1277,6 +1305,7 @@ test_container_smartlist_strings_eq(void *arg)
 struct testcase_t container_tests[] = {
   CONTAINER_LEGACY(smartlist_basic),
   CONTAINER_LEGACY(smartlist_strings),
+  CONTAINER_LEGACY(smartlist_foreach_reverse),
   CONTAINER_LEGACY(smartlist_overlap),
   CONTAINER_LEGACY(smartlist_digests),
   CONTAINER_LEGACY(smartlist_join),
@@ -1295,4 +1324,3 @@ struct testcase_t container_tests[] = {
   CONTAINER(smartlist_strings_eq, 0),
   END_OF_TESTCASES
 };
-
