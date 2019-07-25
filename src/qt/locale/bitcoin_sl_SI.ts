@@ -231,7 +231,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Zahtevajte plačilo (ustvarite zahtevek s kodo QR in URI tipa Zcoin:)</translation>
+        <translation>Zahtevajte plačilo (ustvarite zahtevek s kodo QR in URI tipa zcoin:)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -243,7 +243,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Izvedite plačilo iz zahtevka v datoteki ali iz URI tipa Zcoin:</translation>
+        <translation>Izvedite plačilo iz zahtevka v datoteki ali iz URI tipa zcoin:</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1427,7 +1427,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Sporočilo, ki ste ga pripeli na URI tipa Zcoin:. Shranjeno bo skupaj s podatki o transakciji. Opomba: Sporočilo ne bo poslano preko omrežja Zcoin.</translation>
+        <translation>Sporočilo, ki ste ga pripeli na URI tipa zcoin:. Shranjeno bo skupaj s podatki o transakciji. Opomba: Sporočilo ne bo poslano preko omrežja Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
