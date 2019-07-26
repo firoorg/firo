@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -6,11 +6,13 @@
  * \brief Test hidden service ntor functionality.
  */
 
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
+#include "lib/crypt_ops/crypto_curve25519.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
 
-#include "hs_ntor.h"
+#include "core/crypto/hs_ntor.h"
 
 /* Test the HS ntor handshake. Simulate the sending of an encrypted INTRODUCE1
  * cell, and verify the proper derivation of decryption keys on the other end.
@@ -111,4 +113,3 @@ struct testcase_t hs_ntor_tests[] = {
 
   END_OF_TESTCASES
 };
-

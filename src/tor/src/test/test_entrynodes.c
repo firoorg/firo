@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -8,30 +8,43 @@
 #define STATEFILE_PRIVATE
 #define ENTRYNODES_PRIVATE
 #define ROUTERLIST_PRIVATE
-#define DIRECTORY_PRIVATE
+#define DIRCLIENT_PRIVATE
 
-#include "or.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "test/test.h"
 
-#include "bridges.h"
-#include "circuitlist.h"
-#include "circuitbuild.h"
-#include "config.h"
-#include "confparse.h"
-#include "crypto_rand.h"
-#include "directory.h"
-#include "entrynodes.h"
-#include "nodelist.h"
-#include "networkstatus.h"
-#include "policies.h"
-#include "routerlist.h"
-#include "routerparse.h"
-#include "routerset.h"
-#include "statefile.h"
-#include "util.h"
+#include "feature/client/bridges.h"
+#include "core/or/circuitlist.h"
+#include "core/or/circuitbuild.h"
+#include "app/config/config.h"
+#include "app/config/confparse.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/dircommon/directory.h"
+#include "feature/dirclient/dirclient.h"
+#include "feature/client/entrynodes.h"
+#include "feature/nodelist/nodelist.h"
+#include "feature/nodelist/networkstatus.h"
+#include "core/or/policies.h"
+#include "feature/nodelist/routerlist.h"
+#include "feature/nodelist/routerset.h"
+#include "app/config/statefile.h"
 
-#include "test_helpers.h"
-#include "log_test_helpers.h"
+#include "core/or/cpath_build_state_st.h"
+#include "core/or/crypt_path_st.h"
+#include "feature/dircommon/dir_connection_st.h"
+#include "feature/nodelist/microdesc_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "feature/nodelist/node_st.h"
+#include "core/or/origin_circuit_st.h"
+#include "app/config/or_state_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "feature/nodelist/routerstatus_st.h"
+
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
+
+#include "lib/container/bloomfilt.h"
+#include "lib/encoding/confline.h"
 
 /* TODO:
  * choose_random_entry() test with state set.
@@ -61,9 +74,10 @@ bfn_mock_nodelist_get_list(void)
 }
 
 static networkstatus_t *
-bfn_mock_networkstatus_get_live_consensus(time_t now)
+bfn_mock_networkstatus_get_reasonably_live_consensus(time_t now, int flavor)
 {
   (void)now;
+  (void)flavor;
   return dummy_consensus;
 }
 
@@ -105,13 +119,16 @@ big_fake_network_cleanup(const struct testcase_t *testcase, void *ptr)
   UNMOCK(nodelist_get_list);
   UNMOCK(node_get_by_id);
   UNMOCK(get_or_state);
-  UNMOCK(networkstatus_get_live_consensus);
+  UNMOCK(networkstatus_get_reasonably_live_consensus);
   or_state_free(dummy_state);
   dummy_state = NULL;
   tor_free(dummy_consensus);
 
   return 1; /* NOP */
 }
+
+#define REASONABLY_FUTURE " reasonably-future"
+#define REASONABLY_PAST " reasonably-past"
 
 /* Unittest setup function: Setup a fake network. */
 static void *
@@ -122,6 +139,13 @@ big_fake_network_setup(const struct testcase_t *testcase)
   /* These are minimal node_t objects that only contain the aspects of node_t
    * that we need for entrynodes.c. */
   const int N_NODES = 271;
+
+  const char *argument = testcase->setup_data;
+  int reasonably_future_consensus = 0, reasonably_past_consensus = 0;
+  if (argument) {
+    reasonably_future_consensus = strstr(argument, REASONABLY_FUTURE) != NULL;
+    reasonably_past_consensus = strstr(argument, REASONABLY_PAST) != NULL;
+  }
 
   big_fake_net_nodes = smartlist_new();
   for (i = 0; i < N_NODES; ++i) {
@@ -178,15 +202,27 @@ big_fake_network_setup(const struct testcase_t *testcase)
 
   dummy_state = tor_malloc_zero(sizeof(or_state_t));
   dummy_consensus = tor_malloc_zero(sizeof(networkstatus_t));
-  dummy_consensus->valid_after = approx_time() - 3600;
-  dummy_consensus->valid_until = approx_time() + 3600;
+  if (reasonably_future_consensus) {
+    /* Make the dummy consensus valid in 6 hours, and expiring in 7 hours. */
+    dummy_consensus->valid_after = approx_time() + 6*3600;
+    dummy_consensus->valid_until = approx_time() + 7*3600;
+  } else if (reasonably_past_consensus) {
+    /* Make the dummy consensus valid from 16 hours ago, but expired 12 hours
+     * ago. */
+    dummy_consensus->valid_after = approx_time() - 16*3600;
+    dummy_consensus->valid_until = approx_time() - 12*3600;
+  } else {
+    /* Make the dummy consensus valid for an hour either side of now. */
+    dummy_consensus->valid_after = approx_time() - 3600;
+    dummy_consensus->valid_until = approx_time() + 3600;
+  }
 
   MOCK(nodelist_get_list, bfn_mock_nodelist_get_list);
   MOCK(node_get_by_id, bfn_mock_node_get_by_id);
   MOCK(get_or_state,
        get_or_state_replacement);
-  MOCK(networkstatus_get_live_consensus,
-       bfn_mock_networkstatus_get_live_consensus);
+  MOCK(networkstatus_get_reasonably_live_consensus,
+       bfn_mock_networkstatus_get_reasonably_live_consensus);
   /* Return anything but NULL (it's interpreted as test fail) */
   return (void*)testcase;
 }
@@ -2678,7 +2714,7 @@ test_entry_guard_upgrade_not_blocked_by_worse_circ_pending(void *arg)
 }
 
 static void
-test_enty_guard_should_expire_waiting(void *arg)
+test_entry_guard_should_expire_waiting(void *arg)
 {
   (void)arg;
   circuit_guard_state_t *fake_state = tor_malloc_zero(sizeof(*fake_state));
@@ -2819,13 +2855,16 @@ test_entry_guard_outdated_dirserver_exclusion(void *arg)
                                   digests, 3, 7, 0);
 
     /* ... and check that because we failed to fetch microdescs from all our
-     * primaries, we didnt end up selecting a primary for fetching dir info */
+     * primaries, we didn't end up selecting a primary for fetching dir info */
     expect_log_msg_containing("No primary or confirmed guards available.");
     teardown_capture_of_logs();
   }
 
  done:
+  UNMOCK(networkstatus_get_latest_consensus_by_flavor);
+  UNMOCK(directory_initiate_request);
   smartlist_free(digests);
+  tor_free(mock_ns_val);
   tor_free(args);
   if (conn) {
     tor_free(conn->requested_resource);
@@ -2996,39 +3035,46 @@ static const struct testcase_setup_t upgrade_circuits = {
   upgrade_circuits_setup, upgrade_circuits_cleanup
 };
 
-#define BFN_TEST(name) \
-  { #name, test_entry_guard_ ## name, TT_FORK, &big_fake_network, NULL }
+#define NO_PREFIX_TEST(name) \
+  { #name, test_ ## name, 0, NULL, NULL }
 
-#define UPGRADE_TEST(name, arg)                                         \
-  { #name, test_entry_guard_ ## name, TT_FORK, &upgrade_circuits,       \
-      (void*)(arg) }
+#define EN_TEST_BASE(name, fork, setup, arg) \
+  { #name, test_entry_guard_ ## name, fork, setup, (void*)(arg) }
+
+#define EN_TEST(name)      EN_TEST_BASE(name, 0,       NULL, NULL)
+#define EN_TEST_FORK(name) EN_TEST_BASE(name, TT_FORK, NULL, NULL)
+
+#define BFN_TEST(name) \
+  EN_TEST_BASE(name, TT_FORK, &big_fake_network, NULL), \
+  { #name "_reasonably_future", test_entry_guard_ ## name, TT_FORK, \
+    &big_fake_network, (void*)(REASONABLY_FUTURE) }, \
+  { #name "_reasonably_past", test_entry_guard_ ## name, TT_FORK, \
+    &big_fake_network, (void*)(REASONABLY_PAST) }
+
+#define UPGRADE_TEST(name, arg) \
+  EN_TEST_BASE(name, TT_FORK, &upgrade_circuits, arg), \
+  { #name "_reasonably_future", test_entry_guard_ ## name, TT_FORK, \
+    &upgrade_circuits, (void*)(arg REASONABLY_FUTURE) }, \
+  { #name "_reasonably_past", test_entry_guard_ ## name, TT_FORK, \
+    &upgrade_circuits, (void*)(arg REASONABLY_PAST) }
 
 struct testcase_t entrynodes_tests[] = {
-  { "node_preferred_orport",
-    test_node_preferred_orport,
-    0, NULL, NULL },
-  { "entry_guard_describe", test_entry_guard_describe, 0, NULL, NULL },
-  { "randomize_time", test_entry_guard_randomize_time, 0, NULL, NULL },
-  { "encode_for_state_minimal",
-    test_entry_guard_encode_for_state_minimal, 0, NULL, NULL },
-  { "encode_for_state_maximal",
-    test_entry_guard_encode_for_state_maximal, 0, NULL, NULL },
-  { "parse_from_state_minimal",
-    test_entry_guard_parse_from_state_minimal, 0, NULL, NULL },
-  { "parse_from_state_maximal",
-    test_entry_guard_parse_from_state_maximal, 0, NULL, NULL },
-  { "parse_from_state_failure",
-    test_entry_guard_parse_from_state_failure, 0, NULL, NULL },
-  { "parse_from_state_partial_failure",
-    test_entry_guard_parse_from_state_partial_failure, 0, NULL, NULL },
-  { "parse_from_state_full",
-    test_entry_guard_parse_from_state_full, TT_FORK, NULL, NULL },
-  { "parse_from_state_broken",
-    test_entry_guard_parse_from_state_broken, TT_FORK, NULL, NULL },
-  { "get_guard_selection_by_name",
-    test_entry_guard_get_guard_selection_by_name, TT_FORK, NULL, NULL },
-  { "number_of_primaries",
-    test_entry_guard_number_of_primaries, TT_FORK, NULL, NULL },
+  NO_PREFIX_TEST(node_preferred_orport),
+  NO_PREFIX_TEST(entry_guard_describe),
+
+  EN_TEST(randomize_time),
+  EN_TEST(encode_for_state_minimal),
+  EN_TEST(encode_for_state_maximal),
+  EN_TEST(parse_from_state_minimal),
+  EN_TEST(parse_from_state_maximal),
+  EN_TEST(parse_from_state_failure),
+  EN_TEST(parse_from_state_partial_failure),
+
+  EN_TEST_FORK(parse_from_state_full),
+  EN_TEST_FORK(parse_from_state_broken),
+  EN_TEST_FORK(get_guard_selection_by_name),
+  EN_TEST_FORK(number_of_primaries),
+
   BFN_TEST(choose_selection_initial),
   BFN_TEST(add_single_guard),
   BFN_TEST(node_filter),
@@ -3042,7 +3088,9 @@ struct testcase_t entrynodes_tests[] = {
   BFN_TEST(sample_reachable_filtered_empty),
   BFN_TEST(retry_unreachable),
   BFN_TEST(manage_primary),
-  { "guard_preferred", test_entry_guard_guard_preferred, TT_FORK, NULL, NULL },
+
+  EN_TEST_FORK(guard_preferred),
+
   BFN_TEST(select_for_circuit_no_confirmed),
   BFN_TEST(select_for_circuit_confirmed),
   BFN_TEST(select_for_circuit_highlevel_primary),
@@ -3065,9 +3113,8 @@ struct testcase_t entrynodes_tests[] = {
   UPGRADE_TEST(upgrade_not_blocked_by_restricted_circ_pending,
                "c2-done"),
   UPGRADE_TEST(upgrade_not_blocked_by_worse_circ_pending, "c1-done"),
-  { "should_expire_waiting", test_enty_guard_should_expire_waiting, TT_FORK,
-    NULL, NULL },
+
+  EN_TEST_FORK(should_expire_waiting),
 
   END_OF_TESTCASES
 };
-

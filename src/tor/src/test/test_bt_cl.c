@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Tor Project, Inc. */
+/* Copyright (c) 2012-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -7,10 +7,13 @@
 
 /* To prevent 'assert' from going away. */
 #undef TOR_COVERAGE
-#include "or.h"
-#include "util.h"
-#include "backtrace.h"
-#include "torlog.h"
+#include "core/or/or.h"
+#include "lib/err/backtrace.h"
+#include "lib/log/log.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /* -1: no crash.
  *  0: crash with a segmentation fault.
@@ -118,4 +121,3 @@ main(int argc, char **argv)
 
   return 0;
 }
-

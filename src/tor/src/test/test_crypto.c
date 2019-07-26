@@ -1,20 +1,38 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 #define CRYPTO_CURVE25519_PRIVATE
 #define CRYPTO_RAND_PRIVATE
-#include "or.h"
-#include "test.h"
-#include "aes.h"
-#include "util.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "lib/crypt_ops/aes.h"
 #include "siphash.h"
-#include "crypto_curve25519.h"
-#include "crypto_ed25519.h"
-#include "crypto_rand.h"
+#include "lib/crypt_ops/crypto_curve25519.h"
+#include "lib/crypt_ops/crypto_dh.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
+#include "lib/crypt_ops/crypto_format.h"
+#include "lib/crypt_ops/crypto_hkdf.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "lib/crypt_ops/crypto_init.h"
 #include "ed25519_vectors.inc"
+#include "test/log_test_helpers.h"
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#if defined(ENABLE_OPENSSL)
+#include "lib/crypt_ops/compat_openssl.h"
+DISABLE_GCC_WARNING(redundant-decls)
+#include <openssl/dh.h>
+ENABLE_GCC_WARNING(redundant-decls)
+#endif
 
 /** Run unit tests for Diffie-Hellman functionality. */
 static void
@@ -23,38 +41,45 @@ test_crypto_dh(void *arg)
   crypto_dh_t *dh1 = crypto_dh_new(DH_TYPE_CIRCUIT);
   crypto_dh_t *dh1_dup = NULL;
   crypto_dh_t *dh2 = crypto_dh_new(DH_TYPE_CIRCUIT);
-  char p1[DH_BYTES];
-  char p2[DH_BYTES];
-  char s1[DH_BYTES];
-  char s2[DH_BYTES];
+  char p1[DH1024_KEY_LEN];
+  char p2[DH1024_KEY_LEN];
+  char s1[DH1024_KEY_LEN];
+  char s2[DH1024_KEY_LEN];
   ssize_t s1len, s2len;
+#ifdef ENABLE_OPENSSL
+  crypto_dh_t *dh3 = NULL;
+  DH *dh4 = NULL;
+  BIGNUM *pubkey_tmp = NULL;
+#endif
 
   (void)arg;
-  tt_int_op(crypto_dh_get_bytes(dh1),OP_EQ, DH_BYTES);
-  tt_int_op(crypto_dh_get_bytes(dh2),OP_EQ, DH_BYTES);
+  tt_int_op(crypto_dh_get_bytes(dh1),OP_EQ, DH1024_KEY_LEN);
+  tt_int_op(crypto_dh_get_bytes(dh2),OP_EQ, DH1024_KEY_LEN);
 
-  memset(p1, 0, DH_BYTES);
-  memset(p2, 0, DH_BYTES);
-  tt_mem_op(p1,OP_EQ, p2, DH_BYTES);
+  memset(p1, 0, DH1024_KEY_LEN);
+  memset(p2, 0, DH1024_KEY_LEN);
+  tt_mem_op(p1,OP_EQ, p2, DH1024_KEY_LEN);
 
   tt_int_op(-1, OP_EQ, crypto_dh_get_public(dh1, p1, 6)); /* too short */
 
-  tt_assert(! crypto_dh_get_public(dh1, p1, DH_BYTES));
-  tt_mem_op(p1,OP_NE, p2, DH_BYTES);
-  tt_assert(! crypto_dh_get_public(dh2, p2, DH_BYTES));
-  tt_mem_op(p1,OP_NE, p2, DH_BYTES);
+  tt_assert(! crypto_dh_get_public(dh1, p1, DH1024_KEY_LEN));
+  tt_mem_op(p1,OP_NE, p2, DH1024_KEY_LEN);
+  tt_assert(! crypto_dh_get_public(dh2, p2, DH1024_KEY_LEN));
+  tt_mem_op(p1,OP_NE, p2, DH1024_KEY_LEN);
 
-  memset(s1, 0, DH_BYTES);
-  memset(s2, 0xFF, DH_BYTES);
-  s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p2, DH_BYTES, s1, 50);
-  s2len = crypto_dh_compute_secret(LOG_WARN, dh2, p1, DH_BYTES, s2, 50);
+  memset(s1, 0, DH1024_KEY_LEN);
+  memset(s2, 0xFF, DH1024_KEY_LEN);
+  s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p2, DH1024_KEY_LEN, s1, 50);
+  s2len = crypto_dh_compute_secret(LOG_WARN, dh2, p1, DH1024_KEY_LEN, s2, 50);
   tt_assert(s1len > 0);
   tt_int_op(s1len,OP_EQ, s2len);
   tt_mem_op(s1,OP_EQ, s2, s1len);
 
   /* test dh_dup; make sure it works the same. */
   dh1_dup = crypto_dh_dup(dh1);
-  s1len = crypto_dh_compute_secret(LOG_WARN, dh1_dup, p2, DH_BYTES, s1, 50);
+  s1len = crypto_dh_compute_secret(LOG_WARN, dh1_dup, p2, DH1024_KEY_LEN,
+                                   s1, 50);
+  tt_i64_op(s1len, OP_GE, 0);
   tt_mem_op(s1,OP_EQ, s2, s1len);
 
   {
@@ -67,15 +92,21 @@ test_crypto_dh(void *arg)
     s1len = crypto_dh_compute_secret(LOG_WARN, dh1, "\x00", 1, s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    memset(p1, 0, DH_BYTES); /* 0 with padding. */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    memset(p1, 0, DH1024_KEY_LEN); /* 0 with padding. */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    p1[DH_BYTES-1] = 1; /* 1 with padding*/
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    p1[DH1024_KEY_LEN-1] = 1; /* 1 with padding*/
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
     /* 2 is okay, though weird. */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, "\x02", 1, s1, 50);
+    tt_int_op(50, OP_EQ, s1len);
+
+    /* 2 a second time is still okay, though weird. */
     s1len = crypto_dh_compute_secret(LOG_WARN, dh1, "\x02", 1, s1, 50);
     tt_int_op(50, OP_EQ, s1len);
 
@@ -89,15 +120,18 @@ test_crypto_dh(void *arg)
     /* p-1, p, and so on are not okay. */
     base16_decode(p1, sizeof(p1), P, strlen(P));
 
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    p1[DH_BYTES-1] = 0xFE; /* p-1 */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    p1[DH1024_KEY_LEN-1] = 0xFE; /* p-1 */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    p1[DH_BYTES-1] = 0xFD; /* p-2 works fine */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    p1[DH1024_KEY_LEN-1] = 0xFD; /* p-2 works fine */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(50, OP_EQ, s1len);
 
     const char P_plus_one[] =
@@ -109,51 +143,103 @@ test_crypto_dh(void *arg)
 
     base16_decode(p1, sizeof(p1), P_plus_one, strlen(P_plus_one));
 
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    p1[DH_BYTES-1] = 0x01; /* p+2 */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    p1[DH1024_KEY_LEN-1] = 0x01; /* p+2 */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    p1[DH_BYTES-1] = 0xff; /* p+256 */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    p1[DH1024_KEY_LEN-1] = 0xff; /* p+256 */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
 
-    memset(p1, 0xff, DH_BYTES), /* 2^1024-1 */
-    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH_BYTES, s1, 50);
+    memset(p1, 0xff, DH1024_KEY_LEN), /* 2^1024-1 */
+    s1len = crypto_dh_compute_secret(LOG_WARN, dh1, p1, DH1024_KEY_LEN,
+                                     s1, 50);
     tt_int_op(-1, OP_EQ, s1len);
   }
 
   {
     /* provoke an error in the openssl DH_compute_key function; make sure we
      * survive. */
-    tt_assert(! crypto_dh_get_public(dh1, p1, DH_BYTES));
+    tt_assert(! crypto_dh_get_public(dh1, p1, DH1024_KEY_LEN));
 
     crypto_dh_free(dh2);
     dh2= crypto_dh_new(DH_TYPE_CIRCUIT); /* no private key set */
     s1len = crypto_dh_compute_secret(LOG_WARN, dh2,
-                                     p1, DH_BYTES,
+                                     p1, DH1024_KEY_LEN,
                                      s1, 50);
     tt_int_op(s1len, OP_EQ, -1);
   }
+
+#if defined(ENABLE_OPENSSL)
+  {
+    /* Make sure that our crypto library can handshake with openssl. */
+    dh3 = crypto_dh_new(DH_TYPE_TLS);
+    tt_assert(!crypto_dh_get_public(dh3, p1, DH1024_KEY_LEN));
+
+    dh4 = crypto_dh_new_openssl_tls();
+    tt_assert(DH_generate_key(dh4));
+    const BIGNUM *pk=NULL;
+#ifdef OPENSSL_1_1_API
+    const BIGNUM *sk=NULL;
+    DH_get0_key(dh4, &pk, &sk);
+#else
+    pk = dh4->pub_key;
+#endif
+    tt_assert(pk);
+    tt_int_op(BN_num_bytes(pk), OP_LE, DH1024_KEY_LEN);
+    tt_int_op(BN_num_bytes(pk), OP_GT, 0);
+    memset(p2, 0, sizeof(p2));
+    /* right-pad. */
+    BN_bn2bin(pk, (unsigned char *)(p2+DH1024_KEY_LEN-BN_num_bytes(pk)));
+
+    s1len = crypto_dh_handshake(LOG_WARN, dh3, p2, DH1024_KEY_LEN,
+                                (unsigned char *)s1, sizeof(s1));
+    pubkey_tmp = BN_bin2bn((unsigned char *)p1, DH1024_KEY_LEN, NULL);
+    s2len = DH_compute_key((unsigned char *)s2, pubkey_tmp, dh4);
+
+    tt_int_op(s1len, OP_EQ, s2len);
+    tt_int_op(s1len, OP_GT, 0);
+    tt_mem_op(s1, OP_EQ, s2, s1len);
+  }
+#endif
 
  done:
   crypto_dh_free(dh1);
   crypto_dh_free(dh2);
   crypto_dh_free(dh1_dup);
+#ifdef ENABLE_OPENSSL
+  crypto_dh_free(dh3);
+  if (dh4)
+    DH_free(dh4);
+  if (pubkey_tmp)
+    BN_free(pubkey_tmp);
+#endif
 }
 
 static void
 test_crypto_openssl_version(void *arg)
 {
   (void)arg;
+#ifdef ENABLE_NSS
+  tt_skip();
+#else
   const char *version = crypto_openssl_get_version_str();
   const char *h_version = crypto_openssl_get_header_version_str();
   tt_assert(version);
   tt_assert(h_version);
-  tt_assert(!strcmpstart(version, h_version)); /* "-fips" suffix, etc */
-  tt_assert(!strstr(version, "OpenSSL"));
+  if (strcmpstart(version, h_version)) { /* "-fips" suffix, etc */
+    TT_DIE(("OpenSSL library version %s did not begin with header version %s.",
+            version, h_version));
+  }
+  if (strstr(version, "OpenSSL")) {
+    TT_DIE(("assertion failed: !strstr(\"%s\", \"OpenSSL\")", version));
+  }
   int a=-1,b=-1,c=-1;
   if (!strcmpstart(version, "LibreSSL") || !strcmpstart(version, "BoringSSL"))
     return;
@@ -162,171 +248,10 @@ test_crypto_openssl_version(void *arg)
   tt_int_op(a, OP_GE, 0);
   tt_int_op(b, OP_GE, 0);
   tt_int_op(c, OP_GE, 0);
+#endif
 
  done:
   ;
-}
-
-/** Run unit tests for our random number generation function and its wrappers.
- */
-static void
-test_crypto_rng(void *arg)
-{
-  int i, j, allok;
-  char data1[100], data2[100];
-  double d;
-  char *h=NULL;
-
-  /* Try out RNG. */
-  (void)arg;
-  tt_assert(! crypto_seed_rng());
-  crypto_rand(data1, 100);
-  crypto_rand(data2, 100);
-  tt_mem_op(data1,OP_NE, data2,100);
-  allok = 1;
-  for (i = 0; i < 100; ++i) {
-    uint64_t big;
-    char *host;
-    j = crypto_rand_int(100);
-    if (j < 0 || j >= 100)
-      allok = 0;
-    big = crypto_rand_uint64(U64_LITERAL(1)<<40);
-    if (big >= (U64_LITERAL(1)<<40))
-      allok = 0;
-    big = crypto_rand_uint64(U64_LITERAL(5));
-    if (big >= 5)
-      allok = 0;
-    d = crypto_rand_double();
-    tt_assert(d >= 0);
-    tt_assert(d < 1.0);
-    host = crypto_random_hostname(3,8,"www.",".onion");
-    if (strcmpstart(host,"www.") ||
-        strcmpend(host,".onion") ||
-        strlen(host) < 13 ||
-        strlen(host) > 18)
-      allok = 0;
-    tor_free(host);
-  }
-
-  /* Make sure crypto_random_hostname clips its inputs properly. */
-  h = crypto_random_hostname(20000, 9000, "www.", ".onion");
-  tt_assert(! strcmpstart(h,"www."));
-  tt_assert(! strcmpend(h,".onion"));
-  tt_int_op(63+4+6, OP_EQ, strlen(h));
-
-  tt_assert(allok);
- done:
-  tor_free(h);
-}
-
-static void
-test_crypto_rng_range(void *arg)
-{
-  int got_smallest = 0, got_largest = 0;
-  int i;
-
-  (void)arg;
-  for (i = 0; i < 1000; ++i) {
-    int x = crypto_rand_int_range(5,9);
-    tt_int_op(x, OP_GE, 5);
-    tt_int_op(x, OP_LT, 9);
-    if (x == 5)
-      got_smallest = 1;
-    if (x == 8)
-      got_largest = 1;
-  }
-  /* These fail with probability 1/10^603. */
-  tt_assert(got_smallest);
-  tt_assert(got_largest);
-
-  got_smallest = got_largest = 0;
-  const uint64_t ten_billion = 10 * ((uint64_t)1000000000000);
-  for (i = 0; i < 1000; ++i) {
-    uint64_t x = crypto_rand_uint64_range(ten_billion, ten_billion+10);
-    tt_u64_op(x, OP_GE, ten_billion);
-    tt_u64_op(x, OP_LT, ten_billion+10);
-    if (x == ten_billion)
-      got_smallest = 1;
-    if (x == ten_billion+9)
-      got_largest = 1;
-  }
-
-  tt_assert(got_smallest);
-  tt_assert(got_largest);
-
-  const time_t now = time(NULL);
-  for (i = 0; i < 2000; ++i) {
-    time_t x = crypto_rand_time_range(now, now+60);
-    tt_i64_op(x, OP_GE, now);
-    tt_i64_op(x, OP_LT, now+60);
-    if (x == now)
-      got_smallest = 1;
-    if (x == now+59)
-      got_largest = 1;
-  }
-
-  tt_assert(got_smallest);
-  tt_assert(got_largest);
- done:
-  ;
-}
-
-static void
-test_crypto_rng_strongest(void *arg)
-{
-  const char *how = arg;
-  int broken = 0;
-
-  if (how == NULL) {
-    ;
-  } else if (!strcmp(how, "nosyscall")) {
-    break_strongest_rng_syscall = 1;
-  } else if (!strcmp(how, "nofallback")) {
-    break_strongest_rng_fallback = 1;
-  } else if (!strcmp(how, "broken")) {
-    broken = break_strongest_rng_syscall = break_strongest_rng_fallback = 1;
-  }
-
-#define N 128
-  uint8_t combine_and[N];
-  uint8_t combine_or[N];
-  int i, j;
-
-  memset(combine_and, 0xff, N);
-  memset(combine_or, 0, N);
-
-  for (i = 0; i < 100; ++i) { /* 2^-100 chances just don't happen. */
-    uint8_t output[N];
-    memset(output, 0, N);
-    if (how == NULL) {
-      /* this one can't fail. */
-      crypto_strongest_rand(output, sizeof(output));
-    } else {
-      int r = crypto_strongest_rand_raw(output, sizeof(output));
-      if (r == -1) {
-        if (broken) {
-          goto done; /* we're fine. */
-        }
-        /* This function is allowed to break, but only if it always breaks. */
-        tt_int_op(i, OP_EQ, 0);
-        tt_skip();
-      } else {
-        tt_assert(! broken);
-      }
-    }
-    for (j = 0; j < N; ++j) {
-      combine_and[j] &= output[j];
-      combine_or[j] |= output[j];
-    }
-  }
-
-  for (j = 0; j < N; ++j) {
-    tt_int_op(combine_and[j], OP_EQ, 0);
-    tt_int_op(combine_or[j], OP_EQ, 0xff);
-  }
- done:
-  ;
-#undef N
 }
 
 /** Run unit tests for our AES128 functionality */
@@ -1339,22 +1264,22 @@ test_crypto_pk_base64(void *arg)
   /* Test Base64 encoding a key. */
   pk1 = pk_generate(0);
   tt_assert(pk1);
-  tt_int_op(0, OP_EQ, crypto_pk_base64_encode(pk1, &encoded));
+  tt_int_op(0, OP_EQ, crypto_pk_base64_encode_private(pk1, &encoded));
   tt_assert(encoded);
 
   /* Test decoding a valid key. */
-  pk2 = crypto_pk_base64_decode(encoded, strlen(encoded));
+  pk2 = crypto_pk_base64_decode_private(encoded, strlen(encoded));
   tt_assert(pk2);
   tt_int_op(crypto_pk_cmp_keys(pk1, pk2), OP_EQ, 0);
   crypto_pk_free(pk2);
 
   /* Test decoding a invalid key (not Base64). */
   static const char *invalid_b64 = "The key is in another castle!";
-  pk2 = crypto_pk_base64_decode(invalid_b64, strlen(invalid_b64));
+  pk2 = crypto_pk_base64_decode_private(invalid_b64, strlen(invalid_b64));
   tt_ptr_op(pk2, OP_EQ, NULL);
 
   /* Test decoding a truncated Base64 blob. */
-  pk2 = crypto_pk_base64_decode(encoded, strlen(encoded)/2);
+  pk2 = crypto_pk_base64_decode_private(encoded, strlen(encoded)/2);
   tt_ptr_op(pk2, OP_EQ, NULL);
 
  done:
@@ -1403,6 +1328,58 @@ test_crypto_pk_pem_encrypted(void *arg)
  done:
   crypto_pk_free(pk);
 }
+
+static void
+test_crypto_pk_invalid_private_key(void *arg)
+{
+  (void)arg;
+  /* Here is a simple invalid private key: it was produced by making
+   * a regular private key, and then adding 2 to the modulus. */
+  const char pem[] =
+    "-----BEGIN RSA PRIVATE KEY-----\n"
+    "MIIEpQIBAAKCAQEAskRyZrs+YAukvBmZlgo6/rCxyKF2xyUk073ap+2CgRUnSfGG\n"
+    "mflHlzqVq7tpH50DafpS+fFAbaEaNV/ac20QG0rUZi38HTB4qURWOu6n0Bws6E4l\n"
+    "UX/AkvDlWnuYH0pHHi2c3DGNFjwoJpjKuUTk+cRffVR8X3Kjr62SUDUaBNW0Kecz\n"
+    "3SYLbmgmZI16dFZ+g9sNM3znXZbhvb33WwPqpZSSPs37cPgF7eS6mAw/gUMx6zfE\n"
+    "HRmUnOQSzUdS05rvc/hsiCLhiIZ8hgfkD07XnTT1Ds8DwE55k7BUWY2wvwWCNLsH\n"
+    "qtqAxTr615XdkMxVkYgImpqPybarpfNYhFqkOwIDAQABAoIBACPC3VxEdbfYvhxJ\n"
+    "2mih9sG++nswAN7kUaX0cRe86rAwaShJPmJHApiQ1ROVTfpciiHJaLnhLraPWe2Z\n"
+    "I/6Bw3hmI4O399p3Lc1u+wlpdNqnvE6B1rSptx0DHE9xecvVH70rE0uM2Su7t6Y+\n"
+    "gnR2IKUGQs2mlCilm7aTUEWs0WJkkl4CG1dyxItuOSdNBjOEzXimJyiB10jEBFsp\n"
+    "SZeCF2FZ7AJbck5CVC42+oTsiDbZrHTHOn7v26rFGdONeHD1wOI1v7JwHFpCB923\n"
+    "aEHBzsPbMeq7DWG1rjzCYpcXHhTDBDBWSia4SEhyr2Nl7m7qxWWWwR+x4dqAj3rD\n"
+    "HeTmos0CgYEA6uf1CLpjPpOs5IaW1DQI8dJA/xFEAC/6GVgq4nFOGHZrm8G3L5o+\n"
+    "qvtQNMpDs2naWuZpqROFqv24o01DykHygR72GlPIY6uvmmf5tvJLoGnbFUay33L4\n"
+    "7b9dkNhuEIBNPzVDie0pgS77WgaPbYkVv5fnDwgPuVnkqfakEt7Pz2MCgYEAwkZ5\n"
+    "R1wLuTQEA2Poo6Gf4L8Bg6yNYI46LHDqDIs818iYLjtcnEEvbPfaoKNpOn7s7s4O\n"
+    "Pc+4HnT1aIQs0IKVLRTp+5a/9wfOkPZnobWOUHZk9UzBL3Hc1uy/qhp93iE3tSzx\n"
+    "v0O1pvR+hr3guTCZx8wZnDvaMgG3hlyPnVlHdrMCgYEAzQQxGbMC1ySv6quEjCP2\n"
+    "AogMbhE1lixJTUFj/EoDbNo9xKznIkauly/Lqqc1OysRhfA/G2+MY9YZBX1zwtyX\n"
+    "uBW7mPKynDrFgi9pBECnvJNmwET57Ic9ttIj6Tzbos83nAjyrzgr1zGX8dRz7ZeN\n"
+    "QbBj2vygLJbGOYinXkjUeh0CgYEAhN5aF9n2EqZmkEMGWtMxWy6HRJ0A3Cap1rcq\n"
+    "+4VHCXWhzwy+XAeg/e/N0MuyLlWcif7XcqLcE8h+BwtO8xQ8HmcNWApUJAls12wO\n"
+    "mGRpftJaXgIupdpD5aJpu1b++qrRRNIGTH9sf1D8L/8w8LcylZkbcuTkaAsQj45C\n"
+    "kqT64U0CgYEAq47IKS6xc3CDc17BqExR6t+1yRe+4ml+z1zcVbfUKony4pGvl1yo\n"
+    "rk0IYDN5Vd8h5xtXrkPdX9h+ywmohnelDKsayEuE+opyqEpSU4/96Bb22RZUoucb\n"
+    "LWkV5gZx5hFnDFtEd4vadMIiY4jVv/3JqiZDKwMVBJKlHRXJEEmIEBk=\n"
+    "-----END RSA PRIVATE KEY-----\n";
+
+  crypto_pk_t *pk = NULL;
+
+  pk = crypto_pk_new();
+  setup_capture_of_logs(LOG_WARN);
+  tt_int_op(-1, OP_EQ,
+            crypto_pk_read_private_key_from_string(pk, pem, strlen(pem)));
+#ifdef ENABLE_NSS
+  expect_single_log_msg_containing("received bad data");
+#else
+  expect_single_log_msg_containing("while checking RSA key");
+#endif
+ done:
+  teardown_capture_of_logs();
+  crypto_pk_free(pk);
+}
+
 #ifdef HAVE_TRUNCATE
 #define do_truncate truncate
 #else
@@ -1438,7 +1415,8 @@ test_crypto_digests(void *arg)
   (void)arg;
   k = crypto_pk_new();
   tt_assert(k);
-  r = crypto_pk_read_private_key_from_string(k, AUTHORITY_SIGNKEY_3, -1);
+  r = crypto_pk_read_private_key_from_string(k, AUTHORITY_SIGNKEY_3,
+                                             strlen(AUTHORITY_SIGNKEY_3));
   tt_assert(!r);
 
   r = crypto_pk_get_digest(k, digest);
@@ -1817,15 +1795,6 @@ test_crypto_hkdf_sha256(void *arg)
     key_material, 100)
 
   /* Test vectors generated with ntor_ref.py */
-  memset(key_material, 0, sizeof(key_material));
-  EXPAND("");
-  tt_int_op(r, OP_EQ, 0);
-  test_memeq_hex(key_material,
-                 "d3490ed48b12a48f9547861583573fe3f19aafe3f81dc7fc75"
-                 "eeed96d741b3290f941576c1f9f0b2d463d1ec7ab2c6bf71cd"
-                 "d7f826c6298c00dbfe6711635d7005f0269493edf6046cc7e7"
-                 "dcf6abe0d20c77cf363e8ffe358927817a3d3e73712cee28d8");
-
   EXPAND("Tor");
   tt_int_op(r, OP_EQ, 0);
   test_memeq_hex(key_material,
@@ -2810,8 +2779,8 @@ test_crypto_siphash(void *arg)
       { 0x72, 0x45, 0x06, 0xeb, 0x4c, 0x32, 0x8a, 0x95, }
     };
 
-  const struct sipkey K = { U64_LITERAL(0x0706050403020100),
-                            U64_LITERAL(0x0f0e0d0c0b0a0908) };
+  const struct sipkey K = { UINT64_C(0x0706050403020100),
+                            UINT64_C(0x0f0e0d0c0b0a0908) };
   uint8_t input[64];
   int i, j;
 
@@ -2866,12 +2835,12 @@ crypto_rand_check_failure_mode_identical(void)
 {
   /* just in case the buffer size isn't a multiple of sizeof(int64_t) */
 #define FAILURE_MODE_BUFFER_SIZE_I64 \
-  (FAILURE_MODE_BUFFER_SIZE/SIZEOF_INT64_T)
+  (FAILURE_MODE_BUFFER_SIZE/8)
 #define FAILURE_MODE_BUFFER_SIZE_I64_BYTES \
-  (FAILURE_MODE_BUFFER_SIZE_I64*SIZEOF_INT64_T)
+  (FAILURE_MODE_BUFFER_SIZE_I64*8)
 
 #if FAILURE_MODE_BUFFER_SIZE_I64 < 2
-#error FAILURE_MODE_BUFFER_SIZE needs to be at least 2*SIZEOF_INT64_T
+#error FAILURE_MODE_BUFFER_SIZE needs to be at least 2*8
 #endif
 
   int64_t buf[FAILURE_MODE_BUFFER_SIZE_I64];
@@ -3009,15 +2978,6 @@ test_crypto_failure_modes(void *arg)
 
 struct testcase_t crypto_tests[] = {
   CRYPTO_LEGACY(formats),
-  CRYPTO_LEGACY(rng),
-  { "rng_range", test_crypto_rng_range, 0, NULL, NULL },
-  { "rng_strongest", test_crypto_rng_strongest, TT_FORK, NULL, NULL },
-  { "rng_strongest_nosyscall", test_crypto_rng_strongest, TT_FORK,
-    &passthrough_setup, (void*)"nosyscall" },
-  { "rng_strongest_nofallback", test_crypto_rng_strongest, TT_FORK,
-    &passthrough_setup, (void*)"nofallback" },
-  { "rng_strongest_broken", test_crypto_rng_strongest, TT_FORK,
-    &passthrough_setup, (void*)"broken" },
   { "openssl_version", test_crypto_openssl_version, TT_FORK, NULL, NULL },
   { "aes_AES", test_crypto_aes128, TT_FORK, &passthrough_setup, (void*)"aes" },
   { "aes_EVP", test_crypto_aes128, TT_FORK, &passthrough_setup, (void*)"evp" },
@@ -3032,6 +2992,8 @@ struct testcase_t crypto_tests[] = {
   { "pk_fingerprints", test_crypto_pk_fingerprints, TT_FORK, NULL, NULL },
   { "pk_base64", test_crypto_pk_base64, TT_FORK, NULL, NULL },
   { "pk_pem_encrypted", test_crypto_pk_pem_encrypted, TT_FORK, NULL, NULL },
+  { "pk_invalid_private_key", test_crypto_pk_invalid_private_key, 0,
+    NULL, NULL },
   CRYPTO_LEGACY(digests),
   { "digest_names", test_crypto_digest_names, 0, NULL, NULL },
   { "sha3", test_crypto_sha3, TT_FORK, NULL, NULL},
@@ -3067,4 +3029,3 @@ struct testcase_t crypto_tests[] = {
   { "failure_modes", test_crypto_failure_modes, TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-

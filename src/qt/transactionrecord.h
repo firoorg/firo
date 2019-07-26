@@ -77,7 +77,10 @@ public:
         SendToOther,
         RecvWithAddress,
         RecvFromOther,
-        SendToSelf
+        SendToSelf,
+        SpendToAddress,
+        SpendToSelf,
+        Mint,
     };
 
     /** Number of confirmation recommended for accepting a transaction */

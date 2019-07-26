@@ -1,18 +1,21 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CIRCUITLIST_PRIVATE
 
-#include "or.h"
-#include "test.h"
-#include "test_helpers.h"
-#include "config.h"
-#include "circuitlist.h"
-#include "circuituse.h"
-#include "circuitbuild.h"
-#include "nodelist.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "app/config/config.h"
+#include "core/or/circuitlist.h"
+#include "core/or/circuituse.h"
+#include "core/or/circuitbuild.h"
+#include "feature/nodelist/nodelist.h"
+
+#include "core/or/cpath_build_state_st.h"
+#include "core/or/origin_circuit_st.h"
 
 static void
 test_circuit_is_available_for_use_ret_false_when_marked_for_close(void *arg)

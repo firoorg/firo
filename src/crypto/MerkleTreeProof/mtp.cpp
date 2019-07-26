@@ -213,13 +213,8 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint256 pow_limit,
         uint256 *mtpHashValue)
 {
-    MerkleTree::Elements proof_blocks[L * 3];
-    MerkleTree::Buffer root;
+    MerkleTree::Buffer const root(&hash_root_mtp[0], &hash_root_mtp[16]);
     block blocks[L * 2];
-    root.insert(root.begin(), &hash_root_mtp[0], &hash_root_mtp[16]);
-    for (int i = 0; i < (L * 3); ++i) {
-        proof_blocks[i] = proof_mtp[i];
-    }
     for(int i = 0; i < (L * 2); ++i) {
         std::memcpy(blocks[i].v, block_mtp[i],
                 sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
@@ -341,7 +336,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         compute_blake2b(prev_block, digest_prev);
         MerkleTree::Buffer hash_prev(digest_prev,
                 digest_prev + sizeof(digest_prev));
-        if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 2],
+        if (!MerkleTree::checkProofOrdered(proof_mtp[(j * 3) - 2],
                     root, hash_prev, ij_prev + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_prev]\n");
             return false;
@@ -372,7 +367,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
         compute_blake2b(ref_block, digest_ref);
         MerkleTree::Buffer hash_ref(digest_ref, digest_ref + sizeof(digest_ref));
-        if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 1],
+        if (!MerkleTree::checkProofOrdered(proof_mtp[(j * 3) - 1],
                     root, hash_ref, computed_ref_block + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_ref]\n");
             return false;
@@ -389,7 +384,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         compute_blake2b(block_ij, digest_ij);
         MerkleTree::Buffer hash_ij(digest_ij, digest_ij + sizeof(digest_ij));
 
-        if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 3], root,
+        if (!MerkleTree::checkProofOrdered(proof_mtp[(j * 3) - 3], root,
                     hash_ij, ij + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij]\n");
             return false;
