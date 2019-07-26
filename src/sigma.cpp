@@ -1,5 +1,5 @@
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
