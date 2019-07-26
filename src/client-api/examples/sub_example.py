@@ -7,12 +7,15 @@ import zmq
 import json
 import sys
 from os.path import expanduser
+from getpass import getuser
 
 def get_base(base):
     if(base=="mac"):
-        return "/Library/Application Support/zcoin/"
+        return expanduser("~") + "/Library/Application Support/zcoin/"
     if(base=="ubuntu"):
-        return "/.zcoin/"
+        return expanduser("~") + "/.zcoin/"
+    if(base=="windows_wsl"):
+        return "/mnt/c/Users/" + getuser() + "/AppData/Roaming/zcoin/"
     raise ValueError('Incorrect base string passed.') 
 
 def get_network_directory(network):
@@ -54,7 +57,7 @@ if __name__ == "__main__":
     socket = ctx.socket(zmq.SUB)
 
     if(auth):
-        base_dir = expanduser("~") + base + get_network_directory(sys.argv[1]) + "certificates"
+        base_dir = base + get_network_directory(sys.argv[1]) + "certificates"
         print(base_dir)
         # We need two certificates, one for the client and one for
         # the server. The client must know the server's public key
