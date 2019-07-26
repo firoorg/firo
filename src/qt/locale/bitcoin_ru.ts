@@ -1283,8 +1283,8 @@
         <translation>Ошибка запроса платежа</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Не удаётся запустить Zcoin: обработчик click-to-pay</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>Не удаётся запустить zcoin: обработчик click-to-pay</translation>
     </message>
     <message>
         <source>URI handling</source>

@@ -1283,7 +1283,7 @@
         <translation>fehlerhafte Zahlungsanforderung</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
+        <source>Cannot start zcoin: click-to-pay handler</source>
         <translation>"zcoin: Klicken-zum-Bezahlen"-Handler konnte nicht gestartet werden</translation>
     </message>
     <message>

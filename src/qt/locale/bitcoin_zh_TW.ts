@@ -1283,8 +1283,8 @@
         <translation>要求付款時發生錯誤</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>沒辦法啟動 Zcoin 協議的「按就付」處理器</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>沒辦法啟動 zcoin 協議的「按就付」處理器</translation>
     </message>
     <message>
         <source>URI handling</source>

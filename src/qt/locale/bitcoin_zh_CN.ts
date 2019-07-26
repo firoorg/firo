@@ -1280,8 +1280,8 @@
         <translation>要求付款时发生错误</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>无法启动 Zcoin 协议的“
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>无法启动 zcoin 协议的“
 一键支付”处理器</translation>
     </message>
     <message>

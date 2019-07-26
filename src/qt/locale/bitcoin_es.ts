@@ -1279,8 +1279,8 @@
         <translation>Fallo en la solicitud de pago</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>No se puede iniciar Zcoin: encargado click-para-pagar</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>No se puede iniciar zcoin: encargado click-para-pagar</translation>
     </message>
     <message>
         <source>URI handling</source>

@@ -1275,8 +1275,8 @@
         <translation>Error de la sol·licitud de pagament</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>No es pot iniciar Zcoin: controlador click-to-pay</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>No es pot iniciar zcoin: controlador click-to-pay</translation>
     </message>
     <message>
         <source>URI handling</source>

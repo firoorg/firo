@@ -1219,8 +1219,8 @@
         <translation>Chyba platebního požadavku</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Nemůžu spustit Zcoin: obsluha click-to-pay</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>Nemůžu spustit zcoin: obsluha click-to-pay</translation>
     </message>
     <message>
         <source>URI handling</source>

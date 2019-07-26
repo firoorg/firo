@@ -1283,8 +1283,8 @@
         <translation>Erreur de demande de paiement</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Impossible de démarrer le gestionnaire de cliquer-pour-payer Zcoin:</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>Impossible de démarrer le gestionnaire de cliquer-pour-payer zcoin:</translation>
     </message>
     <message>
         <source>URI handling</source>

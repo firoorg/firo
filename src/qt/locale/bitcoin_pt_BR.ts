@@ -1279,8 +1279,8 @@
         <translation>Erro no pedido de pagamento</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Não foi possível iniciar Zcoin: manipulador click-to-pay</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>Não foi possível iniciar zcoin: manipulador click-to-pay</translation>
     </message>
     <message>
         <source>URI handling</source>

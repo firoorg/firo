@@ -1283,8 +1283,8 @@
         <translation>支払いのリクエストのエラーです</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Zcoin を起動できません: click-to-pay handler</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>zcoin を起動できません: click-to-pay handler</translation>
     </message>
     <message>
         <source>URI handling</source>

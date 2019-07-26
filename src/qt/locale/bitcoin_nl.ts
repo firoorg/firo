@@ -1283,8 +1283,8 @@
         <translation>Fout bij betalingsverzoek</translation>
     </message>
     <message>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
-        <translation>Kan Zcoin niet starten: click-to-pay handler</translation>
+        <source>Cannot start zcoin: click-to-pay handler</source>
+        <translation>Kan zcoin niet starten: click-to-pay handler</translation>
     </message>
     <message>
         <source>URI handling</source>
