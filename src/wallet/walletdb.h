@@ -134,11 +134,11 @@ public:
 
         nChange.second = (nChangeStr.find("'") != string::npos);
         boost::erase_all(nChangeStr, "'");
-        nChange.first = boost::lexical_cast<int64_t>(nChangeStr);
+        nChange.first = boost::lexical_cast<uint32_t>(nChangeStr);
 
         nChild.second = (nChildStr.find("'") != string::npos);
         boost::erase_all(nChildStr, "'");
-        nChild.first = boost::lexical_cast<int64_t>(nChildStr);
+        nChild.first = boost::lexical_cast<uint32_t>(nChildStr);
 
         return true;
     }
