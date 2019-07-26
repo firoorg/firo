@@ -10,7 +10,7 @@
 #include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
