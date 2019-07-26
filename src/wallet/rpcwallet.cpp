@@ -10,7 +10,7 @@
 #include "init.h"
 #include "main.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "../sigma/coinspend.h"
 #include "net.h"
 #include "netbase.h"

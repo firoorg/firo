@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 using namespace std;
 

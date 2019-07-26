@@ -21,7 +21,7 @@
 #include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "sigma/coin.h"
 
 #include <stdint.h>

@@ -11,7 +11,7 @@
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
-#include "../zerocoin_v3.h"
+#include "../sigma.h"
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
 #include "../sigma/coin.h"

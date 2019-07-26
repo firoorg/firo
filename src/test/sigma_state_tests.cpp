@@ -3,7 +3,7 @@
 #include "../sigma/coin.h"
 #include "../main.h"
 #include "../secp256k1/include/Scalar.h"
-#include "../zerocoin_v3.h"
+#include "../sigma.h"
 #include "./test_bitcoin.h"
 #include "../wallet/wallet.h"
 

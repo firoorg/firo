@@ -13,7 +13,7 @@
 #include "hdmint/wallet.h"
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "txmempool.h"
 
 using namespace std;

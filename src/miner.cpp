@@ -35,7 +35,7 @@
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "sigma/remint.h"
 #include <algorithm>
 #include <boost/thread.hpp>

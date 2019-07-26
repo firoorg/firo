@@ -12,7 +12,7 @@
 #include "../streams.h"
 #include "../util.h"
 #include "../version.h"
-#include "../zerocoin_v3.h"
+#include "../sigma.h"
 #include "../hdmint/wallet.h"
 
 #include <stdexcept>

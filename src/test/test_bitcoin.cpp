@@ -30,7 +30,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 extern bool fPrintToConsole;
 extern void noui_connect();
