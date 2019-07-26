@@ -977,11 +977,11 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction &tx, const CBlock *pbl
             // Do not flush the wallet here for performance reasons
             // this is safe, as in case of a crash, we rescan the necessary blocks on startup through our SetBestChain-mechanism
             CWalletDB walletdb(strWalletFile, "r+", false);
-            LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out true!\n");
+
             return AddToWallet(wtx, false, &walletdb);
         }
     }
-    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
+//    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
     return false;
 }
 
@@ -1472,8 +1472,6 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         CAmount nValueOut = GetValueOut();
         nFee = nDebit - nValueOut;
     }
-
-    LogPrintf("getamounts: vout size: %s\n", vout.size());
 
     // Sent/received.
     for (unsigned int i = 0; i < vout.size(); ++i) {
