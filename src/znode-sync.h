@@ -8,7 +8,6 @@
 #include "net.h"
 
 #include <univalue.h>
-#include <atomic>
 
 class CZnodeSync;
 
@@ -52,7 +51,7 @@ private:
     int nCountFailures;
 
     // Keep track of current block index
-    std::atomic<const CBlockIndex *> pCurrentBlockIndex;
+    const CBlockIndex *pCurrentBlockIndex;
 
     bool CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes = false);
     void Fail();

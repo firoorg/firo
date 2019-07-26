@@ -22,22 +22,22 @@ bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
     if (!GetNodeStateStats(pnode->id, stats) || stats.nCommonHeight == -1 || stats.nSyncHeight == -1) return false; // not enough info about this peer
 
     // Check blocks and headers, allow a small error margin of 1 block
-    if (pCurrentBlockIndex.load()->nHeight - 1 > stats.nCommonHeight) {
+    if (pCurrentBlockIndex->nHeight - 1 > stats.nCommonHeight) {
         // This peer probably stuck, don't sync any additional data from it
         if (fDisconnectStuckNodes) {
             // Disconnect to free this connection slot for another peer.
             pnode->fDisconnect = true;
             LogPrintf("CZnodeSync::CheckNodeHeight -- disconnecting from stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
-                      pCurrentBlockIndex.load()->nHeight, stats.nCommonHeight, pnode->id);
+                      pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
         } else {
             LogPrintf("CZnodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
-                      pCurrentBlockIndex.load()->nHeight, stats.nCommonHeight, pnode->id);
+                      pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
         }
         return false;
-    } else if (pCurrentBlockIndex.load()->nHeight < stats.nSyncHeight - 1) {
+    } else if (pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
         // This peer announced more headers than we have blocks currently
         LogPrint("znode", "CZnodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
-                  pCurrentBlockIndex.load()->nHeight, stats.nSyncHeight, pnode->id);
+                  pCurrentBlockIndex->nHeight, stats.nSyncHeight, pnode->id);
         return false;
     }
 
@@ -95,7 +95,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     }
 
     if (fCheckpointsEnabled && 
-        pCurrentBlockIndex.load()->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
+        pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
         
         return false;
     }
@@ -127,8 +127,8 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     if (!fFirstBlockAccepted) return false;
 
     // same as !IsInitialBlockDownload() but no cs_main needed here
-    int64_t nMaxBlockTime = std::max(pCurrentBlockIndex.load()->GetBlockTime(), pindexBestHeader->GetBlockTime());
-    fBlockchainSynced = pindexBestHeader->nHeight - pCurrentBlockIndex.load()->nHeight < 24 * 6 &&
+    int64_t nMaxBlockTime = std::max(pCurrentBlockIndex->GetBlockTime(), pindexBestHeader->GetBlockTime());
+    fBlockchainSynced = pindexBestHeader->nHeight - pCurrentBlockIndex->nHeight < 24 * 6 &&
                         GetTime() - nMaxBlockTime < Params().MaxTipAge();
     return fBlockchainSynced;
 }
@@ -258,7 +258,7 @@ void CZnodeSync::ProcessTick() {
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
     LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(pCurrentBlockIndex.load()->nHeight, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(pCurrentBlockIndex->nHeight, nSyncProgress);
 
     // RESET SYNCING INCASE OF FAILURE
     {
