@@ -749,8 +749,9 @@ void CSigmaState::Containers::RemoveMint(sigma::PublicCoin const & pubCoin) {
     mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
     if (iter != mintedPubCoins.end()) {
         mintMetaInfo[iter->second.coinGroupId][iter->second.denomination] -= 1;
+        CMintedCoinInfo tmpMintInfo(iter->second);
         mintedPubCoins.erase(iter);
-        CheckSurgeCondition(iter->second.coinGroupId, iter->second.denomination);
+        CheckSurgeCondition(tmpMintInfo.coinGroupId, tmpMintInfo.denomination);
     }
 }
 
@@ -764,8 +765,9 @@ void CSigmaState::Containers::RemoveSpend(Scalar const & serial) {
     spend_info_container::const_iterator iter = usedCoinSerials.find(serial);
     if (iter != usedCoinSerials.end()) {
         spendMetaInfo[iter->second.coinGroupId][iter->second.denomination] -= 1;
+        CSpendCoinInfo tmpSpendInfo(iter->second);
         usedCoinSerials.erase(iter);
-        CheckSurgeCondition(iter->second.coinGroupId, iter->second.denomination);
+        CheckSurgeCondition(tmpSpendInfo.coinGroupId, tmpSpendInfo.denomination);
     }
 }
 

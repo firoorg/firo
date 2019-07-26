@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /* Unit tests for OOM handling logic */
@@ -7,16 +7,21 @@
 #define BUFFERS_PRIVATE
 #define CIRCUITLIST_PRIVATE
 #define CONNECTION_PRIVATE
-#include "or.h"
-#include "buffers.h"
-#include "circuitlist.h"
-#include "compat_libevent.h"
-#include "connection.h"
-#include "config.h"
-#include "crypto_rand.h"
-#include "relay.h"
-#include "test.h"
-#include "test_helpers.h"
+#include "core/or/or.h"
+#include "lib/buf/buffers.h"
+#include "core/or/circuitlist.h"
+#include "lib/evloop/compat_libevent.h"
+#include "core/mainloop/connection.h"
+#include "app/config/config.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "core/or/relay.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+
+#include "core/or/cell_st.h"
+#include "core/or/entry_connection_st.h"
+#include "core/or/or_circuit_st.h"
+#include "core/or/origin_circuit_st.h"
 
 /* small replacement mock for circuit_mark_for_close_ to avoid doing all
  * the other bookkeeping that comes with marking circuits. */

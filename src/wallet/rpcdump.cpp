@@ -515,8 +515,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
         if(fHd){
             // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwalletMain->mapKeyMetadata[keyid].nChange==2){
-                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild);
+            if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
+                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
                 fMintUpdate = true;
             }
         }

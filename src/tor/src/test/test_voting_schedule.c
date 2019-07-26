@@ -1,12 +1,12 @@
-/* Copyright (c) 2018, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 
-#include "or.h"
-#include "voting_schedule.h"
+#include "core/or/or.h"
+#include "feature/dircommon/voting_schedule.h"
 
-#include "test.h"
+#include "test/test.h"
 
 static void
 test_voting_schedule_interval_start(void *arg)

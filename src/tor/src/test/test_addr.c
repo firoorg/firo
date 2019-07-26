@@ -1,76 +1,25 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define ADDRESSMAP_PRIVATE
 #include "orconfig.h"
-#include "or.h"
-#include "crypto_rand.h"
-#include "test.h"
-#include "addressmap.h"
-#include "log_test_helpers.h"
+#include "core/or/or.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "test/test.h"
+#include "feature/client/addressmap.h"
+#include "test/log_test_helpers.h"
+#include "lib/net/resolve.h"
 
-/** Mocking replacement: only handles localhost. */
-static int
-mock_tor_addr_lookup(const char *name, uint16_t family, tor_addr_t *addr_out)
-{
-  if (!strcmp(name, "localhost")) {
-    if (family == AF_INET || family == AF_UNSPEC) {
-      tor_addr_from_ipv4h(addr_out, 0x7f000001);
-      return 0;
-    } else if (family == AF_INET6) {
-      char bytes[16] = { 0, 0, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0, 0, 1 };
-      tor_addr_from_ipv6_bytes(addr_out, bytes);
-      return 0;
-    }
-  }
-  return -1;
-}
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 
 static void
 test_addr_basic(void *arg)
 {
-  uint32_t u32;
-  uint16_t u16;
-  char *cp;
-
-  /* Test addr_port_lookup */
-  (void)arg;
-  cp = NULL; u32 = 3; u16 = 3;
-  tt_assert(!addr_port_lookup(LOG_WARN, "1.2.3.4", &cp, &u32, &u16));
-  tt_str_op(cp,OP_EQ, "1.2.3.4");
-  tt_int_op(u32,OP_EQ, 0x01020304u);
-  tt_int_op(u16,OP_EQ, 0);
-  tor_free(cp);
-  tt_assert(!addr_port_lookup(LOG_WARN, "4.3.2.1:99", &cp, &u32, &u16));
-  tt_str_op(cp,OP_EQ, "4.3.2.1");
-  tt_int_op(u32,OP_EQ, 0x04030201u);
-  tt_int_op(u16,OP_EQ, 99);
-  tor_free(cp);
-
-  MOCK(tor_addr_lookup, mock_tor_addr_lookup);
-
-  tt_assert(!addr_port_lookup(LOG_WARN, "nonexistent.address:4040",
-                               &cp, NULL, &u16));
-  tt_str_op(cp,OP_EQ, "nonexistent.address");
-  tt_int_op(u16,OP_EQ, 4040);
-  tor_free(cp);
-  tt_assert(!addr_port_lookup(LOG_WARN, "localhost:9999", &cp, &u32, &u16));
-  tt_str_op(cp,OP_EQ, "localhost");
-  tt_int_op(u16,OP_EQ, 9999);
-  tt_int_op(u32,OP_EQ, 0x7f000001u);
-  tor_free(cp);
-  u32 = 3;
-  tt_assert(!addr_port_lookup(LOG_WARN, "localhost", NULL, &u32, &u16));
-  tt_ptr_op(cp,OP_EQ, NULL);
-  tt_int_op(u32,OP_EQ, 0x7f000001u);
-  tt_int_op(u16,OP_EQ, 0);
-  tor_free(cp);
-
-  tt_assert(addr_port_lookup(LOG_WARN, "localhost:3", &cp, &u32, NULL));
-  tor_free(cp);
+  (void) arg;
 
   tt_int_op(0,OP_EQ, addr_mask_get_bits(0x0u));
   tt_int_op(32,OP_EQ, addr_mask_get_bits(0xFFFFFFFFu));
@@ -98,8 +47,7 @@ test_addr_basic(void *arg)
   }
 
  done:
-  UNMOCK(tor_addr_lookup);
-  tor_free(cp);
+  ;
 }
 
 #define test_op_ip6_(a,op,b,e1,e2)                               \
@@ -775,7 +723,7 @@ test_addr_ip6_helpers(void *arg)
   ;
 }
 
-/** Test tor_addr_port_parse(). */
+/** Test tor_addr_parse() and tor_addr_port_parse(). */
 static void
 test_addr_parse(void *arg)
 {
@@ -786,6 +734,60 @@ test_addr_parse(void *arg)
 
   /* Correct call. */
   (void)arg;
+  r= tor_addr_parse(&addr, "192.0.2.1");
+  tt_int_op(r,OP_EQ, AF_INET);
+  tor_addr_to_str(buf, &addr, sizeof(buf), 0);
+  tt_str_op(buf,OP_EQ, "192.0.2.1");
+
+  r= tor_addr_parse(&addr, "11:22::33:44");
+  tt_int_op(r,OP_EQ, AF_INET6);
+  tor_addr_to_str(buf, &addr, sizeof(buf), 0);
+  tt_str_op(buf,OP_EQ, "11:22::33:44");
+
+  r= tor_addr_parse(&addr, "[11:22::33:44]");
+  tt_int_op(r,OP_EQ, AF_INET6);
+  tor_addr_to_str(buf, &addr, sizeof(buf), 0);
+  tt_str_op(buf,OP_EQ, "11:22::33:44");
+
+  r= tor_addr_parse(&addr, "11:22:33:44:55:66:1.2.3.4");
+  tt_int_op(r,OP_EQ, AF_INET6);
+  tor_addr_to_str(buf, &addr, sizeof(buf), 0);
+  tt_str_op(buf,OP_EQ, "11:22:33:44:55:66:102:304");
+
+  r= tor_addr_parse(&addr, "11:22::33:44:1.2.3.4");
+  tt_int_op(r,OP_EQ, AF_INET6);
+  tor_addr_to_str(buf, &addr, sizeof(buf), 0);
+  tt_str_op(buf,OP_EQ, "11:22::33:44:102:304");
+
+  /* Empty string. */
+  r= tor_addr_parse(&addr, "");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Square brackets around IPv4 address. */
+  r= tor_addr_parse(&addr, "[192.0.2.1]");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Only left square bracket. */
+  r= tor_addr_parse(&addr, "[11:22::33:44");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Only right square bracket. */
+  r= tor_addr_parse(&addr, "11:22::33:44]");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Leading colon. */
+  r= tor_addr_parse(&addr, ":11:22::33:44");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Trailing colon. */
+  r= tor_addr_parse(&addr, "11:22::33:44:");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Too many hex words in IPv4-mapped IPv6 address. */
+  r= tor_addr_parse(&addr, "11:22:33:44:55:66:77:88:1.2.3.4");
+  tt_int_op(r,OP_EQ, -1);
+
+  /* Correct call. */
   r= tor_addr_port_parse(LOG_DEBUG,
                          "192.0.2.1:1234",
                          &addr, &port, -1);
@@ -1241,6 +1243,23 @@ test_addr_make_null(void *data)
   tor_free(zeros);
 }
 
+#define TEST_ADDR_INTERNAL(a, for_listening, rv) STMT_BEGIN \
+    tor_addr_t t; \
+    tt_int_op(tor_inet_pton(AF_INET, a, &t.addr.in_addr), OP_EQ, 1); \
+    t.family = AF_INET; \
+    tt_int_op(tor_addr_is_internal(&t, for_listening), OP_EQ, rv); \
+  STMT_END;
+
+static void
+test_addr_rfc6598(void *arg)
+{
+  (void)arg;
+  TEST_ADDR_INTERNAL("100.64.0.1", 0, 1);
+  TEST_ADDR_INTERNAL("100.64.0.1", 1, 0);
+ done:
+  ;
+}
+
 #define ADDR_LEGACY(name)                                               \
   { #name, test_addr_ ## name , 0, NULL, NULL }
 
@@ -1255,6 +1274,6 @@ struct testcase_t addr_tests[] = {
   { "sockaddr_to_str", test_addr_sockaddr_to_str, 0, NULL, NULL },
   { "is_loopback", test_addr_is_loopback, 0, NULL, NULL },
   { "make_null", test_addr_make_null, 0, NULL, NULL },
+  { "rfc6598", test_addr_rfc6598, 0, NULL, NULL },
   END_OF_TESTCASES
 };
-
