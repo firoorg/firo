@@ -227,7 +227,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Αίτηση πληρωμών (δημιουργεί QR codes και διευθύνσεις Zcoin: )</translation>
+        <translation>Αίτηση πληρωμών (δημιουργεί QR codes και διευθύνσεις zcoin: )</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
