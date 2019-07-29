@@ -47,6 +47,10 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     string stringError;
     CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    std::list<CZerocoinEntry> zcEntries;
+    decltype(zerocoinState->usedCoinSerials) tempSerials;
+
     pwalletMain->SetBroadcastTransactions(true);
 
     // Mint 1 XZC zerocoin and remint it on wrong fork
@@ -56,8 +60,58 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // Get to the sigma portion
     for (int i=0; i<200; i++)
         CreateAndProcessBlock({}, scriptPubKey);
+
     CWalletTx remintOnWrongForkTx;
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1, &remintOnWrongForkTx), stringError + " - Remint failed");
+
+    // try to double-remint one coin in a single block
+    walletdb.ListPubCoin(zcEntries);
+    for (auto &zcEntry : zcEntries) {
+        if (zcEntry.IsUsedForRemint) {
+            zcEntry.IsUsed = zcEntry.IsUsedForRemint = false;
+            walletdb.WriteZerocoinEntry(zcEntry);
+        }
+    }
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1), stringError + " - Remint failed");
+    // Mempool should contain two remint transactions both having the same serial
+    BOOST_CHECK(mempool.size() == 2);
+
+    // Try to form a block - should fail
+    try {
+        CreateAndProcessBlock({}, scriptPubKey);
+        BOOST_FAIL("Block is created despite having double spend in it");
+    }
+    catch (std::runtime_error &err) {
+        BOOST_CHECK(strstr(err.what(), "TestBlockValidity") != nullptr);
+    }
+
+    // clear the mempool
+    mempool.clear();
+
+    // Try to change destination sigma mint for the remint transaction. Should fail because metadata signature is wrong
+    CWalletTx txCopy = remintOnWrongForkTx;
+    sigma::Params *sigmaParams = sigma::Params::get_default();
+
+    sigma::PrivateCoin fakeCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1, ZEROCOIN_TX_VERSION_3);
+    sigma::PublicCoin fakePubCoin = fakeCoin.getPublicCoin();
+    BOOST_CHECK(fakePubCoin.validate());
+
+    CScript sigmaMintScript;
+    sigmaMintScript << OP_SIGMAMINT;
+    std::vector<unsigned char> vch = fakePubCoin.getValue().getvch();
+    sigmaMintScript.insert(sigmaMintScript.end(), vch.begin(), vch.end());
+
+    CTxOut sigmaTxOut;
+    sigmaTxOut.scriptPubKey = sigmaMintScript;
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, sigmaTxOut.nValue);
+    txCopy.vout[0] = sigmaTxOut;
+
+    pwalletMain->CommitTransaction(txCopy);
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Transaction is accepted despite having forged destination");
+
+    pwalletMain->CommitTransaction(remintOnWrongForkTx);
+    BOOST_CHECK(mempool.size() == 1);
+
     CreateAndProcessBlock({}, scriptPubKey);
 
     // Invalidate chain
@@ -112,14 +166,13 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
     // try double spend by modifying wallet and list of spent serials
     //Temporary disable usedCoinSerials check to force double spend in mempool
-    CWalletDB walletdb(pwalletMain->strWalletFile);
     for (const Bignum &serial: zerocoinState->usedCoinSerials) {
         CZerocoinSpendEntry spendEntry;
         spendEntry.coinSerial = serial;
         walletdb.EraseCoinSpendSerialEntry(spendEntry);
     }
 
-    std::list<CZerocoinEntry> zcEntries;
+    zcEntries.clear();
     walletdb.ListPubCoin(zcEntries);
     for (auto &zcEntry : zcEntries) {
         if (zcEntry.IsUsedForRemint) {
@@ -128,7 +181,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
         }
     }
     
-    auto tempSerials = zerocoinState->usedCoinSerials;
+    tempSerials = zerocoinState->usedCoinSerials;
     zerocoinState->usedCoinSerials.clear();
 
     // Retry remint of 1. Should pass for now
