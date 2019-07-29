@@ -32,7 +32,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
-    sigma::Params* zcParams = sigma::Params::get_default();
+    sigma::Params* sigmaParams = sigma::Params::get_default();
 
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoin> privCoins;
@@ -46,29 +46,29 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     BOOST_FOREACH(const string& denominationStr, keys){
         if (!StringToDenomination(denominationStr, denomination)) {
             throw runtime_error(
-                "mintzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
+                "mint <amount>(0.1, 0.5, 1, 10, 25, 100) (\"zcoinaddress\")\n");
         }
         int64_t coinValue;
         DenominationToInteger(denomination, coinValue);
         int64_t numberOfCoins = sendTo[denominationStr].get_int();
 
-        LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n",
+        LogPrintf("mint: denomination = %s, nAmount = %s \n",
             denominationStr, numberOfCoins);
 
         if(numberOfCoins < 0) {
             throw runtime_error(
-                    "mintmanyzerocoin {<denomination>(0.1,0.5,1,10,100):\"amount\"...}\n");
+                    "mint {<denomination>(0.1, 0.5, 1, 10, 25, 100):\"amount\"...}\n");
         }
 
         for(int64_t i = 0; i < numberOfCoins; ++i) {
             // The following constructor does all the work of minting a brand
-            // new zerocoin. It stores all the private values inside the
+            // new sigma mint. It stores all the private values inside the
             // PrivateCoin object. This includes the coin secrets, which must be
             // stored in a secure location (wallet) at the client.
-            sigma::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+            sigma::PrivateCoin newCoin(sigmaParams, denomination, ZEROCOIN_TX_VERSION_3);
             // Get a copy of the 'public' portion of the coin. You should
-            // embed this into a Zerocoin 'MINT' transaction along with a series
-            // of currency inputs totaling the assigned value of one zerocoin.
+            // embed this into a Sigma 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one sigma mint.
 
             // Generate and store secrets deterministically in the following function.
             CHDMint fHdMint;
@@ -236,17 +236,17 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
     list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(true, false);
     UniValue results(UniValue::VOBJ);
 
-    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
-        uint256 serialNumberHash = primitives::GetSerialHash(zerocoinItem.serialNumber);
+    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
+        uint256 serialNumberHash = primitives::GetSerialHash(sigmaItem.serialNumber);
 
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("id", zerocoinItem.id));
-        entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
-        entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
-        entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
-        entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
-        entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
-        entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+        entry.push_back(Pair("id", sigmaItem.id));
+        entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
+        entry.push_back(Pair("denomination", sigmaItem.get_denomination_value()));
+        entry.push_back(Pair("value", sigmaItem.value.GetHex()));
+        entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
+        entry.push_back(Pair("nHeight", sigmaItem.nHeight));
+        entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
         results.push_back(Pair(serialNumberHash.ToString(), entry));
     }
 
@@ -256,12 +256,12 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
-    { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
-    { "zerocoin",           "listMints",       &listmints,               true,      true,            false  },
-    { "zerocoin",           "mintStatus",      &mintstatus,              true,      false,           false  }
+    { "sigma",           "mint",            &mint,                    true,      true,            false  },
+    { "sigma",           "sendPrivate",     &sendprivate,             true,      true,            false  },
+    { "sigma",           "listMints",       &listmints,               true,      true,            false  },
+    { "sigma",           "mintStatus",      &mintstatus,              true,      false,           false  }
 };
-void RegisterZerocoinAPICommands(CAPITable &tableAPI)
+void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);

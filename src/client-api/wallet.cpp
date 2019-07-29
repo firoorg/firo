@@ -18,6 +18,23 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 
+void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
+    auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
+    for (const auto& coin : coins) {
+        // ignore spent coin
+        if (coin.isUsed)
+            continue;
+
+        int64_t coinValue;
+        DenominationToInteger(coin.denom, coinValue);
+
+        sigmaAll += coinValue;
+        if (coin.nHeight > 0
+            && coin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())
+            sigmaConfirmed += coinValue;
+    }
+}
+
 UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
     fs::path const &path = CreateTxMetadataFile();
 
@@ -217,7 +234,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint() ||
                wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
                 category = "mint";
-                addrStr = "ZEROCOIN_MINT";
+                addrStr = "MINT";
                 if(pwalletMain && wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                     bool isAvailable;
                     if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
@@ -620,7 +637,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
     UniValue xzcObj(UniValue::VOBJ);
-    UniValue zerocoinObj(UniValue::VOBJ);
+    UniValue sigmaObj(UniValue::VOBJ);
 
     // various balances
     CAmount xzcConfirmed = pwalletMain->GetBalance();
@@ -629,18 +646,17 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount xzcImmature = pwalletMain->GetImmatureBalance();
 
     //get private confirmed
-    CAmount zerocoinAll = 0;
-    CAmount zerocoinConfirmed = 0;
-    pwalletMain->GetAvailableMintCoinBalance(zerocoinConfirmed, true);
-    pwalletMain->GetAvailableMintCoinBalance(zerocoinAll, false);
+    CAmount sigmaAll = 0;
+    CAmount sigmaConfirmed = 0;
+    GetSigmaBalance(sigmaAll, sigmaConfirmed);
 
     //the difference of all and confirmed gives unconfirmed
-    CAmount zerocoinUnconfirmed = zerocoinAll - zerocoinConfirmed; 
+    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed; 
 
     // // We now have all base units, derive return values.
-    CAmount total = xzcConfirmed + xzcUnconfirmed + zerocoinAll + xzcImmature;
-    CAmount pending = total - xzcConfirmed - zerocoinConfirmed;
-    CAmount available = total - xzcLocked - xzcUnconfirmed - zerocoinUnconfirmed - xzcImmature;
+    CAmount total = xzcConfirmed + xzcUnconfirmed + sigmaAll + xzcImmature;
+    CAmount pending = total - xzcConfirmed - sigmaConfirmed;
+    CAmount available = total - xzcLocked - xzcUnconfirmed - sigmaUnconfirmed - xzcImmature;
 
     
     totalObj.push_back(Pair("all", total));
@@ -651,12 +667,12 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     xzcObj.push_back(Pair("unconfirmed", xzcUnconfirmed));
     xzcObj.push_back(Pair("locked", xzcLocked));
 
-    zerocoinObj.push_back(Pair("confirmed", zerocoinConfirmed));
-    zerocoinObj.push_back(Pair("unconfirmed", zerocoinUnconfirmed));
+    sigmaObj.push_back(Pair("confirmed", sigmaConfirmed));
+    sigmaObj.push_back(Pair("unconfirmed", sigmaUnconfirmed));
 
     balanceObj.push_back(Pair("total", totalObj));
-    balanceObj.push_back(Pair("xzc", xzcObj));
-    balanceObj.push_back(Pair("zerocoin", zerocoinObj));
+    balanceObj.push_back(Pair("public", xzcObj));
+    balanceObj.push_back(Pair("private", sigmaObj));
 
     return balanceObj;
 }

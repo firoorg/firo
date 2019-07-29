@@ -320,7 +320,7 @@ libbitcoin_zmq_a_SOURCES = \
   client-api/blockchain.cpp \
   client-api/send.cpp \
   client-api/znode.cpp \
-  client-api/zerocoin.cpp
+  client-api/sigma.cpp
   
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled

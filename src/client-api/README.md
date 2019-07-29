@@ -42,9 +42,9 @@ A function with one or more operations.
 | [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
 | [listMints](#listmints)           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
-| [mint](#mint)                     | Mint 1 or more Zerocoins. | 🔐 | ✅ | – |
+| [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
-| [sendPrivate](#sendprivate)       | Spend 1 or more Zerocoins. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
+| [sendPrivate](#sendprivate)       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
 | [sendZcoin](#sendzcoin)           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
 | [setPassphrase](#setpassphrase)   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
 | [setting](#setting)               | Interact with settings. | 🔐 | - | – |
@@ -177,12 +177,12 @@ OPTIONAL: not a necessary parameter to pass.
             pending: INT,
             available: INT
         },
-        xzc: {
+        public: {
             confirmed: INT,
             unconfirmed: INT,
             locked: INT,
         },
-        zerocoin: {
+        private: {
             confirmed: INT,
             unconfirmed: INT,
         }
@@ -203,7 +203,7 @@ OPTIONAL: not a necessary parameter to pass.
 *Returns:*
 ```
     data: {
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {
@@ -275,7 +275,7 @@ OPTIONAL: not a necessary parameter to pass.
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
                     } 
             },
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {
@@ -792,7 +792,7 @@ OPTIONAL: not a necessary parameter to pass.
 *Returns:*
 ```
     data: {
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {
@@ -864,7 +864,7 @@ OPTIONAL: not a necessary parameter to pass.
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
                     } 
             },
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {
@@ -1260,7 +1260,7 @@ Methods specific to the publisher.
 ```
 { 
     data: {
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {
@@ -1332,7 +1332,7 @@ Methods specific to the publisher.
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
                     } 
             },
-        [STRING | "ZEROMINT"]: (address)
+        [STRING | "MINT"]: (address)
             { 
                 txids: 
                     {

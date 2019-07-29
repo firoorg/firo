@@ -27,8 +27,8 @@ void RegisterSettingsAPICommands(CAPITable &tableAPI);
 /** Register znode API commands */
 void RegisterZnodeAPICommands(CAPITable &tableAPI);
 
-/** Register zerocoin API commands */
-void RegisterZerocoinAPICommands(CAPITable &tableAPI);
+/** Register sigma API commands */
+void RegisterSigmaAPICommands(CAPITable &tableAPI);
 
 static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
 {
@@ -38,7 +38,7 @@ static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
     RegisterSendAPICommands(tableAPI);
     RegisterSettingsAPICommands(tableAPI);
     RegisterZnodeAPICommands(tableAPI);
-    RegisterZerocoinAPICommands(tableAPI);
+    RegisterSigmaAPICommands(tableAPI);
 }
 
 #endif

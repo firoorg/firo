@@ -2982,68 +2982,6 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
     }
 }
 
-//[zcoin]
-void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed) const {
-
-    LOCK(cs_wallet);
-    list <CSigmaEntry> listPubCoin = list<CSigmaEntry>();
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListSigmaPubCoin(listPubCoin);
-    LogPrintf("listPubCoin.size() in GetAvailableMintCoinBalance=%s\n", listPubCoin.size());
-    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-        const CWalletTx *pcoin = &(*it).second;
-        //LogPrintf("pcoin hash=%s\n", pcoin->GetHash().ToString());
-        if (!CheckFinalTx(*pcoin)) {
-            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
-            continue;
-        }
-
-        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
-            //LogPrintf("Not trusted\n");
-            continue;
-        }
-
-        int nDepth = pcoin->GetDepthInMainChain();
-        if (nDepth < 0) {
-            LogPrintf("nDepth=%s\n", nDepth);
-            continue;
-        }
-
-        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-            if (pcoin->vout[i].scriptPubKey.IsSigmaMint()) {
-                CTxOut txout = pcoin->vout[i];
-                // If you wonder why +1, go to file wallet.cpp and read the comments in function
-                // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-                vector<unsigned char> vchZeroMint(txout.scriptPubKey.begin() + 1,
-                                                      txout.scriptPubKey.end());
-                secp_primitives::GroupElement pubCoin;
-                pubCoin.deserialize(&vchZeroMint[0]);
-//                LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
-                // CHECKING PROCESS
-                BOOST_FOREACH(const CSigmaEntry &pubCoinItem, listPubCoin) {
-//                        LogPrintf("*******\n");
-//                        LogPrintf("pubCoinItem.value=%s,\n", pubCoinItem.value.ToString());
-//                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
-//                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
-//                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
-                    if (pubCoinItem.value == pubCoin && //pubcoin found
-                        pubCoinItem.IsUsed == false && //unused
-                        pubCoinItem.randomness != uint64_t(0) && pubCoinItem.serialNumber != uint64_t(0) //assigned a value
-                    ) {
-                        if(fOnlyConfirmed){
-                            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() >= ZC_MINT_CONFIRMATIONS && !pcoin->InMempool())
-                                balance += pubCoinItem.get_denomination_value();
-                        }else {
-                            balance += pubCoinItem.get_denomination_value();
-                        } 
-                    }
-                }
-
-            }
-        }
-    }
-}
-
 void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
     EnsureMintWalletAvailable();
 
