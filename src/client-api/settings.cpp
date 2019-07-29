@@ -122,12 +122,12 @@ bool SetRestartNow(UniValue& data){
 
    - mapArgs is the final data structure with values.
    - if setting is in both conf and settings.json, conf takes precedence.
-     meaning do not update mapArgs. and set disabled: true in settings.json
-   - if setting is in mapArgs but not setting.json:
-     Add to setting.json
-   - if gui specific setting in setting.json, but not conf:
+     meaning do not update mapArgs, and set "disabled: true" for this setting in settings.json
+   - if cli/conf, but not settings.json:
+     Add to settings.json
+   - if settings.json, but not cli/conf:
      update mapArgs to use this setting.
-     else remove (if not just added from mapArgs)
+     else, remove it (if not just added from mapArgs)
  */
 void ReadAPISettingsFile()
 {

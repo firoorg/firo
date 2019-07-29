@@ -1811,7 +1811,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                         strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
                         strLoadError + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
                         "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
-                if (fRet) {
+                if (fRet || fApi) { // Force reindex when using client-api
                     fReindex = true;
                     fRequestShutdown = false;
                 } else {
