@@ -29,6 +29,7 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWall
 
     // Use MasterKeyId from HDChain as index for mintpool
     uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+    LogPrintf("hashSeedMaster: %d\n", hashSeedMaster.GetHex());
 
     if (!SetupWallet(hashSeedMaster)) {
         LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
@@ -142,8 +143,11 @@ bool CHDMintWallet::LoadMintPoolFromDB()
 {
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
 
-    for (auto& mintPoolPair : listMintPool)
+    for (auto& mintPoolPair : listMintPool){
+        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
         mintPool.Add(mintPoolPair);
+    }
 
     return true;
 }
@@ -454,6 +458,9 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         UpdateCountLocal();
     }
 
+    LogPrintf("GenerateMint: hashSeedMaster: %s seedId: %s nCount: %d\n", 
+             get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
+
     uint512 seedZerocoin;
     CreateZerocoinSeed(seedZerocoin, get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), false);
 
@@ -466,6 +473,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     dMint = CHDMint(get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), hashSerial, coin.getPublicCoin().getValue());
+    LogPrintf("GenerateMint: hashPubcoin: %s\n", dMint.GetPubCoinHash().GetHex());
     dMint.SetDenomination(denom);
 
     return true;

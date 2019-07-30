@@ -565,6 +565,8 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
     std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& pubcoin : pubCoins) {
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+
+        LogPrintf("UpdateMintStateFromMempool: hashPubcoin=%d\n", hashPubcoin.GetHex());
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
             LogPrintf("Found wallet pubcoin in DB.\n");
