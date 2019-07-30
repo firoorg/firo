@@ -100,12 +100,10 @@ static std::pair<exodus::SigmaPublicKey, int> ParseMint(const std::string& val)
             throw std::runtime_error("ParseMint() : invalid key size");
     }
 
-    std::vector<unsigned char> buffer(val.size());
-    std::copy_n(val.data(), val.size(), buffer.data());
-    auto ptr = buffer.data();
+    auto ptr = reinterpret_cast<const unsigned char*>(val.data());
 
     secp_primitives::GroupElement commitment;
-    ptr = commitment.deserialize(reinterpret_cast<unsigned char*>(ptr));
+    ptr = commitment.deserialize(ptr);
 
     int height(0);
 
