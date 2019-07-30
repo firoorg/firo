@@ -93,10 +93,10 @@ static leveldb::Slice GetSlice(const std::vector<T>& v)
     return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
 }
 
-static std::pair<exodus::SigmaPublicKey, int> ParseMint(const std::string& val)
+static std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
 {
     if (val.size() !=
-        secp_primitives::GroupElement::serialize_size + sizeof(int)) {
+        secp_primitives::GroupElement::serialize_size + sizeof(int32_t)) {
             throw std::runtime_error("ParseMint() : invalid key size");
     }
 
@@ -105,7 +105,7 @@ static std::pair<exodus::SigmaPublicKey, int> ParseMint(const std::string& val)
     secp_primitives::GroupElement commitment;
     ptr = commitment.deserialize(ptr);
 
-    int height(0);
+    int32_t height(0);
 
     std::memcpy(&height, ptr, sizeof(height));
 
@@ -153,7 +153,7 @@ public:
     CMPMintList(const boost::filesystem::path& path, bool fWipe);
     ~CMPMintList();
 
-    std::pair<uint32_t, uint32_t> RecordMint(uint32_t propertyId, uint32_t denomination, const exodus::SigmaPublicKey& pubKey, int height);
+    std::pair<uint32_t, uint32_t> RecordMint(uint32_t propertyId, uint32_t denomination, const exodus::SigmaPublicKey& pubKey, int32_t height);
 
     template<class OutputIt>
     void GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
@@ -195,7 +195,7 @@ public:
         delete it;
     }
 
-    void DeleteAll(int startBlock);
+    void DeleteAll(int32_t startBlock);
 
 private:
     void RecordMintKey(const leveldb::Slice& mintKey);
@@ -204,7 +204,7 @@ public:
     uint32_t GetLastGroupId(uint32_t propertyId, uint8_t denomination);
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
-    std::pair<exodus::SigmaPublicKey, int> GetMint(uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint32_t index);
+    std::pair<exodus::SigmaPublicKey, int32_t> GetMint(uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint32_t index);
 };
 
 #endif // ZCOIN_EXODUS_SIGMADB_H

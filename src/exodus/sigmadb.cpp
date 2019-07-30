@@ -45,12 +45,12 @@ std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
     uint32_t propertyId,
     uint32_t denomination,
     const exodus::SigmaPublicKey& pubKey,
-    int height)
+    int32_t height)
 {
     // Logic:
     // Get next group id and index for new pubkey by get last group id and amount of coin in group
     // If the count is equal to limit then move to new group
-    // Record mint by key `0<prob_id><denom><group_id><idx>` with value `<GroupElement><int>`
+    // Record mint by key `0<prob_id><denom><group_id><idx>` with value `<GroupElement><int32_t>`
     // Record the key `0<prob_id><denom><group_id><idx>` as value of `1<sequence>`
     // Record Last group Id
     // Record Mint count for group
@@ -69,7 +69,7 @@ std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
 
     auto commitment = pubKey.GetCommitment();
 
-    std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(int));
+    std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(height));
     auto ptr = buffer.data();
     ptr = commitment.serialize(ptr);
     std::memcpy(ptr, &height, sizeof(height));
@@ -82,7 +82,7 @@ std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
     return {lastGroup, nextIdx};
 }
 
-void CMPMintList::DeleteAll(int startBlock)
+void CMPMintList::DeleteAll(int32_t startBlock)
 {
     auto nextSequence = GetNextSequence();
     if (nextSequence == 0) {
@@ -109,7 +109,7 @@ void CMPMintList::DeleteAll(int startBlock)
 
     while (it->Valid() && it->key().data()[0] == static_cast<char>(MintKeyType::Sequence)) {
 
-        int mintBlock;
+        int32_t mintBlock;
         std::string rawMint;
         auto status = pdb->Get(readoptions, it->value(), &rawMint);
         if (!status.ok()) {
@@ -220,7 +220,7 @@ uint64_t CMPMintList::GetNextSequence()
     return nextSequence;
 }
 
-std::pair<exodus::SigmaPublicKey, int> CMPMintList::GetMint(
+std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
     uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint32_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
