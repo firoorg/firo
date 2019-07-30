@@ -19,6 +19,138 @@
 
 #define MAX_COINS_PER_GROUP 16384 /* Limit of sigma anonimity group which is 2 ^ 14 */
 
+enum class KeyType : uint8_t
+{
+    Mint = 0,
+    Sequence = 1
+};
+
+template<typename ... T>
+struct SizeOf;
+
+template<typename T>
+struct SizeOf<T>
+{
+    static constexpr size_t Value = (sizeof(T));
+};
+
+template<typename T, typename ...R>
+struct SizeOf<T, R ...>
+{
+    static constexpr size_t Value = (sizeof(T) + SizeOf<R...>::Value);
+};
+
+template<typename It>
+It SerializeKey(It it)
+{
+    return it;
+}
+
+template<typename It, typename T, typename ...R>
+It SerializeKey(It it, T t, R ...r)
+{
+    if (sizeof(t) > 1) {
+        exodus::swapByteOrder(t);
+    }
+    it = std::copy_n(reinterpret_cast<uint8_t*>(&t), sizeof(t), it);
+    return SerializeKey(it, r...);
+}
+
+template<typename ...T, size_t S = SizeOf<KeyType, T...>::Value>
+std::array<uint8_t, S> CreateKey(KeyType type, T ...args)
+{
+    std::array<uint8_t, S> key;
+    auto it = key.begin();
+    it = std::copy_n(reinterpret_cast<uint8_t*>(&type), sizeof(type), it);
+
+    SerializeKey(it, args...);
+
+    return key;
+}
+
+// array size represent size of key
+// <1 byte of type><4 bytes of property Id><1 byte of denomination><4 bytes of group id><4 bytes of idx>
+std::array<uint8_t, sizeof(KeyType) + sizeof(uint8_t) + 3 * sizeof(uint32_t)> CreateMintKey(
+    uint32_t propertyId,
+    uint8_t denomination,
+    uint32_t groupId,
+    uint32_t idx)
+{
+    return CreateKey(KeyType::Mint, propertyId, denomination, groupId, idx);
+}
+
+// array size represent size of key
+// <1 byte of type><8 bytes of sequence>
+std::array<uint8_t, sizeof(KeyType) + sizeof(uint64_t)> CreateSequenceKey(
+    uint64_t sequence)
+{
+    return CreateKey(KeyType::Sequence, sequence);
+}
+
+template<size_t S>
+leveldb::Slice GetSlice(const std::array<uint8_t, S>& v)
+{
+    return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size());
+}
+
+template<typename T>
+leveldb::Slice GetSlice(const std::vector<T>& v)
+{
+    return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
+}
+
+std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
+{
+    if (val.size() !=
+        secp_primitives::GroupElement::serialize_size + sizeof(int32_t)) {
+            throw std::runtime_error("ParseMint() : invalid key size");
+    }
+
+    auto ptr = reinterpret_cast<const unsigned char*>(val.data());
+
+    secp_primitives::GroupElement commitment;
+    ptr = commitment.deserialize(ptr);
+
+    int32_t height(0);
+
+    std::memcpy(&height, ptr, sizeof(height));
+
+    exodus::SigmaPublicKey pubKey;
+    pubKey.SetCommitment(commitment);
+
+    return {pubKey, height};
+}
+
+bool ParseMintKey(
+    const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint32_t& idx)
+{
+    if (key.size() == sizeof(KeyType) + sizeof(uint8_t) + 3 * sizeof(uint32_t)) {
+
+        auto it = key.data() + sizeof(KeyType);
+        std::memcpy(&propertyId, it, sizeof(propertyId));
+        std::memcpy(&denomination, it += sizeof(propertyId), sizeof(denomination));
+        std::memcpy(&groupId, it += sizeof(denomination), sizeof(groupId));
+        std::memcpy(&idx, it += sizeof(groupId), sizeof(idx));
+
+        exodus::swapByteOrder(propertyId);
+        exodus::swapByteOrder(groupId);
+        exodus::swapByteOrder(idx);
+
+        return true;
+    }
+    return false;
+}
+
+void SafeSeekToKeyBefore(leveldb::Iterator *it, const leveldb::Slice& key)
+{
+    it->Seek(key);
+    if (it->Valid() && it->key() != key) {
+        it->Prev();
+    } else {
+        it->SeekToLast();
+    }
+}
+
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
@@ -107,7 +239,7 @@ void CMPMintList::DeleteAll(int32_t startBlock)
 
     auto firstKey = CreateSequenceKey(0);
 
-    while (it->Valid() && it->key().data()[0] == static_cast<char>(MintKeyType::Sequence)) {
+    while (it->Valid() && it->key().data()[0] == static_cast<char>(KeyType::Sequence)) {
 
         int32_t mintBlock;
         std::string rawMint;
@@ -147,6 +279,46 @@ void CMPMintList::RecordMintKey(const leveldb::Slice& mintKey)
     if (!status.ok()) {
         LogPrintf("%s: Store last exodus mint sequence fail\n", __func__);
     }
+}
+
+void CMPMintList::GetAnonimityGroup(
+    uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
+    std::function<void(const exodus::SigmaPublicKey&)> insertF)
+{
+    auto firstKey = CreateMintKey(propertyId, denomination, groupId, 0);
+
+    auto it = NewIterator();
+    it->Seek(GetSlice(firstKey));
+
+    uint32_t mintPropId, mintGroupId, mintIdx;
+    uint8_t mintDenom;
+
+    if (!it->Valid()) {
+        throw std::runtime_error("GetAnonimityGroup() : coins in group is not enough");
+    }
+
+    for (size_t i = 0; i < count && it->Valid(); i++, it->Next()) {
+        if (!ParseMintKey(it->key(), mintPropId, mintDenom, mintGroupId, mintIdx) ||
+            mintPropId != propertyId ||
+            mintDenom != denomination ||
+            mintGroupId != groupId) {
+            throw std::runtime_error("GetAnonimityGroup() : coins in group is not enough");
+        }
+
+        if (mintIdx != i) {
+            throw std::runtime_error("GetAnonimityGroup() : coin index is out of order");
+        }
+
+        exodus::SigmaPublicKey pub;
+        std::tie(pub, std::ignore) = ParseMint(it->value().ToString());
+
+        if (!pub.GetCommitment().isMember()) {
+            throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
+        }
+        insertF(pub);
+    }
+
+    delete it;
 }
 
 uint32_t CMPMintList::GetLastGroupId(
@@ -209,9 +381,9 @@ uint64_t CMPMintList::GetNextSequence()
     uint64_t nextSequence = 0;
     SafeSeekToKeyBefore(it, GetSlice(key));
 
-    if (it->Valid() && it->key().size() == sizeof(MintKeyType) + sizeof(nextSequence)) {
+    if (it->Valid() && it->key().size() == sizeof(KeyType) + sizeof(nextSequence)) {
         auto lastKey = it->key();
-        std::memcpy(&nextSequence, lastKey.data() + sizeof(MintKeyType), sizeof(nextSequence));
+        std::memcpy(&nextSequence, lastKey.data() + sizeof(KeyType), sizeof(nextSequence));
         exodus::swapByteOrder(nextSequence);
         nextSequence++;
     }
