@@ -387,19 +387,24 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     COutPoint outPoint;
     sigma::PublicCoin pubCoin(mint.GetPubCoinValue(), mint.denom);
     bool isMintInChain = GetOutPoint(outPoint, pubCoin);
+    LogPrintf("UpdateMetaStatus : isMintInChain: %d\n", isMintInChain);
     const uint256& txidMint = outPoint.hash;
 
     //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
+    LogPrintf("UpdateMetaStatus : isPendingSpend: %d\n", isPendingSpend);
 
     // Mempool might hold pending spend
     if(!isPendingSpend && fSpend)
         isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
 
+    LogPrintf("UpdateMetaStatus : isPendingSpend: %d\n", isPendingSpend);
+
     // See if there is a blockchain record of spending this mint
     CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     Scalar bnSerial;
     bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
+    LogPrintf("UpdateMetaStatus : isConfirmedSpend: %d\n", isConfirmedSpend);
 
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
@@ -409,6 +414,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
 
         // Txid will be marked 0 if there is no knowledge of the final tx hash yet
         if (mint.txid.IsNull()) {
+            LogPrintf("UpdateMetaStatus : mint.txid.IsNull() == true\n");
             if (!isMintInChain) {
                 if(mint.nHeight>-1) mint.nHeight = -1;
                 if(mint.nId>-1) mint.nId = -1;
@@ -421,7 +427,10 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
             mint.txid = txidMint;
         }
 
+        LogPrintf("UpdateMetaStatus : mint.txid = %d\n", mint.txid.GetHex());
+
         if (setMempool.count(mint.txid)) {
+            LogPrintf("UpdateMetaStatus : setMempool.count(mint.txid) == true\n");
             if(mint.nHeight>-1) mint.nHeight = -1;
             if(mint.nId>-1) mint.nId = -1;
             return true;
@@ -492,13 +501,16 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
         CMintMeta meta;
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+            LogPrintf("Found wallet pubcoin in DB.\n");
             // If found in db but not in memory - this is likely a resync
             if(!GetMetaFromPubcoin(hashPubcoin, meta)){
+                LogPrintf("Found wallet pubcoin in DB but not in memory.\n");
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
             }
             if(UpdateMetaStatus(setMempool, meta)){
+                LogPrintf("Updated status.\n");
                 updatedMeta.emplace_back(meta);
             }
         }
@@ -521,8 +533,10 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
         GroupElement pubcoin;
         // Check serialHash in db
         if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
+            LogPrintf("Found wallet pubcoin in DB.\n");
             // If found in db but not in memory - this is likely a resync
             if(!GetMetaFromSerial(spentSerialHash, meta)){
+                LogPrintf("Found wallet pubcoin in DB but not in memory.\n");
                 uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
                 if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
@@ -532,6 +546,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
                 continue;
             }
             if(UpdateMetaStatus(setMempool, meta, true)){
+                LogPrintf("Updated meta status.\n");
                 updatedMeta.emplace_back(meta);
             }
         }
@@ -552,8 +567,10 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+            LogPrintf("Found wallet pubcoin in DB.\n");
             // If found in db but not in memory - this is likely a resync
             if(!HasPubcoinHash(hashPubcoin)){
+                LogPrintf("Found wallet pubcoin in DB but not in memory.\n");
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
@@ -561,6 +578,7 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
             CMintMeta meta;
             GetMetaFromPubcoin(hashPubcoin, meta);
             if(UpdateMetaStatus(setMempool, meta)){
+                LogPrintf("Updated meta status.\n");
                 updatedMeta.emplace_back(meta);
             }
         }
@@ -584,7 +602,9 @@ void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSeri
         // Check serialHash in db
         if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
             // If found in db but not in memory - this is likely a resync
+            LogPrintf("Found wallet pubcoin in DB.\n");
             if(!GetMetaFromSerial(spentSerialHash, meta)){
+                LogPrintf("Pubcoin found in DB but non memory.\n");
                 uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
                 if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
@@ -593,7 +613,9 @@ void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSeri
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
             }
+            LogPrintf("Pubcoin found in memory.\n");
             if(UpdateMetaStatus(setMempool, meta, true)){
+                LogPrintf("Updated meta status.\n");
                 updatedMeta.emplace_back(meta);
             }
         }
