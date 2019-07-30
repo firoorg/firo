@@ -239,7 +239,8 @@ void CMPMintList::DeleteAll(int32_t startBlock)
 
     auto firstKey = CreateSequenceKey(0);
 
-    while (it->Valid() && it->key().data()[0] == static_cast<char>(KeyType::Sequence)) {
+    while (it->Valid() &&
+        (it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence))) {
 
         int32_t mintBlock;
         std::string rawMint;
