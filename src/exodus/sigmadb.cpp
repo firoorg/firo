@@ -69,19 +69,21 @@ std::array<uint8_t, S> CreateKey(KeyType type, T ...args)
 }
 
 // array size represent size of key
-// <1 byte of type><4 bytes of property Id><1 byte of denomination><4 bytes of group id><4 bytes of idx>
-std::array<uint8_t, sizeof(KeyType) + sizeof(uint8_t) + 3 * sizeof(uint32_t)> CreateMintKey(
+// <1 byte of type><4 bytes of property Id><1 byte of denomination><4 bytes of group id><2 bytes of idx>
+#define MINT_KEY_SIZE sizeof(KeyType) + sizeof(uint8_t) + sizeof(uint16_t) + 2 * sizeof(uint32_t)
+std::array<uint8_t, MINT_KEY_SIZE> CreateMintKey(
     uint32_t propertyId,
     uint8_t denomination,
     uint32_t groupId,
-    uint32_t idx)
+    uint16_t idx)
 {
     return CreateKey(KeyType::Mint, propertyId, denomination, groupId, idx);
 }
 
 // array size represent size of key
 // <1 byte of type><8 bytes of sequence>
-std::array<uint8_t, sizeof(KeyType) + sizeof(uint64_t)> CreateSequenceKey(
+#define SEQUENCE_KEY_SIZE sizeof(KeyType) + sizeof(uint64_t)
+std::array<uint8_t, SEQUENCE_KEY_SIZE> CreateSequenceKey(
     uint64_t sequence)
 {
     return CreateKey(KeyType::Sequence, sequence);
@@ -122,9 +124,9 @@ std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
 }
 
 bool ParseMintKey(
-    const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint32_t& idx)
+    const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint16_t& idx)
 {
-    if (key.size() == sizeof(KeyType) + sizeof(uint8_t) + 3 * sizeof(uint32_t)) {
+    if (key.size() == MINT_KEY_SIZE) {
 
         auto it = key.data() + sizeof(KeyType);
         std::memcpy(&propertyId, it, sizeof(propertyId));
@@ -141,10 +143,10 @@ bool ParseMintKey(
     return false;
 }
 
-void SafeSeekToKeyBefore(leveldb::Iterator *it, const leveldb::Slice& key)
+void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 {
     it->Seek(key);
-    if (it->Valid() && it->key() != key) {
+    if (it->Valid()) {
         it->Prev();
     } else {
         it->SeekToLast();
@@ -154,14 +156,8 @@ void SafeSeekToKeyBefore(leveldb::Iterator *it, const leveldb::Slice& key)
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
-// Index key sorted by block to optimized deletion
+// Sequence of mint sorted following blockchain
 // 1<seq uint64>=key
-// Index last group
-// 2<propertyId><denomination>=<uint32_t>
-// Index last coin index
-// 3<propertyId><denomination><cointGroupId>=<uint32_t>
-// Last index of key to key of mint
-// 4=<uint64_t>
 CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe)
 {
     leveldb::Status status = Open(path, fWipe);
@@ -173,9 +169,9 @@ CMPMintList::~CMPMintList()
     if (exodus_debug_persistence) PrintToLog("CMPMintList closed\n");
 }
 
-std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
+std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     uint32_t propertyId,
-    uint32_t denomination,
+    uint8_t denomination,
     const exodus::SigmaPublicKey& pubKey,
     int32_t height)
 {
@@ -189,27 +185,31 @@ std::pair<uint32_t, uint32_t> CMPMintList::RecordMint(
 
     auto lastGroup = GetLastGroupId(propertyId, denomination);
     auto mints = GetMintCount(propertyId, denomination, lastGroup);
-    uint32_t nextIdx = mints;
 
-    if (mints >= MAX_COINS_PER_GROUP) {
+    if (mints > MAX_COINS_PER_GROUP) {
+        throw std::runtime_error("mints count is exceed group limit");
+    }
+    uint16_t nextIdx = mints;
+
+    if (mints == MAX_COINS_PER_GROUP) {
         lastGroup++;
         nextIdx = 0;
     }
 
-    auto rawMintKey = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
-    leveldb::Slice mintKey = GetSlice(rawMintKey);
+    auto keyData = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
+    leveldb::Slice key = GetSlice(keyData);
 
-    auto commitment = pubKey.GetCommitment();
+    auto const &commitment = pubKey.GetCommitment();
 
     std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(height));
     auto ptr = buffer.data();
     ptr = commitment.serialize(ptr);
     std::memcpy(ptr, &height, sizeof(height));
 
-    pdb->Put(writeoptions, mintKey, GetSlice(buffer));
+    pdb->Put(writeoptions, key, GetSlice(buffer));
 
     // Store key
-    RecordMintKey(mintKey);
+    RecordMintKey(key);
 
     return {lastGroup, nextIdx};
 }
@@ -224,10 +224,10 @@ void CMPMintList::DeleteAll(int32_t startBlock)
 
     auto lastSequence = nextSequence - 1;
 
-    auto rawLastSequenceKey = CreateSequenceKey(lastSequence);
+    auto sequenceKey = CreateSequenceKey(lastSequence);
 
     auto it = NewIterator();
-    it->Seek(GetSlice(rawLastSequenceKey));
+    it->Seek(GetSlice(sequenceKey));
 
     std::vector<std::string> keyToDeletes;
 
@@ -237,19 +237,17 @@ void CMPMintList::DeleteAll(int32_t startBlock)
     // Then decrase mint count by 1
     // If mint count of the group reach to 0 then decrase group Id of denomination
 
-    auto firstKey = CreateSequenceKey(0);
-
     while (it->Valid() &&
         (it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence))) {
 
         int32_t mintBlock;
-        std::string rawMint;
-        auto status = pdb->Get(readoptions, it->value(), &rawMint);
+        std::string mintData;
+        auto status = pdb->Get(readoptions, it->value(), &mintData);
         if (!status.ok()) {
             throw std::runtime_error("DeleteAll() : fail to read mint from sequence");
         }
 
-        std::tie(std::ignore, mintBlock) = ParseMint(rawMint);
+        std::tie(std::ignore, mintBlock) = ParseMint(mintData);
         if (mintBlock >= startBlock) {
             keyToDeletes.emplace_back(it->key().ToString());
             keyToDeletes.emplace_back(it->value().ToString());
@@ -282,23 +280,25 @@ void CMPMintList::RecordMintKey(const leveldb::Slice& mintKey)
     }
 }
 
-void CMPMintList::GetAnonimityGroup(
+size_t CMPMintList::GetAnonimityGroup(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
-    std::function<void(const exodus::SigmaPublicKey&)> insertF)
+    std::function<void(exodus::SigmaPublicKey&)> insertF)
 {
     auto firstKey = CreateMintKey(propertyId, denomination, groupId, 0);
 
     auto it = NewIterator();
     it->Seek(GetSlice(firstKey));
 
-    uint32_t mintPropId, mintGroupId, mintIdx;
+    uint32_t mintPropId, mintGroupId;
+    uint16_t mintIdx;
     uint8_t mintDenom;
 
     if (!it->Valid()) {
         throw std::runtime_error("GetAnonimityGroup() : coins in group is not enough");
     }
 
-    for (size_t i = 0; i < count && it->Valid(); i++, it->Next()) {
+    size_t i = 0;
+    for (; i < count && it->Valid(); i++, it->Next()) {
         if (!ParseMintKey(it->key(), mintPropId, mintDenom, mintGroupId, mintIdx) ||
             mintPropId != propertyId ||
             mintDenom != denomination ||
@@ -320,22 +320,24 @@ void CMPMintList::GetAnonimityGroup(
     }
 
     delete it;
+    return i;
 }
 
 uint32_t CMPMintList::GetLastGroupId(
     uint32_t propertyId,
     uint8_t denomination)
 {
-    auto key = CreateMintKey(propertyId, denomination, INT32_MAX, INT32_MAX);
+    auto key = CreateMintKey(propertyId, denomination, UINT32_MAX, UINT16_MAX);
     uint32_t groupId = 0;
 
     auto it = NewIterator();
-    SafeSeekToKeyBefore(it, GetSlice(key));
+    SafeSeekToPreviousKey(it, GetSlice(key));
 
     if (it->Valid()) {
         auto key = it->key();
 
-        uint32_t mintPropId, mintGroupId, mintIdx;
+        uint32_t mintPropId, mintGroupId;
+        uint16_t mintIdx;
         uint8_t mintDenom;
         if (ParseMintKey(key, mintPropId, mintDenom, mintGroupId, mintIdx)
             && propertyId == mintPropId
@@ -351,16 +353,17 @@ uint32_t CMPMintList::GetLastGroupId(
 size_t CMPMintList::GetMintCount(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId)
 {
-    auto key = CreateMintKey(propertyId, denomination, groupId, INT32_MAX);
+    auto key = CreateMintKey(propertyId, denomination, groupId, UINT16_MAX);
     size_t count = 0;
 
     auto it = NewIterator();
-    SafeSeekToKeyBefore(it, GetSlice(key));
+    SafeSeekToPreviousKey(it, GetSlice(key));
 
     if (it->Valid()) {
         auto key = it->key();
 
-        uint32_t mintPropId, mintGroupId, mintIdx;
+        uint32_t mintPropId, mintGroupId;
+        uint16_t mintIdx;
         uint8_t mintDenom;
         if (ParseMintKey(key, mintPropId, mintDenom, mintGroupId, mintIdx)
             && propertyId == mintPropId
@@ -380,9 +383,9 @@ uint64_t CMPMintList::GetNextSequence()
     auto it = NewIterator();
 
     uint64_t nextSequence = 0;
-    SafeSeekToKeyBefore(it, GetSlice(key));
+    SafeSeekToPreviousKey(it, GetSlice(key));
 
-    if (it->Valid() && it->key().size() == sizeof(KeyType) + sizeof(nextSequence)) {
+    if (it->Valid() && it->key().size() == SEQUENCE_KEY_SIZE) {
         auto lastKey = it->key();
         std::memcpy(&nextSequence, lastKey.data() + sizeof(KeyType), sizeof(nextSequence));
         exodus::swapByteOrder(nextSequence);
@@ -394,7 +397,7 @@ uint64_t CMPMintList::GetNextSequence()
 }
 
 std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
-    uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint32_t index)
+    uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint16_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
 

@@ -35,6 +35,7 @@ struct DBTestSetup : TestingSetup
         uint32_t propertyId, uint32_t denomination, uint32_t groupId, size_t count)
     {
         std::vector<exodus::SigmaPublicKey> pubs;
+        // pubs.resize(count);
         p_mintlistdb_test->GetAnonimityGroup(
             propertyId, denomination, groupId, count, std::back_inserter(pubs));
         return pubs;
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE(record_one_coin)
     BOOST_CHECK_EQUAL(0,
         p_mintlistdb_test->GetNextSequence());
 
-    BOOST_CHECK(std::make_pair(uint32_t(0), uint32_t(0)) ==
+    BOOST_CHECK(std::make_pair(uint32_t(0), uint16_t(0)) ==
         p_mintlistdb_test->RecordMint(propId, denom, mint, 100));
 
     BOOST_CHECK_EQUAL(0,
@@ -297,9 +298,9 @@ BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
         p_mintlistdb_test->RecordMint(1, 0, pubs[0], 11);
     }
 
-    BOOST_CHECK(std::make_pair(uint32_t(1), uint32_t(0)) ==
+    BOOST_CHECK(std::make_pair(uint32_t(1), uint16_t(0)) ==
         p_mintlistdb_test->RecordMint(1, 0, group1Pubs[0], 12));
-    BOOST_CHECK(std::make_pair(uint32_t(1), uint32_t(1)) ==
+    BOOST_CHECK(std::make_pair(uint32_t(1), uint16_t(1)) ==
         p_mintlistdb_test->RecordMint(1, 0, group1Pubs[1], 13));
 
     BOOST_CHECK_EQUAL(1, p_mintlistdb_test->GetLastGroupId(1, 0));
@@ -317,6 +318,44 @@ BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
 
     // assert last group id of propertyId = 1 and denomination = 0 is decreased to 0
     BOOST_CHECK_EQUAL(0, p_mintlistdb_test->GetLastGroupId(1, 0));
+}
+
+BOOST_AUTO_TEST_CASE(get_anonimity_group_by_back_insert_iterator)
+{
+    size_t cointAmount = 10;
+    auto pubs = GetPubcoins(cointAmount);
+    for (auto const &pub : pubs) {
+        p_mintlistdb_test->RecordMint(1, 1, pub, 10);
+    }
+
+    std::vector<exodus::SigmaPublicKey> anonimityGroup;
+    p_mintlistdb_test->GetAnonimityGroup(1, 1, 0, cointAmount, std::back_inserter(anonimityGroup));
+
+    BOOST_CHECK(pubs == anonimityGroup);
+}
+
+BOOST_AUTO_TEST_CASE(get_anonimity_group_by_iterator)
+{
+    constexpr size_t coinAmount = 10;
+    auto pubs = GetPubcoins(coinAmount);
+    for (auto const &pub : pubs) {
+        p_mintlistdb_test->RecordMint(1, 1, pub, 10);
+    }
+
+    std::vector<exodus::SigmaPublicKey> anonimityGroup;
+    anonimityGroup.resize(coinAmount);
+    p_mintlistdb_test->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroup.begin());
+
+    BOOST_CHECK(pubs == anonimityGroup);
+
+    std::array<exodus::SigmaPublicKey, coinAmount> anonimityGroupArr;
+    p_mintlistdb_test->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroupArr.begin());
+    BOOST_CHECK(pubs == std::vector<exodus::SigmaPublicKey>(anonimityGroupArr.begin(), anonimityGroupArr.end()));
+
+    std::list<exodus::SigmaPublicKey> anonimityGroupList;
+    anonimityGroupList.resize(coinAmount);
+    p_mintlistdb_test->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroupList.begin());
+    BOOST_CHECK(pubs == std::vector<exodus::SigmaPublicKey>(anonimityGroupList.begin(), anonimityGroupList.end()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
