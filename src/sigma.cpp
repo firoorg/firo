@@ -402,9 +402,9 @@ bool CheckSigmaTransaction(
     auto& consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
+    int realHeight = nHeight;
 
-    {
+    if (realHeight == INT_MAX) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
