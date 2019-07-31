@@ -7893,8 +7893,6 @@ bool CWallet::InitLoadWallet() {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
 
-
-
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();

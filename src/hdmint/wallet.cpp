@@ -38,7 +38,6 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWall
 }
 bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 {
-
     CWalletDB walletdb(strWalletFile);
     if (pwalletMain->IsLocked())
         return false;
@@ -66,7 +65,7 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 }
 
 // Regenerate mintPool entry from given values
-void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
+void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount, uint256& hashSerial)
 {
     CWalletDB walletdb(strWalletFile);
     //Is locked
@@ -86,9 +85,10 @@ void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, C
 
     MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-    CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+    hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
+    CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
     CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nCount);
+    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), seedId.GetHex(), hashPubcoin.GetHex(), nCount);
 
 }
 
@@ -130,7 +130,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
         CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nLastCount);
+        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
     // Update local + DB entries for count last generated

@@ -2652,6 +2652,33 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     return result;
 }
 
+UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    if (!pwalletMain->IsHDSeedAvailable() || !zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Can only regenerate mintpool on a HD-enabled wallet.");
+    }
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
+    uint256 hashSerial;
+
+    for (auto& mintPoolPair : listMintPool){
+        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
+        MintPoolEntry entry = mintPoolPair.second;
+        zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry), hashSerial);
+        walletdb.EraseMintPoolPair(mintPoolPair.first);
+        walletdb.ErasePubcoin(hashSerial);
+    }
+
+    return "Please shutdown zcoin and restart with -reindex flag.";
+}
+
 //[zcoin]: zerocoin section
 // zerocoin section
 
@@ -4033,6 +4060,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true  },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
+    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },
     { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
     { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
     { "wallet",             "mint",                     &mint,                     false },
