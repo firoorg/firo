@@ -53,6 +53,9 @@ public:
     // Helper functions to get the amount out of remint tx
     static CAmount GetAmount(const CTransaction &tx);
 
+    // Helper function to get serial out of remint tx
+    static Bignum GetSerialNumber(const CTransaction &tx);
+
 private:
     Bignum CalculatePublicValue() const;
     uint256 GetMetadataHash(const libzerocoin::SpendMetaData &metadata) const;
