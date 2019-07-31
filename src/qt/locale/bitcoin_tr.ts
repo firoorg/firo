@@ -1640,7 +1640,7 @@
     </message>
     <message>
         <source>You can sign messages/agreements with your addresses to prove you can receive zcoins sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>Adreslerinize yollanan Zcoinleri alabileceğiniz ispatlamak için adreslerinizle mesaj/anlaşma imzalayabilirsiniz. Oltalama saldırılarının kimliğinizi imzanızla elde etmeyi deneyebilecekleri için belirsiz ya da rastgele hiçbir şey imzalamamaya dikkat ediniz. Sadece ayrıntılı açıklaması olan ve tümüne katıldığınız ifadeleri imzalayınız.</translation>
+        <translation>Adreslerinize yollanan zcoinleri alabileceğiniz ispatlamak için adreslerinizle mesaj/anlaşma imzalayabilirsiniz. Oltalama saldırılarının kimliğinizi imzanızla elde etmeyi deneyebilecekleri için belirsiz ya da rastgele hiçbir şey imzalamamaya dikkat ediniz. Sadece ayrıntılı açıklaması olan ve tümüne katıldığınız ifadeleri imzalayınız.</translation>
     </message>
     <message>
         <source>The Zcoin address to sign the message with</source>

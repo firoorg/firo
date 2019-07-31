@@ -1988,7 +1988,7 @@
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
-        <translation>ブロックの容量に比べてトランザクション流量が少ないうちは最小手数料のみの支払で十分です。しかしながらネットワークが処理しきれないほどzcoinトランザクションの需要がひとたび生まれてしまった場合には、永遠に検証がされないトランザクションになってしまう可能性があることに注意してください。</translation>
+        <translation>ブロックの容量に比べてトランザクション流量が少ないうちは最小手数料のみの支払で十分です。しかしながらネットワークが処理しきれないほどZcoinトランザクションの需要がひとたび生まれてしまった場合には、永遠に検証がされないトランザクションになってしまう可能性があることに注意してください。</translation>
     </message>
     <message>
         <source>(read the tooltip)</source>

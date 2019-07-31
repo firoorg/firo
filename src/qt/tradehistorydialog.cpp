@@ -306,7 +306,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
     for (std::map<std::string,uint256>::reverse_iterator it = walletTransactions.rbegin(); it != walletTransactions.rend(); it++) {
         uint256 hash = it->second;
 
-        // use levelDB to perform a fast check on whether it's a Zcoin or Omni tx and whether it's a trade
+        // use levelDB to perform a fast check on whether it's a Zcoin or Exodus tx and whether it's a trade
         std::string tempStrValue;
         {
             LOCK(cs_tally);
