@@ -2397,6 +2397,11 @@ int CMPTransaction::logicMath_CreateDenomination()
         return PKT_ERROR_TOKENS - 101;
     }
 
+    if (sp.denominations.size() >= EXODUS_MAX_DENOMINATIONS) {
+        PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
+        return PKT_ERROR_TOKENS - 102;
+    }
+
     if (std::find(sp.denominations.begin(), sp.denominations.end(), nValue) != sp.denominations.end()) {
         PrintToLog(
             "%s(): rejected: denomination with value %s is already exists for property %d\n",
@@ -2404,7 +2409,7 @@ int CMPTransaction::logicMath_CreateDenomination()
             FormatMP(property, nValue),
             property
         );
-        return PKT_ERROR_TOKENS - 102;
+        return PKT_ERROR_TOKENS - 103;
     }
 
     sp.denominations.push_back(nValue);
