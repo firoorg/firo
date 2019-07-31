@@ -299,7 +299,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
     // ### END PENDING TRANSACTIONS PROCESSING ###
 
     // ### START WALLET TRANSACTIONS PROCESSING ###
-    // obtain a sorted list of Omni layer wallet transactions (including STO receipts and pending) - default last 65535
+    // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending) - default last 65535
     std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(GetArg("-exodusuiwalletscope", 65535L));
 
     // reverse iterate over (now ordered) transactions and populate history map for each one
