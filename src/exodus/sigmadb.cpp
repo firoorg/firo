@@ -17,8 +17,6 @@
 #include <string>
 #include <vector>
 
-#define MAX_COINS_PER_GROUP 16384 /* Limit of sigma anonimity group which is 2 ^ 14 */
-
 enum class KeyType : uint8_t
 {
     Mint = 0,
@@ -126,7 +124,7 @@ std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
 bool ParseMintKey(
     const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint16_t& idx)
 {
-    if (key.size() == MINT_KEY_SIZE) {
+    if (key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::Mint)) {
 
         auto it = key.data() + sizeof(KeyType);
         std::memcpy(&propertyId, it, sizeof(propertyId));
@@ -158,7 +156,8 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
 // Sequence of mint sorted following blockchain
 // 1<seq uint64>=key
-CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe)
+CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize)
+    : groupSize(groupSize)
 {
     leveldb::Status status = Open(path, fWipe);
     PrintToLog("Loading mint meta-info database: %s\n", status.ToString());
@@ -186,12 +185,12 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     auto lastGroup = GetLastGroupId(propertyId, denomination);
     auto mints = GetMintCount(propertyId, denomination, lastGroup);
 
-    if (mints > MAX_COINS_PER_GROUP) {
+    if (mints > groupSize) {
         throw std::runtime_error("mints count is exceed group limit");
     }
     uint16_t nextIdx = mints;
 
-    if (mints == MAX_COINS_PER_GROUP) {
+    if (mints == groupSize) {
         lastGroup++;
         nextIdx = 0;
     }
@@ -293,28 +292,24 @@ size_t CMPMintList::GetAnonimityGroup(
     uint16_t mintIdx;
     uint8_t mintDenom;
 
-    if (!it->Valid()) {
-        throw std::runtime_error("GetAnonimityGroup() : coins in group is not enough");
-    }
-
     size_t i = 0;
     for (; i < count && it->Valid(); i++, it->Next()) {
         if (!ParseMintKey(it->key(), mintPropId, mintDenom, mintGroupId, mintIdx) ||
             mintPropId != propertyId ||
             mintDenom != denomination ||
             mintGroupId != groupId) {
-            throw std::runtime_error("GetAnonimityGroup() : coins in group is not enough");
+            break;
         }
 
         if (mintIdx != i) {
-            throw std::runtime_error("GetAnonimityGroup() : coin index is out of order");
+            break;
         }
 
         exodus::SigmaPublicKey pub;
         std::tie(pub, std::ignore) = ParseMint(it->value().ToString());
 
         if (!pub.GetCommitment().isMember()) {
-            throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
+            break;
         }
         insertF(pub);
     }
@@ -385,7 +380,7 @@ uint64_t CMPMintList::GetNextSequence()
     uint64_t nextSequence = 0;
     SafeSeekToPreviousKey(it, GetSlice(key));
 
-    if (it->Valid() && it->key().size() == SEQUENCE_KEY_SIZE) {
+    if (it->Valid() && it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence)) {
         auto lastKey = it->key();
         std::memcpy(&nextSequence, lastKey.data() + sizeof(KeyType), sizeof(nextSequence));
         exodus::swapByteOrder(nextSequence);
@@ -397,14 +392,14 @@ uint64_t CMPMintList::GetNextSequence()
 }
 
 std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
-    uint32_t propertyId, uint32_t denomination, uint32_t groupId, uint16_t index)
+    uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
 
     std::string val;
     auto status = pdb->Get(
         readoptions,
-        leveldb::Slice(reinterpret_cast<const char*>(key.data()), key.size()),
+        GetSlice(key),
         &val
     );
 

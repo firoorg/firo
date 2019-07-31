@@ -11,18 +11,13 @@
 
 #include "leveldb/db.h"
 
-#define MAX_COINS_PER_GROUP 16384
-
-#define CHECK_THROW_NOT_ENOUGH_COINS(P) BOOST_CHECK_EXCEPTION(P, \
-    std::runtime_error, \
-    [](const std::runtime_error& e){ \
-    return std::string("GetAnonimityGroup() : coins in group is not enough") == e.what();})
+#define TEST_MAX_COINS_PER_GROUP 30
 
 struct DBTestSetup : TestingSetup
 {
     DBTestSetup() : TestingSetup(CBaseChainParams::REGTEST)
     {
-        p_mintlistdb_test = new CMPMintList(pathTemp / "MP_txlist_test", false);
+        p_mintlistdb_test = new CMPMintList(pathTemp / "MP_txlist_test", false, TEST_MAX_COINS_PER_GROUP);
     }
     ~DBTestSetup()
     {
@@ -96,7 +91,9 @@ BOOST_AUTO_TEST_CASE(getmint_notfound)
     BOOST_CHECK_EXCEPTION(
         p_mintlistdb_test->GetMint(1, 1, 1, 1),
         std::runtime_error,
-        [](const std::runtime_error &e) {return std::string("not found sigma mint")== e.what();}
+        [] (const std::runtime_error &e) {
+            return std::string("not found sigma mint") == e.what();
+        }
     );
 }
 
@@ -115,7 +112,7 @@ BOOST_AUTO_TEST_CASE(getmint_test)
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_no_anycoin)
 {
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(0, 0, 0, 100));
+    BOOST_CHECK(GetAnonimityGroup(0, 0, 0, 100).empty());
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_coin_in_other_group)
@@ -124,8 +121,8 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_have_coin_in_other_group)
     for (auto const &pub : pubs) {
         p_mintlistdb_test->RecordMint(1, 1, pub, 10);
     }
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(2, 2, 0, 11));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(2, 2, 0, 1));
+    BOOST_CHECK(GetAnonimityGroup(2, 2, 0, 11).empty());
+    BOOST_CHECK(GetAnonimityGroup(2, 2, 0, 1).empty());
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_one_group)
@@ -135,7 +132,7 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_have_one_group)
         p_mintlistdb_test->RecordMint(1, 1, pub, 10);
     }
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 11));
+    BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 11));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 10));
     BOOST_CHECK(GetFirstN(pubs, 5) == GetAnonimityGroup(1, 1, 0, 5));
 }
@@ -152,8 +149,8 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_many_properties)
         p_mintlistdb_test->RecordMint(2, 1, pub, 10);
     }
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 11));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(2, 1, 0, 11));
+    BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 11));
+    BOOST_CHECK(property2Pubs == GetAnonimityGroup(2, 1, 0, 11));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 10));
     BOOST_CHECK(property2Pubs == GetAnonimityGroup(2, 1, 0, 10));
     BOOST_CHECK(GetFirstN(pubs, 5) == GetAnonimityGroup(1, 1, 0, 5));
@@ -165,15 +162,15 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_denominations)
     auto pubs = GetPubcoins(10);
     auto denom2Pubs = GetPubcoins(10);
 
-    int nBlock = 10;
+    int blocks = 10;
     for (size_t i = 0; i < pubs.size(); i++) {
-        p_mintlistdb_test->RecordMint(1, 1, pubs[i], nBlock);
+        p_mintlistdb_test->RecordMint(1, 1, pubs[i], blocks);
         p_mintlistdb_test->RecordMint(1, 2, denom2Pubs[i], 10);
-        nBlock++;
+        blocks++;
     }
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 11));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 2, 0, 11));
+    BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 11));
+    BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 2, 0, 11));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 10));
     BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 2, 0, 10));
     BOOST_CHECK(GetFirstN(pubs, 5) == GetAnonimityGroup(1, 1, 0, 5));
@@ -189,7 +186,7 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
         countGroup1++;
     }
 
-    for (; countGroup1 < MAX_COINS_PER_GROUP; countGroup1++) {
+    for (; countGroup1 < TEST_MAX_COINS_PER_GROUP; countGroup1++) {
         p_mintlistdb_test->RecordMint(1, 1, pubs[0], 10);
     }
 
@@ -198,7 +195,7 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
         p_mintlistdb_test->RecordMint(1, 1, pub, 10);
     }
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 1, 11));
+    BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 1, 1, 11));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 10));
     BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 1, 1, 10));
     BOOST_CHECK(GetFirstN(pubs, 5) == GetAnonimityGroup(1, 1, 0, 5));
@@ -217,7 +214,6 @@ BOOST_AUTO_TEST_CASE(delete_block_which_have_no_coins)
     auto pubs = GetPubcoins(1);
     p_mintlistdb_test->RecordMint(1, 1, pubs[0], 10); // store at block 10
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(11)); // delete at block 11
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 2));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, p_mintlistdb_test->GetNextSequence());
 }
@@ -227,7 +223,7 @@ BOOST_AUTO_TEST_CASE(delete_one_coin)
     auto pubs = GetPubcoins(1);
     p_mintlistdb_test->RecordMint(1, 1, pubs[0], 10);
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(10));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 1));
+    BOOST_CHECK_EQUAL(0, GetAnonimityGroup(1, 1, 0, 1).size());
     BOOST_CHECK_EQUAL(0, p_mintlistdb_test->GetNextSequence());
 }
 
@@ -237,7 +233,7 @@ BOOST_AUTO_TEST_CASE(delete_one_of_two_coin)
     p_mintlistdb_test->RecordMint(1, 1, pubs[0], 10); // store at block 10
     p_mintlistdb_test->RecordMint(1, 1, pubs[1], 11); // store at block 11
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(11)); // delete at block 11
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 2));
+    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 1, 0, 2));
     BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, p_mintlistdb_test->GetNextSequence());
 }
@@ -257,10 +253,8 @@ BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_denominations)
 
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(11));
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 0, 0, 2));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 1, 0, 2));
-    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 1));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 1) == GetAnonimityGroup(1, 1, 0, 1));
+    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(denom2Pubs, 1) == GetAnonimityGroup(1, 1, 0, 2));
     BOOST_CHECK_EQUAL(2, p_mintlistdb_test->GetNextSequence());
 }
 
@@ -279,10 +273,8 @@ BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_properties)
 
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(11));
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 0, 0, 2));
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(2, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 1));
-    BOOST_CHECK(GetFirstN(property2Pubs, 1) == GetAnonimityGroup(2, 0, 0, 1));
+    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(property2Pubs, 1) == GetAnonimityGroup(2, 0, 0, 2));
     BOOST_CHECK_EQUAL(2, p_mintlistdb_test->GetNextSequence());
 }
 
@@ -294,7 +286,7 @@ BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
     p_mintlistdb_test->RecordMint(1, 0, pubs[1], 11);
 
     size_t coinCount = 2;
-    for (;coinCount < MAX_COINS_PER_GROUP; coinCount++) {
+    for (;coinCount < TEST_MAX_COINS_PER_GROUP; coinCount++) {
         p_mintlistdb_test->RecordMint(1, 0, pubs[0], 11);
     }
 
@@ -309,10 +301,9 @@ BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
 
     BOOST_CHECK_NO_THROW(p_mintlistdb_test->DeleteAll(11));
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 1));
+    BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 2));
 
-    CHECK_THROW_NOT_ENOUGH_COINS(GetAnonimityGroup(1, 0, 1, 1));
+    BOOST_CHECK(GetAnonimityGroup(1, 0, 1, 1).empty());
 
     BOOST_CHECK_EQUAL(1, p_mintlistdb_test->GetNextSequence());
 
