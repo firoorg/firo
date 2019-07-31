@@ -129,6 +129,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     }
     // Mint and remint txs should be in the mempool now, clear them
     mempool.clear();
+    zerocoinState->mempoolCoinSerials.clear();
 
     for (int i=0; i<6; i++) {
         denomination = denominations[i];
