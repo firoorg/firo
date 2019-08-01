@@ -515,8 +515,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
         if(fHd){
             // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwalletMain->mapKeyMetadata[keyid].nChange==2){
-                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild);
+            if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
+                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
                 fMintUpdate = true;
             }
         }
@@ -712,8 +712,12 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             }
             if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
                 if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
-                    file << strprintf(" hdKeypath=%s", pwalletMain->mapKeyMetadata[keyid].hdKeypath);
-                    file << strprintf(" hdMasterKeyID=%s", pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID.ToString());
+                    string hdKeypath = pwalletMain->mapKeyMetadata[keyid].hdKeypath;
+                    uint160 hdMasterKeyID = pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID;
+                    if(hdKeypath != "")
+                        file << strprintf(" hdKeypath=%s", hdKeypath);
+                    if(!hdMasterKeyID.IsNull())
+                        file << strprintf(" hdMasterKeyID=%s", hdMasterKeyID.ToString());
                 }
             }
             file << strprintf(" # addr=%s\n", strAddr);

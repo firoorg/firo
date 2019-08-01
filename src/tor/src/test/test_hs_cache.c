@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -7,20 +7,26 @@
  */
 
 #define CONNECTION_PRIVATE
-#define DIRECTORY_PRIVATE
+#define DIRCACHE_PRIVATE
+#define DIRCLIENT_PRIVATE
 #define HS_CACHE_PRIVATE
 
-#include "ed25519_cert.h"
-#include "hs_cache.h"
-#include "rendcache.h"
-#include "directory.h"
-#include "networkstatus.h"
-#include "connection.h"
-#include "proto_http.h"
+#include "trunnel/ed25519_cert.h"
+#include "feature/hs/hs_cache.h"
+#include "feature/rend/rendcache.h"
+#include "feature/dircache/dircache.h"
+#include "feature/dirclient/dirclient.h"
+#include "feature/nodelist/networkstatus.h"
+#include "core/mainloop/connection.h"
+#include "core/proto/proto_http.h"
+#include "lib/crypt_ops/crypto_format.h"
 
-#include "hs_test_helpers.h"
-#include "test_helpers.h"
-#include "test.h"
+#include "feature/dircommon/dir_connection_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+
+#include "test/hs_test_helpers.h"
+#include "test/test_helpers.h"
+#include "test/test.h"
 
 /* Static variable used to encoded the HSDir query. */
 static char query_b64[256];
@@ -60,7 +66,7 @@ test_directory(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   desc1 = hs_helper_build_hs_desc_with_ip(&signing_kp1);
   tt_assert(desc1);
-  ret = hs_desc_encode_descriptor(desc1, &signing_kp1, &desc1_str);
+  ret = hs_desc_encode_descriptor(desc1, &signing_kp1, NULL, &desc1_str);
   tt_int_op(ret, OP_EQ, 0);
 
   /* Very first basic test, should be able to be stored, survive a
@@ -98,7 +104,7 @@ test_directory(void *arg)
     desc_zero_lifetime->plaintext_data.lifetime_sec = 0;
     char *desc_zero_lifetime_str;
     ret = hs_desc_encode_descriptor(desc_zero_lifetime, &signing_kp_zero,
-                                    &desc_zero_lifetime_str);
+                                    NULL, &desc_zero_lifetime_str);
     tt_int_op(ret, OP_EQ, 0);
 
     ret = hs_cache_store_as_dir(desc1_str);
@@ -149,7 +155,7 @@ test_directory(void *arg)
     tt_int_op(ret, OP_EQ, 1);
     /* Bump revision counter. */
     desc1->plaintext_data.revision_counter++;
-    ret = hs_desc_encode_descriptor(desc1, &signing_kp1, &new_desc_str);
+    ret = hs_desc_encode_descriptor(desc1, &signing_kp1, NULL, &new_desc_str);
     tt_int_op(ret, OP_EQ, 0);
     ret = hs_cache_store_as_dir(new_desc_str);
     tt_int_op(ret, OP_EQ, 0);
@@ -183,7 +189,7 @@ test_clean_as_dir(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   desc1 = hs_helper_build_hs_desc_with_ip(&signing_kp1);
   tt_assert(desc1);
-  ret = hs_desc_encode_descriptor(desc1, &signing_kp1, &desc1_str);
+  ret = hs_desc_encode_descriptor(desc1, &signing_kp1, NULL, &desc1_str);
   tt_int_op(ret, OP_EQ, 0);
   ret = hs_cache_store_as_dir(desc1_str);
   tt_int_op(ret, OP_EQ, 0);
@@ -297,7 +303,7 @@ test_upload_and_download_hs_desc(void *arg)
     published_desc = hs_helper_build_hs_desc_with_ip(&signing_kp);
     tt_assert(published_desc);
     retval = hs_desc_encode_descriptor(published_desc, &signing_kp,
-                                       &published_desc_str);
+                                       NULL, &published_desc_str);
     tt_int_op(retval, OP_EQ, 0);
   }
 
@@ -361,7 +367,7 @@ test_hsdir_revision_counter_check(void *arg)
     published_desc = hs_helper_build_hs_desc_with_ip(&signing_kp);
     tt_assert(published_desc);
     retval = hs_desc_encode_descriptor(published_desc, &signing_kp,
-                                       &published_desc_str);
+                                       NULL, &published_desc_str);
     tt_int_op(retval, OP_EQ, 0);
   }
 
@@ -386,7 +392,7 @@ test_hsdir_revision_counter_check(void *arg)
     received_desc_str = helper_fetch_desc_from_hsdir(blinded_key);
 
     retval = hs_desc_decode_descriptor(received_desc_str,
-                                       subcredential, &received_desc);
+                                       subcredential, NULL, &received_desc);
     tt_int_op(retval, OP_EQ, 0);
     tt_assert(received_desc);
 
@@ -403,7 +409,7 @@ test_hsdir_revision_counter_check(void *arg)
     published_desc->plaintext_data.revision_counter = 1313;
     tor_free(published_desc_str);
     retval = hs_desc_encode_descriptor(published_desc, &signing_kp,
-                                       &published_desc_str);
+                                       NULL, &published_desc_str);
     tt_int_op(retval, OP_EQ, 0);
 
     retval = handle_post_hs_descriptor("/tor/hs/3/publish",published_desc_str);
@@ -419,7 +425,7 @@ test_hsdir_revision_counter_check(void *arg)
     received_desc_str = helper_fetch_desc_from_hsdir(blinded_key);
 
     retval = hs_desc_decode_descriptor(received_desc_str,
-                                       subcredential, &received_desc);
+                                       subcredential, NULL, &received_desc);
     tt_int_op(retval, OP_EQ, 0);
     tt_assert(received_desc);
 
@@ -478,7 +484,7 @@ test_client_cache(void *arg)
     published_desc = hs_helper_build_hs_desc_with_ip(&signing_kp);
     tt_assert(published_desc);
     retval = hs_desc_encode_descriptor(published_desc, &signing_kp,
-                                       &published_desc_str);
+                                       NULL, &published_desc_str);
     tt_int_op(retval, OP_EQ, 0);
     memcpy(wanted_subcredential, published_desc->subcredential, DIGEST256_LEN);
     tt_assert(!tor_mem_is_zero((char*)wanted_subcredential, DIGEST256_LEN));
@@ -558,4 +564,3 @@ struct testcase_t hs_cache[] = {
 
   END_OF_TESTCASES
 };
-

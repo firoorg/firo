@@ -145,7 +145,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     // Create new metadata
     int64_t nCreationTime = GetTime();
     CKeyMetadata metadata(nCreationTime);
-    metadata.nChange = nChange;
+    metadata.nChange = Component(nChange, false);
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
@@ -187,7 +187,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
             externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange]);
             metadata.hdKeypath = "m/44'/" + std::to_string(nIndex) + "'/0'/" + std::to_string(nChange) + "/" + std::to_string(hdChain.nExternalChainCounters[nChange]);
             metadata.hdMasterKeyID = hdChain.masterKeyID;
-            metadata.nChild = hdChain.nExternalChainCounters[nChange];
+            metadata.nChild = Component(hdChain.nExternalChainCounters[nChange], false);
             // increment childkey index
             hdChain.nExternalChainCounters[nChange]++;
         } while (HaveKey(childKey.key.GetPubKey().GetID()));
@@ -2835,7 +2835,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_main, cs_wallet);
         list <CZerocoinEntry> listOwnCoins;
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listOwnCoins);

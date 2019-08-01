@@ -4,9 +4,16 @@ Useful tools
 These aren't strictly necessary for hacking on Tor, but they can help track
 down bugs.
 
-Travis CI
----------
-It's CI. Looks like this: https://travis-ci.org/torproject/tor.
+Travis/Appveyor CI
+------------------
+It's CI.
+
+Looks like this:
+* https://travis-ci.org/torproject/tor
+* https://ci.appveyor.com/project/torproject/tor
+
+Travis builds and runs tests on Linux, and eventually macOS (#24629).
+Appveyor builds and runs tests on Windows (using Windows Services for Linux).
 
 Runs automatically on Pull Requests sent to torproject/tor. You can set it up
 for your fork to build commits outside of PRs too:
@@ -16,6 +23,8 @@ for your fork to build commits outside of PRs too:
    https://help.github.com/articles/fork-a-repo/
 3. follow https://docs.travis-ci.com/user/getting-started/#To-get-started-with-Travis-CI.
    skip steps involving `.travis.yml` (we already have one).
+4. go to https://ci.appveyor.com/login , log in with github, and select
+   "NEW PROJECT"
 
 Builds should show up on the web at travis-ci.com and on IRC at #tor-ci on
 OFTC. If they don't, ask #tor-dev (also on OFTC).
@@ -23,22 +32,21 @@ OFTC. If they don't, ask #tor-dev (also on OFTC).
 Jenkins
 -------
 
-    https://jenkins.torproject.org
+It's CI/builders. Looks like this: https://jenkins.torproject.org
 
-Dmalloc
--------
+Runs automatically on commits merged to git.torproject.org. We CI the
+master branch and all supported tor versions. We also build nightly debian
+packages from master.
 
-The dmalloc library will keep track of memory allocation, so you can find out
-if we're leaking memory, doing any double-frees, or so on.
+Builds Linux and Windows cross-compilation. Runs Linux tests.
 
-    dmalloc -l -/dmalloc.log
-    (run the commands it tells you)
-    ./configure --with-dmalloc
+Builds should show up on the web at jenkins.torproject.org and on IRC at
+#tor-bots on OFTC. If they don't, ask #tor-dev (also on OFTC).
 
 Valgrind
 --------
 
-    valgrind --leak-check=yes --error-limit=no --show-reachable=yes src/or/tor
+    valgrind --leak-check=yes --error-limit=no --show-reachable=yes src/app/tor
 
 (Note that if you get a zillion openssl warnings, you will also need to
 pass `--undef-value-errors=no` to valgrind, or rebuild your openssl
@@ -242,10 +250,10 @@ Beforehand, install google-perftools.
 Now you can run Tor with profiling enabled, and use the pprof utility to look at
 performance! See the gperftools manual for more info, but basically:
 
-2. Run `env CPUPROFILE=/tmp/profile src/or/tor -f <path/torrc>`. The profile file
+2. Run `env CPUPROFILE=/tmp/profile src/app/tor -f <path/torrc>`. The profile file
    is not written to until Tor finishes execuction.
 
-3. Run `pprof src/or/tor /tm/profile` to start the REPL.
+3. Run `pprof src/app/tor /tm/profile` to start the REPL.
 
 Generating and analyzing a callgraph
 ------------------------------------

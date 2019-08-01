@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017, The Tor Project, Inc. */
+// Copyright (c) 2016-2019, The Tor Project, Inc. */
 // See LICENSE for licensing information */
 
 //! Allocation helper functions that allow data to be allocated in Rust
@@ -11,5 +11,10 @@
 
 extern crate libc;
 
+use std::alloc::System;
+
 mod tor_allocate;
 pub use tor_allocate::*;
+
+#[global_allocator]
+static A: System = System;

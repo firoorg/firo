@@ -1,12 +1,12 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "crypto_rand.h"
+#include "lib/crypt_ops/crypto_rand.h"
 #include "orconfig.h"
-#include "or.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "test/test.h"
 
 /** Define this if unit tests spend too much time generating public keys.
  * This module is meant to save time by using a bunch of pregenerated RSA
@@ -490,7 +490,7 @@ crypto_pk_generate_key_with_bits__get_cached(crypto_pk_t *env, int bits)
 {
   if (bits == 1024 || bits == 2048)  {
     crypto_pk_t *newkey = pk_generate_internal(bits);
-    crypto_pk_assign_(env, newkey);
+    crypto_pk_assign_private(env, newkey);
     crypto_pk_free(newkey);
   } else {
     return crypto_pk_generate_key_with_bits__real(env, bits);
@@ -544,4 +544,3 @@ init_pregenerated_keys(void)
        crypto_pk_generate_key_with_bits__get_cached);
 #endif /* defined(USE_PREGENERATED_RSA_KEYS) */
 }
-

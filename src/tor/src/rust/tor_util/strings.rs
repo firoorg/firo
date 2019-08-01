@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017, The Tor Project, Inc. */
+// Copyright (c) 2016-2019, The Tor Project, Inc. */
 // See LICENSE for licensing information */
 
 //! Utilities for working with static strings.
@@ -105,11 +105,7 @@ macro_rules! cstr {
     ($($bytes:expr),*) => (
         ::std::ffi::CStr::from_bytes_with_nul(
             concat!($($bytes),*, "\0").as_bytes()
-        ).unwrap_or(
-            unsafe{
-                ::std::ffi::CStr::from_bytes_with_nul_unchecked(b"\0")
-            }
-        )
+        ).unwrap_or_default()
     )
 }
 
@@ -131,10 +127,10 @@ mod test {
 
     #[test]
     fn cstr_macro_bad_input() {
-        let waving:   &'static CStr = cstr!("waving not drowning o/");
+        let waving: &'static CStr = cstr!("waving not drowning o/");
         let drowning: &'static CStr = cstr!("\0 drowning not waving");
 
-        assert!(waving.to_str().unwrap()   == "waving not drowning o/");
+        assert!(waving.to_str().unwrap() == "waving not drowning o/");
         assert!(drowning.to_str().unwrap() == "")
     }
 }

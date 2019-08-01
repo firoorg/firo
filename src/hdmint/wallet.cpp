@@ -423,15 +423,14 @@ bool CHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, 
 
     // HMAC-SHA512(SHA256(count),key)
     unsigned char countHash[CSHA256().OUTPUT_SIZE];
-    unsigned char *result = new unsigned char[CSHA512().OUTPUT_SIZE];
+    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
 
     std::string nCount = to_string(n);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
 
-    CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(result);
-    std::vector<unsigned char> resultVector(result, result+CSHA512().OUTPUT_SIZE);
+    CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(&result[0]);
 
-    seedZerocoin = uint512(resultVector);
+    seedZerocoin = uint512(result);
 
     return true;
 }
