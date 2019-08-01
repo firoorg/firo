@@ -1,10 +1,13 @@
 #include "wallet.h"
+#include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #include "walletdb.h"
 
 namespace exodus {
 
-SigmaPrivateKey ExodusWallet::CreateSigmaPrivateKey()
+SigmaPublicKey Wallet::CreateSigmaMint(
+    uint32_t propertyId,
+    uint8_t denomination)
 {
     SigmaPrivateKey key;
 
@@ -12,91 +15,76 @@ SigmaPrivateKey ExodusWallet::CreateSigmaPrivateKey()
         key.Generate();
     } while (!key.IsValid());
 
-    return key;
-}
-
-CSigmaEntry ExodusWallet::RecordSigmaKey(
-    uint32_t propertyID,
-    uint32_t denomination,
-    const SigmaPrivateKey& key)
-{
-    CSigmaEntry e;
-    e.propertyID = propertyID;
+    SigmaEntry e;
+    e.SetNull();
+    e.propertyId = propertyId;
     e.denomination = denomination;
+    e.randomness = key.GetRandomness();
+    e.serialNumber = key.GetSerial();
 
-    e.value = SigmaPublicKey(key).GetCommitment();
-    e.randomness = e.randomness;
-    e.serialNumber = e.serialNumber;
-    e.isUsed = false;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
+    }
 
-    CWalletDB(strWalletFile).WriteExodusEntry(e.value, e);
-
-    return e;
+    return e.getPublicKey();
 }
 
-bool ExodusWallet::UpdateSigma(
-    const secp_primitives::GroupElement& val,
-    uint32_t groupID,
-    uint32_t index,
-    int nBlock)
+bool Wallet::UpdateSigmaMint(
+    const SigmaMintId& id,
+    uint32_t groupId,
+    uint16_t index,
+    int32_t block)
 {
-    auto e = GetSigmaEntry(val);
-    e.groupID = groupID;
+    LOCK(pwalletMain->cs_wallet);
+
+    auto e = GetSigmaEntry(id);
+    e.groupId = groupId;
     e.index = index;
-    e.nBlock = nBlock;
+    e.block = block;
     e.isUsed = false;
 
-    return CWalletDB(strWalletFile).WriteExodusEntry(e.value, e);
+    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
 }
 
-bool ExodusWallet::DeleteFromChain(
-    const secp_primitives::GroupElement& val)
+bool Wallet::ClearSigmaMintChainState(
+    const SigmaMintId& id)
 {
-    auto e = GetSigmaEntry(val);
-    e.groupID = 0;
+    LOCK(pwalletMain->cs_wallet);
+
+    auto e = GetSigmaEntry(id);
+    e.groupId = 0;
     e.index = 0;
-    e.nBlock = -1;
+    e.block = -1;
     e.isUsed = false;
 
-    return CWalletDB(strWalletFile).WriteExodusEntry(e.value, e);
+    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
 }
 
-bool ExodusWallet::SetUsedStatus(const secp_primitives::GroupElement& val, bool isUsed)
+bool Wallet::SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed)
 {
-    auto e = GetSigmaEntry(val);
+    LOCK(pwalletMain->cs_wallet);
+
+    auto e = GetSigmaEntry(id);
     e.isUsed = isUsed;
 
-    return CWalletDB(strWalletFile).WriteExodusEntry(e.value, e);
+    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
 }
 
-CSigmaEntry ExodusWallet::GetSigmaEntry(const secp_primitives::GroupElement& key)
+SigmaEntry Wallet::GetSigmaEntry(const SigmaMintId& id)
 {
-    CSigmaEntry e;
-    CWalletDB(strWalletFile).ReadExodusEntry(key, e);
+    LOCK(pwalletMain->cs_wallet);
+
+    SigmaEntry e;
+    if (!CWalletDB(walletFile).ReadExodusMint(id, e)) {
+        throw std::runtime_error("sigma mint not found");
+    }
     return e;
 }
 
-void ExodusWallet::ListSigmaEntries(std::list<CSigmaEntry>& listSigma)
+bool Wallet::HasSigmaEntry(const SigmaMintId& id)
 {
-    CWalletDB(strWalletFile).
-        ListExodusEntries<secp_primitives::GroupElement>(listSigma);
-}
-
-void ExodusWallet::ListSigmaEntries(
-    uint32_t propertyID, std::list<CSigmaEntry>& listSigma)
-{
-    ListSigmaEntries(listSigma);
-    listSigma.erase(
-        std::remove_if(listSigma.begin(), listSigma.end(),
-            [propertyID] (const CSigmaEntry& e) -> bool {
-                return e.propertyID != propertyID;
-            }
-        ), listSigma.end());
-}
-
-bool ExodusWallet::HasSigmaEntry(const secp_primitives::GroupElement& val)
-{
-    return CWalletDB(strWalletFile).HasExodusEntry(val);
+    return CWalletDB(walletFile).HasExodusMint(id);
 }
 
 }

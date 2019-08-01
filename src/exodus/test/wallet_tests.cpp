@@ -9,140 +9,191 @@
 
 #include "../wallet.h"
 
+class Wallet : public exodus::Wallet
+{
+public:
+    Wallet(const std::string& walletFile)
+        : exodus::Wallet(walletFile)
+    {
+    }
+
+    exodus::SigmaEntry GetSigmaEntry(const exodus::SigmaMintId& id)
+    {
+        return exodus::Wallet::GetSigmaEntry(id);
+    }
+
+    void ListSigmaEntries(std::list<exodus::SigmaEntry>& listSigma)
+    {
+        exodus::Wallet::ListSigmaEntries(std::back_inserter(listSigma));
+    }
+
+    void ListSigmaEntries(uint32_t propertyId, std::list<exodus::SigmaEntry>& listSigma)
+    {
+        exodus::Wallet::ListSigmaEntries(propertyId, std::back_inserter(listSigma));
+    }
+
+    bool HasSigmaEntry(const exodus::SigmaMintId& id)
+    {
+        return exodus::Wallet::HasSigmaEntry(id);
+    }
+};
+
 struct ExodusSigmaTestingSetup : WalletTestingSetup
 {
     ExodusSigmaTestingSetup()
-        : WalletTestingSetup()
     {
-        exodusTestWallet = new exodus::ExodusWallet(pwalletMain->strWalletFile);
+        wallet = new Wallet(pwalletMain->strWalletFile);
     }
 
     ~ExodusSigmaTestingSetup()
     {
-        delete exodusTestWallet;
-        exodusTestWallet = nullptr;
+        delete wallet;
+        wallet = nullptr;
     }
-    exodus::ExodusWallet *exodusTestWallet;
+    Wallet *wallet;
+
+    exodus::SigmaEntry createAndGetEntry(uint32_t propertyId, uint8_t denomination) {
+        auto pubKey = wallet->CreateSigmaMint(propertyId, denomination);
+        return wallet->GetSigmaEntry(
+            exodus::SigmaMintId(pubKey.GetCommitment(), propertyId, denomination)
+        );
+    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(exodus_wallet_tests, ExodusSigmaTestingSetup)
 
-BOOST_AUTO_TEST_CASE(create_sigma_private_key)
+BOOST_AUTO_TEST_CASE(getid)
 {
-    auto defaultKey = exodus::SigmaPrivateKey();
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    BOOST_CHECK(key.IsValid());
-    BOOST_CHECK(exodus::SigmaPrivateKey() != key);
-    BOOST_CHECK(exodusTestWallet->CreateSigmaPrivateKey() != key);
+    exodus::SigmaEntry entry;
+    exodus::SigmaPrivateKey priv;
+    do {
+        priv.Generate();
+    } while (!priv.IsValid());
+    exodus::SigmaPublicKey pub(priv);
+
+    entry.serialNumber = priv.GetSerial();
+    entry.randomness = priv.GetRandomness();
+    entry.propertyId = 1;
+    entry.denomination = 2;
+
+    auto id = entry.GetId();
+
+    BOOST_CHECK(id.commitment == pub.GetCommitment());
+    BOOST_CHECK(id.propertyId == 1);
+    BOOST_CHECK(id.denomination == 2);
 }
 
-BOOST_AUTO_TEST_CASE(get_set_sigma_entry)
+BOOST_AUTO_TEST_CASE(create_sigma_mint)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey pubKey(key);
-    auto entry = exodusTestWallet->RecordSigmaKey(1, 1, key);
-    auto retrieved = exodusTestWallet->GetSigmaEntry(pubKey.GetCommitment());
-    BOOST_CHECK(entry == retrieved);
-    BOOST_CHECK(entry != exodus::CSigmaEntry());
-    BOOST_CHECK(!entry.isUsed);
+    auto entry = createAndGetEntry(1, 1);
+    BOOST_CHECK(entry.getPrivateKey().IsValid());
+    BOOST_CHECK(exodus::SigmaPrivateKey() != entry.getPrivateKey());
+
+    auto anotherEntry = createAndGetEntry(1, 1);
+
+    BOOST_CHECK(anotherEntry != entry);
 }
 
-BOOST_AUTO_TEST_CASE(update_entry)
+BOOST_AUTO_TEST_CASE(get_sigma_entry)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey pubKey(key);
-    exodusTestWallet->RecordSigmaKey(1, 1, key);
-    BOOST_CHECK(exodusTestWallet->UpdateSigma(pubKey.GetCommitment(), 10, 11, 100));
-    auto updated = exodusTestWallet->GetSigmaEntry(pubKey.GetCommitment());
-    BOOST_CHECK_EQUAL(10, updated.groupID);
-    BOOST_CHECK_EQUAL(11, updated.index);
-    BOOST_CHECK_EQUAL(100, updated.nBlock);
-    BOOST_CHECK(!updated.isUsed);
+    auto retrieved = createAndGetEntry(1, 1);
+    auto retrieved2 = wallet->GetSigmaEntry(retrieved.GetId());
+    BOOST_CHECK(retrieved == retrieved2);
+    BOOST_CHECK(retrieved != exodus::SigmaEntry());
+    BOOST_CHECK(!retrieved.isUsed);
 }
 
-BOOST_AUTO_TEST_CASE(delete_entry_from_chain)
+BOOST_AUTO_TEST_CASE(update_and_delete_entry_from_chain)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey pubKey(key);
-    exodusTestWallet->RecordSigmaKey(1, 1, key);
-    BOOST_CHECK(exodusTestWallet->UpdateSigma(pubKey.GetCommitment(), 10, 11, 100));
-    BOOST_CHECK(exodusTestWallet->DeleteFromChain(pubKey.GetCommitment()));
-    auto updated = exodusTestWallet->GetSigmaEntry(pubKey.GetCommitment());
-    BOOST_CHECK_EQUAL(-1, updated.nBlock);
+    auto entry = createAndGetEntry(1, 1);
+    BOOST_CHECK(wallet->UpdateSigmaMint(entry.GetId(), 10, 1600, 100));
+    auto beforeUpdated = wallet->GetSigmaEntry(entry.GetId());
+    BOOST_CHECK_EQUAL(10, beforeUpdated.groupId);
+    BOOST_CHECK_EQUAL(1600, beforeUpdated.index);
+    BOOST_CHECK_EQUAL(100, beforeUpdated.block);
+
+    BOOST_CHECK(wallet->ClearSigmaMintChainState(entry.GetId()));
+
+    auto updated = wallet->GetSigmaEntry(entry.GetId());
+    BOOST_CHECK_EQUAL(0, updated.groupId);
+    BOOST_CHECK_EQUAL(0, updated.index);
+    BOOST_CHECK_EQUAL(-1, updated.block);
     BOOST_CHECK(!updated.isUsed);
 }
 
 BOOST_AUTO_TEST_CASE(make_entry_as_used)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey pubKey(key);
-    exodusTestWallet->RecordSigmaKey(1, 1, key);
-    BOOST_CHECK(exodusTestWallet->UpdateSigma(pubKey.GetCommitment(), 10, 11, 100));
-    BOOST_CHECK(exodusTestWallet->SetUsedStatus(pubKey.GetCommitment(), true));
-    auto updated = exodusTestWallet->GetSigmaEntry(pubKey.GetCommitment());
+    auto entry = createAndGetEntry(1, 1);
+    BOOST_CHECK(wallet->SetSigmaMintUsedStatus(entry.GetId(), true));
+    auto updated = wallet->GetSigmaEntry(entry.GetId());
     BOOST_CHECK(updated.isUsed);
 
-    BOOST_CHECK(exodusTestWallet->SetUsedStatus(pubKey.GetCommitment(), false));
-    updated = exodusTestWallet->GetSigmaEntry(pubKey.GetCommitment());
+    BOOST_CHECK(wallet->SetSigmaMintUsedStatus(entry.GetId(), false));
+    updated = wallet->GetSigmaEntry(entry.GetId());
     BOOST_CHECK(!updated.isUsed);
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_no_coins)
 {
-    std::list<exodus::CSigmaEntry> listSigma;
-    exodusTestWallet->ListSigmaEntries(listSigma);
+    std::list<exodus::SigmaEntry> listSigma;
+    wallet->ListSigmaEntries(listSigma);
     BOOST_CHECK_EQUAL(0, listSigma.size());
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_have_two_coins_same_property)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    exodusTestWallet->RecordSigmaKey(1, 1, key);
+    auto pubKey = wallet->CreateSigmaMint(1, 1);
+    auto pubKey2 = wallet->CreateSigmaMint(1, 1);
 
-    auto key2 = exodusTestWallet->CreateSigmaPrivateKey();
-    exodusTestWallet->RecordSigmaKey(1, 1, key2);
-
-
-    std::list<exodus::CSigmaEntry> listSigma;
-    exodusTestWallet->ListSigmaEntries(listSigma);
+    std::list<exodus::SigmaEntry> listSigma;
+    wallet->ListSigmaEntries(listSigma);
     BOOST_CHECK_EQUAL(2, listSigma.size());
+
+    auto commitment = pubKey.GetCommitment();
+    auto commitment2 = pubKey2.GetCommitment();
+
+    auto first = listSigma.front().getPublicKey().GetCommitment();
+    listSigma.pop_front();
+    auto second = listSigma.front().getPublicKey().GetCommitment();
+    BOOST_CHECK(
+        (commitment == first && commitment2 == second)
+        || (commitment == second && commitment2 == first)
+    );
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_have_two_coins_different_property)
 {
-    auto key = exodusTestWallet->CreateSigmaPrivateKey();
-    auto prop1Entry = exodusTestWallet->RecordSigmaKey(1, 1, key);
+    auto prop1Entry = createAndGetEntry(1, 1);
+    auto prop2Entry = createAndGetEntry(2, 1);
 
-    auto key2 = exodusTestWallet->CreateSigmaPrivateKey();
-    auto prop2Entry = exodusTestWallet->RecordSigmaKey(2, 1, key2);
-
-
-    std::list<exodus::CSigmaEntry> listSigma;
-    exodusTestWallet->ListSigmaEntries(listSigma);
+    std::list<exodus::SigmaEntry> listSigma;
+    wallet->ListSigmaEntries(listSigma);
     BOOST_CHECK_EQUAL(2, listSigma.size());
 
-    std::list<exodus::CSigmaEntry> listProp1Sigma;
-    exodusTestWallet->ListSigmaEntries(1, listProp1Sigma);
+    std::list<exodus::SigmaEntry> listProp1Sigma;
+    wallet->ListSigmaEntries(1, listProp1Sigma);
     BOOST_CHECK_EQUAL(1, listProp1Sigma.size());
     BOOST_CHECK(prop1Entry == listProp1Sigma.front());
 
-    std::list<exodus::CSigmaEntry> listProp2Sigma;
-    exodusTestWallet->ListSigmaEntries(2, listProp2Sigma);
+    std::list<exodus::SigmaEntry> listProp2Sigma;
+    wallet->ListSigmaEntries(2, listProp2Sigma);
     BOOST_CHECK_EQUAL(1, listProp2Sigma.size());
     BOOST_CHECK(prop2Entry == listProp2Sigma.front());
 }
 
 BOOST_AUTO_TEST_CASE(is_exists)
 {
-    auto existsKey = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey existsPubKey(existsKey);
-    exodusTestWallet->RecordSigmaKey(1, 1, existsKey);
+    auto existsEntry = createAndGetEntry(1, 1);
 
-    auto nonExistsKey = exodusTestWallet->CreateSigmaPrivateKey();
-    exodus::SigmaPublicKey nonExistsPubKey(nonExistsKey);
+    exodus::SigmaPrivateKey nonExistsPriv;
+    do {
+        nonExistsPriv.Generate();
+    } while (!nonExistsPriv.IsValid());
+    exodus::SigmaPublicKey nonExistsPubKey(nonExistsPriv);
 
-    BOOST_CHECK(exodusTestWallet->HasSigmaEntry(existsPubKey.GetCommitment()));
-    BOOST_CHECK(!exodusTestWallet->HasSigmaEntry(nonExistsPubKey.GetCommitment()));
+    BOOST_CHECK(wallet->HasSigmaEntry(existsEntry.GetId()));
+    BOOST_CHECK(!wallet->HasSigmaEntry(
+        exodus::SigmaMintId(nonExistsPubKey.GetCommitment(), 1, 1)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -272,33 +272,37 @@ public:
 
 #ifdef ENABLE_EXODUS
     template<typename K, typename V>
-    bool WriteExodusEntry(const K& k, const V& v) {
-        return Write(std::make_pair(std::string("exodus_entry"), k), v);
+    bool WriteExodusMint(const K& k, const V& v)
+    {
+        return Write(std::make_pair(std::string("exodus_sigma_mint"), k), v);
     }
 
     template<typename K, typename V>
-    bool ReadExodusEntry(const K& k, V& v) {
-        return Read(std::make_pair(std::string("exodus_entry"), k), v);
+    bool ReadExodusMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_sigma_mint"), k), v);
     }
 
     template<typename K>
-    bool HasExodusEntry(const K& k) {
-        return Exists(std::make_pair(std::string("exodus_entry"), k));
+    bool HasExodusMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_sigma_mint"), k));
     }
 
-    template<typename K, typename V>
-    void ListExodusEntries(std::list<V>& entries) {
+    template<typename K, typename V, typename InsertF>
+    void ListExodusMint(InsertF insertF)
+    {
         Dbc *pcursor = GetCursor();
         if (!pcursor)
-            throw runtime_error(
-                "ExodusWalletDB::ListSigmaEntries() : cannot create DB cursor");
+            throw std::runtime_error(
+                "CWalletDB::ListExodusMint() : cannot create DB cursor");
 
         unsigned int fFlags = DB_SET_RANGE;
         while (true) {
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             if (fFlags == DB_SET_RANGE)
-                ssKey << make_pair(std::string("exodus_entry"), K());
+                ssKey << make_pair(std::string("exodus_sigma_mint"), K());
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
             int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
@@ -307,18 +311,19 @@ public:
                 break;
             else if (ret != 0) {
                 pcursor->close();
-                throw runtime_error("CWalletDB::ListPubCoin() : error scanning DB");
+                throw std::runtime_error(
+                    "CWalletDB::ListExodusMint() : error scanning DB");
             }
             // Unserialize
             std::string strType;
             ssKey >> strType;
-            if (strType != "exodus_entry")
+            if (strType != "exodus_sigma_mint")
                 break;
             K k;
             ssKey >> k;
             V v;
             ssValue >> v;
-            entries.push_back(v);
+            insertF(v);
         }
     }
 

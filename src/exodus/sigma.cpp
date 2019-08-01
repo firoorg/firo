@@ -32,7 +32,7 @@ void SigmaPrivateKey::SetRandomness(const secp_primitives::Scalar& v)
 
 bool SigmaPrivateKey::operator==(const SigmaPrivateKey& other) const
 {
-    return params == other.params && serial == other.serial && randomness == other.randomness;
+    return serial == other.serial && randomness == other.randomness;
 }
 
 bool SigmaPrivateKey::operator!=(const SigmaPrivateKey& other) const

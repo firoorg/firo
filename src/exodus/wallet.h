@@ -6,50 +6,63 @@
 #include "sigma.h"
 #include "walletdb.h"
 
+extern CWallet* pwalletMain;
+
 namespace exodus {
 
-class ExodusWallet
+class Wallet
 {
 public:
-    ExodusWallet() {}
-
-    ExodusWallet(const std::string& strWalletFileIn)
+    Wallet(const std::string& walletFile)
+        : walletFile(walletFile)
     {
-        SetNull();
-
-        strWalletFile = strWalletFileIn;
     }
 
-    SigmaPrivateKey CreateSigmaPrivateKey();
-
-    CSigmaEntry RecordSigmaKey(
-        uint32_t propertyID,
-        uint32_t denomination,
-        const SigmaPrivateKey& key
+    SigmaPublicKey CreateSigmaMint(
+        uint32_t propertyId,
+        uint8_t denomination
     );
 
-    bool UpdateSigma(
-        const secp_primitives::GroupElement& val,
-        uint32_t groupID,
-        uint32_t index,
-        int nBlock
+    bool UpdateSigmaMint(
+        const SigmaMintId& id,
+        uint32_t groupId,
+        uint16_t index,
+        int32_t block
     );
 
-    bool DeleteFromChain(const secp_primitives::GroupElement& key);
-    bool SetUsedStatus(const secp_primitives::GroupElement& val, bool isUsed);
-    CSigmaEntry GetSigmaEntry(const secp_primitives::GroupElement& key);
+    bool ClearSigmaMintChainState(const SigmaMintId& id);
+    bool SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed);
 
-    void ListSigmaEntries(std::list<CSigmaEntry>& listSigma);
-    void ListSigmaEntries(uint32_t propertyID, std::list<CSigmaEntry>& listSigma);
+protected:
+    template<class OutputIt>
+    void ListSigmaEntries(OutputIt it)
+    {
+        LOCK(pwalletMain->cs_wallet);
 
-    bool HasSigmaEntry(const secp_primitives::GroupElement& val);
+        auto insertF = [&it] (exodus::SigmaEntry& entry) {
+            *it++ = std::move(entry);
+        };
+        CWalletDB(walletFile).ListExodusMint<SigmaMintId, exodus::SigmaEntry>(insertF);
+    }
+    template<class OutputIt>
+    void ListSigmaEntries(uint32_t propertyId, OutputIt it)
+    {
+        LOCK(pwalletMain->cs_wallet);
+
+        auto insertF = [propertyId, &it](exodus::SigmaEntry& entry) {
+            if (entry.propertyId == propertyId) {
+                *it++ = std::move(entry);
+            }
+        };
+
+        CWalletDB(walletFile).ListExodusMint<SigmaMintId, exodus::SigmaEntry>(insertF);
+    }
+
+    bool HasSigmaEntry(const SigmaMintId& id);
+    SigmaEntry GetSigmaEntry(const SigmaMintId& id);
 
 private:
-    std::string strWalletFile;
-
-    void SetNull()
-    {
-    }
+    std::string walletFile;
 };
 
 }
