@@ -47,7 +47,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         zcoin_mints = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mints) == 10, 'Should be 10 Zcoin mints after zcoin mint, but was: {}' \
+        assert len(zcoin_mints) == 10, 'Should be 10 zcoin mints after zcoin mint, but was: {}' \
             .format(len(zcoin_mints))
 
 

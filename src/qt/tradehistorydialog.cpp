@@ -299,14 +299,14 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
     // ### END PENDING TRANSACTIONS PROCESSING ###
 
     // ### START WALLET TRANSACTIONS PROCESSING ###
-    // obtain a sorted list of Omni layer wallet transactions (including STO receipts and pending) - default last 65535
+    // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending) - default last 65535
     std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(GetArg("-exodusuiwalletscope", 65535L));
 
     // reverse iterate over (now ordered) transactions and populate history map for each one
     for (std::map<std::string,uint256>::reverse_iterator it = walletTransactions.rbegin(); it != walletTransactions.rend(); it++) {
         uint256 hash = it->second;
 
-        // use levelDB to perform a fast check on whether it's a bitcoin or Omni tx and whether it's a trade
+        // use levelDB to perform a fast check on whether it's a Zcoin or Exodus tx and whether it's a trade
         std::string tempStrValue;
         {
             LOCK(cs_tally);
@@ -576,4 +576,3 @@ void TradeHistoryDialog::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     borrowedColumnResizingFixer->stretchColumnWidth(5);
 }
-

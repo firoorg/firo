@@ -5901,7 +5901,7 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
             return false;
 
         /*
-            Dash Related Inventory Messages
+            Zcoin Related Inventory Messages
 
             --
 
