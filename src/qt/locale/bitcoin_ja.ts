@@ -1284,7 +1284,7 @@
     </message>
     <message>
         <source>Cannot start zcoin: click-to-pay handler</source>
-        <translation>Zcoin を起動できません: click-to-pay handler</translation>
+        <translation>zcoin を起動できません: click-to-pay handler</translation>
     </message>
     <message>
         <source>URI handling</source>

@@ -231,7 +231,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Cereţi plăţi (generează coduri QR şi zcoin-uri: URls)</translation>
+        <translation>Cereţi plăţi (generează coduri QR şi zcoin: URIs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -741,7 +741,7 @@
         <translation>&amp;Unitatea de măsură pentru afişarea sumelor:</translation>
     </message>
     <message>
-        <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
+        <source>Choose the default subdivision unit to show in the interface and when sending zcoins.</source>
         <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de zcoin.</translation>
     </message>
     <message>
@@ -782,7 +782,7 @@
     </message>
     <message>
         <source>The supplied proxy address is invalid.</source>
-        <translation>Adresa zcoin pe care aţi specificat-o nu este validă.</translation>
+        <translation>Adresa Zcoin pe care aţi specificat-o nu este validă.</translation>
     </message>
 </context>
 <context>
@@ -1403,7 +1403,7 @@
     </message>
     <message>
         <source>The Zcoin address to send the payment to</source>
-        <translation>Adresa zcoin către care se face plata</translation>
+        <translation>Adresa Zcoin către care se face plata</translation>
     </message>
     <message>
         <source>Alt+A</source>
@@ -1431,7 +1431,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>un mesaj a fost ataşat la zcoin: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua zcoin.</translation>
+        <translation>un mesaj a fost ataşat la zcoin: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

@@ -46,7 +46,7 @@ ZerocoinPage::ZerocoinPage(const PlatformStyle *platformStyle, Mode mode, QWidge
             setWindowTitle(tr("Zerocoin"));
     }
     ui->labelExplanation->setText(
-            tr("Here you can use your Zcoin to mint a new, private Zerocoin or spend a previously-minted Zerocoin to a 3rd party Zcoin address or your own wallet"));
+            tr("Here you can use your zcoin to mint a new, private Zerocoin or spend a previously-minted Zerocoin to a 3rd party Zcoin address or your own wallet"));
     ui->zerocoinAmount->setVisible(true);
     ui->zerocoinMintButton->setVisible(true);
     ui->zerocoinSpendButton->setVisible(true);

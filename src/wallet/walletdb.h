@@ -274,7 +274,9 @@ public:
     std::list<CHDMint> ListHDMints();
     bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
     bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
+    bool ErasePubcoin(const uint256& hashSerial);
     std::vector<std::pair<uint256, GroupElement>> ListSerialPubcoinPairs();
+    bool EraseMintPoolPair(const uint256& hashPubcoin);
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();

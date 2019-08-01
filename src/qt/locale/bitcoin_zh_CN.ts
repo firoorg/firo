@@ -1921,7 +1921,7 @@
         <translation>最小额 </translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
         <translation>交易量小时只支付最小交易费是可以的。但是请注意，当交易量大到超出网络可处理时您的交易可能永远无法确认。</translation>
     </message>
     <message>
@@ -2105,7 +2105,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>zcoin:URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过零币网络传输。</translation>
+        <translation>zcoin: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过零币网络传输。</translation>
     </message>
     <message>
         <source>Pay To:</source>

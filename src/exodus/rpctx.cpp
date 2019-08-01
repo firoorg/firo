@@ -44,7 +44,7 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
             "2. rawtransaction       (string, required) the hex-encoded raw transaction\n"
             "3. referenceaddress     (string, optional) a reference address (none by default)\n"
             "4. redeemaddress        (string, optional) an address that can spent the transaction dust (sender by default)\n"
-            "5. referenceamount      (string, optional) a bitcoin amount that is sent to the receiver (minimal by default)\n"
+            "5. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -89,7 +89,7 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
             "3. propertyid           (number, required) the identifier of the tokens to send\n"
             "4. amount               (string, required) the amount to send\n"
             "5. redeemaddress        (string, optional) an address that can spend the transaction dust (sender by default)\n"
-            "6. referenceamount      (string, optional) a bitcoin amount that is sent to the receiver (minimal by default)\n"
+            "6. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -146,7 +146,7 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
             "2. toaddress            (string, required) the address of the receiver\n"
             "3. ecosystem            (number, required) the ecosystem of the tokens to send (1 for main ecosystem, 2 for test ecosystem)\n"
             "4. redeemaddress        (string, optional) an address that can spend the transaction dust (sender by default)\n"
-            "5. referenceamount      (string, optional) a bitcoin amount that is sent to the receiver (minimal by default)\n"
+            "5. referenceamount      (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -200,7 +200,7 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
             "1. fromaddress          (string, required) the address to send from\n"
             "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for EXODUS or 2 for TEXODUS)\n"
             "3. amountforsale        (string, required) the amount of tokens to list for sale\n"
-            "4. amountdesired        (string, required) the amount of bitcoins desired\n"
+            "4. amountdesired        (string, required) the amount of zcoins desired\n"
             "5. paymentwindow        (number, required) a time limit in blocks a buyer has to pay following a successful accepting order\n"
             "6. minacceptfee         (string, required) a minimum mining fee a buyer has to pay to accept the offer\n"
             "7. action               (number, required) the action to take (1 for new offers, 2 to update\", 3 to cancel)\n"
@@ -386,8 +386,8 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
-            + HelpExampleRpc("exodus_sendissuancecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\", 2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
+            + HelpExampleCli("exodus_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
+            + HelpExampleRpc("exodus_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
         );
 
     // obtain parameters & info
@@ -455,8 +455,8 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancefixed", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 2 1 0 \"Companies\" \"Bitcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
-            + HelpExampleRpc("exodus_sendissuancefixed", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\", 2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
+            + HelpExampleCli("exodus_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
+            + HelpExampleRpc("exodus_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
         );
 
     // obtain parameters & info
@@ -517,8 +517,8 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancemanaged", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\" 2 1 0 \"Companies\" \"Bitcoin Mining\" \"Quantum Miner\" \"\" \"\"")
-            + HelpExampleRpc("exodus_sendissuancemanaged", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\", 2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\"")
+            + HelpExampleCli("exodus_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
+            + HelpExampleRpc("exodus_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
         );
 
     // obtain parameters & info
