@@ -88,7 +88,7 @@ void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, C
     hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
     CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), seedId.GetHex(), hashPubcoin.GetHex(), nCount);
+    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
 
 }
 
