@@ -124,7 +124,10 @@ std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
 bool ParseMintKey(
     const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint16_t& idx)
 {
-    if (key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::Mint)) {
+    if (key.size() == 0) {
+        throw std::runtime_error("invalid key size");
+    }
+    if (key.data()[0] == static_cast<char>(KeyType::Mint)) {
 
         auto it = key.data() + sizeof(KeyType);
         std::memcpy(&propertyId, it, sizeof(propertyId));
@@ -159,6 +162,9 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize)
     : groupSize(groupSize)
 {
+    if (this->groupSize > MAX_GROUP_SIZE) {
+        throw std::invalid_argument("group size exceed limit");
+    }
     leveldb::Status status = Open(path, fWipe);
     PrintToLog("Loading mint meta-info database: %s\n", status.ToString());
 }
@@ -302,14 +308,14 @@ size_t CMPMintList::GetAnonimityGroup(
         }
 
         if (mintIdx != i) {
-            break;
+            throw std::runtime_error("GetAnonimityGroup() : coin index is out of order");
         }
 
         exodus::SigmaPublicKey pub;
         std::tie(pub, std::ignore) = ParseMint(it->value().ToString());
 
         if (!pub.GetCommitment().isMember()) {
-            break;
+            throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
         }
         insertF(pub);
     }
@@ -381,6 +387,9 @@ uint64_t CMPMintList::GetNextSequence()
     SafeSeekToPreviousKey(it, GetSlice(key));
 
     if (it->Valid() && it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence)) {
+        if (it->key().size() != SEQUENCE_KEY_SIZE) {
+            throw std::runtime_error("key size is invalid");
+        }
         auto lastKey = it->key();
         std::memcpy(&nextSequence, lastKey.data() + sizeof(KeyType), sizeof(nextSequence));
         exodus::swapByteOrder(nextSequence);

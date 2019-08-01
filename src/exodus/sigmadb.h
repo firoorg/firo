@@ -13,18 +13,16 @@
 #include <string>
 #include <vector>
 
-#define MAX_COINS_PER_GROUP 16384 /* Limit of sigma anonimity group which is 2 ^ 14 */
-
 template<typename T, typename = void>
 struct is_iterator
 {
-   static constexpr bool value = false;
+    static constexpr bool value = false;
 };
 
 template<typename T>
 struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterator_traits<T>::iterator_category, void>::value>::type>
 {
-   static constexpr bool value = true;
+    static constexpr bool value = true;
 };
 
 /** LevelDB based storage for sigma mints, with
@@ -32,7 +30,7 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
 class CMPMintList : public CDBBase
 {
 public:
-    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = MAX_COINS_PER_GROUP);
+    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = MAX_GROUP_SIZE);
     ~CMPMintList();
 
     std::pair<uint32_t, uint16_t> RecordMint(uint32_t propertyId, uint8_t denomination, const exodus::SigmaPublicKey& pubKey, int32_t height);
@@ -58,6 +56,7 @@ private:
 
 public:
     uint16_t const groupSize;
+    static uint16_t const MAX_GROUP_SIZE = 16384; /* Limit of sigma anonimity group which is 2 ^ 14 */
 
     uint32_t GetLastGroupId(uint32_t propertyId, uint8_t denomination);
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);

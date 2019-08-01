@@ -30,7 +30,6 @@ struct DBTestSetup : TestingSetup
         uint32_t propertyId, uint32_t denomination, uint32_t groupId, size_t count)
     {
         std::vector<exodus::SigmaPublicKey> pubs;
-        // pubs.resize(count);
         p_mintlistdb_test->GetAnonimityGroup(
             propertyId, denomination, groupId, count, std::back_inserter(pubs));
         return pubs;
@@ -190,16 +189,16 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
         p_mintlistdb_test->RecordMint(1, 1, pubs[0], 10);
     }
 
-    auto denom2Pubs = GetPubcoins(10);
-    for (auto const &pub : denom2Pubs) {
+    auto group1Pubs = GetPubcoins(10);
+    for (auto const &pub : group1Pubs) {
         p_mintlistdb_test->RecordMint(1, 1, pub, 10);
     }
 
-    BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 1, 1, 11));
+    BOOST_CHECK(group1Pubs == GetAnonimityGroup(1, 1, 1, 11));
     BOOST_CHECK(pubs == GetAnonimityGroup(1, 1, 0, 10));
-    BOOST_CHECK(denom2Pubs == GetAnonimityGroup(1, 1, 1, 10));
+    BOOST_CHECK(group1Pubs == GetAnonimityGroup(1, 1, 1, 10));
     BOOST_CHECK(GetFirstN(pubs, 5) == GetAnonimityGroup(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 5) == GetAnonimityGroup(1, 1, 1, 5));
+    BOOST_CHECK(GetFirstN(group1Pubs, 5) == GetAnonimityGroup(1, 1, 1, 5));
 }
 
 BOOST_AUTO_TEST_CASE(delete_an_empty_set_of_coins)
