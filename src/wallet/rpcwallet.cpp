@@ -2665,18 +2665,41 @@ UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
-    uint256 hashSerial;
+    std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+
+    // <hashPubcoin, hashSerial>
+    std::pair<uint256,uint256> nIndexes;
+
+    uint256 oldHashSerial;
+    uint256 oldHashPubcoin;
+
+    bool reindexRequired = false;
 
     for (auto& mintPoolPair : listMintPool){
         LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
             mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
+
+        oldHashPubcoin = mintPoolPair.first;
+        bool hasSerial = zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
+
         MintPoolEntry entry = mintPoolPair.second;
-        zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry), hashSerial);
-        walletdb.EraseMintPoolPair(mintPoolPair.first);
-        walletdb.ErasePubcoin(hashSerial);
+        nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
+
+        if(nIndexes.first != oldHashPubcoin){
+            walletdb.EraseMintPoolPair(oldHashPubcoin);
+            reindexRequired = true;    
+        }
+
+        if(!hasSerial || nIndexes.second != oldHashSerial){
+            walletdb.ErasePubcoin(oldHashSerial);
+            reindexRequired = true;
+        }
     }
 
-    return "Please shutdown zcoin and restart with -reindex flag.";
+    if(reindexRequired)
+        return "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.";
+
+    return "No issues with mintpool detected.";
 }
 
 //[zcoin]: zerocoin section
