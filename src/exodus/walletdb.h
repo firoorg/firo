@@ -5,7 +5,7 @@
 #include "secp256k1/include/GroupElement.h"
 #include "serialize.h"
 
-#include "../sigma.h"
+#include "sigma.h"
 
 #include <string>
 

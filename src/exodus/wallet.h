@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "../sigma.h"
+#include "sigma.h"
 #include "walletdb.h"
 
 namespace exodus {

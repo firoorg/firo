@@ -76,11 +76,11 @@ EXODUS_CPP = \
 
 if ENABLE_WALLET
 EXODUS_H += \
-  exodus/exoduswallet/wallet.h \
-  exodus/exoduswallet/walletdb.h
+  exodus/wallet.h \
+  exodus/walletdb.h
 
 EXODUS_CPP += \
-  exodus/exoduswallet/wallet.cpp
+  exodus/wallet.cpp
 endif
 
 libbitcoin_server_a_SOURCES += \
