@@ -72,7 +72,13 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
             walletdb.WriteZerocoinEntry(zcEntry);
         }
     }
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1), stringError + " - Remint failed");
+    CWalletTx dupSerialTx;
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1, &dupSerialTx), stringError + " - Remint failed");
+    // Should fail for now
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Remint transaction accepted into mempool when shouldn't");
+    // Clear mempool serials and retry
+    zerocoinState->mempoolCoinSerials.clear();
+    pwalletMain->CommitTransaction(dupSerialTx);
     // Mempool should contain two remint transactions both having the same serial
     BOOST_CHECK(mempool.size() == 2);
 
@@ -87,6 +93,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
     // clear the mempool
     mempool.clear();
+    zerocoinState->mempoolCoinSerials.clear();
 
     // Try to change destination sigma mint for the remint transaction. Should fail because metadata signature is wrong
     CWalletTx txCopy = remintOnWrongForkTx;
@@ -122,6 +129,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     }
     // Mint and remint txs should be in the mempool now, clear them
     mempool.clear();
+    zerocoinState->mempoolCoinSerials.clear();
 
     for (int i=0; i<6; i++) {
         denomination = denominations[i];
