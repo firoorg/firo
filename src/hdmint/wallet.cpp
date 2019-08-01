@@ -163,9 +163,8 @@ bool CHDMintWallet::LoadMintPoolFromDB()
 bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial)
 {
     bool fFound = false;
-    for(auto serialPubcoinPair : serialPubcoinPairs){
-        GroupElement pubcoin = serialPubcoinPair.second;
-        if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
+    for(const auto& serialPubcoinPair : serialPubcoinPairs){
+        if(hashPubcoin == primitives::GetPubCoinValueHash(serialPubcoinPair.second)){
             hashSerial = serialPubcoinPair.first;
             fFound = true;
             break;
