@@ -1820,6 +1820,7 @@ bool AcceptToMemoryPoolWorker(
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
         if (zwalletMain) {
+            LogPrintf("Updating spend state from Mempool..");
             zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
@@ -1835,6 +1836,7 @@ bool AcceptToMemoryPoolWorker(
             }
         }
         if (zwalletMain) {
+            LogPrintf("Updating mint state from Mempool..");
             zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
         }
     }
@@ -3587,11 +3589,14 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
     if (zwalletMain) {
+        LogPrintf("Checking if block contains wallet mints..\n");
         if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
             zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
         }
 
         if (pblock->sigmaTxInfo->mints.size() > 0) {
+            LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
             zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
         }
     }

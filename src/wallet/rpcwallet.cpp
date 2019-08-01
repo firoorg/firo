@@ -2652,6 +2652,56 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     return result;
 }
 
+UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    if (!pwalletMain->IsHDSeedAvailable() || !zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Can only regenerate mintpool on a HD-enabled wallet.");
+    }
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
+    std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+
+    // <hashPubcoin, hashSerial>
+    std::pair<uint256,uint256> nIndexes;
+
+    uint256 oldHashSerial;
+    uint256 oldHashPubcoin;
+
+    bool reindexRequired = false;
+
+    for (auto& mintPoolPair : listMintPool){
+        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
+
+        oldHashPubcoin = mintPoolPair.first;
+        bool hasSerial = zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
+
+        MintPoolEntry entry = mintPoolPair.second;
+        nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
+
+        if(nIndexes.first != oldHashPubcoin){
+            walletdb.EraseMintPoolPair(oldHashPubcoin);
+            reindexRequired = true;    
+        }
+
+        if(!hasSerial || nIndexes.second != oldHashSerial){
+            walletdb.ErasePubcoin(oldHashSerial);
+            reindexRequired = true;
+        }
+    }
+
+    if(reindexRequired)
+        return "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.";
+
+    return "No issues with mintpool detected.";
+}
+
 //[zcoin]: zerocoin section
 // zerocoin section
 
@@ -4033,6 +4083,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true  },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
+    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },
     { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
     { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
     { "wallet",             "mint",                     &mint,                     false },
