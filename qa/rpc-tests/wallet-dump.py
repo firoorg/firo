@@ -71,8 +71,12 @@ class WalletDumpTest(BitcoinTestFramework):
     def run_test (self):
         tmpdir = self.options.tmpdir
 
+        # 21 hdmint keys generated initially (0-20)
+        hdmint_key_count = 21
+
         # generate 20 addresses to compare against the dump
         test_addr_count = 20
+
         addrs = []
         for i in range(0,test_addr_count):
             addr = self.nodes[0].getnewaddress()
@@ -92,8 +96,7 @@ class WalletDumpTest(BitcoinTestFramework):
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
         assert_equal(found_addr, test_addr_count)  # all keys must be in the dump
 
-        #TODO ask how to calculate found_addr_chg
-        # assert_equal(found_addr_chg, 71) # 71 block were mined
+        assert_equal(found_addr_chg, 50 + hdmint_key_count) # 50 block were mined + hdmint keys
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
         #encrypt wallet, restart, unlock and dump
@@ -113,8 +116,9 @@ class WalletDumpTest(BitcoinTestFramework):
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
         assert_equal(found_addr, test_addr_count)
         
-        #TODO ask how to calculate found_addr_chg
-        # assert_equal(found_addr_chg, 90 + 1 + 71 + 20)  # old reserve keys are marked as change now
+        # - old reserve keys are marked as change now
+        # - As wallet encryption creates a new master seed, it adds another set of hdmint keys.
+        assert_equal(found_addr_chg, 90 + 1 + 50 + (hdmint_key_count * 2))
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
 if __name__ == '__main__':
