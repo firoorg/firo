@@ -35,6 +35,7 @@ bool RealNumberToDenomination(const double& value, CoinDenomination& denom_out);
 
 /// \brief Returns a list of all possible denominations in descending order of value.
 void GetAllDenoms(std::vector<sigma::CoinDenomination>& denominations_out);
+void GetAllDenoms(std::vector<int64_t>& denominations_out);
 
 class PublicCoin {
 public:
