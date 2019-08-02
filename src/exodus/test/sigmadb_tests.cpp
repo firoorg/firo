@@ -43,12 +43,16 @@ struct DBTestSetup : TestingSetup
     }
     ~DBTestSetup()
     {
-        p_mintlistdb_test->Clear();
+        if (p_mintlistdb_test) {
+            p_mintlistdb_test->Clear();
+            delete p_mintlistdb_test;
+            p_mintlistdb_test = nullptr;
+        }
     }
 
-    CMPMintList *GetCMPMintList(const std::string& fileName, uint16_t groupSize)
+    std::unique_ptr<CMPMintList> CreateCMPMintList(const std::string& fileName, uint16_t groupSize)
     {
-        return new CMPMintList(pathTemp / fileName, false, groupSize);
+        return std::unique_ptr<CMPMintList>(new CMPMintList(pathTemp / fileName, false, groupSize));
     }
 
     exodus::CMPMintList *p_mintlistdb_test;
@@ -379,21 +383,17 @@ BOOST_AUTO_TEST_CASE(group_size_default)
 {
     std::string testingDefaultFile = "MP_txlist_groupsize_test";
 
-    auto CMPMintListProxy = GetCMPMintList(testingDefaultFile, 0);
+    auto CMPMintListProxy = CreateCMPMintList(testingDefaultFile, 0);
     uint16_t defaultGroupSize = exodus::CMPMintList::MAX_GROUP_SIZE;
     BOOST_CHECK_EQUAL(CMPMintListProxy->GetGroupSize(), defaultGroupSize);
-
-    CMPMintListProxy->Clear();
 }
 
 BOOST_AUTO_TEST_CASE(group_size_customsize)
 {
     std::string testingDefaultFile = "MP_txlist_groupsize_test";
 
-    auto CMPMintListProxy = GetCMPMintList(testingDefaultFile, 120);
+    auto CMPMintListProxy = CreateCMPMintList(testingDefaultFile, 120);
     BOOST_CHECK_EQUAL(CMPMintListProxy->GetGroupSize(), 120);
-
-    CMPMintListProxy->Clear();
 }
 
 BOOST_AUTO_TEST_CASE(group_size_exceed_limit)
@@ -402,37 +402,32 @@ BOOST_AUTO_TEST_CASE(group_size_exceed_limit)
 
     uint16_t defaultGroupSize = exodus::CMPMintList::MAX_GROUP_SIZE;
 
-    CMPMintList* CMPMintListProxy = nullptr;
+    std::unique_ptr<CMPMintList> CMPMintListProxy;
     BOOST_CHECK_EXCEPTION(
-        CMPMintListProxy = GetCMPMintList(testingDefaultFile, defaultGroupSize + 1),
+        CMPMintListProxy = CreateCMPMintList(testingDefaultFile, defaultGroupSize + 1),
         std::invalid_argument,
         [] (const std::invalid_argument& e) {
             return std::string("group size exceed limit") == e.what();
         }
     );
-
-    if (CMPMintListProxy) {
-        CMPMintListProxy->Clear();
-    }
 }
 
 BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
 {
     std::string testingDefaultFile = "MP_txlist_groupsize_test";
 
-    CMPMintList* CMPMintListProxy = GetCMPMintList(testingDefaultFile, 10);
+    std::unique_ptr<CMPMintList> CMPMintListProxy;
+    CMPMintListProxy = CreateCMPMintList(testingDefaultFile, 10);
+    CMPMintListProxy.reset();
+
     BOOST_CHECK_EXCEPTION(
-        CMPMintListProxy->InitGroupSize(11),
+        CMPMintListProxy = CreateCMPMintList(testingDefaultFile, 11),
         std::invalid_argument,
         [] (const std::invalid_argument& e) {
             return std::string("group size input isn't equal to group size in database")
                 == e.what();
         }
     );
-
-    if (CMPMintListProxy) {
-        CMPMintListProxy->Clear();
-    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

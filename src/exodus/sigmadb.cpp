@@ -272,8 +272,6 @@ void CMPMintList::DeleteAll(int32_t startBlock)
         it->Prev();
     }
 
-    delete it;
-
     for (auto const & key : keyToDeletes) {
         auto status = pdb->Delete(writeoptions, key);
         if (!status.ok()) {
@@ -298,13 +296,33 @@ void CMPMintList::RecordGroupSize(uint16_t groupSize)
 {
     auto key = CreateGroupSizeKey();
 
-    exodus::swapByteOrder(groupSize);
     auto status = pdb->Put(writeoptions, GetSlice(key),
         leveldb::Slice(reinterpret_cast<char*>(&groupSize), sizeof(groupSize)));
 
     if (!status.ok()) {
-        LogPrintf("%s: Store sigma mint group size fail\n", __func__);
+        throw std::runtime_error("store sigma mint group size fail");
     }
+}
+
+uint16_t CMPMintList::GetGroupSize()
+{
+    auto key = CreateGroupSizeKey();
+
+    std::string result;
+    auto status = pdb->Get(readoptions, GetSlice(key), &result);
+
+    if (status.ok()) {
+        uint16_t groupSize(0);
+
+        if (result.size() == sizeof(groupSize)) {
+            std::copy_n(result.data(), result.size(), reinterpret_cast<char*>(&groupSize));
+            return groupSize;
+        }
+
+        throw std::runtime_error("size of group size value is invalid");
+    }
+
+    return 0;
 }
 
 uint16_t CMPMintList::InitGroupSize(uint16_t groupSize)
@@ -335,28 +353,6 @@ uint16_t CMPMintList::InitGroupSize(uint16_t groupSize)
 
     RecordGroupSize(groupSize);
     return groupSize;
-}
-
-uint16_t CMPMintList::GetGroupSize()
-{
-    auto it = NewIterator();
-    auto key = CreateGroupSizeKey();
-
-    it->Seek(GetSlice(key));
-
-    if (it->Valid() && it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::GroupSize)) {
-        if (it->key().size() != GROUPSIZE_KEY_SIZE) {
-            throw std::runtime_error("invalid key size");
-        }
-
-        uint16_t groupSize;
-        std::copy_n(it->value().data(), sizeof(groupSize), reinterpret_cast<char*>(&groupSize));
-        exodus::swapByteOrder(groupSize);
-        return groupSize;
-    }
-
-    delete it;
-    return 0;
 }
 
 size_t CMPMintList::GetAnonimityGroup(
@@ -394,7 +390,6 @@ size_t CMPMintList::GetAnonimityGroup(
         insertF(pub);
     }
 
-    delete it;
     return i;
 }
 
@@ -406,7 +401,7 @@ uint32_t CMPMintList::GetLastGroupId(
     uint32_t groupId = 0;
 
     auto it = NewIterator();
-    SafeSeekToPreviousKey(it, GetSlice(key));
+    SafeSeekToPreviousKey(it.get(), GetSlice(key));
 
     if (it->Valid()) {
         auto key = it->key();
@@ -421,7 +416,6 @@ uint32_t CMPMintList::GetLastGroupId(
         }
     }
 
-    delete it;
     return groupId;
 }
 
@@ -432,7 +426,7 @@ size_t CMPMintList::GetMintCount(
     size_t count = 0;
 
     auto it = NewIterator();
-    SafeSeekToPreviousKey(it, GetSlice(key));
+    SafeSeekToPreviousKey(it.get(), GetSlice(key));
 
     if (it->Valid()) {
         auto key = it->key();
@@ -448,7 +442,6 @@ size_t CMPMintList::GetMintCount(
         }
     }
 
-    delete it;
     return count;
 }
 
@@ -458,7 +451,7 @@ uint64_t CMPMintList::GetNextSequence()
     auto it = NewIterator();
 
     uint64_t nextSequence = 0;
-    SafeSeekToPreviousKey(it, GetSlice(key));
+    SafeSeekToPreviousKey(it.get(), GetSlice(key));
 
     if (it->Valid() && it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence)) {
         if (it->key().size() != SEQUENCE_KEY_SIZE) {
@@ -470,7 +463,6 @@ uint64_t CMPMintList::GetNextSequence()
         nextSequence++;
     }
 
-    delete it;
     return nextSequence;
 }
 
@@ -491,6 +483,11 @@ std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
     }
 
     throw std::runtime_error("not found sigma mint");
+}
+
+std::unique_ptr<leveldb::Iterator> CMPMintList::NewIterator() const
+{
+    return std::unique_ptr<leveldb::Iterator>(CDBBase::NewIterator());
 }
 
 };

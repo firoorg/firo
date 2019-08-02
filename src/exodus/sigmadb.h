@@ -65,6 +65,8 @@ private:
     void RecordMintKey(const leveldb::Slice& mintKey);
     void RecordGroupSize(uint16_t groupSize);
 
+    std::unique_ptr<leveldb::Iterator> NewIterator() const;
+
 protected:
     uint16_t InitGroupSize(uint16_t groupSize);
     uint16_t GetGroupSize();
