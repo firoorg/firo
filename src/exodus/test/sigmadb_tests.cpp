@@ -13,18 +13,45 @@
 
 #define TEST_MAX_COINS_PER_GROUP 30
 
+#define GROUPSIZE_KEY_SIZE 1
+
+// proxy
+class CMPMintList : public exodus::CMPMintList
+{
+public:
+    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = 0)
+        : exodus::CMPMintList(path, fWipe, groupSize)
+    {
+    }
+
+    uint16_t GetGroupSize()
+    {
+        return exodus::CMPMintList::GetGroupSize();
+    }
+
+    uint16_t InitGroupSize(uint16_t groupSize)
+    {
+        return exodus::CMPMintList::InitGroupSize(groupSize);
+    }
+};
+
 struct DBTestSetup : TestingSetup
 {
     DBTestSetup() : TestingSetup(CBaseChainParams::REGTEST)
     {
-        p_mintlistdb_test = new CMPMintList(pathTemp / "MP_txlist_test", false, TEST_MAX_COINS_PER_GROUP);
+        p_mintlistdb_test = new exodus::CMPMintList(pathTemp / "MP_txlist_test", false, TEST_MAX_COINS_PER_GROUP);
     }
     ~DBTestSetup()
     {
         p_mintlistdb_test->Clear();
     }
 
-    CMPMintList *p_mintlistdb_test;
+    CMPMintList *GetCMPMintList(const std::string& fileName, uint16_t groupSize)
+    {
+        return new CMPMintList(pathTemp / fileName, false, groupSize);
+    }
+
+    exodus::CMPMintList *p_mintlistdb_test;
 
     std::vector<exodus::SigmaPublicKey> GetAnonimityGroup(
         uint32_t propertyId, uint32_t denomination, uint32_t groupId, size_t count)
@@ -346,6 +373,67 @@ BOOST_AUTO_TEST_CASE(get_anonimity_group_by_iterator)
     anonimityGroupList.resize(coinAmount);
     p_mintlistdb_test->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroupList.begin());
     BOOST_CHECK(pubs == std::vector<exodus::SigmaPublicKey>(anonimityGroupList.begin(), anonimityGroupList.end()));
+}
+
+BOOST_AUTO_TEST_CASE(group_size_default)
+{
+    std::string testingDefaultFile = "MP_txlist_groupsize_test";
+
+    auto mockCMPMintList = GetCMPMintList(testingDefaultFile, 0);
+    uint16_t defaultGroupSize = exodus::CMPMintList::MAX_GROUP_SIZE;
+    BOOST_CHECK_EQUAL(mockCMPMintList->GetGroupSize(), defaultGroupSize);
+
+    mockCMPMintList->Clear();
+}
+
+BOOST_AUTO_TEST_CASE(group_size_customsize)
+{
+    std::string testingDefaultFile = "MP_txlist_groupsize_test";
+
+    auto mockCMPMintList = GetCMPMintList(testingDefaultFile, 120);
+    BOOST_CHECK_EQUAL(mockCMPMintList->GetGroupSize(), 120);
+
+    mockCMPMintList->Clear();
+}
+
+BOOST_AUTO_TEST_CASE(group_size_exceed_limit)
+{
+    std::string testingDefaultFile = "MP_txlist_groupsize_test";
+
+    uint16_t defaultGroupSize = exodus::CMPMintList::MAX_GROUP_SIZE;
+
+
+    CMPMintList* mockCMPMintList = nullptr;
+    BOOST_CHECK_EXCEPTION(
+        mockCMPMintList = GetCMPMintList(testingDefaultFile, defaultGroupSize + 1),
+        std::invalid_argument,
+        [] (const std::invalid_argument& e) {
+            return std::string("group size exceed limit") == e.what();
+        }
+    );
+
+    if (mockCMPMintList) {
+        mockCMPMintList->Clear();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
+{
+    std::string testingDefaultFile = "MP_txlist_groupsize_test";
+
+    CMPMintList* mockCMPMintList = mockCMPMintList = GetCMPMintList(testingDefaultFile, 10);
+    BOOST_CHECK_EXCEPTION(
+        mockCMPMintList->InitGroupSize(11),
+        std::invalid_argument,
+        [] (const std::invalid_argument& e) {
+            return std::string("group size input isn't equal to group size in database")
+                == e.what();
+        }
+    );
+
+    if (mockCMPMintList) {
+        mockCMPMintList->Clear();
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

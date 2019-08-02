@@ -20,7 +20,8 @@
 enum class KeyType : uint8_t
 {
     Mint = 0,
-    Sequence = 1
+    Sequence = 1,
+    GroupSize = 2
 };
 
 template<typename ... T>
@@ -87,6 +88,14 @@ std::array<uint8_t, SEQUENCE_KEY_SIZE> CreateSequenceKey(
     return CreateKey(KeyType::Sequence, sequence);
 }
 
+// array size represent size of key
+// <1 byte of type>
+#define GROUPSIZE_KEY_SIZE sizeof(KeyType)
+std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
+{
+    return CreateKey(KeyType::GroupSize);
+}
+
 template<size_t S>
 leveldb::Slice GetSlice(const std::array<uint8_t, S>& v)
 {
@@ -124,10 +133,10 @@ std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
 bool ParseMintKey(
     const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, uint32_t& groupId, uint16_t& idx)
 {
-    if (key.size() == 0) {
-        throw std::runtime_error("invalid key size");
-    }
-    if (key.data()[0] == static_cast<char>(KeyType::Mint)) {
+    if (key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::Mint)) {
+        if (key.size() != MINT_KEY_SIZE) {
+           throw std::runtime_error("invalid key size");
+        }
 
         auto it = key.data() + sizeof(KeyType);
         std::memcpy(&propertyId, it, sizeof(propertyId));
@@ -154,19 +163,19 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
     }
 }
 
+namespace exodus {
+
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
 // Sequence of mint sorted following blockchain
 // 1<seq uint64>=key
 CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize)
-    : groupSize(groupSize)
 {
-    if (this->groupSize > MAX_GROUP_SIZE) {
-        throw std::invalid_argument("group size exceed limit");
-    }
     leveldb::Status status = Open(path, fWipe);
     PrintToLog("Loading mint meta-info database: %s\n", status.ToString());
+
+    this->groupSize = InitGroupSize(groupSize);
 }
 
 CMPMintList::~CMPMintList()
@@ -283,6 +292,71 @@ void CMPMintList::RecordMintKey(const leveldb::Slice& mintKey)
     if (!status.ok()) {
         LogPrintf("%s: Store last exodus mint sequence fail\n", __func__);
     }
+}
+
+void CMPMintList::RecordGroupSize(uint16_t groupSize)
+{
+    auto key = CreateGroupSizeKey();
+
+    exodus::swapByteOrder(groupSize);
+    auto status = pdb->Put(writeoptions, GetSlice(key),
+        leveldb::Slice(reinterpret_cast<char*>(&groupSize), sizeof(groupSize)));
+
+    if (!status.ok()) {
+        LogPrintf("%s: Store sigma mint group size fail\n", __func__);
+    }
+}
+
+uint16_t CMPMintList::InitGroupSize(uint16_t groupSize)
+{
+    if (groupSize > MAX_GROUP_SIZE) {
+        throw std::invalid_argument("group size exceed limit");
+    }
+
+    uint16_t currentGroupSize = GetGroupSize();
+
+    if (!groupSize) {
+        if (currentGroupSize) {
+            // if groupSize == 0 and have groupSize in db
+            // mean user need to use current groupSize
+            return currentGroupSize;
+        } else {
+            // groupSize in db isn't set
+            groupSize = MAX_GROUP_SIZE;
+        }
+    } else if (currentGroupSize) {
+        if (groupSize != currentGroupSize) {
+            // have groupSize in db but isn't equal to input
+            throw std::invalid_argument("group size input isn't equal to group size in database");
+        }
+
+        return currentGroupSize;
+    }
+
+    RecordGroupSize(groupSize);
+    return groupSize;
+}
+
+uint16_t CMPMintList::GetGroupSize()
+{
+    auto it = NewIterator();
+    auto key = CreateGroupSizeKey();
+
+    it->Seek(GetSlice(key));
+
+    if (it->Valid() && it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::GroupSize)) {
+        if (it->key().size() != GROUPSIZE_KEY_SIZE) {
+            throw std::runtime_error("invalid key size");
+        }
+
+        uint16_t groupSize;
+        std::copy_n(it->value().data(), sizeof(groupSize), reinterpret_cast<char*>(&groupSize));
+        exodus::swapByteOrder(groupSize);
+        return groupSize;
+    }
+
+    delete it;
+    return 0;
 }
 
 size_t CMPMintList::GetAnonimityGroup(
@@ -418,3 +492,5 @@ std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
 
     throw std::runtime_error("not found sigma mint");
 }
+
+};

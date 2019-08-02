@@ -25,13 +25,15 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
     static constexpr bool value = true;
 };
 
+namespace exodus {
+
 /** LevelDB based storage for sigma mints, with
 */
 class CMPMintList : public CDBBase
 {
 public:
-    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = MAX_GROUP_SIZE);
-    ~CMPMintList();
+    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = 0);
+    virtual ~CMPMintList();
 
     std::pair<uint32_t, uint16_t> RecordMint(uint32_t propertyId, uint8_t denomination, const exodus::SigmaPublicKey& pubKey, int32_t height);
 
@@ -51,17 +53,23 @@ public:
 
     void DeleteAll(int32_t startBlock);
 
-private:
-    void RecordMintKey(const leveldb::Slice& mintKey);
-
-public:
-    uint16_t const groupSize;
-    static uint16_t const MAX_GROUP_SIZE = 16384; /* Limit of sigma anonimity group which is 2 ^ 14 */
-
     uint32_t GetLastGroupId(uint32_t propertyId, uint8_t denomination);
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
     std::pair<exodus::SigmaPublicKey, int32_t> GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
+
+    uint16_t groupSize;
+    static uint16_t const MAX_GROUP_SIZE = 16384; /* Limit of sigma anonimity group which is 2 ^ 14 */
+
+private:
+    void RecordMintKey(const leveldb::Slice& mintKey);
+    void RecordGroupSize(uint16_t groupSize);
+
+protected:
+    uint16_t InitGroupSize(uint16_t groupSize);
+    uint16_t GetGroupSize();
+};
+
 };
 
 #endif // ZCOIN_EXODUS_SIGMADB_H
