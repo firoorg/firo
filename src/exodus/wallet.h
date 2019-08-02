@@ -5,6 +5,7 @@
 
 #include "sigma.h"
 #include "walletdb.h"
+#include <wallet/wallet.h>
 
 extern CWallet* pwalletMain;
 
