@@ -77,10 +77,7 @@ class WalletHDTest(BitcoinTestFramework):
         for _ in range(num_hd_adds):
             hd_add_2 = self.nodes[1].getnewaddress()
             hd_info_2 = self.nodes[1].validateaddress(hd_add_2)
-
-            #TODO ask if it now play role in the code or it is bug?
-            # assert_equal(hd_info_2["hdkeypath"], "m/44'/1'/0'/0/"+str(i+1))
-            
+            assert_equal(hd_info_2["hdkeypath"], "m/44'/1'/0'/0/"+str(_+1))
             assert_equal(hd_info_2["hdmasterkeyid"], masterkeyid)
         assert_equal(hd_add, hd_add_2)
 
