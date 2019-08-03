@@ -7005,6 +7005,8 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             CT_NEW);
     }
 
+    // Update nCountNextUse in HDMint wallet database
+    zwalletMain->UpdateCountDB();
 
     return true;
 }

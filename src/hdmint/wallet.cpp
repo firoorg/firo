@@ -453,10 +453,12 @@ void CHDMintWallet::SetCount(int32_t nCount)
 void CHDMintWallet::UpdateCountLocal()
 {
     nCountNextUse++;
+    LogPrintf("CHDMintWallet : Updating count local to %s\n",nCountNextUse);
 }
 
 void CHDMintWallet::UpdateCountDB()
 {
+    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);	
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteZerocoinCount(nCountNextUse);
     GenerateMintPool();
