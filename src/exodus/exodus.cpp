@@ -20,6 +20,7 @@
 #include "exodus/persistence.h"
 #include "exodus/rules.h"
 #include "exodus/script.h"
+#include "exodus/sigmadb.h"
 #include "exodus/sp.h"
 #include "exodus/tally.h"
 #include "exodus/tx.h"
@@ -133,6 +134,7 @@ static int reorgRecoveryMode = 0;
 static int reorgRecoveryMaxHeight = 0;
 
 CMPTxList *exodus::p_txlistdb;
+CMPMintList *exodus::p_mintlistdb;
 CMPTradeList *exodus::t_tradelistdb;
 CMPSTOList *exodus::s_stolistdb;
 CExodusTransactionDB *exodus::p_ExodusTXDB;
@@ -2141,6 +2143,7 @@ void clear_all_state()
     // LevelDB based storage
     _my_sps->Clear();
     p_txlistdb->Clear();
+    p_mintlistdb->Clear();
     s_stolistdb->Clear();
     t_tradelistdb->Clear();
     p_ExodusTXDB->Clear();
@@ -2212,6 +2215,7 @@ int exodus_init()
     t_tradelistdb = new CMPTradeList(GetDataDir() / "MP_tradelist", fReindex);
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
+    p_mintlistdb = new CMPMintList(GetDataDir() / "MP_mintlist", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ExodusTXDB = new CExodusTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
     p_feecache = new CExodusFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
@@ -2305,6 +2309,10 @@ int exodus_shutdown()
 {
     LOCK(cs_tally);
 
+    if (p_mintlistdb) {
+        delete p_mintlistdb;
+        p_mintlistdb = NULL;
+    }
     if (p_txlistdb) {
         delete p_txlistdb;
         p_txlistdb = NULL;

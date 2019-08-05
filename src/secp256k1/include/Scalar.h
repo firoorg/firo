@@ -82,7 +82,7 @@ public:
     size_t memoryRequired() const;
 
     unsigned char* serialize(unsigned char* buffer) const;
-    unsigned char* deserialize(unsigned char* buffer);
+    unsigned const char* deserialize(unsigned const char* buffer);
 
     std::string GetHex() const;
     void SetHex(const std::string& str);

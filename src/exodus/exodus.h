@@ -10,6 +10,7 @@ class CTransaction;
 #include "exodus/log.h"
 #include "exodus/persistence.h"
 #include "exodus/tally.h"
+#include "exodus/sigmadb.h"
 
 #include "sync.h"
 #include "uint256.h"
@@ -328,6 +329,7 @@ namespace exodus
 {
 extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;
+extern CMPMintList *p_mintlistdb;
 extern CMPTradeList *t_tradelistdb;
 extern CMPSTOList *s_stolistdb;
 extern CExodusTransactionDB *p_ExodusTXDB;

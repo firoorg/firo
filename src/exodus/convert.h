@@ -2,6 +2,7 @@
 #define EXODUS_CONVERT_H
 
 #include <stdint.h>
+#include <stdexcept>
 
 namespace exodus
 {
@@ -21,6 +22,24 @@ uint64_t rounduint64(double);
 void swapByteOrder16(uint16_t&);
 void swapByteOrder32(uint32_t&);
 void swapByteOrder64(uint64_t&);
+
+template<typename T>
+void swapByteOrder(T& t)
+{
+    switch (sizeof(t)) {
+    case sizeof(uint16_t):
+        swapByteOrder16(reinterpret_cast<uint16_t &>(t));
+        break;
+    case sizeof(uint32_t):
+        swapByteOrder32(reinterpret_cast<uint32_t &>(t));
+        break;
+    case sizeof(uint64_t):
+        swapByteOrder64(reinterpret_cast<uint64_t &>(t));
+        break;
+    default:
+        throw std::invalid_argument("swapByteOrder(): invalid size");
+  }
+}
 
 }
 

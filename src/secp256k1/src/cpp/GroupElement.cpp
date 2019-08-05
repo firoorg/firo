@@ -511,7 +511,7 @@ unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     return buffer + memoryRequired();
 }
 
-unsigned char* GroupElement::deserialize(unsigned char* buffer) {
+const unsigned char* GroupElement::deserialize(const unsigned char* buffer) {
     secp256k1_fe x;
     secp256k1_fe_set_b32(&x, buffer);
     unsigned char oddness = buffer[32];

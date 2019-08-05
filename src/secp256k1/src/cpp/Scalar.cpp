@@ -271,7 +271,7 @@ unsigned char* Scalar::serialize(unsigned char* buffer) const {
     return buffer + 32;
 }
 
-unsigned char* Scalar::deserialize(unsigned char* buffer) {
+unsigned const char* Scalar::deserialize(unsigned const char* buffer) {
     int overflow = 0;
 
     secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
