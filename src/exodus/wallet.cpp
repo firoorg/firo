@@ -1,36 +1,33 @@
 #include "wallet.h"
-#include "wallet/wallet.h"
-#include "wallet/walletdb.h"
 #include "walletdb.h"
+
+#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
 
 namespace exodus {
 
-SigmaPublicKey Wallet::CreateSigmaMint(
+SigmaMintId Wallet::CreateSigmaMint(
     uint32_t propertyId,
     uint8_t denomination)
 {
     SigmaPrivateKey key;
 
-    do {
-        key.Generate();
-    } while (!key.IsValid());
+    key.Generate();
 
     SigmaEntry e;
-    e.SetNull();
     e.propertyId = propertyId;
     e.denomination = denomination;
-    e.randomness = key.GetRandomness();
-    e.serialNumber = key.GetSerial();
+    e.privateKey = key;
 
     {
         LOCK(pwalletMain->cs_wallet);
         CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
     }
 
-    return e.getPublicKey();
+    return e.GetId();
 }
 
-bool Wallet::UpdateSigmaMint(
+void Wallet::UpdateSigmaMint(
     const SigmaMintId& id,
     uint32_t groupId,
     uint16_t index,
@@ -44,10 +41,12 @@ bool Wallet::UpdateSigmaMint(
     e.block = block;
     e.isUsed = false;
 
-    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
+    if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
+        throw std::runtime_error("update mint on db fail");
+    }
 }
 
-bool Wallet::ClearSigmaMintChainState(
+void Wallet::ClearSigmaMintChainState(
     const SigmaMintId& id)
 {
     LOCK(pwalletMain->cs_wallet);
@@ -58,17 +57,21 @@ bool Wallet::ClearSigmaMintChainState(
     e.block = -1;
     e.isUsed = false;
 
-    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
+    if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
+        throw std::runtime_error("clear mint on db fail");
+    }
 }
 
-bool Wallet::SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed)
+void Wallet::SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed)
 {
     LOCK(pwalletMain->cs_wallet);
 
     auto e = GetSigmaEntry(id);
     e.isUsed = isUsed;
 
-    return CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
+    if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
+        throw std::runtime_error("set used flag for mint on db fail");
+    }
 }
 
 SigmaEntry Wallet::GetSigmaEntry(const SigmaMintId& id)
@@ -84,6 +87,7 @@ SigmaEntry Wallet::GetSigmaEntry(const SigmaMintId& id)
 
 bool Wallet::HasSigmaEntry(const SigmaMintId& id)
 {
+    LOCK(pwalletMain->cs_wallet);
     return CWalletDB(walletFile).HasExodusMint(id);
 }
 

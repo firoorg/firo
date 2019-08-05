@@ -1,9 +1,8 @@
-#ifndef EXODUS_WALLET_DB_H
-#define EXODUS_WALLET_DB_H
+#ifndef ZCOIN_EXODUS_WALLETDB_H
+#define ZCOIN_EXODUS_WALLETDB_H
 
-#include "wallet/walletdb.h"
-#include "secp256k1/include/GroupElement.h"
-#include "serialize.h"
+#include "../serialize.h"
+#include "../wallet/walletdb.h"
 
 #include "sigma.h"
 
@@ -15,17 +14,14 @@ class SigmaMintId
 {
 public:
     SigmaMintId()
-        : commitment(GroupElement()), propertyId(0), denomination(0)
-    {
-    }
-    SigmaMintId(const secp_primitives::GroupElement& commitment, uint32_t propertyId, uint8_t denomination)
-        : commitment(commitment), propertyId(propertyId), denomination(denomination)
+        : propertyId(0), denomination(0)
     {
     }
 
-    secp_primitives::GroupElement commitment;
-    uint32_t propertyId;
-    uint8_t denomination;
+    SigmaMintId(const SigmaPublicKey& publicKey, uint32_t propertyId, uint8_t denomination)
+        : propertyId(propertyId), denomination(denomination), publicKey(publicKey)
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
 
@@ -34,15 +30,18 @@ public:
     {
         READWRITE(propertyId);
         READWRITE(denomination);
-        READWRITE(commitment);
+        READWRITE(publicKey);
     }
+
+    uint32_t propertyId;
+    uint8_t denomination;
+    SigmaPublicKey publicKey;
 };
 
 class SigmaEntry
 {
 public:
-    secp_primitives::Scalar randomness;
-    secp_primitives::Scalar serialNumber;
+    SigmaPrivateKey privateKey;
 
     bool isUsed;
 
@@ -54,55 +53,18 @@ public:
     int32_t block;
 
     SigmaEntry()
+        : isUsed(false), block(-1)
     {
-        SetNull();
-    }
-
-    SigmaPrivateKey getPrivateKey() {
-        SigmaPrivateKey key;
-        key.SetSerial(serialNumber);
-        key.SetRandomness(randomness);
-        return key;
-    }
-
-    SigmaPublicKey getPublicKey() {
-        return SigmaPublicKey(getPrivateKey());
     }
 
     SigmaMintId GetId() {
-        return SigmaMintId(getPublicKey().GetCommitment(), propertyId, denomination);
+        return SigmaMintId(SigmaPublicKey(privateKey), propertyId, denomination);
     }
 
-    bool operator==(const SigmaEntry& other) const
-    {
-        return randomness == other.randomness
-            && serialNumber == other.serialNumber
-            && isUsed == other.isUsed
-            && propertyId == other.propertyId
-            && denomination == other.denomination
-            && groupId == other.groupId
-            && index == other.index
-            && block == other.block;
-    }
-
+    bool operator==(const SigmaEntry& other) const;
     bool operator!=(const SigmaEntry& other) const
     {
         return !(*this == other);
-    }
-
-    void SetNull()
-    {
-        randomness = secp_primitives::Scalar();
-        serialNumber = secp_primitives::Scalar();
-
-        isUsed = false;
-
-        propertyId = 0;
-        denomination = 0;
-
-        groupId = 0;
-        index = 0;
-        block = -1;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -110,8 +72,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(randomness);
-        READWRITE(serialNumber);
+        READWRITE(privateKey);
 
         READWRITE(isUsed);
 
@@ -126,4 +87,4 @@ public:
 
 };
 
-#endif // EXODUS_WALLET_DB_H
+#endif // ZCOIN_EXODUS_WALLETDB_H

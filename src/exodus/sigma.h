@@ -39,6 +39,15 @@ public:
     void Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness);
     void Generate();
 
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(serial);
+        READWRITE(randomness);
+    }
+
 private:
     const sigma::Params *params;
     secp_primitives::Scalar serial;
@@ -57,6 +66,16 @@ public:
 
     void SetCommitment(const secp_primitives::GroupElement& v);
     void Generate(const SigmaPrivateKey& pkey);
+
+    bool operator==(const SigmaPublicKey& another) const { return commitment == another.commitment; }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(commitment);
+    }
 
 private:
     secp_primitives::GroupElement commitment;

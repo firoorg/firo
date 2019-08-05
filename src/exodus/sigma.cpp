@@ -48,8 +48,10 @@ void SigmaPrivateKey::Set(const secp_primitives::Scalar& serial, const secp_prim
 
 void SigmaPrivateKey::Generate()
 {
-    serial.randomize();
-    randomness.randomize();
+    do {
+        serial.randomize();
+        randomness.randomize();
+    } while (!IsValid());
 }
 
 // SigmaPublicKey Implementation.

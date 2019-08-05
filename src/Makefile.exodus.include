@@ -80,7 +80,8 @@ EXODUS_H += \
   exodus/walletdb.h
 
 EXODUS_CPP += \
-  exodus/wallet.cpp
+  exodus/wallet.cpp \
+  exodus/walletdb.cpp
 endif
 
 libbitcoin_server_a_SOURCES += \
