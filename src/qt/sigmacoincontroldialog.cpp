@@ -531,6 +531,8 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
                     nBytesInputs += 148; // in all error cases, simply assume 148 here
             }
             else nBytesInputs += 148;
+        } else {
+            nBytesInputs += 1363; //1363 is the size of each vin containing sigma proof
         }
     }
 
@@ -549,8 +551,8 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
                 nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
             }
         } else {
-            // 1363 is the size of each vin containing sigma proof, 34 is the size of each normal vout,  10 is the size of empty transaction,
-            nBytes = vCoinControl.size() * 1363 + SigmaCoinControlDialog::payAmounts.size() * 34  + 10;
+            //34 is the size of each normal vout,  10 is the size of empty transaction,
+            nBytes = nBytesInputs + SigmaCoinControlDialog::payAmounts.size() * 34  + 10;
         }
 
         // Priority
