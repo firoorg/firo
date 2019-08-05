@@ -322,6 +322,9 @@ uint16_t CMPMintList::GetGroupSize()
         throw std::runtime_error("size of group size value is invalid");
     }
 
+    if (!status.IsNotFound()) {
+        throw std::runtime_error("fail to read group size from database");
+    }
     return 0;
 }
 
