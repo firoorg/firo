@@ -13,7 +13,7 @@
 #include "client-api/send.h"
 #include "client-api/protocol.h"
 #include <zerocoin.h>
-#include <zerocoin_v3.h>
+#include <sigma.h>
 #include <vector>
 
 #include "univalue.h"
