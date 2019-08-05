@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#define BOOST_TEST_MODULE Bitcoin Test Suite
+#define BOOST_TEST_MODULE Zcoin Test Suite
 
 #include "test_bitcoin.h"
 
@@ -32,7 +32,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -69,7 +69,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         RegisterAllCoreRPCCommands(tableRPC);
         RegisterAllCoreAPICommands(tableAPI);
         ClearDatadirCache();
-        pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
+        pathTemp = GetTempPath() / strprintf("test_zcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
         boost::filesystem::create_directories(pathTemp);
         mapArgs["-datadir"] = pathTemp.string();
         mempool.setSanityCheck(1.0);

@@ -1,5 +1,5 @@
-#ifndef _MAIN_ZEROCOIN_V3_H__
-#define _MAIN_ZEROCOIN_V3_H__
+#ifndef _MAIN_SIGMA_H__
+#define _MAIN_SIGMA_H__
 
 #include "amount.h"
 #include "chain.h"
@@ -248,4 +248,4 @@ private:
 
 } // end of namespace sigma.
 
-#endif // _MAIN_ZEROCOIN_V3_H__
+#endif // _MAIN_SIGMA_H__

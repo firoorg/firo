@@ -76,6 +76,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listunspent", 0 },
     { "listunspent", 1 },
     { "listunspent", 2 },
+    { "regeneratemintpool", 0 },
     { "listunspentmintzerocoins", 0 },
     { "listunspentmintzerocoins", 1 },
     { "listunspentmintzerocoins", 2 },

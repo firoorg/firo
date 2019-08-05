@@ -36,7 +36,7 @@ Build Zcoin Core
 ------------------------
 1.  Build Zcoin-core:
 
-    Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless Zcoin binaries as well as the GUI (if Qt is found).
     
     In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
     
@@ -75,7 +75,7 @@ You can monitor the download process by looking at the debug.log file:
 Other commands:
 -------
 
-    ./src/zcoind -daemon # Starts the zcoin daemon.
+    ./src/zcoind -daemon # Starts the Zcoin daemon.
     ./src/zcoin-cli --help # Outputs a list of command-line options.
     ./src/zcoin-cli help # Outputs a list of RPC commands when the daemon is running.
 

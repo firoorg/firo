@@ -9,7 +9,7 @@
 #include "pubkey.h"
 #include "txdb.h"
 #include "txmempool.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"

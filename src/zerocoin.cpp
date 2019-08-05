@@ -1,6 +1,6 @@
 #include "main.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "timedata.h"
 #include "chainparams.h"
 #include "util.h"

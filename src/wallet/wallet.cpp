@@ -17,7 +17,7 @@
 #include "keystore.h"
 #include "main.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
 #include "../sigma/coin.h"
@@ -2313,7 +2313,7 @@ bool CWallet::GetCoinsToSpend(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3597,7 +3597,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 
                 wtxNew.fFromMe = true;
                 wtxNew.changes.clear();
-
+                bool fFirst = true;
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
                     LogPrintf("nSubtractFeeFromAmount is 0\n");
@@ -3607,6 +3607,17 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 BOOST_FOREACH(const CRecipient &recipient, vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+
+                    if (recipient.fSubtractFeeFromAmount)
+                    {
+                        txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
+
+                        if (fFirst) // first receiver pays the remainder not divisible by output count
+                        {
+                            fFirst = false;
+                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
+                        }
+                    }
 
                     if (txout.IsDust(::minRelayTxFee)) {
                         if (recipient.fSubtractFeeFromAmount && nFeeRet > 0) {
@@ -3652,7 +3663,9 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     dPriority += (double) nCredit * age;
                 }
 
-                const CAmount nChange = nValueIn - nValueToSelect;
+                CAmount nChange = nValueIn - nValueToSelect;
+                if (nSubtractFeeFromAmount == 0)
+                    nChange -= nFeeRet;
                 if (nChange > 0) {
                     //over pay for denominated transactions
                     if (nCoinType == ONLY_DENOMINATED) {
@@ -5218,7 +5231,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5467,7 +5480,7 @@ bool CWallet::CreateSigmaSpendTransaction(
             } else {
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5744,7 +5757,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -6087,7 +6100,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
             }else{
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()) {
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -8048,8 +8061,6 @@ bool CWallet::InitLoadWallet() {
     if (pwalletMain->IsHDSeedAvailable()) {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
-
-
 
     RegisterValidationInterface(walletInstance);
 

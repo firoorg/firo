@@ -1,5 +1,5 @@
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
@@ -402,9 +402,9 @@ bool CheckSigmaTransaction(
     auto& consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
+    int realHeight = nHeight;
 
-    {
+    if (realHeight == INT_MAX) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
