@@ -53,11 +53,12 @@ public:
     int32_t block;
 
     SigmaEntry()
-        : isUsed(false), block(-1)
+        : isUsed(false), propertyId(0), denomination(0), groupId(0), index(0), block(-1)
     {
     }
 
-    SigmaMintId GetId() {
+    SigmaMintId GetId()
+    {
         return SigmaMintId(SigmaPublicKey(privateKey), propertyId, denomination);
     }
 

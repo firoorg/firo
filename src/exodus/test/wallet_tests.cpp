@@ -69,9 +69,7 @@ struct ExodusWalletTestingSetup : WalletTestingSetup
     exodus::SigmaEntry CreateAndGetEntry(uint32_t propertyId, uint8_t denomination)
     {
         auto id = wallet.CreateSigmaMint(propertyId, denomination);
-        return wallet.GetSigmaEntry(
-            exodus::SigmaMintId(id.publicKey, propertyId, denomination)
-        );
+        return wallet.GetSigmaEntry(id);
     }
 };
 
