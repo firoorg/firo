@@ -820,6 +820,44 @@ bool CMPTransaction::interpret_CreateDenomination()
     return true;
 }
 
+/** Tx 1026 */
+bool CMPTransaction::interpret_CreateSimple()
+{
+    constexpr size_t exodusMintSize = 35;
+
+    if (pkt_size < 9 + exodusMintSize) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    swapByteOrder32(property);
+
+    uint8_t mintAmount;
+    memcpy(&mintAmount, &pkt[8], 1);
+
+    if (pkt_size != 9 + exodusMintSize * mintAmount) {
+        return false;
+    }
+
+    mints.resize(mintAmount);
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&pkt[9]),
+        reinterpret_cast<char*>(&pkt[pkt_size]),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    for (auto &mint : mints) {
+        deserialized >> mint;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           mints: %d\n", mints.size());
+    }
+
+    return true;
+}
+
 /** Tx 65533 */
 bool CMPTransaction::interpret_Deactivation()
 {

@@ -95,6 +95,7 @@ private:
 
     // Sigma
     SigmaStatus sigmaStatus;
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -127,6 +128,7 @@ private:
     bool interpret_FreezeTokens();
     bool interpret_UnfreezeTokens();
     bool interpret_CreateDenomination();
+    bool interpret_CreateSimple();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -215,6 +217,9 @@ public:
     uint32_t getMinClientVersion() const { return min_client_version; }
     unsigned int getIndexInBlock() const { return tx_idx; }
     uint32_t getDistributionProperty() const { return distribution_property; }
+
+    /** Sigma */
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> getMints() const { return mints; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
