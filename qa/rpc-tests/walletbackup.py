@@ -35,7 +35,7 @@ and confirm again balances are correct.
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-from test_framework.test_helper import *
+from test_framework.test_helper import get_dumpwallet_otp 
 from random import randint
 import logging
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO, stream=sys.stdout)
@@ -127,27 +127,35 @@ class WalletBackupTest(BitcoinTestFramework):
         tmpdir = self.options.tmpdir
         self.nodes[0].backupwallet(tmpdir + "/node0/wallet.bak")
         
+        key = None
         try:
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump")
         except Exception as ex:
-            key = parse_tmp_dumpwallet_code_from_warning(ex.error['message'])
+            key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump", key)
-   
+        
+        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+
         self.nodes[1].backupwallet(tmpdir + "/node1/wallet.bak")
         
+        key = None
         try:
             self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump")
         except Exception as ex:
-            key = parse_tmp_dumpwallet_code_from_warning(ex.error['message'])
+            key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump", key)
+
+        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
 
         self.nodes[2].backupwallet(tmpdir + "/node2/wallet.bak")
         
+        key = None
         try:
             self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump")
         except Exception as ex:
-            key = parse_tmp_dumpwallet_code_from_warning(ex.error['message'])
+            key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump", key)
+        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
 
         logging.info("More transactions")
         for i in range(5):

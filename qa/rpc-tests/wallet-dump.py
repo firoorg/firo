@@ -5,7 +5,7 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (start_nodes, start_node, assert_equal, bitcoind_processes)
-from test_framework.test_helper import *
+from test_framework.test_helper import get_dumpwallet_otp 
 
 def read_dump(file_name, addrs, hd_master_addr_old):
     """
@@ -20,36 +20,38 @@ def read_dump(file_name, addrs, hd_master_addr_old):
         for line in inputfile:
             # only read non comment lines
             if line[0] != "#" and len(line) > 10:
-                # split out some data
-                key_label, comment = line.split("#")
-                # key = key_label.split(" ")[0]
-                keytype = key_label.split(" ")[2]
-                if len(comment) > 1:
-                    addr_keypath = key_label.split(" ")[3].lower()
-                    addr = comment.split(" addr=")[1].split(" ")[0].rstrip()
-                    keypath = None
-                    if keytype == "inactivehdmaster=1":
-                        # ensure the old master is still available
-                        assert(hd_master_addr_old == addr)
-                    elif keytype == "hdmaster=1":
-                        # ensure we have generated a new hd master key
-                        assert(hd_master_addr_old != addr)
-                        hd_master_addr_ret = addr
-                    else:
-                        if 'hdkeypath=' in addr_keypath:
-                            keypath = addr_keypath.rstrip().split("hdkeypath=")[1]
+                print('INNN')
+                kp_ind = line.find('hdKeypath!=')
+                addr_keypath = line[kp_ind:].split(' ')[0].rstrip() if kp_ind != -1 else False
 
-                    # count key types
-                    for addrObj in addrs:
-                        if addrObj['address'] == addr and addrObj['hdkeypath'] == keypath and keytype == "label=":
-                            found_addr += 1
-                            break
-                        elif keytype == "change=1":
-                            found_addr_chg += 1
-                            break
-                        elif keytype == "reserve=1":
-                            found_addr_rsv += 1
-                            break
+                kt_ind = line.find('change=' or 'label=' or 'reserve=' or 'inactivehdmaster=' or 'hdmaster=1')
+                keytype = line[kt_ind:].split(' ')[0].rstrip() if kt_ind!= -1 else False
+
+                addr_ind = line.find('addr=')
+                addr = line[addr_ind:].split(' ')[0].rstrip() if addr_ind!= -1 else False
+
+                # assert(addr_keypath, 'hdKeypath= was not found in dumpwallet. Dump is corrupted.')
+                # assert(keytype, 'Keytype was not found in dumpwallet. Dump is corrupted.')
+
+                if keytype == "inactivehdmaster=1":
+                    # ensure the old master is still available
+                    assert(hd_master_addr_old == addr)
+                elif keytype == "hdmaster=1":
+                    # ensure we have generated a new hd master key
+                    assert(hd_master_addr_old != addr)
+                    hd_master_addr_ret = addr
+
+                # count key types
+                for addrObj in addrs:
+                    if addrObj['address'] == addr and addrObj['hdkeypath'] == keypath and keytype == "label=":
+                        found_addr += 1
+                        break
+                    elif keytype == "change=1":
+                        found_addr_chg += 1
+                        break
+                    elif keytype == "reserve=1":
+                        found_addr_rsv += 1
+                        break
         return found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_ret
 
 
@@ -86,11 +88,13 @@ class WalletDumpTest(BitcoinTestFramework):
         self.nodes[0].keypoolrefill()
 
         # dump unencrypted wallet
+        key = None
         try:
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump")
         except Exception as ex:
-            key = parse_tmp_dumpwallet_code_from_warning(ex.error['message'])
+            key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
+        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_unenc = \
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
@@ -106,11 +110,13 @@ class WalletDumpTest(BitcoinTestFramework):
         self.nodes[0].walletpassphrase('test', 10)
         # Should be a no-op:
         self.nodes[0].keypoolrefill()
+        key = None
         try:
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump")
         except Exception as ex:
-            key = parse_tmp_dumpwallet_code_from_warning(ex.error['message'])
+            key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump", key)
+        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_enc = \
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
