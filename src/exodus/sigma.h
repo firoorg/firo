@@ -29,12 +29,24 @@ public:
     const secp_primitives::Scalar& GetSerial() const { return serial; }
     const secp_primitives::Scalar& GetRandomness() const { return randomness; }
 
+    bool operator==(const SigmaPrivateKey& other) const;
+    bool operator!=(const SigmaPrivateKey& other) const;
+
     bool IsValid() const;
 
     void SetSerial(const secp_primitives::Scalar& v);
     void SetRandomness(const secp_primitives::Scalar& v);
     void Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness);
     void Generate();
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(serial);
+        READWRITE(randomness);
+    }
 
 private:
     const sigma::Params *params;
@@ -56,6 +68,14 @@ public:
 
     void SetCommitment(const secp_primitives::GroupElement& v);
     void Generate(const SigmaPrivateKey& pkey);
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(commitment);
+    }
 
 private:
     secp_primitives::GroupElement commitment;

@@ -33,6 +33,12 @@ EXODUS_TEST_CPP = \
   exodus/test/uint256_extensions_tests.cpp \
   exodus/test/utils_tx.cpp
 
+if ENABLE_WALLET
+EXODUS_TEST_CPP += \
+  exodus/test/wallet_tests.cpp \
+  exodus/test/walletdb_tests.cpp
+endif
+
 BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \
   $(EXODUS_TEST_H)
