@@ -424,10 +424,10 @@ void LookupSPDialog::matchingComboBoxChanged(int idx)
     updateDisplayedProperty();
 }
 
-class CustomWidgetItem : public QTableWidgetItem
+class NumericalCmpWidgetItem : public QTableWidgetItem
 {
 public:
-    CustomWidgetItem(const QString& text) : QTableWidgetItem(text)
+    NumericalCmpWidgetItem(const QString& text) : QTableWidgetItem(text)
     {
     }
 
@@ -441,8 +441,8 @@ void LookupSPDialog::addDenominationRow(uint8_t id, const std::string& value)
 {
     int workingRow = ui->denominationTable->rowCount();
     ui->denominationTable->insertRow(workingRow);
-    CustomWidgetItem *idCell = new CustomWidgetItem(QString::fromStdString(FormatIndivisibleMP(id)));
-    CustomWidgetItem *valuCell = new CustomWidgetItem(QString::fromStdString(value));
+    NumericalCmpWidgetItem *idCell = new NumericalCmpWidgetItem(QString::fromStdString(FormatIndivisibleMP(id)));
+    NumericalCmpWidgetItem *valuCell = new NumericalCmpWidgetItem(QString::fromStdString(value));
     idCell->setTextAlignment(Qt::AlignCenter);
     valuCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
     ui->denominationTable->setItem(workingRow, 0, idCell);
