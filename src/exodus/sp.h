@@ -252,6 +252,7 @@ std::string getPropertyName(uint32_t propertyId);
 bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
 bool IsSigmaStatusValid(SigmaStatus status);
+std::string getSigmaStatusString(SigmaStatus status);
 
 CMPCrowd* getCrowd(const std::string& address);
 

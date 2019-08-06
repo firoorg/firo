@@ -903,8 +903,16 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
             "  \"issuer\" : \"address\",            (string) the Bitcoin address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",         (string) the hex-encoded creation transaction hash\n"
             "  \"fixedissuance\" : true|false,    (boolean) whether the token supply is fixed\n"
-            "  \"managedissuance\" : true|false,    (boolean) whether the token supply is managed\n"
-            "  \"totaltokens\" : \"n.nnnnnnnn\"     (string) the total number of tokens in existence\n"
+            "  \"managedissuance\" : true|false,  (boolean) whether the token supply is managed\n"
+            "  \"totaltokens\" : \"n.nnnnnnnn\",    (string) the total number of tokens in existence\n"
+            "  \"sigmastatus\" : \"status\",        (string) the sigma status of the tokens\n"
+            "  \"denominations\": [               (array of JSON objects) a list of sigma denominations\n"
+            "    {\n"
+            "      \"id\" : n                     (number) the identifier of the denomination\n"
+            "      \"value\" : \"n.nnnnnnnn\"       (string) the value of the denomination\n"
+            "    },\n"
+            "    ...\n"
+            "  ]\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("exodus_getproperty", "3")
@@ -939,6 +947,23 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
         response.push_back(Pair("freezingenabled", isFreezingEnabled(propertyId, currentBlock)));
     }
     response.push_back(Pair("totaltokens", strTotalTokens));
+
+    try {
+        response.push_back(Pair("sigmastatus", getSigmaStatusString(sp.sigmaStatus)));
+    } catch (const std::invalid_argument& e) {
+        // status is invalid
+        throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
+    }
+
+    UniValue denominations(UniValue::VARR);
+    for (size_t i = 0; i < sp.denominations.size(); i++) {
+        UniValue denomination(UniValue::VOBJ);
+        denomination.push_back(Pair("id", i));
+        denomination.push_back(Pair("value", FormatMP(propertyId, sp.denominations[i])));
+        denominations.push_back(denomination);
+    }
+
+    response.push_back(Pair("denominations", denominations));
 
     return response;
 }
