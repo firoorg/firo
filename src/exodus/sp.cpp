@@ -592,7 +592,7 @@ bool exodus::IsSigmaStatusValid(SigmaStatus status)
 
 std::string std::to_string(SigmaStatus status)
 {
-    switch(status) {
+    switch (status) {
     case SigmaStatus::SoftDisabled:
         return "SoftDisabled";
     case SigmaStatus::SoftEnabled:
