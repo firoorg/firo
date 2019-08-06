@@ -559,12 +559,7 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
         dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed * 29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
         sPriorityLabel = SigmaCoinControlDialog::getPriorityLabel(dPriority, mempoolEstimatePriority);
-        if(fMintTabSelected) {
-            // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
-            if (SigmaCoinControlDialog::fSubtractFeeFromAmount)
-                if (nAmount - nPayAmount == 0)
-                    nBytes -= 34;
-        }
+
         // Fee
         nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
         if (nPayFee > 0 && coinControl->nMinimumTotalFee > nPayFee)
@@ -602,21 +597,14 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
                     nBytes -= 34;
 
             } else { //adding sizes of automatic remints
-                CAmount remChange = nChange;
-                std::vector <int64_t> allDenoms;
-                sigma::GetAllDenoms(allDenoms);
-                for (int64_t denom : allDenoms) {
-                    while (remChange >= denom) {
-                        nBytes += 44; //is the siz of each vout containing sigma mint
-                        remChange -= denom;
-                    }
-                    if (!remChange)
-                        break;
-                }
+                std::vector<sigma::CoinDenomination> denominations;
+                sigma::GetAllDenoms(denominations);
+                std::vector<sigma::CoinDenomination> coinsOut;
+                CAmount mintedChange = CWallet::SelectMintCoinsForAmount(nChange, denominations,coinsOut);
+                nBytes += 44 * coinsOut.size(); //44 is the siz of each vout containing sigma mint
                 //add remaining to fee
-                nPayFee += remChange;
+                nPayFee += nChange - mintedChange;
             }
-
         }
 
         // after fee
