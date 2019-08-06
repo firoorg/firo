@@ -949,7 +949,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     response.push_back(Pair("totaltokens", strTotalTokens));
 
     try {
-        response.push_back(Pair("sigmastatus", getSigmaStatusString(sp.sigmaStatus)));
+        response.push_back(Pair("sigmastatus", std::to_string(sp.sigmaStatus)));
     } catch (const std::invalid_argument& e) {
         // status is invalid
         throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
