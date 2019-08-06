@@ -299,6 +299,9 @@ void LookupSPDialog::updateDisplayedProperty()
     {
        if (propertyId == 1) { tokenLabel = " EXODUS"; } else { tokenLabel = " TEXODUS"; }
     }
+
+    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
+
     if (divisible) { strTotalTokens = FormatDivisibleMP(totalTokens); } else { strTotalTokens = FormatIndivisibleMP(totalTokens); }
     if (divisible) { strWalletTokens = FormatDivisibleMP(walletTokens); } else { strWalletTokens = FormatIndivisibleMP(walletTokens); }
     ui->totalTokensLabel->setText(QString::fromStdString(strTotalTokens + tokenLabel));
