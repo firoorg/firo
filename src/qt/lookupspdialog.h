@@ -5,6 +5,8 @@
 #ifndef LOOKUPSPDIALOG_H
 #define LOOKUPSPDIALOG_H
 
+#include "guiutil.h"
+
 #include <QDialog>
 
 class WalletModel;
@@ -38,6 +40,9 @@ public Q_SLOTS:
 private:
     Ui::LookupSPDialog *ui;
     WalletModel *model;
+
+    GUIUtil::TableViewLastColumnResizingFixer *borrowedColumnResizingFixer;
+    void addDenominationRow(uint8_t id, const std::string& value);
 
 private Q_SLOTS:
     // None

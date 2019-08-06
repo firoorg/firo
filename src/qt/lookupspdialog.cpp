@@ -59,6 +59,35 @@ LookupSPDialog::LookupSPDialog(QWidget *parent) :
     ui->topFrame->setVisible(false);
     ui->leftFrame->setVisible(false);
     ui->rightFrame->setVisible(false);
+    ui->denominationTable->setVisible(false);
+
+    // denominations
+    ui->denominationTable->setColumnCount(2);
+    ui->denominationTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Denomination"));
+    ui->denominationTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Value"));
+    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->denominationTable, 50, 150, this);
+    // note neither resizetocontents or stretch allow user to adjust - go interactive then manually set widths
+    #if QT_VERSION < 0x050000
+       ui->denominationTable->horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
+       ui->denominationTable->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
+    #else
+       ui->denominationTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+       ui->denominationTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    #endif
+    ui->denominationTable->setAlternatingRowColors(true);
+
+    // initial resizing
+    ui->denominationTable->resizeColumnToContents(0);
+    // borrowedColumnResizingFixer->stretchColumnWidth(0);
+    ui->denominationTable->verticalHeader()->setVisible(false);
+    ui->denominationTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    ui->denominationTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->denominationTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->denominationTable->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    ui->denominationTable->setTabKeyNavigation(false);
+    ui->denominationTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    ui->denominationTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->denominationTable->setSortingEnabled(true);
 }
 
 LookupSPDialog::~LookupSPDialog()
@@ -299,9 +328,6 @@ void LookupSPDialog::updateDisplayedProperty()
     {
        if (propertyId == 1) { tokenLabel = " EXODUS"; } else { tokenLabel = " TEXODUS"; }
     }
-
-    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
-
     if (divisible) { strTotalTokens = FormatDivisibleMP(totalTokens); } else { strTotalTokens = FormatIndivisibleMP(totalTokens); }
     if (divisible) { strWalletTokens = FormatDivisibleMP(walletTokens); } else { strWalletTokens = FormatIndivisibleMP(walletTokens); }
     ui->totalTokensLabel->setText(QString::fromStdString(strTotalTokens + tokenLabel));
@@ -309,6 +335,21 @@ void LookupSPDialog::updateDisplayedProperty()
     ui->issuerLabel->setText(QString::fromStdString(sp.issuer));
     bool fixedIssuance = sp.fixed;
     bool manualIssuance = sp.manual;
+
+    // sigma
+    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
+    ui->denominationTable->setRowCount(0);
+
+    for (size_t i = 0; i < sp.denominations.size(); i++) {
+        std::string value;
+        if (divisible) {
+            value = FormatDivisibleMP(sp.denominations[i]);
+        } else {
+            value = FormatIndivisibleMP(sp.denominations[i]);
+        }
+        addDenominationRow(i, value);
+    }
+
     if ((!fixedIssuance) && (!manualIssuance) && (propertyId > 2))
     {
         ui->issuanceTypeLabel->setText("Crowdsale");
@@ -370,6 +411,7 @@ void LookupSPDialog::updateDisplayedProperty()
     ui->topFrame->setVisible(true);
     ui->leftFrame->setVisible(true);
     ui->rightFrame->setVisible(true);
+    ui->denominationTable->setVisible(true);
 }
 
 void LookupSPDialog::searchButtonClicked()
@@ -380,4 +422,29 @@ void LookupSPDialog::searchButtonClicked()
 void LookupSPDialog::matchingComboBoxChanged(int idx)
 {
     updateDisplayedProperty();
+}
+
+class CustomWidgetItem : public QTableWidgetItem
+{
+public:
+    CustomWidgetItem(const QString& text) : QTableWidgetItem(text)
+    {
+    }
+
+    bool operator<(const QTableWidgetItem& other) const
+    {
+        return text().toDouble() < other.text().toDouble();
+    }
+};
+
+void LookupSPDialog::addDenominationRow(uint8_t id, const std::string& value)
+{
+    int workingRow = ui->denominationTable->rowCount();
+    ui->denominationTable->insertRow(workingRow);
+    CustomWidgetItem *idCell = new CustomWidgetItem(QString::fromStdString(FormatIndivisibleMP(id)));
+    CustomWidgetItem *valuCell = new CustomWidgetItem(QString::fromStdString(value));
+    idCell->setTextAlignment(Qt::AlignCenter);
+    valuCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
+    ui->denominationTable->setItem(workingRow, 0, idCell);
+    ui->denominationTable->setItem(workingRow, 1, valuCell);
 }
