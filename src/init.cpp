@@ -122,10 +122,6 @@ extern CTxMemPool stempool;
 
 namespace fs = boost::filesystem;
 
-extern const char tor_git_revision[];
-const char tor_git_revision[] = "";
-
-
 extern "C" {
     int tor_main(int argc, char *argv[]);
     void tor_cleanup(void);
@@ -2073,7 +2069,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }
 
-    // ********************************************************* Step 11c: update block tip in Dash modules
+    // ********************************************************* Step 11c: update block tip in Zcoin modules
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.

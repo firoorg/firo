@@ -504,7 +504,7 @@
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>Ieslēgt zcoin &amp;kontroles funkcijas</translation>
+        <translation>Ieslēgt monēta &amp;kontroles funkcijas</translation>
     </message>
     <message>
         <source>&amp;Spend unconfirmed change</source>

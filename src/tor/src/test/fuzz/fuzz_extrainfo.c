@@ -1,11 +1,13 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-#define ROUTERPARSE_PRIVATE
-#include "or.h"
-#include "routerparse.h"
-#include "routerlist.h"
-#include "routerkeys.h"
-#include "fuzzing.h"
+#define SIGCOMMON_PRIVATE
+#include "core/or/or.h"
+#include "feature/dirparse/routerparse.h"
+#include "feature/dirparse/sigcommon.h"
+#include "feature/dirparse/unparseable.h"
+#include "feature/nodelist/routerlist.h"
+#include "feature/relay/routerkeys.h"
+#include "test/fuzz/fuzzing.h"
 
 static void
 mock_dump_desc__nodump(const char *desc, const char *type)

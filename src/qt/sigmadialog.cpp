@@ -11,7 +11,7 @@
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
-#include "../zerocoin_v3.h"
+#include "../sigma.h"
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
 #include "../sigma/coin.h"
@@ -624,7 +624,7 @@ void SigmaDialog::coinControlChangeEdited(const QString& text)
         }
         else if (!addr.IsValid()) // Invalid address
         {
-            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Bitcoin address"));
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Zcoin address"));
         }
         else // Valid address
         {

@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -8,21 +8,35 @@
  * \brief Common pieces to implement unit tests.
  **/
 
-#define MAIN_PRIVATE
+#define MAINLOOP_PRIVATE
 #include "orconfig.h"
-#include "or.h"
-#include "control.h"
-#include "config.h"
-#include "crypto_rand.h"
-#include "rephist.h"
-#include "backtrace.h"
-#include "test.h"
-#include "channelpadding.h"
-#include "main.h"
+#include "core/or/or.h"
+#include "feature/control/control.h"
+#include "app/config/config.h"
+#include "lib/crypt_ops/crypto_dh.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/stats/predict_ports.h"
+#include "feature/stats/rephist.h"
+#include "lib/err/backtrace.h"
+#include "test/test.h"
+#include "core/or/channelpadding.h"
+#include "core/mainloop/mainloop.h"
+#include "lib/compress/compress.h"
+#include "lib/evloop/compat_libevent.h"
+#include "lib/crypt_ops/crypto_init.h"
+#include "lib/version/torversion.h"
+#include "app/main/subsysmgr.h"
 
 #include <stdio.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 
 #ifdef _WIN32
@@ -31,11 +45,6 @@
 #else
 #include <dirent.h>
 #endif /* defined(_WIN32) */
-
-#ifdef USE_DMALLOC
-#include <dmalloc.h>
-#include "main.h"
-#endif
 
 /** Temporary directory (set up by setup_directory) under which we store all
  * our files during testing. */
@@ -107,8 +116,8 @@ get_fname_suffix(const char *name, const char *suffix)
   setup_directory();
   if (!name)
     return temp_dir;
-  tor_snprintf(buf,sizeof(buf),"%s/%s%s%s",temp_dir,name,suffix ? "_" : "",
-               suffix ? suffix : "");
+  tor_snprintf(buf,sizeof(buf),"%s%s%s%s%s", temp_dir, PATH_SEPARATOR, name,
+               suffix ? "_" : "", suffix ? suffix : "");
   return buf;
 }
 
@@ -217,6 +226,30 @@ an_assertion_failed(void)
   tinytest_set_test_failed_();
 }
 
+void tinytest_prefork(void);
+void tinytest_postfork(void);
+void
+tinytest_prefork(void)
+{
+  free_pregenerated_keys();
+  subsystems_prefork();
+}
+void
+tinytest_postfork(void)
+{
+  subsystems_postfork();
+  init_pregenerated_keys();
+}
+
+static void
+log_callback_failure(int severity, uint32_t domain, const char *msg)
+{
+  (void)msg;
+  if (severity == LOG_ERR || (domain & LD_BUG)) {
+    tinytest_set_test_failed_();
+  }
+}
+
 /** Main entry point for unit test code: parse the command line, and run
  * some unit tests. */
 int
@@ -228,31 +261,15 @@ main(int c, const char **v)
   int loglevel = LOG_ERR;
   int accel_crypto = 0;
 
-  /* We must initialise logs before we call tor_assert() */
-  init_logging(1);
+  subsystems_init_upto(SUBSYS_LEVEL_LIBS);
 
-#ifdef USE_DMALLOC
-  {
-    int r = crypto_use_tor_alloc_functions();
-    tor_assert(r == 0);
-  }
-#endif /* defined(USE_DMALLOC) */
-
-  update_approx_time(time(NULL));
   options = options_new();
-  tor_threads_init();
-  tor_compress_init();
-
-  network_init();
-
-  monotime_init();
 
   struct tor_libevent_cfg cfg;
   memset(&cfg, 0, sizeof(cfg));
   tor_libevent_initialize(&cfg);
 
   control_initialize_event_queue();
-  configure_backtrace_handler(get_version());
 
   for (i_out = i = 1; i < c; ++i) {
     if (!strcmp(v[i], "--warn")) {
@@ -272,6 +289,7 @@ main(int c, const char **v)
   c = i_out;
 
   {
+    /* setup logs to stdout */
     log_severity_list_t s;
     memset(&s, 0, sizeof(s));
     set_log_severity_config(loglevel, LOG_ERR, &s);
@@ -279,6 +297,15 @@ main(int c, const char **v)
     s.masks[LOG_WARN-LOG_ERR] |= LD_BUG;
     add_stream_log(&s, "", fileno(stdout));
   }
+  {
+    /* Setup logs that cause failure. */
+    log_severity_list_t s;
+    memset(&s, 0, sizeof(s));
+    set_log_severity_config(LOG_ERR, LOG_ERR, &s);
+    s.masks[LOG_WARN-LOG_ERR] |= LD_BUG;
+    add_callback_log(&s, log_callback_failure);
+  }
+  flush_log_messages_from_startup();
   init_protocol_warning_severity_level();
 
   options->command = CMD_RUN_UNITTESTS;
@@ -286,7 +313,6 @@ main(int c, const char **v)
     printf("Can't initialize crypto subsystem; exiting.\n");
     return 1;
   }
-  crypto_set_tls_dh_prime();
   if (crypto_seed_rng() < 0) {
     printf("Couldn't seed RNG; exiting.\n");
     return 1;
@@ -319,15 +345,9 @@ main(int c, const char **v)
   int have_failed = (tinytest_main(c, v, testgroups) != 0);
 
   free_pregenerated_keys();
-#ifdef USE_DMALLOC
-  tor_free_all(0);
-  dmalloc_log_unfreed();
-#endif
-  crypto_global_cleanup();
 
   if (have_failed)
     return 1;
   else
     return 0;
 }
-

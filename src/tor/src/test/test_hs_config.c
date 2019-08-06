@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -9,15 +9,15 @@
 #define CONFIG_PRIVATE
 #define HS_SERVICE_PRIVATE
 
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
 
-#include "config.h"
-#include "hs_common.h"
-#include "hs_config.h"
-#include "hs_service.h"
-#include "rendservice.h"
+#include "app/config/config.h"
+#include "feature/hs/hs_common.h"
+#include "feature/hs/hs_config.h"
+#include "feature/hs/hs_service.h"
+#include "feature/rend/rendservice.h"
 
 static int
 helper_config_service(const char *conf, int validate_only)
@@ -136,6 +136,20 @@ test_invalid_service(void *arg)
     ret = helper_config_service(conf, 1);
     tt_int_op(ret, OP_EQ, -1);
     expect_log_msg_containing("Missing or invalid port");
+    teardown_capture_of_logs();
+  }
+
+  /* Bad target addr:port separation. */
+  {
+    const char *conf =
+      "HiddenServiceDir /tmp/tor-test-hs-RANDOM/hs1\n"
+      "HiddenServiceVersion 2\n"
+      "HiddenServicePort 80 127.0.0.1 8000\n";
+    setup_full_capture_of_logs(LOG_WARN);
+    ret = helper_config_service(conf, 1);
+    tt_int_op(ret, OP_EQ, -1);
+    expect_log_msg_containing("HiddenServicePort parse error: "
+                              "invalid port mapping");
     teardown_capture_of_logs();
   }
 
@@ -349,6 +363,22 @@ test_invalid_service_v3(void *arg)
     tt_int_op(ret, OP_EQ, -1);
     expect_log_msg_containing("HiddenServiceNumIntroductionPoints must "
                               "be between 3 and 20, not 1.");
+    teardown_capture_of_logs();
+  }
+
+  /* v2-specific HiddenServiceAuthorizeClient set. */
+  {
+    const char *conf =
+      "HiddenServiceDir /tmp/tor-test-hs-RANDOM/hs1\n"
+      "HiddenServiceVersion 3\n"
+      "HiddenServiceAuthorizeClient stealth client1\n";
+    setup_full_capture_of_logs(LOG_WARN);
+    ret = helper_config_service(conf, validate_only);
+    tt_int_op(ret, OP_EQ, -1);
+    expect_log_msg_containing("Hidden service option "
+                              "HiddenServiceAuthorizeClient is incompatible "
+                              "with version 3 of service in "
+                              "/tmp/tor-test-hs-RANDOM/hs1");
     teardown_capture_of_logs();
   }
 

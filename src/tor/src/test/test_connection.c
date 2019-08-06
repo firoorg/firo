@@ -1,27 +1,36 @@
-/* Copyright (c) 2015-2017, The Tor Project, Inc. */
+/* Copyright (c) 2015-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 
 #define CONNECTION_PRIVATE
-#define MAIN_PRIVATE
+#define MAINLOOP_PRIVATE
 #define CONNECTION_OR_PRIVATE
 
-#include "or.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "test/test.h"
 
-#include "connection.h"
-#include "hs_common.h"
-#include "main.h"
-#include "microdesc.h"
-#include "nodelist.h"
-#include "networkstatus.h"
-#include "rendcache.h"
-#include "directory.h"
-#include "connection_or.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_edge.h"
+#include "feature/hs/hs_common.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/microdesc.h"
+#include "feature/nodelist/nodelist.h"
+#include "feature/nodelist/networkstatus.h"
+#include "feature/rend/rendcache.h"
+#include "feature/dircommon/directory.h"
+#include "core/or/connection_or.h"
+#include "lib/net/resolve.h"
 
-#include "test_connection.h"
-#include "test_helpers.h"
+#include "test/test_connection.h"
+#include "test/test_helpers.h"
+
+#include "feature/dircommon/dir_connection_st.h"
+#include "core/or/entry_connection_st.h"
+#include "feature/nodelist/node_st.h"
+#include "core/or/or_connection_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "core/or/socks_request_st.h"
 
 static void * test_conn_get_basic_setup(const struct testcase_t *tc);
 static int test_conn_get_basic_teardown(const struct testcase_t *tc,
@@ -891,4 +900,3 @@ struct testcase_t connection_tests[] = {
   { "failed_orconn_tracker", test_failed_orconn_tracker, TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-

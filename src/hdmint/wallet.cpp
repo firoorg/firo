@@ -10,7 +10,7 @@
 #include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
@@ -65,30 +65,38 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 }
 
 // Regenerate mintPool entry from given values
-void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount, uint256& hashSerial)
+std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
 {
+    // hashPubcoin, hashSerial
+    std::pair<uint256,uint256> nIndexes;
+
     CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())
-        return;
+        throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
 
     uint512 seedZerocoin;
     if(!CreateZerocoinSeed(seedZerocoin, nCount, seedId, false))
-        return;
+        throw ZerocoinException("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
     sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
     if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
-        return;
+        throw ZerocoinException("Unable to create zerocoin from seed in mint regeneration.");
 
     uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
+    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
 
     MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-    hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
     CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
     LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
+
+    nIndexes.first = hashPubcoin;
+    nIndexes.second = hashSerial;
+
+    return nIndexes;
 
 }
 
@@ -150,6 +158,20 @@ bool CHDMintWallet::LoadMintPoolFromDB()
     }
 
     return true;
+}
+
+bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial)
+{
+    bool fFound = false;
+    for(const auto& serialPubcoinPair : serialPubcoinPairs){
+        if(hashPubcoin == primitives::GetPubCoinValueHash(serialPubcoinPair.second)){
+            hashSerial = serialPubcoinPair.first;
+            fFound = true;
+            break;
+        }
+    }
+
+    return fFound;
 }
 
 //Catch the counter up with the chain
@@ -400,15 +422,14 @@ bool CHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, 
 
     // HMAC-SHA512(SHA256(count),key)
     unsigned char countHash[CSHA256().OUTPUT_SIZE];
-    unsigned char *result = new unsigned char[CSHA512().OUTPUT_SIZE];
+    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
 
     std::string nCount = to_string(n);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
 
-    CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(result);
-    std::vector<unsigned char> resultVector(result, result+CSHA512().OUTPUT_SIZE);
+    CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(&result[0]);
 
-    seedZerocoin = uint512(resultVector);
+    seedZerocoin = uint512(result);
 
     return true;
 }
@@ -432,10 +453,12 @@ void CHDMintWallet::SetCount(int32_t nCount)
 void CHDMintWallet::UpdateCountLocal()
 {
     nCountNextUse++;
+    LogPrintf("CHDMintWallet : Updating count local to %s\n",nCountNextUse);
 }
 
 void CHDMintWallet::UpdateCountDB()
 {
+    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);	
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteZerocoinCount(nCountNextUse);
     GenerateMintPool();

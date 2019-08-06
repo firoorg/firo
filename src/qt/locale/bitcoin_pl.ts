@@ -259,7 +259,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Wyślij monety na adres zcoinowy</translation>
+        <translation>Wyślij monety na adres Zcoinowy</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -315,7 +315,7 @@
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Zweryfikuj wiadomość,  aby upewnić się, że została podpisana podanym adresem zcoinowym.</translation>
+        <translation>Zweryfikuj wiadomość,  aby upewnić się, że została podpisana podanym adresem Zcoinowym.</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -335,7 +335,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Żądaj płatności (generuje kod QR oraz zcoinowe URI)</translation>
+        <translation>Żądaj płatności (generuje kod QR oraz zcoin: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -1045,7 +1045,7 @@
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Wyświetlana informacja może być nieaktualna. Twój portfel synchronizuje się automatycznie z siecią zcoin, zaraz po tym jak uzyskano połączenie, ale proces ten nie został jeszcze ukończony.</translation>
+        <translation>Wyświetlana informacja może być nieaktualna. Twój portfel synchronizuje się automatycznie z siecią Zcoin, zaraz po tym jak uzyskano połączenie, ale proces ten nie został jeszcze ukończony.</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -1138,7 +1138,7 @@
     </message>
     <message>
         <source>Enter a Zcoin address (e.g. %1)</source>
-        <translation>Wprowadź adres zcoinowy (np. %1)</translation>
+        <translation>Wprowadź adres Zcoinowy (np. %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1663,8 +1663,8 @@
         <translation>razem przynajmniej</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
-        <translation>Zapłacenie tylko minimalnej opłaty jest nadal wystarczające, dopóki jest mniejszy wolumen transakcji niż miejsca w blokach. Należy jednak mieć świadomość, że może skończyć się to niezatwierdzeniem nigdy transakcji, gdy jest większe zapotrzebowanie na transakcje zcoina niż sieć może przetworzyć.</translation>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
+        <translation>Zapłacenie tylko minimalnej opłaty jest nadal wystarczające, dopóki jest mniejszy wolumen transakcji niż miejsca w blokach. Należy jednak mieć świadomość, że może skończyć się to niezatwierdzeniem nigdy transakcji, gdy jest większe zapotrzebowanie na transakcje Zcoina niż sieć może przetworzyć.</translation>
     </message>
     <message>
         <source>(read the tooltip)</source>

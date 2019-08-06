@@ -1,17 +1,25 @@
-/* Copyright (c) 2015-2017, The Tor Project, Inc. */
+/* Copyright (c) 2015-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CONTROL_PRIVATE
-#include "or.h"
-#include "bridges.h"
-#include "control.h"
-#include "entrynodes.h"
-#include "hs_common.h"
-#include "networkstatus.h"
-#include "rendservice.h"
-#include "routerlist.h"
-#include "test.h"
-#include "test_helpers.h"
+#include "core/or/or.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
+#include "feature/client/bridges.h"
+#include "feature/control/control.h"
+#include "feature/client/entrynodes.h"
+#include "feature/hs/hs_common.h"
+#include "feature/nodelist/networkstatus.h"
+#include "feature/rend/rendservice.h"
+#include "feature/nodelist/authcert.h"
+#include "feature/nodelist/nodelist.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "lib/net/resolve.h"
+
+#include "feature/control/control_connection_st.h"
+#include "feature/dirclient/download_status_st.h"
+#include "feature/nodelist/microdesc_st.h"
+#include "feature/nodelist/node_st.h"
 
 static void
 test_add_onion_helper_keyarg_v3(void *arg)
@@ -153,7 +161,7 @@ test_add_onion_helper_keyarg_v2(void *arg)
   /* Test loading a RSA1024 key. */
   tor_free(err_msg);
   pk1 = pk_generate(0);
-  tt_int_op(0, OP_EQ, crypto_pk_base64_encode(pk1, &encoded));
+  tt_int_op(0, OP_EQ, crypto_pk_base64_encode_private(pk1, &encoded));
   tor_asprintf(&arg_str, "RSA1024:%s", encoded);
   ret = add_onion_helper_keyarg(arg_str, 0, &key_new_alg, &key_new_blob,
                                 &pk, &hs_version, &err_msg);
@@ -336,6 +344,13 @@ test_rend_service_parse_port_config(void *arg)
   tt_ptr_op(cfg, OP_EQ, NULL);
   tt_str_op(err_msg, OP_EQ, "Unparseable or out-of-range port \"99999\" "
             "in hidden service port configuration.");
+  tor_free(err_msg);
+
+  /* Wrong target address and port separation */
+  cfg = rend_service_parse_port_config("80,127.0.0.1 1234", sep,
+                                       &err_msg);
+  tt_ptr_op(cfg, OP_EQ, NULL);
+  tt_assert(err_msg);
   tor_free(err_msg);
 
  done:
@@ -1525,6 +1540,80 @@ test_current_time(void *arg)
   return;
 }
 
+static size_t n_nodelist_get_list = 0;
+static smartlist_t *nodes = NULL;
+
+static smartlist_t *
+mock_nodelist_get_list(void)
+{
+  n_nodelist_get_list++;
+  tor_assert(nodes);
+
+  return nodes;
+}
+
+static void
+test_getinfo_md_all(void *arg)
+{
+  char *answer = NULL;
+  const char *errmsg = NULL;
+  int retval = 0;
+
+  (void)arg;
+
+  node_t *node1 = tor_malloc(sizeof(node_t));
+  memset(node1, 0, sizeof(node_t));
+  node1->md = tor_malloc(sizeof(microdesc_t));
+  memset(node1->md, 0, sizeof(microdesc_t));
+  node1->md->body = tor_strdup("md1\n");
+  node1->md->bodylen = 4;
+
+  node_t *node2 = tor_malloc(sizeof(node_t));
+  memset(node2, 0, sizeof(node_t));
+  node2->md = tor_malloc(sizeof(microdesc_t));
+  memset(node2->md, 0, sizeof(microdesc_t));
+  node2->md->body = tor_strdup("md2\n");
+  node2->md->bodylen = 4;
+
+  MOCK(nodelist_get_list, mock_nodelist_get_list);
+
+  nodes = smartlist_new();
+
+  retval = getinfo_helper_dir(NULL, "md/all", &answer, &errmsg);
+
+  tt_int_op(n_nodelist_get_list, OP_EQ, 1);
+  tt_int_op(retval, OP_EQ, 0);
+  tt_assert(answer != NULL);
+  tt_assert(errmsg == NULL);
+  tt_str_op(answer, OP_EQ, "");
+
+  tor_free(answer);
+
+  smartlist_add(nodes, node1);
+  smartlist_add(nodes, node2);
+
+  retval = getinfo_helper_dir(NULL, "md/all", &answer, &errmsg);
+
+  tt_int_op(n_nodelist_get_list, OP_EQ, 2);
+  tt_int_op(retval, OP_EQ, 0);
+  tt_assert(answer != NULL);
+  tt_assert(errmsg == NULL);
+
+  tt_str_op(answer, OP_EQ, "md1\nmd2\n");
+
+ done:
+  UNMOCK(nodelist_get_list);
+  tor_free(node1->md->body);
+  tor_free(node1->md);
+  tor_free(node1);
+  tor_free(node2->md->body);
+  tor_free(node2->md);
+  tor_free(node2);
+  tor_free(answer);
+  smartlist_free(nodes);
+  return;
+}
+
 struct testcase_t controller_tests[] = {
   { "add_onion_helper_keyarg_v2", test_add_onion_helper_keyarg_v2, 0,
     NULL, NULL },
@@ -1542,6 +1631,6 @@ struct testcase_t controller_tests[] = {
   { "download_status_desc", test_download_status_desc, 0, NULL, NULL },
   { "download_status_bridge", test_download_status_bridge, 0, NULL, NULL },
   { "current_time", test_current_time, 0, NULL, NULL },
+  { "getinfo_md_all", test_getinfo_md_all, 0, NULL, NULL },
   END_OF_TESTCASES
 };
-

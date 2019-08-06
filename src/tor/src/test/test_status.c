@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define STATUS_PRIVATE
@@ -11,20 +11,27 @@
 #include <float.h>
 #include <math.h>
 
-#include "or.h"
-#include "torlog.h"
+#include "core/or/or.h"
+#include "lib/log/log.h"
 #include "tor_queue.h"
-#include "status.h"
-#include "circuitlist.h"
-#include "config.h"
-#include "hibernate.h"
-#include "rephist.h"
-#include "relay.h"
-#include "router.h"
-#include "main.h"
-#include "nodelist.h"
-#include "statefile.h"
-#include "test.h"
+#include "core/or/status.h"
+#include "core/or/circuitlist.h"
+#include "app/config/config.h"
+#include "feature/hibernate/hibernate.h"
+#include "feature/stats/rephist.h"
+#include "core/or/relay.h"
+#include "feature/relay/router.h"
+#include "feature/relay/routermode.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/nodelist.h"
+#include "app/config/statefile.h"
+#include "lib/tls/tortls.h"
+
+#include "core/or/origin_circuit_st.h"
+#include "app/config/or_state_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+
+#include "test/test.h"
 
 #define NS_MODULE status
 
@@ -226,7 +233,7 @@ NS(test_main)(void *arg)
   tor_free(actual);
 
   expected = "10.00 GB";
-  actual = bytes_to_usage((U64_LITERAL(1) << 30) * 10L);
+  actual = bytes_to_usage((UINT64_C(1) << 30) * 10L);
   tt_str_op(actual, OP_EQ, expected);
   tor_free(actual);
 
@@ -1093,4 +1100,3 @@ struct testcase_t status_tests[] = {
   TEST_CASE_ASPECT(log_heartbeat, tls_write_overhead),
   END_OF_TESTCASES
 };
-

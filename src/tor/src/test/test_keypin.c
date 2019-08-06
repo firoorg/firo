@@ -1,13 +1,12 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 #define KEYPIN_PRIVATE
-#include "or.h"
-#include "keypin.h"
-#include "util.h"
+#include "core/or/or.h"
+#include "feature/dirauth/keypin.h"
 
-#include "test.h"
+#include "test/test.h"
 
 static void
 test_keypin_parse_line(void *arg)
