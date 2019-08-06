@@ -69,8 +69,6 @@ public:
     void SetCommitment(const secp_primitives::GroupElement& v);
     void Generate(const SigmaPrivateKey& pkey);
 
-    bool operator==(const SigmaPublicKey& another) const { return commitment == another.commitment; }
-
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
