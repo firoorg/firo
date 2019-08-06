@@ -10,6 +10,7 @@ class CTransaction;
 #include "exodus/log.h"
 #include "exodus/persistence.h"
 #include "exodus/tally.h"
+#include "exodus/sigmadb.h"
 
 #include "sync.h"
 #include "uint256.h"
@@ -32,6 +33,8 @@ class CTransaction;
 using std::string;
 
 int const MAX_STATE_HISTORY = 50;
+
+constexpr size_t EXODUS_MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
 
 #define TEST_ECO_PROPERTY_1 (0x80000003UL)
 
@@ -91,6 +94,7 @@ enum TransactionType {
   EXODUS_TYPE_FREEZE_PROPERTY_TOKENS     = 185,
   EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS   = 186,
   EXODUS_TYPE_SIMPLE_SPEND               = 1024,
+  EXODUS_TYPE_CREATE_DENOMINATION        = 1025,
   EXODUS_MESSAGE_TYPE_DEACTIVATION  = 65533,
   EXODUS_MESSAGE_TYPE_ACTIVATION    = 65534,
   EXODUS_MESSAGE_TYPE_ALERT         = 65535
@@ -325,6 +329,7 @@ namespace exodus
 {
 extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;
+extern CMPMintList *p_mintlistdb;
 extern CMPTradeList *t_tradelistdb;
 extern CMPSTOList *s_stolistdb;
 extern CExodusTransactionDB *p_ExodusTXDB;

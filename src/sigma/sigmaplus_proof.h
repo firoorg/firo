@@ -26,8 +26,8 @@ public:
         return z_.serialize(current);
     }
 
-    inline unsigned char* deserialize(unsigned char* buffer) {
-        unsigned char* current = B_.deserialize(buffer);
+    inline unsigned const char* deserialize(unsigned const char* buffer) {
+        unsigned const char* current = B_.deserialize(buffer);
         current = r1Proof_.deserialize(current, params->get_n(), params->get_m());
         Gk_.resize(params->get_m());
         for(int i = 0; i < params->get_m(); ++i)

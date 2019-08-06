@@ -1481,6 +1481,53 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
     }
 }
 
+UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3) {
+        throw std::runtime_error(
+            "exodus_sendcreatedenomination \"fromaddress\" propertyid \"value\"\n"
+            "\nCreate a new denomination for the given property.\n"
+            "\nArguments:\n"
+            "1. fromaddress          (string, required) the address to send from\n"
+            "2. propertyid           (number, required) the property to create a new denomination\n"
+            "3. value                (string, required) the value of denomination to create\n"
+            "\nResult:\n"
+            "\"hash\"                  (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"100.0\"")
+            + HelpExampleRpc("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"100.0\"")
+        );
+    }
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(params[0]);
+    uint32_t propertyId = ParsePropertyId(params[1]);
+    int64_t value = ParseAmount(params[2], isPropertyDivisible(propertyId));
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireTokenIssuer(fromAddress, propertyId);
+
+    // create a payload for the transaction
+    std::vector<unsigned char> payload = CreatePayload_CreateDenomination(propertyId, value);
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            return txid.GetHex();
+        }
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -1509,6 +1556,7 @@ static const CRPCCommand commands[] =
     { "hidden",                         "exodus_senddeactivation",          &exodus_senddeactivation,           true  },
     { "hidden",                         "exodus_sendactivation",            &exodus_sendactivation,             false },
     { "hidden",                         "exodus_sendalert",                 &exodus_sendalert,                  true  },
+    { "exodus (transaction creation)",  "exodus_sendcreatedenomination",    &exodus_sendcreatedenomination,     false },
 
     /* depreciated: */
     { "hidden",                         "sendrawtx_MP",                     &exodus_sendrawtx,                  false },

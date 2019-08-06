@@ -478,4 +478,14 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_minclient)
     BOOST_CHECK_EQUAL(HexStr(vch), "ffffffff0003000dbc047465737400");
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_denomination)
+{
+    // Simple send [type 1025, version 0]
+    std::vector<unsigned char> vch = CreatePayload_CreateDenomination(
+        static_cast<uint32_t>(1),          // property: MSC
+        static_cast<int64_t>(100000000));  // value of denomination: 1.0 MSC (in willets)
+
+    BOOST_CHECK_EQUAL(HexStr(vch), "00000401000000010000000005f5e100");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

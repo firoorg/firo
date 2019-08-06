@@ -60,6 +60,8 @@ public:
     SigmaPublicKey();
     explicit SigmaPublicKey(const SigmaPrivateKey& pkey);
 
+    bool operator==(const SigmaPublicKey& other) const;
+
     const secp_primitives::GroupElement& GetCommitment() const { return commitment; }
 
     bool IsValid() const;
