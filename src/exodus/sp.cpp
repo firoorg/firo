@@ -590,6 +590,22 @@ bool exodus::IsSigmaStatusValid(SigmaStatus status)
            status == SigmaStatus::HardEnabled;
 }
 
+std::string std::to_string(SigmaStatus status)
+{
+    switch (status) {
+    case SigmaStatus::SoftDisabled:
+        return "SoftDisabled";
+    case SigmaStatus::SoftEnabled:
+        return "SoftEnabled";
+    case SigmaStatus::HardDisabled:
+        return "HardDisabled";
+    case SigmaStatus::HardEnabled:
+        return "HardEnabled";
+    default:
+        throw std::invalid_argument("sigma status is invalid");
+    }
+}
+
 bool exodus::isPropertyDivisible(uint32_t propertyId)
 {
     // TODO: is a lock here needed

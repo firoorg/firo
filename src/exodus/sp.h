@@ -238,6 +238,11 @@ public:
     void saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std::string& addr) const;
 };
 
+namespace std
+{
+std::string to_string(SigmaStatus status);
+}
+
 namespace exodus
 {
 typedef std::map<std::string, CMPCrowd> CrowdMap;
