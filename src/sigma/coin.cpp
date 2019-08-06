@@ -157,16 +157,6 @@ void GetAllDenoms(std::vector<sigma::CoinDenomination>& denominations_out) {
     denominations_out.push_back(CoinDenomination::SIGMA_DENOM_0_05);
 }
 
-void GetAllDenoms(std::vector<int64_t>& denominations_out) {
-    denominations_out.push_back(100 * COIN);
-    denominations_out.push_back(25 * COIN);
-    denominations_out.push_back(10 * COIN);
-    denominations_out.push_back(1 * COIN);
-    denominations_out.push_back(50 * CENT);
-    denominations_out.push_back(10 * CENT);
-    denominations_out.push_back(5 * CENT);
-}
-
 //class PublicCoin
 PublicCoin::PublicCoin()
     : denomination(CoinDenomination::SIGMA_DENOM_1)
