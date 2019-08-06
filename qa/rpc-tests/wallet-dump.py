@@ -3,6 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import re
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (start_nodes, start_node, assert_equal, bitcoind_processes)
 from test_framework.test_helper import get_dumpwallet_otp 
@@ -20,18 +21,27 @@ def read_dump(file_name, addrs, hd_master_addr_old):
         for line in inputfile:
             # only read non comment lines
             if line[0] != "#" and len(line) > 10:
-                print('INNN')
-                kp_ind = line.find('hdKeypath!=')
-                addr_keypath = line[kp_ind:].split(' ')[0].rstrip() if kp_ind != -1 else False
+                kp_ind = line.find('hdKeypath=')
+                keypath = line[kp_ind:].split(' ')[0].rstrip() if kp_ind != -1 else None
 
-                kt_ind = line.find('change=' or 'label=' or 'reserve=' or 'inactivehdmaster=' or 'hdmaster=1')
-                keytype = line[kt_ind:].split(' ')[0].rstrip() if kt_ind!= -1 else False
+                assert keypath, 'hdKeypath= was not found in dumpwallet. Dump is corrupted.'
+                
+                #remove keypath name
+                keypath = keypath.strip('hdKeypath=')
 
-                addr_ind = line.find('addr=')
-                addr = line[addr_ind:].split(' ')[0].rstrip() if addr_ind!= -1 else False
+                kt_inds = list(filter(lambda x: x > -1, 
+                            map(line.find, ['change=', 'label=', 'reserve=', 'inactivehdmaster=', 'hdmaster=1'])))
 
-                # assert(addr_keypath, 'hdKeypath= was not found in dumpwallet. Dump is corrupted.')
-                # assert(keytype, 'Keytype was not found in dumpwallet. Dump is corrupted.')
+                kt_id = kt_inds[0]
+                keytype = line[kt_id:].split(' ')[0].rstrip()
+
+                addr_ind = line.rfind('addr=')
+                addr = line[addr_ind:].split(' ')[0].rstrip() if addr_ind!= -1 else None
+
+                assert addr, 'addr= was not found in dumpwallet. Dump is corrupted.'
+
+                #remove addr name
+                addr = addr.strip('addr=')
 
                 if keytype == "inactivehdmaster=1":
                     # ensure the old master is still available
@@ -94,7 +104,7 @@ class WalletDumpTest(BitcoinTestFramework):
         except Exception as ex:
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_unenc = \
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
@@ -116,7 +126,7 @@ class WalletDumpTest(BitcoinTestFramework):
         except Exception as ex:
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump", key)
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_enc = \
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)

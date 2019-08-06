@@ -134,7 +134,7 @@ class WalletBackupTest(BitcoinTestFramework):
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump", key)
         
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         self.nodes[1].backupwallet(tmpdir + "/node1/wallet.bak")
         
@@ -145,7 +145,7 @@ class WalletBackupTest(BitcoinTestFramework):
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump", key)
 
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         self.nodes[2].backupwallet(tmpdir + "/node2/wallet.bak")
         
@@ -155,7 +155,7 @@ class WalletBackupTest(BitcoinTestFramework):
         except Exception as ex:
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump", key)
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         logging.info("More transactions")
         for i in range(5):

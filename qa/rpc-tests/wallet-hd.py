@@ -44,7 +44,7 @@ class WalletHDTest(BitcoinTestFramework):
         except Exception as ex:
             key = get_dumpwallet_otp (ex.error['message'])
             self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add, key))
-        assert(key, 'Import wallet did not raise exception when was called first time without one-time code.')
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
         
 
         # This should be enough to keep the master key and the non-HD key 
