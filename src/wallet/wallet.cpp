@@ -924,8 +924,7 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
         wtx.MarkDirty();
 
         // Notify UI of new or updated transaction
-        if(!wtx.IsSigmaMint())
-            NotifyTransactionChanged(this, hash, fInsertedNew ? CT_NEW : CT_UPDATED);
+        NotifyTransactionChanged(this, hash, fInsertedNew ? CT_NEW : CT_UPDATED);
 
         // notify an external script when a wallet transaction comes in or is updated
         std::string strCmd = GetArg("-walletnotify", "");
@@ -6685,7 +6684,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
-    NotifyTransactionChanged(this, wtxNew.GetHash(), CT_NEW);
+
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
 
@@ -7151,6 +7150,8 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             CT_NEW);
     }
 
+    // Update nCountNextUse in HDMint wallet database
+    zwalletMain->UpdateCountDB();
 
     return true;
 }
