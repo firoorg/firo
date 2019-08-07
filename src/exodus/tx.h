@@ -322,7 +322,7 @@ int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTr
 
 namespace exodus
 {
-extern boost::signals2::signal<void (CMPTransaction* const)> NotifyProcessedTransaction;
+extern boost::signals2::signal<void (CMPTransaction const &)> NotifyProcessedTransaction;
 };
 
 #endif // ZCOIN_EXODUS_TX_H

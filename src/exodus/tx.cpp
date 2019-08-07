@@ -39,7 +39,7 @@ using namespace exodus;
 
 namespace exodus
 {
-boost::signals2::signal<void (CMPTransaction* const)> NotifyProcessedTransaction;
+boost::signals2::signal<void (CMPTransaction const &)> NotifyProcessedTransaction;
 };
 
 /** Returns a label for the given transaction type. */
@@ -1053,7 +1053,7 @@ int CMPTransaction::interpretPacket()
     }
 
     if (!status) {
-        exodus::NotifyProcessedTransaction(this);
+        exodus::NotifyProcessedTransaction(*this);
     }
     return status;
 }
