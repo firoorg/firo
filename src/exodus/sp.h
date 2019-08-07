@@ -240,7 +240,7 @@ public:
 
 namespace std
 {
-std::string to_string(SigmaStatus status);
+string to_string(SigmaStatus status);
 }
 
 namespace exodus
