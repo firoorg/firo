@@ -2364,6 +2364,18 @@ int CMPTransaction::logicMath_UnfreezeTokens()
 /** Tx 1025 */
 int CMPTransaction::logicMath_CreateDenomination()
 {
+    uint256 blockHash;
+    {
+        LOCK(cs_main);
+
+        CBlockIndex* pindex = chainActive[block];
+        if (pindex == NULL) {
+            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
+            return (PKT_ERROR_TOKENS -20);
+        }
+        blockHash = pindex->GetBlockHash();
+    }
+
     if (!IsTransactionTypeAllowed(block, property, type, version)) {
         PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
                 __func__,
@@ -2413,6 +2425,7 @@ int CMPTransaction::logicMath_CreateDenomination()
     }
 
     sp.denominations.push_back(nValue);
+    sp.update_block = blockHash;
 
     assert(_my_sps->updateSP(property, sp));
 
