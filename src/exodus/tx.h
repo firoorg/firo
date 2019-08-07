@@ -315,12 +315,14 @@ public:
         if (block != other.block) return block > other.block;
         return tx_idx > other.tx_idx;
     }
-
-    boost::signals2::signal<void (CMPTransaction* const)> NotifyProcessedTransaction;
 };
 
 /** Parses a transaction and populates the CMPTransaction object. */
 int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTransaction& mptx, unsigned int nTime=0);
 
+namespace exodus
+{
+extern boost::signals2::signal<void (CMPTransaction* const)> NotifyProcessedTransaction;
+};
 
 #endif // ZCOIN_EXODUS_TX_H
