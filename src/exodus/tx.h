@@ -128,7 +128,7 @@ private:
     bool interpret_FreezeTokens();
     bool interpret_UnfreezeTokens();
     bool interpret_CreateDenomination();
-    bool interpret_CreateSimple();
+    bool interpret_SimpleMint();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -219,7 +219,7 @@ public:
     uint32_t getDistributionProperty() const { return distribution_property; }
 
     /** Sigma */
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> getMints() const { return mints; }
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
@@ -315,6 +315,8 @@ public:
         if (block != other.block) return block > other.block;
         return tx_idx > other.tx_idx;
     }
+
+    boost::signals2::signal<void (CMPTransaction* const)> NotifyProcessedTransaction;
 };
 
 /** Parses a transaction and populates the CMPTransaction object. */

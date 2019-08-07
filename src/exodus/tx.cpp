@@ -172,6 +172,9 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_CREATE_DENOMINATION:
             return interpret_CreateDenomination();
 
+        case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
+            return interpret_SimpleMint();
+
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
@@ -821,7 +824,7 @@ bool CMPTransaction::interpret_CreateDenomination()
 }
 
 /** Tx 1026 */
-bool CMPTransaction::interpret_CreateSimple()
+bool CMPTransaction::interpret_SimpleMint()
 {
     constexpr size_t exodusMintSize = 35;
 
@@ -851,8 +854,22 @@ bool CMPTransaction::interpret_CreateSimple()
     }
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        std::vector<uint8_t> denominations;
+        denominations.reserve(mints.size());
+        for (auto const& mint : mints) {
+            denominations.push_back(mint.first);
+        }
+        std::sort(denominations.begin(), denominations.end());
+
+        std::stringstream ss;
+        for (auto const &denom : denominations) {
+            ss << denom << ", ";
+        }
+        auto denomsStr = ss.str();
+        denomsStr.resize(denomsStr.size() - 2);
+
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           mints: %d\n", mints.size());
+        PrintToLog("\t           mints: %s\n", denomsStr);
     }
 
     return true;
@@ -952,81 +969,88 @@ int CMPTransaction::interpretPacket()
         return (PKT_ERROR -3);
     }
 
+    int status;
     switch (type) {
         case EXODUS_TYPE_SIMPLE_SEND:
-            return logicMath_SimpleSend();
+            status = logicMath_SimpleSend();
 
         case EXODUS_TYPE_SEND_TO_OWNERS:
-            return logicMath_SendToOwners();
+            status = logicMath_SendToOwners();
 
         case EXODUS_TYPE_SEND_ALL:
-            return logicMath_SendAll();
+            status = logicMath_SendAll();
 
         case EXODUS_TYPE_TRADE_OFFER:
-            return logicMath_TradeOffer();
+            status = logicMath_TradeOffer();
 
         case EXODUS_TYPE_ACCEPT_OFFER_BTC:
-            return logicMath_AcceptOffer_BTC();
+            status = logicMath_AcceptOffer_BTC();
 
         case EXODUS_TYPE_METADEX_TRADE:
-            return logicMath_MetaDExTrade();
+            status = logicMath_MetaDExTrade();
 
         case EXODUS_TYPE_METADEX_CANCEL_PRICE:
-            return logicMath_MetaDExCancelPrice();
+            status = logicMath_MetaDExCancelPrice();
 
         case EXODUS_TYPE_METADEX_CANCEL_PAIR:
-            return logicMath_MetaDExCancelPair();
+            status = logicMath_MetaDExCancelPair();
 
         case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            return logicMath_MetaDExCancelEcosystem();
+            status = logicMath_MetaDExCancelEcosystem();
 
         case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
-            return logicMath_CreatePropertyFixed();
+            status = logicMath_CreatePropertyFixed();
 
         case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
-            return logicMath_CreatePropertyVariable();
+            status = logicMath_CreatePropertyVariable();
 
         case EXODUS_TYPE_CLOSE_CROWDSALE:
-            return logicMath_CloseCrowdsale();
+            status = logicMath_CloseCrowdsale();
 
         case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
-            return logicMath_CreatePropertyManaged();
+            status = logicMath_CreatePropertyManaged();
 
         case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
-            return logicMath_GrantTokens();
+            status = logicMath_GrantTokens();
 
         case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
-            return logicMath_RevokeTokens();
+            status = logicMath_RevokeTokens();
 
         case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
-            return logicMath_ChangeIssuer();
+            status = logicMath_ChangeIssuer();
 
         case EXODUS_TYPE_ENABLE_FREEZING:
-            return logicMath_EnableFreezing();
+            status = logicMath_EnableFreezing();
 
         case EXODUS_TYPE_DISABLE_FREEZING:
-            return logicMath_DisableFreezing();
+            status = logicMath_DisableFreezing();
 
         case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
-            return logicMath_FreezeTokens();
+            status = logicMath_FreezeTokens();
 
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
-            return logicMath_UnfreezeTokens();
+            status = logicMath_UnfreezeTokens();
 
         case EXODUS_TYPE_CREATE_DENOMINATION:
-            return logicMath_CreateDenomination();
+            status = logicMath_CreateDenomination();
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
-            return logicMath_Deactivation();
+            status = logicMath_Deactivation();
 
         case EXODUS_MESSAGE_TYPE_ACTIVATION:
-            return logicMath_Activation();
+            status = logicMath_Activation();
 
         case EXODUS_MESSAGE_TYPE_ALERT:
-            return logicMath_Alert();
+            status = logicMath_Alert();
+
+        default:
+            return (PKT_ERROR -100);
     }
 
-    return (PKT_ERROR -100);
+    if (!status) {
+        NotifyProcessedTransaction(this);
+    }
+    return status;
 }
 
 /** Passive effect of crowdsale participation. */

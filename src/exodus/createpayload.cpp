@@ -590,17 +590,18 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
         throw std::invalid_argument("amount of mints exceeded limit");
     }
 
+    if (mints.size() == 0) {
+        throw std::invalid_argument("no mints provided");
+    }
+
     auto mintAmount = static_cast<uint8_t>(mints.size());
     PUSH_BACK_BYTES(payload, mintAmount);
 
+    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
     for (auto const &mint : mints) {
-
-        CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
         serialized << mint;
-        auto str = serialized.str();
-
-        payload.insert(payload.end(), str.begin(), str.end());
     }
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;
 }
