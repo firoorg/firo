@@ -65,7 +65,6 @@ LookupSPDialog::LookupSPDialog(QWidget *parent) :
     ui->denominationTable->setColumnCount(2);
     ui->denominationTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Denomination"));
     ui->denominationTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Value"));
-    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->denominationTable, 50, 150, this);
     // note neither resizetocontents or stretch allow user to adjust - go interactive then manually set widths
     #if QT_VERSION < 0x050000
        ui->denominationTable->horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
@@ -78,14 +77,12 @@ LookupSPDialog::LookupSPDialog(QWidget *parent) :
 
     // initial resizing
     ui->denominationTable->resizeColumnToContents(0);
-    // borrowedColumnResizingFixer->stretchColumnWidth(0);
     ui->denominationTable->verticalHeader()->setVisible(false);
     ui->denominationTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->denominationTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->denominationTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->denominationTable->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     ui->denominationTable->setTabKeyNavigation(false);
-    ui->denominationTable->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->denominationTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->denominationTable->setSortingEnabled(true);
 }
@@ -431,7 +428,7 @@ public:
     {
     }
 
-    bool operator<(const QTableWidgetItem& other) const
+    bool operator<(const QTableWidgetItem& other) const override
     {
         return text().toDouble() < other.text().toDouble();
     }
@@ -439,12 +436,12 @@ public:
 
 void LookupSPDialog::addDenominationRow(uint8_t id, const std::string& value)
 {
-    int workingRow = ui->denominationTable->rowCount();
-    ui->denominationTable->insertRow(workingRow);
-    NumericalCmpWidgetItem *idCell = new NumericalCmpWidgetItem(QString::fromStdString(FormatIndivisibleMP(id)));
+    int index = ui->denominationTable->rowCount();
+    ui->denominationTable->insertRow(index);
+    NumericalCmpWidgetItem *idCell = new NumericalCmpWidgetItem(QString::fromStdString(std::to_string(id)));
     NumericalCmpWidgetItem *valuCell = new NumericalCmpWidgetItem(QString::fromStdString(value));
     idCell->setTextAlignment(Qt::AlignCenter);
-    valuCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
-    ui->denominationTable->setItem(workingRow, 0, idCell);
-    ui->denominationTable->setItem(workingRow, 1, valuCell);
+    valuCell->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    ui->denominationTable->setItem(index, 0, idCell);
+    ui->denominationTable->setItem(index, 1, valuCell);
 }

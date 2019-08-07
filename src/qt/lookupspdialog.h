@@ -41,7 +41,6 @@ private:
     Ui::LookupSPDialog *ui;
     WalletModel *model;
 
-    GUIUtil::TableViewLastColumnResizingFixer *borrowedColumnResizingFixer;
     void addDenominationRow(uint8_t id, const std::string& value);
 
 private Q_SLOTS:
