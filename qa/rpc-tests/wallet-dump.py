@@ -21,27 +21,21 @@ def read_dump(file_name, addrs, hd_master_addr_old):
         for line in inputfile:
             # only read non comment lines
             if line[0] != "#" and len(line) > 10:
-                kp_ind = line.find('hdKeypath=')
-                keypath = line[kp_ind:].split(' ')[0].rstrip() if kp_ind != -1 else None
 
-                assert keypath, 'hdKeypath= was not found in dumpwallet. Dump is corrupted.'
-                
+                lparts = re.findall(r"[a-zA-Z0-9\=\/\:\-']{2,}", line)
+                assert len(lparts) == 6, 'Unexpected dump wallet format.'
+
+                _, _, keytype, keypath, _, addr = lparts
+
+                assert keypath, 'hdKeypath was not found in dumpwallet. Dump is corrupted.'
+                assert keytype, 'Keytype was not found in dumpwallet. Dump is corrupted.'
+                assert addr, 'addr was not found in dumpwallet. Dump is corrupted.'
+
                 #remove keypath name
-                keypath = keypath.strip('hdKeypath=')
-
-                kt_inds = list(filter(lambda x: x > -1, 
-                            map(line.find, ['change=', 'label=', 'reserve=', 'inactivehdmaster=', 'hdmaster=1'])))
-
-                kt_id = kt_inds[0]
-                keytype = line[kt_id:].split(' ')[0].rstrip()
-
-                addr_ind = line.rfind('addr=')
-                addr = line[addr_ind:].split(' ')[0].rstrip() if addr_ind!= -1 else None
-
-                assert addr, 'addr= was not found in dumpwallet. Dump is corrupted.'
+                keypath = keypath.lstrip('hdKeypath=')
 
                 #remove addr name
-                addr = addr.strip('addr=')
+                addr = addr.lstrip('addr=')
 
                 if keytype == "inactivehdmaster=1":
                     # ensure the old master is still available
@@ -53,6 +47,10 @@ def read_dump(file_name, addrs, hd_master_addr_old):
 
                 # count key types
                 for addrObj in addrs:
+                    if keytype == 'label=' and addrObj['hdkeypath'] == keypath:
+                        print('---')
+                        print(addr)
+                        print(addrObj['address'])
                     if addrObj['address'] == addr and addrObj['hdkeypath'] == keypath and keytype == "label=":
                         found_addr += 1
                         break
