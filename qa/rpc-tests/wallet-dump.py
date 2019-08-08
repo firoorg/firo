@@ -47,10 +47,6 @@ def read_dump(file_name, addrs, hd_master_addr_old):
 
                 # count key types
                 for addrObj in addrs:
-                    if keytype == 'label=' and addrObj['hdkeypath'] == keypath:
-                        print('---')
-                        print(addr)
-                        print(addrObj['address'])
                     if addrObj['address'] == addr and addrObj['hdkeypath'] == keypath and keytype == "label=":
                         found_addr += 1
                         break
