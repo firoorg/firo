@@ -35,6 +35,7 @@ using std::string;
 int const MAX_STATE_HISTORY = 50;
 
 constexpr size_t EXODUS_MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
+constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
 #define TEST_ECO_PROPERTY_1 (0x80000003UL)
 
@@ -95,6 +96,7 @@ enum TransactionType {
   EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS   = 186,
   EXODUS_TYPE_SIMPLE_SPEND               = 1024,
   EXODUS_TYPE_CREATE_DENOMINATION        = 1025,
+  EXODUS_TYPE_SIGMA_SIMPLE_MINT          = 1026,
   EXODUS_MESSAGE_TYPE_DEACTIVATION  = 65533,
   EXODUS_MESSAGE_TYPE_ACTIVATION    = 65534,
   EXODUS_MESSAGE_TYPE_ALERT         = 65535

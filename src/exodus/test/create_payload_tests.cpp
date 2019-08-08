@@ -488,4 +488,61 @@ BOOST_AUTO_TEST_CASE(payload_create_denomination)
     BOOST_CHECK_EQUAL(HexStr(vch), "00000401000000010000000005f5e100");
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint)
+{
+    std::string data = "40a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100";
+    std::string data2 = "7cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000";
+
+    exodus::SigmaPublicKey publicKey, publicKey2;
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> publicKey;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> publicKey2;
+
+    // Simple mint [type 1026, version 0]
+    std::vector<unsigned char> vch = CreatePayload_SimpleMint(
+        static_cast<uint32_t>(1),          // property: MSC
+        {
+            std::make_pair(0, publicKey),
+            std::make_pair(1, publicKey2)
+        }
+    );
+
+    BOOST_CHECK_EQUAL(HexStr(vch),
+        "0000040200000001020040a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100" \
+        "017cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000"
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint_no_mints)
+{
+    // Simple mint [type 1026, version 0]
+    BOOST_CHECK_EXCEPTION(
+        CreatePayload_SimpleMint(
+            static_cast<uint32_t>(1),
+            {}
+        ),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) {
+            return std::string("no mints provided") == e.what();
+        }
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint_exceed_limit)
+{
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> pubs;
+    pubs.resize(EXODUS_MAX_SIMPLE_MINTS + 1);
+
+    // Simple mint [type 1026, version 0]
+    BOOST_CHECK_EXCEPTION(
+        CreatePayload_SimpleMint(
+            static_cast<uint32_t>(1),
+            pubs
+        ),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) {
+            return std::string("amount of mints exceeded limit") == e.what();
+        }
+    );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

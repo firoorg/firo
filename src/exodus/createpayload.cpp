@@ -2,9 +2,12 @@
 
 #include "convert.h"
 #include "exodus.h"
+#include "sigma.h"
 #include "utils.h"
 
+#include "../clientversion.h"
 #include "../tinyformat.h"
+#include "../streams.h"
 
 #include <string>
 #include <vector>
@@ -565,6 +568,40 @@ std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId,
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
     PUSH_BACK_BYTES(payload, value);
+
+    return payload;
+}
+
+std::vector<unsigned char> CreatePayload_SimpleMint(
+    uint32_t propertyId, const std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>>& mints)
+{
+    std::vector<unsigned char> payload;
+    uint16_t messageVer = 0;
+    uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_MINT;
+    exodus::swapByteOrder(messageVer);
+    exodus::swapByteOrder(messageType);
+    exodus::swapByteOrder(propertyId);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+
+    if (mints.size() > EXODUS_MAX_SIMPLE_MINTS) {
+        throw std::invalid_argument("amount of mints exceeded limit");
+    }
+
+    if (mints.size() == 0) {
+        throw std::invalid_argument("no mints provided");
+    }
+
+    auto mintAmount = static_cast<uint8_t>(mints.size());
+    PUSH_BACK_BYTES(payload, mintAmount);
+
+    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+    for (auto const &mint : mints) {
+        serialized << mint;
+    }
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;
 }
