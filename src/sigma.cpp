@@ -1005,6 +1005,8 @@ int CSigmaState::GetCoinSetForSpend(
         uint256& blockHash_out,
         std::vector<sigma::PublicCoin>& coins_out) {
 
+    coins_out.clear();
+
     pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
     if (coinGroups.count(denomAndId) == 0)
