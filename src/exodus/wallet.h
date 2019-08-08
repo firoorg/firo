@@ -3,7 +3,9 @@
 
 #include <string>
 
+#include "exodus.h"
 #include "sigma.h"
+#include "sp.h"
 #include "walletdb.h"
 #include "../wallet/wallet.h"
 
@@ -21,6 +23,20 @@ public:
         uint32_t propertyId,
         uint8_t denomination
     );
+
+    template<class InItr, class OutItr>
+    OutItr GenerateMints(uint32_t propertyId, InItr begin, InItr end, OutItr mintItr,
+        int64_t limit = INT64_MAX)
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (auto it = begin; it != end; it++) {
+            uint8_t denomination = *it;
+            auto mint = CreateSigmaMint(propertyId, *it);
+            *mintItr++ = std::make_pair(uint8_t(*it), mint.publicKey);
+        }
+
+        return mintItr;
+    }
 
 protected:
     template<class OutputIt>

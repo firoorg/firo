@@ -400,6 +400,8 @@ void ClearFreezeState();
 /** Prints the freeze state **/
 void PrintFreezeState();
 
+int64_t GetDenominationsSum(uint32_t propertyId, std::vector<uint8_t> denominations);
+
 }
 
 #endif // EXODUS_H

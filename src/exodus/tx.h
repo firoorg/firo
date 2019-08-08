@@ -157,6 +157,7 @@ private:
     int logicMath_FreezeTokens();
     int logicMath_UnfreezeTokens();
     int logicMath_CreateDenomination();
+    int logicMath_SigmaMint();
     int logicMath_Activation();
     int logicMath_Deactivation();
     int logicMath_Alert();
@@ -184,6 +185,7 @@ public:
         CANCEL_EVERYTHING   = 4,
     };
 
+    int getBlock() const { return block; };
     uint256 getHash() const { return txid; }
     unsigned int getType() const { return type; }
     std::string getTypeString() const { return strTransactionType(getType()); }

@@ -3907,6 +3907,7 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         s_stolistdb->deleteAboveBlock(pBlockIndex->nHeight);
         p_feecache->RollBackCache(pBlockIndex->nHeight);
         p_feehistory->RollBackHistory(pBlockIndex->nHeight);
+        p_mintlistdb->DeleteAll(pBlockIndex->nHeight);
         reorgRecoveryMaxHeight = 0;
 
         nWaterlineBlock = ConsensusParams().GENESIS_BLOCK - 1;
@@ -4058,4 +4059,21 @@ const std::vector<unsigned char> GetExMarker()
     static unsigned char pch[] = {0x65, 0x78, 0x6f, 0x64, 0x75, 0x73}; // Hex-encoded: "exodus"
 
     return std::vector<unsigned char>(pch, pch + sizeof(pch) / sizeof(pch[0]));
+}
+
+int64_t exodus::GetDenominationsSum(uint32_t propertyId, std::vector<uint8_t> denominations)
+{
+    CMPSPInfo::Entry sp;
+    assert(_my_sps->getSP(propertyId, sp));
+
+    int64_t amount(0);
+    for (auto denom : denominations) {
+        if (denom > sp.denominations.size()) {
+            throw std::invalid_argument("the denomination not found");
+        }
+
+        amount += sp.denominations[denom];
+    }
+
+    return amount;
 }

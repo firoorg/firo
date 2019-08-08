@@ -176,10 +176,14 @@ CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16
     PrintToLog("Loading mint meta-info database: %s\n", status.ToString());
 
     this->groupSize = InitGroupSize(groupSize);
+    NotifyProcessedTransaction.connect(
+        boost::bind(&CMPMintList::TransactionCallback, this, _1));
 }
 
 CMPMintList::~CMPMintList()
 {
+    NotifyProcessedTransaction.disconnect(
+        boost::bind(&CMPMintList::TransactionCallback, this, _1));
     if (exodus_debug_persistence) PrintToLog("CMPMintList closed\n");
 }
 
@@ -491,6 +495,13 @@ std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
 std::unique_ptr<leveldb::Iterator> CMPMintList::NewIterator() const
 {
     return std::unique_ptr<leveldb::Iterator>(CDBBase::NewIterator());
+}
+
+void CMPMintList::TransactionCallback(CMPTransaction const &tx)
+{
+    for (auto const &mint : tx.getMints()) {
+        RecordMint(tx.getProperty(), mint.first, mint.second, tx.getBlock());
+    }
 }
 
 };

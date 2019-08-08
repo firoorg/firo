@@ -1,6 +1,8 @@
 #include <tuple>
 
 #include "exodus/sigmadb.h"
+#include "exodus/tx.h"
+#include "exodus/createpayload.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -425,6 +427,33 @@ BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
                 == e.what();
         }
     );
+}
+
+BOOST_AUTO_TEST_CASE(test_notification)
+{
+    auto keys = GetPubcoins(10);
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    mints.resize(10);
+    for (size_t i = 0; i < 10; i++) {
+        mints[i] = {i, keys[i]};
+    }
+
+    auto payload = CreatePayload_SimpleMint(0, mints);
+
+    CMPTransaction tx;
+    tx.Set("", "", 0, uint256(), 100, 0, payload.data(), payload.size(), 0, 0);
+    tx.interpret_Transaction();
+
+    exodus::NotifyProcessedTransaction(tx);
+
+    for (size_t i = 0; i < 10; i++) {
+        BOOST_CHECK(std::vector<exodus::SigmaPublicKey>(keys.begin() + i, keys.begin() + i + 1)
+            == GetAnonimityGroup(0, i, 0, 1));
+    }
+
+    for (size_t i = 0; i < 10; i++) {
+        BOOST_CHECK_NO_THROW(GetAnonimityGroup(0, i, 0, 2));
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

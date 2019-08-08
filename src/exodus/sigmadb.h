@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+class CMPTransaction;
+
 template<typename T, typename = void>
 struct is_iterator
 {
@@ -66,6 +68,8 @@ private:
     void RecordGroupSize(uint16_t groupSize);
 
     std::unique_ptr<leveldb::Iterator> NewIterator() const;
+
+    void TransactionCallback(CMPTransaction const &tx);
 
 protected:
     uint16_t InitGroupSize(uint16_t groupSize);
