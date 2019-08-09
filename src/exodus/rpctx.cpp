@@ -1533,21 +1533,21 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3) {
         throw std::runtime_error(
-            "exodus_sendmint \"fromaddress\" propertyid {denomination: amount}\n"
+            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\": amount}\n"
             "\nCreate mints.\n"
             "\nArguments:\n"
             "1. \"fromaddress\"                (string, required) the address to send from\n"
             "2. propertyid                   (number, required) the property to create mints\n"
             "3. \"denominations\"              (string, required) A json object with denomination and amount\n"
             "    {\n"
-            "      \"denomination\": amount  (number) The denomination id, the amount of mints\n"
+            "      \"denomination\": amount    (number) The denomination id, the amount of mints\n"
             "      ,...\n"
             "    }\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{ 0: 1, 1: 2}\"")
-            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{ 0: 1, 1: 2}\"")
+            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\": 1, \"1\": 2}\"")
+            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\": 1, \"1\": 2}\"")
         );
     }
 
@@ -1560,7 +1560,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     RequireExistingProperty(propertyId);
     auto keys = denominations.getKeys();
 
-    // count all denominations to make sure mints can be created.
+    // collect all mints need to be created
     std::vector<uint8_t> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
@@ -1594,7 +1594,6 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         wallet.GenerateMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
     }
 
-    // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
     // request the wallet build the transaction (and if needed commit it)

@@ -24,7 +24,8 @@ public:
         uint8_t denomination
     );
 
-    template<class InItr, class OutItr>
+    template<class InItr, class OutItr,
+    typename std::enable_if<std::is_same<uint8_t, typename std::iterator_traits<InItr>::value_type>::value>::type* = nullptr>
     OutItr GenerateMints(uint32_t propertyId, InItr begin, InItr end, OutItr mintItr,
         int64_t limit = INT64_MAX)
     {

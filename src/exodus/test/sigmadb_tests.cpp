@@ -433,8 +433,8 @@ BOOST_AUTO_TEST_CASE(test_notification)
 {
     auto keys = GetPubcoins(10);
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
-    mints.resize(10);
-    for (size_t i = 0; i < 10; i++) {
+    mints.resize(keys.size());
+    for (size_t i = 0; i < keys.size(); i++) {
         mints[i] = {i, keys[i]};
     }
 

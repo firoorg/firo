@@ -81,6 +81,22 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
+static int EnsureEnableSigma(uint32_t propertyId)
+{
+    if (!IsPropertyIdValid(propertyId)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, propertyId);
+        return PKT_ERROR_TOKENS - 24;
+    }
+
+    CMPSPInfo::Entry sp;
+    assert(_my_sps->getSP(propertyId, sp));
+
+    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
+        PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, propertyId);
+        return PKT_ERROR_TOKENS - 101;
+    }
+}
+
 /** Helper to convert class number to string. */
 static std::string intToClass(int encodingClass)
 {
@@ -2532,17 +2548,17 @@ int CMPTransaction::logicMath_SigmaMint()
 {
     if (!IsTransactionTypeAllowed(block, property, type, version)) {
         PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
+            __func__,
+            type,
+            version,
+            property,
+            block);
         return PKT_ERROR_TOKENS - 22;
     }
 
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return PKT_ERROR_TOKENS - 24;
+    auto status = EnsureEnableSigma(property);
+    if (status) {
+        return status;
     }
 
     CMPSPInfo::Entry sp;
@@ -2562,27 +2578,22 @@ int CMPTransaction::logicMath_SigmaMint()
     try {
         amount = GetDenominationsSum(property, denominations);
     } catch (const std::invalid_argument& e) {
-        PrintToLog("%s(): rejected: denomination not found", __func__);
-            return PKT_ERROR_TOKENS - 105;
+        PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
+        return PKT_ERROR_TOKENS - 105;
     }
 
     int64_t balance = getMPbalance(sender, property, BALANCE);
     if (balance < amount) {
         PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
-                __func__,
-                sender,
-                property,
-                FormatMP(property, balance),
-                FormatMP(property, amount));
+            __func__,
+            sender,
+            property,
+            FormatMP(property, balance),
+            FormatMP(property, amount));
         return PKT_ERROR_SEND -25;
     }
 
-    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
-        PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, property);
-        return PKT_ERROR_TOKENS - 101;
-    }
-
-    // Move the tokens
+    // subtract balance
     assert(update_tally_map(sender, property, -amount, BALANCE));
 
     return 0;
