@@ -50,6 +50,7 @@ src/qt/forms/ui_*.h
 src/qt/test/moc*.cpp
 
 src/tor.timestamp*
+src/tor/src/or
 
 .deps
 .dirstamp
