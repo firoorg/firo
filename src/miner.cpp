@@ -1121,6 +1121,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 do {
                     bool fvNodesEmpty;
                     bool fHasZnodesWinnerForNextBlock;
+                    bool fHasZnodes;
                     const Consensus::Params &params = chainparams.GetConsensus();
                     {
                         LOCK(cs_vNodes);
@@ -1130,16 +1131,15 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         LOCK2(cs_main, mempool.cs);
                         int nCount = 0;
                         // Check you actually have znodes in network
-			            if(mnodeman.CountEnabled() > 0){
+                        fHasZnodes = (mnodeman.CountEnabled() > 0);
+                        if(fHasZnodes){
                         	fHasZnodesWinnerForNextBlock =
                                 	params.IsRegtest() ||
                                 	chainActive.Height() < params.nZnodePaymentsStartBlock ||
                                 	mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
-                        }else{
-				            fHasZnodesWinnerForNextBlock = true; // we don't have Znode winner causes we don't have Znode on network
-			            }
+                        }
                     }
-                    if (!fvNodesEmpty && fHasZnodesWinnerForNextBlock && !IsInitialBlockDownload()) {
+                    if (!fvNodesEmpty && (!fHasZnodes || fHasZnodesWinnerForNextBlock) && !IsInitialBlockDownload()) {
                         break;
                     }
                     MilliSleep(1000);
