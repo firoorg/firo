@@ -945,14 +945,10 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
         }
     }
 
-    index->sigmaMintedPubCoins.clear();
-
     // roll back spends
     BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
         containers.RemoveSpend(serial.first);
     }
-
-    index->sigmaSpentSerials.clear();
 }
 
 bool CSigmaState::GetCoinGroupInfo(
