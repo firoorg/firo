@@ -5,7 +5,7 @@ from decimal import *
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-from test_framework.test_helper import get_dumpwallet_opt
+from test_framework.test_helper import get_dumpwallet_otp
 
 #Scenario:
 #Generate 101 block
@@ -60,84 +60,32 @@ class WalletDumpZerocoinTest(BitcoinTestFramework):
             self.nodes[0].spendzerocoin(denom) 
 
         #get list of unspent mints and spends, mints
-        zcoin_unspentmints = self.nodes[0].listmintzerocoins()
+        zcoin_mints = self.nodes[0].listmintzerocoins()
         zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
         zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100) 
+        tmpdir = self.options.tmpdir
 
         try:
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump")
         except Exception as ex:
-            key = get_dumpwallet_opt(ex.error['message'])
+            key = get_dumpwallet_otp(ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
         
-        os.remove(tmpdir + "wallet.data")
+        stop_node(self.nodes[0], 0)
+        os.remove(self.options.tmpdir + "/node0/regtest/wallet.dat")
+        start_node(0, self.options.tmpdir)
 
         self.nodes[0].importwallet(tmpdir + "/node0/wallet.unencrypted.dump")
-        # encrypt wallet
-        encr_key = 'testtesttesttest'
 
-        self.nodes[0].encryptwallet(encr_key)
-        time.sleep(10)
-        self.nodes[0] = start_nodes(1, self.options.tmpdir)[0]
+        exp_zcoin_mints = self.nodes[0].listmintzerocoins()
+        exp_zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
+        exp_zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100) 
 
-        # try to remint without unlocking
-        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
+        assert_equal(exp_zcoin_unspentmints, exp_zcoin_unspentmints)
+        
+        assert_equal(exp_zcoin_mints, zcoin_mints)
 
-        # unlock for 10 secs
-        self.nodes[0].walletpassphrase(encr_key, 10)
-        time.sleep(5)
-
-        # remint should work
-        self.nodes[0].remintzerocointosigma(zcoin_denoms[0])
-
-        self.nodes[0].generate(10)
-
-        sigma_mint = self.nodes[0].listunspentsigmamints()
-        assert len(sigma_mint) == 1, 'Should be 1 sigma mints after remint, but was: {}' \
-            .format(len(sigma_mint))
-
-        # lock wallet
-        self.nodes[0].walletlock()
-        # try to remint without unlocking
-        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
-
-        # unlock for 20 secs
-        self.nodes[0].walletpassphrase(encr_key, 20)
-
-        for denom in zcoin_denoms[1:]:
-            try:
-                self.nodes[0].remintzerocointosigma(denom)
-            except JSONRPCException as e:
-                assert False, "Could not remint denomination {} with next exception {}." \
-                    .format(denom, e.error['message'])
-
-        self.nodes[0].generate(50)
-
-        sigma_mint = self.nodes[0].listunspentsigmamints()
-
-        assert len(sigma_mint) == len(zcoin_denoms)+1, \
-            'Looks like sigma mints unspendable after remint on encrypted wallet.'
-
-        # check that we are able to mint/spend
-        self.nodes[0].mint(1)
-        self.nodes[0].generate(10)
-
-        sigma_mint = self.nodes[0].listunspentsigmamints()
-
-        assert len(sigma_mint) == len(zcoin_denoms) + 2, \
-            'Looks like we cant mint on encrypted wallet'
-
-        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 10}
-        self.nodes[0].spendmany("", args)
-        self.nodes[0].generate(10)
-
-        sigma_mint = self.nodes[0].listunspentsigmamints()
-
-        assert len(sigma_mint) > len(zcoin_denoms) + 2, \
-            'Looks like we cant spend on encrypted wallet.'
-
-        # Check that we can generate blocks after
-        self.nodes[0].generate(1)
+        assert_equal (exp_zcoin_spendzcoins, zcoin_spendzcoins)    
 
 
 if __name__ == '__main__':
