@@ -1,6 +1,8 @@
 #include <tuple>
 
 #include "exodus/sigmadb.h"
+#include "exodus/tx.h"
+#include "exodus/createpayload.h"
 
 #include <boost/test/unit_test.hpp>
 

@@ -136,6 +136,7 @@ enum FILETYPES {
 #define METADEX_ERROR         (-81000)
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
+#define PKT_ERROR_SIGMA       (-84000)
 
 #define EXODUS_PROPERTY_XZC   0
 #define EXODUS_PROPERTY_EXODUS   1

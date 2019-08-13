@@ -81,6 +81,20 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
+static bool EnsureEnableSigma(uint32_t propertyId)
+{
+    CMPSPInfo::Entry sp;
+    if (!_my_sps->getSP(propertyId, sp)) {
+        return false;
+    }
+
+    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
+        return false;
+    }
+
+    return true;
+}
+
 /** Helper to convert class number to string. */
 static std::string intToClass(int encodingClass)
 {
@@ -978,75 +992,103 @@ int CMPTransaction::interpretPacket()
     switch (type) {
         case EXODUS_TYPE_SIMPLE_SEND:
             status = logicMath_SimpleSend();
+            break;
 
         case EXODUS_TYPE_SEND_TO_OWNERS:
             status = logicMath_SendToOwners();
+            break;
 
         case EXODUS_TYPE_SEND_ALL:
             status = logicMath_SendAll();
+            break;
 
         case EXODUS_TYPE_TRADE_OFFER:
             status = logicMath_TradeOffer();
+            break;
 
         case EXODUS_TYPE_ACCEPT_OFFER_BTC:
             status = logicMath_AcceptOffer_BTC();
+            break;
 
         case EXODUS_TYPE_METADEX_TRADE:
             status = logicMath_MetaDExTrade();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_PRICE:
             status = logicMath_MetaDExCancelPrice();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_PAIR:
             status = logicMath_MetaDExCancelPair();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
             status = logicMath_MetaDExCancelEcosystem();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
             status = logicMath_CreatePropertyFixed();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
             status = logicMath_CreatePropertyVariable();
+            break;
 
         case EXODUS_TYPE_CLOSE_CROWDSALE:
             status = logicMath_CloseCrowdsale();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
             status = logicMath_CreatePropertyManaged();
+            break;
 
         case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
             status = logicMath_GrantTokens();
+            break;
 
         case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
             status = logicMath_RevokeTokens();
+            break;
 
         case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
             status = logicMath_ChangeIssuer();
+            break;
 
         case EXODUS_TYPE_ENABLE_FREEZING:
             status = logicMath_EnableFreezing();
+            break;
 
         case EXODUS_TYPE_DISABLE_FREEZING:
             status = logicMath_DisableFreezing();
+            break;
 
         case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
             status = logicMath_FreezeTokens();
+            break;
 
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
             status = logicMath_UnfreezeTokens();
+            break;
 
         case EXODUS_TYPE_CREATE_DENOMINATION:
             status = logicMath_CreateDenomination();
+            break;
+
+        case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
+            status = logicMath_SimpleMint();
+            break;
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             status = logicMath_Deactivation();
+            break;
 
         case EXODUS_MESSAGE_TYPE_ACTIVATION:
             status = logicMath_Activation();
+            break;
 
         case EXODUS_MESSAGE_TYPE_ALERT:
             status = logicMath_Alert();
+            break;
 
         default:
             return (PKT_ERROR -100);
@@ -2495,6 +2537,68 @@ int CMPTransaction::logicMath_CreateDenomination()
     sp.update_block = blockHash;
 
     assert(_my_sps->updateSP(property, sp));
+
+    return 0;
+}
+
+/** Tx 1026 */
+int CMPTransaction::logicMath_SimpleMint()
+{
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block);
+        return PKT_ERROR_SIGMA - 22;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_SIGMA - 24;
+    }
+
+    if (!EnsureEnableSigma(property)) {
+        PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
+        return PKT_ERROR_SIGMA - 101;
+    }
+
+    std::vector<uint8_t> denominations;
+    denominations.reserve(mints.size());
+    for (auto const &mint : mints) {
+        if (!mint.second.IsValid()) {
+            PrintToLog("%s(): rejected: public key is invalid\n", __func__);
+            return PKT_ERROR_SIGMA - 104;
+        }
+        denominations.push_back(mint.first);
+    }
+
+    int64_t amount;
+    try {
+        amount = SumDenominationsValue(property, denominations.begin(), denominations.end());
+    } catch (const std::invalid_argument& e) {
+        PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
+        return PKT_ERROR_SIGMA - 105;
+    }
+
+    int64_t balance = getMPbalance(sender, property, BALANCE);
+    if (balance < amount) {
+        PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
+            __func__,
+            sender,
+            property,
+            FormatMP(property, balance),
+            FormatMP(property, amount));
+        return PKT_ERROR_SIGMA -25;
+    }
+
+    // subtract balance
+    assert(update_tally_map(sender, property, -amount, BALANCE));
+
+    for (auto const &mint : mints) {
+        p_mintlistdb->RecordMint(property, mint.first, mint.second, block);
+    }
 
     return 0;
 }

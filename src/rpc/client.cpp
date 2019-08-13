@@ -220,6 +220,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "exodus_sendalert", 1 },
 	{ "exodus_sendalert", 2 },
 	{ "exodus_sendcreatedenomination", 1 },
+	{ "exodus_sendmint", 1 },
+	{ "exodus_sendmint", 2 },
 
 	/* Exodus - raw transaction calls */
 	{ "exodus_decodetransaction", 1 },

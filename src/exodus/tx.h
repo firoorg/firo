@@ -157,6 +157,7 @@ private:
     int logicMath_FreezeTokens();
     int logicMath_UnfreezeTokens();
     int logicMath_CreateDenomination();
+    int logicMath_SimpleMint();
     int logicMath_Activation();
     int logicMath_Deactivation();
     int logicMath_Alert();
