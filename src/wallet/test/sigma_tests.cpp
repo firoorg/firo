@@ -19,7 +19,7 @@
 #include <numeric>
 
 #include "wallet_test_fixture.h"
-#include "../../zerocoin_v3.h"
+#include "../../sigma.h"
 
 #include <boost/test/unit_test.hpp>
 

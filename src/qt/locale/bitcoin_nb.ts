@@ -255,7 +255,7 @@
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>Åpne en Zcoin: URI eller betalingsetterspørring</translation>
+        <translation>Åpne en zcoin: URI eller betalingsetterspørring</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1336,7 +1336,7 @@
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
-        <translation>Send Zcoins</translation>
+        <translation>Send zcoins</translation>
     </message>
     <message>
         <source>Coin Control Features</source>
@@ -1419,7 +1419,7 @@
         <translation>minstebeløp</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
         <translation>Betaling av bare minimumsavgiften går helt fint så lenge det er mindre transaksjonsvolum enn plass i blokkene. Men vær klar over at dette kan ende opp i en transaksjon som aldri blir bekreftet når det er mer etterspørsel etter Zcoin-transaksjoner enn nettverket kan behandle.</translation>
     </message>
     <message>
@@ -1551,7 +1551,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>En melding som var tilknyttet zcoinen: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Zcoin-nettverket.</translation>
+        <translation>En melding som var tilknyttet zcoin: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Zcoin-nettverket.</translation>
     </message>
     <message>
         <source>Pay To:</source>

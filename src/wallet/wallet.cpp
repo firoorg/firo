@@ -17,7 +17,7 @@
 #include "keystore.h"
 #include "main.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
 #include "../sigma/coin.h"
@@ -145,7 +145,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     // Create new metadata
     int64_t nCreationTime = GetTime();
     CKeyMetadata metadata(nCreationTime);
-    metadata.nChange = nChange;
+    metadata.nChange = Component(nChange, false);
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
@@ -187,7 +187,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
             externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange]);
             metadata.hdKeypath = "m/44'/" + std::to_string(nIndex) + "'/0'/" + std::to_string(nChange) + "/" + std::to_string(hdChain.nExternalChainCounters[nChange]);
             metadata.hdMasterKeyID = hdChain.masterKeyID;
-            metadata.nChild = hdChain.nExternalChainCounters[nChange];
+            metadata.nChild = Component(hdChain.nExternalChainCounters[nChange], false);
             // increment childkey index
             hdChain.nExternalChainCounters[nChange]++;
         } while (HaveKey(childKey.key.GetPubKey().GetID()));
@@ -924,8 +924,7 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
         wtx.MarkDirty();
 
         // Notify UI of new or updated transaction
-        if(!wtx.IsSigmaMint())
-            NotifyTransactionChanged(this, hash, fInsertedNew ? CT_NEW : CT_UPDATED);
+        NotifyTransactionChanged(this, hash, fInsertedNew ? CT_NEW : CT_UPDATED);
 
         // notify an external script when a wallet transaction comes in or is updated
         std::string strCmd = GetArg("-walletnotify", "");
@@ -2301,7 +2300,7 @@ bool CWallet::GetCoinsToSpend(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3504,7 +3503,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 
                 wtxNew.fFromMe = true;
                 wtxNew.changes.clear();
-
+                bool fFirst = true;
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
                     nValueToSelect += nFeeRet;
@@ -3513,6 +3512,17 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 BOOST_FOREACH(const CRecipient &recipient, vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+
+                    if (recipient.fSubtractFeeFromAmount)
+                    {
+                        txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
+
+                        if (fFirst) // first receiver pays the remainder not divisible by output count
+                        {
+                            fFirst = false;
+                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
+                        }
+                    }
 
                     if (txout.IsDust(::minRelayTxFee)) {
                         if (recipient.fSubtractFeeFromAmount && nFeeRet > 0) {
@@ -3558,7 +3568,9 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     dPriority += (double) nCredit * age;
                 }
 
-                const CAmount nChange = nValueIn - nValueToSelect;
+                CAmount nChange = nValueIn - nValueToSelect;
+                if (nSubtractFeeFromAmount == 0)
+                    nChange -= nFeeRet;
                 if (nChange > 0) {
                     //over pay for denominated transactions
                     if (nCoinType == ONLY_DENOMINATED) {
@@ -5119,7 +5131,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5366,7 +5378,7 @@ bool CWallet::CreateSigmaSpendTransaction(
             } else {
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5643,7 +5655,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -5965,7 +5977,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
             }else{
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()) {
-                    strFailReason = _("Invalid zcoin address");
+                    strFailReason = _("Invalid Zcoin address");
                     return false;
                 }
                 // Parse Zcoin address
@@ -6535,7 +6547,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
-    NotifyTransactionChanged(this, wtxNew.GetHash(), CT_NEW);
+
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
 
@@ -6992,6 +7004,8 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             CT_NEW);
     }
 
+    // Update nCountNextUse in HDMint wallet database
+    zwalletMain->UpdateCountDB();
 
     return true;
 }
@@ -7892,8 +7906,6 @@ bool CWallet::InitLoadWallet() {
     if (pwalletMain->IsHDSeedAvailable()) {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
-
-
 
     RegisterValidationInterface(walletInstance);
 

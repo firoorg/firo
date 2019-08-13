@@ -1,16 +1,20 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /* Unit tests for OOS handler */
 
 #define CONNECTION_PRIVATE
 
-#include "or.h"
-#include "config.h"
-#include "connection.h"
-#include "connection_or.h"
-#include "main.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_or.h"
+#include "feature/dircommon/directory.h"
+#include "core/mainloop/mainloop.h"
+#include "test/test.h"
+
+#include "feature/dircommon/dir_connection_st.h"
+#include "core/or/or_connection_st.h"
 
 static or_options_t mock_options;
 
@@ -453,4 +457,3 @@ struct testcase_t oos_tests[] = {
   { "pick_oos_victims", test_oos_pick_oos_victims, TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-

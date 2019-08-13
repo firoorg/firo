@@ -1,11 +1,11 @@
-// Copyright (c) 2016-2017, The Tor Project, Inc. */
+// Copyright (c) 2016-2019, The Tor Project, Inc. */
 // See LICENSE for licensing information */
 
 //! FFI functions to announce Rust support during tor startup, only to be
 //! called from C.
 //!
 
-use tor_log::{LogSeverity, LogDomain};
+use tor_log::{LogDomain, LogSeverity};
 
 /// Returns a short string to announce Rust support during startup.
 ///
@@ -22,6 +22,6 @@ pub extern "C" fn rust_log_welcome_string() {
         LogDomain::General,
         "rust_log_welcome_string",
         "Tor is running with Rust integration. Please report \
-        any bugs you encounter."
+         any bugs you encounter."
     );
 }

@@ -12,6 +12,8 @@ FUZZERS = """
 	http-connect
 	iptsv2
 	microdesc
+	socks
+	strops
 	vrs
 """
 
@@ -22,34 +24,19 @@ FUZZING_CPPFLAGS = \
 FUZZING_CFLAGS = \
 	$(AM_CFLAGS) $(TEST_CFLAGS)
 FUZZING_LDFLAG = \
-	@TOR_LDFLAGS_zlib@ @TOR_LDFLAGS_openssl@ @TOR_LDFLAGS_libevent@
+	@TOR_LDFLAGS_zlib@ $(TOR_LDFLAGS_CRYPTLIB) @TOR_LDFLAGS_libevent@
 FUZZING_LIBS = \
-	src/or/libtor-testing.a \
-	src/common/libor-crypto-testing.a \
-	$(LIBKECCAK_TINY) \
-	$(LIBDONNA) \
-	src/common/libor-testing.a \
-	src/common/libor-ctime-testing.a \
-	src/common/libor-event-testing.a \
-	src/trunnel/libor-trunnel-testing.a \
+	$(TOR_INTERNAL_TESTING_LIBS) \
 	$(rust_ldadd) \
 	@TOR_ZLIB_LIBS@ @TOR_LIB_MATH@ \
-	@TOR_LIBEVENT_LIBS@ \
-	@TOR_OPENSSL_LIBS@ @TOR_LIB_WS32@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@ \
-	@CURVE25519_LIBS@ \
+	@TOR_LIBEVENT_LIBS@ $(TOR_LIBS_CRYPTLIB) \
+	@TOR_LIB_WS32@ @TOR_LIB_IPHLPAPI@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@ @CURVE25519_LIBS@ \
 	@TOR_SYSTEMD_LIBS@ \
 	@TOR_LZMA_LIBS@ \
 	@TOR_ZSTD_LIBS@
 
 oss-fuzz-prereqs: \
-	src/or/libtor-testing.a \
-	src/common/libor-crypto-testing.a \
-	$(LIBKECCAK_TINY) \
-	$(LIBDONNA) \
-	src/common/libor-testing.a \
-	src/common/libor-ctime-testing.a \
-	src/common/libor-event-testing.a \
-	src/trunnel/libor-trunnel-testing.a
+    $(TOR_INTERNAL_TESTING_LIBS)
 
 noinst_HEADERS += \
 	src/test/fuzz/fuzzing.h

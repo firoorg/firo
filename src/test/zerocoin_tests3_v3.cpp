@@ -25,7 +25,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"

@@ -1,10 +1,14 @@
-/* Copyright (c) 2015-2017, The Tor Project, Inc. */
+/* Copyright (c) 2015-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
+#include "core/or/or.h"
+#include "lib/process/setuid.h"
 
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
 #define TEST_BUILT_WITH_CAPS         0
@@ -189,4 +193,3 @@ main(int argc, char **argv)
   return (okay ? 0 : 1);
 #endif /* defined(_WIN32) */
 }
-

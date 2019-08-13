@@ -1,16 +1,19 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2016, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CIRCUITBUILD_PRIVATE
 
-#include "or.h"
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
-#include "config.h"
-#include "circuitbuild.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
+#include "app/config/config.h"
+#include "core/or/circuitbuild.h"
+#include "core/or/circuitlist.h"
+
+#include "core/or/extend_info_st.h"
 
 /* Dummy nodes smartlist for testing */
 static smartlist_t dummy_nodes;
@@ -18,11 +21,11 @@ static smartlist_t dummy_nodes;
 static extend_info_t dummy_ei;
 
 static int
-mock_count_acceptable_nodes(smartlist_t *nodes)
+mock_count_acceptable_nodes(smartlist_t *nodes, int direct)
 {
   (void)nodes;
 
-  return DEFAULT_ROUTE_LEN + 1;
+  return direct ? 1 : DEFAULT_ROUTE_LEN + 1;
 }
 
 /* Test route lengths when the caller of new_route_len() doesn't
@@ -130,4 +133,3 @@ struct testcase_t circuitbuild_tests[] = {
   { "unhandled_exit", test_new_route_len_unhandled_exit, 0, NULL, NULL },
   END_OF_TESTCASES
 };
-

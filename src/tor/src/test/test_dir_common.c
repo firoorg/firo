@@ -1,18 +1,26 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 #define DIRVOTE_PRIVATE
-#include "test.h"
-#include "container.h"
-#include "or.h"
-#include "dirauth/dirvote.h"
-#include "nodelist.h"
-#include "routerlist.h"
-#include "test_dir_common.h"
-#include "voting_schedule.h"
+#include "test/test.h"
+#include "core/or/or.h"
+#include "feature/dirauth/dirvote.h"
+#include "feature/nodelist/nodelist.h"
+#include "feature/nodelist/routerlist.h"
+#include "feature/dirparse/authcert_parse.h"
+#include "feature/dirparse/ns_parse.h"
+#include "test/test_dir_common.h"
+#include "feature/dircommon/voting_schedule.h"
+
+#include "feature/nodelist/authority_cert_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "feature/nodelist/networkstatus_voter_info_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "feature/dirauth/vote_microdesc_hash_st.h"
+#include "feature/nodelist/vote_routerstatus_st.h"
 
 void dir_common_setup_vote(networkstatus_t **vote, time_t now);
 networkstatus_t * dir_common_add_rs_and_parse(networkstatus_t *vote,
@@ -34,14 +42,20 @@ dir_common_authority_pk_init(authority_cert_t **cert1,
 {
   /* Parse certificates and keys. */
   authority_cert_t *cert;
-  cert = authority_cert_parse_from_string(AUTHORITY_CERT_1, NULL);
+  cert = authority_cert_parse_from_string(AUTHORITY_CERT_1,
+                                          strlen(AUTHORITY_CERT_1),
+                                          NULL);
   tt_assert(cert);
   tt_assert(cert->identity_key);
   *cert1 = cert;
   tt_assert(*cert1);
-  *cert2 = authority_cert_parse_from_string(AUTHORITY_CERT_2, NULL);
+  *cert2 = authority_cert_parse_from_string(AUTHORITY_CERT_2,
+                                            strlen(AUTHORITY_CERT_2),
+                                            NULL);
   tt_assert(*cert2);
-  *cert3 = authority_cert_parse_from_string(AUTHORITY_CERT_3, NULL);
+  *cert3 = authority_cert_parse_from_string(AUTHORITY_CERT_3,
+                                            strlen(AUTHORITY_CERT_3),
+                                            NULL);
   tt_assert(*cert3);
   *sign_skey_1 = crypto_pk_new();
   *sign_skey_2 = crypto_pk_new();
@@ -258,7 +272,9 @@ dir_common_add_rs_and_parse(networkstatus_t *vote, networkstatus_t **vote_out,
   /* dump the vote and try to parse it. */
   v_text = format_networkstatus_vote(sign_skey, vote);
   tt_assert(v_text);
-  *vote_out = networkstatus_parse_vote_from_string(v_text, NULL, NS_TYPE_VOTE);
+  *vote_out = networkstatus_parse_vote_from_string(v_text,
+                                                   strlen(v_text),
+                                                   NULL, NS_TYPE_VOTE);
 
  done:
   if (v_text)
@@ -416,4 +432,3 @@ dir_common_construct_vote_3(networkstatus_t **vote, authority_cert_t *cert,
 
   return 0;
 }
-

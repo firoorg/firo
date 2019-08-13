@@ -48,7 +48,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #ifdef ENABLE_WALLET
 #include "script/ismine.h"
 #include "wallet/wallet.h"

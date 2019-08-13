@@ -1,18 +1,23 @@
-/* Copyright (c) 2013-2017, The Tor Project, Inc. */
+/* Copyright (c) 2013-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define TOR_CHANNEL_INTERNAL_
 #define CIRCUITBUILD_PRIVATE
 #define CIRCUITLIST_PRIVATE
 #define HS_CIRCUITMAP_PRIVATE
-#include "or.h"
-#include "channel.h"
-#include "circuitbuild.h"
-#include "circuitlist.h"
-#include "circuitmux_ewma.h"
-#include "hs_circuitmap.h"
-#include "test.h"
-#include "log_test_helpers.h"
+#include "core/or/or.h"
+#include "core/or/channel.h"
+#include "core/or/circuitbuild.h"
+#include "core/or/circuitlist.h"
+#include "core/or/circuitmux_ewma.h"
+#include "feature/hs/hs_circuitmap.h"
+#include "test/test.h"
+#include "test/log_test_helpers.h"
+
+#include "core/or/or_circuit_st.h"
+#include "core/or/origin_circuit_st.h"
+
+#include "lib/container/bitarray.h"
 
 static channel_t *
 new_fake_channel(void)
@@ -467,4 +472,3 @@ struct testcase_t circuitlist_tests[] = {
     TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-
