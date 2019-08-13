@@ -53,6 +53,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     }
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
+        CAmount nTxFee = nDebit - wtx.GetValueOut();
+        uint64_t nOuts = 0;
+        for (const CTxOut& txout : wtx.vout) {
+            if (!wtx.IsChange(txout)) {
+                nOuts++;
+            }
+        }
         for (const CTxOut& txout : wtx.vout) {
             if (wtx.IsChange(txout)) {
                 continue;
@@ -61,14 +68,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
             TransactionRecord sub(hash, nTime);
             CTxDestination address;
-
+            
             if (mine) {
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     sub.type = TransactionRecord::SpendToSelf;
                     sub.address = CBitcoinAddress(address).ToString();
-                    sub.credit = txout.nValue;
+                    sub.credit = -(nTxFee / nOuts);
                     parts.append(sub);
                 }
             } else {
