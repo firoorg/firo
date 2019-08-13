@@ -212,7 +212,8 @@ std::string CInv::GetCommand() const
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
     int masked = type & MSG_TYPE_MASK;
-    switch (masked)
+    // TODO: switch(masked)
+    switch (type)
     {
     case MSG_TX:             return cmd.append(NetMsgType::TX);
     case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
