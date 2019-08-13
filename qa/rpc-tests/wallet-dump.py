@@ -22,7 +22,7 @@ def read_dump(file_name, addrs, hd_master_addr_old):
             # only read non comment lines
             if line[0] != "#" and len(line) > 10:
 
-                lparts = re.findall(r"[a-zA-Z0-9\=\/\:\-']{2,}", line)
+                lparts = re.findall(r"[^#^\s]{2,}", line)
                 assert len(lparts) == 6, 'Unexpected dump wallet format.'
 
                 _, _, keytype, keypath, _, addr = lparts
