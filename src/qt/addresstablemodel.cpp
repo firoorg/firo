@@ -9,6 +9,7 @@
 
 #include "base58.h"
 #include "wallet/wallet.h"
+#include "main.h"
 
 #include <boost/foreach.hpp>
 
@@ -527,7 +528,8 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         // Unlock wallet failed or was cancelled
         return false;
     }
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
+
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount, ZEROCOIN);
 }
 
 bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -8,19 +8,19 @@
 #define SCHEDULER_KIST_PRIVATE
 #define TOR_CHANNEL_INTERNAL_
 #define CHANNEL_PRIVATE_
-#include "or.h"
-#include "config.h"
-#include "compat_libevent.h"
-#include "channel.h"
-#include "channeltls.h"
-#include "connection.h"
-#include "networkstatus.h"
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "lib/evloop/compat_libevent.h"
+#include "core/or/channel.h"
+#include "core/or/channeltls.h"
+#include "core/mainloop/connection.h"
+#include "feature/nodelist/networkstatus.h"
 #define SCHEDULER_PRIVATE_
-#include "scheduler.h"
+#include "core/or/scheduler.h"
 
 /* Test suite stuff */
-#include "test.h"
-#include "fakechans.h"
+#include "test/test.h"
+#include "test/fakechans.h"
 
 /* Shamelessly stolen from compat_libevent.c */
 #define V(major, minor, patch) \

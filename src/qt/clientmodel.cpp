@@ -156,7 +156,7 @@ void ClientModel::updateExodusBalance()
 
 bool ClientModel::tryLockExodusBalanceChanged()
 {
-    // Try to avoid Omni queuing too many messages for the UI
+    // Try to avoid Exodus queuing too many messages for the UI
     if (lockedExodusBalanceChanged) {
         return false;
     }
@@ -251,7 +251,7 @@ static void ExodusStateInvalidated(ClientModel *clientmodel)
 
 static void ExodusStateChanged(ClientModel *clientmodel)
 {
-    // This will be triggered for each block that contains Omni layer transactions
+    // This will be triggered for each block that contains Exodus layer transactions
     if (clientmodel->tryLockExodusStateChanged()) {
         QMetaObject::invokeMethod(clientmodel, "updateExodusState", Qt::QueuedConnection);
     }
@@ -356,7 +356,7 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
 
-    // Disconnect Omni signals
+    // Disconnect Exodus signals
     uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
     uiInterface.ExodusPendingChanged.disconnect(boost::bind(ExodusPendingChanged, this, _1));
     uiInterface.ExodusBalanceChanged.disconnect(boost::bind(ExodusBalanceChanged, this));

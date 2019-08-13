@@ -112,6 +112,12 @@ string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDecode)
         } else {
             str += GetOpName(opcode);
         }
+
+        if (opcode == opcodetype::OP_SIGMASPEND || opcode == opcodetype::OP_SIGMAMINT) {
+            str += " ";
+            str += HexStr(vch);
+            break;
+        }
     }
     return str;
 }

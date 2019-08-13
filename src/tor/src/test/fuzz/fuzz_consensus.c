@@ -1,10 +1,14 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-#define ROUTERPARSE_PRIVATE
-#include "or.h"
-#include "routerparse.h"
-#include "networkstatus.h"
-#include "fuzzing.h"
+#define SIGCOMMON_PRIVATE
+#include "core/or/or.h"
+#include "feature/dirparse/ns_parse.h"
+#include "feature/dirparse/sigcommon.h"
+#include "feature/dirparse/unparseable.h"
+#include "feature/nodelist/networkstatus.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "test/fuzz/fuzzing.h"
 
 static void
 mock_dump_desc__nodump(const char *desc, const char *type)
@@ -57,13 +61,13 @@ int
 fuzz_main(const uint8_t *data, size_t sz)
 {
   networkstatus_t *ns;
-  char *str = tor_memdup_nulterm(data, sz);
   const char *eos = NULL;
   networkstatus_type_t tp = NS_TYPE_CONSENSUS;
   if (tor_memstr(data, MIN(sz, 1024), "tus vote"))
     tp = NS_TYPE_VOTE;
   const char *what = (tp == NS_TYPE_CONSENSUS) ? "consensus" : "vote";
-  ns = networkstatus_parse_vote_from_string(str,
+  ns = networkstatus_parse_vote_from_string((const char *)data,
+                                            sz,
                                             &eos,
                                             tp);
   if (ns) {
@@ -72,7 +76,6 @@ fuzz_main(const uint8_t *data, size_t sz)
   } else {
     log_debug(LD_GENERAL, "Parsing as %s failed", what);
   }
-  tor_free(str);
+
   return 0;
 }
-

@@ -6,7 +6,7 @@ Some notes on how to build Zcoin Core in Unix.
 
 Note
 ---------------------
-Always use absolute paths to configure and compile zcoin and the dependencies,
+Always use absolute paths to configure and compile Zcoin and the dependencies,
 for example, when specifying the path of the dependency:
 
 	../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
@@ -47,7 +47,7 @@ Optional dependencies:
  protobuf    | Payments in GUI  | Data interchange format used for payment protocol (only needed when GUI enabled)
  libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
- libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.x)
+ libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
 
 For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
 
@@ -98,7 +98,7 @@ Optional:
 
     sudo apt-get install libminiupnpc-dev (see --with-miniupnpc and --enable-upnp-default)
 
-ZMQ dependencies:
+ZMQ dependencies (provides ZMQ API):
 
     sudo apt-get install libzmq3-dev (provides ZMQ API 4.x)
 
@@ -203,7 +203,7 @@ If you need to build Boost yourself:
 
 Security
 --------
-To help make your zcoin installation more secure by making certain attacks impossible to
+To help make your Zcoin installation more secure by making certain attacks impossible to
 exploit even if a vulnerability is found, binaries are hardened by default.
 This can be disabled with:
 
@@ -236,7 +236,7 @@ Hardening enables the following features:
 
 * Non-executable Stack
     If the stack is executable then trivial stack based buffer overflow exploits are possible if
-    vulnerable buffers are found. By default, zcoin should be built with a non-executable stack
+    vulnerable buffers are found. By default, Zcoin should be built with a non-executable stack
     but if one of the libraries it uses asks for an executable stack or someone makes a mistake
     and uses a compiler extension which requires an executable stack, it will silently build an
     executable without the non-executable stack protection.

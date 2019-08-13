@@ -139,7 +139,7 @@ protected:
     //! will encrypt previously unencrypted keys
     bool EncryptKeys(CKeyingMaterial& vMasterKeyIn);
 
-    bool Unlock(const CKeyingMaterial& vMasterKeyIn);
+    bool Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fFirstUnlock = false );
 
 public:
     CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false)
@@ -194,7 +194,7 @@ public:
             mi++;
         }
     }
-
+    
     /**
      * Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.

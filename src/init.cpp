@@ -87,7 +87,6 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
-
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -121,10 +120,6 @@ static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 extern CTxMemPool stempool;
 
 namespace fs = boost::filesystem;
-
-extern const char tor_git_revision[];
-const char tor_git_revision[] = "";
-
 
 extern "C" {
     int tor_main(int argc, char *argv[]);
@@ -242,6 +237,8 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     StopNode();
@@ -289,6 +286,8 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
 
 #if ENABLE_ZMQ
@@ -429,6 +428,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-rpcserialversion", strprintf(_("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"), DEFAULT_RPC_SERIALIZE_VERSION));
     strUsage += HelpMessageOpt("-seednode=<ip>", _("Connect to a node to retrieve peer addresses, and disconnect"));
     strUsage += HelpMessageOpt("-timeout=<n>", strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"), DEFAULT_CONNECT_TIMEOUT));
+    strUsage += HelpMessageOpt("-torsetup", strprintf(_("Anonymous communication with TOR - Quickstart (default: %d)"), DEFAULT_TOR_SETUP));
     strUsage += HelpMessageOpt("-torcontrol=<ip>:<port>", strprintf(_("Tor control port to use if onion listening enabled (default: %s)"), DEFAULT_TOR_CONTROL));
     strUsage += HelpMessageOpt("-torpassword=<pass>", _("Tor control port password (default: empty)"));
 #ifdef USE_UPNP
@@ -661,9 +661,18 @@ void CleanupBlockRevFiles()
     }
 }
 
-void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
-{
-    const CChainParams& chainparams = Params();
+void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
+        //Load zerocoin mint hashes to memory
+        LogPrintf("Loading mints to wallet..\n");
+        zwalletMain->GetTracker().Init();
+        zwalletMain->LoadMintPoolFromDB();
+    }
+#endif
+
+    const CChainParams &chainparams = Params();
     RenameThread("bitcoin-loadblk");
     CImportingNow imp;
 
@@ -725,6 +734,15 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
+        zwalletMain->SyncWithChain();
+    }
+    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+        zwalletMain->GetTracker().ListMints();
+    }
+#endif
 }
 
 /** Sanity checks
@@ -815,6 +833,14 @@ void InitParameterInteraction()
         // Rewrite just private keys: rescan to find transactions
         if (SoftSetBoolArg("-rescan", true))
             LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
+    }
+
+    // -zapwalletmints implies a reindex and zapwallettxes=1
+    if (GetBoolArg("-zapwalletmints", false)) {
+        if (SoftSetBoolArg("-reindex", true))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -reindex=1\n", __func__);
+        if (SoftSetArg("-zapwallettxes", std::string("1")))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -zapwallettxes=1\n", __func__);
     }
 
     // -zapwallettx implies a rescan
@@ -1319,9 +1345,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // start tor
-    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
-    std::pair<bool,std::string> torEnabledArg = ReadBinaryFileTor(pathTorSetting.string().c_str());
-    if(torEnabledArg.second != "" && torEnabledArg.second != "0"){
+    bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
         SetLimited(NET_TOR);
         SetLimited(NET_IPV4);
@@ -1498,15 +1523,15 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
-	            if (!fReindex) {
+                if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
                         LogPrintf("Upgrade to new version of block index required, reindex forced\n");
                         delete pblocktree;
-			            fReindex = fReset = true;
+                        fReindex = fReset = true;
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-		            }
-	            }
+                    }
+                }
 
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
@@ -1522,10 +1547,26 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                     break;
                 }
 
+                if (!fReindex) {
+                    CBlockIndex *tip = chainActive.Tip();
+                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
+                        const uint256* phash = tip->phashBlock;
+                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
+                            strLoadError = _(
+                                    "Block index is outdated, reindex required\n");
+                            break;
+                        }
+                    }
+                }
+
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
+                    LogPrintf("Genesis block hash %s not found.\n",
+                        chainparams.GetConsensus().hashGenesisBlock.ToString());
+                    LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
@@ -1670,6 +1711,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("Step 8: load wallet ************************************\n");
     if (fDisableWallet) {
         pwalletMain = NULL;
+        zwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
         CWallet::InitLoadWallet();
@@ -1857,31 +1899,33 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from zncache.dat");
-    }
-
-    if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-        if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from znpayments.dat");
+    if (GetBoolArg("-persistentznodestate", true)) {
+        uiInterface.InitMessage(_("Loading znode cache..."));
+        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+        if (!flatdb1.Load(mnodeman)) {
+            return InitError("Failed to load znode cache from zncache.dat");
         }
-    } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
-    }
 
-    uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-	flatdb4.Load(netfulfilledman);
+        if (mnodeman.size()) {
+            uiInterface.InitMessage(_("Loading Znode payment cache..."));
+            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+            if (!flatdb2.Load(mnpayments)) {
+                return InitError("Failed to load znode payments cache from znpayments.dat");
+            }
+        } else {
+            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
+        }
+
+        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+        flatdb4.Load(netfulfilledman);
+    }
 
     // if (!flatdb4.Load(netfulfilledman)) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }
 
-    // ********************************************************* Step 11c: update block tip in Dash modules
+    // ********************************************************* Step 11c: update block tip in Zcoin modules
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.

@@ -1,19 +1,27 @@
-/* Copyright (c) 2013-2017, The Tor Project, Inc. */
+/* Copyright (c) 2013-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CONNECTION_PRIVATE
 #define EXT_ORPORT_PRIVATE
-#define MAIN_PRIVATE
-#include "or.h"
-#include "buffers.h"
-#include "connection.h"
-#include "connection_or.h"
-#include "config.h"
-#include "control.h"
-#include "crypto_rand.h"
-#include "ext_orport.h"
-#include "main.h"
-#include "test.h"
+#define MAINLOOP_PRIVATE
+#include "core/or/or.h"
+#include "lib/buf/buffers.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_or.h"
+#include "app/config/config.h"
+#include "feature/control/control.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/relay/ext_orport.h"
+#include "core/mainloop/mainloop.h"
+
+#include "core/or/or_connection_st.h"
+
+#include "test/test.h"
+#include "test/test_helpers.h"
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 /* Test connection_or_remove_from_ext_or_id_map and
  * connection_or_set_ext_or_identifier */
@@ -80,22 +88,6 @@ connection_write_to_buf_impl_replacement(const char *string, size_t len,
   tor_assert(string);
   tor_assert(conn);
   buf_add(conn->outbuf, string, len);
-}
-
-static char *
-buf_get_contents(buf_t *buf, size_t *sz_out)
-{
-  char *out;
-  *sz_out = buf_datalen(buf);
-  if (*sz_out >= ULONG_MAX)
-    return NULL; /* C'mon, really? */
-  out = tor_malloc(*sz_out + 1);
-  if (buf_get_bytes(buf, out, (unsigned long)*sz_out) != 0) {
-    tor_free(out);
-    return NULL;
-  }
-  out[*sz_out] = '\0'; /* Hopefully gratuitous. */
-  return out;
 }
 
 static void
@@ -456,7 +448,7 @@ test_ext_or_handshake(void *arg)
   memcpy(ext_or_auth_cookie, "Gliding wrapt in a brown mantle," , 32);
   ext_or_auth_cookie_is_set = 1;
 
-  init_connection_lists();
+  tor_init_connection_lists();
 
   conn = or_connection_new(CONN_TYPE_EXT_OR, AF_INET);
   tt_int_op(0, OP_EQ, connection_ext_or_start_auth(conn));
@@ -607,4 +599,3 @@ struct testcase_t extorport_tests[] = {
   { "handshake", test_ext_or_handshake, TT_FORK, NULL, NULL },
   END_OF_TESTCASES
 };
-

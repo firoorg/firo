@@ -29,10 +29,9 @@
 #endif
 
 #include <stdint.h>
-
 #include <boost/assign/list_of.hpp>
-
 #include <univalue.h>
+#include "sigma.h"
 
 using namespace std;
 
@@ -60,6 +59,15 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
     out.push_back(Pair("addresses", a));
 }
 
+namespace {
+    void fillStdFields(UniValue & out, CTxIn const & txin) {
+        UniValue o(UniValue::VOBJ);
+        o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
+        o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        out.push_back(Pair("scriptSig", o));
+    }
+}
+
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
     uint256 txid = tx.GetHash();
@@ -74,15 +82,27 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxIn& txin = tx.vin[i];
         UniValue in(UniValue::VOBJ);
-        if (tx.IsCoinBase())
+        if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        else {
+        } else if (txin.IsSigmaSpend()){
+            std::unique_ptr<sigma::CoinSpend> spend;
+            uint32_t pubcoinId;
+            try {
+                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+            } catch (CBadTxIn&) {
+                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+            } catch (std::ios_base::failure &) {
+                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+            }
+            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
+            fillStdFields(in, txin);
+
+            in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
+            in.push_back(Pair("valueSat", spend->getIntDenomination()));
+        } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
-            UniValue o(UniValue::VOBJ);
-            o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
-            o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-            in.push_back(Pair("scriptSig", o));
+            fillStdFields(in, txin);
 
             CTransaction prevTx;
             uint256 hashBlock;
@@ -203,7 +223,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
             "         \"reqSigs\" : n,            (numeric) The required sigs\n"
             "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
             "         \"addresses\" : [           (json array of string)\n"
-            "           \"bitcoinaddress\"        (string) bitcoin address\n"
+            "           \"zcoinaddress\"        (string) Zcoin address\n"
             "           ,...\n"
             "         ]\n"
             "       }\n"
@@ -384,7 +404,7 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
             "     ]\n"
             "2. \"outputs\"             (string, required) a json object with outputs\n"
             "    {\n"
-            "      \"address\": x.xxx   (numeric or string, required) The key is the bitcoin address, the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
+            "      \"address\": x.xxx   (numeric or string, required) The key is the Zcoin address, the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
             "      \"data\": \"hex\",     (string, required) The key is \"data\", the value is hex encoded data\n"
             "      ...\n"
             "    }\n"
@@ -457,7 +477,7 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
         } else {
             CBitcoinAddress address(name_);
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+name_);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+name_);
 
             if (setAddress.count(address))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
@@ -515,7 +535,7 @@ UniValue decoderawtransaction(const UniValue& params, bool fHelp)
             "         \"reqSigs\" : n,            (numeric) The required sigs\n"
             "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
             "         \"addresses\" : [           (json array of string)\n"
-            "           \"12tvKAXCxZjSmdNbao16dKXC8tRWfcF5oc\"   (string) bitcoin address\n"
+            "           \"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\"   (string) Zcoin address\n"
             "           ,...\n"
             "         ]\n"
             "       }\n"
@@ -558,7 +578,7 @@ UniValue decodescript(const UniValue& params, bool fHelp)
             "  \"type\":\"type\", (string) The output type\n"
             "  \"reqSigs\": n,    (numeric) The required signatures\n"
             "  \"addresses\": [   (json array of string)\n"
-            "     \"address\"     (string) bitcoin address\n"
+            "     \"address\"     (string) Zcoin address\n"
             "     ,...\n"
             "  ],\n"
             "  \"p2sh\",\"address\" (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH).\n"

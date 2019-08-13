@@ -183,12 +183,12 @@ def rpc_url(i, rpchost=None):
 
 def wait_for_bitcoind_start(process, url, i):
     '''
-    Wait for bitcoind to start. This means that RPC is accessible and fully initialized.
-    Raise an exception if bitcoind exits during initialization.
+    Wait for zcoind to start. This means that RPC is accessible and fully initialized.
+    Raise an exception if zcoind exits during initialization.
     '''
     while True:
         if process.poll() is not None:
-            raise Exception('bitcoind exited with status %i during initialization' % process.returncode)
+            raise Exception('zcoind exited with status %i during initialization' % process.returncode)
         try:
             rpc = get_rpc_proxy(url, i)
             blocks = rpc.getblockcount()
@@ -224,7 +224,7 @@ def initialize_chain(test_dir, num_nodes):
         # Create cache directories, run bitcoinds:
         for i in range(MAX_NODES):
             datadir=initialize_datadir("cache", i)
-            args = [ os.getenv("BITCOIND", "bitcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
+            args = [ os.getenv("ZCOIND", "zcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
@@ -310,13 +310,14 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     """
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
-        binary = os.getenv("BITCOIND", "bitcoind")
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-mocktime="+str(get_mocktime()) ]
+        binary = os.getenv("ZCOIND", "zcoind")
+        print(binary)
+    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
     if extra_args is not None: args.extend(extra_args)
     print("Starting a process with: " + " ".join(args))
     bitcoind_processes[i] = subprocess.Popen(args)
     if os.getenv("PYTHON_DEBUG", ""):
-        print("start_node: bitcoind started, waiting for RPC to come up")
+        print("start_node: zcoind started, waiting for RPC to come up")
     url = rpc_url(i, rpchost)
     wait_for_bitcoind_start(bitcoind_processes[i], url, i)
     if os.getenv("PYTHON_DEBUG", ""):
@@ -376,7 +377,7 @@ def wait_bitcoinds():
 
 def connect_nodes(from_connection, node_num):
     # NOTE: In next line p2p_port(0) was replaced by rpc_port(0).
-    ip_port = "127.0.0.1:"+str(rpc_port(node_num))
+    ip_port = "127.0.0.1:"+str(p2p_port(node_num))
     from_connection.addnode(ip_port, "onetry")
     # poll until version handshake complete to avoid race conditions
     # with transaction relaying
@@ -630,6 +631,12 @@ def create_tx(node, coinbase, to_address, amount):
     assert_equal(signresult["complete"], True)
     return signresult["hex"]
 
+def create_tx_multi_input(node, inputs, outputs):
+    rawtx = node.createrawtransaction(inputs, outputs)
+    signresult = node.signrawtransaction(rawtx)
+    assert_equal(signresult["complete"], True)
+    return signresult["hex"]
+
 # Create a spend of each passed-in utxo, splicing in "txouts" to each raw
 # transaction to make it large.  See gen_return_txouts() above.
 def create_lots_of_big_transactions(node, txouts, utxos, fee):
@@ -654,3 +661,20 @@ def create_lots_of_big_transactions(node, txouts, utxos, fee):
 def get_bip9_status(node, key):
     info = node.getblockchaininfo()
     return info['bip9_softforks'][key]
+
+def dumpprivkey_otac(node, address):
+    import re
+    error_text = ''
+    try:
+        return node.dumpprivkey(address)
+    except JSONRPCException as e:
+        error_text = e.error
+    else:
+        raise
+
+    otac_match = re.search("Your one time authorization code is: ([a-zA-Z0-9]+)", error_text['message'])
+    if not otac_match:
+        raise JSONRPCException(error_text)
+    return node.dumpprivkey(address, otac_match.groups()[0])
+
+

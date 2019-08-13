@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#define BOOST_TEST_MODULE Bitcoin Test Suite
+#define BOOST_TEST_MODULE Zcoin Test Suite
 
 #include "test_bitcoin.h"
 
@@ -30,6 +30,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
+#include "sigma.h"
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -62,9 +63,10 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
         CZerocoinState::GetZerocoinState()->Reset();
+        CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
         ClearDatadirCache();
-        pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
+        pathTemp = GetTempPath() / strprintf("test_zcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
         boost::filesystem::create_directories(pathTemp);
         mapArgs["-datadir"] = pathTemp.string();
         mempool.setSanityCheck(1.0);
@@ -84,6 +86,25 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
+
+        // Init HD mint
+
+        // Create new keyUser and set as default key
+        // generate a new master key
+        CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
+        pwalletMain->SetHDMasterKey(masterPubKey);
+        CPubKey newDefaultKey;
+        if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
+            pwalletMain->SetDefaultKey(newDefaultKey);
+            pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive");
+        }
+
+        pwalletMain->SetBestChain(chainActive.GetLocator());
+
+        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+        zwalletMain->GetTracker().Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
 }
 
 TestingSetup::~TestingSetup()
@@ -93,6 +114,8 @@ TestingSetup::~TestingSetup()
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();
+        delete pwalletMain;
+        pwalletMain = NULL;
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;
@@ -105,7 +128,7 @@ TestingSetup::~TestingSetup()
 			boost::filesystem::remove_all(std::wstring(L"\\\\?\\") + pathTemp.wstring());
 		}
 		catch(...) {
-				
+
 		}
 	}
         bitdb.RemoveDb("wallet_test.dat");
@@ -133,7 +156,7 @@ CBlock
 TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
 {
     const CChainParams& chainparams = Params();
-    CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
+    CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey, {});
     CBlock& block = pblocktemplate->block;
 
     // Replace mempool-selected txns with just coinbase plus passed-in txns:

@@ -8,6 +8,9 @@ enum struct AddressType
     , payToScriptHash = 2
     , zerocoinMint = 3
     , zerocoinSpend = 4
+    , sigmaMint = 5
+    , sigmaSpend = 6
+    , zerocoinRemint = 7
 };
 
 namespace zerocoin { namespace utils {
@@ -21,7 +24,23 @@ inline bool isZerocoinSpend(std::string const & str){
 }
 
 inline bool isZerocoin(std::string const & str){
-    return isZerocoinMint(str) || isZerocoinSpend(str);
+    return str == "Zerocoin";
+}
+
+inline bool isSigmaMint(std::string const & str){
+    return str == "Sigmamint";
+}
+
+inline bool isSigmaSpend(std::string const & str){
+    return str == "Sigmaspend";
+}
+
+inline bool isSigma(std::string const & str){
+    return str == "Sigma";
+}
+
+inline bool isZerocoinRemint(std::string const & str){
+    return str == "Remint";
 }
 
 }}

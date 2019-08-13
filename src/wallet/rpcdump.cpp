@@ -66,7 +66,7 @@ std::string DecodeDumpString(const std::string &str) {
     for (unsigned int pos = 0; pos < str.length(); pos++) {
         unsigned char c = str[pos];
         if (c == '%' && pos+2 < str.length()) {
-            c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) | 
+            c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) |
                 ((str[pos+2]>>6)*9+((str[pos+2]-'0')&15));
             pos += 2;
         }
@@ -79,7 +79,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
-    
+
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "importprivkey \"zcoinprivkey\" ( \"label\" rescan )\n"
@@ -189,7 +189,7 @@ UniValue importaddress(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
-    
+
     if (fHelp || params.size() < 1 || params.size() > 4)
         throw runtime_error(
             "importaddress \"address\" ( \"label\" rescan p2sh )\n"
@@ -241,7 +241,7 @@ UniValue importaddress(const UniValue& params, bool fHelp)
         std::vector<unsigned char> data(ParseHex(params[0].get_str()));
         ImportScript(CScript(data.begin(), data.end()), strLabel, fP2SH);
     } else {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address or script");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address or script");
     }
 
     if (fRescan)
@@ -412,7 +412,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
-    
+
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "importwallet \"filename\"\n"
@@ -444,6 +444,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
     bool fGood = true;
 
+    bool fMintUpdate = false;
+
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
@@ -473,6 +475,10 @@ UniValue importwallet(const UniValue& params, bool fHelp)
         int64_t nTime = DecodeDumpTime(vstr[1]);
         std::string strLabel;
         bool fLabel = true;
+        // CKeyMetadata
+        bool fHd = false;
+        std::string hdKeypath;
+        CKeyID hdMasterKeyID;
         for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
             if (boost::algorithm::starts_with(vstr[nStr], "#"))
                 break;
@@ -484,13 +490,36 @@ UniValue importwallet(const UniValue& params, bool fHelp)
                 strLabel = DecodeDumpString(vstr[nStr].substr(6));
                 fLabel = true;
             }
+            if(boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
+                hdKeypath = vstr[nStr].substr(10);
+                fHd = true;
+            }
+            if(boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
+                hdMasterKeyID.SetHex(vstr[nStr].substr(14));
+            }
         }
         LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+
+        // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
+        pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+        if(fHd){
+            pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
+            pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
+            pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+        }
+
         if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
             fGood = false;
             continue;
         }
-        pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+
+        if(fHd){
+            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
+            if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
+                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
+                fMintUpdate = true;
+            }
+        }
         if (fLabel)
             pwalletMain->SetAddressBook(keyid, strLabel, "receive");
         nTimeBegin = std::min(nTimeBegin, nTime);
@@ -509,6 +538,9 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->MarkDirty();
 
+    if(fMintUpdate)
+        zwalletMain->SyncWithChain();
+
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
 
@@ -520,14 +552,14 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
-    
+
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "dumpprivkey \"bitcoinaddress\"\n"
-            "\nReveals the private key corresponding to 'bitcoinaddress'.\n"
+            "dumpprivkey \"zcoinaddress\"\n"
+            "\nReveals the private key corresponding to 'zcoinaddress'.\n"
             "Then the importprivkey can be used with this output\n"
             "\nArguments:\n"
-            "1. \"bitcoinaddress\"   (string, required) The bitcoin address for the private key\n"
+            "1. \"zcoinaddress\"   (string, required) The Zcoin address for the private key\n"
             "\nResult:\n"
             "\"key\"                (string) The private key\n"
             "\nExamples:\n"
@@ -543,7 +575,7 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
     string strAddress = params[0].get_str();
     CBitcoinAddress address;
     if (!address.SetString(strAddress))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
     CKeyID keyID;
     if (!address.GetKeyID(keyID))
         throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
@@ -555,13 +587,14 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
 
 UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
 {
+#ifndef UNSAFE_DUMPPRIVKEY
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "dumpprivkey \"bitcoinaddress\"\n"
-            "\nReveals the private key corresponding to 'bitcoinaddress'.\n"
+            "dumpprivkey \"zcoinaddress\"\n"
+            "\nReveals the private key corresponding to 'zcoinaddress'.\n"
             "Then the importprivkey can be used with this output\n"
             "\nArguments:\n"
-            "1. \"bitcoinaddress\"   (string, required) The bitcoin address for the private key\n"
+            "1. \"zcoinaddress\"   (string, required) The Zcoin address for the private key\n"
             "2. \"one-time-auth-code\"   (string, optional) A one time authorization code received from a previous call of dumpprivkey"
             "\nResult:\n"
             "\"key\"                (string) The private key\n"
@@ -589,6 +622,7 @@ UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
             ;
         throw runtime_error(warning);
     }
+#endif
 
     UniValue dumpParams;
     dumpParams.setArray();
@@ -597,7 +631,6 @@ UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
     return dumpprivkey(dumpParams, false);
 }
 
-//This method intentionally left unchanged.
 UniValue dumpwallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -637,13 +670,13 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
     // produce output
-    file << strprintf("# Wallet dump created by Bitcoin %s\n", CLIENT_BUILD);
+    file << strprintf("# Wallet dump created by Zcoin %s\n", CLIENT_BUILD);
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
     file << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
     file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     file << "\n";
 
-    // add the base58check encoded extended master if the wallet uses HD 
+    // add the base58check encoded extended master if the wallet uses HD
     CKeyID masterKeyID = pwalletMain->GetHDChain().masterKeyID;
     if (!masterKeyID.IsNull())
     {
@@ -677,7 +710,17 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapKeyMetadata[keyid].hdKeypath.size() > 0 ? " hdkeypath="+pwalletMain->mapKeyMetadata[keyid].hdKeypath : ""));
+            if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
+                if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
+                    string hdKeypath = pwalletMain->mapKeyMetadata[keyid].hdKeypath;
+                    uint160 hdMasterKeyID = pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID;
+                    if(hdKeypath != "")
+                        file << strprintf(" hdKeypath=%s", hdKeypath);
+                    if(!hdMasterKeyID.IsNull())
+                        file << strprintf(" hdMasterKeyID=%s", hdMasterKeyID.ToString());
+                }
+            }
+            file << strprintf(" # addr=%s\n", strAddr);
         }
     }
     file << "\n";
@@ -688,6 +731,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
 
 UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
 {
+#ifndef UNSAFE_DUMPPRIVKEY
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "dumpwallet \"filename\"\n"
@@ -718,6 +762,7 @@ UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
             ;
         throw runtime_error(warning);
     }
+#endif
 
     UniValue dumpParams;
     dumpParams.setArray();
@@ -725,4 +770,3 @@ UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
 
     return dumpwallet(dumpParams, false);
 }
-

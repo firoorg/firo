@@ -16,12 +16,21 @@ if ($ARGV[0] =~ /^-/) {
     $C = ($lang eq '-C');
 }
 
+our %basenames = ();
+
 for my $fn (@ARGV) {
     open(F, "$fn");
     my $lastnil = 0;
     my $lastline = "";
     my $incomment = 0;
     my $in_func_head = 0;
+    my $basename = $fn;
+    $basename =~ s#.*/##;
+    if ($basenames{$basename}) {
+        msg "Duplicate fnames: $fn and $basenames{$basename}.\n";
+    } else {
+        $basenames{$basename} = $fn;
+    }
     while (<F>) {
         ## Warn about windows-style newlines.
         #    (We insist on lines that end with a single LF character, not
@@ -126,7 +135,7 @@ for my $fn (@ARGV) {
             ## Warn about double semi-colons at the end of a line.
             if (/;;$/) {
                 msg "       double semi-colons at the end of $. in $fn\n"
-            }            
+            }
             ## Warn about multiple internal spaces.
             #if (/[^\s,:]\s{2,}[^\s\\=]/) {
             #    msg "     X  X:$fn:$.\n";

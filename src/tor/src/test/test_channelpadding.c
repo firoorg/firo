@@ -1,24 +1,32 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define TOR_CHANNEL_INTERNAL_
-#define MAIN_PRIVATE
+#define MAINLOOP_PRIVATE
 #define NETWORKSTATUS_PRIVATE
 #define TOR_TIMERS_PRIVATE
-#include "or.h"
-#include "test.h"
-#include "testsupport.h"
-#include "connection.h"
-#include "connection_or.h"
-#include "channel.h"
-#include "channeltls.h"
-#include "channelpadding.h"
-#include "compat_libevent.h"
-#include "config.h"
-#include "compat_time.h"
-#include "main.h"
-#include "networkstatus.h"
-#include "log_test_helpers.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "lib/testsupport/testsupport.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_or.h"
+#include "core/or/channel.h"
+#include "core/or/channeltls.h"
+#include "core/or/channelpadding.h"
+#include "lib/evloop/compat_libevent.h"
+#include "app/config/config.h"
+#include "lib/time/compat_time.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/networkstatus.h"
+#include "test/log_test_helpers.h"
+#include "lib/tls/tortls.h"
+#include "lib/evloop/timers.h"
+#include "lib/buf/buffers.h"
+
+#include "core/or/cell_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "core/or/or_connection_st.h"
+#include "feature/nodelist/routerstatus_st.h"
 
 int channelpadding_get_netflow_inactive_timeout_ms(channel_t *chan);
 int64_t channelpadding_compute_time_until_pad_for_netflow(channel_t *chan);
@@ -398,81 +406,12 @@ test_channelpadding_killonehop(void *arg)
   setup_mock_consensus();
   setup_mock_network();
 
-  /* Do we disable padding if tor2webmode or rsos are enabled, and
-   * the consensus says don't pad?  */
-
-  /* Ensure we can kill tor2web and rsos padding if we want. */
-  // First, test that padding works if either is enabled
-  smartlist_clear(current_md_consensus->net_params);
-  channelpadding_new_consensus_params(current_md_consensus);
+  /* Do we disable padding if rsos is enabled, and the consensus says don't
+   * pad?  */
 
   monotime_coarse_t now;
   monotime_coarse_get(&now);
 
-  tried_to_write_cell = 0;
-  get_options_mutable()->Tor2webMode = 1;
-  monotime_coarse_add_msec(&client_relay3->next_padding_time, &now, 100);
-  decision = channelpadding_decide_to_pad_channel(client_relay3);
-  tt_int_op(decision, OP_EQ, CHANNELPADDING_PADDING_SCHEDULED);
-  tt_assert(client_relay3->pending_padding_callback);
-  tt_int_op(tried_to_write_cell, OP_EQ, 0);
-
-  decision = channelpadding_decide_to_pad_channel(client_relay3);
-  tt_int_op(decision, OP_EQ, CHANNELPADDING_PADDING_ALREADY_SCHEDULED);
-
-  // Wait for the timer
-  new_time += 101*NSEC_PER_MSEC;
-  monotime_coarse_set_mock_time_nsec(new_time);
-  monotime_set_mock_time_nsec(new_time);
-  monotime_coarse_get(&now);
-  timers_run_pending();
-  tt_int_op(tried_to_write_cell, OP_EQ, 1);
-  tt_assert(!client_relay3->pending_padding_callback);
-
-  // Then test disabling each via consensus param
-  smartlist_add(current_md_consensus->net_params,
-                (void*)"nf_pad_tor2web=0");
-  channelpadding_new_consensus_params(current_md_consensus);
-
-  // Before the client tries to pad, the relay will still pad:
-  tried_to_write_cell = 0;
-  monotime_coarse_add_msec(&relay3_client->next_padding_time, &now, 100);
-  get_options_mutable()->ORPort_set = 1;
-  get_options_mutable()->Tor2webMode = 0;
-  decision = channelpadding_decide_to_pad_channel(relay3_client);
-  tt_int_op(decision, OP_EQ, CHANNELPADDING_PADDING_SCHEDULED);
-  tt_assert(relay3_client->pending_padding_callback);
-
-  // Wait for the timer
-  new_time += 101*NSEC_PER_MSEC;
-  monotime_coarse_set_mock_time_nsec(new_time);
-  monotime_set_mock_time_nsec(new_time);
-  monotime_coarse_get(&now);
-  timers_run_pending();
-  tt_int_op(tried_to_write_cell, OP_EQ, 1);
-  tt_assert(!client_relay3->pending_padding_callback);
-
-  // Test client side (it should stop immediately, but send a negotiate)
-  tried_to_write_cell = 0;
-  tt_assert(relay3_client->padding_enabled);
-  tt_assert(client_relay3->padding_enabled);
-  get_options_mutable()->Tor2webMode = 1;
-  /* For the relay to receive the negotiate: */
-  get_options_mutable()->ORPort_set = 1;
-  decision = channelpadding_decide_to_pad_channel(client_relay3);
-  tt_int_op(decision, OP_EQ, CHANNELPADDING_WONTPAD);
-  tt_int_op(tried_to_write_cell, OP_EQ, 1);
-  tt_assert(!client_relay3->pending_padding_callback);
-  tt_assert(!relay3_client->padding_enabled);
-
-  // Test relay side (it should have gotten the negotiation to disable)
-  get_options_mutable()->ORPort_set = 1;
-  get_options_mutable()->Tor2webMode = 0;
-  tt_int_op(channelpadding_decide_to_pad_channel(relay3_client), OP_EQ,
-      CHANNELPADDING_WONTPAD);
-  tt_assert(!relay3_client->padding_enabled);
-
-  /* Repeat for SOS */
   // First, test that padding works if either is enabled
   smartlist_clear(current_md_consensus->net_params);
   channelpadding_new_consensus_params(current_md_consensus);
@@ -1163,4 +1102,3 @@ struct testcase_t channelpadding_tests[] = {
   TEST_CHANNELPADDING(channelpadding_timers, TT_FORK),
   END_OF_TESTCASES
 };
-

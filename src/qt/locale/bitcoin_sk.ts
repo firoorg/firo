@@ -829,7 +829,7 @@
         <translation>&amp;Zobrazovať hodnoty v jednotkách:</translation>
     </message>
     <message>
-        <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
+        <source>Choose the default subdivision unit to show in the interface and when sending zcoins.</source>
         <translation>Zvoľte ako deliť zcoin pri zobrazovaní pri platbách a užívateľskom rozhraní.</translation>
     </message>
     <message>
@@ -974,7 +974,7 @@
     </message>
     <message>
         <source>Enter a Zcoin address (e.g. %1)</source>
-        <translation>Zadajte zcoin adresu (napr. %1)</translation>
+        <translation>Zadajte Zcoin adresu (napr. %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1401,7 +1401,7 @@
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
-        <translation>Poslať Zcoins</translation>
+        <translation>Poslať zcoins</translation>
     </message>
     <message>
         <source>Coin Control Features</source>
@@ -1484,7 +1484,7 @@
         <translation>spolu aspoň</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
         <translation>Zaplatenie len minimálneho poplatku je v poriadku, pokiaľ existuje menej transakcií ako miesta v blokoch. Uvedomte si však, že ak bude vyšší dopyt po transakciách ako dokáže sieť spracovať, môže byť vaša transakcia odsúvaná a nepotvrdená donekonečna.</translation>
     </message>
     <message>
@@ -1882,7 +1882,7 @@
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Toto je pred-testovacia verzia - použitie je na vlastné riziko - nepoužívajte na tvorbu zcoin ani obchodovanie.</translation>
+        <translation>Toto je pred-testovacia verzia - použitie je na vlastné riziko - nepoužívajte na tvorbu Zcoin ani obchodovanie.</translation>
     </message>
     <message>
         <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>

@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 #include "libzerocoin/Zerocoin.h"
+#include "txmempool.h"
 
 #include <boost/unordered_map.hpp>
 
@@ -48,14 +49,14 @@ struct PrecomputedTransactionData;
 struct CNodeStateStats;
 struct LockPoints;
 
-/** btzc: update zcoin config */
+/** btzc: update Zcoin config */
 /** Default for DEFAULT_WHITELISTRELAY. */
 static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-//btzc: update zcoin fee
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10; //0.001 zcoin,
+//btzc: update Zcoin fee
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 1000; //0.00001 zcoin,
 static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = 1000 * CENT;
@@ -146,6 +147,7 @@ static const bool DEFAULT_TXINDEX = true;
 static const bool DEFAULT_TIMESTAMPINDEX = false;
 static const bool DEFAULT_ADDRESSINDEX = false;
 static const bool DEFAULT_SPENTINDEX = false;
+static const bool DEFAULT_TOR_SETUP = false;
 static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 
 static const bool DEFAULT_TESTSAFEMODE = false;
@@ -394,9 +396,8 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
-//BTZC: ADD params for zcoin works
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, CZerocoinTxInfo *zerocoinTxInfo = NULL);
-
+//BTZC: ADD params for Zcoin works
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, CZerocoinTxInfo *zerocoinTxInfo = NULL, sigma::CSigmaTxInfo *sigmaTxInfo = NULL);
 /**
  * Check if transaction is final and can be included in a block with the
  * specified height and time. Consensus critical.
@@ -498,6 +499,10 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true);
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true, int nHeight = INT_MAX, bool isVerifyDB = false);
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransaction& tx);
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx);
+bool IsBlockHashInChain(const uint256& hashBlock);
 
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO

@@ -1,6 +1,6 @@
 # Copyright (c) 2001-2004, Roger Dingledine
 # Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson
-# Copyright (c) 2007-2017, The Tor Project, Inc.
+# Copyright (c) 2007-2019, The Tor Project, Inc.
 # See LICENSE for licensing information
 
 ACLOCAL_AMFLAGS = -I m4
@@ -15,23 +15,137 @@ TESTS=
 noinst_PROGRAMS=
 DISTCLEANFILES=
 bin_SCRIPTS=
-AM_CPPFLAGS=
+AM_CPPFLAGS=\
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/ext \
+	-I$(top_srcdir)/src/ext/trunnel \
+	-I$(top_srcdir)/src/trunnel
+
 AM_CFLAGS=@TOR_SYSTEMD_CFLAGS@ @CFLAGS_BUGTRAP@ @TOR_LZMA_CFLAGS@ @TOR_ZSTD_CFLAGS@
 SHELL=@SHELL@
 
 if COVERAGE_ENABLED
-TESTING_TOR_BINARY=$(top_builddir)/src/or/tor-cov$(EXEEXT)
+TESTING_TOR_BINARY=$(top_builddir)/src/app/tor-cov$(EXEEXT)
 else
-TESTING_TOR_BINARY=$(top_builddir)/src/or/tor$(EXEEXT)
+TESTING_TOR_BINARY=$(top_builddir)/src/app/tor$(EXEEXT)
 endif
 
 if USE_RUST
-## this MUST be $(), otherwise am__DEPENDENCIES will not track it
-rust_ldadd=$(top_builddir)/$(TOR_RUST_LIB_PATH) \
-	$(TOR_RUST_EXTRA_LIBS)
+rust_ldadd=$(top_builddir)/$(TOR_RUST_LIB_PATH)
 else
 rust_ldadd=
 endif
+
+# "Common" libraries used to link tor's utility code.
+TOR_UTIL_LIBS = \
+        src/lib/libtor-geoip.a \
+	src/lib/libtor-process.a \
+        src/lib/libtor-buf.a \
+	src/lib/libtor-time.a \
+	src/lib/libtor-fs.a \
+	src/lib/libtor-encoding.a \
+	src/lib/libtor-sandbox.a \
+	src/lib/libtor-container.a \
+	src/lib/libtor-net.a \
+	src/lib/libtor-thread.a \
+	src/lib/libtor-memarea.a \
+	src/lib/libtor-math.a \
+	src/lib/libtor-meminfo.a \
+	src/lib/libtor-osinfo.a \
+	src/lib/libtor-log.a \
+	src/lib/libtor-lock.a \
+	src/lib/libtor-fdio.a \
+	src/lib/libtor-string.a \
+	src/lib/libtor-term.a \
+	src/lib/libtor-smartlist-core.a \
+	src/lib/libtor-malloc.a \
+	src/lib/libtor-wallclock.a \
+	src/lib/libtor-err.a \
+	src/lib/libtor-version.a \
+	src/lib/libtor-intmath.a \
+	src/lib/libtor-ctime.a
+
+# Variants of the above for linking the testing variant of tor (for coverage
+# and tests)
+if UNITTESTS_ENABLED
+TOR_UTIL_TESTING_LIBS = \
+        src/lib/libtor-geoip-testing.a \
+	src/lib/libtor-process-testing.a \
+        src/lib/libtor-buf-testing.a \
+	src/lib/libtor-time-testing.a \
+	src/lib/libtor-fs-testing.a \
+	src/lib/libtor-encoding-testing.a \
+	src/lib/libtor-sandbox-testing.a \
+	src/lib/libtor-container-testing.a \
+	src/lib/libtor-net-testing.a \
+	src/lib/libtor-thread-testing.a \
+	src/lib/libtor-memarea-testing.a \
+	src/lib/libtor-math-testing.a \
+	src/lib/libtor-meminfo-testing.a \
+	src/lib/libtor-osinfo-testing.a \
+	src/lib/libtor-term-testing.a \
+	src/lib/libtor-log-testing.a \
+	src/lib/libtor-lock-testing.a \
+	src/lib/libtor-fdio-testing.a \
+	src/lib/libtor-string-testing.a \
+	src/lib/libtor-smartlist-core-testing.a \
+	src/lib/libtor-malloc-testing.a \
+	src/lib/libtor-wallclock-testing.a \
+	src/lib/libtor-err-testing.a \
+	src/lib/libtor-version-testing.a \
+	src/lib/libtor-intmath.a \
+	src/lib/libtor-ctime-testing.a
+endif
+
+# Internal crypto libraries used in Tor
+TOR_CRYPTO_LIBS = \
+	src/lib/libtor-tls.a \
+	src/lib/libtor-crypt-ops.a \
+	$(LIBKECCAK_TINY) \
+	$(LIBDONNA)
+
+# Variants of the above for linking the testing variant of tor (for coverage
+# and tests)
+if UNITTESTS_ENABLED
+TOR_CRYPTO_TESTING_LIBS = \
+	src/lib/libtor-tls-testing.a \
+	src/lib/libtor-crypt-ops-testing.a \
+	$(LIBKECCAK_TINY) \
+	$(LIBDONNA)
+endif
+
+# All static libraries used to link tor.
+TOR_INTERNAL_LIBS = \
+	src/core/libtor-app.a \
+	src/lib/libtor-compress.a \
+	src/lib/libtor-evloop.a \
+	$(TOR_CRYPTO_LIBS) \
+	$(TOR_UTIL_LIBS) \
+	src/trunnel/libor-trunnel.a \
+	src/lib/libtor-trace.a
+
+# Variants of the above for linking the testing variant of tor (for coverage
+# and tests)
+if UNITTESTS_ENABLED
+TOR_INTERNAL_TESTING_LIBS = \
+	src/core/libtor-app-testing.a \
+	src/lib/libtor-compress-testing.a \
+	src/lib/libtor-evloop-testing.a \
+	$(TOR_CRYPTO_TESTING_LIBS) \
+	$(TOR_UTIL_TESTING_LIBS) \
+	src/trunnel/libor-trunnel-testing.a \
+	src/lib/libtor-trace.a
+endif
+
+TOR_LDFLAGS_CRYPTLIB=@TOR_LDFLAGS_openssl@
+TOR_LIBS_CRYPTLIB=@TOR_OPENSSL_LIBS@
+TOR_CFLAGS_CRYPTLIB=
+if USE_NSS
+TOR_CFLAGS_CRYPTLIB+=@NSS_CFLAGS@
+TOR_LIBS_CRYPTLIB+=@NSS_LIBS@
+endif
+
+# All libraries used to link tor-cov
 
 include src/include.am
 include doc/include.am
@@ -40,11 +154,13 @@ include contrib/include.am
 EXTRA_DIST+= \
 	ChangeLog					\
 	CONTRIBUTING					\
+	CODE_OF_CONDUCT                                 \
 	INSTALL						\
 	LICENSE						\
 	Makefile.nmake					\
 	README						\
 	ReleaseNotes					\
+	scripts/maint/checkIncludes.py                  \
 	scripts/maint/checkSpace.pl
 
 ## This tells etags how to find mockable function definitions.
@@ -53,14 +169,14 @@ AM_ETAGSFLAGS=--regex='{c}/MOCK_IMPL([^,]+,\W*\([a-zA-Z0-9_]+\)\W*,/\1/s'
 if COVERAGE_ENABLED
 TEST_CFLAGS=-fno-inline -fprofile-arcs -ftest-coverage
 if DISABLE_ASSERTS_IN_UNIT_TESTS
-TEST_CPPFLAGS=-DTOR_UNIT_TESTS -DTOR_COVERAGE -DDISABLE_ASSERTS_IN_UNIT_TESTS
+TEST_CPPFLAGS=-DTOR_UNIT_TESTS -DTOR_COVERAGE -DDISABLE_ASSERTS_IN_UNIT_TESTS @TOR_MODULES_ALL_ENABLED@
 else
-TEST_CPPFLAGS=-DTOR_UNIT_TESTS -DTOR_COVERAGE
+TEST_CPPFLAGS=-DTOR_UNIT_TESTS -DTOR_COVERAGE @TOR_MODULES_ALL_ENABLED@
 endif
 TEST_NETWORK_FLAGS=--coverage --hs-multi-client 1
 else
 TEST_CFLAGS=
-TEST_CPPFLAGS=-DTOR_UNIT_TESTS
+TEST_CPPFLAGS=-DTOR_UNIT_TESTS @TOR_MODULES_ALL_ENABLED@
 TEST_NETWORK_FLAGS=--hs-multi-client 1
 endif
 TEST_NETWORK_WARNING_FLAGS=--quiet --only-warnings
@@ -99,7 +215,16 @@ doxygen:
 test: all
 	$(top_builddir)/src/test/test
 
-check-local: check-spaces check-changes
+shellcheck:
+        # Only use shellcheck if it is present
+	if command -v shellcheck; then \
+	        find $(top_srcdir)/scripts/ -name "*.sh" -exec shellcheck {} +; \
+	        if [ -d "$(top_srcdir)/scripts/test" ]; then \
+                        shellcheck $(top_srcdir)/scripts/test/cov-diff $(top_srcdir)/scripts/test/coverage; \
+                fi; \
+	fi
+
+check-local: check-spaces check-changes check-includes shellcheck
 
 need-chutney-path:
 	@if test ! -d "$$CHUTNEY_PATH"; then \
@@ -127,6 +252,7 @@ test-network: need-chutney-path $(TESTING_TOR_BINARY) src/tools/tor-gencert
 # because they're incompatible
 test-network-all: need-chutney-path test-driver $(TESTING_TOR_BINARY) src/tools/tor-gencert
 	mkdir -p $(TEST_NETWORK_ALL_LOG_DIR)
+	rm -f $(TEST_NETWORK_ALL_LOG_DIR)/*.log $(TEST_NETWORK_ALL_LOG_DIR)/*.trs
 	@flavors="$(TEST_CHUTNEY_FLAVORS)"; \
 	if ping6 -q -c 1 -o ::1 >/dev/null 2>&1 || ping6 -q -c 1 -W 1 ::1 >/dev/null 2>&1 || ping -6 -c 1 -W 1 ::1 >/dev/null 2>&1; then \
 		echo "ping6 ::1 or ping ::1 succeeded, running IPv6 flavors: $(TEST_CHUTNEY_FLAVORS_IPV6)."; \
@@ -150,7 +276,7 @@ test-network-all: need-chutney-path test-driver $(TESTING_TOR_BINARY) src/tools/
 		$(top_srcdir)/src/test/test-network.sh $(TEST_NETWORK_WARNING_FLAGS); \
 	done; \
 	echo "Log and result files are available in $(TEST_NETWORK_ALL_LOG_DIR)."; \
-	! grep -q FAIL test_network_log/*.trs
+	! grep -q FAIL $(TEST_NETWORK_ALL_LOG_DIR)/*.trs
 
 need-stem-path:
 	@if test ! -d "$$STEM_SOURCE_DIR"; then \
@@ -160,7 +286,7 @@ need-stem-path:
 	fi
 
 test-stem: need-stem-path $(TESTING_TOR_BINARY)
-	@$(PYTHON) "$$STEM_SOURCE_DIR"/run_tests.py --tor "$(TESTING_TOR_BINARY)" --all --log notice --target RUN_ALL;
+	@$(PYTHON) "$$STEM_SOURCE_DIR"/run_tests.py --tor "$(TESTING_TOR_BINARY)" --integ --log notice --target RUN_ALL;
 
 test-stem-full: need-stem-path $(TESTING_TOR_BINARY)
 	@$(PYTHON) "$$STEM_SOURCE_DIR"/run_tests.py --tor "$(TESTING_TOR_BINARY)" --all --log notice --target RUN_ALL,ONLINE -v;
@@ -169,8 +295,10 @@ test-full: need-stem-path need-chutney-path check test-network test-stem
 
 test-full-online: need-stem-path need-chutney-path check test-network test-stem-full
 
+# We can't delete the gcno files, because they are created when tor is compiled
 reset-gcov:
-	rm -f $(top_builddir)/src/*/*.gcda $(top_builddir)/src/*/*/*.gcda
+	rm -f $(top_builddir)/src/*/*.gcda $(top_builddir)/src/*/*/*.gcda \
+	      $(top_builddir)/src/*/*.gcov $(top_builddir)/src/*/*/*.gcov
 
 HTML_COVER_DIR=$(top_builddir)/coverage_html
 coverage-html: all
@@ -205,11 +333,18 @@ coverage-html-full: all
 check-spaces:
 if USE_PERL
 	$(PERL) $(top_srcdir)/scripts/maint/checkSpace.pl -C \
-		$(top_srcdir)/src/common/*.[ch] \
-		$(top_srcdir)/src/or/*.[ch] \
+		$(top_srcdir)/src/lib/*/*.[ch] \
+		$(top_srcdir)/src/core/*/*.[ch] \
+		$(top_srcdir)/src/feature/*/*.[ch] \
+		$(top_srcdir)/src/app/*/*.[ch] \
 		$(top_srcdir)/src/test/*.[ch] \
 		$(top_srcdir)/src/test/*/*.[ch] \
 		$(top_srcdir)/src/tools/*.[ch]
+endif
+
+check-includes:
+if USEPYTHON
+	$(PYTHON) $(top_srcdir)/scripts/maint/checkIncludes.py
 endif
 
 check-docs: all
@@ -239,17 +374,62 @@ check-typos:
 		echo "You can install the latest version of misspell here: https://github.com/client9/misspell#install"; \
 	fi
 
+.PHONY: rustfmt
+rustfmt:
+if USE_RUST
+	@if test -x "`which cargo-fmt 2>&1;true`"; then \
+		echo "Formatting Rust code ..."; \
+		(cd "$(top_srcdir)/src/rust" && cargo fmt --all --); \
+	else \
+		echo "Tor uses rustfmt (via cargo-fmt) to format Rust code."; \
+		echo "However, it seems that you don't have rustfmt installed."; \
+		printf "You can install rustfmt by following the directions here:"; \
+		echo " https://github.com/rust-lang-nursery/rustfmt"; \
+	fi
+endif
+
+.PHONY: check-rustfmt
+check-rustfmt:
+if USE_RUST
+	@if test -x "`which cargo-fmt 2>&1;true`"; then \
+		printf "Running rustfmt..."; \
+		(cd "$(top_srcdir)/src/rust" && cargo fmt --all -- --check && echo "done.") || \
+		(echo "**************** check-rustfmt failed. ****************"; \
+		 echo "   Run \`make rustfmt\` to apply the above changes."; \
+		 exit 1); \
+	else \
+		echo "Tor uses rustfmt (via cargo-fmt) to format Rust code."; \
+		echo "However, it seems that you don't have rustfmt installed."; \
+		printf "You can install rustfmt by following the directions here:"; \
+		echo " https://github.com/rust-lang-nursery/rustfmt"; \
+	fi
+endif
+
+.PHONY: clippy
+clippy:
+if USE_RUST
+	@if test -x "`which cargo-clippy 2>&1;true`"; then \
+		echo "Running cargo clippy ..."; \
+		echo "Prepare yourself for the onslaught of suggestions ..."; \
+		(cd "$(top_srcdir)/src/rust" && cargo clippy); \
+	else \
+		echo "Tor can use clippy to lint Rust code."; \
+		echo "However, it seems that you don't have clippy installed."; \
+		echo "You can install the latest version of clippy by following the directions here: https://github.com/rust-lang-nursery/rust-clippy"; \
+	fi
+endif
+
 .PHONY: check-changes
 check-changes:
 if USEPYTHON
 	@if test -d "$(top_srcdir)/changes"; then \
-		$(PYTHON) $(top_srcdir)/scripts/maint/lintChanges.py $(top_srcdir)/changes; \
+		PACKAGE_VERSION=$(PACKAGE_VERSION) $(PYTHON) $(top_srcdir)/scripts/maint/lintChanges.py $(top_srcdir)/changes; \
 		fi
 endif
 
 .PHONY: update-versions
 update-versions:
-	$(PERL) $(top_builddir)/scripts/maint/updateVersions.pl
+	abs_top_srcdir="$(abs_top_srcdir)" $(PYTHON) $(top_srcdir)/scripts/maint/update_versions.py
 
 .PHONY: callgraph
 callgraph:
@@ -284,3 +464,18 @@ show-distdir-testlog:
 	  cat $(distdir)/_build/sub/$(TEST_SUITE_LOG); \
 	else \
 	  cat $(distdir)/_build/$(TEST_SUITE_LOG); fi
+
+# Similarly, this relies on automake internals to run file on an
+# intermittent core file whose provenance is not known to us.  See
+# ticket 26787.
+show-distdir-core:
+	@if test -d "$(distdir)/_build/sub"; then \
+	  file $(distdir)/_build/sub/core ; \
+	else \
+	  file $(distdir)/_build/core; fi
+
+show-libs:
+	@echo $(TOR_INTERNAL_LIBS)
+
+show-testing-libs:
+	@echo $(TOR_INTERNAL_TESTING_LIBS)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CIRCUITBUILD_PRIVATE
@@ -6,16 +6,21 @@
 #define CIRCUITLIST_PRIVATE
 #define CHANNEL_PRIVATE_
 
-#include "or.h"
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
-#include "config.h"
-#include "circuitlist.h"
-#include "circuitbuild.h"
-#include "circuitstats.h"
-#include "circuituse.h"
-#include "channel.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
+#include "app/config/config.h"
+#include "core/or/circuitlist.h"
+#include "core/or/circuitbuild.h"
+#include "core/or/circuitstats.h"
+#include "core/or/circuituse.h"
+#include "core/or/channel.h"
+
+#include "core/or/cpath_build_state_st.h"
+#include "core/or/crypt_path_st.h"
+#include "core/or/extend_info_st.h"
+#include "core/or/origin_circuit_st.h"
 
 void test_circuitstats_timeout(void *arg);
 void test_circuitstats_hoplen(void *arg);

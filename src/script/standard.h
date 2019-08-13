@@ -27,7 +27,7 @@ public:
     CScriptID(const uint160& in) : uint160(in) {}
 };
 
-static const unsigned int MAX_OP_RETURN_RELAY = 83; //!< bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
+static const unsigned int MAX_OP_RETURN_RELAY = 4096;
 extern bool fAcceptDatacarrier;
 extern unsigned nMaxDatacarrierBytes;
 
@@ -36,7 +36,7 @@ extern unsigned nMaxDatacarrierBytes;
  * them to be valid. (but old blocks may not comply with) Currently just P2SH,
  * but in the future other flags may be added, such as a soft-fork to enforce
  * strict DER encoding.
- * 
+ *
  * Failing one of these tests may trigger a DoS ban - see CheckInputs() for
  * details.
  */
@@ -53,7 +53,8 @@ enum txnouttype
     TX_NULL_DATA,
     TX_WITNESS_V0_SCRIPTHASH,
     TX_WITNESS_V0_KEYHASH,
-    TX_ZEROCOINMINT
+    TX_ZEROCOINMINT,
+    TX_ZEROCOINMINTV3
 };
 
 class CNoDestination {
@@ -62,7 +63,7 @@ public:
     friend bool operator<(const CNoDestination &a, const CNoDestination &b) { return true; }
 };
 
-/** 
+/**
  * A txout script template with a specific destination. It is either:
  *  * CNoDestination: no destination set
  *  * CKeyID: TX_PUBKEYHASH destination

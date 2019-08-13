@@ -549,6 +549,7 @@ public:
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb);
     void queryHashes(std::vector<uint256>& vtxid);
     void pruneSpent(const uint256& hash, CCoins &coins);
+    void getTransactions(std::set<uint256>& setTxid);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
     /**

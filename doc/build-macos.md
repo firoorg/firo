@@ -24,7 +24,7 @@ In case you want to build the disk image with `make deploy` (.dmg / optional), y
       
 Berkley DB
 ------------------------
-It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you can use [the installation script included in contrib/] (https://github.com/bitcoin/bitcoin/blob/master/contrib/install_db4.sh)like so:
+It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you can use [the installation script included in contrib/](https://github.com/bitcoin/bitcoin/blob/master/contrib/install_db4.sh) like so:
     ./contrib/install_db4.sh .
 
 from the root of the repository.
@@ -36,7 +36,7 @@ Build Zcoin Core
 ------------------------
 1.  Build Zcoin-core:
 
-    Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless Zcoin binaries as well as the GUI (if Qt is found).
     
     In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
     
@@ -75,7 +75,7 @@ You can monitor the download process by looking at the debug.log file:
 Other commands:
 -------
 
-    ./src/zcoind -daemon # Starts the zcoin daemon.
+    ./src/zcoind -daemon # Starts the Zcoin daemon.
     ./src/zcoin-cli --help # Outputs a list of command-line options.
     ./src/zcoin-cli help # Outputs a list of RPC commands when the daemon is running.
 
@@ -86,9 +86,9 @@ Download and install the community edition of [Qt Creator](https://www.qt.io/dow
 Uncheck everything except Qt Creator during the installation process.
 
 1. Make sure you installed everything through Homebrew mentioned above
-2. Do a proper ./configure --enable-debug
+2. Do a proper `./configure --enable-debug`
 3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
-4. Enter "bitcoin-qt" as project name, enter src/qt as location
+4. Enter "bitcoin-qt" as project name, enter `src/qt` as location
 5. Leave the file selection as it is
 6. Confirm the "summary page"
 7. In the "Projects" tab select "Manage Kits..."
