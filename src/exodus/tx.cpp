@@ -84,7 +84,7 @@ std::string exodus::strTransactionType(uint16_t txType)
 static bool EnsureEnableSigma(uint32_t propertyId)
 {
     CMPSPInfo::Entry sp;
-    if (_my_sps->getSP(propertyId, sp)) {
+    if (!_my_sps->getSP(propertyId, sp)) {
         return false;
     }
 
@@ -2561,7 +2561,7 @@ int CMPTransaction::logicMath_SimpleMint()
 
     if (!EnsureEnableSigma(property)) {
         PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
-        return PKT_ERROR_SIGMA - 25;
+        return PKT_ERROR_SIGMA - 101;
     }
 
     std::vector<uint8_t> denominations;

@@ -55,9 +55,9 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
         RegisterExodusPayloadCreationRPCCommands(tableRPC);
         RegisterExodusRawTransactionRPCCommands(tableRPC);
 
-        #ifdef ENABLE_WALLET
-            RegisterExodusTransactionCreationRPCCommands(tableRPC);
-        #endif
+#ifdef ENABLE_WALLET
+        RegisterExodusTransactionCreationRPCCommands(tableRPC);
+#endif
     }
 #endif
 }

@@ -26,12 +26,8 @@ public:
 
     template<class InItr, class OutItr,
     typename std::enable_if<std::is_same<uint8_t, typename std::iterator_traits<InItr>::value_type>::value>::type* = nullptr>
-    OutItr CreateSigmaMints(uint32_t propertyId, InItr begin, InItr end, OutItr mintItr,
-        int64_t limit = INT64_MAX)
+    OutItr CreateSigmaMints(uint32_t propertyId, InItr begin, InItr end, OutItr mintItr)
     {
-        if (std::distance(begin, end) > limit) {
-            throw std::invalid_argument("amount of mints is exceed limit");
-        }
         LOCK(pwalletMain->cs_wallet);
         for (auto it = begin; it != end; it++) {
             uint8_t denomination = *it;
