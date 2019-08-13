@@ -20,10 +20,8 @@
 #include "main.h"
 #include "rpc/server.h"
 #include "sync.h"
-#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet.h"
-#endif
 
 #include <univalue.h>
 
@@ -318,7 +316,7 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
         RequireSaneDExPaymentWindow(toAddress, propertyId);
     }
 
-#ifdef ENABLE_WALLET
+
     // use new 0.10 custom fee to set the accept minimum fee appropriately
     int64_t nMinimumAcceptFee = 0;
     {
@@ -334,7 +332,6 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     CFeeRate payTxFeeOriginal = payTxFee;
     payTxFee = CFeeRate(nMinimumAcceptFee, 225); // TODO: refine!
     // fPayAtLeastCustomFee = true;
-#endif
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_DExAccept(propertyId, amount);
@@ -344,10 +341,8 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     std::string rawHex;
     int result = WalletTxBuilder(fromAddress, toAddress, "", 0, payload, txid, rawHex, autoCommit);
 
-#ifdef ENABLE_WALLET
     // set the custom fee back to original
     payTxFee = payTxFeeOriginal;
-#endif
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -1533,21 +1528,21 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3) {
         throw std::runtime_error(
-            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\": amount}\n"
+            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...}\n"
             "\nCreate mints.\n"
             "\nArguments:\n"
-            "1. \"fromaddress\"                (string, required) the address to send from\n"
+            "1. fromaddress                  (string, required) the address to send from\n"
             "2. propertyid                   (number, required) the property to create mints\n"
-            "3. \"denominations\"              (string, required) A json object with denomination and amount\n"
+            "3. denominations                (string, required) A json object with denomination and amount\n"
             "    {\n"
-            "      \"denomination\": amount    (number) The denomination id, the amount of mints\n"
+            "      denomination:amount       (number) The denomination id, the amount of mints\n"
             "      ,...\n"
             "    }\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\": 1, \"1\": 2}\"")
-            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\": 1, \"1\": 2}\"")
+            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\":1, \"1\":2}\"")
+            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
         );
     }
 
@@ -1579,7 +1574,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     int64_t amount;
     try {
-        amount = GetDenominationsSum(propertyId, denoms);
+        amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
     } catch (const std::invalid_argument& e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
@@ -1589,9 +1584,8 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
     {
-        LOCK(pwalletMain->cs_wallet);
         exodus::Wallet wallet(pwalletMain->strWalletFile);
-        wallet.GenerateMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
+        wallet.CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
     }
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
@@ -1608,6 +1602,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIGMA_SIMPLE_MINT, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -1616,7 +1611,6 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
-#ifdef ENABLE_WALLET
     { "exodus (transaction creation)",  "exodus_sendrawtx",                 &exodus_sendrawtx,                  false },
     { "exodus (transaction creation)",  "exodus_send",                      &exodus_send,                       false },
     { "hidden",                         "exodus_senddexsell",               &exodus_senddexsell,                false },
@@ -1649,7 +1643,6 @@ static const CRPCCommand commands[] =
     { "hidden",                         "send_MP",                          &exodus_send,                       false },
     { "hidden",                         "sendtoowners_MP",                  &exodus_sendsto,                    false },
     { "hidden",                         "trade_MP",                         &trade_MP,                          false },
-#endif
 };
 
 void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC)

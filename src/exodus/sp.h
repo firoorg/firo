@@ -274,6 +274,27 @@ void calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_t bonusP
 void eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, int block);
 
 unsigned int eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex);
+
+template<class InputItr>
+int64_t SumDenominationsValue(uint32_t property, InputItr begin, InputItr end)
+{
+    LOCK(cs_tally);
+    CMPSPInfo::Entry sp;
+    if (!_my_sps->getSP(property, sp)) {
+        throw std::invalid_argument("the property not found");
+    }
+
+    int64_t amount(0);
+    for (auto it = begin; it != end; it++) {
+        if (*it >= sp.denominations.size()) {
+            throw std::invalid_argument("the denomination not found");
+        }
+
+        amount += sp.denominations[*it];
+    }
+
+    return amount;
+}
 }
 
 

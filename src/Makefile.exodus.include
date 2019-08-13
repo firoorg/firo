@@ -20,7 +20,6 @@ EXODUS_H = \
   exodus/rpcpayload.h \
   exodus/rpcrawtx.h \
   exodus/rpcrequirements.h \
-  exodus/rpctx.h \
   exodus/rpctxobject.h \
   exodus/rpcvalues.h \
   exodus/rules.h \
@@ -59,7 +58,6 @@ EXODUS_CPP = \
   exodus/rpcpayload.cpp \
   exodus/rpcrawtx.cpp \
   exodus/rpcrequirements.cpp \
-  exodus/rpctx.cpp \
   exodus/rpctxobject.cpp \
   exodus/rpcvalues.cpp \
   exodus/rules.cpp \
@@ -78,10 +76,12 @@ EXODUS_CPP = \
 
 if ENABLE_WALLET
 EXODUS_H += \
+  exodus/rpctx.h \
   exodus/wallet.h \
   exodus/walletdb.h
 
 EXODUS_CPP += \
+  exodus/rpctx.cpp \
   exodus/wallet.cpp \
   exodus/walletdb.cpp
 endif

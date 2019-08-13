@@ -4060,20 +4060,3 @@ const std::vector<unsigned char> GetExMarker()
 
     return std::vector<unsigned char>(pch, pch + sizeof(pch) / sizeof(pch[0]));
 }
-
-int64_t exodus::GetDenominationsSum(uint32_t propertyId, std::vector<uint8_t> const &denominations)
-{
-    CMPSPInfo::Entry sp;
-    assert(_my_sps->getSP(propertyId, sp));
-
-    int64_t amount(0);
-    for (auto denom : denominations) {
-        if (denom > sp.denominations.size()) {
-            throw std::invalid_argument("the denomination not found");
-        }
-
-        amount += sp.denominations[denom];
-    }
-
-    return amount;
-}

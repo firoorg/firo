@@ -136,6 +136,7 @@ enum FILETYPES {
 #define METADEX_ERROR         (-81000)
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
+#define PKT_ERROR_SIGMA       (-84000)
 
 #define EXODUS_PROPERTY_XZC   0
 #define EXODUS_PROPERTY_EXODUS   1
@@ -147,6 +148,12 @@ std::string FormatDivisibleShortMP(int64_t amount);
 std::string FormatMP(uint32_t propertyId, int64_t amount, bool fSign = false);
 std::string FormatShortMP(uint32_t propertyId, int64_t amount);
 std::string FormatByType(int64_t amount, uint16_t propertyType);
+
+class CMPSPInfo;
+namespace exodus
+{
+extern CMPSPInfo *_my_sps;
+};
 
 /** Returns the Exodus address. */
 const CBitcoinAddress ExodusAddress();
@@ -399,8 +406,6 @@ bool isFreezingEnabled(uint32_t propertyId, int block);
 void ClearFreezeState();
 /** Prints the freeze state **/
 void PrintFreezeState();
-
-int64_t GetDenominationsSum(uint32_t propertyId, std::vector<uint8_t> const &denominations);
 
 }
 
