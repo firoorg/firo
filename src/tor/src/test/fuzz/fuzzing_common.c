@@ -1,13 +1,16 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 #define CRYPTO_ED25519_PRIVATE
 #include "orconfig.h"
-#include "or.h"
-#include "backtrace.h"
-#include "config.h"
-#include "fuzzing.h"
-#include "crypto.h"
-#include "crypto_ed25519.h"
+#include "core/or/or.h"
+#include "app/main/subsysmgr.h"
+#include "lib/err/backtrace.h"
+#include "app/config/config.h"
+#include "test/fuzz/fuzzing.h"
+#include "lib/compress/compress.h"
+#include "lib/crypt_ops/crypto_ed25519.h"
+#include "lib/crypt_ops/crypto_init.h"
+#include "lib/version/torversion.h"
 
 static or_options_t *mock_options = NULL;
 static const or_options_t *
@@ -93,16 +96,19 @@ disable_signature_checking(void)
 static void
 global_init(void)
 {
-  tor_threads_init();
+  subsystems_init_upto(SUBSYS_LEVEL_LIBS);
+  flush_log_messages_from_startup();
+
   tor_compress_init();
+
+  if (crypto_global_init(0, NULL, NULL) < 0)
+    abort();
+
   {
     struct sipkey sipkey = { 1337, 7331 };
+    siphash_unset_global_key();
     siphash_set_global_key(&sipkey);
   }
-
-  /* Initialise logging first */
-  init_logging(1);
-  configure_backtrace_handler(get_version());
 
   /* set up the options. */
   mock_options = tor_malloc_zero(sizeof(or_options_t));
@@ -189,4 +195,3 @@ main(int argc, char **argv)
 }
 
 #endif
-

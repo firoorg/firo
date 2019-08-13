@@ -147,6 +147,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             if(fAllToMe > mine) fAllToMe = mine;
         }
 
+        if(wtx.IsSigmaMint() && !wtx.IsSigmaSpend())
+            fAllToMe = ISMINE_SPENDABLE;
+
         if (fAllFromMe && fAllToMe)
         {
             CAmount nChange = wtx.GetChange();

@@ -294,7 +294,7 @@ public:
     /// Find a random entry
     CZnode* FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion = -1);
 
-    std::vector<CZnode> GetFullZnodeVector() { return vZnodes; }
+    std::vector<CZnode> GetFullZnodeVector() { LOCK(cs); return vZnodes; }
 
     std::vector<std::pair<int, CZnode> > GetZnodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
     int GetZnodeRank(const CTxIn &vin, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
@@ -313,7 +313,7 @@ public:
     void ProcessVerifyBroadcast(CNode* pnode, const CZnodeVerification& mnv);
 
     /// Return the number of (unique) Znodes
-    int size() { return vZnodes.size(); }
+    int size() { LOCK(cs); return vZnodes.size(); }
 
     std::string ToString() const;
 

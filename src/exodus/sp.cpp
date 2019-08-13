@@ -691,7 +691,7 @@ void exodus::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_
     // Weeks in seconds
     arith_uint256 weeks_sec_ = ConvertTo256(604800);
 
-    // Precision for all non-bitcoin values (bonus percentages, for example)
+    // Precision for all non-zcoin values (bonus percentages, for example)
     arith_uint256 precision_ = ConvertTo256(1000000000000LL);
 
     // Precision for all percentages (10/100 = 10%)
@@ -720,7 +720,7 @@ void exodus::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_
     issuerPercentage_ *= precision_;
     issuerPercentage_ /= percentage_precision;
 
-    // Precision for bitcoin amounts (satoshi)
+    // Precision for zcoin amounts (satoshi)
     arith_uint256 satoshi_precision_ = ConvertTo256(100000000L);
 
     // Total tokens including remainders

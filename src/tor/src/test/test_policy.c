@@ -1,14 +1,22 @@
-/* Copyright (c) 2013-2017, The Tor Project, Inc. */
+/* Copyright (c) 2013-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
 #define CONFIG_PRIVATE
-#include "config.h"
-#include "router.h"
-#include "routerparse.h"
 #define POLICIES_PRIVATE
-#include "policies.h"
-#include "test.h"
+
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "core/or/policies.h"
+#include "feature/dirparse/policy_parse.h"
+#include "feature/relay/router.h"
+#include "lib/encoding/confline.h"
+#include "test/test.h"
+
+#include "core/or/addr_policy_st.h"
+#include "core/or/port_cfg_st.h"
+#include "feature/nodelist/node_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "feature/nodelist/routerstatus_st.h"
 
 /* Helper: assert that short_policy parses and writes back out as itself,
    or as <b>expected</b> if that's provided. */
@@ -1699,7 +1707,7 @@ test_policies_getinfo_helper_policies(void *arg)
   rv = getinfo_helper_policies(NULL, "exit-policy/full", &answer,
                                &errmsg);
 
-  tt_int_op(rv, OP_EQ, 0);
+  tt_int_op(rv, OP_EQ, -1);
   tt_ptr_op(answer, OP_EQ, NULL);
   tt_ptr_op(errmsg, OP_NE, NULL);
   tt_str_op(errmsg, OP_EQ, "Key digest failed");
@@ -2015,6 +2023,20 @@ test_policies_fascist_firewall_allows_address(void *arg)
     CHECK_CHOSEN_ADDR_NODE(fake_node, fw_connection, pref_only, expect_rv, \
                            expect_ap); \
   STMT_END
+
+/** Mock the preferred address function to return zero (prefer IPv4). */
+static int
+mock_fascist_firewall_rand_prefer_ipv6_addr_use_ipv4(void)
+{
+  return 0;
+}
+
+/** Mock the preferred address function to return one (prefer IPv6). */
+static int
+mock_fascist_firewall_rand_prefer_ipv6_addr_use_ipv6(void)
+{
+  return 1;
+}
 
 /** Run unit tests for fascist_firewall_choose_address */
 static void
@@ -2414,6 +2436,42 @@ test_policies_fascist_firewall_choose_address(void *arg)
   CHECK_CHOSEN_ADDR_RN(fake_rs, fake_node, FIREWALL_DIR_CONNECTION, 1, 1,
                        ipv4_dir_ap);
 
+  /* Test ClientAutoIPv6ORPort and pretend we prefer IPv4. */
+  memset(&mock_options, 0, sizeof(or_options_t));
+  mock_options.ClientAutoIPv6ORPort = 1;
+  mock_options.ClientUseIPv4 = 1;
+  mock_options.ClientUseIPv6 = 1;
+  MOCK(fascist_firewall_rand_prefer_ipv6_addr,
+       mock_fascist_firewall_rand_prefer_ipv6_addr_use_ipv4);
+  /* Simulate the initialisation of fake_node.ipv6_preferred */
+  fake_node.ipv6_preferred = fascist_firewall_prefer_ipv6_orport(
+                                                                &mock_options);
+
+  CHECK_CHOSEN_ADDR_RN(fake_rs, fake_node, FIREWALL_OR_CONNECTION, 0, 1,
+                       ipv4_or_ap);
+  CHECK_CHOSEN_ADDR_RN(fake_rs, fake_node, FIREWALL_OR_CONNECTION, 1, 1,
+                       ipv4_or_ap);
+
+  UNMOCK(fascist_firewall_rand_prefer_ipv6_addr);
+
+  /* Test ClientAutoIPv6ORPort and pretend we prefer IPv6. */
+  memset(&mock_options, 0, sizeof(or_options_t));
+  mock_options.ClientAutoIPv6ORPort = 1;
+  mock_options.ClientUseIPv4 = 1;
+  mock_options.ClientUseIPv6 = 1;
+  MOCK(fascist_firewall_rand_prefer_ipv6_addr,
+       mock_fascist_firewall_rand_prefer_ipv6_addr_use_ipv6);
+  /* Simulate the initialisation of fake_node.ipv6_preferred */
+  fake_node.ipv6_preferred = fascist_firewall_prefer_ipv6_orport(
+                                                                &mock_options);
+
+  CHECK_CHOSEN_ADDR_RN(fake_rs, fake_node, FIREWALL_OR_CONNECTION, 0, 1,
+                       ipv6_or_ap);
+  CHECK_CHOSEN_ADDR_RN(fake_rs, fake_node, FIREWALL_OR_CONNECTION, 1, 1,
+                       ipv6_or_ap);
+
+  UNMOCK(fascist_firewall_rand_prefer_ipv6_addr);
+
  done:
   UNMOCK(get_options);
 }
@@ -2445,4 +2503,3 @@ struct testcase_t policy_tests[] = {
     test_policies_fascist_firewall_choose_address, 0, NULL, NULL },
   END_OF_TESTCASES
 };
-

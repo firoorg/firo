@@ -42,7 +42,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -59,6 +59,7 @@
 #include "coins.h"
 
 #include "sigma/coinspend.h"
+#include "sigma/remint.h"
 
 #ifdef ENABLE_EXODUS
 #include "exodus/exodus.h"
@@ -1349,6 +1350,19 @@ bool AcceptToMemoryPoolWorker(
                 zcSpendSerials.push_back(zcSpendSerial);
             }
         }
+        else if (tx.IsZerocoinRemint()) {
+            zcSpendSerial = sigma::CoinRemintToV3::GetSerialNumber(tx);
+
+            if (!zcSpendSerial)
+                return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
+
+            if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
+                LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            }
+
+            zcSpendSerials.push_back(zcSpendSerial);
+        }
         else if (tx.IsSigmaSpend()) {
 
             BOOST_FOREACH(const CTxIn &txin, tx.vin)
@@ -1806,7 +1820,7 @@ bool AcceptToMemoryPoolWorker(
         }
     }
 
-    if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
+    if ((tx.IsZerocoinSpend() || tx.IsZerocoinRemint()) && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
     if (tx.IsSigmaSpend()){
         if(markZcoinSpendTransactionSerial)
@@ -1814,6 +1828,7 @@ bool AcceptToMemoryPoolWorker(
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
         if (zwalletMain) {
+            LogPrintf("Updating spend state from Mempool..");
             zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
@@ -1829,6 +1844,7 @@ bool AcceptToMemoryPoolWorker(
             }
         }
         if (zwalletMain) {
+            LogPrintf("Updating mint state from Mempool..");
             zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
         }
     }
@@ -2373,7 +2389,7 @@ namespace Consensus {
 bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks,
                  unsigned int flags, bool cacheStore, PrecomputedTransactionData &txdata,
                  std::vector <CScriptCheck> *pvChecks) {
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
 
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs))) {
             LogPrintf("CheckTxInputs() failed!\n");
@@ -3117,11 +3133,11 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-        if (tx.IsZerocoinSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinRemint()) {
             BOOST_FOREACH(
             const CTxIn &txin, tx.vin)
             {
-                CBigNum zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
+                CBigNum zcSpendSerial = txin.IsZerocoinSpend() ? ZerocoinGetSpendSerialNumber(tx, txin) : sigma::CoinRemintToV3::GetSerialNumber(tx);
                 uint256 thisTxHash = tx.GetHash();
                 uint256 conflictingTxHash = zcState->GetMempoolConflictingTxHash(zcSpendSerial);
                 if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
@@ -3129,14 +3145,15 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                     auto pTx = mempool.get(conflictingTxHash);
                     if (pTx)
                         mempool.removeRecursive(*pTx, removed);
-                    LogPrintf("ConnectBlock: removed conflicting zerocoin spend tx %s from the mempool\n",
+                    LogPrintf("ConnectBlock: removed conflicting zerocoin spend/remint tx %s from the mempool\n",
                               conflictingTxHash.ToString());
                 }
 
                 // In any case we need to remove serial from mempool set
                 zcState->RemoveSpendFromMempool(zcSpendSerial);
             }
-       } else if (tx.IsSigmaSpend()) {
+       }
+       else if (tx.IsSigmaSpend()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
                 Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(tx, txin);
@@ -3588,11 +3605,14 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
     if (zwalletMain) {
+        LogPrintf("Checking if block contains wallet mints..\n");
         if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
             zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
         }
 
         if (pblock->sigmaTxInfo->mints.size() > 0) {
+            LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
             zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
         }
     }
@@ -5583,8 +5603,7 @@ bool LoadExternalBlockFile(const CChainParams &chainparams, FILE *fileIn, CDiskB
                             head);
                     while (range.first != range.second) {
                         std::multimap<uint256, CDiskBlockPos>::iterator it = range.first;
-                        uint256 hash = block.GetHash();
-                        int nHeight = mapBlockIndex[hash]->nHeight;
+                        int nHeight = mapBlockIndex[head]->nHeight+1;
                         if (ReadBlockFromDisk(block, it->second, nHeight, chainparams.GetConsensus())) {
                             LogPrint("reindex", "%s: Processing out of order child %s of %s\n", __func__,
                                      block.GetHash().ToString(),
@@ -5905,7 +5924,7 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
             return false;
 
         /*
-            Dash Related Inventory Messages
+            Zcoin Related Inventory Messages
 
             --
 

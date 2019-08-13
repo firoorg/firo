@@ -38,7 +38,7 @@
 #include <boost/thread.hpp>
 
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 
 ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():

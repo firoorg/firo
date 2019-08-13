@@ -752,8 +752,9 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list <CTransaction
         if (it != mapNextTx.end()) {
             const CTransaction &txConflict = *it->second;
             if (txConflict != tx) {
+                uint256 const txConflictHash = txConflict.GetHash(); //Copying the hash before deleting
                 removeRecursive(txConflict, removed);
-                ClearPrioritisation(txConflict.GetHash());
+                ClearPrioritisation(txConflictHash);
             }
         }
     }

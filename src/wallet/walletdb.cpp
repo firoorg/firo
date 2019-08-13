@@ -1327,6 +1327,11 @@ bool CWalletDB::ReadPubcoin(const uint256& hashSerial, GroupElement& pubcoin)
     return Read(make_pair(string("pubcoin"), hashSerial), pubcoin);
 }
 
+bool CWalletDB::ErasePubcoin(const uint256& hashSerial)
+{
+    return Erase(make_pair(string("pubcoin"), hashSerial));
+}
+
 std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs()
 {
     std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
@@ -1370,6 +1375,11 @@ std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs(
 
     return listSerialPubcoin;
 
+}
+
+bool CWalletDB::EraseMintPoolPair(const uint256& hashPubcoin)
+{
+    return Erase(make_pair(string("mintpool"), hashPubcoin));
 }
 
 bool CWalletDB::WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool)

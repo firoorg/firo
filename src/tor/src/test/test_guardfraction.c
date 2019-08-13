@@ -1,23 +1,25 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#define DIRSERV_PRIVATE
-#define ROUTERPARSE_PRIVATE
+#define GUARDFRACTION_PRIVATE
 #define NETWORKSTATUS_PRIVATE
+#define NS_PARSE_PRIVATE
 
 #include "orconfig.h"
-#include "or.h"
-#include "config.h"
-#include "dirserv.h"
-#include "container.h"
-#include "entrynodes.h"
-#include "util.h"
-#include "routerparse.h"
-#include "networkstatus.h"
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "feature/dirauth/guardfraction.h"
+#include "feature/client/entrynodes.h"
+#include "feature/dirparse/ns_parse.h"
+#include "feature/nodelist/networkstatus.h"
 
-#include "test.h"
-#include "test_helpers.h"
-#include "log_test_helpers.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "feature/dirauth/vote_microdesc_hash_st.h"
+#include "feature/nodelist/vote_routerstatus_st.h"
+
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/log_test_helpers.h"
 
 /** Generate a vote_routerstatus_t for a router with identity digest
  * <b>digest_in_hex</b>. */
@@ -420,4 +422,3 @@ struct testcase_t guardfraction_tests[] = {
 
   END_OF_TESTCASES
 };
-
