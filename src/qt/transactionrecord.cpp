@@ -54,36 +54,55 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         CAmount nTxFee = nDebit - wtx.GetValueOut();
-        uint64_t nOuts = 0;
+        bool first = true;
+
+        bool isAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
-            if (!wtx.IsChange(txout)) {
-                nOuts++;
+            if (!wallet->IsMine(txout)) {
+                isAllToMe = false;
+                break;
             }
         }
-        for (const CTxOut& txout : wtx.vout) {
-            if (wtx.IsChange(txout)) {
-                continue;
-            }
-            isminetype mine = wallet->IsMine(txout);
 
+        if(isAllToMe){
             TransactionRecord sub(hash, nTime);
             CTxDestination address;
-            
-            if (mine) {
-                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
-                {
-                    sub.type = TransactionRecord::SpendToSelf;
+            sub.involvesWatchAddress = ISMINE_WATCH_ONLY;
+            if (ExtractDestination(wtx.vout[0].scriptPubKey, address) && IsMine(*wallet, address)) {
+                sub.type = TransactionRecord::SpendToSelf;
+                sub.address = CBitcoinAddress(address).ToString();
+                sub.credit = -nTxFee;
+                parts.append(sub);
+            }
+        } else {
+            for (const CTxOut& txout : wtx.vout) {
+                if (wtx.IsChange(txout)) {
+                    continue;
+                }
+                isminetype mine = wallet->IsMine(txout);
+
+                TransactionRecord sub(hash, nTime);
+                CTxDestination address;
+
+                if (mine) {
+                    sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                    if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
+                        sub.type = TransactionRecord::SpendToSelf;
+                        sub.address = CBitcoinAddress(address).ToString();
+                        sub.credit = txout.nValue;
+                        parts.append(sub);
+                    }
+                } else {
+                    ExtractDestination(txout.scriptPubKey, address);
+                    sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                    sub.credit = -(nTxFee / nOuts);
+                    sub.debit = -txout.nValue;
+                    if (first) {
+                        sub.debit -= nTxFee;
+                        first = false;
+                    }
                     parts.append(sub);
                 }
-            } else {
-                ExtractDestination(txout.scriptPubKey, address);
-                sub.type = TransactionRecord::SpendToAddress;
-                sub.address = CBitcoinAddress(address).ToString();
-                sub.debit = -txout.nValue;
-                parts.append(sub);
             }
         }
     }
