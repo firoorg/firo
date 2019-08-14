@@ -1747,7 +1747,7 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
 
     if (!IsSigmaStatusValid(sigmaStatus)) {
         PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 100;
+        return PKT_ERROR_SP - 900;
     }
 
     // ------------------------------------------
@@ -1987,7 +1987,7 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
 
     if (!IsSigmaStatusValid(sigmaStatus)) {
         PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 100;
+        return PKT_ERROR_SP - 900;
     }
 
     // ------------------------------------------
@@ -2515,12 +2515,12 @@ int CMPTransaction::logicMath_CreateDenomination()
 
     if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
         PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, property);
-        return PKT_ERROR_TOKENS - 101;
+        return PKT_ERROR_TOKENS - 901;
     }
 
     if (sp.denominations.size() >= EXODUS_MAX_DENOMINATIONS) {
         PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
-        return PKT_ERROR_TOKENS - 102;
+        return PKT_ERROR_TOKENS - 902;
     }
 
     if (std::find(sp.denominations.begin(), sp.denominations.end(), nValue) != sp.denominations.end()) {
@@ -2530,7 +2530,7 @@ int CMPTransaction::logicMath_CreateDenomination()
             FormatMP(property, nValue),
             property
         );
-        return PKT_ERROR_TOKENS - 103;
+        return PKT_ERROR_TOKENS - 903;
     }
 
     sp.denominations.push_back(nValue);
@@ -2561,7 +2561,7 @@ int CMPTransaction::logicMath_SimpleMint()
 
     if (!EnsureEnableSigma(property)) {
         PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
-        return PKT_ERROR_SIGMA - 101;
+        return PKT_ERROR_SIGMA - 901;
     }
 
     std::vector<uint8_t> denominations;
@@ -2569,7 +2569,7 @@ int CMPTransaction::logicMath_SimpleMint()
     for (auto const &mint : mints) {
         if (!mint.second.IsValid()) {
             PrintToLog("%s(): rejected: public key is invalid\n", __func__);
-            return PKT_ERROR_SIGMA - 104;
+            return PKT_ERROR_SIGMA - 904;
         }
         denominations.push_back(mint.first);
     }
@@ -2579,7 +2579,7 @@ int CMPTransaction::logicMath_SimpleMint()
         amount = SumDenominationsValue(property, denominations.begin(), denominations.end());
     } catch (const std::invalid_argument& e) {
         PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
-        return PKT_ERROR_SIGMA - 105;
+        return PKT_ERROR_SIGMA - 905;
     }
 
     int64_t balance = getMPbalance(sender, property, BALANCE);
@@ -2590,7 +2590,7 @@ int CMPTransaction::logicMath_SimpleMint()
             property,
             FormatMP(property, balance),
             FormatMP(property, amount));
-        return PKT_ERROR_SIGMA -25;
+        return PKT_ERROR_SIGMA - 25;
     }
 
     // subtract balance
