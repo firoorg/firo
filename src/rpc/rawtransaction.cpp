@@ -107,7 +107,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 remint = std::make_shared<sigma::CoinRemintToV3>(serData);
                 in.push_back(Pair("publicCoinValue", remint->getPublicCoinValue().ToString(16)));
             } catch (std::ios_base::failure &) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Zerocoin to Sigma remint information");
             }
             fillStdFields(in, txin);
 
