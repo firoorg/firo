@@ -23,6 +23,11 @@ namespace exodus {
 
 // Sigma Cryptographic Primitives.
 
+struct PairDenominationScalarHash
+{
+    std::size_t operator()(std::pair<uint8_t, secp_primitives::Scalar> const &p) const noexcept;
+};
+
 class SigmaPrivateKey
 {
 public:
@@ -93,9 +98,9 @@ public:
     const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& GetProof() const { return proof; }
 
     template<typename Iterator>
-    bool Verify(Iterator begin, Iterator end)
+    bool Verify(sigma::Params *params, Iterator begin, Iterator end)
     {
-        assert(proof.params);
+        proof.params = params;
 
         // Create commitment set.
         auto gs = (proof.params->get_g() * serial).inverse();
@@ -164,6 +169,15 @@ public:
         prover.proof(commits, *index, priv.GetRandomness(), proof);
     }
 
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(serial);
+        READWRITE(proof);
+    }
+
 private:
     secp_primitives::Scalar serial;
     sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
@@ -172,6 +186,35 @@ private:
 // Exodus Specific.
 
 typedef std::uint8_t DenominationId;
+class SigmaSpend {
+public:
+    SigmaSpend() {}
+
+    SigmaSpend(SigmaProof const &proof, uint8_t denomination, uint32_t group, uint16_t index)
+        : proof(proof), group(group), denomination(denomination)
+    {
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(denomination);
+        READWRITE(group);
+        READWRITE(index);
+        READWRITE(proof);
+    }
+
+    SigmaProof proof;
+    uint8_t denomination;
+    uint32_t group;
+    uint16_t index;
+};
+
+SigmaSpend Spend(
+    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
+bool VerifySigmaSpend(uint32_t propertyId, SigmaSpend const &spend);
 
 } // namespace exodus
 

@@ -1,3 +1,4 @@
+#include "exodus.h"
 #include "sigma.h"
 
 #include "../sigma/sigma_primitives.h"
@@ -7,6 +8,24 @@
 #include <assert.h>
 
 namespace exodus {
+
+std::size_t PairDenominationScalarHash::operator()(
+    std::pair<uint8_t, secp_primitives::Scalar> const &p) const noexcept
+{
+    std::vector<uint8_t> data;
+    data.resize(p.second.memoryRequired());
+    p.second.serialize(data.data());
+
+    unsigned char hash[CSHA256::OUTPUT_SIZE];
+    CSHA256().
+        Write(reinterpret_cast<const uint8_t*>(&(p.first)), sizeof(p.first)).
+        Write(data.data(), data.size()).
+        Finalize(hash);
+
+    std::size_t result;
+    std::memcpy(&result, hash, sizeof(result));
+    return result;
+}
 
 // SigmaPrivateKey Implementation.
 
@@ -108,6 +127,41 @@ void SigmaProof::SetSerial(const secp_primitives::Scalar& v)
 void SigmaProof::SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& v)
 {
     proof = v;
+}
+
+SigmaSpend Spend(SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
+{
+    LOCK(cs_tally);
+    auto coinAmount = p_mintlistdb->GetMintCount(propertyId, denomination, group);
+
+    if (coinAmount > UINT16_MAX) {
+        throw std::runtime_error("amount of coins in group is invalid");
+    }
+
+    std::vector<SigmaPublicKey> coins;
+    coins.reserve(coinAmount);
+    p_mintlistdb->GetAnonimityGroup(
+        propertyId, denomination, group, coinAmount, std::back_inserter(coins)
+    );
+
+    SigmaProof p;
+    p.Generate(priv, coins.begin(), coins.end());
+
+    return SigmaSpend(p, denomination, group, static_cast<uint16_t>(coinAmount));
+}
+
+bool VerifySigmaSpend(uint32_t propertyId, SigmaSpend const &spend)
+{
+    LOCK(cs_tally);
+
+    std::vector<SigmaPublicKey> coins;
+    coins.reserve(spend.index);
+    p_mintlistdb->GetAnonimityGroup(
+        propertyId, spend.denomination, spend.group, spend.index, std::back_inserter(coins)
+    );
+
+    auto proof = spend.proof;
+    return proof.Verify(sigma::Params::get_default(), coins.begin(), coins.end());
 }
 
 } // namespace exodus

@@ -39,6 +39,10 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
         case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
             result = ProcessSimpleMint(tx);
             break;
+
+        case EXODUS_TYPE_SIGMA_SIMPLE_SPEND:
+            result = ProcessSimpleSpend(tx);
+            break;
         }
     }
 
@@ -134,5 +138,75 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
 
     return 0;
 }
+
+int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
+{
+    auto block = tx.getBlock();
+    auto type = tx.getType();
+    auto version = tx.getVersion();
+    auto property = tx.getProperty();
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block);
+        return PKT_ERROR_SIGMA - 22;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_SIGMA - 24;
+    }
+
+    if (!IsSigmaEnabled(property)) {
+        PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
+        return PKT_ERROR_SIGMA - 901;
+    }
+
+    // check serial in same tx
+    std::unordered_set<
+        std::pair<uint8_t, secp_primitives::Scalar>, PairDenominationScalarHash> serials;
+    for (auto &spend : tx.getSpends()) {
+        if (serials.count(std::make_pair(spend.denomination, spend.proof.GetSerial()))) {
+            PrintToLog("%s(): rejected: serial numbers is duplicated\n", __func__);
+            return PKT_ERROR_SIGMA - 104;
+        }
+
+        serials.insert(std::make_pair(spend.denomination, spend.proof.GetSerial()));
+    }
+
+    // check serial in database
+    std::vector<uint8_t> denoms;
+    denoms.reserve(tx.getSpends().size());
+    for (auto const &spend : tx.getSpends()) {
+        if (p_mintlistdb->HasSerial(property, spend.denomination, spend.proof)
+            || !VerifySigmaSpend(property, spend)) {
+            PrintToLog("%s(): rejected: spend is invalid\n", __func__);
+            return PKT_ERROR_SIGMA - 104;
+        }
+        denoms.push_back(spend.denomination);
+    }
+
+    uint64_t amount;
+    try {
+        amount = SumDenominationsValue(property, denoms.begin(), denoms.end());
+    } catch (std::invalid_argument const& e) {
+        PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
+        return PKT_ERROR_SIGMA - 105;
+    }
+
+    // subtract balance
+    assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
+
+    for (auto const &spend : tx.getSpends()) {
+        p_mintlistdb->RecordSerial(property, spend.denomination, spend.proof, block);
+    }
+
+    return 0;
+}
+
 
 }

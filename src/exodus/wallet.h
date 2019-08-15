@@ -3,7 +3,6 @@
 
 #include <string>
 
-#include "exodus.h"
 #include "sigma.h"
 #include "sp.h"
 #include "walletdb.h"
@@ -36,6 +35,38 @@ public:
         }
 
         return mintItr;
+    }
+
+    template<class InItr, class OutItr>
+    OutItr GetCoinsToSpend(uint32_t propertyId, InItr begin, InItr end, OutItr coins)
+    {
+        LOCK(pwalletMain->cs_wallet);
+
+        std::list<exodus::SigmaEntry> allCoins;
+        ListSigmaEntries(propertyId, std::back_inserter(allCoins));
+
+        // TODO(panu): filter out unusable coins
+        std::unordered_map<uint8_t, std::vector<exodus::SigmaEntry>> allCoinSet;
+        for (auto const &c : allCoins) {
+            allCoinSet[c.denomination].push_back(c);
+        }
+
+        // shuffle for security
+        for (auto &c : allCoinSet) {
+            std::random_shuffle(c.second.begin(), c.second.end());
+        }
+
+        for (auto it = begin; it != end; it++) {
+
+            if (allCoinSet[*it].empty()) {
+                throw std::invalid_argument("no coin to spend");
+            }
+
+            *coins++ = allCoinSet[*it].back();
+            allCoinSet[*it].pop_back();
+        }
+
+        return coins;
     }
 
 protected:

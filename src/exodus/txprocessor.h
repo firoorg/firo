@@ -21,6 +21,7 @@ public:
 
 private:
     int ProcessSimpleMint(const CMPTransaction& tx);
+    int ProcessSimpleSpend(const CMPTransaction& tx);
 };
 
 extern TxProcessor *txProcessor;
