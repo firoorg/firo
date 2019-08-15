@@ -37,6 +37,7 @@ public:
     virtual ~CMPMintList();
 
     std::pair<uint32_t, uint16_t> RecordMint(uint32_t propertyId, uint8_t denomination, const exodus::SigmaPublicKey& pubKey, int32_t height);
+    void RecordSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int32_t height);
 
     template<
         class OutputIt,
@@ -58,12 +59,13 @@ public:
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
     std::pair<exodus::SigmaPublicKey, int32_t> GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
+    bool HasSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof);
 
     uint16_t groupSize;
     static uint16_t const MAX_GROUP_SIZE = 16384; /* Limit of sigma anonimity group which is 2 ^ 14 */
 
 private:
-    void RecordMintKey(const leveldb::Slice& mintKey);
+    void RecordKey(const leveldb::Slice& key);
     void RecordGroupSize(uint16_t groupSize);
 
     std::unique_ptr<leveldb::Iterator> NewIterator() const;

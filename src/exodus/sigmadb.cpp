@@ -21,7 +21,8 @@ enum class KeyType : uint8_t
 {
     Mint = 0,
     Sequence = 1,
-    GroupSize = 2
+    GroupSize = 2,
+    Spend = 3
 };
 
 template<typename ... T>
@@ -48,7 +49,7 @@ It SerializeKey(It it)
 template<typename It, typename T, typename ...R>
 It SerializeKey(It it, T t, R ...r)
 {
-    if (sizeof(t) > 1) {
+    if (std::is_arithmetic<typeof(t)>::value && sizeof(t) > 1) {
         exodus::swapByteOrder(t);
     }
     it = std::copy_n(reinterpret_cast<uint8_t*>(&t), sizeof(t), it);
@@ -94,6 +95,20 @@ std::array<uint8_t, SEQUENCE_KEY_SIZE> CreateSequenceKey(
 std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
 {
     return CreateKey(KeyType::GroupSize);
+}
+
+#define SERIAL_SIZE 32
+typedef std::array<uint8_t, SERIAL_SIZE> SERIAL;
+
+// array size represent size of key
+// <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
+#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + SERIAL_SIZE
+std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendtKey(
+    uint32_t propertyId,
+    uint8_t denomination,
+    SERIAL const &serial)
+{
+    return CreateKey(KeyType::Spend, propertyId, denomination, serial);
 }
 
 template<size_t S>
@@ -151,6 +166,17 @@ bool ParseMintKey(
         return true;
     }
     return false;
+}
+
+SERIAL GetSerial(exodus::SigmaProof const &proof)
+{
+    SERIAL s;
+    if (proof.GetSerial().memoryRequired() != SERIAL_SIZE) {
+        throw std::invalid_argument("serial size is invalid");
+    }
+
+    proof.GetSerial().serialize(s.data());
+    return s;
 }
 
 void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
@@ -223,9 +249,25 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     pdb->Put(writeoptions, key, GetSlice(buffer));
 
     // Store key
-    RecordMintKey(key);
+    RecordKey(key);
 
     return {lastGroup, nextIdx};
+}
+
+void CMPMintList::RecordSerial(
+    uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int32_t height)
+{
+    auto serial = GetSerial(proof);
+    auto keyData = CreateSpendtKey(propertyId, denomination, serial);
+    RecordKey(GetSlice(keyData));
+
+    std::array<uint8_t, sizeof(height)> buffer;
+    std::copy_n(reinterpret_cast<char*>(&height), sizeof(height), buffer.data());
+
+    auto status = pdb->Put(writeoptions, GetSlice(keyData), GetSlice(buffer));
+    if (!status.ok()) {
+        throw std::runtime_error("record serial fail");
+    }
 }
 
 void CMPMintList::DeleteAll(int32_t startBlock)
@@ -254,15 +296,29 @@ void CMPMintList::DeleteAll(int32_t startBlock)
     while (it->Valid() &&
         (it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence))) {
 
-        int32_t mintBlock;
-        std::string mintData;
-        auto status = pdb->Get(readoptions, it->value(), &mintData);
+        int32_t block;
+        std::string data;
+        auto status = pdb->Get(readoptions, it->value(), &data);
         if (!status.ok()) {
             throw std::runtime_error("DeleteAll() : fail to read mint from sequence");
         }
 
-        std::tie(std::ignore, mintBlock) = ParseMint(mintData);
-        if (mintBlock >= startBlock) {
+        if (it->value().empty()) {
+            throw std::runtime_error("DeleteAll() : key in sequence is empty");
+        }
+
+        if (it->value().data()[0] == static_cast<char>(KeyType::Mint)) {
+            std::tie(std::ignore, block) = ParseMint(data);
+        } else if (it->value().data()[0] == static_cast<char>(KeyType::Spend)) {
+            if (data.size() != sizeof(block)) {
+                throw std::runtime_error("DeleteAll() : value of spend is invalid");
+            }
+            std::copy_n(data.data(), data.size(), reinterpret_cast<char*>(&block));
+        } else {
+            throw std::runtime_error("DeleteAll() : format of a key in sequence is invalid");
+        }
+
+        if (block >= startBlock) {
             keyToDeletes.emplace_back(it->key().ToString());
             keyToDeletes.emplace_back(it->value().ToString());
         } else {
@@ -280,12 +336,12 @@ void CMPMintList::DeleteAll(int32_t startBlock)
     }
 }
 
-void CMPMintList::RecordMintKey(const leveldb::Slice& mintKey)
+void CMPMintList::RecordKey(const leveldb::Slice& keyToStore)
 {
     auto nextSequence = GetNextSequence();
 
     auto key = CreateSequenceKey(nextSequence);
-    auto status = pdb->Put(writeoptions, GetSlice(key), mintKey);
+    auto status = pdb->Put(writeoptions, GetSlice(key), keyToStore);
 
     if (!status.ok()) {
         LogPrintf("%s: Store last exodus mint sequence fail\n", __func__);
@@ -486,6 +542,25 @@ std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
     }
 
     throw std::runtime_error("not found sigma mint");
+}
+
+bool CMPMintList::HasSerial(
+    uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof)
+{
+    auto serial = GetSerial(proof);
+    auto keyData = CreateSpendtKey(propertyId, denomination, serial);
+    std::string data;
+    auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
+
+    if (status.ok()) {
+        return true;
+    }
+
+    if (status.IsNotFound()) {
+        return false;
+    }
+
+    throw std::runtime_error("Error on serial checking");
 }
 
 std::unique_ptr<leveldb::Iterator> CMPMintList::NewIterator() const

@@ -429,4 +429,122 @@ BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
     );
 }
 
+BOOST_AUTO_TEST_CASE(check_not_exist_serial)
+{
+    exodus::SigmaPrivateKey priv;
+    priv.Generate();
+    exodus::SigmaProof proof;
+    proof.SetSerial(priv.GetSerial());
+    BOOST_CHECK(!db.HasSerial(1, 1, proof));
+}
+
+BOOST_AUTO_TEST_CASE(check_exist_serial)
+{
+    exodus::SigmaPrivateKey priv;
+    priv.Generate();
+    exodus::SigmaProof proof;
+    proof.SetSerial(priv.GetSerial());
+    db.RecordSerial(1, 1, proof, 10);
+    BOOST_CHECK(db.HasSerial(1, 1, proof));
+}
+
+BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fail)
+{
+    exodus::SigmaPrivateKey priv;
+    priv.Generate();
+    exodus::SigmaProof proof;
+    proof.SetSerial(priv.GetSerial());
+    db.RecordSerial(1, 1, proof, 10);
+    BOOST_CHECK(!db.HasSerial(1, 2, proof));
+    BOOST_CHECK(!db.HasSerial(2, 1, proof));
+}
+
+BOOST_AUTO_TEST_CASE(check_deleted_serial)
+{
+    exodus::SigmaPrivateKey priv;
+    priv.Generate();
+    exodus::SigmaProof proof;
+    proof.SetSerial(priv.GetSerial());
+    db.RecordSerial(1, 1, proof, 10);
+    db.DeleteAll(10);
+    BOOST_CHECK(!db.HasSerial(1, 1, proof));
+}
+
+BOOST_AUTO_TEST_CASE(check_deleted_two_serials)
+{
+    exodus::SigmaPrivateKey priv, priv2;
+    priv.Generate();
+    priv2.Generate();
+    exodus::SigmaProof proof, proof2;
+    proof.SetSerial(priv.GetSerial());
+    proof2.SetSerial(priv2.GetSerial());
+
+    db.RecordSerial(1, 1, proof, 10);
+    db.RecordSerial(1, 1, proof2, 10);
+    BOOST_CHECK(db.HasSerial(1, 1, proof));
+    BOOST_CHECK(db.HasSerial(1, 1, proof2));
+
+    db.DeleteAll(10);
+    BOOST_CHECK(!db.HasSerial(1, 1, proof));
+    BOOST_CHECK(!db.HasSerial(1, 1, proof2));
+}
+
+BOOST_AUTO_TEST_CASE(try_to_delete_the_block_after)
+{
+    exodus::SigmaPrivateKey priv, priv2;
+    priv.Generate();
+    priv2.Generate();
+
+    exodus::SigmaProof proof, proof2;
+    proof.SetSerial(priv.GetSerial());
+    proof2.SetSerial(priv2.GetSerial());
+
+    db.RecordSerial(1, 1, proof, 10);
+    db.RecordSerial(1, 1, proof2, 11);
+
+    db.DeleteAll(11);
+
+    BOOST_CHECK(db.HasSerial(1, 1, proof));
+    BOOST_CHECK(!db.HasSerial(1, 1, proof2));
+}
+
+BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
+{
+    exodus::SigmaPrivateKey priv, priv2;
+    priv.Generate();
+    priv2.Generate();
+
+    exodus::SigmaProof proof, proof2;
+    proof.SetSerial(priv.GetSerial());
+    proof2.SetSerial(priv2.GetSerial());
+
+    // block 10
+    // 10 mints, 1 serial
+    auto pubs = GetPubcoins(10);
+    for (auto const & p : pubs) {
+        db.RecordMint(1, 1, p, 10);
+    }
+    db.RecordSerial(1, 1, proof, 10);
+    BOOST_CHECK_EQUAL(11, db.GetNextSequence());
+    BOOST_CHECK_EQUAL(10, db.GetMintCount(1, 1, 0));
+
+    // block 11
+    // 10 mints, 1 serial
+    auto pubs2 = GetPubcoins(10);
+    for (auto const & p : pubs2) {
+        db.RecordMint(1, 1, p, 11);
+    }
+    db.RecordSerial(1, 1, proof2, 11);
+    BOOST_CHECK_EQUAL(22, db.GetNextSequence());
+    BOOST_CHECK_EQUAL(20, db.GetMintCount(1, 1, 0));
+
+    // delete all in block 11
+    db.DeleteAll(11);
+    BOOST_CHECK_EQUAL(11, db.GetNextSequence());
+    BOOST_CHECK_EQUAL(10, db.GetMintCount(1, 1, 0));
+
+    BOOST_CHECK(db.HasSerial(1, 1, proof));
+    BOOST_CHECK(!db.HasSerial(1, 1, proof2));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
