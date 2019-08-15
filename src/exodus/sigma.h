@@ -11,6 +11,7 @@
 
 #include <boost/optional.hpp>
 
+#include <cinttypes>
 #include <iterator>
 #include <stdexcept>
 #include <vector>
@@ -19,6 +20,8 @@
 #include <stddef.h>
 
 namespace exodus {
+
+// Sigma Cryptographic Primitives.
 
 class SigmaPrivateKey
 {
@@ -165,6 +168,10 @@ private:
     secp_primitives::Scalar serial;
     sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 };
+
+// Exodus Specific.
+
+typedef std::uint8_t DenominationId;
 
 } // namespace exodus
 

@@ -76,20 +76,6 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
-static bool EnsureEnableSigma(uint32_t propertyId)
-{
-    CMPSPInfo::Entry sp;
-    if (!_my_sps->getSP(propertyId, sp)) {
-        return false;
-    }
-
-    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
-        return false;
-    }
-
-    return true;
-}
-
 /** Helper to convert class number to string. */
 static std::string intToClass(int encodingClass)
 {
@@ -1067,10 +1053,6 @@ int CMPTransaction::interpretPacket()
 
         case EXODUS_TYPE_CREATE_DENOMINATION:
             status = logicMath_CreateDenomination();
-            break;
-
-        case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
-            status = logicMath_SimpleMint();
             break;
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
@@ -2529,68 +2511,6 @@ int CMPTransaction::logicMath_CreateDenomination()
     sp.update_block = blockHash;
 
     assert(_my_sps->updateSP(property, sp));
-
-    return 0;
-}
-
-/** Tx 1026 */
-int CMPTransaction::logicMath_SimpleMint()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-            __func__,
-            type,
-            version,
-            property,
-            block);
-        return PKT_ERROR_SIGMA - 22;
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return PKT_ERROR_SIGMA - 24;
-    }
-
-    if (!EnsureEnableSigma(property)) {
-        PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
-        return PKT_ERROR_SIGMA - 901;
-    }
-
-    std::vector<uint8_t> denominations;
-    denominations.reserve(mints.size());
-    for (auto const &mint : mints) {
-        if (!mint.second.IsValid()) {
-            PrintToLog("%s(): rejected: public key is invalid\n", __func__);
-            return PKT_ERROR_SIGMA - 904;
-        }
-        denominations.push_back(mint.first);
-    }
-
-    int64_t amount;
-    try {
-        amount = SumDenominationsValue(property, denominations.begin(), denominations.end());
-    } catch (const std::invalid_argument& e) {
-        PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
-        return PKT_ERROR_SIGMA - 905;
-    }
-
-    int64_t balance = getMPbalance(sender, property, BALANCE);
-    if (balance < amount) {
-        PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
-            __func__,
-            sender,
-            property,
-            FormatMP(property, balance),
-            FormatMP(property, amount));
-        return PKT_ERROR_SIGMA - 25;
-    }
-
-    // subtract balance
-    assert(update_tally_map(sender, property, -amount, BALANCE));
-
-    for (auto const &mint : mints) {
-        p_mintlistdb->RecordMint(property, mint.first, mint.second, block);
-    }
 
     return 0;
 }

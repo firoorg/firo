@@ -157,7 +157,6 @@ private:
     int logicMath_FreezeTokens();
     int logicMath_UnfreezeTokens();
     int logicMath_CreateDenomination();
-    int logicMath_SimpleMint();
     int logicMath_Activation();
     int logicMath_Deactivation();
     int logicMath_Alert();
@@ -186,13 +185,14 @@ public:
     };
 
     uint256 getHash() const { return txid; }
+    int getBlock() const { return block; }
     unsigned int getType() const { return type; }
     std::string getTypeString() const { return strTransactionType(getType()); }
     unsigned int getProperty() const { return property; }
     unsigned short getVersion() const { return version; }
     unsigned short getPropertyType() const { return prop_type; }
     uint64_t getFeePaid() const { return tx_fee_paid; }
-    std::string getSender() const { return sender; }
+    const std::string& getSender() const { return sender; }
     std::string getReceiver() const { return receiver; }
     std::string getPayload() const { return HexStr(pkt, pkt + pkt_size); }
     uint64_t getAmount() const { return nValue; }

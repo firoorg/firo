@@ -4,12 +4,12 @@
 #include "convert.h"
 #include "persistence.h"
 #include "sigma.h"
-#include "log.h"
 
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
 
+#include <cinttypes>
 #include <string>
 #include <vector>
 
@@ -27,8 +27,9 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
 
 namespace exodus {
 
-/** LevelDB based storage for sigma mints, with
-*/
+typedef std::uint32_t MintGroupId;
+typedef std::uint16_t MintGroupIndex;
+
 class CMPMintList : public CDBBase
 {
 public:

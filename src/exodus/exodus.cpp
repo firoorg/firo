@@ -2225,6 +2225,8 @@ int exodus_init()
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
 
+    txProcessor = new TxProcessor();
+
     bool wrongDBVersion = (p_txlistdb->getDBVersion() != DB_VERSION);
 
     ++exodusInitialized;
@@ -2310,38 +2312,15 @@ int exodus_shutdown()
 {
     LOCK(cs_tally);
 
-    if (p_mintlistdb) {
-        delete p_mintlistdb;
-        p_mintlistdb = NULL;
-    }
-    if (p_txlistdb) {
-        delete p_txlistdb;
-        p_txlistdb = NULL;
-    }
-    if (t_tradelistdb) {
-        delete t_tradelistdb;
-        t_tradelistdb = NULL;
-    }
-    if (s_stolistdb) {
-        delete s_stolistdb;
-        s_stolistdb = NULL;
-    }
-    if (_my_sps) {
-        delete _my_sps;
-        _my_sps = NULL;
-    }
-    if (p_ExodusTXDB) {
-        delete p_ExodusTXDB;
-        p_ExodusTXDB = NULL;
-    }
-    if (p_feecache) {
-        delete p_feecache;
-        p_feecache = NULL;
-    }
-    if (p_feehistory) {
-        delete p_feehistory;
-        p_feehistory = NULL;
-    }
+    delete txProcessor; txProcessor = nullptr;
+    delete p_mintlistdb; p_mintlistdb = nullptr;
+    delete p_txlistdb; p_txlistdb = nullptr;
+    delete t_tradelistdb; t_tradelistdb = nullptr;
+    delete s_stolistdb; s_stolistdb = nullptr;
+    delete _my_sps; _my_sps = nullptr;
+    delete p_ExodusTXDB; p_ExodusTXDB = nullptr;
+    delete p_feecache; p_feecache = nullptr;
+    delete p_feehistory; p_feehistory = nullptr;
 
     exodusInitialized = 0;
 
@@ -2381,9 +2360,7 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
     int pop_ret = parseTransaction(false, tx, nBlock, idx, mp_obj, nBlockTime);
 
     if (0 == pop_ret) {
-        TxProcessor processor;
-
-        int interp_ret = processor.ProcessTx(mp_obj);
+        int interp_ret = txProcessor->ProcessTx(mp_obj);
         if (interp_ret) {
             PrintToLog("!!! interpretPacket() returned %d !!!\n", interp_ret);
         }
@@ -2714,9 +2691,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             return false;
         }
 
-        TxProcessor processor;
-
-        if (0 != processor.ProcessTx(mp_obj)) {
+        if (0 != txProcessor->ProcessTx(mp_obj)) {
             PrintToLog("ERROR: While loading freeze transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             return false;
         }
@@ -2787,9 +2762,7 @@ void CMPTxList::LoadActivations(int blockHeight)
             continue;
         }
 
-        TxProcessor processor;
-
-        if (0 != processor.ProcessTx(mp_obj)) {
+        if (0 != txProcessor->ProcessTx(mp_obj)) {
             PrintToLog("ERROR: While loading activation transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             continue;
         }
