@@ -37,11 +37,6 @@ using boost::algorithm::token_compress_on;
 
 using namespace exodus;
 
-namespace exodus
-{
-boost::signals2::signal<void (CMPTransaction const &)> NotifyProcessedTransaction;
-};
-
 /** Returns a label for the given transaction type. */
 std::string exodus::strTransactionType(uint16_t txType)
 {
@@ -1094,9 +1089,6 @@ int CMPTransaction::interpretPacket()
             return (PKT_ERROR -100);
     }
 
-    if (!status) {
-        exodus::NotifyProcessedTransaction(*this);
-    }
     return status;
 }
 
