@@ -4,54 +4,55 @@
  * This file contains the core of Exodus Core.
  */
 
-#include "exodus/exodus.h"
+#include "exodus.h"
 
-#include "exodus/activation.h"
-#include "exodus/consensushash.h"
-#include "exodus/convert.h"
-#include "exodus/dex.h"
-#include "exodus/encoding.h"
-#include "exodus/errors.h"
-#include "exodus/fees.h"
-#include "exodus/log.h"
-#include "exodus/mdex.h"
-#include "exodus/notifications.h"
-#include "exodus/pending.h"
-#include "exodus/persistence.h"
-#include "exodus/rules.h"
-#include "exodus/script.h"
-#include "exodus/sigmadb.h"
-#include "exodus/sp.h"
-#include "exodus/tally.h"
-#include "exodus/tx.h"
-#include "exodus/utils.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/version.h"
-#include "exodus/walletcache.h"
-#include "exodus/wallettxs.h"
+#include "activation.h"
+#include "consensushash.h"
+#include "convert.h"
+#include "dex.h"
+#include "encoding.h"
+#include "errors.h"
+#include "fees.h"
+#include "log.h"
+#include "mdex.h"
+#include "notifications.h"
+#include "pending.h"
+#include "persistence.h"
+#include "rules.h"
+#include "script.h"
+#include "sigmadb.h"
+#include "sp.h"
+#include "tally.h"
+#include "tx.h"
+#include "txprocessor.h"
+#include "utils.h"
+#include "utilsbitcoin.h"
+#include "version.h"
+#include "walletcache.h"
+#include "wallettxs.h"
 
-#include "base58.h"
-#include "chainparams.h"
-#include "coincontrol.h"
-#include "coins.h"
-#include "core_io.h"
-#include "init.h"
-#include "main.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "sync.h"
-#include "tinyformat.h"
-#include "uint256.h"
-#include "ui_interface.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "utiltime.h"
-#include "sigma.h"
+#include "../base58.h"
+#include "../chainparams.h"
+#include "../coincontrol.h"
+#include "../coins.h"
+#include "../core_io.h"
+#include "../init.h"
+#include "../main.h"
+#include "../primitives/block.h"
+#include "../primitives/transaction.h"
+#include "../script/script.h"
+#include "../script/standard.h"
+#include "../sync.h"
+#include "../tinyformat.h"
+#include "../uint256.h"
+#include "../ui_interface.h"
+#include "../util.h"
+#include "../utilstrencodings.h"
+#include "../utiltime.h"
+#include "../sigma.h"
 #ifdef ENABLE_WALLET
-#include "script/ismine.h"
-#include "wallet/wallet.h"
+#include "../script/ismine.h"
+#include "../wallet/wallet.h"
 #endif
 
 #include <univalue.h>
@@ -2224,6 +2225,8 @@ int exodus_init()
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
 
+    txProcessor = new TxProcessor();
+
     bool wrongDBVersion = (p_txlistdb->getDBVersion() != DB_VERSION);
 
     ++exodusInitialized;
@@ -2309,38 +2312,15 @@ int exodus_shutdown()
 {
     LOCK(cs_tally);
 
-    if (p_mintlistdb) {
-        delete p_mintlistdb;
-        p_mintlistdb = NULL;
-    }
-    if (p_txlistdb) {
-        delete p_txlistdb;
-        p_txlistdb = NULL;
-    }
-    if (t_tradelistdb) {
-        delete t_tradelistdb;
-        t_tradelistdb = NULL;
-    }
-    if (s_stolistdb) {
-        delete s_stolistdb;
-        s_stolistdb = NULL;
-    }
-    if (_my_sps) {
-        delete _my_sps;
-        _my_sps = NULL;
-    }
-    if (p_ExodusTXDB) {
-        delete p_ExodusTXDB;
-        p_ExodusTXDB = NULL;
-    }
-    if (p_feecache) {
-        delete p_feecache;
-        p_feecache = NULL;
-    }
-    if (p_feehistory) {
-        delete p_feehistory;
-        p_feehistory = NULL;
-    }
+    delete txProcessor; txProcessor = nullptr;
+    delete p_mintlistdb; p_mintlistdb = nullptr;
+    delete p_txlistdb; p_txlistdb = nullptr;
+    delete t_tradelistdb; t_tradelistdb = nullptr;
+    delete s_stolistdb; s_stolistdb = nullptr;
+    delete _my_sps; _my_sps = nullptr;
+    delete p_ExodusTXDB; p_ExodusTXDB = nullptr;
+    delete p_feecache; p_feecache = nullptr;
+    delete p_feehistory; p_feehistory = nullptr;
 
     exodusInitialized = 0;
 
@@ -2380,8 +2360,10 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
     int pop_ret = parseTransaction(false, tx, nBlock, idx, mp_obj, nBlockTime);
 
     if (0 == pop_ret) {
-        int interp_ret = mp_obj.interpretPacket();
-        if (interp_ret) PrintToLog("!!! interpretPacket() returned %d !!!\n", interp_ret);
+        int interp_ret = txProcessor->ProcessTx(mp_obj);
+        if (interp_ret) {
+            PrintToLog("!!! interpretPacket() returned %d !!!\n", interp_ret);
+        }
 
         // Only structurally valid transactions get recorded in levelDB
         // PKT_ERROR - 2 = interpret_Transaction failed, structurally invalid payload
@@ -2708,11 +2690,12 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             PrintToLog("ERROR: While loading freeze transaction %s: levelDB type mismatch, not a freeze transaction.\n", hash.GetHex());
             return false;
         }
-        mp_obj.unlockLogic();
-        if (0 != mp_obj.interpretPacket()) {
+
+        if (0 != txProcessor->ProcessTx(mp_obj)) {
             PrintToLog("ERROR: While loading freeze transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             return false;
         }
+
         txnsLoaded++;
     }
 
@@ -2778,8 +2761,8 @@ void CMPTxList::LoadActivations(int blockHeight)
             PrintToLog("ERROR: While loading activation transaction %s: levelDB type mismatch, not an activation.\n", hash.GetHex());
             continue;
         }
-        mp_obj.unlockLogic();
-        if (0 != mp_obj.interpretPacket()) {
+
+        if (0 != txProcessor->ProcessTx(mp_obj)) {
             PrintToLog("ERROR: While loading activation transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             continue;
         }
