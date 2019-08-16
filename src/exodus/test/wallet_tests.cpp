@@ -51,9 +51,9 @@ public:
         exodus::Wallet::ClearSigmaMintChainState(id);
     }
 
-    void SetSigmaMintUsedStatus(const exodus::SigmaMintId& id, bool isUsed)
+    void SetTransactionId(const exodus::SigmaMintId& id, uint256 tx)
     {
-        exodus::Wallet::SetSigmaMintUsedStatus(id, isUsed);
+        exodus::Wallet::SetTransactionId(id, tx);
     }
 };
 
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(get_sigma_entry)
     auto retrieved2 = wallet.GetSigmaEntry(retrieved.GetId());
     BOOST_CHECK(retrieved == retrieved2);
     BOOST_CHECK(retrieved != exodus::SigmaEntry());
-    BOOST_CHECK(!retrieved.isUsed);
+    BOOST_CHECK(retrieved.tx == uint256());
 }
 
 BOOST_AUTO_TEST_CASE(update_and_delete_entry_from_chain)
@@ -112,21 +112,21 @@ BOOST_AUTO_TEST_CASE(update_and_delete_entry_from_chain)
     BOOST_CHECK_EQUAL(0, updated.groupId);
     BOOST_CHECK_EQUAL(0, updated.index);
     BOOST_CHECK_EQUAL(-1, updated.block);
-    BOOST_CHECK(!updated.isUsed);
+    BOOST_CHECK(updated.tx == uint256());
 }
 
 BOOST_AUTO_TEST_CASE(make_entry_as_used)
 {
     auto entry = CreateAndGetEntry(1, 1);
     BOOST_CHECK_NO_THROW(
-        wallet.SetSigmaMintUsedStatus(entry.GetId(), true));
+        wallet.SetTransactionId(entry.GetId(), uint256S("1")));
     auto updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(updated.isUsed);
+    BOOST_CHECK(updated.tx != uint256());
 
     BOOST_CHECK_NO_THROW(
-        wallet.SetSigmaMintUsedStatus(entry.GetId(), false));
+        wallet.SetTransactionId(entry.GetId(), uint256()));
     updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(!updated.isUsed);
+    BOOST_CHECK(updated.tx == uint256());
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_no_coins)

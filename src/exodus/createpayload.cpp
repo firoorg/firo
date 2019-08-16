@@ -609,6 +609,10 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, std::vector<exodus::SigmaSpend> const &spends)
 {
+    if (!spends.size() || spends.size() > EXODUS_MAX_SIMPLE_SPENDS) {
+        throw std::invalid_argument("amount of spends exceeded limit or equal to zero");
+    }
+
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
     uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_SPEND;
@@ -619,10 +623,6 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
-
-    if (spends.size() > EXODUS_MAX_SIMPLE_SPENDS) {
-        throw std::invalid_argument("amount of spends exceeded limit");
-    }
 
     auto spendAmount = static_cast<uint8_t>(spends.size());
     PUSH_BACK_BYTES(payload, spendAmount);

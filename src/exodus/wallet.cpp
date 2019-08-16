@@ -39,7 +39,7 @@ void Wallet::UpdateSigmaMint(
     e.groupId = groupId;
     e.index = index;
     e.block = block;
-    e.isUsed = false;
+    e.tx = uint256();
 
     if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
         throw std::runtime_error("update mint on db fail");
@@ -55,19 +55,19 @@ void Wallet::ClearSigmaMintChainState(
     e.groupId = 0;
     e.index = 0;
     e.block = -1;
-    e.isUsed = false;
+    e.tx = uint256();
 
     if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
         throw std::runtime_error("clear mint on db fail");
     }
 }
 
-void Wallet::SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed)
+void Wallet::SetTransactionId(SigmaMintId const &id, uint256 tx)
 {
     LOCK(pwalletMain->cs_wallet);
 
     auto e = GetSigmaEntry(id);
-    e.isUsed = isUsed;
+    e.tx = tx;
 
     if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
         throw std::runtime_error("set used flag for mint on db fail");

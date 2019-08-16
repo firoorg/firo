@@ -1629,6 +1629,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
         );
     }
+    LOCK(cs_main);
 
     // obtain parameters & info
     std::string toAddress = ParseAddress(params[0]);
@@ -1656,21 +1657,26 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
             static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
     }
 
+    // verify denominations
+    int64_t amount;
+    try {
+        amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    }
+
+    LOCK2(pwalletMain->cs_wallet, cs_tally);
     std::vector<exodus::SigmaEntry> coins;
     exodus::Wallet wallet(pwalletMain->strWalletFile);
-    {
-        LOCK(cs_main);
-        try {
-            wallet.GetCoinsToSpend(propertyId, denoms.begin(), denoms.end(), std::back_inserter(coins));
-        } catch (std::invalid_argument const &e) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
-        }
+    try {
+        wallet.GetCoinsToSpend(propertyId, denoms.begin(), denoms.end(), std::back_inserter(coins));
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
     std::vector<SigmaSpend> spends;
     spends.reserve(coins.size());
     {
-        LOCK(cs_main);
         for (auto const &coin : coins) {
             spends.push_back(Spend(coin.privateKey, propertyId, coin.denomination, coin.groupId));
             if (!VerifySigmaSpend(propertyId, spends.back())) {
@@ -1690,10 +1696,14 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     if (result != 0) {
         throw JSONRPCError(result, error_str(result));
     } else {
+        // mark coins as used
+        for (auto const &c : coins) {
+            wallet.SetTransactionId(c.GetId(), txid);
+        }
+
         if (!autoCommit) {
             return rawHex;
         } else {
-            auto amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
             PendingAdd(txid, "", EXODUS_TYPE_SIGMA_SIMPLE_SPEND, propertyId, amount);
             return txid.GetHex();
         }

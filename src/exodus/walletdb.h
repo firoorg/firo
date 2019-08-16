@@ -43,7 +43,7 @@ class SigmaEntry
 public:
     SigmaPrivateKey privateKey;
 
-    bool isUsed;
+    uint256 tx;
 
     uint32_t propertyId;
     uint8_t denomination;
@@ -53,11 +53,11 @@ public:
     int32_t block;
 
     SigmaEntry()
-        : isUsed(false), propertyId(0), denomination(0), groupId(0), index(0), block(-1)
+        : tx(), propertyId(0), denomination(0), groupId(0), index(0), block(-1)
     {
     }
 
-    SigmaMintId GetId()
+    SigmaMintId GetId() const
     {
         return SigmaMintId(SigmaPublicKey(privateKey), propertyId, denomination);
     }
@@ -75,7 +75,7 @@ public:
     {
         READWRITE(privateKey);
 
-        READWRITE(isUsed);
+        READWRITE(tx);
 
         READWRITE(propertyId);
         READWRITE(denomination);
