@@ -911,7 +911,7 @@ bool CMPTransaction::interpret_SimpleSpend()
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         std::vector<uint8_t> denominations;
-        denominations.reserve(mints.size());
+        denominations.reserve(spends.size());
         for (auto const& spend : spends) {
             denominations.push_back(spend.denomination);
         }

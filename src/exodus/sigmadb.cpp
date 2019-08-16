@@ -49,7 +49,7 @@ It SerializeKey(It it)
 template<typename It, typename T, typename ...R>
 It SerializeKey(It it, T t, R ...r)
 {
-    if (std::is_arithmetic<typeof(t)>::value && sizeof(t) > 1) {
+    if (std::is_arithmetic<T>::value && sizeof(t) > 1) {
         exodus::swapByteOrder(t);
     }
     it = std::copy_n(reinterpret_cast<uint8_t*>(&t), sizeof(t), it);
@@ -103,7 +103,7 @@ typedef std::array<uint8_t, SERIAL_SIZE> SERIAL;
 // array size represent size of key
 // <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
 #define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + SERIAL_SIZE
-std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendtKey(
+std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendKey(
     uint32_t propertyId,
     uint8_t denomination,
     SERIAL const &serial)
@@ -258,7 +258,7 @@ void CMPMintList::RecordSerial(
     uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int32_t height)
 {
     auto serial = GetSerial(proof);
-    auto keyData = CreateSpendtKey(propertyId, denomination, serial);
+    auto keyData = CreateSpendKey(propertyId, denomination, serial);
     RecordKey(GetSlice(keyData));
 
     std::array<uint8_t, sizeof(height)> buffer;
@@ -548,7 +548,7 @@ bool CMPMintList::HasSerial(
     uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof)
 {
     auto serial = GetSerial(proof);
-    auto keyData = CreateSpendtKey(propertyId, denomination, serial);
+    auto keyData = CreateSpendKey(propertyId, denomination, serial);
     std::string data;
     auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
 
