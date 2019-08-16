@@ -111,8 +111,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             }
             fillStdFields(in, txin);
 
-            in.push_back(Pair("value", remint->getDenomination()));
-            in.push_back(Pair("valueSat", remint->getDenomination() * COIN));
+            CAmount const valueSat = remint->getDenomination() * COIN;
+
+            in.push_back(Pair("value", ValueFromAmount(valueSat)));
+            in.push_back(Pair("valueSat", valueSat));
         } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
