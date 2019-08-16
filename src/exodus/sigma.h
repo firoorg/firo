@@ -190,8 +190,8 @@ class SigmaSpend {
 public:
     SigmaSpend() {}
 
-    SigmaSpend(SigmaProof const &proof, uint8_t denomination, uint32_t group, uint16_t index)
-        : proof(proof), group(group), denomination(denomination)
+    SigmaSpend(uint8_t denomination, uint32_t group, uint16_t index, SigmaProof const &proof)
+        : denomination(denomination), group(group), index(index), proof(proof)
     {
     }
 
@@ -206,10 +206,10 @@ public:
         READWRITE(proof);
     }
 
-    SigmaProof proof;
     uint8_t denomination;
     uint32_t group;
     uint16_t index;
+    SigmaProof proof;
 };
 
 SigmaSpend Spend(

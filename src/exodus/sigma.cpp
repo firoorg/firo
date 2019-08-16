@@ -147,7 +147,7 @@ SigmaSpend Spend(SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denom
     SigmaProof p;
     p.Generate(priv, coins.begin(), coins.end());
 
-    return SigmaSpend(p, denomination, group, static_cast<uint16_t>(coinAmount));
+    return SigmaSpend(denomination, group, static_cast<uint16_t>(coinAmount), p);
 }
 
 bool VerifySigmaSpend(uint32_t propertyId, SigmaSpend const &spend)
