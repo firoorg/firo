@@ -57,23 +57,35 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         bool first = true;
 
         bool isAllToMe = true;
+        std::string addresses = "";
+        bool involvesWatchAddress = false;
+        bool firstAddress = true;
+
         for (const CTxOut& txout : wtx.vout) {
-            if (!wallet->IsMine(txout)) {
+            isminetype mine = wallet->IsMine(txout);
+            if (!mine) {
                 isAllToMe = false;
                 break;
+            } else if (!txout.scriptPubKey.IsSigmaMint()) {
+                CTxDestination address;
+                ExtractDestination(txout.scriptPubKey, address);
+                if (firstAddress) {
+                    addresses.append(CBitcoinAddress(address).ToString());
+                    firstAddress = false;
+                } else
+                    addresses.append(", " + CBitcoinAddress(address).ToString());
             }
+            if(mine == ISMINE_WATCH_ONLY)
+                involvesWatchAddress = true;
         }
 
         if(isAllToMe){
             TransactionRecord sub(hash, nTime);
-            CTxDestination address;
-            sub.involvesWatchAddress = ISMINE_WATCH_ONLY;
-            if (ExtractDestination(wtx.vout[0].scriptPubKey, address) && IsMine(*wallet, address)) {
-                sub.type = TransactionRecord::SpendToSelf;
-                sub.address = CBitcoinAddress(address).ToString();
-                sub.credit = -nTxFee;
-                parts.append(sub);
-            }
+            sub.involvesWatchAddress = involvesWatchAddress;
+            sub.type = TransactionRecord::SpendToSelf;
+            sub.address = addresses;
+            sub.debit = -nTxFee;
+            parts.append(sub);
         } else {
             for (const CTxOut& txout : wtx.vout) {
                 if (wtx.IsChange(txout)) {

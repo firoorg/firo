@@ -285,10 +285,11 @@ void SigmaDialog::on_sendButton_clicked()
     std::vector<CHDMint> changes;
     WalletModelTransaction currentTransaction(recipients);
     WalletModel::SendCoinsReturn prepareStatus;
+    bool fChangeAddedToFee = false;
     if (walletModel->getOptionsModel()->getCoinControlFeatures()){
-        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes, SigmaCoinControlDialog::coinControl);
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes, fChangeAddedToFee, SigmaCoinControlDialog::coinControl);
     }else{
-        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes, fChangeAddedToFee);
     }
 
     // process prepareStatus and on error generate message shown to user
@@ -403,20 +404,20 @@ void SigmaDialog::on_sendButton_clicked()
     questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
-    bool fSubtractFeeFromAmount = true;
-    for(auto rec : recipients) {
-        if(!rec.fSubtractFeeFromAmount) {
-            fSubtractFeeFromAmount = false;
-            break;
-        }
+    std::string info = "";
+
+    if(walletTx->vout.size() > recipients.size())
+        info += "Change will be reminted";
+
+    if(fChangeAddedToFee) {
+        if(info == "")
+            info = "Amounts smaller than 0.05 are added to fee.";
+        else
+            info += " and amounts smaller than 0.05 are added to fee.";
     }
 
-    std::string feeInfo = "";
-    if(!fSubtractFeeFromAmount)
-        feeInfo = " and amounts smaller than 0.05 are added to fee";
-
     questionString.append(QString("<span style='font-size:8pt;font-weight:normal;float:right;'> <br/> <br/> %1</span>")
-        .arg("Change will be reminted" + tr(feeInfo.c_str()) + "."));
+        .arg(tr(info.c_str())));
 
     SendConfirmationDialog confirmationDialog(tr("Confirm spend coins"),
         questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);

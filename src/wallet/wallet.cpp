@@ -5599,6 +5599,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     CAmount& fee,
     std::vector<CSigmaEntry>& selected,
     std::vector<CHDMint>& changes,
+    bool& fChangeAddedToFee,
     const CCoinControl *coinControl)
 {
     // sanity check
@@ -5611,7 +5612,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this, *zwalletMain, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee);
     selected = builder.selected;
     changes = builder.changes;
 
@@ -6918,8 +6919,8 @@ std::vector<CSigmaEntry> CWallet::SpendSigma(
     // create transaction
     std::vector<CSigmaEntry> coins;
     std::vector<CHDMint> changes;
-
-    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes);
+    bool fChangeAddedToFee;
+    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
 
     CommitSigmaTransaction(result, coins, changes);
 
