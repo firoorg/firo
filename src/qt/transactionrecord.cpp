@@ -75,7 +75,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 } else
                     addresses.append(", " + CBitcoinAddress(address).ToString());
             }
-            if(mine == ISMINE_WATCH_ONLY)
+            if(mine & ISMINE_WATCH_ONLY)
                 involvesWatchAddress = true;
         }
 
