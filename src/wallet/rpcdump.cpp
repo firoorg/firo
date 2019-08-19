@@ -500,7 +500,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             bool fHd = false;
             std::string hdKeypath;
             CKeyID hdMasterKeyID;
-            uint256 hashSerial;
+
             for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
                 if (boost::algorithm::starts_with(vstr[nStr], "#"))
                     break;
@@ -534,10 +534,11 @@ UniValue importwallet(const UniValue& params, bool fHelp)
                 fGood = false;
                 continue;
             }
+
             if(fHd){
                 // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-                if(pwalletMain->mapKeyMetadata[keyid].nChange==2){
-                    zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild, hashSerial);
+                if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
+                    zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
                     fMintUpdate = true;
                 }
             }
