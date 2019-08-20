@@ -1,10 +1,11 @@
 // Smart Properties & Crowd Sales
 
-#include "exodus/sp.h"
+#include "sp.h"
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/uint256_extensions.h"
+#include "log.h"
+#include "exodus.h"
+#include "uint256_extensions.h"
+#include "utilsbitcoin.h"
 
 #include "arith_uint256.h"
 #include "base58.h"
@@ -436,6 +437,60 @@ bool CMPSPInfo::getWatermark(uint256& watermark) const
     }
 
     return true;
+}
+
+bool CMPSPInfo::getPrevVersion(uint32_t propertyId, Entry &info) const
+{
+    CDataStream spPrevKeyData(SER_DISK, CLIENT_VERSION);
+    spPrevKeyData << 'b';
+    spPrevKeyData << info.update_block;
+    spPrevKeyData << propertyId;
+    leveldb::Slice spPrevKey(&spPrevKeyData[0], spPrevKeyData.size());
+
+    std::string spPrevValueData;
+    if (pdb->Get(readoptions, spPrevKey, &spPrevValueData).IsNotFound()) {
+        return false;
+    }
+
+    CDataStream spPreValue(
+        spPrevValueData.data(),
+        spPrevValueData.data() + spPrevValueData.size(),
+        SER_DISK, CLIENT_VERSION
+    );
+    spPreValue >> info;
+
+    return true;
+}
+
+int CMPSPInfo::getDenominationConfirmation(
+    uint32_t propertyId, uint8_t denomination, int requiredConfirmation)
+{
+    LOCK(cs_main);
+    Entry info;
+    if (!getSP(propertyId, info)) {
+        throw std::invalid_argument("property notfound");
+    }
+
+    // no denomination in lastest version then imply it's unconfirmed.
+    if (denomination >= info.denominations.size()) {
+        return 0;
+    }
+
+    int requiredConfirmationBlock =
+        std::max(chainActive.Height() - requiredConfirmation + 1, 0);
+    CBlockIndex *lastBlockContainDenomination = GetBlockIndex(info.update_block);
+
+    while (
+        denomination < info.denominations.size() &&
+        (lastBlockContainDenomination =
+            GetBlockIndex(info.update_block))->nHeight <= requiredConfirmationBlock) {
+        if (!getPrevVersion(propertyId, info)) {
+            break;
+        }
+    }
+
+    return lastBlockContainDenomination->nHeight < requiredConfirmationBlock ? -1 :
+        chainActive.Height() - lastBlockContainDenomination->nHeight + 1;
 }
 
 void CMPSPInfo::printAll() const

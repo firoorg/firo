@@ -190,6 +190,12 @@ public:
     void setWatermark(const uint256& watermark);
     bool getWatermark(uint256& watermark) const;
 
+    bool getPrevVersion(uint32_t propertyId, Entry &info) const;
+
+    // if confirmation is exceed limit then return -1
+    int getDenominationConfirmation(uint32_t propertyId, uint8_t denomination,
+        int requiredConfirmation = INT32_MAX);
+
     void printAll() const;
 };
 
