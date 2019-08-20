@@ -28,6 +28,9 @@
 #include "utils.h"
 #include "utilsbitcoin.h"
 #include "version.h"
+#ifdef ENABLE_WALLET
+#include "wallet.h"
+#endif
 #include "walletcache.h"
 #include "wallettxs.h"
 
@@ -2227,6 +2230,10 @@ int exodus_init()
 
     txProcessor = new TxProcessor();
 
+#ifdef ENABLE_WALLET
+    wallet = new Wallet(pwalletMain->strWalletFile, *p_mintlistdb);
+#endif
+
     bool wrongDBVersion = (p_txlistdb->getDBVersion() != DB_VERSION);
 
     ++exodusInitialized;
@@ -2312,6 +2319,9 @@ int exodus_shutdown()
 {
     LOCK(cs_tally);
 
+#ifdef ENABLE_WALLET
+    delete wallet; wallet = nullptr;
+#endif
     delete txProcessor; txProcessor = nullptr;
     delete p_mintlistdb; p_mintlistdb = nullptr;
     delete p_txlistdb; p_txlistdb = nullptr;
