@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(exodus_mints_overflow)
     _my_sps = new CMPSPInfo(pathTemp / "MP_spinfo_test", false);
 
     CMPSPInfo::Entry sp;
-    sp.denominations = {INT64_MAX};
+    sp.denominations = {MAX_INT_8_BYTES};
     auto property = _my_sps->putSP(0, sp); // non-standard
 
     std::vector<uint8_t> denoms = {0, 0};
