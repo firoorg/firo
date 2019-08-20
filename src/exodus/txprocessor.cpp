@@ -97,10 +97,13 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
     int64_t amount;
     try {
         amount = SumDenominationsValue(property, denominations.begin(), denominations.end());
-    } catch (const std::invalid_argument& e) {
+    } catch (std::invalid_argument const &e) {
         // The only possible cases is invalid denomination.
         PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
         return PKT_ERROR_SIGMA - 905;
+    } catch (std::overflow_error const &e) {
+        PrintToLog("%s(): rejected: overflow error %s\n", __func__, e.what());
+        return PKT_ERROR_SIGMA - 906;
     }
 
     auto& sender = tx.getSender();

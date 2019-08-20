@@ -1,5 +1,6 @@
-#include "exodus/exodus.h"
-#include "exodus/rules.h"
+#include "../exodus.h"
+#include "../rules.h"
+#include "../sp.h"
 
 #include "base58.h"
 #include "chainparams.h"
@@ -11,7 +12,7 @@
 
 using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_exodus_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_exodus_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(exodus_address_mainnet)
 {
@@ -39,5 +40,22 @@ BOOST_AUTO_TEST_CASE(exodus_address_regtest)
     SelectParams(CBaseChainParams::MAIN);
 }
 
+BOOST_AUTO_TEST_CASE(exodus_mints_overflow)
+{
+    _my_sps = new CMPSPInfo(pathTemp / "MP_spinfo_test", false);
+
+    CMPSPInfo::Entry sp;
+    sp.denominations = {INT64_MAX};
+    auto property = _my_sps->putSP(0, sp); // non-standard
+
+    std::vector<uint8_t> denoms = {0, 0};
+    BOOST_CHECK_EXCEPTION(
+        SumDenominationsValue(property, denoms.begin(), denoms.end()),
+        std::overflow_error,
+        [](std::overflow_error const &e) -> bool {
+            return std::string("summation of mints is overflow") == e.what();
+        }
+    );
+}
 
 BOOST_AUTO_TEST_SUITE_END()
