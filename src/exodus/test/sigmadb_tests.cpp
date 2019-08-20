@@ -17,6 +17,39 @@
 
 #define GROUPSIZE_KEY_SIZE 1
 
+namespace std {
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const exodus::SigmaPublicKey& k)
+{
+    return os << k.GetCommitment().GetHex();
+}
+
+template<class Char, class Traits, class Item1, class Item2>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const pair<Item1, Item2>& p)
+{
+    return os << '(' << p.first << ", " << p.second << ')';
+}
+
+} // namespace std
+
+struct AddedEntry
+{
+    exodus::PropertyId property;
+    exodus::DenominationId denomination;
+    exodus::MintGroupId group;
+    exodus::MintGroupIndex index;
+    exodus::SigmaPublicKey pubKey;
+    int block;
+};
+
+struct RemovedEntry
+{
+    exodus::PropertyId property;
+    exodus::DenominationId denomination;
+    exodus::SigmaPublicKey pubKey;
+};
+
 // proxy
 class CMPMintList : public exodus::CMPMintList
 {
@@ -39,11 +72,11 @@ public:
 
 struct DBTestSetup : TestingSetup
 {
-    DBTestSetup()
-        : TestingSetup(CBaseChainParams::REGTEST),
+    DBTestSetup() : TestingSetup(CBaseChainParams::REGTEST),
         db(pathTemp / "MP_txlist_test", false, TEST_MAX_COINS_PER_GROUP)
     {
     }
+
     ~DBTestSetup()
     {
         db.Clear();
@@ -94,25 +127,48 @@ static std::vector<exodus::SigmaPublicKey> GetFirstN(
 BOOST_AUTO_TEST_CASE(record_one_coin)
 {
     auto mint = GetNewPubcoin();
-    uint32_t propId = 1;
-    uint32_t denom = 0;
+    exodus::PropertyId propId = 1;
+    exodus::DenominationId denom = 0;
+    std::vector<AddedEntry> added;
 
-    BOOST_CHECK_EQUAL(0,
-        db.GetMintCount(propId, denom, 0));
-    BOOST_CHECK_EQUAL(0,
-        db.GetNextSequence());
+    db.MintAdded.connect([&] (
+        exodus::PropertyId p,
+        exodus::DenominationId d,
+        exodus::MintGroupId g,
+        exodus::MintGroupIndex i,
+        const exodus::SigmaPublicKey& k,
+        int b) mutable
+    {
+        added.push_back({
+            .property = p,
+            .denomination = d,
+            .group = g,
+            .index = i,
+            .pubKey = k,
+            .block = b
+        });
+    });
 
-    BOOST_CHECK(std::make_pair(uint32_t(0), uint16_t(0)) ==
-        db.RecordMint(propId, denom, mint, 100));
+    BOOST_CHECK_EQUAL(0, db.GetMintCount(propId, denom, 0));
+    BOOST_CHECK_EQUAL(0, db.GetNextSequence());
 
-    BOOST_CHECK_EQUAL(0,
-        db.GetLastGroupId(propId, denom));
-    BOOST_CHECK_EQUAL(1,
-        db.GetMintCount(propId, denom, 0));
-    BOOST_CHECK_EQUAL(0,
-        db.GetMintCount(propId, denom, 1));
-    BOOST_CHECK_EQUAL(1,
-        db.GetNextSequence());
+    BOOST_CHECK_EQUAL(
+        std::make_pair(exodus::MintGroupId(0), exodus::MintGroupIndex(0)),
+        db.RecordMint(propId, denom, mint, 100)
+    );
+
+    BOOST_CHECK_EQUAL(0, db.GetLastGroupId(propId, denom));
+    BOOST_CHECK_EQUAL(1, db.GetMintCount(propId, denom, 0));
+    BOOST_CHECK_EQUAL(0, db.GetMintCount(propId, denom, 1));
+    BOOST_CHECK_EQUAL(1, db.GetNextSequence());
+
+    BOOST_CHECK_EQUAL(1, added.size());
+    BOOST_CHECK_EQUAL(propId, added[0].property);
+    BOOST_CHECK_EQUAL(denom, added[0].denomination);
+    BOOST_CHECK_EQUAL(0, added[0].group);
+    BOOST_CHECK_EQUAL(0, added[0].index);
+    BOOST_CHECK_EQUAL(mint, added[0].pubKey);
+    BOOST_CHECK_EQUAL(100, added[0].block);
 }
 
 BOOST_AUTO_TEST_CASE(getmint_notfound)
@@ -250,27 +306,70 @@ BOOST_AUTO_TEST_CASE(delete_block_which_have_no_coins)
 BOOST_AUTO_TEST_CASE(delete_one_coin)
 {
     auto pubs = GetPubcoins(1);
+    std::vector<RemovedEntry> removes;
+
+    db.MintRemoved.connect([&] (
+        exodus::PropertyId p,
+        exodus::DenominationId d,
+        const exodus::SigmaPublicKey& k) mutable
+    {
+        removes.push_back({.property = p, .denomination = d, .pubKey = k});
+    });
+
     db.RecordMint(1, 1, pubs[0], 10);
+
     BOOST_CHECK_NO_THROW(db.DeleteAll(10));
+
     BOOST_CHECK_EQUAL(0, GetAnonimityGroup(1, 1, 0, 1).size());
     BOOST_CHECK_EQUAL(0, db.GetNextSequence());
+
+    BOOST_CHECK_EQUAL(1, removes.size());
+    BOOST_CHECK_EQUAL(1, removes[0].property);
+    BOOST_CHECK_EQUAL(1, removes[0].denomination);
+    BOOST_CHECK_EQUAL(pubs[0], removes[0].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_one_of_two_coin)
 {
     auto pubs = GetPubcoins(2);
+    std::vector<RemovedEntry> removes;
+
+    db.MintRemoved.connect([&] (
+        exodus::PropertyId p,
+        exodus::DenominationId d,
+        const exodus::SigmaPublicKey& k) mutable
+    {
+        removes.push_back({.property = p, .denomination = d, .pubKey = k});
+    });
+
     db.RecordMint(1, 1, pubs[0], 10); // store at block 10
     db.RecordMint(1, 1, pubs[1], 11); // store at block 11
+
     BOOST_CHECK_NO_THROW(db.DeleteAll(11)); // delete at block 11
+
     BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 1, 0, 2));
     BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, db.GetNextSequence());
+
+    BOOST_CHECK_EQUAL(1, removes.size());
+    BOOST_CHECK_EQUAL(1, removes[0].property);
+    BOOST_CHECK_EQUAL(1, removes[0].denomination);
+    BOOST_CHECK_EQUAL(pubs[1], removes[0].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_denominations)
 {
     auto pubs = GetPubcoins(2);
     auto denom2Pubs = GetPubcoins(2);
+    std::vector<RemovedEntry> removes;
+
+    db.MintRemoved.connect([&] (
+        exodus::PropertyId p,
+        exodus::DenominationId d,
+        const exodus::SigmaPublicKey& k) mutable
+    {
+        removes.push_back({.property = p, .denomination = d, .pubKey = k});
+    });
 
     // RecordMint(propertyId, denomination, mint, block)
     db.RecordMint(1, 0, pubs[0], 10);
@@ -285,6 +384,15 @@ BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_denominations)
     BOOST_CHECK(GetFirstN(pubs, 1) == GetAnonimityGroup(1, 0, 0, 2));
     BOOST_CHECK(GetFirstN(denom2Pubs, 1) == GetAnonimityGroup(1, 1, 0, 2));
     BOOST_CHECK_EQUAL(2, db.GetNextSequence());
+
+    BOOST_CHECK_EQUAL(2, removes.size());
+    BOOST_CHECK_EQUAL(1, removes[0].property);
+    BOOST_CHECK_EQUAL(1, removes[0].denomination);
+    BOOST_CHECK_EQUAL(denom2Pubs[1], removes[0].pubKey);
+
+    BOOST_CHECK_EQUAL(1, removes[1].property);
+    BOOST_CHECK_EQUAL(0, removes[1].denomination);
+    BOOST_CHECK_EQUAL(pubs[1], removes[1].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_properties)
