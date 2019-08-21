@@ -1621,8 +1621,8 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\":1, \"1\":2}\"")
-            + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
+            + HelpExampleCli("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
         );
     }
     LOCK(cs_main);
