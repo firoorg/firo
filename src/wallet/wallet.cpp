@@ -2683,10 +2683,10 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 bool found = false;
                 if(nCoinType == ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
-                    found = !(pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint());
+                    found = !(pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint() || pcoin->vout[i].scriptPubKey.IsZerocoinRemint());
                 } else if(nCoinType == ONLY_MINTS){
                     // Do not consider anything other than mints
-                    found = (pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint());
+                    found = (pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint() || pcoin->vout[i].scriptPubKey.IsZerocoinRemint());
                 } else if (nCoinType == ONLY_DENOMINATED) {
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
@@ -5700,6 +5700,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     CAmount& fee,
     std::vector<CSigmaEntry>& selected,
     std::vector<CHDMint>& changes,
+    bool& fChangeAddedToFee,
     const CCoinControl *coinControl)
 {
     // sanity check
@@ -5712,7 +5713,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this, *zwalletMain, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee);
     selected = builder.selected;
     changes = builder.changes;
 
@@ -7064,8 +7065,8 @@ std::vector<CSigmaEntry> CWallet::SpendSigma(
     // create transaction
     std::vector<CSigmaEntry> coins;
     std::vector<CHDMint> changes;
-
-    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes);
+    bool fChangeAddedToFee;
+    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
 
     CommitSigmaTransaction(result, coins, changes);
 

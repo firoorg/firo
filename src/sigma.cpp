@@ -944,14 +944,10 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
         }
     }
 
-    index->sigmaMintedPubCoins.clear();
-
     // roll back spends
     BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
         containers.RemoveSpend(serial.first);
     }
-
-    index->sigmaSpentSerials.clear();
 }
 
 bool CSigmaState::GetCoinGroupInfo(
@@ -1003,6 +999,8 @@ int CSigmaState::GetCoinSetForSpend(
         int coinGroupID,
         uint256& blockHash_out,
         std::vector<sigma::PublicCoin>& coins_out) {
+
+    coins_out.clear();
 
     pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
