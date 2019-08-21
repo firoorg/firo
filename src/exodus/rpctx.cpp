@@ -1610,14 +1610,15 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
 UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3) {
+    if (fHelp || params.size() < 3 || params.size() > 4) {
         throw std::runtime_error(
-            "exodus_sendspend \"toaddress\" propertyid denomination\n"
+            "exodus_sendspend \"toaddress\" propertyid denomination \"referenceamount\"\n"
             "\nCreate spend.\n"
             "\nArguments:\n"
             "1. toaddress                    (string, required) the address to spend to\n"
             "2. propertyid                   (number, required) the property to spend\n"
             "3. denomination                 (number, required) the id of the denomination need to spend\n"
+            "4. referenceamount              (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -1625,15 +1626,16 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
         );
     }
-    LOCK(cs_main);
 
     // obtain parameters & info
     std::string toAddress = ParseAddress(params[0]);
     uint32_t propertyId = ParsePropertyId(params[1]);
     int denomination = params[2].get_int();
+    int64_t referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
 
     // perform checks
     RequireExistingProperty(propertyId);
+    RequireSaneReferenceAmount(referenceAmount);
 
     // collect all mints need to be created
     if (denomination < 0 || denomination > UINT8_MAX) {
@@ -1649,6 +1651,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
+    LOCK(cs_main);
     LOCK2(pwalletMain->cs_wallet, cs_tally);
     std::vector<exodus::SigmaEntry> coins;
     exodus::Wallet wallet(pwalletMain->strWalletFile);
@@ -1669,7 +1672,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder("", toAddress, "", 0, payload, txid, rawHex, autoCommit, exodus::InputMode::SIGMA);
+    int result = WalletTxBuilder("", toAddress, "", referenceAmount, payload, txid, rawHex, autoCommit, exodus::InputMode::SIGMA);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
