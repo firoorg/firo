@@ -172,7 +172,7 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_CREATE_DENOMINATION:
             return interpret_CreateDenomination();
 
-        case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
+        case EXODUS_TYPE_SIMPLE_MINT:
             return interpret_SimpleMint();
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
@@ -826,7 +826,7 @@ bool CMPTransaction::interpret_CreateDenomination()
 /** Tx 1026 */
 bool CMPTransaction::interpret_SimpleMint()
 {
-    constexpr size_t exodusMintSize = 35;
+    constexpr int exodusMintSize = 35;
 
     if (pkt_size < 9 + exodusMintSize) {
         return false;

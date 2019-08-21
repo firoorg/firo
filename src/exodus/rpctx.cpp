@@ -1559,7 +1559,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     std::vector<uint8_t> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
-        if (denomId < 0 || denomId > UINT8_MAX) {
+        if (denomId > UINT8_MAX) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
         }
 
@@ -1602,7 +1602,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIGMA_SIMPLE_MINT, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
             return txid.GetHex();
         }
     }
