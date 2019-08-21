@@ -166,29 +166,15 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    // check serial in same tx
-    std::unordered_set<
-        std::pair<uint8_t, secp_primitives::Scalar>, PairDenominationScalarHash> serials;
-    for (auto &spend : tx.getSpends()) {
-        if (serials.count(std::make_pair(spend.denomination, spend.proof.GetSerial()))) {
-            PrintToLog("%s(): rejected: serial numbers is duplicated\n", __func__);
-            return PKT_ERROR_SIGMA - 104;
-        }
-
-        serials.insert(std::make_pair(spend.denomination, spend.proof.GetSerial()));
-    }
+    auto &spend = tx.getSpend();
 
     // check serial in database
-    std::vector<uint8_t> denoms;
-    denoms.reserve(tx.getSpends().size());
-    for (auto const &spend : tx.getSpends()) {
-        if (p_mintlistdb->HasSerial(property, spend.denomination, spend.proof)
-            || !VerifySigmaSpend(property, spend)) {
-            PrintToLog("%s(): rejected: spend is invalid\n", __func__);
-            return PKT_ERROR_SIGMA - 104;
-        }
-        denoms.push_back(spend.denomination);
+    if (p_mintlistdb->HasSerial(property, spend.denomination, spend.proof)
+        || !VerifySigmaSpend(property, spend)) {
+        PrintToLog("%s(): rejected: spend is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 104;
     }
+    std::array<uint8_t, 1> denoms = {spend.denomination};
 
     uint64_t amount;
     try {
@@ -200,10 +186,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-
-    for (auto const &spend : tx.getSpends()) {
-        p_mintlistdb->RecordSerial(property, spend.denomination, spend.proof, block);
-    }
+    p_mintlistdb->RecordSerial(property, spend.denomination, spend.proof, block);
 
     return 0;
 }

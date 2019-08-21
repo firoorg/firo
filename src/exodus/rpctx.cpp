@@ -1612,16 +1612,12 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3) {
         throw std::runtime_error(
-            "exodus_sendspend \"toaddress\" propertyid {\"denomination\":amount,...}\n"
+            "exodus_sendspend \"toaddress\" propertyid denomination\n"
             "\nCreate spend.\n"
             "\nArguments:\n"
             "1. toaddress                    (string, required) the address to spend to\n"
             "2. propertyid                   (number, required) the property to spend\n"
-            "3. denominations                (string, required) A json object with denomination and amount\n"
-            "    {\n"
-            "      denomination:amount       (number) The denomination id, the amount of mints\n"
-            "      ,...\n"
-            "    }\n"
+            "3. denomination                 (number, required) the id of the denomination need to spend\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -1634,28 +1630,16 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     // obtain parameters & info
     std::string toAddress = ParseAddress(params[0]);
     uint32_t propertyId = ParsePropertyId(params[1]);
-    UniValue denominations = params[2].get_obj();
+    int denomination = params[2].get_int();
 
     // perform checks
     RequireExistingProperty(propertyId);
-    auto keys = denominations.getKeys();
 
     // collect all mints need to be created
-    std::vector<uint8_t> denoms;
-    for (const auto& denom : keys) {
-        auto denomId = std::stoul(denom);
-        if (denomId < 0 || denomId > UINT8_MAX) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
-        }
-
-        auto amount = denominations[denom].get_int();
-        if (amount < 0 || amount > UINT8_MAX) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
-        }
-
-        denoms.insert(denoms.end(),
-            static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
+    if (denomination < 0 || denomination > UINT8_MAX) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
     }
+    std::vector<uint8_t> denoms = {static_cast<uint8_t>(denomination)};
 
     // verify denominations
     int64_t amount;
@@ -1674,18 +1658,13 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
-    std::vector<SigmaSpend> spends;
-    spends.reserve(coins.size());
-    {
-        for (auto const &coin : coins) {
-            spends.push_back(Spend(coin.privateKey, propertyId, coin.denomination, coin.groupId));
-            if (!VerifySigmaSpend(propertyId, spends.back())) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
-            }
-        }
+    exodus::SigmaEntry coin = coins[0];
+    auto spend = Spend(coin.privateKey, propertyId, coin.denomination, coin.groupId);
+    if (!VerifySigmaSpend(propertyId, spend)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
     }
 
-    auto payload = CreatePayload_SimpleSpend(propertyId, spends);
+    auto payload = CreatePayload_SimpleSpend(propertyId, spend);
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;

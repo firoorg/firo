@@ -45,10 +45,11 @@ public:
         ListSigmaEntries(propertyId, std::back_inserter(allCoins));
 
         auto last = std::remove_if(allCoins.begin(), allCoins.end(), [](exodus::SigmaEntry const &e) -> bool {
+            // TODO(panu) : uncomment the filter below after merging wallet syncing.
             // filter out unconfirmed or used coins
-            if (e.block < 0) {
-                return true;
-            }
+            // if (e.block < 0) {
+            //     return true;
+            // }
 
             return e.tx != uint256();
         });

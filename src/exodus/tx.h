@@ -96,7 +96,7 @@ private:
     // Sigma
     SigmaStatus sigmaStatus;
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
-    std::vector<exodus::SigmaSpend> spends;
+    exodus::SigmaSpend spend;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -223,7 +223,7 @@ public:
 
     /** Sigma */
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
-    std::vector<exodus::SigmaSpend> const & getSpends() const { return spends; }
+    exodus::SigmaSpend const & getSpend() const { return spend; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

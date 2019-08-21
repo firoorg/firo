@@ -607,12 +607,8 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 }
 
 std::vector<unsigned char> CreatePayload_SimpleSpend(
-    uint32_t propertyId, std::vector<exodus::SigmaSpend> const &spends)
+    uint32_t propertyId, exodus::SigmaSpend const &spend)
 {
-    if (!spends.size() || spends.size() > EXODUS_MAX_SIMPLE_SPENDS) {
-        throw std::invalid_argument("amount of spends exceeded limit or equal to zero");
-    }
-
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
     uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_SPEND;
@@ -624,14 +620,8 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
 
-    auto spendAmount = static_cast<uint8_t>(spends.size());
-    PUSH_BACK_BYTES(payload, spendAmount);
-
     CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
-
-    for (auto const &spend : spends) {
-        serialized << spend;
-    }
+    serialized << spend;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;

@@ -881,8 +881,6 @@ bool CMPTransaction::interpret_SimpleMint()
 /** Tx 1026 */
 bool CMPTransaction::interpret_SimpleSpend()
 {
-    exodus::SigmaProof p;
-
     if (pkt_size < 9) {
         return false;
     }
@@ -890,42 +888,27 @@ bool CMPTransaction::interpret_SimpleSpend()
     memcpy(&property, &pkt[4], 4);
     swapByteOrder32(property);
 
-    uint8_t spendAmount;
-    memcpy(&spendAmount, &pkt[8], 1);
-
     CDataStream deserialized(
-        reinterpret_cast<char*>(&pkt[9]),
+        reinterpret_cast<char*>(&pkt[8]),
         reinterpret_cast<char*>(&pkt[pkt_size]),
         SER_NETWORK, CLIENT_VERSION
     );
 
-    spends.resize(spendAmount);
-    for (size_t i = 0; i < spendAmount; i++) {
-        try {
-            deserialized >> spends[i];
-        } catch (std::ios_base::failure const &e) {
-            PrintToLog("%s : io fail %s\n", __func__, e.what());
-            return false;
-        }
+    try {
+        deserialized >> spend;
+    } catch (std::ios_base::failure) {
+        PrintToLog("\tsize of data is less than spend size");
+        return false;
+    }
+
+    if (!deserialized.eof()) {
+        PrintToLog("\tsize of data exceed spend size");
+        return false;
     }
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
-        std::vector<uint8_t> denominations;
-        denominations.reserve(spends.size());
-        for (auto const& spend : spends) {
-            denominations.push_back(spend.denomination);
-        }
-        std::sort(denominations.begin(), denominations.end());
-
-        std::stringstream ss;
-        for (auto const &denom : denominations) {
-            ss << denom << ", ";
-        }
-        auto denomsStr = ss.str();
-        denomsStr.resize(denomsStr.size() - 2);
-
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t          spends: %s\n", denomsStr);
+        PrintToLog("\t           spend: %s\n", std::to_string(spend.denomination));
     }
 
     return true;
