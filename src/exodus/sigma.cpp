@@ -9,24 +9,6 @@
 
 namespace exodus {
 
-std::size_t PairDenominationScalarHash::operator()(
-    std::pair<uint8_t, secp_primitives::Scalar> const &p) const noexcept
-{
-    std::vector<uint8_t> data;
-    data.resize(p.second.memoryRequired());
-    p.second.serialize(data.data());
-
-    unsigned char hash[CSHA256::OUTPUT_SIZE];
-    CSHA256().
-        Write(reinterpret_cast<const uint8_t*>(&(p.first)), sizeof(p.first)).
-        Write(data.data(), data.size()).
-        Finalize(hash);
-
-    std::size_t result;
-    std::memcpy(&result, hash, sizeof(result));
-    return result;
-}
-
 // SigmaPrivateKey Implementation.
 
 SigmaPrivateKey::SigmaPrivateKey(const sigma::Params *params) : params(params)
@@ -129,7 +111,8 @@ void SigmaProof::SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, s
     proof = v;
 }
 
-SigmaSpend Spend(SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
+std::pair<SigmaProof, uint16_t> Spend(
+    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
 {
     LOCK(cs_tally);
     auto coinAmount = p_mintlistdb->GetMintCount(propertyId, denomination, group);
@@ -147,20 +130,20 @@ SigmaSpend Spend(SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denom
     SigmaProof p;
     p.Generate(priv, coins.begin(), coins.end());
 
-    return SigmaSpend(denomination, group, static_cast<uint16_t>(coinAmount), p);
+    return {p, coinAmount};
 }
 
-bool VerifySigmaSpend(uint32_t propertyId, SigmaSpend const &spend)
+bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t coinsInAnonimityGroup, SigmaProof &proof)
 {
     LOCK(cs_tally);
 
     std::vector<SigmaPublicKey> coins;
-    coins.reserve(spend.index);
+    coins.reserve(coinsInAnonimityGroup);
     p_mintlistdb->GetAnonimityGroup(
-        propertyId, spend.denomination, spend.group, spend.index, std::back_inserter(coins)
+        propertyId, denomination, group, coinsInAnonimityGroup, std::back_inserter(coins)
     );
 
-    auto proof = spend.proof;
     return proof.Verify(sigma::Params::get_default(), coins.begin(), coins.end());
 }
 

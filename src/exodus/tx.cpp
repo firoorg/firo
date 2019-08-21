@@ -886,17 +886,22 @@ bool CMPTransaction::interpret_SimpleSpend()
     }
 
     memcpy(&property, &pkt[4], 4);
-    swapByteOrder32(property);
+    swapByteOrder(property);
+    memcpy(&denomination, &pkt[8], 1);
+    memcpy(&group, &pkt[9], 4);
+    swapByteOrder(group);
+    memcpy(&coinsInAnonimityGroup, &pkt[13], 2);
+    swapByteOrder(coinsInAnonimityGroup);
 
     CDataStream deserialized(
-        reinterpret_cast<char*>(&pkt[8]),
+        reinterpret_cast<char*>(&pkt[15]),
         reinterpret_cast<char*>(&pkt[pkt_size]),
         SER_NETWORK, CLIENT_VERSION
     );
 
     try {
         deserialized >> spend;
-    } catch (std::ios_base::failure) {
+    } catch (std::ios_base::failure&) {
         PrintToLog("\tsize of data is less than spend size");
         return false;
     }
@@ -908,7 +913,7 @@ bool CMPTransaction::interpret_SimpleSpend()
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           spend: %s\n", std::to_string(spend.denomination));
+        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
     }
 
     return true;

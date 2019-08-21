@@ -22,12 +22,6 @@
 namespace exodus {
 
 // Sigma Cryptographic Primitives.
-
-struct PairDenominationScalarHash
-{
-    std::size_t operator()(std::pair<uint8_t, secp_primitives::Scalar> const &p) const noexcept;
-};
-
 class SigmaPrivateKey
 {
 public:
@@ -184,37 +178,12 @@ private:
 };
 
 // Exodus Specific.
-
 typedef std::uint8_t DenominationId;
-class SigmaSpend {
-public:
-    SigmaSpend() {}
 
-    SigmaSpend(uint8_t denomination, uint32_t group, uint16_t index, SigmaProof const &proof)
-        : denomination(denomination), group(group), index(index), proof(proof)
-    {
-    }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(denomination);
-        READWRITE(group);
-        READWRITE(index);
-        READWRITE(proof);
-    }
-
-    uint8_t denomination;
-    uint32_t group;
-    uint16_t index;
-    SigmaProof proof;
-};
-
-SigmaSpend Spend(
+std::pair<SigmaProof, uint16_t> Spend(
     SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
-bool VerifySigmaSpend(uint32_t propertyId, SigmaSpend const &spend);
+bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t coinsInAnonimityGroup, SigmaProof &proof);
 
 } // namespace exodus
 

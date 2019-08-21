@@ -607,7 +607,8 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 }
 
 std::vector<unsigned char> CreatePayload_SimpleSpend(
-    uint32_t propertyId, exodus::SigmaSpend const &spend)
+    uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t coinsInAnonimityGroup, exodus::SigmaProof const &proof)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
@@ -615,13 +616,18 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);
+    exodus::swapByteOrder(group);
+    exodus::swapByteOrder(coinsInAnonimityGroup);
 
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, denomination);
+    PUSH_BACK_BYTES(payload, group);
+    PUSH_BACK_BYTES(payload, coinsInAnonimityGroup);
 
     CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
-    serialized << spend;
+    serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;

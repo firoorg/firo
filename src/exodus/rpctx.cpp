@@ -1663,11 +1663,11 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 
     exodus::SigmaEntry coin = coins[0];
     auto spend = Spend(coin.privateKey, propertyId, coin.denomination, coin.groupId);
-    if (!VerifySigmaSpend(propertyId, spend)) {
+    if (!VerifySigmaSpend(propertyId, coin.denomination, coin.groupId, spend.second, spend.first)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
     }
 
-    auto payload = CreatePayload_SimpleSpend(propertyId, spend);
+    auto payload = CreatePayload_SimpleSpend(propertyId, coin.denomination, coin.groupId, spend.second, spend.first);
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
@@ -1686,7 +1686,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, "", EXODUS_TYPE_SIMPLE_SPEND, propertyId, amount);
+            PendingAdd(txid, "Spend", EXODUS_TYPE_SIMPLE_SPEND, propertyId, amount, false);
             return txid.GetHex();
         }
     }

@@ -166,15 +166,18 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    auto &spend = tx.getSpend();
+    auto spend = tx.getSpend(); // intentionally copy
+    auto denomination = tx.getDenomination();
+    auto group = tx.getGroup();
+    auto coinsInAnonimityGroup = tx.getCoinsInAnonimityGroup();
 
     // check serial in database
-    if (p_mintlistdb->HasSerial(property, spend.denomination, spend.proof)
-        || !VerifySigmaSpend(property, spend)) {
+    if (p_mintlistdb->HasSerial(property, denomination, spend)
+        || !VerifySigmaSpend(property, denomination, group, coinsInAnonimityGroup, spend)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 104;
     }
-    std::array<uint8_t, 1> denoms = {spend.denomination};
+    std::array<uint8_t, 1> denoms = {denomination};
 
     uint64_t amount;
     try {
@@ -186,7 +189,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    p_mintlistdb->RecordSerial(property, spend.denomination, spend.proof, block);
+    p_mintlistdb->RecordSerial(property, denomination, spend, block);
 
     return 0;
 }
