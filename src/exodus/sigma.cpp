@@ -134,14 +134,14 @@ std::pair<SigmaProof, uint16_t> Spend(
 }
 
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t coinsInAnonimityGroup, SigmaProof &proof)
+    uint16_t groupSize, SigmaProof &proof)
 {
     LOCK(cs_tally);
 
     std::vector<SigmaPublicKey> coins;
-    coins.reserve(coinsInAnonimityGroup);
+    coins.reserve(groupSize);
     p_mintlistdb->GetAnonimityGroup(
-        propertyId, denomination, group, coinsInAnonimityGroup, std::back_inserter(coins)
+        propertyId, denomination, group, groupSize, std::back_inserter(coins)
     );
 
     return proof.Verify(sigma::Params::get_default(), coins.begin(), coins.end());

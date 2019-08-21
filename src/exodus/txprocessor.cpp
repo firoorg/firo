@@ -169,11 +169,11 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     auto spend = tx.getSpend(); // intentionally copy
     auto denomination = tx.getDenomination();
     auto group = tx.getGroup();
-    auto coinsInAnonimityGroup = tx.getCoinsInAnonimityGroup();
+    auto groupSize = tx.getGroupSize();
 
     // check serial in database
     if (p_mintlistdb->HasSerial(property, denomination, spend)
-        || !VerifySigmaSpend(property, denomination, group, coinsInAnonimityGroup, spend)) {
+        || !VerifySigmaSpend(property, denomination, group, groupSize, spend)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 104;
     }

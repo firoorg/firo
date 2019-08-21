@@ -890,8 +890,8 @@ bool CMPTransaction::interpret_SimpleSpend()
     memcpy(&denomination, &pkt[8], 1);
     memcpy(&group, &pkt[9], 4);
     swapByteOrder(group);
-    memcpy(&coinsInAnonimityGroup, &pkt[13], 2);
-    swapByteOrder(coinsInAnonimityGroup);
+    memcpy(&groupSize, &pkt[13], 2);
+    swapByteOrder(groupSize);
 
     CDataStream deserialized(
         reinterpret_cast<char*>(&pkt[15]),

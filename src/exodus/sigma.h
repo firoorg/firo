@@ -183,7 +183,7 @@ typedef std::uint8_t DenominationId;
 std::pair<SigmaProof, uint16_t> Spend(
     SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t coinsInAnonimityGroup, SigmaProof &proof);
+    uint16_t groupSize, SigmaProof &proof);
 
 } // namespace exodus
 

@@ -98,7 +98,7 @@ private:
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
     uint8_t denomination;
     uint32_t group;
-    uint16_t coinsInAnonimityGroup;
+    uint16_t groupSize;
     exodus::SigmaProof spend;
 
     // Indicates whether the transaction can be used to execute logic
@@ -228,7 +228,7 @@ public:
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
     uint8_t getDenomination() const { return denomination; }
     uint32_t getGroup() const { return group; }
-    uint16_t getCoinsInAnonimityGroup() const { return coinsInAnonimityGroup; }
+    uint16_t getGroupSize() const { return groupSize; }
     exodus::SigmaProof const & getSpend() const { return spend; }
 
     /** Creates a new CMPTransaction object. */

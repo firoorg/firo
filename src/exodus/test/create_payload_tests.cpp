@@ -553,11 +553,11 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
     CDataStream(ParseHex(proofData), SER_NETWORK, CLIENT_VERSION) >> spend;
     uint8_t denomination = 1;
     uint32_t group = 2;
-    uint16_t coinsInAnonimityGroup = 3;
+    uint16_t groupSize = 3;
 
     std::vector<unsigned char> payload;
     BOOST_CHECK_NO_THROW(
-        payload = CreatePayload_SimpleSpend(1, denomination, group, coinsInAnonimityGroup, spend)
+        payload = CreatePayload_SimpleSpend(1, denomination, group, groupSize, spend)
     );
 
     // denom group index
