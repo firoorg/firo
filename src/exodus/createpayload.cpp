@@ -611,7 +611,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_SPEND;
+    uint16_t messageType = EXODUS_TYPE_SIMPLE_SPEND;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);

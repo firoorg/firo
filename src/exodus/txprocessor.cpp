@@ -40,7 +40,7 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
             result = ProcessSimpleMint(tx);
             break;
 
-        case EXODUS_TYPE_SIGMA_SIMPLE_SPEND:
+        case EXODUS_TYPE_SIMPLE_SPEND:
             result = ProcessSimpleSpend(tx);
             break;
         }

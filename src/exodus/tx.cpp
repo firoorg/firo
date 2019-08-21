@@ -175,7 +175,7 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
             return interpret_SimpleMint();
 
-        case EXODUS_TYPE_SIGMA_SIMPLE_SPEND:
+        case EXODUS_TYPE_SIMPLE_SPEND:
             return interpret_SimpleSpend();
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:

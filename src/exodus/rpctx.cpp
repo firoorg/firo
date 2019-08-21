@@ -1683,7 +1683,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, "", EXODUS_TYPE_SIGMA_SIMPLE_SPEND, propertyId, amount);
+            PendingAdd(txid, "", EXODUS_TYPE_SIMPLE_SPEND, propertyId, amount);
             return txid.GetHex();
         }
     }
