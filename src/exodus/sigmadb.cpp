@@ -175,6 +175,8 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 
 namespace exodus {
 
+constexpr uint16_t CMPMintList::MAX_GROUP_SIZE;
+
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
