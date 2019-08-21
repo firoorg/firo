@@ -9,6 +9,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <forward_list>
 #include <set>
 #include <tuple>
 #include <vector>
@@ -105,7 +106,7 @@ public:
     {
         std::unique_ptr<TestSigmaDb> db(new TestSigmaDb(pathTemp / fileName, wipe, groupSize));
 
-        sigconns.emplace_back(db->MintAdded.connect([this] (
+        sigconns.emplace_front(db->MintAdded.connect([this] (
             PropertyId p,
             DenominationId d,
             MintGroupId g,
@@ -122,7 +123,7 @@ public:
             });
         }));
 
-        sigconns.emplace_back(db->MintRemoved.connect([this] (
+        sigconns.emplace_front(db->MintRemoved.connect([this] (
             PropertyId p,
             DenominationId d,
             const SigmaPublicKey& k) {
@@ -137,7 +138,7 @@ public:
     }
 
 private:
-    std::vector<boost::signals2::scoped_connection> sigconns;
+    std::forward_list<boost::signals2::scoped_connection> sigconns;
 };
 
 SigmaPublicKey GetNewPubcoin()
