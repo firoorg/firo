@@ -97,6 +97,16 @@ std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
     return CreateKey(KeyType::GroupSize);
 }
 
+inline bool IsSequenceKey(const leveldb::Slice& key)
+{
+    return key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::Sequence);
+}
+
+inline bool IsSequenceEntry(leveldb::Iterator *it)
+{
+    return IsSequenceKey(it->key());
+}
+
 #define SERIAL_SIZE 32
 typedef std::array<uint8_t, SERIAL_SIZE> SERIAL;
 
@@ -191,6 +201,8 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 
 namespace exodus {
 
+constexpr uint16_t CMPMintList::MAX_GROUP_SIZE;
+
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
@@ -209,11 +221,11 @@ CMPMintList::~CMPMintList()
     if (exodus_debug_persistence) PrintToLog("CMPMintList closed\n");
 }
 
-std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
-    uint32_t propertyId,
-    uint8_t denomination,
-    const exodus::SigmaPublicKey& pubKey,
-    int32_t height)
+std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
+    PropertyId propertyId,
+    DenominationId denomination,
+    const SigmaPublicKey& pubKey,
+    int height)
 {
     // Logic:
     // Get next group id and index for new pubkey by get last group id and amount of coin in group
@@ -229,7 +241,7 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     if (mints > groupSize) {
         throw std::runtime_error("mints count is exceed group limit");
     }
-    uint16_t nextIdx = mints;
+    auto nextIdx = mints;
 
     if (mints == groupSize) {
         lastGroup++;
@@ -237,21 +249,25 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     }
 
     auto keyData = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
-    leveldb::Slice key = GetSlice(keyData);
+    auto key = GetSlice(keyData);
 
-    auto const &commitment = pubKey.GetCommitment();
+    auto& commitment = pubKey.GetCommitment();
 
-    std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(height));
+    std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(std::int32_t)); // mint + height
     auto ptr = buffer.data();
+
     ptr = commitment.serialize(ptr);
-    std::memcpy(ptr, &height, sizeof(height));
+    int32_t h = height;
+    std::memcpy(ptr, &h, sizeof(h));
 
     pdb->Put(writeoptions, key, GetSlice(buffer));
 
     // Store key
     RecordKey(key);
 
-    return {lastGroup, nextIdx};
+    MintAdded(propertyId, denomination, lastGroup, nextIdx, pubKey, height);
+
+    return std::make_pair(lastGroup, nextIdx);
 }
 
 void CMPMintList::RecordSerial(
@@ -270,7 +286,7 @@ void CMPMintList::RecordSerial(
     }
 }
 
-void CMPMintList::DeleteAll(int32_t startBlock)
+void CMPMintList::DeleteAll(int startBlock)
 {
     auto nextSequence = GetNextSequence();
     if (nextSequence == 0) {
@@ -278,61 +294,73 @@ void CMPMintList::DeleteAll(int32_t startBlock)
         return;
     }
 
+    // Seek to recent mint.
     auto lastSequence = nextSequence - 1;
-
     auto sequenceKey = CreateSequenceKey(lastSequence);
 
     auto it = NewIterator();
     it->Seek(GetSlice(sequenceKey));
 
-    std::vector<std::string> keyToDeletes;
+    // Get the list of mints to delete.
+    struct DeleteEntry {
+        std::string sequenceKey;
+        std::string mintKey;
+        PropertyId property;
+        DenominationId denomination;
+        MintGroupId group;
+        MintGroupIndex index;
+        SigmaPublicKey pubKey;
+        int block;
+    };
 
-    // Logic:
-    // Start from last block
-    // Store key to mint and key to key of mint which need to delete to vector
-    // Then decrase mint count by 1
-    // If mint count of the group reach to 0 then decrase group Id of denomination
+    std::vector<DeleteEntry> deletes;
 
-    while (it->Valid() &&
-        (it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence))) {
+    for (; it->Valid() && IsSequenceEntry(it.get()); it->Prev()) {
 
-        int32_t block;
-        std::string data;
-        auto status = pdb->Get(readoptions, it->value(), &data);
+        // Load mint data.
+        std::string mintData;
+
+        auto status = pdb->Get(readoptions, it->value(), &mintData);
         if (!status.ok()) {
             throw std::runtime_error("DeleteAll() : fail to read mint from sequence");
         }
 
-        if (it->value().empty()) {
-            throw std::runtime_error("DeleteAll() : key in sequence is empty");
-        }
+        // Check if it need to delete then add to the list.
+        DeleteEntry entry;
 
-        if (it->value().data()[0] == static_cast<char>(KeyType::Mint)) {
-            std::tie(std::ignore, block) = ParseMint(data);
-        } else if (it->value().data()[0] == static_cast<char>(KeyType::Spend)) {
-            if (data.size() != sizeof(block)) {
-                throw std::runtime_error("DeleteAll() : value of spend is invalid");
-            }
-            std::copy_n(data.data(), data.size(), reinterpret_cast<char*>(&block));
-        } else {
-            throw std::runtime_error("DeleteAll() : format of a key in sequence is invalid");
-        }
+        std::tie(entry.pubKey, entry.block) = ParseMint(mintData);
 
-        if (block >= startBlock) {
-            keyToDeletes.emplace_back(it->key().ToString());
-            keyToDeletes.emplace_back(it->value().ToString());
-        } else {
+        if (entry.block < startBlock) {
+            // We iterate in the latest to oldest that mean we can stop as soon as we found it block number is lower
+            // than theshold.
             break;
         }
 
-        it->Prev();
+        if (!ParseMintKey(it->value(), entry.property, entry.denomination, entry.group, entry.index)) {
+            throw std::runtime_error("Found invalid mint key");
+        }
+
+        entry.sequenceKey = it->key().ToString();
+        entry.mintKey = it->value().ToString();
+
+        deletes.push_back(std::move(entry));
     }
 
-    for (auto const & key : keyToDeletes) {
-        auto status = pdb->Delete(writeoptions, key);
+    // Delete selected mints.
+    for (auto& entry : deletes) {
+        leveldb::Status status;
+
+        status = pdb->Delete(writeoptions, entry.sequenceKey);
         if (!status.ok()) {
-            throw std::runtime_error("DeleteAll() : fail to delete a key");
+            throw std::runtime_error("Failed to delete sequence key");
         }
+
+        status = pdb->Delete(writeoptions, entry.mintKey);
+        if (!status.ok()) {
+            throw std::runtime_error("Failed to delete mint key");
+        }
+
+        MintRemoved(entry.property, entry.denomination, entry.pubKey);
     }
 }
 

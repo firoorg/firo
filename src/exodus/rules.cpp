@@ -1,31 +1,25 @@
-/**
- * @file rules.cpp
- *
- * This file contains consensus rules and restrictions.
- */
+#include "rules.h"
 
-#include "exodus/rules.h"
+#include "activation.h"
+#include "consensushash.h"
+#include "log.h"
+#include "exodus.h"
+#include "notifications.h"
+#include "tx.h"
+#include "utilsbitcoin.h"
+#include "version.h"
 
-#include "exodus/activation.h"
-#include "exodus/consensushash.h"
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/notifications.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/version.h"
+#include "../chainparams.h"
+#include "../main.h"
+#include "../script/standard.h"
+#include "../uint256.h"
+#include "../ui_interface.h"
 
-#include "chainparams.h"
-#include "main.h"
-#include "script/standard.h"
-#include "uint256.h"
-#include "ui_interface.h"
-
-#include <openssl/sha.h>
-
-#include <stdint.h>
 #include <limits>
 #include <string>
 #include <vector>
+
+#include <inttypes.h>
 
 namespace exodus
 {
@@ -77,7 +71,7 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
 
         { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
         { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
-        { EXODUS_TYPE_SIGMA_SIMPLE_MINT,         MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
+        { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);

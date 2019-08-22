@@ -1,23 +1,26 @@
 #ifndef ZCOIN_EXODUS_WALLET_H
 #define ZCOIN_EXODUS_WALLET_H
 
-#include <string>
-
+#include "exodus.h"
 #include "sigma.h"
+#include "sigmadb.h"
 #include "sp.h"
 #include "walletdb.h"
+
 #include "../wallet/wallet.h"
+
+#include <forward_list>
+#include <string>
 
 namespace exodus {
 
 class Wallet
 {
 public:
-    Wallet(const std::string& walletFile)
-        : walletFile(walletFile)
-    {
-    }
+    Wallet(const std::string& walletFile, CMPMintList& sigmaDb);
+    virtual ~Wallet();
 
+public:
     SigmaMintId CreateSigmaMint(
         uint32_t propertyId,
         uint8_t denomination
@@ -36,6 +39,8 @@ public:
 
         return mintItr;
     }
+
+    SigmaMintChainState GetSigmaMintChainState(const SigmaMintId& id);
 
     template<class InItr, class OutItr>
     OutItr GetCoinsToSpend(uint32_t propertyId, InItr begin, InItr end, OutItr coins)
@@ -103,18 +108,24 @@ protected:
     bool HasSigmaEntry(const SigmaMintId& id);
     SigmaEntry GetSigmaEntry(const SigmaMintId& id);
 
-    void UpdateSigmaMint(
-        const SigmaMintId& id,
-        uint32_t groupId,
-        uint16_t index,
-        int32_t block
-    );
+    void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
+private:
+    void OnMintAdded(
+        PropertyId property,
+        DenominationId denomination,
+        MintGroupId group,
+        MintGroupIndex idx,
+        const SigmaPublicKey& pubKey,
+        int block);
 
-    void ClearSigmaMintChainState(const SigmaMintId& id);
+    void OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey);
 
 private:
     std::string walletFile;
+    std::forward_list<boost::signals2::scoped_connection> eventConnections;
 };
+
+extern Wallet *wallet;
 
 }
 

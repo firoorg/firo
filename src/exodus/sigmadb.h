@@ -3,11 +3,13 @@
 
 #include "convert.h"
 #include "persistence.h"
+#include "property.h"
 #include "sigma.h"
 
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
+#include <boost/signals2/signal.hpp>
 
 #include <cinttypes>
 #include <string>
@@ -33,10 +35,17 @@ typedef std::uint16_t MintGroupIndex;
 class CMPMintList : public CDBBase
 {
 public:
+    static constexpr uint16_t MAX_GROUP_SIZE = 16384; // Limit of sigma anonimity group, which is 2 ^ 14.
+
+public:
     CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = 0);
     virtual ~CMPMintList();
 
-    std::pair<uint32_t, uint16_t> RecordMint(uint32_t propertyId, uint8_t denomination, const exodus::SigmaPublicKey& pubKey, int32_t height);
+    std::pair<MintGroupId, MintGroupIndex> RecordMint(
+        PropertyId propertyId,
+        DenominationId denomination,
+        const SigmaPublicKey& pubKey,
+        int height);
     void RecordSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int32_t height);
 
     template<
@@ -53,7 +62,7 @@ public:
     size_t GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
         std::function<void(exodus::SigmaPublicKey&)>);
 
-    void DeleteAll(int32_t startBlock);
+    void DeleteAll(int startBlock);
 
     uint32_t GetLastGroupId(uint32_t propertyId, uint8_t denomination);
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
@@ -62,7 +71,10 @@ public:
     bool HasSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof);
 
     uint16_t groupSize;
-    static uint16_t const MAX_GROUP_SIZE = 16384; /* Limit of sigma anonimity group which is 2 ^ 14 */
+
+public:
+    boost::signals2::signal<void(PropertyId, DenominationId, MintGroupId, MintGroupIndex, const SigmaPublicKey&, int)> MintAdded;
+    boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
 
 private:
     void RecordKey(const leveldb::Slice& key);

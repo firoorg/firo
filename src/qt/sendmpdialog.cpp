@@ -12,28 +12,22 @@
 
 #include "platformstyle.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/errors.h"
-#include "exodus/exodus.h"
-#include "exodus/parse_string.h"
-#include "exodus/pending.h"
-#include "exodus/sp.h"
-#include "exodus/tally.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/wallettxs.h"
+#include "../exodus/createpayload.h"
+#include "../exodus/errors.h"
+#include "../exodus/parse_string.h"
+#include "../exodus/pending.h"
+#include "../exodus/sp.h"
+#include "../exodus/tally.h"
+#include "../exodus/tx.h"
+#include "../exodus/utilsbitcoin.h"
+#include "../exodus/wallettxs.h"
 
-#include "amount.h"
-#include "base58.h"
-#include "main.h"
-#include "sync.h"
-#include "uint256.h"
-#include "wallet/wallet.h"
-
-#include <stdint.h>
-#include <map>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "../amount.h"
+#include "../base58.h"
+#include "../main.h"
+#include "../sync.h"
+#include "../uint256.h"
+#include "../wallet/wallet.h"
 
 #include <QDateTime>
 #include <QDialog>
@@ -41,6 +35,13 @@
 #include <QMessageBox>
 #include <QString>
 #include <QWidget>
+
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <inttypes.h>
 
 using std::ostringstream;
 using std::string;

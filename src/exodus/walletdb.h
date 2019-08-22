@@ -5,14 +5,44 @@
 #include "../wallet/walletdb.h"
 
 #include "sigma.h"
+#include "sigmadb.h"
 
+#include <ostream>
 #include <string>
 
 namespace exodus {
 
-class SigmaMintId
+struct SigmaMintChainState
 {
-public:
+    int block;
+    MintGroupId group;
+    MintGroupIndex index;
+
+    SigmaMintChainState();
+    SigmaMintChainState(int block, MintGroupId group, MintGroupIndex index);
+
+    bool operator==(const SigmaMintChainState& other) const;
+    bool operator!=(const SigmaMintChainState& other) const;
+
+    void Clear();
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        int32_t block = this->block;
+
+        READWRITE(block);
+        READWRITE(group);
+        READWRITE(index);
+
+        this->block = block;
+    }
+};
+
+struct SigmaMintId
+{
     SigmaMintId()
         : propertyId(0), denomination(0)
     {
@@ -38,9 +68,8 @@ public:
     SigmaPublicKey publicKey;
 };
 
-class SigmaEntry
+struct SigmaEntry
 {
-public:
     SigmaPrivateKey privateKey;
 
     uint256 tx;
@@ -48,12 +77,9 @@ public:
     uint32_t propertyId;
     uint8_t denomination;
 
-    uint32_t groupId;
-    uint16_t index;
-    int32_t block;
+    SigmaMintChainState chainState;
 
-    SigmaEntry()
-        : tx(), propertyId(0), denomination(0), groupId(0), index(0), block(-1)
+    SigmaEntry() : tx(), propertyId(0), denomination(0)
     {
     }
 
@@ -79,13 +105,20 @@ public:
 
         READWRITE(propertyId);
         READWRITE(denomination);
-
-        READWRITE(groupId);
-        READWRITE(index);
-        READWRITE(block);
+        READWRITE(chainState);
     }
 };
 
-};
+}
+
+namespace std {
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const exodus::SigmaMintChainState& state)
+{
+    return os << "{block: " << state.block << ", group: " << state.group << ", index: " << state.index << '}';
+}
+
+}
 
 #endif // ZCOIN_EXODUS_WALLETDB_H

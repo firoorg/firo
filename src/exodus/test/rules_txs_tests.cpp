@@ -1,19 +1,20 @@
-#include "exodus/exodus.h"
-#include "exodus/rules.h"
+#include "../rules.h"
+#include "../tx.h"
 
-#include "test/test_bitcoin.h"
-
-#include <stdint.h>
-#include <limits>
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+#include <limits>
 
-BOOST_FIXTURE_TEST_SUITE(exodus_rules_txs_tests, BasicTestingSetup)
+#include <inttypes.h>
+
+namespace exodus {
 
 const int MAX_BLOCK = std::numeric_limits<int>::max();
 const int MAX_VERSION = std::numeric_limits<uint16_t>::max();
+
+BOOST_FIXTURE_TEST_SUITE(exodus_rules_txs_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(simple_send_restrictions)
 {
@@ -34,5 +35,6 @@ BOOST_AUTO_TEST_CASE(simple_send_restrictions)
     BOOST_CHECK(IsTransactionTypeAllowed(MAX_BLOCK,         EXODUS_PROPERTY_TEXODUS, EXODUS_TYPE_SIMPLE_SEND, MP_TX_PKT_V0));
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+}

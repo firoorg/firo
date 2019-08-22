@@ -18,6 +18,43 @@ class CTransaction;
 
 using exodus::strTransactionType;
 
+enum TransactionType {
+    EXODUS_TYPE_SIMPLE_SEND                 =  0,
+    EXODUS_TYPE_RESTRICTED_SEND             =  2,
+    EXODUS_TYPE_SEND_TO_OWNERS              =  3,
+    EXODUS_TYPE_SEND_ALL                    =  4,
+    EXODUS_TYPE_SAVINGS_MARK                = 10,
+    EXODUS_TYPE_SAVINGS_COMPROMISED         = 11,
+    EXODUS_TYPE_RATELIMITED_MARK            = 12,
+    EXODUS_TYPE_AUTOMATIC_DISPENSARY        = 15,
+    EXODUS_TYPE_TRADE_OFFER                 = 20,
+    EXODUS_TYPE_ACCEPT_OFFER_BTC            = 22,
+    EXODUS_TYPE_METADEX_TRADE               = 25,
+    EXODUS_TYPE_METADEX_CANCEL_PRICE        = 26,
+    EXODUS_TYPE_METADEX_CANCEL_PAIR         = 27,
+    EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM    = 28,
+    EXODUS_TYPE_NOTIFICATION                = 31,
+    EXODUS_TYPE_OFFER_ACCEPT_A_BET          = 40,
+    EXODUS_TYPE_CREATE_PROPERTY_FIXED       = 50,
+    EXODUS_TYPE_CREATE_PROPERTY_VARIABLE    = 51,
+    EXODUS_TYPE_PROMOTE_PROPERTY            = 52,
+    EXODUS_TYPE_CLOSE_CROWDSALE             = 53,
+    EXODUS_TYPE_CREATE_PROPERTY_MANUAL      = 54,
+    EXODUS_TYPE_GRANT_PROPERTY_TOKENS       = 55,
+    EXODUS_TYPE_REVOKE_PROPERTY_TOKENS      = 56,
+    EXODUS_TYPE_CHANGE_ISSUER_ADDRESS       = 70,
+    EXODUS_TYPE_ENABLE_FREEZING             = 71,
+    EXODUS_TYPE_DISABLE_FREEZING            = 72,
+    EXODUS_TYPE_FREEZE_PROPERTY_TOKENS      = 185,
+    EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS    = 186,
+    EXODUS_TYPE_SIMPLE_SPEND                = 1024,
+    EXODUS_TYPE_CREATE_DENOMINATION         = 1025,
+    EXODUS_TYPE_SIMPLE_MINT                 = 1026,
+    EXODUS_MESSAGE_TYPE_DEACTIVATION        = 65533,
+    EXODUS_MESSAGE_TYPE_ACTIVATION          = 65534,
+    EXODUS_MESSAGE_TYPE_ALERT               = 65535
+};
+
 /** The class is responsible for transaction interpreting/parsing.
  *
  * It invokes other classes and methods: offers, accepts, tallies (balances).

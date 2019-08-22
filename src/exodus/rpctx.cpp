@@ -1559,7 +1559,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     std::vector<uint8_t> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
-        if (denomId < 0 || denomId > UINT8_MAX) {
+        if (denomId > UINT8_MAX) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
         }
 
@@ -1575,7 +1575,9 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     int64_t amount;
     try {
         amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
-    } catch (const std::invalid_argument& e) {
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    } catch (std::overflow_error const &e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
@@ -1583,10 +1585,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
-    {
-        exodus::Wallet wallet(pwalletMain->strWalletFile);
-        wallet.CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
-    }
+    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
@@ -1602,7 +1601,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIGMA_SIMPLE_MINT, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -1654,20 +1653,19 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     LOCK(cs_main);
     LOCK2(pwalletMain->cs_wallet, cs_tally);
     std::vector<exodus::SigmaEntry> coins;
-    exodus::Wallet wallet(pwalletMain->strWalletFile);
     try {
-        wallet.GetCoinsToSpend(propertyId, denoms.begin(), denoms.end(), std::back_inserter(coins));
+        wallet->GetCoinsToSpend(propertyId, denoms.begin(), denoms.end(), std::back_inserter(coins));
     } catch (std::invalid_argument const &e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
     exodus::SigmaEntry coin = coins[0];
-    auto spend = Spend(coin.privateKey, propertyId, coin.denomination, coin.groupId);
-    if (!VerifySigmaSpend(propertyId, coin.denomination, coin.groupId, spend.second, spend.first)) {
+    auto spend = Spend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
+    if (!VerifySigmaSpend(propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
     }
 
-    auto payload = CreatePayload_SimpleSpend(propertyId, coin.denomination, coin.groupId, spend.second, spend.first);
+    auto payload = CreatePayload_SimpleSpend(propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first);
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
@@ -1680,7 +1678,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     } else {
         // mark coins as used
         for (auto const &c : coins) {
-            wallet.SetTransactionId(c.GetId(), txid);
+            wallet->SetTransactionId(c.GetId(), txid);
         }
 
         if (!autoCommit) {
