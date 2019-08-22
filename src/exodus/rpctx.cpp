@@ -1559,7 +1559,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     std::vector<uint8_t> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
-        if (denomId < 0 || denomId > UINT8_MAX) {
+        if (denomId > UINT8_MAX) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
         }
 
@@ -1585,10 +1585,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
-    {
-        exodus::Wallet wallet(pwalletMain->strWalletFile);
-        wallet.CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
-    }
+    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
