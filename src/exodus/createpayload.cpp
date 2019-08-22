@@ -1,8 +1,8 @@
 #include "createpayload.h"
 
 #include "convert.h"
-#include "exodus.h"
 #include "sigma.h"
+#include "tx.h"
 #include "utils.h"
 
 #include "../clientversion.h"
@@ -577,7 +577,7 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_MINT;
+    uint16_t messageType = EXODUS_TYPE_SIMPLE_MINT;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);

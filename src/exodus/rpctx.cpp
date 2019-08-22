@@ -1601,7 +1601,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIGMA_SIMPLE_MINT, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
             return txid.GetHex();
         }
     }
