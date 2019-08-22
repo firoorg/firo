@@ -1575,7 +1575,9 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     int64_t amount;
     try {
         amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
-    } catch (const std::invalid_argument& e) {
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    } catch (std::overflow_error const &e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
