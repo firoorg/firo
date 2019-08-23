@@ -9,6 +9,8 @@
 
 #include "../wallet/wallet.h"
 
+#include <boost/optional.hpp>
+
 #include <forward_list>
 #include <string>
 
@@ -42,43 +44,8 @@ public:
 
     SigmaMintChainState GetSigmaMintChainState(const SigmaMintId& id);
 
-    template<class InItr, class OutItr>
-    OutItr GetCoinsToSpend(uint32_t propertyId, InItr begin, InItr end, OutItr coins)
-    {
-        AssertLockHeld(pwalletMain->cs_wallet);
-        std::list<exodus::SigmaEntry> allCoins;
-        ListSigmaEntries(propertyId, std::back_inserter(allCoins));
-
-        auto last = std::remove_if(allCoins.begin(), allCoins.end(), [](exodus::SigmaEntry const &e) -> bool {
-            // TODO(panu) : uncomment the filter below after merging wallet syncing.
-            // filter out unconfirmed or used coins
-            // if (e.block < 0) {
-            //     return true;
-            // }
-
-            return e.tx != uint256();
-        });
-        allCoins.erase(last, allCoins.end());
-
-        std::unordered_map<uint8_t, std::list<exodus::SigmaEntry>> allCoinSet;
-        for (auto const &c : allCoins) {
-            allCoinSet[c.denomination].push_back(c);
-        }
-
-        for (auto it = begin; it != end; it++) {
-
-            if (allCoinSet[*it].empty()) {
-                throw std::invalid_argument("no coin to spend");
-            }
-
-            *coins++ = allCoinSet[*it].front();
-            allCoinSet[*it].pop_front();
-        }
-
-        return coins;
-    }
-
-    void SetTransactionId(SigmaMintId const &id, uint256 tx);
+    boost::optional<SigmaEntry> GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination);
+    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
 
 protected:
     template<class OutputIt>

@@ -806,6 +806,47 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     return true;
 }
 
+/** Tx 1024 */
+bool CMPTransaction::interpret_SimpleSpend()
+{
+    if (pkt_size < 9) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    swapByteOrder(property);
+    memcpy(&denomination, &pkt[8], 1);
+    memcpy(&group, &pkt[9], 4);
+    swapByteOrder(group);
+    memcpy(&groupSize, &pkt[13], 2);
+    swapByteOrder(groupSize);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&pkt[15]),
+        reinterpret_cast<char*>(&pkt[pkt_size]),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    try {
+        deserialized >> spend;
+    } catch (std::ios_base::failure&) {
+        PrintToLog("\tsize of data is less than spend size");
+        return false;
+    }
+
+    if (!deserialized.eof()) {
+        PrintToLog("\tsize of data exceed spend size");
+        return false;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
+    }
+
+    return true;
+}
+
 /** Tx 1025 */
 bool CMPTransaction::interpret_CreateDenomination()
 {
@@ -873,47 +914,6 @@ bool CMPTransaction::interpret_SimpleMint()
 
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           mints: %s\n", denomsStr);
-    }
-
-    return true;
-}
-
-/** Tx 1026 */
-bool CMPTransaction::interpret_SimpleSpend()
-{
-    if (pkt_size < 9) {
-        return false;
-    }
-
-    memcpy(&property, &pkt[4], 4);
-    swapByteOrder(property);
-    memcpy(&denomination, &pkt[8], 1);
-    memcpy(&group, &pkt[9], 4);
-    swapByteOrder(group);
-    memcpy(&groupSize, &pkt[13], 2);
-    swapByteOrder(groupSize);
-
-    CDataStream deserialized(
-        reinterpret_cast<char*>(&pkt[15]),
-        reinterpret_cast<char*>(&pkt[pkt_size]),
-        SER_NETWORK, CLIENT_VERSION
-    );
-
-    try {
-        deserialized >> spend;
-    } catch (std::ios_base::failure&) {
-        PrintToLog("\tsize of data is less than spend size");
-        return false;
-    }
-
-    if (!deserialized.eof()) {
-        PrintToLog("\tsize of data exceed spend size");
-        return false;
-    }
-
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
     }
 
     return true;

@@ -79,7 +79,7 @@ struct SigmaEntry
 
     SigmaMintChainState chainState;
 
-    SigmaEntry() : tx(), propertyId(0), denomination(0)
+    SigmaEntry() : propertyId(0), denomination(0)
     {
     }
 

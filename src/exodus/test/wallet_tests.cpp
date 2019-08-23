@@ -37,11 +37,6 @@ public:
     {
         return Wallet::HasSigmaEntry(id);
     }
-
-    void SetTransactionId(const exodus::SigmaMintId& id, uint256 tx)
-    {
-        exodus::Wallet::SetTransactionId(id, tx);
-    }
 };
 
 struct ExodusWalletTestingSetup : WalletTestingSetup
@@ -82,21 +77,21 @@ BOOST_AUTO_TEST_CASE(get_sigma_entry)
     auto retrieved2 = wallet.GetSigmaEntry(retrieved.GetId());
     BOOST_CHECK(retrieved == retrieved2);
     BOOST_CHECK(retrieved != exodus::SigmaEntry());
-    BOOST_CHECK(retrieved.tx == uint256());
+    BOOST_CHECK(retrieved.tx.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(make_entry_as_used)
 {
     auto entry = CreateAndGetEntry(1, 1);
     BOOST_CHECK_NO_THROW(
-        wallet.SetTransactionId(entry.GetId(), uint256S("1")));
+        wallet.SetSigmaMintUsedTransaction(entry.GetId(), uint256S("1")));
     auto updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(updated.tx != uint256());
+    BOOST_CHECK(updated.tx == uint256S("1"));
 
     BOOST_CHECK_NO_THROW(
-        wallet.SetTransactionId(entry.GetId(), uint256()));
+        wallet.SetSigmaMintUsedTransaction(entry.GetId(), uint256()));
     updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(updated.tx == uint256());
+    BOOST_CHECK(updated.tx.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_no_coins)
@@ -221,6 +216,44 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
     BOOST_CHECK_EQUAL(state.block, 100);
     BOOST_CHECK_EQUAL(state.group, group);
     BOOST_CHECK_EQUAL(state.index, index);
+}
+
+BOOST_AUTO_TEST_CASE(get_spendable_mint_in_nonexist_group)
+{
+    LOCK(pwalletMain->cs_wallet);
+    BOOST_CHECK(!wallet.GetSpendableSigmaMint(0, 0).has_value());
+}
+
+BOOST_AUTO_TEST_CASE(get_a_spendable_coin)
+{
+    LOCK(pwalletMain->cs_wallet);
+    auto id = wallet.CreateSigmaMint(0, 0);
+    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
+
+    BOOST_CHECK(wallet.GetSpendableSigmaMint(0, 0).has_value());
+}
+
+BOOST_AUTO_TEST_CASE(get_oldest_spenable_mint)
+{
+    LOCK(pwalletMain->cs_wallet);
+    auto id = wallet.CreateSigmaMint(0, 0);
+    auto id2 = wallet.CreateSigmaMint(0, 0);
+    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
+    sigmaDb.RecordMint(0, 0, id2.publicKey, 1001);
+
+    auto mint = wallet.GetSpendableSigmaMint(0, 0);
+    BOOST_CHECK(mint.has_value());
+    BOOST_CHECK_EQUAL(1000, mint.get().chainState.block);
+}
+
+BOOST_AUTO_TEST_CASE(have_only_spend_coin)
+{
+    LOCK(pwalletMain->cs_wallet);
+    auto id = wallet.CreateSigmaMint(0, 0);
+    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
+    wallet.SetSigmaMintUsedTransaction(id, uint256S("1"));
+
+    BOOST_CHECK(!wallet.GetSpendableSigmaMint(0, 0).has_value());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

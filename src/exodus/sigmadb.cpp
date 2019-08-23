@@ -299,13 +299,12 @@ void CMPMintList::RecordSpendSerial(
     auto serialData = GetSerialData(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
     auto status = pdb->Put(writeoptions, GetSlice(keyData), GetSlice(std::array<uint8_t, 1>({0x00})));
-
-    // Store key
-    RecordKeyCreationHistory(height, GetSlice(keyData));
-
     if (!status.ok()) {
         throw std::runtime_error("record serial fail");
     }
+
+    // Store key
+    RecordKeyCreationHistory(height, GetSlice(keyData));
 }
 
 // operation code of histories

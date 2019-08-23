@@ -63,11 +63,41 @@ SigmaMintChainState Wallet::GetSigmaMintChainState(const SigmaMintId& id)
     return GetSigmaEntry(id).chainState;
 }
 
+boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination)
+{
+    AssertLockHeld(pwalletMain->cs_wallet);
+    std::list<SigmaEntry> allCoins;
+    ListSigmaEntries(propertyId, std::back_inserter(allCoins));
+
+    auto last = std::remove_if(allCoins.begin(), allCoins.end(), [denomination](SigmaEntry const &entry) -> bool {
+        return entry.denomination != denomination
+            || entry.chainState.block < 0
+            || !entry.tx.IsNull();
+    });
+    allCoins.erase(last, allCoins.end());
+
+    if (allCoins.empty()) {
+        return boost::none;
+    }
+
+    auto chosenCoin = std::min_element(allCoins.begin(), allCoins.end(),
+        [](SigmaEntry const &a, SigmaEntry const &b) -> bool {
+            return a.chainState.block < b.chainState.block;
+        }
+    );
+
+    return *chosenCoin;
+}
+
 void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)
 {
     LOCK(pwalletMain->cs_wallet);
 
     auto e = GetSigmaEntry(id);
+
+    if (!e.tx.IsNull()) {
+        throw std::logic_error("the mint have been spend");
+    }
 
     e.chainState = state;
 
@@ -76,7 +106,7 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
     }
 }
 
-void Wallet::SetTransactionId(SigmaMintId const &id, uint256 tx)
+void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
 {
     LOCK(pwalletMain->cs_wallet);
 

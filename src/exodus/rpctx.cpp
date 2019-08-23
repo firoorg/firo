@@ -1640,11 +1640,11 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     if (denomination < 0 || denomination > UINT8_MAX) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
     }
-    std::vector<uint8_t> denoms = {static_cast<uint8_t>(denomination)};
 
     // verify denominations
     int64_t amount;
     try {
+        std::vector<uint8_t> denoms = {static_cast<uint8_t>(denomination)};
         amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
     } catch (std::invalid_argument const &e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
@@ -1652,14 +1652,12 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
     LOCK2(pwalletMain->cs_wallet, cs_tally);
-    std::vector<exodus::SigmaEntry> coins;
-    try {
-        wallet->GetCoinsToSpend(propertyId, denoms.begin(), denoms.end(), std::back_inserter(coins));
-    } catch (std::invalid_argument const &e) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    auto coinOp = wallet->GetSpendableSigmaMint(propertyId, denomination);
+    if (coinOp != boost::none) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "no coin to spend");
     }
 
-    exodus::SigmaEntry coin = coins[0];
+    auto coin = coinOp.get();
     auto spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
     if (!VerifySigmaSpend(
         propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first, sigma::Params::get_default())) {
@@ -1677,10 +1675,8 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     if (result != 0) {
         throw JSONRPCError(result, error_str(result));
     } else {
-        // mark coins as used
-        for (auto const &c : coins) {
-            wallet->SetTransactionId(c.GetId(), txid);
-        }
+        // mark the coin as used
+        wallet->SetSigmaMintUsedTransaction(coin.GetId(), txid);
 
         if (!autoCommit) {
             return rawHex;
