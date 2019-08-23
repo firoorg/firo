@@ -218,10 +218,7 @@ BOOST_AUTO_TEST_CASE(getmint_test)
     uint32_t denom = 0;
     db->RecordMint(propId, denom, mint, 100);
 
-    BOOST_CHECK(
-        std::make_pair(mint, int(100)) ==
-        db->GetMint(propId, denom, 0, 0)
-    );
+    BOOST_CHECK(mint == db->GetMint(propId, denom, 0, 0));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_no_anycoin)

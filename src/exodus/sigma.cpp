@@ -111,26 +111,18 @@ void SigmaProof::SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, s
     proof = v;
 }
 
-std::pair<SigmaProof, uint16_t> Spend(
+std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
 {
     LOCK(cs_tally);
-    auto coinAmount = p_mintlistdb->GetMintCount(propertyId, denomination, group);
-
-    if (coinAmount > UINT16_MAX) {
-        throw std::runtime_error("amount of coins in group is invalid");
-    }
 
     std::vector<SigmaPublicKey> coins;
-    coins.reserve(coinAmount);
-    p_mintlistdb->GetAnonimityGroup(
-        propertyId, denomination, group, coinAmount, std::back_inserter(coins)
-    );
+    p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
 
     SigmaProof p;
     p.Generate(priv, coins.begin(), coins.end());
 
-    return {p, coinAmount};
+    return {p, coins.size()};
 }
 
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
