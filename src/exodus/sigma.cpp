@@ -119,6 +119,10 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     std::vector<SigmaPublicKey> coins;
     p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
 
+    if (coins.size() < 2) {
+        throw std::runtime_error("amount if coins in anonimity is not enough to spend");
+    }
+
     SigmaProof p;
     p.Generate(priv, coins.begin(), coins.end());
 
@@ -126,17 +130,15 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
 }
 
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, SigmaProof &proof)
+    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params)
 {
     LOCK(cs_tally);
 
     std::vector<SigmaPublicKey> coins;
     coins.reserve(groupSize);
-    p_mintlistdb->GetAnonimityGroup(
-        propertyId, denomination, group, groupSize, std::back_inserter(coins)
-    );
+    p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, groupSize, std::back_inserter(coins));
 
-    return proof.Verify(sigma::Params::get_default(), coins.begin(), coins.end());
+    return proof.Verify(params, coins.begin(), coins.end());
 }
 
 } // namespace exodus

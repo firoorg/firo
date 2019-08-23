@@ -92,7 +92,7 @@ public:
     const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& GetProof() const { return proof; }
 
     template<typename Iterator>
-    bool Verify(sigma::Params *params, Iterator begin, Iterator end)
+    bool Verify(sigma::Params const *params, Iterator begin, Iterator end)
     {
         proof.params = params;
 
@@ -183,7 +183,7 @@ typedef std::uint8_t DenominationId;
 std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, SigmaProof &proof);
+    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params);
 
 } // namespace exodus
 

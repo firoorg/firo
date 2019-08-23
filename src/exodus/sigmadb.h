@@ -46,7 +46,7 @@ public:
         DenominationId denomination,
         const SigmaPublicKey& pubKey,
         int height);
-    void RecordSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int height);
+    void RecordSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height);
 
     template<
         class OutputIt,
@@ -80,7 +80,7 @@ public:
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
     SigmaPublicKey GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
-    bool HasSerial(uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof);
+    bool HasSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial);
 
     uint16_t groupSize;
 

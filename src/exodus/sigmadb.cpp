@@ -100,16 +100,16 @@ std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
     return CreateKey(KeyType::GroupSize);
 }
 
-#define SERIAL_SIZE 32
-typedef std::array<uint8_t, SERIAL_SIZE> SERIAL;
+#define SERIALDATA_SIZE 32
+typedef std::array<uint8_t, SERIALDATA_SIZE> SERIALDATA;
 
 // array size represent size of key
 // <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
-#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + SERIAL_SIZE
+#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + SERIALDATA_SIZE
 std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendKey(
     uint32_t propertyId,
     uint8_t denomination,
-    SERIAL const &serial)
+    SERIALDATA const &serial)
 {
     return CreateKey(KeyType::Spend, propertyId, denomination, serial);
 }
@@ -194,14 +194,14 @@ bool ParseMintKey(
     return false;
 }
 
-SERIAL GetSerial(exodus::SigmaProof const &proof)
+SERIALDATA GetSerialData(secp_primitives::Scalar const &proof)
 {
-    SERIAL s;
-    if (proof.GetSerial().memoryRequired() != SERIAL_SIZE) {
+    SERIALDATA s;
+    if (proof.memoryRequired() != SERIALDATA_SIZE) {
         throw std::invalid_argument("serial size is invalid");
     }
 
-    proof.GetSerial().serialize(s.data());
+    proof.serialize(s.data());
     return s;
 }
 
@@ -285,11 +285,11 @@ std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
     return std::make_pair(lastGroup, nextIdx);
 }
 
-void CMPMintList::RecordSerial(
-    uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof, int height)
+void CMPMintList::RecordSpendSerial(
+    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
 {
-    auto serial = GetSerial(proof);
-    auto keyData = CreateSpendKey(propertyId, denomination, serial);
+    auto serialData = GetSerialData(serial);
+    auto keyData = CreateSpendKey(propertyId, denomination, serialData);
     auto status = pdb->Put(writeoptions, GetSlice(keyData), GetSlice(std::array<uint8_t, 1>({0x00})));
 
     // Store key
@@ -644,11 +644,11 @@ exodus::SigmaPublicKey CMPMintList::GetMint(
     throw std::runtime_error("not found sigma mint");
 }
 
-bool CMPMintList::HasSerial(
-    uint32_t propertyId, uint8_t denomination, exodus::SigmaProof const &proof)
+bool CMPMintList::HasSpendSerial(
+    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
 {
-    auto serial = GetSerial(proof);
-    auto keyData = CreateSpendKey(propertyId, denomination, serial);
+    auto serialData = GetSerialData(serial);
+    auto keyData = CreateSpendKey(propertyId, denomination, serialData);
     std::string data;
     auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
 

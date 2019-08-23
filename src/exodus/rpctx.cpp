@@ -1661,7 +1661,8 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 
     exodus::SigmaEntry coin = coins[0];
     auto spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
-    if (!VerifySigmaSpend(propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first)) {
+    if (!VerifySigmaSpend(
+        propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first, sigma::Params::get_default())) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
     }
 
