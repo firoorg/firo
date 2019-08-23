@@ -25,7 +25,7 @@ enum class KeyType : uint8_t
     Mint = 0,
     Sequence = 1,
     GroupSize = 2,
-    Spend = 3
+    SpendSerial = 3
 };
 
 template<typename ... T>
@@ -49,10 +49,19 @@ It SerializeKey(It it)
     return it;
 }
 
-template<typename It, typename T, typename ...R>
-It SerializeKey(It it, T t, R ...r)
+template<typename It, typename ArrT, size_t ArrS, typename ...R>
+It SerializeKey(It it, std::array<ArrT, ArrS> t, R ...r)
 {
-    if (std::is_arithmetic<T>::value && sizeof(t) > 1) {
+    it = std::copy_n(t.begin(), sizeof(t), it);
+    return SerializeKey(it, r...);
+}
+
+template<
+    typename It, typename T, typename ...R,
+    typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr
+> It SerializeKey(It it, T t, R ...r)
+{
+    if (sizeof(t) > 1) {
         exodus::swapByteOrder(t);
     }
     it = std::copy_n(reinterpret_cast<uint8_t*>(&t), sizeof(t), it);
@@ -100,18 +109,17 @@ std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
     return CreateKey(KeyType::GroupSize);
 }
 
-#define SERIALDATA_SIZE 32
-typedef std::array<uint8_t, SERIALDATA_SIZE> SERIALDATA;
+typedef std::array<uint8_t, 32> SpendSerial;
 
 // array size represent size of key
 // <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
-#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + SERIALDATA_SIZE
-std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendKey(
+#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(SpendSerial)
+std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendSerialKey(
     uint32_t propertyId,
     uint8_t denomination,
-    SERIALDATA const &serial)
+    SpendSerial const &serial)
 {
-    return CreateKey(KeyType::Spend, propertyId, denomination, serial);
+    return CreateKey(KeyType::SpendSerial, propertyId, denomination, serial);
 }
 
 inline bool IsMintKey(leveldb::Slice const &key)
@@ -136,7 +144,7 @@ inline bool IsSequenceEntry(leveldb::Iterator *it)
 
 inline bool IsSpendKey(leveldb::Slice const &key)
 {
-    return key.size() == SPEND_KEY_SIZE && key[0] == static_cast<char>(KeyType::Spend);
+    return key.size() == SPEND_KEY_SIZE && key[0] == static_cast<char>(KeyType::SpendSerial);
 }
 
 inline bool IsSpendEntry(leveldb::Iterator *it)
@@ -194,14 +202,14 @@ bool ParseMintKey(
     return false;
 }
 
-SERIALDATA GetSerialData(secp_primitives::Scalar const &proof)
+SpendSerial GetSerialData(secp_primitives::Scalar const &serial)
 {
-    SERIALDATA s;
-    if (proof.memoryRequired() != SERIALDATA_SIZE) {
+    SpendSerial s;
+    if (serial.memoryRequired() != sizeof(SpendSerial)) {
         throw std::invalid_argument("serial size is invalid");
     }
 
-    proof.serialize(s.data());
+    serial.serialize(s.data());
     return s;
 }
 
@@ -289,7 +297,7 @@ void CMPMintList::RecordSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
 {
     auto serialData = GetSerialData(serial);
-    auto keyData = CreateSpendKey(propertyId, denomination, serialData);
+    auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
     auto status = pdb->Put(writeoptions, GetSlice(keyData), GetSlice(std::array<uint8_t, 1>({0x00})));
 
     // Store key
@@ -648,7 +656,7 @@ bool CMPMintList::HasSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
 {
     auto serialData = GetSerialData(serial);
-    auto keyData = CreateSpendKey(propertyId, denomination, serialData);
+    auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
     std::string data;
     auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
 
