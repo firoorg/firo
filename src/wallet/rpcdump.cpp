@@ -504,6 +504,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
                 if (boost::algorithm::starts_with(vstr[nStr], "#"))
                     break;
+                if (vstr[nStr] == "sigma=1")
+                    fLabel = false;
                 if (vstr[nStr] == "change=1")
                     fLabel = false;
                 if (vstr[nStr] == "reserve=1")
@@ -720,6 +722,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         std::string strTime = EncodeDumpTime(it->first);
         std::string strAddr = CBitcoinAddress(keyid).ToString();
         CKey key;
+        pwalletMain->mapKeyMetadata[keyid].ParseComponents();
         if (pwalletMain->GetKey(keyid, key)) {
             file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
             if (pwalletMain->mapAddressBook.count(keyid)) {
@@ -730,6 +733,8 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
                 file << "reserve=1";
             } else if (pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
                 file << "inactivehdmaster=1";
+            } else if (pwalletMain->mapKeyMetadata[keyid].nChange.first == 2) {
+                file << "sigma=1";
             } else {
                 file << "change=1";
             }
