@@ -561,8 +561,10 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->MarkDirty();
 
-    if(fMintUpdate)
+    if(fMintUpdate){
         zwalletMain->SyncWithChain();
+	zwalletMain->GetTracker().ListMints(false, false);
+    }
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");

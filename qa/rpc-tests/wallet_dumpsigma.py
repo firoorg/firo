@@ -37,33 +37,25 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
         self.nodes[0].generate(401)
         self.sync_all()
 
-
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
 
         # make confirmed mints and spends
-        for denom in sigma_denoms:
-            self.nodes[0].mint(denom)
-            self.nodes[0].mint(denom)
-            self.nodes[0].mint(denom)
+        denom_sum = sum(sigma_denoms)
 
+        # mint, full confirmation
+        self.nodes[0].mint("{0:.2f}".format(3*denom_sum))
         self.nodes[0].generate(6)
-        
-        for denom in sigma_denoms:
-            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
-            self.nodes[0].spendmany("", args)
 
+        # spend, single confirmation
+        self.nodes[0].spendmany("", {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom_sum})
         self.nodes[0].generate(1)
 
         #make unconfirmed mints and spends
-        for denom in sigma_denoms:
-            self.nodes[0].mint(denom)
-
-        for denom in sigma_denoms:
-            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
-            self.nodes[0].spendmany("", args) 
+        #self.nodes[0].mint(denom_sum)
+        #self.nodes[0].spendmany("", {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom_sum})
 
         #get list of unspent mints and spends, mints
-        sigma_mint = self.nodes[0].listsigmamints()
+        sigma_mints = self.nodes[0].listsigmamints()
         sigma_unspentmints = self.nodes[0].listunspentsigmamints(100)
         sigma_spendsigmas = self.nodes[0].listsigmaspends(100)
         tmpdir = self.options.tmpdir
@@ -73,23 +65,20 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
         except Exception as ex:
             key = get_dumpwallet_otp(ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
-        
+
         stop_node(self.nodes[0], 0)
         os.remove(self.options.tmpdir + "/node0/regtest/wallet.dat")
         start_node(0, self.options.tmpdir)
 
         self.nodes[0].importwallet(tmpdir + "/node0/wallet.unencrypted.dump")
 
-        exp_sigma_mint = self.nodes[0].listsigmamints()
+        exp_sigma_mints = self.nodes[0].listsigmamints()
         exp_sigma_unspentmints = self.nodes[0].listunspentsigmamints(100)
         exp_sigma_spendsigmas = self.nodes[0].listsigmaspends(100)
 
         assert_equal(exp_sigma_unspentmints, exp_sigma_unspentmints)
-        
+        assert_equal (exp_sigma_spendsigmas, sigma_spendsigmas)
         assert_equal(exp_sigma_mints, sigma_mints)
-
-        assert_equal (exp_sigma_spendsigmas, sigma_spendsigmas)      
-
 
 if __name__ == '__main__':
     WalletDumpSigmaTest().main()

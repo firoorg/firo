@@ -52,13 +52,6 @@ class WalletDumpZerocoinTest(BitcoinTestFramework):
 
         self.nodes[0].generate(1)
 
-        #make unconfirmed mints and spends
-        for denom in zcoin_denoms:
-            self.nodes[0].mintzerocoin(denom)
-
-        for denom in zcoin_denoms:
-            self.nodes[0].spendzerocoin(denom) 
-
         #get list of unspent mints and spends, mints
         zcoin_mints = self.nodes[0].listmintzerocoins()
         zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
@@ -81,11 +74,9 @@ class WalletDumpZerocoinTest(BitcoinTestFramework):
         exp_zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
         exp_zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100) 
 
-        assert_equal(exp_zcoin_unspentmints, exp_zcoin_unspentmints)
-        
-        assert_equal(exp_zcoin_mints, zcoin_mints)
-
-        assert_equal (exp_zcoin_spendzcoins, zcoin_spendzcoins)    
+        assert_equal(sorted(exp_zcoin_mints), sorted(zcoin_mints))
+        assert_equal(sorted(exp_zcoin_unspentmints), sorted(zcoin_unspentmints))
+        assert_equal(sorted((exp_zcoin_spendzcoins), sorted(zcoin_spendzcoins))    
 
 
 if __name__ == '__main__':
