@@ -17,6 +17,7 @@ def read_dump(file_name, addrs, hd_master_addr_old):
         found_addr = 0
         found_addr_chg = 0
         found_addr_rsv = 0
+        found_addr_sigma = 0
         hd_master_addr_ret = None
         for line in inputfile:
             # only read non comment lines
@@ -56,7 +57,10 @@ def read_dump(file_name, addrs, hd_master_addr_old):
                     elif keytype == "reserve=1":
                         found_addr_rsv += 1
                         break
-        return found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_ret
+                    elif keytype == "sigma=1":
+                        found_addr_sigma += 1
+                        break
+        return found_addr, found_addr_chg, found_addr_rsv, found_addr_sigma, hd_master_addr_ret
 
 
 class WalletDumpTest(BitcoinTestFramework):
@@ -100,11 +104,12 @@ class WalletDumpTest(BitcoinTestFramework):
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
         assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
-        found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_unenc = \
+        found_addr, found_addr_chg, found_addr_rsv, found_addr_sigma, hd_master_addr_unenc = \
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
         assert_equal(found_addr, test_addr_count)  # all keys must be in the dump
 
-        assert_equal(found_addr_chg, 50 + hdmint_key_count) # 50 block were mined + hdmint keys
+        assert_equal(found_addr_chg, 50) # 50 block were mined + 
+        assert_equal(found_addr_sigma, hdmint_key_count) # hdmint keys
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
         #encrypt wallet, restart, unlock and dump
@@ -122,13 +127,14 @@ class WalletDumpTest(BitcoinTestFramework):
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump", key)
         assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
-        found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_enc = \
+        found_addr, found_addr_chg, found_addr_rsv, found_addr_sigma, hd_master_addr_enc = \
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
         assert_equal(found_addr, test_addr_count)
         
         # - old reserve keys are marked as change now
+        assert_equal(found_addr_chg, 90 + 1 + 50)
         # - As wallet encryption creates a new master seed, it adds another set of hdmint keys.
-        assert_equal(found_addr_chg, 90 + 1 + 50 + (hdmint_key_count * 2))
+        assert_equal(found_addr_sigma, hdmint_key_count * 2)
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
 if __name__ == '__main__':
