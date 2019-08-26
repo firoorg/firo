@@ -39,6 +39,7 @@ public:
             READWRITE(mnemonic);
             READWRITE(passPhrase);
             READWRITE(seed);
+            READWRITE(fIsCrypted);
         }
     }
 
@@ -52,7 +53,7 @@ public:
 
     bool SetMnemonic(const SecureString& mnemonic, const SecureString& passPhrase, bool setMasterKeyID);
 
-    bool GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_);
+    bool GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_) const;
 
     bool SetSeed(const SecureVector& seed_);
 

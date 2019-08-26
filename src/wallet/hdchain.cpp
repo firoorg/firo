@@ -16,8 +16,10 @@ void CHDChain::SetNull()
 }
 
 bool CHDChain::IsNull() const
-{
-    return seed.empty() || masterKeyID.IsNull();
+{   if(this->nVersion >= VERSION_WITH_BIP39)
+        return seed.empty() || masterKeyID.IsNull();
+    else
+        return masterKeyID.IsNull();
 }
 
 bool CHDChain::IsCrypted() const
@@ -35,21 +37,20 @@ bool CHDChain::SetMnemonic(const SecureString& mnemonic_, const SecureString& pa
     SecureString mnemonicNew = mnemonic_;
     if(setMasterKeyID) {
         if(mnemonicNew.empty())
-            mnemonicNew = Mnemonic::mnemonic_generate(160);
+            mnemonicNew = Mnemonic::mnemonic_generate(256);
         if(!Mnemonic::mnemonic_check(mnemonicNew))
             throw std::runtime_error(std::string(__func__) + ": mnemonic is invalid");
-
         Mnemonic::mnemonic_to_seed(mnemonicNew, passPhrase_, seed);
 
         masterKeyID = CKeyID(Hash160(seed.begin(), seed.end()));
     }
 
-    mnemonic = SecureVector(mnemonic_.begin(), mnemonic_.end());
+    mnemonic = SecureVector(mnemonicNew.begin(), mnemonicNew.end());
     passPhrase = SecureVector(passPhrase_.begin(), passPhrase_.end());
     return !IsNull();
 }
 
-bool CHDChain::GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_)
+bool CHDChain::GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_) const
 {
     mnemonic_ = SecureString(mnemonic.begin(), mnemonic.end());
     passPhrase_ = SecureString(passPhrase.begin(), passPhrase.end());
