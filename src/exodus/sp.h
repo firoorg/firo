@@ -290,9 +290,10 @@ int64_t SumDenominationsValue(uint32_t property, InputItr begin, InputItr end)
             throw std::invalid_argument("the denomination not found");
         }
 
-        if (sp.denominations[*it] > MAX_INT_8_BYTES - amount) {
+        if (sp.denominations[*it] > static_cast<int64_t>(MAX_INT_8_BYTES) - amount) {
             throw std::overflow_error("summation of mints is overflow");
         }
+
         amount += sp.denominations[*it];
     }
 

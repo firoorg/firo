@@ -11,12 +11,14 @@
 
 #include <boost/optional.hpp>
 
-#include <cinttypes>
+#include <functional>
 #include <iterator>
+#include <ostream>
 #include <stdexcept>
 #include <vector>
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stddef.h>
 
 namespace exodus {
@@ -186,5 +188,32 @@ bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, SigmaProof &proof, sigma::Params const *params);
 
 } // namespace exodus
+
+namespace std {
+
+using namespace exodus;
+
+template<>
+struct hash<SigmaPublicKey>
+{
+    size_t operator()(const SigmaPublicKey& k) const
+    {
+        return k.GetCommitment().hash();
+    }
+};
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPrivateKey& k)
+{
+    return os << "{serial: " << k.GetSerial().GetHex() << ", randomness: " << k.GetRandomness().GetHex() << '}';
+}
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPublicKey& k)
+{
+    return os << "{commitment: " << k.GetCommitment().tostring() << '}';
+}
+
+} // namespace std
 
 #endif // ZCOIN_EXODUS_SIGMA_H

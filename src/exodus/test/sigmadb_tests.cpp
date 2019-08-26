@@ -18,12 +18,6 @@
 
 namespace std {
 
-template<class Char, class Traits>
-basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const exodus::SigmaPublicKey& k)
-{
-    return os << k.GetCommitment().GetHex();
-}
-
 template<class Char, class Traits, class Item1, class Item2>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const pair<Item1, Item2>& p)
 {

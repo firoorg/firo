@@ -25,6 +25,7 @@
 
 #include <univalue.h>
 
+#include <boost/iterator/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include <stdint.h>
@@ -1556,7 +1557,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     auto keys = denominations.getKeys();
 
     // collect all mints need to be created
-    std::vector<uint8_t> denoms;
+    std::vector<DenominationId> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
         if (denomId > UINT8_MAX) {
@@ -1568,8 +1569,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
         }
 
-        denoms.insert(denoms.end(),
-            static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
+        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<DenominationId>(denomId));
     }
 
     int64_t amount;
@@ -1583,9 +1583,12 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     RequireBalance(fromAddress, propertyId, amount);
 
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    std::vector<std::pair<DenominationId, SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
-    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
+
+    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+        mints.push_back(std::make_pair(m.denomination, m.key));
+    }));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
