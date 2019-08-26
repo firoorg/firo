@@ -120,7 +120,7 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
 
     if (coins.size() < 2) {
-        throw std::runtime_error("amount if coins in anonimity is not enough to spend");
+        throw std::runtime_error("amount of coins in anonimity is not enough to spend");
     }
 
     SigmaProof p;

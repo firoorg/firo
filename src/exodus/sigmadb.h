@@ -69,7 +69,7 @@ public:
     {
         auto mintCount = GetMintCount(propertyId, denomination, groupId);
         if (mintCount) {
-            GetAnonimityGroup(propertyId, denomination, mintCount, firstIt);
+            GetAnonimityGroup(propertyId, denomination, groupId, mintCount, firstIt);
         }
         return firstIt;
     }

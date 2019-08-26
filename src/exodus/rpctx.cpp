@@ -1650,15 +1650,15 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
-    LOCK(cs_main);
-    LOCK2(pwalletMain->cs_wallet, cs_tally);
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(cs_tally);
     auto coinOp = wallet->GetSpendableSigmaMint(propertyId, denomination);
-    if (coinOp != boost::none) {
+    if (coinOp == boost::none) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "no coin to spend");
     }
 
     auto coin = coinOp.get();
-    auto spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
+    std::pair<SigmaProof, uint16_t> spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
     if (!VerifySigmaSpend(
         propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first, sigma::Params::get_default())) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");

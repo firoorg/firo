@@ -2231,7 +2231,13 @@ int exodus_init()
     txProcessor = new TxProcessor();
 
 #ifdef ENABLE_WALLET
-    wallet = new Wallet(pwalletMain->strWalletFile, *p_mintlistdb);
+    bool disableWallet = GetBoolArg("-disablewallet", false);
+    if (disableWallet) {
+        wallet = nullptr;
+    } else {
+        std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+        wallet = new Wallet(walletFile, *p_mintlistdb);
+    }
 #endif
 
     bool wrongDBVersion = (p_txlistdb->getDBVersion() != DB_VERSION);
@@ -2347,7 +2353,11 @@ int exodus_shutdown()
  */
 bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
+#ifdef ENABLE_WALLET
+    LOCK2(pwalletMain->cs_wallet, cs_tally);
+#else
     LOCK(cs_tally);
+#endif
 
     if (!exodusInitialized) {
         exodus_init();
