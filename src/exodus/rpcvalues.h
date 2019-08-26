@@ -1,16 +1,19 @@
-#ifndef EXODUS_RPCVALUES_H
-#define EXODUS_RPCVALUES_H
+#ifndef ZCOIN_EXODUS_RPCVALUES_H
+#define ZCOIN_EXODUS_RPCVALUES_H
 
 class CPubKey;
 class CTransaction;
 struct CMutableTransaction;
 struct PrevTxsEntry;
 
+#include "sigma.h"
+
 #include <univalue.h>
 
-#include <stdint.h>
 #include <string>
 #include <vector>
+
+#include <inttypes.h>
 
 std::string ParseAddress(const UniValue& value);
 std::string ParseAddressOrEmpty(const UniValue& value);
@@ -36,5 +39,10 @@ uint32_t ParseOutputIndex(const UniValue& value);
 /** Parses previous transaction outputs. */
 std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value);
 
+namespace exodus {
 
-#endif // EXODUS_RPCVALUES_H
+DenominationId ParseDenomination(const UniValue& value);
+
+}
+
+#endif // ZCOIN_EXODUS_RPCVALUES_H

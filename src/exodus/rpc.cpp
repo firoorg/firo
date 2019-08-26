@@ -4,56 +4,120 @@
  * This file contains RPC calls for data retrieval.
  */
 
-#include "exodus/rpc.h"
+#include "rpc.h"
 
-#include "exodus/activation.h"
-#include "exodus/consensushash.h"
-#include "exodus/convert.h"
-#include "exodus/dex.h"
-#include "exodus/errors.h"
-#include "exodus/fees.h"
-#include "exodus/fetchwallettx.h"
-#include "exodus/log.h"
-#include "exodus/mdex.h"
-#include "exodus/notifications.h"
-#include "exodus/exodus.h"
-#include "exodus/rpcrequirements.h"
-#include "exodus/rpctx.h"
-#include "exodus/rpctxobject.h"
-#include "exodus/rpcvalues.h"
-#include "exodus/rules.h"
-#include "exodus/sp.h"
-#include "exodus/sto.h"
-#include "exodus/tally.h"
-#include "exodus/tx.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/version.h"
-#include "exodus/wallettxs.h"
+#include "activation.h"
+#include "consensushash.h"
+#include "convert.h"
+#include "dex.h"
+#include "errors.h"
+#include "fees.h"
+#include "fetchwallettx.h"
+#include "log.h"
+#include "mdex.h"
+#include "notifications.h"
+#include "exodus.h"
+#include "rpcrequirements.h"
+#include "rpctx.h"
+#include "rpctxobject.h"
+#include "rpcvalues.h"
+#include "rules.h"
+#include "sp.h"
+#include "sto.h"
+#include "tally.h"
+#include "tx.h"
+#include "utilsbitcoin.h"
+#include "version.h"
+#include "wallettxs.h"
 
-#include "amount.h"
-#include "chainparams.h"
-#include "init.h"
-#include "main.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "rpc/server.h"
-#include "tinyformat.h"
-#include "txmempool.h"
-#include "uint256.h"
-#include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
+#include "wallet.h"
+#include "walletmodels.h"
+#endif
+
+#include "../amount.h"
+#include "../chainparams.h"
+#include "../init.h"
+#include "../main.h"
+#include "../primitives/block.h"
+#include "../primitives/transaction.h"
+#include "../rpc/server.h"
+#include "../tinyformat.h"
+#include "../txmempool.h"
+#include "../uint256.h"
+#include "../utilstrencodings.h"
+#ifdef ENABLE_WALLET
+#include "../wallet/wallet.h"
 #endif
 
 #include <univalue.h>
 
-#include <stdint.h>
 #include <map>
 #include <stdexcept>
 #include <string>
 
+#include <inttypes.h>
+
 using std::runtime_error;
 using namespace exodus;
+
+namespace {
+
+#ifdef ENABLE_WALLET
+UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
+{
+    // Load property info.
+    CMPSPInfo::Entry info;
+
+    {
+        LOCK(cs_tally);
+
+        if (!_my_sps->getSP(mint.property, info)) {
+            throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
+        }
+    }
+
+    if (mint.denomination >= info.denominations.size()) {
+        throw std::invalid_argument("denomination " + std::to_string(mint.denomination) + " is not valid");
+    }
+
+    auto value = info.denominations[mint.denomination];
+
+    // Construct JSON.
+    UniValue json(UniValue::VOBJ);
+
+    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.property)));
+    json.push_back(Pair("denomination", mint.denomination));
+
+    if (info.isDivisible()) {
+        json.push_back(Pair("value", FormatDivisibleMP(value)));
+    } else {
+        json.push_back(Pair("value", FormatIndivisibleMP(value)));
+    }
+
+    if (verbose && mint.chainState.block >= 0) {
+        json.push_back(Pair("block", mint.chainState.block));
+        json.push_back(Pair("group", static_cast<uint64_t>(mint.chainState.group)));
+        json.push_back(Pair("index", mint.chainState.index));
+    }
+
+    return json;
+}
+
+template<class It>
+UniValue SigmaMintsToJson(It begin, It end, bool verbose = false)
+{
+    UniValue json(UniValue::VARR);
+
+    for (auto it = begin; it != end; it++) {
+        json.push_back(SigmaMintToJson(*it, verbose));
+    }
+
+    return json;
+}
+#endif
+
+}
 
 /**
  * Throws a JSONRPCError, depending on error code.
@@ -1811,6 +1875,111 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
     return response;
 }
 
+#ifdef ENABLE_WALLET
+UniValue exodus_listmints(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 3) {
+        throw std::runtime_error(
+            "exodus_listmints ( propertyid denomination verbose )\n"
+            "\nList all non-pending unused sigma mints in the wallet, optionally filtered by property and denomination.\n"
+            "\nArguments:\n"
+            "1. propertyid           (number, optional) show only mints that belonged to this property\n"
+            "2. denomination         (number, optional) show only mints with this denomination\n"
+            "3. verbose              (boolean, optional) show additional information (default: false)\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"denomination\" : n,      (number) denomination identifier of the mint\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "    \"block\" : n              (number) the block number that mint got mined (if verbose enabled)\n"
+            "    \"group\" : n              (number) group identifier that mint belonged to (if verbose enabled)\n"
+            "    \"index\" : n              (number) index of the mint in the group (if verbose enabled)\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_listmints", "")
+            + HelpExampleRpc("exodus_listmints", "")
+        );
+    }
+
+    // Get parameters.
+    boost::optional<PropertyId> property;
+    boost::optional<DenominationId> denomination;
+    bool verbose = false;
+
+    if (params.size() > 0) {
+        property = ParsePropertyId(params[0]);
+        RequireExistingProperty(property.get());
+    }
+
+    if (params.size() > 1) {
+        denomination = ParseDenomination(params[1]);
+        RequireExistingDenomination(property.get(), denomination.get());
+    }
+
+    if (params.size() > 2) {
+        verbose = params[2].get_bool();
+    }
+
+    // Get mints that meet criteria.
+    std::vector<SigmaMint> mints;
+
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
+        if (m.chainState.block < 0) {
+            return;
+        }
+
+        if (property && m.property != property.get()) {
+            return;
+        }
+
+        if (denomination && m.denomination != denomination.get()) {
+            return;
+        }
+
+        mints.push_back(m);
+    }));
+
+    return SigmaMintsToJson(mints.begin(), mints.end(), verbose);
+}
+
+UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0) {
+        throw std::runtime_error(
+            "exodus_listpendingmints\n"
+            "\nList all pending sigma mints in the wallet.\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"denomination\" : n,      (number) denomination identifier of the mint\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_listpendingmints", "")
+            + HelpExampleRpc("exodus_listpendingmints", "")
+        );
+    }
+
+    std::vector<SigmaMint> mints;
+
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
+        if (m.chainState.block >= 0) {
+            return;
+        }
+
+        mints.push_back(m);
+    }));
+
+    return SigmaMintsToJson(mints.begin(), mints.end());
+}
+#endif
+
 UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -2266,6 +2435,8 @@ static const CRPCCommand commands[] =
     { "exodus (data retrieval)", "exodus_getbalanceshash",           &exodus_getbalanceshash,            false },
 #ifdef ENABLE_WALLET
     { "exodus (data retrieval)", "exodus_listtransactions",          &exodus_listtransactions,           false },
+    { "exodus (data retrieval)", "exodus_listmints",                 &exodus_listmints,                  false },
+    { "exodus (data retrieval)", "exodus_listpendingmints",          &exodus_listpendingmints,           false },
     { "exodus (data retrieval)", "exodus_getfeeshare",               &exodus_getfeeshare,                false },
     { "exodus (configuration)",  "exodus_setautocommit",             &exodus_setautocommit,              true  },
 #endif

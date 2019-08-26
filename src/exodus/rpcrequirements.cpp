@@ -172,3 +172,14 @@ void RequireSigmaStatus(SigmaStatus status)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma status is not accepted");
     }
 }
+
+namespace exodus {
+
+void RequireExistingDenomination(PropertyId property, DenominationId denomination)
+{
+    if (!IsDenominationValid(property, denomination)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination is not valid");
+    }
+}
+
+}

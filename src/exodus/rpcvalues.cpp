@@ -214,7 +214,7 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
 
     std::vector<PrevTxsEntry> prevTxsParsed;
     prevTxsParsed.reserve(prevTxs.size());
-    
+
     for (size_t i = 0; i < prevTxs.size(); ++i) {
         const UniValue& p = prevTxs[i];
         if (p.type() != UniValue::VOBJ) {
@@ -236,4 +236,19 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
     }
 
     return prevTxsParsed;
+}
+
+namespace exodus {
+
+DenominationId ParseDenomination(const UniValue& value)
+{
+    auto v = value.get_int();
+
+    if (v < 0 || static_cast<unsigned>(v) > EXODUS_MAX_DENOMINATIONS) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid denomination");
+    }
+
+    return v;
+}
+
 }

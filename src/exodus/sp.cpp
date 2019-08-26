@@ -590,6 +590,19 @@ bool exodus::IsSigmaStatusValid(SigmaStatus status)
            status == SigmaStatus::HardEnabled;
 }
 
+bool exodus::IsDenominationValid(PropertyId property, DenominationId denomination)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_tally);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return denomination < info.denominations.size();
+}
+
 std::string std::to_string(SigmaStatus status)
 {
     switch (status) {
