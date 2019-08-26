@@ -53,9 +53,9 @@ class WalletDumpZerocoinTest(BitcoinTestFramework):
         self.nodes[0].generate(1)
 
         #get list of unspent mints and spends, mints
-        zcoin_mints = self.nodes[0].listmintzerocoins()
-        zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
-        zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100) 
+        zcoin_mints = self.nodes[0].listmintzerocoins().sort(key=lambda x: x['id'], reverse=False)
+        zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins().sort(key=lambda x: x['txid'], reverse=False)
+        zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100).sort(key=lambda x: x['txid'], reverse=False)
         tmpdir = self.options.tmpdir
 
         try:
@@ -70,14 +70,13 @@ class WalletDumpZerocoinTest(BitcoinTestFramework):
 
         self.nodes[0].importwallet(tmpdir + "/node0/wallet.unencrypted.dump")
 
-        exp_zcoin_mints = self.nodes[0].listmintzerocoins()
-        exp_zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins()
-        exp_zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100) 
+        exp_zcoin_mints = self.nodes[0].listmintzerocoins().sort(key=lambda x: x['id'], reverse=False)
+        exp_zcoin_unspentmints = self.nodes[0].listunspentmintzerocoins().sort(key=lambda x: x['txid'], reverse=False)
+        exp_zcoin_spendzcoins = self.nodes[0].listspendzerocoins(100).sort(key=lambda x: x['txid'], reverse=False)
 
-        assert_equal(sorted(exp_zcoin_mints), sorted(zcoin_mints))
-        assert_equal(sorted(exp_zcoin_unspentmints), sorted(zcoin_unspentmints))
-        assert_equal(sorted((exp_zcoin_spendzcoins), sorted(zcoin_spendzcoins))    
-
+        assert_equal(exp_zcoin_mints, zcoin_mints)
+        assert_equal(exp_zcoin_unspentmints, zcoin_unspentmints)
+        assert_equal(exp_zcoin_spendzcoins, zcoin_spendzcoins)
 
 if __name__ == '__main__':
     WalletDumpZerocoinTest().main()
