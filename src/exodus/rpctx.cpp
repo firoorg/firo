@@ -1576,14 +1576,15 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         denoms.insert(denoms.end(),
             static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
 
-        int confirmations;
+        int remainingConfirms;
         try {
-            confirmations = _my_sps->getDenominationConfirmation(propertyId, denomId, minConfirms);
+            LOCK(cs_tally);
+            remainingConfirms = _my_sps->getDenominationRemainingConfirmation(propertyId, denomId, minConfirms);
         } catch (std::invalid_argument const &e) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
         }
 
-        if (confirmations != -1 && confirmations < minConfirms) {
+        if (remainingConfirms) {
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                 "confirmations of the denomination is less than required");
         }
