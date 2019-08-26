@@ -2235,8 +2235,7 @@ int exodus_init()
     if (disableWallet) {
         wallet = nullptr;
     } else {
-        std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-        wallet = new Wallet(walletFile, *p_mintlistdb);
+        wallet = new Wallet(pwalletMain->strWalletFile, *p_mintlistdb);
     }
 #endif
 

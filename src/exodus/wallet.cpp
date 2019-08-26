@@ -82,7 +82,7 @@ boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, u
 
     auto chosenCoin = std::min_element(allCoins.begin(), allCoins.end(),
         [](SigmaEntry const &a, SigmaEntry const &b) -> bool {
-            return a.chainState.block < b.chainState.block;
+            return a.chainState.index < b.chainState.index;
         }
     );
 

@@ -1814,7 +1814,25 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
-    // ********************************************************* Step 7.5: load exodus
+
+    // ********************************************************* Step 8: load wallet
+
+#ifdef ENABLE_WALLET
+    LogPrintf("Step 8: load wallet ************************************\n");
+    if (fDisableWallet) {
+        pwalletMain = NULL;
+        zwalletMain = NULL;
+        LogPrintf("Wallet disabled!\n");
+    } else {
+        CWallet::InitLoadWallet();
+        if (!pwalletMain)
+            return false;
+    }
+#else // ENABLE_WALLET
+    LogPrintf("No wallet support compiled in!\n");
+#endif // !ENABLE_WALLET
+
+    // ********************************************************* Step 8.5: load exodus
 
 #ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
@@ -1855,29 +1873,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
         uiInterface.InitMessage(_("Parsing Exodus transactions..."));
         exodus_init();
-    }
-#endif
 
-    // ********************************************************* Step 8: load wallet
-
-#ifdef ENABLE_WALLET
-    LogPrintf("Step 8: load wallet ************************************\n");
-    if (fDisableWallet) {
-        pwalletMain = NULL;
-        zwalletMain = NULL;
-        LogPrintf("Wallet disabled!\n");
-    } else {
-        CWallet::InitLoadWallet();
-        if (!pwalletMain)
-            return false;
-    }
-#else // ENABLE_WALLET
-    LogPrintf("No wallet support compiled in!\n");
-#endif // !ENABLE_WALLET
-
-#ifdef ENABLE_EXODUS
-    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
-    if (isExodusEnabled()) {
+        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();
     }
 #endif

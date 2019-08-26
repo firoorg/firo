@@ -148,7 +148,7 @@ public:
             commits.emplace_back(commit + gs);
         }
 
-        if (!index) {
+        if (index == boost::none) {
             throw std::invalid_argument("No commitment for private key in the set");
         }
 
