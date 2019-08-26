@@ -60,7 +60,7 @@ def read_dump(file_name, addrs, hd_master_addr_old):
                     elif keytype == "sigma=1":
                         found_addr_sigma += 1
                         break
-        return found_addr, found_addr_chg, found_addr_rsv, found_addr_sigma, hd_master_addr_re
+        return found_addr, found_addr_chg, found_addr_rsv, found_addr_sigma, hd_master_addr_ret
 
 
 class WalletDumpTest(BitcoinTestFramework):
@@ -108,7 +108,8 @@ class WalletDumpTest(BitcoinTestFramework):
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
         assert_equal(found_addr, test_addr_count)  # all keys must be in the dump
 
-        assert_equal(found_addr_chg, 50 + hdmint_key_count) # 50 block were mined + hdmint keys
+        assert_equal(found_addr_chg, 50) # 50 block were mined
+        assert_equal(found_addr_sigma, hdmint_key_count) # hdmint keys
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
         #encrypt wallet, restart, unlock and dump
