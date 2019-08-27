@@ -475,9 +475,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             zerocoinEntry.nHeight = stoi(vstr[6]);
             zerocoinEntry.id = stoi(vstr[7]);
             if(vstr.size()>8){
-                uint256 ecdsaSecretKey;
-                ecdsaSecretKey.SetHex(vstr[8]);
-                zerocoinEntry.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey.begin(),ecdsaSecretKey.end());
+                zerocoinEntry.ecdsaSecretKey = std::vector<unsigned char>(vstr[8].begin(),vstr[8].end());
                 zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
             }
             walletdb.WriteZerocoinEntry(zerocoinEntry);
@@ -563,7 +561,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
     if(fMintUpdate){
         zwalletMain->SyncWithChain();
-	zwalletMain->GetTracker().ListMints(false, false);
+        zwalletMain->GetTracker().ListMints(false, false);
     }
 
     if (!fGood)
@@ -757,16 +755,14 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     for (auto& zerocoinEntry : listZerocoinEntries) {
         file << "zerocoin=1 ";
         file << strprintf("%s ", zerocoinEntry.value.GetHex()); // value
-        file << strprintf("%s ", zerocoinEntry.denomination); // denomination
+        file << strprintf("%d ", zerocoinEntry.denomination); // denomination
         file << strprintf("%s ", zerocoinEntry.randomness.GetHex()); // randomness
         file << strprintf("%s ", zerocoinEntry.serialNumber.GetHex()); // serialNumber
         file << strprintf("%d ", zerocoinEntry.IsUsed); // IsUsed
-        file << strprintf("%s ", zerocoinEntry.nHeight); // nHeight
-        file << strprintf("%s ", zerocoinEntry.id); // id
+        file << strprintf("%d ", zerocoinEntry.nHeight); // nHeight
+        file << strprintf("%d ", zerocoinEntry.id); // id
         if(!zerocoinEntry.ecdsaSecretKey.empty()){
-            uint256 ecdsaSecretKey;
-            std::copy(&zerocoinEntry.ecdsaSecretKey[0], &zerocoinEntry.ecdsaSecretKey[32], ecdsaSecretKey.begin());
-            file << strprintf("%s ", ecdsaSecretKey.GetHex()); // ecdsaSecretKey
+            file << strprintf("%s ", HexStr(zerocoinEntry.ecdsaSecretKey)); // ecdsaSecretKey
             file << strprintf("%d ", zerocoinEntry.IsUsedForRemint); // IsUsedForRemint
         }
         file << "#\n"; // --

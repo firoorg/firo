@@ -34,7 +34,7 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
 
     def run_test(self):
         getcontext().prec = 6
-        self.nodes[0].generate(401)
+        self.nodes[0].generate(201)
         self.sync_all()
 
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
@@ -50,13 +50,9 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
         self.nodes[0].spendmany("", {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom_sum})
         self.nodes[0].generate(1)
 
-        #make unconfirmed mints and spends
-        #self.nodes[0].mint(denom_sum)
-        #self.nodes[0].spendmany("", {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom_sum})
-
         #get list of unspent mints and spends, mints
-        sigma_mints = self.nodes[0].listsigmamints()
-        sigma_unspentmints = self.nodes[0].listunspentsigmamints(100)
+        sigma_mints = self.nodes[0].listsigmamints(True)
+        sigma_unspentmints = self.nodes[0].listunspentsigmamints(1)
         sigma_spendsigmas = self.nodes[0].listsigmaspends(100)
         tmpdir = self.options.tmpdir
 
@@ -66,19 +62,23 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
             key = get_dumpwallet_otp(ex.error['message'])
             self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump", key)
 
+        last_block_height = self.nodes[0].getinfo()["blocks"]
         stop_node(self.nodes[0], 0)
         os.remove(self.options.tmpdir + "/node0/regtest/wallet.dat")
         start_node(0, self.options.tmpdir)
 
+        while self.nodes[0].getinfo()["blocks"] != last_block_height:
+            time.sleep(1)
+
         self.nodes[0].importwallet(tmpdir + "/node0/wallet.unencrypted.dump")
 
-        exp_sigma_mints = self.nodes[0].listsigmamints()
-        exp_sigma_unspentmints = self.nodes[0].listunspentsigmamints(100)
+        exp_sigma_mints = self.nodes[0].listsigmamints(True)
+        exp_sigma_unspentmints = self.nodes[0].listunspentsigmamints(1)
         exp_sigma_spendsigmas = self.nodes[0].listsigmaspends(100)
 
-        assert_equal(exp_sigma_unspentmints, exp_sigma_unspentmints)
-        assert_equal (exp_sigma_spendsigmas, sigma_spendsigmas)
         assert_equal(exp_sigma_mints, sigma_mints)
+        assert_equal(exp_sigma_unspentmints, sigma_unspentmints)
+        assert_equal(exp_sigma_spendsigmas, sigma_spendsigmas)
 
 if __name__ == '__main__':
     WalletDumpSigmaTest().main()
