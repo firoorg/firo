@@ -125,7 +125,7 @@ TESTS =
 BENCHMARKS =
 
 if BUILD_BITCOIND
-  bin_PROGRAMS += zcoind
+  bin_PROGRAMS += zcoind bip47
 endif
 
 if BUILD_BITCOIN_UTILS
@@ -172,6 +172,7 @@ BITCOIN_CORE_H = \
   limitedmap.h \
   threadinterrupt.h \
   main.h \
+  bip47.h \
   znode.h \
   znode-payments.h \
   znode-sync.h \
@@ -570,6 +571,38 @@ zcoind_LDADD = \
 
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+
+
+# bip47 binary #todo remove this
+
+bip47_SOURCES = bip47.cpp
+bip47_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+bip47_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+bip47_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+
+if TARGET_WINDOWS
+bip47_SOURCES += bitcoind-res.rc
+endif
+
+bip47_LDADD = \
+  $(LIBBITCOIN_SERVER) \
+  $(LIBBITCOIN_COMMON) \
+  $(LIBUNIVALUE) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_WALLET) \
+  $(LIBZCOIN_SIGMA) \
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBLEVELDB) \
+  $(LIBMEMENV) \
+  $(LIBSECP256K1)
+
+
+
+bip47_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+
+
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
