@@ -62,33 +62,76 @@ extern void noui_connect();
 
 #include <string>
 #include <vector>
+#include <string.h>
 
 
 namespace bip47 {
 
     using namespace std;
-    using byte = unsigned char;
 
-    int payment_code::PUBLIC_KEY_Y_OFFSET = 2;
-    int payment_code::PUBLIC_KEY_X_OFFSET = 3;
-    int payment_code::CHAIN_OFFSET = 35;
-    int payment_code::PUBLIC_KEY_X_LEN = 32;
-    int payment_code::PUBLIC_KEY_Y_LEN = 1;
-    int payment_code::CHAIN_LEN = 32;
-    int payment_code::PAYLOAD_LEN = 80;
 
-    bool payment_code::valid() const {
+//    int PaymentCode::PUBLIC_KEY_Y_OFFSET = 2;
+//    int PaymentCode::PUBLIC_KEY_X_OFFSET = 3;
+//    int PaymentCode::CHAIN_OFFSET = 35;
+//    int PaymentCode::PUBLIC_KEY_X_LEN = 32;
+//    int PaymentCode::PUBLIC_KEY_Y_LEN = 1;
+//    int PaymentCode::CHAIN_LEN = 32;
+//    int PaymentCode::PAYLOAD_LEN = 80;
+
+    bool PaymentCode::valid() const {
         return true;
     }
 
-    payment_code::payment_code() {
+    PaymentCode::PaymentCode() {
     }
 
-    string payment_code::makeV1() {
-        string ret = "";
-        byte *payload = new byte[PAYLOAD_LEN];
+    PaymentCode::PaymentCode(byte pkey[PUBLIC_KEY_LEN], byte ch[CHAIN_LEN]) {
+        memcpy(pubkey, pkey, PUBLIC_KEY_LEN);
+        memcpy(chain, ch, CHAIN_LEN);
+        strPaymentCode = makeV1();
+    }
 
+    PaymentCode::PaymentCode(string payment_code) {
+        strPaymentCode = payment_code;
+        parse_payment_code();
+    }
+
+    string PaymentCode::makeV1() {
+        string ret = "";
+        byte payload[PAYLOAD_LEN];
+        byte payment_code[PAYLOAD_LEN + 1];
+
+        memset(payload, 0, PAYLOAD_LEN);
+        memset(payment_code, 0, PAYLOAD_LEN + 1);
+
+        // byte 0: type. required value: 0x01
+        payload[0] = (byte)0x01;
+        // byte 1: features bit field. All bits must be zero except where specified elsewhere in this specification
+        //      bit 0: Bitmessage notification
+        //      bits 1-7: reserved
+        payload[1] = 0;
+        // replace sign & x code (33 bytes)
+        memcpy(payload + 2, pubkey, PUBLIC_KEY_LEN);
+        // replace chain code (32 bytes)
+        memcpy(payload + 35, chain, CHAIN_LEN);
+
+        payment_code[0] = (byte)0x47;
+        memcpy(payment_code + 1, payload, PAYLOAD_LEN);
+
+        vector<byte> payment_code_checksum(std::begin(payment_code), std::end(payment_code));
+        ret = EncodeBase58Check(payment_code_checksum);
+
+        printf("encode ret = %s\n", ret.c_str());
+
+        return ret;
     };
+
+    bool PaymentCode::parse_payment_code() {
+        vector<byte> payment_code_checksum;
+        DecodeBase58Check(strPaymentCode, payment_code_checksum);
+        return true;
+    }
+
 
 
 }
@@ -203,10 +246,19 @@ int main(int argc, char* argv[]) {
     identityKey.Encode(data);
     pubkey.Encode(data);
 
+    printf("Encoded Data\n");
+    for(int i = 0; i < 80; i++) {
+        printf("%x", data[i]);
+    }
+    printf("\n");
+
     CBitcoinExtKey b58key; b58key.SetKey(identityKey);
+
     printf("%s\n", b58key.ToString().c_str());
 
     CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
+
+    printf("Pubkey value is %s\n",b58pubkey.ToString().c_str());
 
 
 

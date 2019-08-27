@@ -14,26 +14,38 @@
 const uint32_t BIP47_INDEX = 0x2F;
 
 namespace bip47 {
-    class payment_code {
+
+    using byte = unsigned char;
+
+    class PaymentCode {
 
     private:
-        static int PUBLIC_KEY_Y_OFFSET;
-        static int PUBLIC_KEY_X_OFFSET;
-        static int CHAIN_OFFSET;
-        static int PUBLIC_KEY_X_LEN;
-        static int PUBLIC_KEY_Y_LEN;
-        static int CHAIN_LEN;
-        static int PAYLOAD_LEN;
+        static const int PUBLIC_KEY_Y_OFFSET = 2;
+        static const int PUBLIC_KEY_X_OFFSET = 3;
+        static const int CHAIN_OFFSET = 35;
+        static const int PUBLIC_KEY_X_LEN = 32;
+        static const int PUBLIC_KEY_LEN = 32;
+        static const int PUBLIC_KEY_Y_LEN = 1;
+        static const int CHAIN_LEN = 32;
+        static const int PAYLOAD_LEN = 80;
+
+        std::string strPaymentCode;
+        byte pubkey[PUBLIC_KEY_LEN];
+        byte chain[CHAIN_LEN];
 
     public:
         CKeyID masterKeyID;
+
 
         static const int VERSION_BASIC = 1;
         static const int VERSION_WITH_BIP47 = 1;
         static const int CURRENT_VERSION = VERSION_WITH_BIP47;
 
         bool valid() const;
-        payment_code();
+        PaymentCode();
+        PaymentCode(byte pkey[PUBLIC_KEY_LEN], byte ch[CHAIN_LEN]);
+        PaymentCode(string payment_code);
+        bool parse_payment_code();
 
         static const std::vector<unsigned char> blind(unsigned char* payload, unsigned char* mask);
 
