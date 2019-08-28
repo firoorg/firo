@@ -13,7 +13,6 @@ from test_framework.test_helper import get_dumpwallet_otp
 #generate 6 blocks
 #spend sigma of all denominations
 #generate one block
-#Mint sigma of all denominations and not confirm them
 #getlistunspendsigma
 #getlistspendsigma
 #dumpwallet
