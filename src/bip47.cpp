@@ -69,15 +69,6 @@ namespace bip47 {
 
     using namespace std;
 
-
-//    int PaymentCode::PUBLIC_KEY_Y_OFFSET = 2;
-//    int PaymentCode::PUBLIC_KEY_X_OFFSET = 3;
-//    int PaymentCode::CHAIN_OFFSET = 35;
-//    int PaymentCode::PUBLIC_KEY_X_LEN = 32;
-//    int PaymentCode::PUBLIC_KEY_Y_LEN = 1;
-//    int PaymentCode::CHAIN_LEN = 32;
-//    int PaymentCode::PAYLOAD_LEN = 80;
-
     bool PaymentCode::valid() const {
         return true;
     }
@@ -127,9 +118,35 @@ namespace bip47 {
     };
 
     bool PaymentCode::parse_payment_code() {
-        vector<byte> payment_code_checksum;
-        DecodeBase58Check(strPaymentCode, payment_code_checksum);
+        vector<byte> payment_code;
+        DecodeBase58Check(strPaymentCode, payment_code);
+        if(payment_code[0] != 0x47) {
+            LogPrint("Payment code parsing", "Failed");
+            return false;
+        }
+
+        byte pcodes[PAYLOAD_LEN] = {};
+        std::copy(payment_code.begin(), payment_code.end(), pcodes);
+        memcpy(pubkey, pcodes + 2, PUBLIC_KEY_LEN);
+
+//        byte c_codes[CHAIN_LEN] = {};
+        memcpy(chain, pcodes + PUBLIC_KEY_LEN + 2, CHAIN_LEN);
+
         return true;
+    }
+
+    vector<byte> PaymentCode::getPubkey() {
+        vector<byte> vpubkey(pubkey, pubkey + PUBLIC_KEY_X_LEN);
+        return vpubkey;
+    }
+
+    CPubKey PaymentCode::getMasterPubkey() {
+        CPubKey masterPubkey;
+        masterPubkey.Set(pubkey + 0, pubkey + PUBLIC_KEY_X_LEN);
+        CExtPubKey extPubKey;
+        extPubKey.pubkey = masterPubkey;
+        
+        return masterPubkey;
     }
 
 
@@ -235,6 +252,8 @@ int main(int argc, char* argv[]) {
 
     masterKey.SetMaster(&seed[0], seed.size());
 
+
+
     masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
     purposeKey.Derive(coinTypeKey, 0);
     coinTypeKey.Derive(identityKey, 0);
@@ -259,6 +278,12 @@ int main(int argc, char* argv[]) {
     CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
 
     printf("Pubkey value is %s\n",b58pubkey.ToString().c_str());
+
+    std::string strPcode = "PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA";
+    bip47::PaymentCode paymentCode(strPcode);
+
+    CPubKey masterPubkey = paymentCode.getPubkey();
+
 
 
 
