@@ -141,7 +141,6 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     UniValue valAuth = find_value(request, "auth");
     if (valAuth.isObject()){
         auth = valAuth.get_obj();
-        LogPrintf("API: auth is object\n ");
     }
     else if (valAuth.isNull())
         auth = UniValue(UniValue::VARR);
@@ -152,7 +151,6 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     UniValue valData = find_value(request, "data");
     if (valData.isObject()){
         data = valData.get_obj();
-        LogPrintf("API: data is object\n ");
     }
     else if (valData.isNull())
         data = UniValue(UniValue::VARR);
@@ -164,13 +162,10 @@ void APIJSONRequest::parse(const UniValue& valRequest)
 
 UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
-    bool logging = (request.collection != "apiStatus");
-    if(logging) LogPrintf("API: in execute. request.collection: %s\n", request.collection);
     const CAPICommand *pcmd = tableAPI[request.collection];
     if (!pcmd){
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method \"" + request.collection + "\" not found");
     }
-    if(logging) LogPrintf("API: past method not found\n");
 
     // Return if in warmup
     { 
@@ -179,23 +174,15 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
             throw JSONAPIError(API_IN_WARMUP, apiWarmupStatus);
     }
 
-    if(logging) LogPrintf("API: past warmup\n");
-
     // If on open port, fail if trying to execute an authenticated method.
     if(!authPort && pcmd->authPort){
         throw JSONAPIError(API_NOT_AUTHENTICATED, "Not authenticated for this method");
     }
 
-    if(logging) LogPrintf("API: past open port\n");
-
     const CAPICommand *walletlock = tableAPI["lockWallet"];
-
-    if(logging) LogPrintf("API: got lock wallet\n");
-
     g_apiSignals.PreCommand (*pcmd);
     try
     {
-        if(logging) LogPrintf("API: attempting to execute method\n");
         // If this method requires passphrase, lock and unlock the wallet accordingly
         if(pcmd->authPassphrase && (pwalletMain && pwalletMain->IsCrypted())){
             if(request.auth.isNull()){
@@ -204,20 +191,15 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 
             // execute wallet unlock, call method, relock following call. 
             const CAPICommand *walletunlock = tableAPI["unlockWallet"];
-            if(logging) LogPrintf("API: unlocking wallet method..\n");
             UniValue lock = walletunlock->actor(request.type, NullUniValue, request.auth, false);
             if(lock.isNull()){
                 throw JSONAPIError(API_MISC_ERROR, "wallet could not be unlocked.");
             }
-            if(logging) LogPrintf("API: unlocked\n");
             UniValue result = pcmd->actor(request.type, request.data, NullUniValue, false);
-            if(logging) LogPrintf("API: returning method inside\n");
             walletlock->actor(request.type, NullUniValue, NullUniValue, false);
-            if(logging) LogPrintf("API: locked\n");
             return result;
 
         }
-        if(logging) LogPrintf("API: returning method outside\n");
         return pcmd->actor(request.type, request.data, request.auth, false);
     }
     catch (const std::exception& e)

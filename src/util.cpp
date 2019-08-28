@@ -591,8 +591,6 @@ boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename)
 
     fs::path newpath = path / filename;
 
-    LogPrintf("API: newpath: %s\n", newpath.string());
-
     return newpath;
 }
 

@@ -51,7 +51,7 @@ bool setTxMetadata(UniValue txMetadataUni){
 
     std::ofstream txMetadataOut(path.string());
 
-    LogPrintf("txMetadata write back: %s\n", txMetadataUni.write());
+    LogPrintf("txMetadata: %s\n", txMetadataUni.write());
     txMetadataOut << txMetadataUni.write(4,0) << endl;
 
     return true;
@@ -80,7 +80,7 @@ bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData
 
     // finally as UniValue
     paymentRequestUni.read(paymentRequestStr);
-    LogPrintf("paymentRequest write back: %s\n", paymentRequestUni.write());
+    LogPrintf("paymentRequest: %s\n", paymentRequestUni.write());
 
     if(!paymentRequestUni["data"].isNull()){
         paymentRequestData = paymentRequestUni["data"];
@@ -301,7 +301,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
             throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
         }
 
-        LogPrintf("nAmount gettransactionfee: %s\n", nAmount);
+        LogPrintf("nAmount getTransactionFee: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
         totalAmount += nAmount;
@@ -325,7 +325,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     
-    LogPrintf("API: returning from txfee\n");
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
 }
@@ -427,7 +426,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 
     switch(type){
         case Initial: {
-            LogPrintf ("API: returning initial layout..\n");
             return paymentRequestData;
             break;
         }
@@ -438,7 +436,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             );
             UniValue createdAt = secs.count();
 
-            LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
             entry.push_back(Pair("state", "active"));
@@ -452,7 +449,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             }
             
             paymentRequestData.push_back(Pair(newAddress.get_str(), entry));
-            LogPrintf("paymentRequestData write: %s\n", paymentRequestData.write());
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
