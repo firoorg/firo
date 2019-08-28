@@ -8003,9 +8003,13 @@ bool CWallet::InitLoadWallet() {
     if (fFirstRun) {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && walletInstance->hdChain.masterKeyID.IsNull()) {
+            if (GetArg("-mnemonicpassphrase", "").size() > 256) {
+                InitError(_("Mnemonic passphrase is too long, must be at most 256 characters"));
+                return NULL;
+            }
             // generate a new HD chian
-           walletInstance->GenerateNewHDChain();
-           walletInstance->SetMinVersion(FEATURE_HD);
+            walletInstance->GenerateNewHDChain();
+            walletInstance->SetMinVersion(FEATURE_HD);
         }
         CPubKey newDefaultKey;
         if (walletInstance->GetKeyFromPool(newDefaultKey)) {

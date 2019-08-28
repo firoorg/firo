@@ -26,7 +26,8 @@ class KeyPoolTest(BitcoinTestFramework):
         addr = nodes[0].getnewaddress()
         addr_data = nodes[0].validateaddress(addr)
         wallet_info = nodes[0].getwalletinfo()
-        assert(addr_before_encrypting_data['hdmasterkeyid'] != wallet_info['hdmasterkeyid'])
+        # We don't need this after mnemonic, after encrypt hdmasterkeyid is not changing
+        # assert(addr_before_encrypting_data['hdmasterkeyid'] != wallet_info['hdmasterkeyid'])
         assert(addr_data['hdmasterkeyid'] == wallet_info['hdmasterkeyid'])
         
         try:
