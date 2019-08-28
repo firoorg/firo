@@ -809,7 +809,7 @@ bool CMPTransaction::interpret_UnfreezeTokens()
 /** Tx 1024 */
 bool CMPTransaction::interpret_SimpleSpend()
 {
-    if (pkt_size < 9) {
+    if (pkt_size < 15) {
         return false;
     }
 
@@ -824,7 +824,7 @@ bool CMPTransaction::interpret_SimpleSpend()
     CDataStream deserialized(
         reinterpret_cast<char*>(&pkt[15]),
         reinterpret_cast<char*>(&pkt[pkt_size]),
-        SER_NETWORK, CLIENT_VERSION
+        SER_NETWORK, PROTOCOL_VERSION
     );
 
     try {

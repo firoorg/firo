@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(get_sigma_entry)
     auto retrieved2 = wallet.GetSigmaEntry(retrieved.GetId());
     BOOST_CHECK(retrieved == retrieved2);
     BOOST_CHECK(retrieved != exodus::SigmaEntry());
-    BOOST_CHECK(retrieved.tx.IsNull());
+    BOOST_CHECK(retrieved.spendTx.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(make_entry_as_used)
@@ -86,12 +86,12 @@ BOOST_AUTO_TEST_CASE(make_entry_as_used)
     BOOST_CHECK_NO_THROW(
         wallet.SetSigmaMintUsedTransaction(entry.GetId(), uint256S("1")));
     auto updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(updated.tx == uint256S("1"));
+    BOOST_CHECK(updated.spendTx == uint256S("1"));
 
     BOOST_CHECK_NO_THROW(
         wallet.SetSigmaMintUsedTransaction(entry.GetId(), uint256()));
     updated = wallet.GetSigmaEntry(entry.GetId());
-    BOOST_CHECK(updated.tx.IsNull());
+    BOOST_CHECK(updated.spendTx.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(list_entry_no_coins)

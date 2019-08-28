@@ -62,14 +62,12 @@ public:
     size_t GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
         std::function<void(exodus::SigmaPublicKey&)>);
 
-    template<
-        class OutputIt,
-        typename std::enable_if<is_iterator<OutputIt>::value, void>::type* = nullptr
-    > OutputIt GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, OutputIt firstIt)
+    template<class OutputIt>
+    OutputIt GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, OutputIt firstIt)
     {
         auto mintCount = GetMintCount(propertyId, denomination, groupId);
         if (mintCount) {
-            GetAnonimityGroup(propertyId, denomination, groupId, mintCount, firstIt);
+            firstIt = GetAnonimityGroup(propertyId, denomination, groupId, mintCount, firstIt);
         }
         return firstIt;
     }

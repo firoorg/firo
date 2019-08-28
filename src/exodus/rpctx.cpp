@@ -1611,7 +1611,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4) {
         throw std::runtime_error(
-            "exodus_sendspend \"toaddress\" propertyid denomination \"referenceamount\"\n"
+            "exodus_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
             "\nCreate spend.\n"
             "\nArguments:\n"
             "1. toaddress                    (string, required) the address to spend to\n"
@@ -1657,7 +1657,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "no coin to spend");
     }
 
-    auto coin = coinOp.get();
+    auto &coin = coinOp.get();
     std::pair<SigmaProof, uint16_t> spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
     if (!VerifySigmaSpend(
         propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first, sigma::Params::get_default())) {

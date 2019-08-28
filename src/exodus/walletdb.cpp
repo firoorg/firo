@@ -37,7 +37,7 @@ void SigmaMintChainState::Clear()
 bool SigmaEntry::operator==(const SigmaEntry& other) const
 {
     return privateKey == other.privateKey
-        && tx == other.tx
+        && spendTx == other.spendTx
         && propertyId == other.propertyId
         && denomination == other.denomination
         && chainState == other.chainState;

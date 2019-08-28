@@ -8,6 +8,7 @@
 #include "../clientversion.h"
 #include "../tinyformat.h"
 #include "../streams.h"
+#include "../version.h"
 
 #include <string>
 #include <vector>
@@ -626,7 +627,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     PUSH_BACK_BYTES(payload, group);
     PUSH_BACK_BYTES(payload, groupSize);
 
-    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 

@@ -69,7 +69,7 @@ struct TestSigmaDb : CMPMintList
         return CMPMintList::InitGroupSize(groupSize);
     }
 
-    std::vector<SigmaPublicKey> GetAnonimityGroup(
+    std::vector<SigmaPublicKey> GetAnonimityGroupAsVector(
         PropertyId property,
         DenominationId denomination,
         MintGroupId group,
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_no_anycoin)
 {
     auto db = CreateDb();
 
-    BOOST_CHECK(db->GetAnonimityGroup(0, 0, 0, 100).empty());
+    BOOST_CHECK(db->GetAnonimityGroupAsVector(0, 0, 0, 100).empty());
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_coin_in_other_group)
@@ -235,8 +235,8 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_have_coin_in_other_group)
     for (auto const &pub : pubs) {
         db->RecordMint(1, 1, pub, 10);
     }
-    BOOST_CHECK(db->GetAnonimityGroup(2, 2, 0, 11).empty());
-    BOOST_CHECK(db->GetAnonimityGroup(2, 2, 0, 1).empty());
+    BOOST_CHECK(db->GetAnonimityGroupAsVector(2, 2, 0, 11).empty());
+    BOOST_CHECK(db->GetAnonimityGroupAsVector(2, 2, 0, 1).empty());
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_one_group)
@@ -247,9 +247,9 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_have_one_group)
         db->RecordMint(1, 1, pub, 10);
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroup(1, 1, 0, 5));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_many_properties)
@@ -265,12 +265,12 @@ BOOST_AUTO_TEST_CASE(get_anonymityset_many_properties)
         db->RecordMint(2, 1, pub, 10);
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 11));
-    BOOST_CHECK(property2Pubs == db->GetAnonimityGroup(2, 1, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 10));
-    BOOST_CHECK(property2Pubs == db->GetAnonimityGroup(2, 1, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroup(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(property2Pubs, 5) == db->GetAnonimityGroup(2, 1, 0, 5));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK(property2Pubs == db->GetAnonimityGroupAsVector(2, 1, 0, 11));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK(property2Pubs == db->GetAnonimityGroupAsVector(2, 1, 0, 10));
+    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK(GetFirstN(property2Pubs, 5) == db->GetAnonimityGroupAsVector(2, 1, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymity_set_many_denominations)
@@ -286,12 +286,12 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_denominations)
         blocks++;
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 11));
-    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroup(1, 2, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 10));
-    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroup(1, 2, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroup(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 5) == db->GetAnonimityGroup(1, 2, 0, 5));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroupAsVector(1, 2, 0, 11));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroupAsVector(1, 2, 0, 10));
+    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK(GetFirstN(denom2Pubs, 5) == db->GetAnonimityGroupAsVector(1, 2, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
@@ -313,11 +313,11 @@ BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
         db->RecordMint(1, 1, pub, 10);
     }
 
-    BOOST_CHECK(group1Pubs == db->GetAnonimityGroup(1, 1, 1, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 10));
-    BOOST_CHECK(group1Pubs == db->GetAnonimityGroup(1, 1, 1, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroup(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(group1Pubs, 5) == db->GetAnonimityGroup(1, 1, 1, 5));
+    BOOST_CHECK(group1Pubs == db->GetAnonimityGroupAsVector(1, 1, 1, 11));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK(group1Pubs == db->GetAnonimityGroupAsVector(1, 1, 1, 10));
+    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK(GetFirstN(group1Pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 1, 5));
 }
 
 BOOST_AUTO_TEST_CASE(delete_an_empty_set_of_coins)
@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(delete_block_which_have_no_coins)
     auto pubs = GetPubcoins(1);
     db->RecordMint(1, 1, pubs[0], 10); // store at block 10
     BOOST_CHECK_NO_THROW(db->DeleteAll(11)); // delete at block 11
-    BOOST_CHECK(pubs == db->GetAnonimityGroup(1, 1, 0, 1));
+    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
 }
 
@@ -348,7 +348,7 @@ BOOST_AUTO_TEST_CASE(delete_one_coin)
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(10));
 
-    BOOST_CHECK_EQUAL(0, db->GetAnonimityGroup(1, 1, 0, 1).size());
+    BOOST_CHECK_EQUAL(0, db->GetAnonimityGroupAsVector(1, 1, 0, 1).size());
     BOOST_CHECK_EQUAL(0, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(1, mintRemoved.size());
@@ -367,8 +367,8 @@ BOOST_AUTO_TEST_CASE(delete_one_of_two_coin)
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11)); // delete at block 11
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroup(1, 1, 0, 2));
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroup(1, 1, 0, 1));
+    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 2));
+    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(1, mintRemoved.size());
@@ -392,8 +392,8 @@ BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_denominations)
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroup(1, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 1) == db->GetAnonimityGroup(1, 1, 0, 2));
+    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(denom2Pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 2));
     BOOST_CHECK_EQUAL(2, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(2, mintRemoved.size());
@@ -421,8 +421,8 @@ BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_properties)
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroup(1, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(property2Pubs, 1) == db->GetAnonimityGroup(2, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(property2Pubs, 1) == db->GetAnonimityGroupAsVector(2, 0, 0, 2));
     BOOST_CHECK_EQUAL(2, db->GetNextSequence());
 }
 
@@ -450,9 +450,9 @@ BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroup(1, 0, 0, 2));
+    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
 
-    BOOST_CHECK(db->GetAnonimityGroup(1, 0, 1, 1).empty());
+    BOOST_CHECK(db->GetAnonimityGroupAsVector(1, 0, 1, 1).empty());
 
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
 

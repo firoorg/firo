@@ -52,7 +52,7 @@ It SerializeKey(It it)
 template<typename It, typename ArrT, size_t ArrS, typename ...R>
 It SerializeKey(It it, std::array<ArrT, ArrS> t, R ...r)
 {
-    it = std::copy_n(t.begin(), sizeof(t), it);
+    it = std::copy(t.begin(), t.end(), it);
     return SerializeKey(it, r...);
 }
 
@@ -113,7 +113,7 @@ typedef std::array<uint8_t, 32> SpendSerial;
 
 // array size represent size of key
 // <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
-#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(SpendSerial)
+#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + std::tuple_size<SpendSerial>::value
 std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendSerialKey(
     uint32_t propertyId,
     uint8_t denomination,
@@ -142,14 +142,14 @@ inline bool IsSequenceEntry(leveldb::Iterator *it)
     return IsSequenceKey(it->key());
 }
 
-inline bool IsSpendKey(leveldb::Slice const &key)
+inline bool IsSpendSerialKey(leveldb::Slice const &key)
 {
     return key.size() == SPEND_KEY_SIZE && key[0] == static_cast<char>(KeyType::SpendSerial);
 }
 
-inline bool IsSpendEntry(leveldb::Iterator *it)
+inline bool IsSpendSerialEntry(leveldb::Iterator *it)
 {
-    return IsSpendKey(it->key());
+    return IsSpendSerialKey(it->key());
 }
 
 template<size_t S>
@@ -202,10 +202,10 @@ bool ParseMintKey(
     return false;
 }
 
-SpendSerial GetSerialData(secp_primitives::Scalar const &serial)
+SpendSerial SerializeSpendSerial(secp_primitives::Scalar const &serial)
 {
     SpendSerial s;
-    if (serial.memoryRequired() != sizeof(SpendSerial)) {
+    if (serial.memoryRequired() != std::tuple_size<SpendSerial>::value) {
         throw std::invalid_argument("serial size is invalid");
     }
 
@@ -296,9 +296,9 @@ std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
 void CMPMintList::RecordSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
 {
-    auto serialData = GetSerialData(serial);
+    auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
-    auto status = pdb->Put(writeoptions, GetSlice(keyData), GetSlice(std::array<uint8_t, 1>({0x00})));
+    auto status = pdb->Put(writeoptions, GetSlice(keyData), leveldb::Slice());
     if (!status.ok()) {
         throw std::runtime_error("record serial fail");
     }
@@ -310,8 +310,8 @@ void CMPMintList::RecordSpendSerial(
 // operation code of histories
 enum class OpCode : uint8_t
 {
-    StoreMintKey = 0,
-    StoreSerialSpendKey = 1
+    StoreMint = 0,
+    StoreSpendSerial = 1
 };
 
 class History
@@ -329,7 +329,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
         auto op = static_cast<uint8_t>(this->op);
 
         READWRITE(block);
@@ -360,7 +361,7 @@ void CMPMintList::DeleteAll(int startBlock)
     it->Seek(GetSlice(sequenceKey));
 
     leveldb::WriteBatch batch;
-    std::vector<function<void()>> defers; // functions to be called after delete whole keys
+    std::vector<std::function<void()>> defers; // functions to be called after delete whole keys
     for (; it->Valid() && IsSequenceEntry(it.get()); it->Prev()) {
 
         CDataStream deserialized(
@@ -380,7 +381,7 @@ void CMPMintList::DeleteAll(int startBlock)
         }
 
         // intentionally using if instead of switch to separate scope
-        if (entry.op == OpCode::StoreMintKey) {
+        if (entry.op == OpCode::StoreMint) {
             auto key = GetSlice(entry.data);
 
             // retrieve meta data of mint
@@ -408,7 +409,7 @@ void CMPMintList::DeleteAll(int startBlock)
             });
 
             batch.Delete(GetSlice(entry.data));
-        } else if (entry.op == OpCode::StoreSerialSpendKey) {
+        } else if (entry.op == OpCode::StoreSpendSerial) {
             batch.Delete(GetSlice(entry.data));
         } else {
             throw std::runtime_error("opcode is invalid");
@@ -432,10 +433,10 @@ void CMPMintList::RecordKeyCreationHistory(uint32_t height, leveldb::Slice const
     auto nextSequence = GetNextSequence();
 
     History h;
-    if (IsSpendKey(key)) {
-        h.op = OpCode::StoreSerialSpendKey;
+    if (IsSpendSerialKey(key)) {
+        h.op = OpCode::StoreSpendSerial;
     } else if (IsMintKey(key)) {
-        h.op = OpCode::StoreMintKey;
+        h.op = OpCode::StoreMint;
     } else {
         throw std::invalid_argument("RecordKeyCreationHistory() : not found key type");
     }
@@ -654,7 +655,7 @@ exodus::SigmaPublicKey CMPMintList::GetMint(
 bool CMPMintList::HasSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
 {
-    auto serialData = GetSerialData(serial);
+    auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
     std::string data;
     auto status = pdb->Get(readoptions, GetSlice(keyData), &data);

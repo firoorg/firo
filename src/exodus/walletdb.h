@@ -72,7 +72,7 @@ struct SigmaEntry
 {
     SigmaPrivateKey privateKey;
 
-    uint256 tx;
+    uint256 spendTx;
 
     uint32_t propertyId;
     uint8_t denomination;
@@ -100,9 +100,7 @@ struct SigmaEntry
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(privateKey);
-
-        READWRITE(tx);
-
+        READWRITE(spendTx);
         READWRITE(propertyId);
         READWRITE(denomination);
         READWRITE(chainState);

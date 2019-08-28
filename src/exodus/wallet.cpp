@@ -72,7 +72,7 @@ boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, u
     auto last = std::remove_if(allCoins.begin(), allCoins.end(), [denomination](SigmaEntry const &entry) -> bool {
         return entry.denomination != denomination
             || entry.chainState.block < 0
-            || !entry.tx.IsNull();
+            || !entry.spendTx.IsNull();
     });
     allCoins.erase(last, allCoins.end());
 
@@ -82,6 +82,9 @@ boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, u
 
     auto chosenCoin = std::min_element(allCoins.begin(), allCoins.end(),
         [](SigmaEntry const &a, SigmaEntry const &b) -> bool {
+            if (a.chainState.group < b.chainState.group) {
+                return true;
+            }
             return a.chainState.index < b.chainState.index;
         }
     );
@@ -95,10 +98,6 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 
     auto e = GetSigmaEntry(id);
 
-    if (!e.tx.IsNull()) {
-        throw std::logic_error("the mint have been spend");
-    }
-
     e.chainState = state;
 
     if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
@@ -111,7 +110,7 @@ void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &t
     LOCK(pwalletMain->cs_wallet);
 
     auto e = GetSigmaEntry(id);
-    e.tx = tx;
+    e.spendTx = tx;
 
     if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
         throw std::runtime_error("set used flag for mint on db fail");

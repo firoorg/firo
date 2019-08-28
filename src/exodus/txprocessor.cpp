@@ -1,6 +1,7 @@
 #include "txprocessor.h"
-
 #include "rules.h"
+
+#include "../base58.h"
 
 namespace exodus {
 
@@ -178,7 +179,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     if (p_mintlistdb->HasSpendSerial(property, denomination, spend.GetSerial())
         || !VerifySigmaSpend(property, denomination, group, groupSize, spend, sigma::Params::get_default())) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
-        return PKT_ERROR_SIGMA - 104;
+        return PKT_ERROR_SIGMA - 907;
     }
     std::array<uint8_t, 1> denoms = {denomination};
 
@@ -187,10 +188,16 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         amount = SumDenominationsValue(property, denoms.begin(), denoms.end());
     } catch (std::invalid_argument const& e) {
         PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
-        return PKT_ERROR_SIGMA - 105;
+        return PKT_ERROR_SIGMA - 905;
     }
 
     // subtract balance
+    CBitcoinAddress recvAddr(tx.getReceiver());
+    if (!recvAddr.IsValid()) {
+        PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 908;
+    }
+
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
     p_mintlistdb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
 

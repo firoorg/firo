@@ -2231,11 +2231,10 @@ int exodus_init()
     txProcessor = new TxProcessor();
 
 #ifdef ENABLE_WALLET
-    bool disableWallet = GetBoolArg("-disablewallet", false);
-    if (disableWallet) {
-        wallet = nullptr;
-    } else {
+    if (pwalletMain) {
         wallet = new Wallet(pwalletMain->strWalletFile, *p_mintlistdb);
+    } else {
+        wallet = nullptr;
     }
 #endif
 
