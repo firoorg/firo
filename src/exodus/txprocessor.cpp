@@ -195,7 +195,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     CBitcoinAddress recvAddr(tx.getReceiver());
     if (!recvAddr.IsValid()) {
         PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
-        return PKT_ERROR_SIGMA - 908;
+        return PKT_ERROR_SIGMA - 45;
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));

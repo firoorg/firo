@@ -821,20 +821,20 @@ bool CMPTransaction::interpret_SimpleSpend()
     memcpy(&groupSize, &pkt[13], 2);
     swapByteOrder(groupSize);
 
-    CDataStream deserialized(
+    CDataStream serialized(
         reinterpret_cast<char*>(&pkt[15]),
         reinterpret_cast<char*>(&pkt[pkt_size]),
         SER_NETWORK, PROTOCOL_VERSION
     );
 
     try {
-        deserialized >> spend;
+        serialized >> spend;
     } catch (std::ios_base::failure&) {
         PrintToLog("\tsize of data is less than spend size");
         return false;
     }
 
-    if (!deserialized.eof()) {
+    if (!serialized.eof()) {
         PrintToLog("\tsize of data exceed spend size");
         return false;
     }
