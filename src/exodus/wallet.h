@@ -9,6 +9,8 @@
 
 #include "../wallet/wallet.h"
 
+#include <boost/optional.hpp>
+
 #include <forward_list>
 #include <string>
 
@@ -42,6 +44,9 @@ public:
 
     SigmaMintChainState GetSigmaMintChainState(const SigmaMintId& id);
 
+    boost::optional<SigmaEntry> GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination);
+    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
+
 protected:
     template<class OutputIt>
     void ListSigmaEntries(OutputIt it)
@@ -70,9 +75,7 @@ protected:
     bool HasSigmaEntry(const SigmaMintId& id);
     SigmaEntry GetSigmaEntry(const SigmaMintId& id);
 
-    void SetSigmaMintUsedStatus(const SigmaMintId& id, bool isUsed);
     void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
-
 private:
     void OnMintAdded(
         PropertyId property,

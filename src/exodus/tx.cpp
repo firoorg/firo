@@ -175,6 +175,9 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_SIMPLE_MINT:
             return interpret_SimpleMint();
 
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            return interpret_SimpleSpend();
+
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
@@ -798,6 +801,47 @@ bool CMPTransaction::interpret_UnfreezeTokens()
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t  value (unused): %s\n", FormatMP(property, nValue));
         PrintToLog("\t         address: %s\n", receiver);
+    }
+
+    return true;
+}
+
+/** Tx 1024 */
+bool CMPTransaction::interpret_SimpleSpend()
+{
+    if (pkt_size < 15) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    swapByteOrder(property);
+    memcpy(&denomination, &pkt[8], 1);
+    memcpy(&group, &pkt[9], 4);
+    swapByteOrder(group);
+    memcpy(&groupSize, &pkt[13], 2);
+    swapByteOrder(groupSize);
+
+    CDataStream serialized(
+        reinterpret_cast<char*>(&pkt[15]),
+        reinterpret_cast<char*>(&pkt[pkt_size]),
+        SER_NETWORK, PROTOCOL_VERSION
+    );
+
+    try {
+        serialized >> spend;
+    } catch (std::ios_base::failure&) {
+        PrintToLog("\tsize of data is less than spend size");
+        return false;
+    }
+
+    if (!serialized.eof()) {
+        PrintToLog("\tsize of data exceed spend size");
+        return false;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
     }
 
     return true;

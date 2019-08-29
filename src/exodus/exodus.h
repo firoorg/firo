@@ -10,6 +10,7 @@ class CTransaction;
 #include "exodus/log.h"
 #include "exodus/persistence.h"
 #include "exodus/tally.h"
+#include "exodus/sigma.h"
 #include "exodus/sigmadb.h"
 
 #include "sync.h"

@@ -222,6 +222,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "exodus_sendcreatedenomination", 1 },
 	{ "exodus_sendmint", 1 },
 	{ "exodus_sendmint", 2 },
+	{ "exodus_sendspend", 1 },
+	{ "exodus_sendspend", 2 },
 
 	/* Exodus - raw transaction calls */
 	{ "exodus_decodetransaction", 1 },

@@ -133,6 +133,10 @@ private:
     // Sigma
     SigmaStatus sigmaStatus;
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    uint8_t denomination;
+    uint32_t group;
+    uint16_t groupSize;
+    exodus::SigmaProof spend;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -166,6 +170,7 @@ private:
     bool interpret_UnfreezeTokens();
     bool interpret_CreateDenomination();
     bool interpret_SimpleMint();
+    bool interpret_SimpleSpend();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -230,7 +235,7 @@ public:
     unsigned short getPropertyType() const { return prop_type; }
     uint64_t getFeePaid() const { return tx_fee_paid; }
     const std::string& getSender() const { return sender; }
-    std::string getReceiver() const { return receiver; }
+    const std::string& getReceiver() const { return receiver; }
     std::string getPayload() const { return HexStr(pkt, pkt + pkt_size); }
     uint64_t getAmount() const { return nValue; }
     uint64_t getNewAmount() const { return nNewValue; }
@@ -258,6 +263,10 @@ public:
 
     /** Sigma */
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
+    uint8_t getDenomination() const { return denomination; }
+    uint32_t getGroup() const { return group; }
+    uint16_t getGroupSize() const { return groupSize; }
+    exodus::SigmaProof const & getSpend() const { return spend; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

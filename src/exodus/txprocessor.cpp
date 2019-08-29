@@ -1,6 +1,7 @@
 #include "txprocessor.h"
-
 #include "rules.h"
+
+#include "../base58.h"
 
 namespace exodus {
 
@@ -38,6 +39,10 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
         switch (tx.getType()) {
         case EXODUS_TYPE_SIMPLE_MINT:
             result = ProcessSimpleMint(tx);
+            break;
+
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            result = ProcessSimpleSpend(tx);
             break;
         }
     }
@@ -137,5 +142,67 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
 
     return 0;
 }
+
+int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
+{
+    auto block = tx.getBlock();
+    auto type = tx.getType();
+    auto version = tx.getVersion();
+    auto property = tx.getProperty();
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block);
+        return PKT_ERROR_SIGMA - 22;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_SIGMA - 24;
+    }
+
+    if (!IsSigmaEnabled(property)) {
+        PrintToLog("%s(): rejected: property %d does not enable sigma\n", __func__, property);
+        return PKT_ERROR_SIGMA - 901;
+    }
+
+    auto spend = tx.getSpend(); // intentionally copy
+    auto denomination = tx.getDenomination();
+    auto group = tx.getGroup();
+    auto groupSize = tx.getGroupSize();
+
+    // check serial in database
+    if (p_mintlistdb->HasSpendSerial(property, denomination, spend.GetSerial())
+        || !VerifySigmaSpend(property, denomination, group, groupSize, spend, sigma::Params::get_default())) {
+        PrintToLog("%s(): rejected: spend is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 907;
+    }
+    std::array<uint8_t, 1> denoms = {denomination};
+
+    uint64_t amount;
+    try {
+        amount = SumDenominationsValue(property, denoms.begin(), denoms.end());
+    } catch (std::invalid_argument const& e) {
+        PrintToLog("%s(): rejected: error %s\n", __func__, e.what());
+        return PKT_ERROR_SIGMA - 905;
+    }
+
+    // subtract balance
+    CBitcoinAddress recvAddr(tx.getReceiver());
+    if (!recvAddr.IsValid()) {
+        PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 45;
+    }
+
+    assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
+    p_mintlistdb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
+
+    return 0;
+}
+
 
 }

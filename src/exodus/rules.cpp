@@ -69,6 +69,7 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
 
         { EXODUS_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   EXODUS_BET_BLOCK      },
 
+        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
         { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
         { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
     };

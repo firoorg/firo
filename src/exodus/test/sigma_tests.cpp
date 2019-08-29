@@ -1,10 +1,12 @@
 #include "../sigma.h"
 
+#include "../../test/test_bitcoin.h"
+
 #include <boost/test/unit_test.hpp>
 
 #include <vector>
 
-BOOST_AUTO_TEST_SUITE(exodus_sigma_tests)
+BOOST_FIXTURE_TEST_SUITE(exodus_sigma_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(private_key)
 {
@@ -59,8 +61,8 @@ BOOST_AUTO_TEST_CASE(proof)
 
     proof.Generate(key2, pubs.begin(), pubs.end());
 
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end()), true);
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1), false);
+    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), true);
+    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end() - 1), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

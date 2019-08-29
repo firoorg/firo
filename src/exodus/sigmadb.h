@@ -46,6 +46,7 @@ public:
         DenominationId denomination,
         const SigmaPublicKey& pubKey,
         int height);
+    void RecordSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height);
 
     template<
         class OutputIt,
@@ -61,12 +62,23 @@ public:
     size_t GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
         std::function<void(exodus::SigmaPublicKey&)>);
 
+    template<class OutputIt>
+    OutputIt GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, OutputIt firstIt)
+    {
+        auto mintCount = GetMintCount(propertyId, denomination, groupId);
+        if (mintCount) {
+            firstIt = GetAnonimityGroup(propertyId, denomination, groupId, mintCount, firstIt);
+        }
+        return firstIt;
+    }
+
     void DeleteAll(int startBlock);
 
     uint32_t GetLastGroupId(uint32_t propertyId, uint8_t denomination);
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
-    std::pair<exodus::SigmaPublicKey, int32_t> GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
+    SigmaPublicKey GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
+    bool HasSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial);
 
     uint16_t groupSize;
 
@@ -75,7 +87,7 @@ public:
     boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
 
 private:
-    void RecordMintKey(const leveldb::Slice& mintKey);
+    void RecordKeyCreationHistory(uint32_t height, leveldb::Slice const &key);
     void RecordGroupSize(uint16_t groupSize);
 
     std::unique_ptr<leveldb::Iterator> NewIterator() const;

@@ -22,7 +22,6 @@
 namespace exodus {
 
 // Sigma Cryptographic Primitives.
-
 class SigmaPrivateKey
 {
 public:
@@ -93,9 +92,9 @@ public:
     const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& GetProof() const { return proof; }
 
     template<typename Iterator>
-    bool Verify(Iterator begin, Iterator end)
+    bool Verify(sigma::Params const *params, Iterator begin, Iterator end)
     {
-        assert(proof.params);
+        proof.params = params;
 
         // Create commitment set.
         auto gs = (proof.params->get_g() * serial).inverse();
@@ -149,7 +148,7 @@ public:
             commits.emplace_back(commit + gs);
         }
 
-        if (!index) {
+        if (index == boost::none) {
             throw std::invalid_argument("No commitment for private key in the set");
         }
 
@@ -164,14 +163,27 @@ public:
         prover.proof(commits, *index, priv.GetRandomness(), proof);
     }
 
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(serial);
+        READWRITE(proof);
+    }
+
 private:
     secp_primitives::Scalar serial;
     sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 };
 
 // Exodus Specific.
-
 typedef std::uint8_t DenominationId;
+
+std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
+    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
+bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params);
 
 } // namespace exodus
 
