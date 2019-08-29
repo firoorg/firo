@@ -475,7 +475,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             zerocoinEntry.nHeight = stoi(vstr[6]);
             zerocoinEntry.id = stoi(vstr[7]);
             if(vstr.size()>8){
-                zerocoinEntry.ecdsaSecretKey = std::vector<unsigned char>(vstr[8].begin(),vstr[8].end());
+                zerocoinEntry.ecdsaSecretKey = ParseHex(vstr[8]);
                 zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
             }
             walletdb.WriteZerocoinEntry(zerocoinEntry);
