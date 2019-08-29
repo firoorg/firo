@@ -33,7 +33,7 @@ BOOST_FIXTURE_TEST_SUITE(exodus_sp_tests, SpTestingSetup)
 BOOST_AUTO_TEST_CASE(not_exist_sp)
 {
     BOOST_CHECK_EXCEPTION(
-        db.getDenominationRemainingConfirmation(0, 0),
+        db.getDenominationRemainingConfirmation(0, 0, 10),
         std::invalid_argument,
         [](std::invalid_argument const &e) -> bool {
             return std::string("property notfound") == e.what();
@@ -53,8 +53,6 @@ BOOST_AUTO_TEST_CASE(not_exist_denomination)
 
 BOOST_AUTO_TEST_CASE(exist_denomination)
 {
-
-    GenerateEmptyBlock(10);
     CMPSPInfo::Entry sp;
     sp.creation_block = chainActive.Tip()->GetBlockHash();
     sp.update_block = sp.creation_block;
@@ -79,7 +77,7 @@ BOOST_AUTO_TEST_CASE(exist_denomination)
     BOOST_CHECK_EQUAL(1, db.getDenominationRemainingConfirmation(property, 0, 7));
     BOOST_CHECK_EQUAL(0, db.getDenominationRemainingConfirmation(property, 0, 6));
 
-    // require 2 confirmations must return -1
+    // require 2 confirmations must return 0
     BOOST_CHECK_EQUAL(0, db.getDenominationRemainingConfirmation(property, 0, 2));
 }
 

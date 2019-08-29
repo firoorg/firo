@@ -488,7 +488,7 @@ int CMPSPInfo::getDenominationRemainingConfirmation(
     while (
         denomination < info.denominations.size() &&
         (lastBlockHasDenomination =
-            GetBlockIndex(info.update_block))->nHeight <= targetBlock) {
+            GetBlockIndex(info.update_block))->nHeight > targetBlock) {
         if (!getPrevVersion(propertyId, info)) {
             break;
         }

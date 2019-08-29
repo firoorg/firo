@@ -192,8 +192,7 @@ public:
 
     bool getPrevVersion(uint32_t propertyId, Entry &info) const;
 
-    int getDenominationRemainingConfirmation(uint32_t propertyId, uint8_t denomination,
-        int target = INT32_MAX);
+    int getDenominationRemainingConfirmation(uint32_t propertyId, uint8_t denomination, int target);
 
     void printAll() const;
 };
