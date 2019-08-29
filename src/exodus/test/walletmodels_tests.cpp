@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
 {
     SigmaMint mint;
 
-    BOOST_CHECK_EQUAL(mint.used, false);
+    BOOST_CHECK(mint.spentTx.IsNull());
     BOOST_CHECK_EQUAL(mint.property, 0);
     BOOST_CHECK_EQUAL(mint.denomination, 0);
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_generate)
 {
     SigmaMint mint(1, 5);
 
-    BOOST_CHECK_EQUAL(mint.used, false);
+    BOOST_CHECK(mint.spentTx.IsNull());
     BOOST_CHECK_EQUAL(mint.property, 1);
     BOOST_CHECK_EQUAL(mint.denomination, 5);
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
@@ -141,12 +141,13 @@ BOOST_AUTO_TEST_CASE(sigma_mint_generate)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_equality)
 {
+    auto tx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
     SigmaPrivateKey key;
     SigmaMint left, right;
 
     key.Generate();
 
-    left.used = true;
+    left.spentTx = tx;
     left.property = 1;
     left.denomination = 1;
     left.chainState.block = 500;
@@ -154,7 +155,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_equality)
     left.chainState.index = 50;
     left.key = key;
 
-    right.used = true;
+    right.spentTx = tx;
     right.property = 1;
     right.denomination = 1;
     right.chainState.block = 500;
@@ -169,7 +170,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 {
     SigmaMint left, right;
 
-    left.used = true;
+    left.spentTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
     left.property = 1;
     left.denomination = 1;
     left.chainState.block = 500;
@@ -177,9 +178,9 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
     left.chainState.index = 50;
     left.key.Generate();
 
-    // Used flag.
+    // Spent Tx.
     right = left;
-    right.used = false;
+    right.spentTx.SetNull();
 
     BOOST_CHECK_NE(left, right);
 

@@ -6,6 +6,7 @@
 #include "sigmadb.h"
 
 #include "../serialize.h"
+#include "../uint256.h"
 
 #include <functional>
 #include <ostream>
@@ -82,11 +83,11 @@ private:
 class SigmaMint
 {
 public:
-    bool used;
     PropertyId property;
     DenominationId denomination;
     SigmaMintChainState chainState;
     SigmaPrivateKey key;
+    uint256 spentTx;
 
 public:
     SigmaMint();
@@ -101,11 +102,11 @@ private:
     template<typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(used);
         READWRITE(property);
         READWRITE(denomination);
         READWRITE(chainState);
         READWRITE(key);
+        READWRITE(spentTx);
     }
 };
 
@@ -146,11 +147,11 @@ template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMint& mint)
 {
     os << '{';
-    os << "used: " << mint.used << ", ";
     os << "property: " << mint.property << ", ";
     os << "denomination: " << mint.denomination << ", ";
     os << "chainState: " << mint.chainState << ", ";
-    os << "key: " << mint.key;
+    os << "key: " << mint.key << ", ";
+    os << "spentTx: " << mint.spentTx.GetHex();
     os << '}';
 
     return os;

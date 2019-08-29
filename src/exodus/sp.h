@@ -258,6 +258,7 @@ bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
 bool IsSigmaStatusValid(SigmaStatus status);
 bool IsDenominationValid(PropertyId property, DenominationId denomination);
+int64_t GetDenominationValue(PropertyId property, DenominationId denomination);
 
 CMPCrowd* getCrowd(const std::string& address);
 

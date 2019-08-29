@@ -37,9 +37,6 @@ public:
         return output;
     }
 
-    boost::optional<SigmaEntry> GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination);
-    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
-
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
@@ -68,10 +65,13 @@ public:
 
     bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
+    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
 
+    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
 
 protected:
     void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
+
 private:
     void OnMintAdded(
         PropertyId property,

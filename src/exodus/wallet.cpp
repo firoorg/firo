@@ -3,6 +3,8 @@
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
 
+#include <boost/iterator/function_output_iterator.hpp>
+
 #include <functional>
 
 namespace exodus {
@@ -52,35 +54,6 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
     return CWalletDB(walletFile).HasExodusMint(id);
 }
 
-boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination)
-{
-    AssertLockHeld(pwalletMain->cs_wallet);
-    std::list<SigmaEntry> allCoins;
-    ListSigmaEntries(propertyId, std::back_inserter(allCoins));
-
-    auto last = std::remove_if(allCoins.begin(), allCoins.end(), [denomination](SigmaEntry const &entry) -> bool {
-        return entry.denomination != denomination
-            || entry.chainState.block < 0
-            || !entry.spendTx.IsNull();
-    });
-    allCoins.erase(last, allCoins.end());
-
-    if (allCoins.empty()) {
-        return boost::none;
-    }
-
-    auto chosenCoin = std::min_element(allCoins.begin(), allCoins.end(),
-        [](SigmaEntry const &a, SigmaEntry const &b) -> bool {
-            if (a.chainState.group < b.chainState.group) {
-                return true;
-            }
-            return a.chainState.index < b.chainState.index;
-        }
-    );
-
-    return *chosenCoin;
-}
-
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
     SigmaMint mint;
@@ -94,13 +67,43 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
     return mint;
 }
 
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
+{
+    std::vector<SigmaMint> spendable;
+
+    // Get all spendable mints.
+    ListSigmaMints(property, boost::make_function_output_iterator([&] (const SigmaMint& m) {
+        if (m.denomination != denomination || m.chainState.block < 0 || !m.spentTx.IsNull()) {
+            return;
+        }
+        spendable.push_back(m);
+    }));
+
+    if (spendable.empty()) {
+        return boost::none;
+    }
+
+    // Pick the oldest mint.
+    auto oldest = std::min_element(spendable.begin(), spendable.end(), [] (const SigmaMint& a, const SigmaMint& b) {
+        if (a.chainState.group < b.chainState.group) {
+            return true;
+        } else if (a.chainState.group > b.chainState.group) {
+            return false;
+        }
+
+        return a.chainState.index < b.chainState.index;
+    });
+
+    return *oldest;
+}
+
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
 {
     LOCK(pwalletMain->cs_wallet);
 
     auto mint = GetSigmaMint(id);
 
-    mint.used = isUsed;
+    mint.spentTx = tx;
 
     if (!CWalletDB(walletFile).WriteExodusMint(id, mint)) {
         throw std::runtime_error("set used flag for mint on db fail");

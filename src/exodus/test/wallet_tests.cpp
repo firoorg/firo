@@ -9,13 +9,25 @@
 
 #include "../../wallet/test/wallet_test_fixture.h"
 
+#include <boost/optional/optional_io.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
 #include <iterator>
+#include <ostream>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+namespace std {
+
+template<class Char, class Traits, unsigned Size>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const base_blob<Size>& v)
+{
+    return os << v.GetHex();
+}
+
+} // namespace std
 
 namespace exodus {
 
@@ -49,7 +61,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
     BOOST_CHECK(id.key.IsValid());
     BOOST_CHECK_EQUAL(id.key, SigmaPublicKey(mint.key));
 
-    BOOST_CHECK_EQUAL(mint.used, false);
+    BOOST_CHECK(mint.spentTx.IsNull());
     BOOST_CHECK_EQUAL(mint.property, id.property);
     BOOST_CHECK_EQUAL(mint.denomination, id.denomination);
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
@@ -84,7 +96,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
         BOOST_CHECK(id.key.IsValid());
         BOOST_CHECK_EQUAL(id.key, SigmaPublicKey(mint.key));
 
-        BOOST_CHECK_EQUAL(mint.used, false);
+        BOOST_CHECK(mint.spentTx.IsNull());
         BOOST_CHECK_EQUAL(mint.property, id.property);
         BOOST_CHECK_EQUAL(mint.denomination, id.denomination);
         BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
@@ -199,16 +211,17 @@ BOOST_AUTO_TEST_CASE(sigma_mint_get)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
 {
+    auto tx = uint256S("64c4c22a45ad449be61c52a431d11e81f7fd0ee2f2235bf02944fb0b3dd07adb");
     auto id = wallet.CreateSigmaMint(1, 1);
     SigmaMint mint;
 
-    wallet.SetSigmaMintUsedStatus(id, true);
+    wallet.SetSigmaMintUsedTransaction(id, tx);
     mint = wallet.GetSigmaMint(id);
-    BOOST_CHECK(mint.used);
+    BOOST_CHECK_EQUAL(mint.spentTx, tx);
 
-    wallet.SetSigmaMintUsedStatus(id, false);
+    wallet.SetSigmaMintUsedTransaction(id, uint256());
     mint = wallet.GetSigmaMint(id);
-    BOOST_CHECK_EQUAL(mint.used, false);
+    BOOST_CHECK(mint.spentTx.IsNull());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_owned)
@@ -278,40 +291,40 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
 
 BOOST_AUTO_TEST_CASE(get_spendable_mint_in_nonexist_group)
 {
-    LOCK(pwalletMain->cs_wallet);
-    BOOST_CHECK(wallet.GetSpendableSigmaMint(0, 0) == boost::none);
+    BOOST_CHECK_EQUAL(wallet.GetSpendableSigmaMint(3, 0), boost::none);
 }
 
 BOOST_AUTO_TEST_CASE(get_a_spendable_coin)
 {
-    LOCK(pwalletMain->cs_wallet);
-    auto id = wallet.CreateSigmaMint(0, 0);
-    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
+    auto id = wallet.CreateSigmaMint(3, 0);
+    sigmaDb.RecordMint(3, 0, id.key, 1000);
 
-    BOOST_CHECK(wallet.GetSpendableSigmaMint(0, 0) != boost::none);
+    BOOST_CHECK_NE(wallet.GetSpendableSigmaMint(3, 0), boost::none);
 }
 
 BOOST_AUTO_TEST_CASE(get_oldest_spenable_mint)
 {
-    LOCK(pwalletMain->cs_wallet);
-    auto id = wallet.CreateSigmaMint(0, 0);
-    auto id2 = wallet.CreateSigmaMint(0, 0);
-    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
-    sigmaDb.RecordMint(0, 0, id2.publicKey, 1001);
+    auto id1 = wallet.CreateSigmaMint(3, 0);
+    auto id2 = wallet.CreateSigmaMint(3, 0);
 
-    auto mint = wallet.GetSpendableSigmaMint(0, 0);
-    BOOST_CHECK(mint != boost::none);
-    BOOST_CHECK_EQUAL(1000, mint.get().chainState.block);
+    sigmaDb.RecordMint(3, 0, id1.key, 1000);
+    sigmaDb.RecordMint(3, 0, id2.key, 1001);
+
+    auto mint = wallet.GetSpendableSigmaMint(3, 0);
+
+    BOOST_CHECK_NE(mint, boost::none);
+    BOOST_CHECK_EQUAL((*mint).chainState.block, 1000);
 }
 
 BOOST_AUTO_TEST_CASE(have_only_spend_coin)
 {
-    LOCK(pwalletMain->cs_wallet);
-    auto id = wallet.CreateSigmaMint(0, 0);
-    sigmaDb.RecordMint(0, 0, id.publicKey, 1000);
-    wallet.SetSigmaMintUsedTransaction(id, uint256S("1"));
+    auto id = wallet.CreateSigmaMint(3, 0);
 
-    BOOST_CHECK(wallet.GetSpendableSigmaMint(0, 0) ==  boost::none);
+    sigmaDb.RecordMint(3, 0, id.key, 1000);
+
+    wallet.SetSigmaMintUsedTransaction(id, uint256S("890e968f9b65dbacd576100c9b1c446f06471ed27df845ab7a24931cb640b388"));
+
+    BOOST_CHECK_EQUAL(wallet.GetSpendableSigmaMint(3, 0), boost::none);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

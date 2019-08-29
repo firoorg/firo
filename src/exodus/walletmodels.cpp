@@ -64,12 +64,11 @@ bool SigmaMintId::operator!=(const SigmaMintId& other) const
 
 // SigmaMint Implementation.
 
-SigmaMint::SigmaMint() : used(false), property(0), denomination(0)
+SigmaMint::SigmaMint() : property(0), denomination(0)
 {
 }
 
 SigmaMint::SigmaMint(PropertyId property, DenominationId denomination) :
-    used(false),
     property(property),
     denomination(denomination)
 {
@@ -78,11 +77,11 @@ SigmaMint::SigmaMint(PropertyId property, DenominationId denomination) :
 
 bool SigmaMint::operator==(const SigmaMint& other) const
 {
-    return used == other.used &&
-           property == other.property &&
+    return property == other.property &&
            denomination == other.denomination &&
            chainState == other.chainState &&
-           key == other.key;
+           key == other.key &&
+           spentTx == other.spentTx;
 }
 
 bool SigmaMint::operator!=(const SigmaMint& other) const
