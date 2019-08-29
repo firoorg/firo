@@ -3,7 +3,7 @@
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
 
-#include <boost/iterator/function_output_iterator.hpp>
+#include <boost/function_output_iterator.hpp>
 
 #include <functional>
 

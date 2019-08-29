@@ -87,7 +87,7 @@ public:
     boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
 
 private:
-    void RecordKeyCreationHistory(uint32_t height, leveldb::Slice const &key);
+    void RecordKeyCreationHistory(int height, leveldb::Slice const &key);
     void RecordGroupSize(uint16_t groupSize);
 
     std::unique_ptr<leveldb::Iterator> NewIterator() const;

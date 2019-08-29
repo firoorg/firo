@@ -25,7 +25,7 @@
 
 #include <univalue.h>
 
-#include <boost/iterator/function_output_iterator.hpp>
+#include <boost/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include <stdint.h>

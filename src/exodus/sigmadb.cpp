@@ -321,7 +321,7 @@ public:
     {
     }
 
-    History(uint32_t block, OpCode op, std::vector<uint8_t> const &data)
+    History(int32_t block, OpCode op, std::vector<uint8_t> const &data)
         : block(block), op(op), data(data.begin(), data.end())
     {
     }
@@ -340,7 +340,7 @@ public:
         this->op = static_cast<OpCode>(op);
     }
 
-    uint32_t block;
+    int32_t block;
     OpCode op;
     std::vector<uint8_t> data;
 };
@@ -428,7 +428,7 @@ void CMPMintList::DeleteAll(int startBlock)
     }
 }
 
-void CMPMintList::RecordKeyCreationHistory(uint32_t height, leveldb::Slice const &key)
+void CMPMintList::RecordKeyCreationHistory(int height, leveldb::Slice const &key)
 {
     auto nextSequence = GetNextSequence();
 
