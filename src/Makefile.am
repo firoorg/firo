@@ -317,6 +317,7 @@ libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
+  bip47.cpp \
   darksend.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
@@ -575,7 +576,7 @@ zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS)
 
 # bip47 binary #todo remove this
 
-bip47_SOURCES = bip47.cpp
+bip47_SOURCES = bip47-test.cpp
 bip47_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 bip47_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 bip47_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
