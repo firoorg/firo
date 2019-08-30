@@ -12,9 +12,10 @@
 #include <boost/optional/optional_io.hpp>
 #include <boost/test/unit_test.hpp>
 
-#include <algorithm>
 #include <iterator>
 #include <ostream>
+#include <stdexcept>
+#include <tuple>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
 {
     std::vector<DenominationId> denominations = {0, 1, 0, 2};
     std::vector<SigmaMintId> ids(5);
-    std::vector<SigmaMint> mints;
+    std::unordered_set<SigmaMint> mints;
 
     auto next = wallet.CreateSigmaMints(1, denominations.begin(), denominations.end(), ids.begin());
 
@@ -103,10 +104,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
         BOOST_CHECK(mint.key.IsValid());
         BOOST_CHECK_NE(mint.key, SigmaPrivateKey());
 
-        mints.push_back(std::move(mint));
+        BOOST_CHECK(mints.insert(std::move(mint)).second);
     }
-
-    BOOST_CHECK(std::adjacent_find(mints.begin(), mints.end()) == mints.end());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
@@ -120,14 +119,13 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
     ids.insert(wallet.CreateSigmaMint(2, 0));
 
     BOOST_CHECK_EQUAL(ids.size(), 4);
-    BOOST_CHECK(std::adjacent_find(ids.begin(), ids.end()) == ids.end());
 
     // List mints.
-    std::vector<SigmaMint> mints;
-    wallet.ListSigmaMints(std::back_inserter(mints));
+    std::unordered_set<SigmaMint> mints;
+
+    wallet.ListSigmaMints(std::inserter(mints, mints.end()));
 
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
-    BOOST_CHECK(std::adjacent_find(mints.begin(), mints.end()) == mints.end());
 
     for (auto& mint : mints) {
         auto it = ids.find(SigmaMintId(mint));
@@ -153,14 +151,13 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_specific_property)
     ids.insert(wallet.CreateSigmaMint(2, 0));
 
     BOOST_CHECK_EQUAL(ids.size(), 2);
-    BOOST_CHECK(std::adjacent_find(ids.begin(), ids.end()) == ids.end());
 
     // List mints.
-    std::vector<SigmaMint> mints;
-    wallet.ListSigmaMints(2, std::back_inserter(mints));
+    std::unordered_set<SigmaMint> mints;
+
+    wallet.ListSigmaMints(2, std::inserter(mints, mints.end()));
 
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
-    BOOST_CHECK(std::adjacent_find(mints.begin(), mints.end()) == mints.end());
 
     for (auto& mint : mints) {
         auto it = ids.find(SigmaMintId(mint));
@@ -185,7 +182,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_check_existence)
 
     SigmaMintId other(1, 1, pub);
 
-    BOOST_CHECK(wallet.HasSigmaMint(owned));
+    BOOST_CHECK_EQUAL(wallet.HasSigmaMint(owned), true);
     BOOST_CHECK_EQUAL(wallet.HasSigmaMint(other), false);
 }
 

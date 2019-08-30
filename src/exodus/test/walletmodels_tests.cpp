@@ -64,6 +64,15 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_serialization)
     BOOST_CHECK_EQUAL(deserialized, original);
 }
 
+BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_hash)
+{
+    SigmaMintChainState state1(100, 0, 0), state2(101, 0, 0);
+    std::hash<SigmaMintChainState> hasher;
+
+    BOOST_CHECK_EQUAL(hasher(state1), hasher(state1));
+    BOOST_CHECK_NE(hasher(state1), hasher(state2));
+}
+
 BOOST_AUTO_TEST_CASE(sigma_mint_id_default)
 {
     SigmaMintId id;
@@ -115,6 +124,16 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
     BOOST_CHECK_EQUAL(deserialized.property, original.property);
     BOOST_CHECK_EQUAL(deserialized.denomination, original.denomination);
     BOOST_CHECK_EQUAL(deserialized.key, original.key);
+}
+
+BOOST_AUTO_TEST_CASE(sigma_mint_id_hash)
+{
+    SigmaMint mint1(3, 0), mint2(3, 0);
+    SigmaMintId id1(mint1), id2(mint2);
+    std::hash<SigmaMintId> hasher;
+
+    BOOST_CHECK_EQUAL(hasher(id1), hasher(id1));
+    BOOST_CHECK_NE(hasher(id1), hasher(id2));
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_default)
@@ -218,6 +237,15 @@ BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
     stream >> deserialized;
 
     BOOST_CHECK_EQUAL(deserialized, original);
+}
+
+BOOST_AUTO_TEST_CASE(sigma_mint_hash)
+{
+    SigmaMint mint1(3, 0), mint2(3, 0);
+    std::hash<SigmaMint> hasher;
+
+    BOOST_CHECK_EQUAL(hasher(mint1), hasher(mint1));
+    BOOST_CHECK_NE(hasher(mint1), hasher(mint2));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

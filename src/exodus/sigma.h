@@ -193,6 +193,22 @@ namespace std {
 
 using namespace exodus;
 
+// std::hash specialization.
+
+template<>
+struct hash<SigmaPrivateKey>
+{
+    size_t operator()(const SigmaPrivateKey& k) const
+    {
+        size_t h = 0;
+
+        h ^= hash<secp_primitives::Scalar>()(k.GetSerial());
+        h ^= hash<secp_primitives::Scalar>()(k.GetRandomness());
+
+        return h;
+    }
+};
+
 template<>
 struct hash<SigmaPublicKey>
 {
@@ -201,6 +217,8 @@ struct hash<SigmaPublicKey>
         return k.GetCommitment().hash();
     }
 };
+
+// basic_ostream supports.
 
 template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPrivateKey& k)

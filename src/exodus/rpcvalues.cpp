@@ -1,22 +1,20 @@
-#include "exodus/rpcvalues.h"
+#include "rpcvalues.h"
 
-#include "exodus/createtx.h"
-#include "exodus/parse_string.h"
-#include "exodus/wallettxs.h"
+#include "createtx.h"
+#include "parse_string.h"
+#include "sp.h"
+#include "wallettxs.h"
 
-#include "base58.h"
-#include "core_io.h"
-#include "primitives/transaction.h"
-#include "pubkey.h"
-#include "rpc/protocol.h"
-#include "rpc/server.h"
-#include "script/script.h"
-#include "uint256.h"
+#include "../base58.h"
+#include "../core_io.h"
+#include "../primitives/transaction.h"
+#include "../pubkey.h"
+#include "../rpc/protocol.h"
+#include "../rpc/server.h"
+#include "../script/script.h"
+#include "../uint256.h"
 
 #include <univalue.h>
-
-#include <boost/assign/list_of.hpp>
-#include <boost/foreach.hpp>
 
 #include <string>
 #include <vector>
@@ -244,7 +242,7 @@ DenominationId ParseDenomination(const UniValue& value)
 {
     auto v = value.get_int();
 
-    if (v < 0 || static_cast<unsigned>(v) > EXODUS_MAX_DENOMINATIONS) {
+    if (v < 0 || static_cast<unsigned>(v) >= MAX_DENOMINATIONS) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid denomination");
     }
 

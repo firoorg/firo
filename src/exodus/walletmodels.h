@@ -116,6 +116,23 @@ namespace std {
 
 using namespace exodus;
 
+// std::hash specialization.
+
+template<>
+struct hash<SigmaMintChainState>
+{
+    size_t operator()(const SigmaMintChainState& state) const
+    {
+        size_t h = 0;
+
+        h ^= hash<int>()(state.block);
+        h ^= hash<MintGroupId>()(state.group);
+        h ^= hash<MintGroupIndex>()(state.index);
+
+        return h;
+    }
+};
+
 template<>
 struct hash<SigmaMintId>
 {
@@ -130,6 +147,25 @@ struct hash<SigmaMintId>
         return h;
     }
 };
+
+template<>
+struct hash<SigmaMint>
+{
+    size_t operator()(const SigmaMint& mint) const
+    {
+        size_t h = 0;
+
+        h ^= hash<PropertyId>()(mint.property);
+        h ^= hash<DenominationId>()(mint.denomination);
+        h ^= hash<SigmaMintChainState>()(mint.chainState);
+        h ^= hash<SigmaPrivateKey>()(mint.key);
+        h ^= hash<uint256>()(mint.spentTx);
+
+        return h;
+    }
+};
+
+// basic_ostream supports.
 
 template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMintId& id)
