@@ -41,7 +41,7 @@ namespace bip47 {
         static const int VERSION_WITH_BIP47 = 1;
         static const int CURRENT_VERSION = VERSION_WITH_BIP47;
 
-        bool valid() const;
+        bool valid();
         PaymentCode();
         PaymentCode(byte pkey[PUBLIC_KEY_LEN], byte ch[CHAIN_LEN]);
         PaymentCode(string payment_code);

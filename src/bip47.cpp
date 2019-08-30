@@ -63,15 +63,12 @@ extern void noui_connect();
 #include <string>
 #include <vector>
 #include <string.h>
+#include <iostream>
 
 
 namespace bip47 {
 
     using namespace std;
-
-    bool PaymentCode::valid() const {
-        return true;
-    }
 
     PaymentCode::PaymentCode() {
     }
@@ -127,26 +124,47 @@ namespace bip47 {
 
         byte pcodes[PAYLOAD_LEN] = {};
         std::copy(payment_code.begin(), payment_code.end(), pcodes);
-        memcpy(pubkey, pcodes + 2, PUBLIC_KEY_LEN);
+        memcpy(pubkey, pcodes + 3, PUBLIC_KEY_LEN);
 
 //        byte c_codes[CHAIN_LEN] = {};
-        memcpy(chain, pcodes + PUBLIC_KEY_LEN + 2, CHAIN_LEN);
+        memcpy(chain, pcodes + PUBLIC_KEY_LEN + 3, CHAIN_LEN);
 
         return true;
     }
 
     vector<byte> PaymentCode::getPubkey() {
-        vector<byte> vpubkey(pubkey, pubkey + PUBLIC_KEY_X_LEN);
+        printf("\n Get Pubkey %d\n", sizeof(pubkey));
+        vector<byte> vpubkey(pubkey, pubkey + PUBLIC_KEY_LEN);
+
         return vpubkey;
     }
 
     CPubKey PaymentCode::getMasterPubkey() {
-        CPubKey masterPubkey;
-        masterPubkey.Set(pubkey + 0, pubkey + PUBLIC_KEY_X_LEN);
-        CExtPubKey extPubKey;
-        extPubKey.pubkey = masterPubkey;
-        
+
+        vector<byte> vpubkey = getPubkey();
+
+        printf("\n Vector size %d\n", vpubkey.size());
+        CPubKey masterPubkey(vpubkey);
+//        extPubKey.pubkey = masterPubkey;
+
         return masterPubkey;
+    }
+
+    bool PaymentCode::valid() {
+        vector<byte> payment_code;
+        DecodeBase58Check(strPaymentCode, payment_code);
+        if(payment_code[0] != 0x47) {
+            LogPrint("Address Format Error", "Failed");
+            return false;
+        }
+
+        byte pcodes[PAYLOAD_LEN] = {};
+        std::copy(payment_code.begin(), payment_code.end(), pcodes);
+
+        printf("\nfirst_byte %s\n", (*(pcodes + 3) == 2 || *(pcodes + 3) == 3) ? "True" : "False" );
+
+
+        return true;
     }
 
 
@@ -267,7 +285,7 @@ int main(int argc, char* argv[]) {
 
     printf("Encoded Data\n");
     for(int i = 0; i < 80; i++) {
-        printf("%x", data[i]);
+        printf("%u", data[i]);
     }
     printf("\n");
 
@@ -283,12 +301,46 @@ int main(int argc, char* argv[]) {
     bip47::PaymentCode paymentCode(strPcode);
 
     CPubKey masterPubkey = paymentCode.getPubkey();
+    printf("\n master pubkey size %d\n", masterPubkey.size());
+
+    if (masterPubkey.IsValid()) {
+        printf("\nmaster Pubkey is valid\n");
+        CBitcoinAddress address(masterPubkey.GetID());
+        std::cout << " Address from masterPubkey " << address.ToString() << std::endl;
+    } else {
+        printf("\nmaster Pubkey is not valid\n");
+    }
+
+
+    CExtPubKey extPubKey;
+    paymentCode.valid();
+
+
+    CBitcoinAddress newaddress("TN5pADYZMSDyKpcgicC1d2Z2adHdTgHRGG");
+    CKeyID keyID;
+    newaddress.GetKeyID(keyID);
+    CPubKey vchPubKey;
+
+
+//    "File named wallet.dat"
+//    if (!pwalletMain->GetPubKey(keyID, vchPubKey)) {
+//        printf("\n findout pubkey of address\n");
+//    } else {
+//        printf("\n cannot find out pubkey of address\n");
+//    }
+
+//    bip47::PaymentCode paymentCode1()
 
 
 
-
-
-
+    /**
+     * CKey CPubKey
+     * CKeyMetadata
+     * CBitcoinExtKey
+     * CBitcoinExtPubKey
+     * CExtKey
+     * CExtPubKey
+     */
 
 //    SelectParams(CBaseChainParams::REGTEST);
 
