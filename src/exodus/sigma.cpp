@@ -126,7 +126,12 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     SigmaProof p;
     p.Generate(priv, coins.begin(), coins.end());
 
-    return {p, coins.size()};
+    // Make sure spend is spendable.
+    if (!VerifySigmaSpend(propertyId, denomination, group, coins.size(), p, priv.GetParams())) {
+        throw std::runtime_error("failed to create spendable mint");
+    }
+
+    return std::make_pair(p, coins.size());
 }
 
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,

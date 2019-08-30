@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <cstring>
+#include <functional>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
@@ -193,5 +194,23 @@ public:
         return ret;
     }
 };
+
+namespace std {
+
+template<unsigned Size>
+struct hash<base_blob<Size>>
+{
+    size_t operator()(const base_blob<Size>& b) const
+    {
+        return hash<string>()(string(b.begin(), b.end()));
+    }
+};
+
+template<>
+struct hash<uint256> : hash<base_blob<256>>
+{
+};
+
+} // namespace std
 
 #endif // BITCOIN_UINT256_H

@@ -1,9 +1,9 @@
 #include "wallet.h"
 
-#include "walletdb.h"
-
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
+
+#include <boost/function_output_iterator.hpp>
 
 #include <functional>
 
@@ -35,103 +35,92 @@ Wallet::~Wallet()
 {
 }
 
-SigmaMintId Wallet::CreateSigmaMint(
-    uint32_t propertyId,
-    uint8_t denomination)
+SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomination)
 {
-    SigmaPrivateKey key;
-
-    key.Generate();
-
-    SigmaEntry e;
-    e.propertyId = propertyId;
-    e.denomination = denomination;
-    e.privateKey = key;
+    SigmaMint mint(property, denomination);
+    SigmaMintId id(mint);
 
     {
         LOCK(pwalletMain->cs_wallet);
-        CWalletDB(walletFile).WriteExodusMint(e.GetId(), e);
+        CWalletDB(walletFile).WriteExodusMint(id, mint);
     }
 
-    return e.GetId();
+    return id;
 }
 
-SigmaMintChainState Wallet::GetSigmaMintChainState(const SigmaMintId& id)
+bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
     LOCK(pwalletMain->cs_wallet);
-
-    return GetSigmaEntry(id).chainState;
+    return CWalletDB(walletFile).HasExodusMint(id);
 }
 
-boost::optional<SigmaEntry> Wallet::GetSpendableSigmaMint(uint32_t propertyId, uint8_t denomination)
+SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
-    AssertLockHeld(pwalletMain->cs_wallet);
-    std::list<SigmaEntry> allCoins;
-    ListSigmaEntries(propertyId, std::back_inserter(allCoins));
+    SigmaMint mint;
 
-    auto last = std::remove_if(allCoins.begin(), allCoins.end(), [denomination](SigmaEntry const &entry) -> bool {
-        return entry.denomination != denomination
-            || entry.chainState.block < 0
-            || !entry.spendTx.IsNull();
-    });
-    allCoins.erase(last, allCoins.end());
+    LOCK(pwalletMain->cs_wallet);
 
-    if (allCoins.empty()) {
+    if (!CWalletDB(walletFile).ReadExodusMint(id, mint)) {
+        throw std::invalid_argument("sigma mint not found");
+    }
+
+    return mint;
+}
+
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
+{
+    std::vector<SigmaMint> spendable;
+
+    // Get all spendable mints.
+    ListSigmaMints(property, boost::make_function_output_iterator([&] (const SigmaMint& m) {
+        if (m.denomination != denomination || m.chainState.block < 0 || !m.spentTx.IsNull()) {
+            return;
+        }
+        spendable.push_back(m);
+    }));
+
+    if (spendable.empty()) {
         return boost::none;
     }
 
-    auto chosenCoin = std::min_element(allCoins.begin(), allCoins.end(),
-        [](SigmaEntry const &a, SigmaEntry const &b) -> bool {
-            if (a.chainState.group < b.chainState.group) {
-                return true;
-            }
-            return a.chainState.index < b.chainState.index;
+    // Pick the oldest mint.
+    auto oldest = std::min_element(spendable.begin(), spendable.end(), [] (const SigmaMint& a, const SigmaMint& b) {
+        if (a.chainState.group < b.chainState.group) {
+            return true;
+        } else if (a.chainState.group > b.chainState.group) {
+            return false;
         }
-    );
 
-    return *chosenCoin;
-}
+        return a.chainState.index < b.chainState.index;
+    });
 
-void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)
-{
-    LOCK(pwalletMain->cs_wallet);
-
-    auto e = GetSigmaEntry(id);
-
-    e.chainState = state;
-
-    if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
-        throw std::runtime_error("update mint on db fail");
-    }
+    return *oldest;
 }
 
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
 {
     LOCK(pwalletMain->cs_wallet);
 
-    auto e = GetSigmaEntry(id);
-    e.spendTx = tx;
+    auto mint = GetSigmaMint(id);
 
-    if (!CWalletDB(walletFile).WriteExodusMint(e.GetId(), e)) {
+    mint.spentTx = tx;
+
+    if (!CWalletDB(walletFile).WriteExodusMint(id, mint)) {
         throw std::runtime_error("set used flag for mint on db fail");
     }
 }
 
-SigmaEntry Wallet::GetSigmaEntry(const SigmaMintId& id)
+void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)
 {
     LOCK(pwalletMain->cs_wallet);
 
-    SigmaEntry e;
-    if (!CWalletDB(walletFile).ReadExodusMint(id, e)) {
-        throw std::runtime_error("sigma mint not found");
+    auto mint = GetSigmaMint(id);
+
+    mint.chainState = state;
+
+    if (!CWalletDB(walletFile).WriteExodusMint(id, mint)) {
+        throw std::runtime_error("update mint on db fail");
     }
-    return e;
-}
-
-bool Wallet::HasSigmaEntry(const SigmaMintId& id)
-{
-    LOCK(pwalletMain->cs_wallet);
-    return CWalletDB(walletFile).HasExodusMint(id);
 }
 
 void Wallet::OnMintAdded(
@@ -142,11 +131,11 @@ void Wallet::OnMintAdded(
     const SigmaPublicKey& pubKey,
     int block)
 {
-    SigmaMintId id(pubKey, property, denomination);
+    SigmaMintId id(property, denomination, pubKey);
 
     LOCK(pwalletMain->cs_wallet); // Prevent race condition in the gap between a call to HasSigmaEntry and UpdateSigmaMint.
 
-    if (!HasSigmaEntry(id)) {
+    if (!HasSigmaMint(id)) {
         return;
     }
 
@@ -155,11 +144,11 @@ void Wallet::OnMintAdded(
 
 void Wallet::OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey)
 {
-    SigmaMintId id(pubKey, property, denomination);
+    SigmaMintId id(property, denomination, pubKey);
 
     LOCK(pwalletMain->cs_wallet); // Prevent race condition in the gap between a call to HasSigmaEntry and ClearSigmaMintChainState.
 
-    if (!HasSigmaEntry(id)) {
+    if (!HasSigmaMint(id)) {
         return;
     }
 

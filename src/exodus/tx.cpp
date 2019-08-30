@@ -2536,7 +2536,7 @@ int CMPTransaction::logicMath_CreateDenomination()
         return PKT_ERROR_TOKENS - 901;
     }
 
-    if (sp.denominations.size() >= EXODUS_MAX_DENOMINATIONS) {
+    if (sp.denominations.size() >= MAX_DENOMINATIONS) {
         PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
         return PKT_ERROR_TOKENS - 902;
     }

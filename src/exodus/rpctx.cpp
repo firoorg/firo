@@ -25,6 +25,7 @@
 
 #include <univalue.h>
 
+#include <boost/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include <stdint.h>
@@ -1556,7 +1557,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     auto keys = denominations.getKeys();
 
     // collect all mints need to be created
-    std::vector<uint8_t> denoms;
+    std::vector<DenominationId> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
         if (denomId > UINT8_MAX) {
@@ -1568,8 +1569,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
         }
 
-        denoms.insert(denoms.end(),
-            static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
+        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<DenominationId>(denomId));
     }
 
     int64_t amount;
@@ -1583,9 +1583,12 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     RequireBalance(fromAddress, propertyId, amount);
 
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    std::vector<std::pair<DenominationId, SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
-    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
+
+    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+        mints.push_back(std::make_pair(m.denomination, m.key));
+    }));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
@@ -1627,61 +1630,74 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     }
 
     // obtain parameters & info
-    std::string toAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int denomination = params[2].get_int();
-    int64_t referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
+    auto toAddress = ParseAddress(params[0]);
+    auto propertyId = ParsePropertyId(params[1]);
+    auto denomination = ParseDenomination(params[2]);
+    auto referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
 
     // perform checks
     RequireExistingProperty(propertyId);
+    RequireExistingDenomination(propertyId, denomination);
     RequireSaneReferenceAmount(referenceAmount);
 
-    // collect all mints need to be created
-    if (denomination < 0 || denomination > UINT8_MAX) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
+    // create spend
+    auto mint = wallet->GetSpendableSigmaMint(propertyId, denomination);
+
+    if (!mint) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no coin to spend");
     }
 
-    // verify denominations
-    int64_t amount;
-    try {
-        std::vector<uint8_t> denoms = {static_cast<uint8_t>(denomination)};
-        amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
-    } catch (std::invalid_argument const &e) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
-    }
+    SigmaProof proof;
+    MintGroupIndex groupSize;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    LOCK(cs_tally);
-    auto coinOp = wallet->GetSpendableSigmaMint(propertyId, denomination);
-    if (coinOp == boost::none) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "no coin to spend");
-    }
+    std::tie(proof, groupSize) = CreateSigmaSpend(
+        (*mint).key,
+        (*mint).property,
+        (*mint).denomination,
+        (*mint).chainState.group
+    );
 
-    auto &coin = coinOp.get();
-    std::pair<SigmaProof, uint16_t> spend = CreateSigmaSpend(coin.privateKey, propertyId, coin.denomination, coin.chainState.group);
-    if (!VerifySigmaSpend(
-        propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first, sigma::Params::get_default())) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "fail to create proof");
-    }
-
-    auto payload = CreatePayload_SimpleSpend(propertyId, coin.denomination, coin.chainState.group, spend.second, spend.first);
+    auto spend = CreatePayload_SimpleSpend(
+        (*mint).property,
+        (*mint).denomination,
+        (*mint).chainState.group,
+        groupSize,
+        proof
+    );
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder("", toAddress, "", referenceAmount, payload, txid, rawHex, autoCommit, exodus::InputMode::SIGMA);
+    int result = WalletTxBuilder(
+        "",
+        toAddress,
+        "",
+        referenceAmount,
+        spend,
+        txid,
+        rawHex,
+        autoCommit,
+        InputMode::SIGMA
+    );
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
         throw JSONRPCError(result, error_str(result));
     } else {
         // mark the coin as used
-        wallet->SetSigmaMintUsedTransaction(coin.GetId(), txid);
+        wallet->SetSigmaMintUsedTransaction(SigmaMintId(*mint), txid);
 
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, "Spend", EXODUS_TYPE_SIMPLE_SPEND, propertyId, amount, false);
+            PendingAdd(
+                txid,
+                "Spend",
+                EXODUS_TYPE_SIMPLE_SPEND,
+                propertyId,
+                GetDenominationValue((*mint).property, (*mint).denomination),
+                false
+            );
             return txid.GetHex();
         }
     }
