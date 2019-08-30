@@ -44,6 +44,7 @@ A function with one or more operations.
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
+| [rpc](#rpc)                       | Call an RPC command, or return a list of them. | 🔐 | - | - |
 | [sendPrivate](#sendprivate)       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
 | [sendZcoin](#sendzcoin)           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
 | [setPassphrase](#setpassphrase)   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
@@ -561,6 +562,53 @@ OPTIONAL: not a necessary parameter to pass.
     }
 ```
 
+### `rpc`
+`get`:
+```
+    data: {
+    }
+```
+*Returns:*
+```
+    data: {
+        categories: [
+            "category" : {
+                [
+                    "command",
+                    "command",
+                    ...
+                ]
+            },
+            "category" : {
+                [
+                    "command",
+                    "command",
+                    ...
+                ]
+            },
+            ...
+        ]
+    }
+```
+
+`create`:
+```
+    data: {
+        "command": STRING
+        "args": STRING
+    }
+```
+*Returns:*
+```
+   data: {
+        "result": STRING,
+        "errored": BOOL
+    },
+    meta:{
+        status: 200
+    }
+```
+
 ### `sendPrivate`
 `create`:
 ```
@@ -1006,18 +1054,18 @@ OPTIONAL: not a necessary parameter to pass.
 ### `updateLabels`
 ```
     data: {
-          "txid": STRING,
-          "label": STRING
-      }
+        "txid": STRING,
+        "label": STRING
+    }
 ``` 
 *Returns:*
 ```
 { 
     data: {
-          "txid": STRING,
-          "label": STRING,
-          "address": STRING
-      }
+        "txid": STRING,
+        "label": STRING,
+        "address": STRING
+    }
     meta:{
        status: 200
     }
