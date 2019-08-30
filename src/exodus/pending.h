@@ -14,8 +14,7 @@ namespace exodus
 {
 //! Map of pending transaction objects
 typedef std::map<uint256, CMPPending> PendingMap;
-//! Guards my_pending
-extern CCriticalSection cs_pending;
+
 //! Global map of pending transaction objects
 extern PendingMap my_pending;
 

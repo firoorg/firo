@@ -1,13 +1,15 @@
-#include "exodus/createpayload.h"
+#include "../createpayload.h"
+#include "../exodus.h"
 
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../test/test_bitcoin.h"
+#include "../../utilstrencodings.h"
 
 #include <boost/test/unit_test.hpp>
 
-#include <stdint.h>
 #include <vector>
 #include <string>
+
+#include <inttypes.h>
 
 BOOST_FIXTURE_TEST_SUITE(exodus_create_payload_tests, BasicTestingSetup)
 

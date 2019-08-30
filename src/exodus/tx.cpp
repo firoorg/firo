@@ -1006,7 +1006,7 @@ int CMPTransaction::interpretPacket()
         return (PKT_ERROR -2);
     }
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (isAddressFrozen(sender, property)) {
         PrintToLog("%s(): REJECTED: address %s is frozen for property %d\n", __func__, sender, property);

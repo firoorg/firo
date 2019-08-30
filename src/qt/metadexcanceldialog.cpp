@@ -93,7 +93,7 @@ void MetaDExCancelDialog::ReinitUI()
  */
 void MetaDExCancelDialog::UpdateAddressSelector()
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     QString selectedItem = ui->fromCombo->currentText();
     ui->fromCombo->clear();
@@ -149,7 +149,7 @@ void MetaDExCancelDialog::UpdateCancelCombo()
     bool fMainEcosystem = false;
     bool fTestEcosystem = false;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (md_PropertiesMap::iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
         md_PricesMap & prices = my_it->second;
@@ -413,5 +413,3 @@ void MetaDExCancelDialog::SendCancelTransaction()
     }
 **/
 }
-
-

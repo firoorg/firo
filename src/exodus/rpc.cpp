@@ -70,7 +70,7 @@ UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
     CMPSPInfo::Entry info;
 
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
 
         if (!_my_sps->getSP(mint.property, info)) {
             throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
@@ -563,7 +563,7 @@ UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
     UniValue response(UniValue::VARR);
 
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         std::set<int> setSeedBlocks = p_txlistdb->GetSeedBlocks(startHeight, endHeight);
         for (std::set<int>::const_iterator it = setSeedBlocks.begin(); it != setSeedBlocks.end(); ++it) {
             response.push_back(*it);
@@ -636,7 +636,7 @@ UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_setautocommit", "false")
         );
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     autoCommit = params[0].get_bool();
     return autoCommit;
@@ -671,7 +671,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
     switch (extra) {
         case 0:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             int64_t total = 0;
             // display all balances
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
@@ -683,7 +683,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 1:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the whole CMPTxList (leveldb)
             p_txlistdb->printAll();
             p_txlistdb->printStats();
@@ -691,14 +691,14 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 2:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display smart properties
             _my_sps->printAll();
             break;
         }
         case 3:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             uint32_t id = 0;
             // for each address display all currencies it holds
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
@@ -714,7 +714,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 4:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
                 (it->second).print(it->first);
             }
@@ -722,19 +722,19 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 5:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             PrintToLog("isMPinBlockRange(%d,%d)=%s\n", extra2, extra3, isMPinBlockRange(extra2, extra3, false) ? "YES" : "NO");
             break;
         }
         case 6:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             MetaDEx_debug_print(true, true);
             break;
         }
         case 7:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the whole CMPTradeList (leveldb)
             t_tradelistdb->printAll();
             t_tradelistdb->printStats();
@@ -742,7 +742,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 8:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the STO receive list
             s_stolistdb->printAll();
             s_stolistdb->printStats();
@@ -751,7 +751,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         case 9:
         {
             PrintToLog("Locking cs_tally for %d milliseconds..\n", extra2);
-            LOCK(cs_tally);
+            LOCK(cs_main);
             MilliSleep(extra2);
             PrintToLog("Unlocking cs_tally now\n");
             break;
@@ -776,7 +776,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
 #endif
         case 14:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             p_feecache->printAll();
             p_feecache->printStats();
 
@@ -869,7 +869,7 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
     UniValue response(UniValue::VARR);
     bool isDivisible = isPropertyDivisible(propertyId); // we want to check this BEFORE the loop
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (std::unordered_map<std::string, CMPTally>::iterator it = mp_tally_map.begin(); it != mp_tally_map.end(); ++it) {
         uint32_t id = 0;
@@ -923,7 +923,7 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     CMPTally* addressTally = getTally(address);
 
@@ -989,7 +989,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (!_my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -1007,7 +1007,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     response.push_back(Pair("managedissuance", sp.manual));
     if (sp.manual) {
         int currentBlock = GetHeight();
-        LOCK(cs_tally);
+        LOCK(cs_main);
         response.push_back(Pair("freezingenabled", isFreezingEnabled(propertyId, currentBlock)));
     }
     response.push_back(Pair("totaltokens", strTotalTokens));
@@ -1058,7 +1058,7 @@ UniValue exodus_listproperties(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     uint32_t nextSPID = _my_sps->peekNextSPID(1);
     for (uint32_t propertyId = 1; propertyId < nextSPID; propertyId++) {
@@ -1138,7 +1138,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (!_my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -1159,7 +1159,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
     if (active) {
         bool crowdFound = false;
 
-        LOCK(cs_tally);
+        LOCK(cs_main);
 
         for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
             const CMPCrowd& crowd = it->second;
@@ -1259,7 +1259,7 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK2(cs_main, cs_tally);
+    LOCK(cs_main);
 
     for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
         const CMPCrowd& crowd = it->second;
@@ -1338,7 +1338,7 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (false == _my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -1431,7 +1431,7 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
 
     std::vector<CMPMetaDEx> vecMetaDexObjects;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         for (md_PropertiesMap::const_iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
             const md_PricesMap& prices = my_it->second;
             for (md_PricesMap::const_iterator it = prices.begin(); it != prices.end(); ++it) {
@@ -1514,7 +1514,7 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
     // Obtain a sorted vector of txids for the address trade history
     std::vector<uint256> vecTransactions;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         t_tradelistdb->getTradesForAddress(address, vecTransactions, propertyId);
     }
 
@@ -1576,7 +1576,7 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
 
     // request pair trade history from trade db
     UniValue response(UniValue::VARR);
-    LOCK(cs_tally);
+    LOCK(cs_main);
     t_tradelistdb->getTradesForPair(propertyIdSideA, propertyIdSideB, response, count);
     return response;
 }
@@ -1629,7 +1629,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
 
     int curBlock = GetHeight();
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (OfferMap::iterator it = my_offers.begin(); it != my_offers.end(); ++it) {
         const CMPOffer& selloffer = it->second;
@@ -1743,7 +1743,7 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
     // now we want to loop through each of the transactions in the block and run against CMPTxList::exists
     // those that return positive add to our response array
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     BOOST_FOREACH(const CTransaction&tx, block.vtx) {
         if (p_txlistdb->exists(tx.GetHash())) {
@@ -2072,7 +2072,7 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
     int block = GetHeight();
     int64_t blockTime = GetLatestBlockTime();
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     int blockMPTransactions = p_txlistdb->getMPTransactionCountBlock(block);
     int totalMPTransactions = p_txlistdb->getMPTransactionCountTotal();

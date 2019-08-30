@@ -44,7 +44,7 @@ void RequirePropertyName(const std::string& name)
 
 void RequireExistingProperty(uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (!exodus::IsPropertyIdValid(propertyId)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
     }
@@ -66,7 +66,7 @@ void RequireDifferentIds(uint32_t propertyId, uint32_t otherId)
 
 void RequireCrowdsale(uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     CMPSPInfo::Entry sp;
     if (!exodus::_my_sps->getSP(propertyId, sp)) {
         throw JSONRPCError(RPC_DATABASE_ERROR, "Failed to retrieve property");
@@ -78,7 +78,7 @@ void RequireCrowdsale(uint32_t propertyId)
 
 void RequireActiveCrowdsale(uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (!exodus::isCrowdsaleActive(propertyId)) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Property identifier does not refer to an active crowdsale");
     }
@@ -86,7 +86,7 @@ void RequireActiveCrowdsale(uint32_t propertyId)
 
 void RequireManagedProperty(uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     CMPSPInfo::Entry sp;
     if (!exodus::_my_sps->getSP(propertyId, sp)) {
         throw JSONRPCError(RPC_DATABASE_ERROR, "Failed to retrieve property");
@@ -98,7 +98,7 @@ void RequireManagedProperty(uint32_t propertyId)
 
 void RequireTokenIssuer(const std::string& address, uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     CMPSPInfo::Entry sp;
     if (!exodus::_my_sps->getSP(propertyId, sp)) {
         throw JSONRPCError(RPC_DATABASE_ERROR, "Failed to retrieve property");
@@ -110,7 +110,7 @@ void RequireTokenIssuer(const std::string& address, uint32_t propertyId)
 
 void RequireMatchingDExOffer(const std::string& address, uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (!exodus::DEx_offerExists(address, propertyId)) {
         throw JSONRPCError(RPC_TYPE_ERROR, "No matching sell offer on the distributed exchange");
     }
@@ -118,7 +118,7 @@ void RequireMatchingDExOffer(const std::string& address, uint32_t propertyId)
 
 void RequireNoOtherDExOffer(const std::string& address, uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (exodus::DEx_offerExists(address, propertyId)) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Another active sell offer from the given address already exists on the distributed exchange");
     }
@@ -133,7 +133,7 @@ void RequireSaneReferenceAmount(int64_t amount)
 
 void RequireSaneDExPaymentWindow(const std::string& address, uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     const CMPOffer* poffer = exodus::DEx_getOffer(address, propertyId);
     if (poffer == NULL) {
         throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to load sell offer from the distributed exchange");
@@ -145,7 +145,7 @@ void RequireSaneDExPaymentWindow(const std::string& address, uint32_t propertyId
 
 void RequireSaneDExFee(const std::string& address, uint32_t propertyId)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     const CMPOffer* poffer = exodus::DEx_getOffer(address, propertyId);
     if (poffer == NULL) {
         throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to load sell offer from the distributed exchange");

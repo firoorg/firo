@@ -28,7 +28,7 @@ bool IsSigmaEnabled(uint32_t propertyId)
 
 int TxProcessor::ProcessTx(CMPTransaction& tx)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     tx.unlockLogic();
 
