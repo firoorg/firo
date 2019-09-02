@@ -8,11 +8,14 @@
 #include "tx.h"
 
 #include <GroupElement.h>
+#include "../clientversion.h"
 #include "../tinyformat.h"
+#include "../streams.h"
 
 #include <boost/filesystem.hpp>
 
 #include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 
 #include <string>
 #include <vector>
@@ -21,7 +24,8 @@ enum class KeyType : uint8_t
 {
     Mint = 0,
     Sequence = 1,
-    GroupSize = 2
+    GroupSize = 2,
+    SpendSerial = 3
 };
 
 template<typename ... T>
@@ -45,8 +49,17 @@ It SerializeKey(It it)
     return it;
 }
 
-template<typename It, typename T, typename ...R>
-It SerializeKey(It it, T t, R ...r)
+template<typename It, typename ArrT, size_t ArrS, typename ...R>
+It SerializeKey(It it, std::array<ArrT, ArrS> t, R ...r)
+{
+    it = std::copy(t.begin(), t.end(), it);
+    return SerializeKey(it, r...);
+}
+
+template<
+    typename It, typename T, typename ...R,
+    typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr
+> It SerializeKey(It it, T t, R ...r)
 {
     if (sizeof(t) > 1) {
         exodus::swapByteOrder(t);
@@ -96,6 +109,49 @@ std::array<uint8_t, GROUPSIZE_KEY_SIZE> CreateGroupSizeKey()
     return CreateKey(KeyType::GroupSize);
 }
 
+typedef std::array<uint8_t, 32> SpendSerial;
+
+// array size represent size of key
+// <1 byte of type><4 bytes of property Id><1 byte of denomination><32 bytes of serials>
+#define SPEND_KEY_SIZE sizeof(KeyType) + sizeof(uint32_t) + sizeof(uint8_t) + std::tuple_size<SpendSerial>::value
+std::array<uint8_t, SPEND_KEY_SIZE> CreateSpendSerialKey(
+    uint32_t propertyId,
+    uint8_t denomination,
+    SpendSerial const &serial)
+{
+    return CreateKey(KeyType::SpendSerial, propertyId, denomination, serial);
+}
+
+inline bool IsMintKey(leveldb::Slice const &key)
+{
+    return key.size() == MINT_KEY_SIZE && key[0] == static_cast<char>(KeyType::Mint);
+}
+
+inline bool IsMintEntry(leveldb::Iterator *it)
+{
+    return IsMintKey(it->key());
+}
+
+inline bool IsSequenceKey(leveldb::Slice const &key)
+{
+    return key.size() == SEQUENCE_KEY_SIZE && key[0] == static_cast<char>(KeyType::Sequence);
+}
+
+inline bool IsSequenceEntry(leveldb::Iterator *it)
+{
+    return IsSequenceKey(it->key());
+}
+
+inline bool IsSpendSerialKey(leveldb::Slice const &key)
+{
+    return key.size() == SPEND_KEY_SIZE && key[0] == static_cast<char>(KeyType::SpendSerial);
+}
+
+inline bool IsSpendSerialEntry(leveldb::Iterator *it)
+{
+    return IsSpendSerialKey(it->key());
+}
+
 template<size_t S>
 leveldb::Slice GetSlice(const std::array<uint8_t, S>& v)
 {
@@ -108,26 +164,19 @@ leveldb::Slice GetSlice(const std::vector<T>& v)
     return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
 }
 
-std::pair<exodus::SigmaPublicKey, int32_t> ParseMint(const std::string& val)
+exodus::SigmaPublicKey ParseMint(const std::string& val)
 {
-    if (val.size() !=
-        secp_primitives::GroupElement::serialize_size + sizeof(int32_t)) {
-            throw std::runtime_error("ParseMint() : invalid key size");
+    if (val.size() != secp_primitives::GroupElement::serialize_size) {
+        throw std::runtime_error("ParseMint() : invalid key size");
     }
 
-    auto ptr = reinterpret_cast<const unsigned char*>(val.data());
-
     secp_primitives::GroupElement commitment;
-    ptr = commitment.deserialize(ptr);
-
-    int32_t height(0);
-
-    std::memcpy(&height, ptr, sizeof(height));
+    commitment.deserialize(reinterpret_cast<const unsigned char*>(val.data()));
 
     exodus::SigmaPublicKey pubKey;
     pubKey.SetCommitment(commitment);
 
-    return {pubKey, height};
+    return pubKey;
 }
 
 bool ParseMintKey(
@@ -153,6 +202,17 @@ bool ParseMintKey(
     return false;
 }
 
+SpendSerial SerializeSpendSerial(secp_primitives::Scalar const &serial)
+{
+    SpendSerial s;
+    if (serial.memoryRequired() != std::tuple_size<SpendSerial>::value) {
+        throw std::invalid_argument("serial size is invalid");
+    }
+
+    serial.serialize(s.data());
+    return s;
+}
+
 void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 {
     it->Seek(key);
@@ -164,6 +224,8 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 }
 
 namespace exodus {
+
+constexpr uint16_t CMPMintList::MAX_GROUP_SIZE;
 
 // Database structure
 // Index height and commitment
@@ -183,11 +245,11 @@ CMPMintList::~CMPMintList()
     if (exodus_debug_persistence) PrintToLog("CMPMintList closed\n");
 }
 
-std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
-    uint32_t propertyId,
-    uint8_t denomination,
-    const exodus::SigmaPublicKey& pubKey,
-    int32_t height)
+std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
+    PropertyId propertyId,
+    DenominationId denomination,
+    const SigmaPublicKey& pubKey,
+    int height)
 {
     // Logic:
     // Get next group id and index for new pubkey by get last group id and amount of coin in group
@@ -203,7 +265,7 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     if (mints > groupSize) {
         throw std::runtime_error("mints count is exceed group limit");
     }
-    uint16_t nextIdx = mints;
+    auto nextIdx = mints;
 
     if (mints == groupSize) {
         lastGroup++;
@@ -211,24 +273,79 @@ std::pair<uint32_t, uint16_t> CMPMintList::RecordMint(
     }
 
     auto keyData = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
-    leveldb::Slice key = GetSlice(keyData);
+    auto key = GetSlice(keyData);
 
-    auto const &commitment = pubKey.GetCommitment();
+    auto& commitment = pubKey.GetCommitment();
 
-    std::vector<uint8_t> buffer(commitment.memoryRequired() + sizeof(height));
-    auto ptr = buffer.data();
-    ptr = commitment.serialize(ptr);
-    std::memcpy(ptr, &height, sizeof(height));
+    std::vector<uint8_t> buffer(commitment.memoryRequired()); // mint
+    commitment.serialize(buffer.data());
 
-    pdb->Put(writeoptions, key, GetSlice(buffer));
+    auto status = pdb->Put(writeoptions, key, GetSlice(buffer));
+    if (!status.ok()) {
+        throw std::runtime_error("fail to store mint");
+    }
 
     // Store key
-    RecordMintKey(key);
+    RecordKeyCreationHistory(height, key);
 
-    return {lastGroup, nextIdx};
+    MintAdded(propertyId, denomination, lastGroup, nextIdx, pubKey, height);
+
+    return std::make_pair(lastGroup, nextIdx);
 }
 
-void CMPMintList::DeleteAll(int32_t startBlock)
+void CMPMintList::RecordSpendSerial(
+    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
+{
+    auto serialData = SerializeSpendSerial(serial);
+    auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
+    auto status = pdb->Put(writeoptions, GetSlice(keyData), leveldb::Slice());
+    if (!status.ok()) {
+        throw std::runtime_error("record serial fail");
+    }
+
+    // Store key
+    RecordKeyCreationHistory(height, GetSlice(keyData));
+}
+
+// operation code of histories
+enum class OpCode : uint8_t
+{
+    StoreMint = 0,
+    StoreSpendSerial = 1
+};
+
+class History
+{
+public:
+    History()
+    {
+    }
+
+    History(int32_t block, OpCode op, std::vector<uint8_t> const &data)
+        : block(block), op(op), data(data.begin(), data.end())
+    {
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        auto op = static_cast<uint8_t>(this->op);
+
+        READWRITE(block);
+        READWRITE(op);
+        READWRITE(data);
+
+        this->op = static_cast<OpCode>(op);
+    }
+
+    int32_t block;
+    OpCode op;
+    std::vector<uint8_t> data;
+};
+
+void CMPMintList::DeleteAll(int startBlock)
 {
     auto nextSequence = GetNextSequence();
     if (nextSequence == 0) {
@@ -236,59 +353,107 @@ void CMPMintList::DeleteAll(int32_t startBlock)
         return;
     }
 
+    // Seek to most recent history.
     auto lastSequence = nextSequence - 1;
-
     auto sequenceKey = CreateSequenceKey(lastSequence);
 
     auto it = NewIterator();
     it->Seek(GetSlice(sequenceKey));
 
-    std::vector<std::string> keyToDeletes;
+    leveldb::WriteBatch batch;
+    std::vector<std::function<void()>> defers; // functions to be called after delete whole keys
+    for (; it->Valid() && IsSequenceEntry(it.get()); it->Prev()) {
 
-    // Logic:
-    // Start from last block
-    // Store key to mint and key to key of mint which need to delete to vector
-    // Then decrase mint count by 1
-    // If mint count of the group reach to 0 then decrase group Id of denomination
+        CDataStream deserialized(
+            it->value().data(),
+            it->value().data() + it->value().size(),
+            SER_DISK, CLIENT_VERSION
+        );
 
-    while (it->Valid() &&
-        (it->key().size() > 0 && it->key().data()[0] == static_cast<char>(KeyType::Sequence))) {
+        // Check if it need to delete then push it to batch
+        History entry;
+        deserialized >> entry;
 
-        int32_t mintBlock;
-        std::string mintData;
-        auto status = pdb->Get(readoptions, it->value(), &mintData);
-        if (!status.ok()) {
-            throw std::runtime_error("DeleteAll() : fail to read mint from sequence");
-        }
-
-        std::tie(std::ignore, mintBlock) = ParseMint(mintData);
-        if (mintBlock >= startBlock) {
-            keyToDeletes.emplace_back(it->key().ToString());
-            keyToDeletes.emplace_back(it->value().ToString());
-        } else {
+        if (entry.block < startBlock) {
+            // We iterate in the latest to oldest that mean we can stop as soon as we found it block number is lower
+            // than theshold.
             break;
         }
 
-        it->Prev();
+        // intentionally using if instead of switch to separate scope
+        if (entry.op == OpCode::StoreMint) {
+            auto key = GetSlice(entry.data);
+
+            // retrieve meta data of mint
+            uint32_t propertyId;
+            uint8_t denomination;
+            uint32_t groupId;
+            uint16_t count;
+            if (!ParseMintKey(key, propertyId, denomination, groupId, count)) {
+                throw std::runtime_error("fail to parse mint key");
+            }
+
+            // get commitment
+            std::string data;
+            auto status = pdb->Get(readoptions, key, &data);
+            if (!status.ok()) {
+                throw std::runtime_error("fail to get mint");
+            }
+            CDataStream pubkeyDeserialized(data.data(), data.data() + data.size(), SER_DISK, CLIENT_VERSION);
+            SigmaPublicKey pub;
+            pubkeyDeserialized >> pub;
+
+            // function to trigger event
+            defers.push_back([this, propertyId, denomination, pub]() {
+                MintRemoved(propertyId, denomination, pub);
+            });
+
+            batch.Delete(GetSlice(entry.data));
+        } else if (entry.op == OpCode::StoreSpendSerial) {
+            batch.Delete(GetSlice(entry.data));
+        } else {
+            throw std::runtime_error("opcode is invalid");
+        }
+
+        batch.Delete(it->key());
     }
 
-    for (auto const & key : keyToDeletes) {
-        auto status = pdb->Delete(writeoptions, key);
-        if (!status.ok()) {
-            throw std::runtime_error("DeleteAll() : fail to delete a key");
-        }
+    auto status = pdb->Write(syncoptions, &batch);
+    if (!status.ok()) {
+        throw std::runtime_error("Fail to update database");
+    }
+
+    for (auto &defer : defers) {
+        defer();
     }
 }
 
-void CMPMintList::RecordMintKey(const leveldb::Slice& mintKey)
+void CMPMintList::RecordKeyCreationHistory(int height, leveldb::Slice const &key)
 {
     auto nextSequence = GetNextSequence();
 
-    auto key = CreateSequenceKey(nextSequence);
-    auto status = pdb->Put(writeoptions, GetSlice(key), mintKey);
+    History h;
+    if (IsSpendSerialKey(key)) {
+        h.op = OpCode::StoreSpendSerial;
+    } else if (IsMintKey(key)) {
+        h.op = OpCode::StoreMint;
+    } else {
+        throw std::invalid_argument("RecordKeyCreationHistory() : not found key type");
+    }
+
+    h.block = height;
+    h.data.resize(key.size());
+    std::copy_n(key.data(), key.size(), reinterpret_cast<char*>(h.data.data()));
+
+    CDataStream serialized(SER_DISK, CLIENT_VERSION);
+    serialized << h;
+
+    auto sequenceKey = CreateSequenceKey(nextSequence);
+    auto status = pdb->Put(writeoptions, GetSlice(sequenceKey), leveldb::Slice(&serialized[0], serialized.size()));
 
     if (!status.ok()) {
         LogPrintf("%s: Store last exodus mint sequence fail\n", __func__);
+        throw std::runtime_error("fail to record sequence");
     }
 }
 
@@ -384,8 +549,7 @@ size_t CMPMintList::GetAnonimityGroup(
             throw std::runtime_error("GetAnonimityGroup() : coin index is out of order");
         }
 
-        exodus::SigmaPublicKey pub;
-        std::tie(pub, std::ignore) = ParseMint(it->value().ToString());
+        auto pub = ParseMint(it->value().ToString());
 
         if (!pub.GetCommitment().isMember()) {
             throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
@@ -469,7 +633,7 @@ uint64_t CMPMintList::GetNextSequence()
     return nextSequence;
 }
 
-std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
+exodus::SigmaPublicKey CMPMintList::GetMint(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
@@ -486,6 +650,25 @@ std::pair<exodus::SigmaPublicKey, int32_t> CMPMintList::GetMint(
     }
 
     throw std::runtime_error("not found sigma mint");
+}
+
+bool CMPMintList::HasSpendSerial(
+    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
+{
+    auto serialData = SerializeSpendSerial(serial);
+    auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
+    std::string data;
+    auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
+
+    if (status.ok()) {
+        return true;
+    }
+
+    if (status.IsNotFound()) {
+        return false;
+    }
+
+    throw std::runtime_error("Error on serial checking");
 }
 
 std::unique_ptr<leveldb::Iterator> CMPMintList::NewIterator() const

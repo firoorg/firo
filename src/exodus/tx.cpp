@@ -172,8 +172,11 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_CREATE_DENOMINATION:
             return interpret_CreateDenomination();
 
-        case EXODUS_TYPE_SIGMA_SIMPLE_MINT:
+        case EXODUS_TYPE_SIMPLE_MINT:
             return interpret_SimpleMint();
+
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            return interpret_SimpleSpend();
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
@@ -803,6 +806,47 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     return true;
 }
 
+/** Tx 1024 */
+bool CMPTransaction::interpret_SimpleSpend()
+{
+    if (pkt_size < 15) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    swapByteOrder(property);
+    memcpy(&denomination, &pkt[8], 1);
+    memcpy(&group, &pkt[9], 4);
+    swapByteOrder(group);
+    memcpy(&groupSize, &pkt[13], 2);
+    swapByteOrder(groupSize);
+
+    CDataStream serialized(
+        reinterpret_cast<char*>(&pkt[15]),
+        reinterpret_cast<char*>(&pkt[pkt_size]),
+        SER_NETWORK, PROTOCOL_VERSION
+    );
+
+    try {
+        serialized >> spend;
+    } catch (std::ios_base::failure&) {
+        PrintToLog("\tsize of data is less than spend size");
+        return false;
+    }
+
+    if (!serialized.eof()) {
+        PrintToLog("\tsize of data exceed spend size");
+        return false;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
+    }
+
+    return true;
+}
+
 /** Tx 1025 */
 bool CMPTransaction::interpret_CreateDenomination()
 {
@@ -826,7 +870,7 @@ bool CMPTransaction::interpret_CreateDenomination()
 /** Tx 1026 */
 bool CMPTransaction::interpret_SimpleMint()
 {
-    constexpr size_t exodusMintSize = 35;
+    constexpr int exodusMintSize = 35;
 
     if (pkt_size < 9 + exodusMintSize) {
         return false;
@@ -2492,7 +2536,7 @@ int CMPTransaction::logicMath_CreateDenomination()
         return PKT_ERROR_TOKENS - 901;
     }
 
-    if (sp.denominations.size() >= EXODUS_MAX_DENOMINATIONS) {
+    if (sp.denominations.size() >= MAX_DENOMINATIONS) {
         PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
         return PKT_ERROR_TOKENS - 902;
     }

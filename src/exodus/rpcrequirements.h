@@ -24,6 +24,12 @@ void RequireSaneDExFee(const std::string& address, uint32_t propertyId);
 void RequireHeightInChain(int blockHeight);
 void RequireSigmaStatus(SigmaStatus status);
 
+namespace exodus {
+
+void RequireExistingDenomination(PropertyId property, DenominationId denomination);
+
+}
+
 // TODO:
 // Checks for MetaDEx orders for cancel operations
 

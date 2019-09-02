@@ -1,6 +1,8 @@
 #ifndef SCALAR_H__
 #define SCALAR_H__
 
+#include <array>
+#include <functional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -124,5 +126,20 @@ private:
 };
 
 } // namespace secp_primitives
+
+namespace std {
+
+using namespace secp_primitives;
+
+template<>
+struct hash<Scalar> {
+    size_t operator()(const Scalar& s) const {
+        array<unsigned char, 32> d;
+        s.serialize(d.data());
+        return hash<string>()(string(d.begin(), d.end()));
+    }
+};
+
+} // namespace std
 
 #endif // SCALAR_H__

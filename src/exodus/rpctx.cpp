@@ -25,6 +25,7 @@
 
 #include <univalue.h>
 
+#include <boost/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include <stdint.h>
@@ -1561,7 +1562,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     auto keys = denominations.getKeys();
 
     // collect all mints need to be created
-    std::vector<uint8_t> denoms;
+    std::vector<DenominationId> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
         if (denomId > UINT8_MAX) {
@@ -1573,8 +1574,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
         }
 
-        denoms.insert(denoms.end(),
-            static_cast<size_t>(amount), static_cast<uint8_t>(denomId));
+        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<DenominationId>(denomId));
 
         int remainingConfirms;
         try {
@@ -1593,18 +1593,20 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     int64_t amount;
     try {
         amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
-    } catch (const std::invalid_argument& e) {
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    } catch (std::overflow_error const &e) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
     }
 
     RequireBalance(fromAddress, propertyId, amount);
 
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    std::vector<std::pair<DenominationId, SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
-    {
-        exodus::Wallet wallet(pwalletMain->strWalletFile);
-        wallet.CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), std::back_inserter(mints));
-    }
+
+    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+        mints.push_back(std::make_pair(m.denomination, m.key));
+    }));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
 
@@ -1620,11 +1622,105 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIGMA_SIMPLE_MINT, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
             return txid.GetHex();
         }
     }
 }
+
+UniValue exodus_sendspend(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 4) {
+        throw std::runtime_error(
+            "exodus_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
+            "\nCreate spend.\n"
+            "\nArguments:\n"
+            "1. toaddress                    (string, required) the address to spend to\n"
+            "2. propertyid                   (number, required) the property to spend\n"
+            "3. denomination                 (number, required) the id of the denomination need to spend\n"
+            "4. referenceamount              (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
+        );
+    }
+
+    // obtain parameters & info
+    auto toAddress = ParseAddress(params[0]);
+    auto propertyId = ParsePropertyId(params[1]);
+    auto denomination = ParseDenomination(params[2]);
+    auto referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireExistingDenomination(propertyId, denomination);
+    RequireSaneReferenceAmount(referenceAmount);
+
+    // create spend
+    auto mint = wallet->GetSpendableSigmaMint(propertyId, denomination);
+
+    if (!mint) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no coin to spend");
+    }
+
+    SigmaProof proof;
+    MintGroupIndex groupSize;
+
+    std::tie(proof, groupSize) = CreateSigmaSpend(
+        (*mint).key,
+        (*mint).property,
+        (*mint).denomination,
+        (*mint).chainState.group
+    );
+
+    auto spend = CreatePayload_SimpleSpend(
+        (*mint).property,
+        (*mint).denomination,
+        (*mint).chainState.group,
+        groupSize,
+        proof
+    );
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(
+        "",
+        toAddress,
+        "",
+        referenceAmount,
+        spend,
+        txid,
+        rawHex,
+        autoCommit,
+        InputMode::SIGMA
+    );
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        // mark the coin as used
+        wallet->SetSigmaMintUsedTransaction(SigmaMintId(*mint), txid);
+
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            PendingAdd(
+                txid,
+                "Spend",
+                EXODUS_TYPE_SIMPLE_SPEND,
+                propertyId,
+                GetDenominationValue((*mint).property, (*mint).denomination),
+                false
+            );
+            return txid.GetHex();
+        }
+    }
+}
+
 
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
@@ -1655,6 +1751,7 @@ static const CRPCCommand commands[] =
     { "hidden",                         "exodus_sendalert",                 &exodus_sendalert,                  true  },
     { "exodus (transaction creation)",  "exodus_sendcreatedenomination",    &exodus_sendcreatedenomination,     false },
     { "exodus (transaction creation)",  "exodus_sendmint",                  &exodus_sendmint,                   false },
+    { "exodus (transaction creation)",  "exodus_sendspend",                 &exodus_sendspend,                  false },
 
     /* depreciated: */
     { "hidden",                         "sendrawtx_MP",                     &exodus_sendrawtx,                  false },

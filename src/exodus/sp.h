@@ -1,28 +1,31 @@
 #ifndef ZCOIN_EXODUS_SP_H
 #define ZCOIN_EXODUS_SP_H
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/persistence.h"
+#include "exodus.h"
+#include "log.h"
+#include "persistence.h"
 
-class CBlockIndex;
-class uint256;
-
-#include "serialize.h"
+#include "../serialize.h"
 
 #include <boost/filesystem.hpp>
 
 #include <openssl/sha.h>
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <fstream>
 #include <ios>
+#include <limits>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdio.h>
+
+namespace exodus {
+
+constexpr size_t MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
 
 enum class SigmaStatus : uint8_t {
     SoftDisabled    = 0,
@@ -30,6 +33,8 @@ enum class SigmaStatus : uint8_t {
     HardDisabled    = 2,
     HardEnabled     = 3
 };
+
+} // namespace exodus
 
 /** LevelDB based storage for currencies, smart properties and tokens.
  *
@@ -261,6 +266,8 @@ std::string getPropertyName(uint32_t propertyId);
 bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
 bool IsSigmaStatusValid(SigmaStatus status);
+bool IsDenominationValid(PropertyId property, DenominationId denomination);
+int64_t GetDenominationValue(PropertyId property, DenominationId denomination);
 
 CMPCrowd* getCrowd(const std::string& address);
 
@@ -292,6 +299,10 @@ int64_t SumDenominationsValue(uint32_t property, InputItr begin, InputItr end)
     for (auto it = begin; it != end; it++) {
         if (*it >= sp.denominations.size()) {
             throw std::invalid_argument("the denomination not found");
+        }
+
+        if (sp.denominations[*it] > static_cast<int64_t>(MAX_INT_8_BYTES) - amount) {
+            throw std::overflow_error("summation of mints is overflow");
         }
 
         amount += sp.denominations[*it];

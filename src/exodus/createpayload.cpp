@@ -1,13 +1,14 @@
 #include "createpayload.h"
 
 #include "convert.h"
-#include "exodus.h"
 #include "sigma.h"
+#include "tx.h"
 #include "utils.h"
 
 #include "../clientversion.h"
 #include "../tinyformat.h"
 #include "../streams.h"
+#include "../version.h"
 
 #include <string>
 #include <vector>
@@ -577,7 +578,7 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SIGMA_SIMPLE_MINT;
+    uint16_t messageType = EXODUS_TYPE_SIMPLE_MINT;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);
@@ -601,6 +602,33 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
     for (auto const &mint : mints) {
         serialized << mint;
     }
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
+
+    return payload;
+}
+
+std::vector<unsigned char> CreatePayload_SimpleSpend(
+    uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t groupSize, exodus::SigmaProof const &proof)
+{
+    std::vector<unsigned char> payload;
+    uint16_t messageVer = 0;
+    uint16_t messageType = EXODUS_TYPE_SIMPLE_SPEND;
+    exodus::swapByteOrder(messageVer);
+    exodus::swapByteOrder(messageType);
+    exodus::swapByteOrder(propertyId);
+    exodus::swapByteOrder(group);
+    exodus::swapByteOrder(groupSize);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, denomination);
+    PUSH_BACK_BYTES(payload, group);
+    PUSH_BACK_BYTES(payload, groupSize);
+
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;

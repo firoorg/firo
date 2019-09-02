@@ -159,6 +159,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "exodus_listtransactions", 2 },
 	{ "exodus_listtransactions", 3 },
 	{ "exodus_listtransactions", 4 },
+	{ "exodus_listmints", 0 },
+	{ "exodus_listmints", 1 },
+	{ "exodus_listmints", 2 },
 	{ "exodus_getallbalancesforid", 0 },
 	{ "exodus_listblocktransactions", 0 },
 	{ "exodus_getorderbook", 0 },
@@ -223,6 +226,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "exodus_sendmint", 1 },
 	{ "exodus_sendmint", 2 },
 	{ "exodus_sendmint", 3 },
+	{ "exodus_sendspend", 1 },
+	{ "exodus_sendspend", 2 },
 
 	/* Exodus - raw transaction calls */
 	{ "exodus_decodetransaction", 1 },

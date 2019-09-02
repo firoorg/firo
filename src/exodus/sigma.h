@@ -11,18 +11,19 @@
 
 #include <boost/optional.hpp>
 
-#include <cinttypes>
+#include <functional>
 #include <iterator>
+#include <ostream>
 #include <stdexcept>
 #include <vector>
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stddef.h>
 
 namespace exodus {
 
 // Sigma Cryptographic Primitives.
-
 class SigmaPrivateKey
 {
 public:
@@ -93,9 +94,9 @@ public:
     const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& GetProof() const { return proof; }
 
     template<typename Iterator>
-    bool Verify(Iterator begin, Iterator end)
+    bool Verify(sigma::Params const *params, Iterator begin, Iterator end)
     {
-        assert(proof.params);
+        proof.params = params;
 
         // Create commitment set.
         auto gs = (proof.params->get_g() * serial).inverse();
@@ -149,7 +150,7 @@ public:
             commits.emplace_back(commit + gs);
         }
 
-        if (!index) {
+        if (index == boost::none) {
             throw std::invalid_argument("No commitment for private key in the set");
         }
 
@@ -164,15 +165,73 @@ public:
         prover.proof(commits, *index, priv.GetRandomness(), proof);
     }
 
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(serial);
+        READWRITE(proof);
+    }
+
 private:
     secp_primitives::Scalar serial;
     sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 };
 
 // Exodus Specific.
-
 typedef std::uint8_t DenominationId;
 
+std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
+    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
+bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params);
+
 } // namespace exodus
+
+namespace std {
+
+using namespace exodus;
+
+// std::hash specialization.
+
+template<>
+struct hash<SigmaPrivateKey>
+{
+    size_t operator()(const SigmaPrivateKey& k) const
+    {
+        size_t h = 0;
+
+        h ^= hash<secp_primitives::Scalar>()(k.GetSerial());
+        h ^= hash<secp_primitives::Scalar>()(k.GetRandomness());
+
+        return h;
+    }
+};
+
+template<>
+struct hash<SigmaPublicKey>
+{
+    size_t operator()(const SigmaPublicKey& k) const
+    {
+        return k.GetCommitment().hash();
+    }
+};
+
+// basic_ostream supports.
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPrivateKey& k)
+{
+    return os << "{serial: " << k.GetSerial().GetHex() << ", randomness: " << k.GetRandomness().GetHex() << '}';
+}
+
+template<class Char, class Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPublicKey& k)
+{
+    return os << "{commitment: " << k.GetCommitment().tostring() << '}';
+}
+
+} // namespace std
 
 #endif // ZCOIN_EXODUS_SIGMA_H
