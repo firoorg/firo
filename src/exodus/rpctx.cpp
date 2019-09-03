@@ -1527,9 +1527,9 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
 
 UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3) {
+    if (fHelp || params.size() < 3 || params.size() > 4) {
         throw std::runtime_error(
-            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...}\n"
+            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
             "\nCreate mints.\n"
             "\nArguments:\n"
             "1. fromaddress                  (string, required) the address to send from\n"
@@ -1539,6 +1539,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             "      denomination:amount       (number) The denomination id, the amount of mints\n"
             "      ,...\n"
             "    }\n"
+            "4. denomminconf                 (number, optional, default=6) Allow only denominations with at least this many confirmations\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -1551,6 +1552,10 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     std::string fromAddress = ParseAddress(params[0]);
     uint32_t propertyId = ParsePropertyId(params[1]);
     UniValue denominations = params[2].get_obj();
+    int minConfirms = 6;
+    if (params.size() > 3) {
+        minConfirms = params[3].get_int();
+    }
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1570,6 +1575,19 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         }
 
         denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<DenominationId>(denomId));
+
+        int remainingConfirms;
+        try {
+            LOCK(cs_tally);
+            remainingConfirms = _my_sps->getDenominationRemainingConfirmation(propertyId, denomId, minConfirms);
+        } catch (std::invalid_argument const &e) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+        }
+
+        if (remainingConfirms) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                "confirmations of the denomination is less than required");
+        }
     }
 
     int64_t amount;
