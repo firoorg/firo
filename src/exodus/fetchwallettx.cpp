@@ -116,8 +116,8 @@ std::map<std::string, uint256> FetchWalletExodusTransactions(unsigned int count,
     }
 
     // Insert pending transactions (sets block as 999999 and position as wallet position)
-    // TODO: resolve potential deadlock caused by cs_wallet, cs_pending
-    // LOCK(cs_pending);
+    LOCK(cs_main);
+
     for (PendingMap::const_iterator it = my_pending.begin(); it != my_pending.end(); ++it) {
         const uint256& txHash = it->first;
         int blockHeight = 999999;

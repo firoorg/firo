@@ -748,14 +748,6 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
             s_stolistdb->printStats();
             break;
         }
-        case 9:
-        {
-            PrintToLog("Locking cs_tally for %d milliseconds..\n", extra2);
-            LOCK(cs_main);
-            MilliSleep(extra2);
-            PrintToLog("Unlocking cs_tally now\n");
-            break;
-        }
         case 10:
         {
             PrintToLog("Locking cs_main for %d milliseconds..\n", extra2);
