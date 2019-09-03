@@ -2,6 +2,7 @@
 #include "sigma.h"
 
 #include "../sigma/sigma_primitives.h"
+#include "../main.h"
 
 #include <stdexcept>
 
@@ -114,7 +115,7 @@ void SigmaProof::SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, s
 std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     std::vector<SigmaPublicKey> coins;
     p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
@@ -137,7 +138,7 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
 bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, SigmaProof &proof, sigma::Params const *params)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     std::vector<SigmaPublicKey> coins;
     coins.reserve(groupSize);

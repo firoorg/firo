@@ -98,8 +98,6 @@ using std::vector;
 
 using namespace exodus;
 
-CCriticalSection cs_tally;
-
 static string exodus_address = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
 
 static const string exodus_mainnet = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
@@ -280,7 +278,7 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
         return 0;
     }
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
     const std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.find(address);
     if (my_it != mp_tally_map.end()) {
         balance = (my_it->second).getMoney(propertyId, ttype);
@@ -436,7 +434,7 @@ int64_t exodus::getTotalTokens(uint32_t propertyId, int64_t* n_owners_total)
     int64_t owners = 0;
     int64_t totalTokens = 0;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     CMPSPInfo::Entry property;
     if (false == _my_sps->getSP(propertyId, property)) {
@@ -486,7 +484,7 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
     int64_t before = 0;
     int64_t after = 0;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (ttype == BALANCE && amount < 0) {
         assert(!isAddressFrozen(who, propertyId)); // for safety, this should never fail if everything else is working properly.
@@ -604,7 +602,7 @@ void CheckWalletUpdate(bool forceUpdate)
         }
     }
 #ifdef ENABLE_WALLET
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     // balance changes were found in the wallet, update the global totals and signal a Exodus balance change
     global_balance_money.clear();
@@ -2130,7 +2128,7 @@ int exodus_save_state( CBlockIndex const *pBlockIndex )
  */
 void clear_all_state()
 {
-    LOCK2(cs_tally, cs_pending);
+    LOCK(cs_main);
 
     // Memory based storage
     mp_tally_map.clear();
@@ -2164,7 +2162,7 @@ void clear_all_state()
  */
 int exodus_init()
 {
-    LOCK2(cs_main, cs_tally);
+    LOCK(cs_main);
 
     if (exodusInitialized) {
         // nothing to do
@@ -2321,7 +2319,7 @@ int exodus_init()
  */
 int exodus_shutdown()
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
 #ifdef ENABLE_WALLET
     delete wallet; wallet = nullptr;
@@ -2351,11 +2349,7 @@ int exodus_shutdown()
  */
 bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
-#ifdef ENABLE_WALLET
-    LOCK2(pwalletMain->cs_wallet, cs_tally);
-#else
-    LOCK(cs_tally);
-#endif
+    LOCK(cs_main);
 
     if (!exodusInitialized) {
         exodus_init();
@@ -3894,7 +3888,7 @@ int validity = 0;
 
 int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (reorgRecoveryMode > 0) {
         reorgRecoveryMode = 0; // clear reorgRecovery here as this is likely re-entrant
@@ -3951,7 +3945,7 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
         unsigned int countMP)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (!exodusInitialized) {
         exodus_init();
@@ -4016,7 +4010,7 @@ int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
 
 int exodus_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     reorgRecoveryMode = 1;
     reorgRecoveryMaxHeight = (pBlockIndex->nHeight > reorgRecoveryMaxHeight) ? pBlockIndex->nHeight: reorgRecoveryMaxHeight;
@@ -4025,8 +4019,6 @@ int exodus_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex)
 
 int exodus_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex)
 {
-    LOCK(cs_tally);
-
     return 0;
 }
 

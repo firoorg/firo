@@ -654,7 +654,7 @@ bool exodus::IsDenominationValid(PropertyId property, DenominationId denominatio
 {
     CMPSPInfo::Entry info;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (!_my_sps->getSP(property, info)) {
         throw std::invalid_argument("property identifier is not valid");
@@ -667,7 +667,7 @@ int64_t exodus::GetDenominationValue(PropertyId property, DenominationId denomin
 {
     CMPSPInfo::Entry info;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (!_my_sps->getSP(property, info)) {
         throw std::invalid_argument("property identifier is not valid");

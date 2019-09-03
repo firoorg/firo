@@ -1,10 +1,12 @@
 #ifndef ZCOIN_EXODUS_SP_H
 #define ZCOIN_EXODUS_SP_H
 
-#include "exodus.h"
 #include "log.h"
 #include "persistence.h"
+#include "property.h"
+#include "sigma.h"
 
+#include "../main.h"
 #include "../serialize.h"
 
 #include <boost/filesystem.hpp>
@@ -98,7 +100,7 @@ public:
         uint256 update_block;
         bool fixed;
         bool manual;
-        SigmaStatus sigmaStatus;
+        exodus::SigmaStatus sigmaStatus;
         std::vector<int64_t> denominations;
 
         // For crowdsale properties:
@@ -146,7 +148,7 @@ public:
                     READWRITE(sigmaStatus);
                 } catch (std::ios_base::failure&) {
                     // Assume it is EOF due to no other better way to check.
-                    sigmaStatus = static_cast<uint8_t>(SigmaStatus::SoftDisabled);
+                    sigmaStatus = static_cast<uint8_t>(exodus::SigmaStatus::SoftDisabled);
                 }
 
                 try {
@@ -159,7 +161,7 @@ public:
                 READWRITE(denominations);
             }
 
-            this->sigmaStatus = static_cast<SigmaStatus>(sigmaStatus);
+            this->sigmaStatus = static_cast<exodus::SigmaStatus>(sigmaStatus);
         }
 
         bool isDivisible() const;
@@ -247,13 +249,8 @@ public:
     void saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std::string& addr) const;
 };
 
-namespace std
-{
-string to_string(SigmaStatus status);
-}
+namespace exodus {
 
-namespace exodus
-{
 typedef std::map<std::string, CMPCrowd> CrowdMap;
 
 extern CMPSPInfo* _my_sps;
@@ -286,16 +283,19 @@ void eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, int bloc
 
 unsigned int eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex);
 
-template<class InputItr>
-int64_t SumDenominationsValue(uint32_t property, InputItr begin, InputItr end)
+template<class Denomination>
+int64_t SumDenominationsValue(PropertyId property, Denomination begin, Denomination end)
 {
-    LOCK(cs_tally);
     CMPSPInfo::Entry sp;
+
+    LOCK(cs_main);
+
     if (!_my_sps->getSP(property, sp)) {
         throw std::invalid_argument("the property not found");
     }
 
-    int64_t amount(0);
+    int64_t amount = 0;
+
     for (auto it = begin; it != end; it++) {
         if (*it >= sp.denominations.size()) {
             throw std::invalid_argument("the denomination not found");
@@ -310,7 +310,15 @@ int64_t SumDenominationsValue(uint32_t property, InputItr begin, InputItr end)
 
     return amount;
 }
-}
 
+} // namespace exodus
+
+namespace std {
+
+using namespace exodus;
+
+string to_string(SigmaStatus status);
+
+} // namespace std
 
 #endif // ZCOIN_EXODUS_SP_H

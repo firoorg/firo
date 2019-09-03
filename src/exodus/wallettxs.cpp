@@ -151,8 +151,8 @@ int IsMyAddress(const std::string& address)
 {
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
-        // TODO: resolve deadlock caused cs_tally, cs_wallet
-        // LOCK(pwalletMain->cs_wallet);
+        LOCK(pwalletMain->cs_wallet);
+
         CBitcoinAddress parsedAddress(address);
         isminetype isMine = IsMine(*pwalletMain, parsedAddress.Get());
 

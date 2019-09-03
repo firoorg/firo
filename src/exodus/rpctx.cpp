@@ -321,7 +321,7 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     // use new 0.10 custom fee to set the accept minimum fee appropriately
     int64_t nMinimumAcceptFee = 0;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         const CMPOffer* sellOffer = DEx_getOffer(toAddress, propertyId);
         if (sellOffer == NULL) throw JSONRPCError(RPC_TYPE_ERROR, "Unable to load sell offer from the distributed exchange");
         nMinimumAcceptFee = sellOffer->getMinFee();
@@ -1578,7 +1578,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
         int remainingConfirms;
         try {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             remainingConfirms = _my_sps->getDenominationRemainingConfirmation(propertyId, denomId, minConfirms);
         } catch (std::invalid_argument const &e) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());

@@ -37,14 +37,8 @@ int const MAX_STATE_HISTORY = 50;
 
 constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
-#define TEST_ECO_PROPERTY_1 (0x80000003UL)
-
 // increment this value to force a refresh of the state (similar to --startclean)
 #define DB_VERSION 6
-
-// could probably also use: int64_t maxInt64 = std::numeric_limits<int64_t>::max();
-// maximum numeric values from the spec:
-#define MAX_INT_8_BYTES (9223372036854775807UL)
 
 // maximum size of string fields
 #define SP_STRING_FIELD_LEN 256
@@ -119,9 +113,6 @@ const std::vector<unsigned char> GetExMarker();
 
 //! Used to indicate, whether to automatically commit created transactions
 extern bool autoCommit;
-
-//! Global lock for state objects
-extern CCriticalSection cs_tally;
 
 /** LevelDB based storage for storing Exodus transaction data.  This will become the new master database, holding serialized Exodus transactions.
  *  Note, intention is to consolidate and clean up data storage
