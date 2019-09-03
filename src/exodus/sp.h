@@ -195,6 +195,10 @@ public:
     void setWatermark(const uint256& watermark);
     bool getWatermark(uint256& watermark) const;
 
+    bool getPrevVersion(uint32_t propertyId, Entry &info) const;
+
+    int getDenominationRemainingConfirmation(uint32_t propertyId, uint8_t denomination, int target);
+
     void printAll() const;
 };
 

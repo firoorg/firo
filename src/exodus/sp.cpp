@@ -1,27 +1,28 @@
 // Smart Properties & Crowd Sales
 
-#include "exodus/sp.h"
+#include "sp.h"
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/uint256_extensions.h"
+#include "log.h"
+#include "exodus.h"
+#include "uint256_extensions.h"
+#include "utilsbitcoin.h"
 
-#include "arith_uint256.h"
-#include "base58.h"
-#include "clientversion.h"
-#include "main.h"
-#include "serialize.h"
-#include "streams.h"
-#include "tinyformat.h"
-#include "uint256.h"
-#include "utiltime.h"
+#include "../arith_uint256.h"
+#include "../base58.h"
+#include "../clientversion.h"
+#include "../main.h"
+#include "../serialize.h"
+#include "../streams.h"
+#include "../tinyformat.h"
+#include "../uint256.h"
+#include "../utiltime.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "leveldb/db.h"
-#include "leveldb/write_batch.h"
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 
 #include <stdint.h>
 
@@ -436,6 +437,65 @@ bool CMPSPInfo::getWatermark(uint256& watermark) const
     }
 
     return true;
+}
+
+bool CMPSPInfo::getPrevVersion(uint32_t propertyId, Entry &info) const
+{
+    CDataStream prevKeyData(SER_DISK, CLIENT_VERSION);
+    prevKeyData << 'b';
+    prevKeyData << info.update_block;
+    prevKeyData << propertyId;
+    leveldb::Slice prevKey(&prevKeyData[0], prevKeyData.size());
+
+    std::string prevValueData;
+    auto status = pdb->Get(readoptions, prevKey, &prevValueData);
+    if (!status.ok()) {
+        if (status.IsNotFound()) {
+            return false;
+        }
+        LogPrintf("%s() : fail to get previous version of property %d\n", __func__, propertyId);
+        throw std::runtime_error("fail to get previous version of sp");
+    }
+
+    CDataStream prevValue(
+        prevValueData.data(),
+        prevValueData.data() + prevValueData.size(),
+        SER_DISK, CLIENT_VERSION
+    );
+    prevValue >> info;
+
+    return true;
+}
+
+int CMPSPInfo::getDenominationRemainingConfirmation(
+    uint32_t propertyId, uint8_t denomination, int target)
+{
+    LOCK(cs_main);
+    Entry info;
+    if (!getSP(propertyId, info)) {
+        throw std::invalid_argument("property notfound");
+    }
+
+    // no denomination in lastest version then imply it's unconfirmed.
+    if (denomination >= info.denominations.size()) {
+        return target;
+    }
+
+    int targetBlock =
+        std::max(chainActive.Height() - target + 1, 0);
+    CBlockIndex *lastBlockHasDenomination = nullptr;
+
+    while (
+        denomination < info.denominations.size() &&
+        (lastBlockHasDenomination =
+            GetBlockIndex(info.update_block))->nHeight > targetBlock) {
+        if (!getPrevVersion(propertyId, info)) {
+            break;
+        }
+    }
+
+    return lastBlockHasDenomination->nHeight <= targetBlock ? 0 :
+        lastBlockHasDenomination->nHeight - targetBlock;
 }
 
 void CMPSPInfo::printAll() const
