@@ -1919,7 +1919,7 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     std::vector<SigmaMint> mints;
 
     wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
-        if (m.chainState.block < 0) {
+        if (!m.spentTx.IsNull() || m.chainState.block < 0) {
             return;
         }
 
