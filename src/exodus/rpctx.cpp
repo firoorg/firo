@@ -1578,7 +1578,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
         int remainingConfirms;
         try {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             remainingConfirms = _my_sps->getDenominationRemainingConfirmation(propertyId, denomId, minConfirms);
         } catch (std::invalid_argument const &e) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
