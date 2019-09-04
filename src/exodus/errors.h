@@ -51,6 +51,9 @@ inline std::string error_str(int ec) {
       case MP_INPUTS_INVALID:
           ec_str = "Error choosing inputs for the send transaction";
           break;
+      case MP_ENCODING_ERROR:
+          ec_str = "Packet too large";
+          break;
       case MP_REDEMP_ILLEGAL:
           ec_str = "Error with redemption address";
           break;

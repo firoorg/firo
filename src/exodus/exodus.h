@@ -1,35 +1,35 @@
-#ifndef EXODUS_H
-#define EXODUS_H
+#ifndef ZCOIN_EXODUS_EXODUS_H
+#define ZCOIN_EXODUS_EXODUS_H
 
-class CBitcoinAddress;
 class CBlockIndex;
 class CCoinsView;
 class CCoinsViewCache;
 class CTransaction;
 
-#include "exodus/log.h"
-#include "exodus/persistence.h"
-#include "exodus/tally.h"
-#include "exodus/sigma.h"
-#include "exodus/sigmadb.h"
+#include "log.h"
+#include "persistence.h"
+#include "tally.h"
+#include "sigma.h"
+#include "sigmadb.h"
 
-#include "sync.h"
-#include "uint256.h"
-#include "util.h"
+#include "../base58.h"
+#include "../sync.h"
+#include "../uint256.h"
+#include "../util.h"
 
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
 
-#include "leveldb/status.h"
-
-#include <stdint.h>
+#include <leveldb/status.h>
 
 #include <map>
-#include <string>
-#include <vector>
 #include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
+#include <inttypes.h>
 
 using std::string;
 
@@ -356,4 +356,4 @@ void PrintFreezeState();
 
 }
 
-#endif // EXODUS_H
+#endif // ZCOIN_EXODUS_EXODUS_H

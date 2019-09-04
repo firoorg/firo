@@ -23,11 +23,11 @@ BOOST_AUTO_TEST_CASE(class_b_empty)
     const CPubKey pubKey;
     const std::vector<unsigned char> vchPayload;
 
-    std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    std::vector<CTxOut> vTxOuts;
+    EncodeClassB(strSeed, pubKey, vchPayload.begin(), vchPayload.end(), std::back_inserter(vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 1);
 
-    const CScript& scriptPubKey = vTxOuts[0].first;
+    const CScript& scriptPubKey = vTxOuts[0].scriptPubKey;
     CTxDestination dest;
     BOOST_CHECK(ExtractDestination(scriptPubKey, dest));
     BOOST_CHECK_EQUAL(CBitcoinAddress(dest).ToString(), "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5");
@@ -76,13 +76,13 @@ BOOST_AUTO_TEST_CASE(class_b_maidsafe)
         // Percentage for issuer: 0 %
         "00");
 
-    std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    std::vector<CTxOut> vTxOuts;
+    EncodeClassB(strSeed, pubKey, vchPayload.begin(), vchPayload.end(), std::back_inserter(vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 3);
 
-    const CScript& scriptPubKeyA = vTxOuts[0].first;
-    const CScript& scriptPubKeyB = vTxOuts[1].first;
-    const CScript& scriptPubKeyC = vTxOuts[2].first;
+    const CScript& scriptPubKeyA = vTxOuts[0].scriptPubKey;
+    const CScript& scriptPubKeyB = vTxOuts[1].scriptPubKey;
+    const CScript& scriptPubKeyC = vTxOuts[2].scriptPubKey;
 
     txnouttype outtypeA;
     BOOST_CHECK(GetOutputType(scriptPubKeyA, outtypeA));
@@ -135,14 +135,14 @@ BOOST_AUTO_TEST_CASE(class_b_tetherus)
         "530068747470733a2f2f7465746865722e746f00546865206e6578742070"
         "6172616469676d206f66206d6f6e65792e00");
 
-    std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    std::vector<CTxOut> vTxOuts;
+    EncodeClassB(strSeed, pubKey, vchPayload.begin(), vchPayload.end(), std::back_inserter(vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 4);
 
-    const CScript& scriptPubKeyA = vTxOuts[0].first;
-    const CScript& scriptPubKeyB = vTxOuts[1].first;
-    const CScript& scriptPubKeyC = vTxOuts[2].first;
-    const CScript& scriptPubKeyD = vTxOuts[3].first;
+    const CScript& scriptPubKeyA = vTxOuts[0].scriptPubKey;
+    const CScript& scriptPubKeyB = vTxOuts[1].scriptPubKey;
+    const CScript& scriptPubKeyC = vTxOuts[2].scriptPubKey;
+    const CScript& scriptPubKeyD = vTxOuts[3].scriptPubKey;
 
     txnouttype outtypeA;
     BOOST_CHECK(GetOutputType(scriptPubKeyA, outtypeA));

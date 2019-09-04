@@ -2431,7 +2431,7 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     int64_t nFeeRet = 0;
     int nChangePosInOut = -1;
     std::string strFailReason;
-    std::vector<std::pair<CScript, int64_t> > vecSend;
+    std::vector<CTxOut> vecSend;
     CReserveKey reserveKey(pwalletMain);
 
     // Next, we set the change address to the sender
@@ -2454,17 +2454,26 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
             if (!AddressToPubKey(sAddress, redeemingPubKey)) {
                 return MP_REDEMP_BAD_VALIDATION;
             }
-            if (!Exodus_Encode_ClassB(senderAddress,redeemingPubKey,data,vecSend)) { return MP_ENCODING_ERROR; }
+
+            try {
+                EncodeClassB(senderAddress, redeemingPubKey, data.begin(), data.end(), std::back_inserter(vecSend));
+            } catch (...) {
+                return MP_ENCODING_ERROR;
+            }
         break; }
         case EXODUS_CLASS_C:
-            if(!Exodus_Encode_ClassC(data, vecSend)) { return MP_ENCODING_ERROR; }
+            try {
+                vecSend.push_back(EncodeClassC(data.begin(), data.end()));
+            } catch (...) {
+                return MP_ENCODING_ERROR;
+            }
         break;
     }
 
     // Then add a paytopubkeyhash output for the recipient (if needed) - note we do this last as we want this to be the highest vout
     if (!receiverAddress.empty()) {
         CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(receiverAddress).Get());
-        vecSend.push_back(std::make_pair(scriptPubKey, 0 < referenceAmount ? referenceAmount : GetDustThreshold(scriptPubKey)));
+        vecSend.push_back(CTxOut(referenceAmount > 0 ? referenceAmount : GetDustThreshold(scriptPubKey), scriptPubKey));
     }
 
     // Now we have what we need to pass to the wallet to create the transaction, perform some checks first
@@ -2473,8 +2482,8 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
 
     std::vector<CRecipient> vecRecipients;
     for (size_t i = 0; i < vecSend.size(); ++i) {
-        const std::pair<CScript, int64_t>& vec = vecSend[i];
-        CRecipient recipient = {vec.first, vec.second, false};
+        auto& output = vecSend[i];
+        CRecipient recipient = {output.scriptPubKey, output.nValue, false};
         vecRecipients.push_back(recipient);
     }
 

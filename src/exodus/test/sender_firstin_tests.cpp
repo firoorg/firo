@@ -54,15 +54,8 @@ static CTransaction TxClassC(const std::vector<CTxOut>& txInputs)
     }
 
     // Outputs:
-    std::vector<std::pair<CScript, int64_t> > txOutputs;
     std::vector<unsigned char> vchPayload = CreatePayload_SimpleSend(1, 1000);
-    BOOST_CHECK(Exodus_Encode_ClassC(vchPayload, txOutputs));
-
-    for (std::vector<std::pair<CScript, int64_t> >::const_iterator it = txOutputs.begin(); it != txOutputs.end(); ++it)
-    {
-        CTxOut txOut(it->second, it->first);
-        mutableTx.vout.push_back(txOut);
-    }
+    mutableTx.vout.push_back(EncodeClassC(vchPayload.begin(), vchPayload.end()));
 
     return CTransaction(mutableTx);
 }
