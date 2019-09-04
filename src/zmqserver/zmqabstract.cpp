@@ -57,6 +57,11 @@ bool CZMQAbstract::NotifySettingsUpdate(std::string update)
     return true;
 }
 
+bool CZMQAbstract::NotifyBalance()
+{
+    return true;
+}
+
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;

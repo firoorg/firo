@@ -210,7 +210,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
     // Sent
-    LogPrintf("listSent size: %s\n", listSent.size());
     if ((!listSent.empty() || nFee != 0))
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
@@ -307,7 +306,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     }
 
     //Received
-    LogPrintf("listReceived size: %s\n", listReceived.size());
     if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= 0)
     {
         BOOST_FOREACH(const COutputEntry& r, listReceived)

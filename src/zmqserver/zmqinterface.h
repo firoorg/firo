@@ -42,6 +42,7 @@ protected:
     void UpdatedZnode(CZnode &znode);
     void UpdatedMintStatus(std::string update);
     void UpdatedSettings(std::string update);
+    void UpdatedBalance();
     
 };
 

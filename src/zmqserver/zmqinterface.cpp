@@ -308,3 +308,20 @@ void CZMQPublisherInterface::UpdatedSettings(std::string update)
         }
     }
 }
+
+void CZMQPublisherInterface::UpdatedBalance()
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyBalance())
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}

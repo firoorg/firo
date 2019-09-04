@@ -291,3 +291,9 @@ bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
 
     return true;
 }
+
+bool CZMQBalanceEvent::NotifyBalance()
+{
+    Execute();
+    return true;
+}

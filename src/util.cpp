@@ -698,9 +698,8 @@ boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific)
 {
     boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_TIMESTAMP_FILENAME);
 
-    LogPrintf("API: pathConfigFile timestamp: %s\n", pathConfigFile.string());
     if(!boost::filesystem::exists(pathConfigFile)){
-        LogPrintf("timestamp does not exist\n");
+        LogPrintf("API:timestamp does not exist. Creating..\n");
         UniValue txTimestampUni(UniValue::VOBJ);
         txTimestampUni.push_back(Pair("type", "tx_timestamp"));
         txTimestampUni.push_back(Pair("data", NullUniValue));

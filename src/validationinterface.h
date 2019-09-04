@@ -48,6 +48,7 @@ protected:
     virtual void UpdatedMintStatus(std::string update) {};
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
+    virtual void NotifyBalance() {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -84,6 +85,8 @@ struct CMainSignals {
     boost::signals2::signal<void (std::string)> UpdatedSettings;
     /** Notifies listeners of API status */
     boost::signals2::signal<void ()> NotifyAPIStatus;
+    /** Notifies listeners of balance */
+    boost::signals2::signal<void ()> NotifyBalance;
 };
 
 CMainSignals& GetMainSignals();

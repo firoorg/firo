@@ -87,7 +87,6 @@ bool CAPITable::appendCommand(const std::string& name, const CAPICommand* pcmd)
 
 void APIJSONRequest::parseType(std::string typeRequest)
 {
-    LogPrintf("API: type request string: %s\n", typeRequest);
     if(typeRequest=="none"){
         type = None;
     }

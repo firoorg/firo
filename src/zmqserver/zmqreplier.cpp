@@ -71,8 +71,6 @@ void* CZMQAuthReplier::Thread(){
             break;
         }
 
-        LogPrintf("ZMQ: read auth request\n");
-
         APIJSONRequest jreq;
         try {
             // Parse request
@@ -111,7 +109,6 @@ bool CZMQAbstractReplier::Wait(){
 
     if(rc==-1) return false;
     /* Block until a message is available to be received from socket */
-    LogPrintf("ZMQ: waiting for incoming message..\n");
     do {
         rc = zmq_recvmsg (psocket, &request, ZMQ_DONTWAIT);
         if ((EAGAIN != errno && rc==0) || !KEEPALIVE){
