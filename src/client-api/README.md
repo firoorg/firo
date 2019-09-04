@@ -99,6 +99,7 @@ OPTIONAL: not a necessary parameter to pass.
         connections: INT,
         devAuth: BOOL,
         synced: BOOL,
+        safeMode: BOOL,
         pid: INT,
         modules: {
             API: BOOL,
