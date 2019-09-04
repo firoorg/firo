@@ -1,6 +1,8 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "util.h"
+#include "main.h"
+#include "init.h"
 #include "wallet/wallet.h"
 #include "univalue.h"
 #include <boost/signals2/signal.hpp>
@@ -165,6 +167,11 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
     if (!pcmd){
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method \"" + request.collection + "\" not found");
     }
+
+    // Block if in safe mode
+    string strWarning = GetWarnings("api");
+    if (strWarning != "" && !GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE))
+        throw JSONAPIError(API_FORBIDDEN_BY_SAFE_MODE, string("Safe mode: ") + strWarning);
 
     // Return if in warmup
     { 

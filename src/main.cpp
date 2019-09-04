@@ -5826,6 +5826,7 @@ void static CheckBlockIndex(const Consensus::Params &consensusParams) {
 std::string GetWarnings(const std::string &strFor) {
     string strStatusBar;
     string strRPC;
+    string strAPI;
     string strGUI;
     const string uiAlertSeperator = "<hr />";
 
@@ -5836,7 +5837,7 @@ std::string GetWarnings(const std::string &strFor) {
     }
 
     if (GetBoolArg("-testsafemode", DEFAULT_TESTSAFEMODE))
-        strStatusBar = strRPC = strGUI = "testsafemode enabled";
+        strStatusBar = strRPC = strAPI = strGUI = "testsafemode enabled";
 
     // Misc warnings like out of disk space and clock is wrong
     if (strMiscWarning != "") {
@@ -5845,11 +5846,11 @@ std::string GetWarnings(const std::string &strFor) {
     }
 
     if (fLargeWorkForkFound) {
-        strStatusBar = strRPC = "Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.";
+        strStatusBar = strRPC = strAPI = "Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.";
         strGUI += (strGUI.empty() ? "" : uiAlertSeperator) +
                   _("Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.");
     } else if (fLargeWorkInvalidChainFound) {
-        strStatusBar = strRPC = "Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.";
+        strStatusBar = strRPC = strAPI = "Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.";
         strGUI += (strGUI.empty() ? "" : uiAlertSeperator) +
                   _("Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.");
     }
@@ -5860,6 +5861,8 @@ std::string GetWarnings(const std::string &strFor) {
         return strStatusBar;
     else if (strFor == "rpc")
         return strRPC;
+    else if (strFor == "api")
+        return strAPI;
     assert(!"GetWarnings(): invalid parameter");
     return "error";
 }
