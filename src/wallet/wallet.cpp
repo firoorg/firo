@@ -6686,7 +6686,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
-    GetMainSignals().NotifyBalance();
+    GetMainSignals().UpdatedBalance();
 
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();

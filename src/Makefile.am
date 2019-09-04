@@ -19,7 +19,7 @@ else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
 
-TOR_LIBS = tor/src/core/libtor-app.a \
+TOR_LIBS = tor/src/core/libtor-app.a    \
     tor/src/lib/libtor-meminfo.a \
     tor/src/lib/libtor-term.a \
     tor/src/lib/libtor-osinfo.a \
@@ -313,6 +313,7 @@ libbitcoin_zmq_a_SOURCES = \
   zmqserver/zmqinterface.cpp \
   zmqserver/zmqpublisher.cpp \
   zmqserver/zmqreplier.cpp \
+  rpc/client.cpp \
   client-api/protocol.cpp \
   client-api/server.cpp \
   client-api/settings.cpp \
