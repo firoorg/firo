@@ -538,7 +538,8 @@ BOOST_AUTO_TEST_CASE(check_not_exist_serial)
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv;
     priv.Generate();
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
+    uint256 spendTx;
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial)
@@ -547,8 +548,9 @@ BOOST_AUTO_TEST_CASE(check_exist_serial)
     exodus::SigmaPrivateKey priv;
     priv.Generate();
     exodus::SigmaProof proof;
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
+    auto spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
+    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fail)
@@ -556,9 +558,10 @@ BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fa
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv;
     priv.Generate();
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 2, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(2, 1, priv.GetSerial()));
+    auto spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
+    BOOST_CHECK(!db->HasSpendSerial(1, 2, priv.GetSerial(), spendTx));
+    BOOST_CHECK(!db->HasSpendSerial(2, 1, priv.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_serial)
@@ -566,46 +569,53 @@ BOOST_AUTO_TEST_CASE(check_deleted_serial)
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv;
     priv.Generate();
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
+    auto spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
     db->DeleteAll(10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_two_serials)
 {
+    auto spendTx = uint256S("1");
+
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv, priv2;
     priv.Generate();
     priv2.Generate();
 
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 10);
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
+    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 10, spendTx);
+    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(db->HasSpendSerial(1, 1, priv2.GetSerial(), spendTx));
 
     db->DeleteAll(10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(try_to_delete_the_block_after)
 {
+    auto spendTx = uint256S("1");
+
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv, priv2;
     priv.Generate();
     priv2.Generate();
 
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11);
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
+    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11, spendTx);
 
     db->DeleteAll(11);
 
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
 {
+    auto spendTx = uint256S("1");
+
     auto db = CreateDb();
     exodus::SigmaPrivateKey priv, priv2;
     priv.Generate();
@@ -617,7 +627,7 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
     for (auto const & p : pubs) {
         db->RecordMint(1, 1, p, 10);
     }
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
@@ -627,7 +637,7 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
     for (auto const & p : pubs2) {
         db->RecordMint(1, 1, p, 11);
     }
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11);
+    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11, spendTx);
     BOOST_CHECK_EQUAL(22, db->GetNextSequence());
     BOOST_CHECK_EQUAL(20, db->GetMintCount(1, 1, 0));
 
@@ -636,8 +646,8 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial(), spendTx));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -7,11 +7,11 @@ class CCoinsView;
 class CCoinsViewCache;
 class CTransaction;
 
-#include "exodus/log.h"
-#include "exodus/persistence.h"
-#include "exodus/tally.h"
-#include "exodus/sigma.h"
-#include "exodus/sigmadb.h"
+#include "log.h"
+#include "persistence.h"
+#include "tally.h"
+#include "sigma.h"
+#include "sigmadb.h"
 
 #include "sync.h"
 #include "uint256.h"

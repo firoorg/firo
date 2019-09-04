@@ -1557,3 +1557,160 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& z
 
     return true;
 }
+
+#ifdef ENABLE_EXODUS
+bool CWalletDB::ReadExodusMintCount(int32_t &count)
+{
+    return Read(std::string("exodus_mintcount"), count);
+}
+
+bool CWalletDB::WriteExodusMintCount(int32_t count)
+{
+    return Write(std::string("exodus_mintcount"), count);
+}
+
+bool CWalletDB::ReadExodusMintSeedCount(int32_t &count)
+{
+    return Read(std::string("exodus_seed_mintcount"), count);
+}
+
+bool CWalletDB::WriteExodusMintSeedCount(int32_t count)
+{
+    return Write(std::string("exodus_seed_mintcount"), count);
+}
+
+bool CWalletDB::WriteExodusPubcoin(uint256 const &hashSerial, GroupElement const &pubcoin)
+{
+    return Write(std::make_pair(std::string("exodus_pubcoin"), hashSerial), pubcoin);
+}
+
+bool CWalletDB::ReadExodusPubcoin(uint256 const &hashSerial, GroupElement &pubcoin)
+{
+    return Read(std::make_pair(std::string("exodus_pubcoin"), hashSerial), pubcoin);
+}
+
+bool CWalletDB::EraseExodusPubcoin(uint256 const &hashSerial)
+{
+    return Erase(std::make_pair(std::string("exodus_pubcoin"), hashSerial));
+}
+
+bool CWalletDB::WriteExodusMintPoolPair(
+    uint256 const &hashPubcoin, std::tuple<uint160, CKeyID, int32_t> const &mintPoolEntry)
+{
+    return Write(std::make_pair(std::string("exodus_mintpool"), hashPubcoin), mintPoolEntry);
+}
+
+bool CWalletDB::ReadExodusMintPoolPair(
+    uint256 const &hashPubcoin, std::tuple<uint160, CKeyID, int32_t> &mintPoolEntry)
+{
+    return Read(std::make_pair(std::string("exodus_mintpool"), hashPubcoin), mintPoolEntry);
+}
+
+bool CWalletDB::EraseExodusMintPoolPair(uint256 const &hashPubcoin)
+{
+    return Erase(std::make_pair(std::string("exodus_mintpool"), hashPubcoin));
+}
+
+std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListExodusSerialPubcoinPairs()
+{
+    std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("exodus_pubcoin"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "exodus_pubcoin")
+            break;
+
+        uint256 hashSerial;
+        ssKey >> hashSerial;
+
+        GroupElement pubcoin;
+        ssValue >> pubcoin;
+
+        listSerialPubcoin.push_back(make_pair(hashSerial, pubcoin));
+    }
+
+    pcursor->close();
+
+    return listSerialPubcoin;
+
+}
+
+//! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs
+std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListExodusMintPool()
+{
+    std::vector<std::pair<uint256, MintPoolEntry>> listPool;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("exodus_mintpool"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+
+        try {
+            string type;
+            ssKey >> type;
+            if (type != "exodus_mintpool")
+                break;
+
+            uint256 hashPubcoin;
+            ssKey >> hashPubcoin;
+
+            uint160 hashSeedMaster;
+            ssValue >> hashSeedMaster;
+
+            CKeyID seedId;
+            ssValue >> seedId;
+
+            int32_t count;
+            ssValue >> count;
+
+            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, count);
+
+            listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+        } catch (std::ios_base::failure const &) {
+            // There maybe some old entries that don't conform to the latest version. Just skipping those.
+        }
+    }
+
+    pcursor->close();
+
+    return listPool;
+}
+#endif

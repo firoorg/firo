@@ -176,7 +176,8 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     auto groupSize = tx.getGroupSize();
 
     // check serial in database
-    if (p_mintlistdb->HasSpendSerial(property, denomination, spend.GetSerial())
+    uint256 spendTx;
+    if (p_mintlistdb->HasSpendSerial(property, denomination, spend.GetSerial(), spendTx)
         || !VerifySigmaSpend(property, denomination, group, groupSize, spend, sigma::Params::get_default())) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
@@ -199,7 +200,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    p_mintlistdb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
+    p_mintlistdb->RecordSpendSerial(property, denomination, spend.GetSerial(), block, tx.getHash());
 
     return 0;
 }

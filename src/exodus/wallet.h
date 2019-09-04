@@ -6,6 +6,7 @@
 #include "sigmadb.h"
 #include "sp.h"
 #include "walletmodels.h"
+#include "hdmint/wallet.h"
 
 #include "../wallet/wallet.h"
 
@@ -42,11 +43,15 @@ public:
     {
         LOCK(pwalletMain->cs_wallet);
 
-        auto insertF = [&it] (SigmaMint& mint) {
-            *it++ = std::move(mint);
-        };
+        auto mintWallet = this->mintWallet;
 
-        CWalletDB(walletFile).ListExodusMint<SigmaMintId, SigmaMint>(insertF);
+        CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
+            [&mintWallet, &it](HDMint const &mint){
+                SigmaMint entry;
+                mintWallet.RegenerateMint(mint, entry);
+                *it++ = std::move(entry);
+            }
+        );
     }
 
     template<class OutputIt>
@@ -54,13 +59,17 @@ public:
     {
         LOCK(pwalletMain->cs_wallet);
 
-        auto insertF = [propertyId, &it](SigmaMint& mint) {
-            if (mint.property == propertyId) {
-                *it++ = std::move(mint);
-            }
-        };
+        auto mintWallet = this->mintWallet;
 
-        CWalletDB(walletFile).ListExodusMint<SigmaMintId, SigmaMint>(insertF);
+        CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
+            [&mintWallet, &it, propertyId](HDMint const &mint){
+                if (mint.GetPropertyId() == propertyId) {
+                    SigmaMint entry;
+                    mintWallet.RegenerateMint(mint, entry);
+                    *it++ = std::move(entry);
+                }
+            }
+        );
     }
 
     bool HasSigmaMint(const SigmaMintId& id);
@@ -71,8 +80,20 @@ public:
 
 protected:
     void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
+    bool HasSigmaSpend(const secp_primitives::Scalar& serial, MintMeta &meta);
 
 private:
+    void OnSpendAdded(
+        PropertyId property,
+        DenominationId denomination,
+        const secp_primitives::Scalar &serial,
+        const uint256 &tx);
+
+    void OnSpendRemoved(
+        PropertyId property,
+        DenominationId denomination,
+        const secp_primitives::Scalar &serial);
+
     void OnMintAdded(
         PropertyId property,
         DenominationId denomination,
@@ -86,6 +107,7 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
+    HDMintWallet mintWallet;
 };
 
 extern Wallet *wallet;

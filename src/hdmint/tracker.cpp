@@ -436,7 +436,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
         // Check the transaction associated with this mint
         if (!GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
             LogPrintf("%s : Failed to find tx for mint txid=%s\n", __func__, mint.txid.GetHex());
-            mint.isArchived = true; 
+            mint.isArchived = true;
             Archive(mint);
             return true;
         }

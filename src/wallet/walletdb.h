@@ -10,12 +10,12 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
-#include "hdmint/hdmint.h"
-#include "hdmint/mintpool.h"
 #include "wallet/db.h"
 #include "streams.h"
 #include "key.h"
 
+#include "../hdmint/hdmint.h"
+#include "../hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -73,7 +73,11 @@ public:
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
     static const int CURRENT_VERSION = VERSION_WITH_BIP44;
+#ifdef ENABLE_EXODUS
+    static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
+#elif
     static const int N_CHANGES = 3; // standard = 0/1, mint = 2
+#endif
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -286,6 +290,24 @@ public:
     bool WriteHDChain(const CHDChain& chain);
 
 #ifdef ENABLE_EXODUS
+    bool ReadExodusMintCount(int32_t &count);
+    bool WriteExodusMintCount(int32_t count);
+
+    bool ReadExodusMintSeedCount(int32_t &count);
+    bool WriteExodusMintSeedCount(int32_t count);
+
+    bool ReadExodusPubcoin(const uint256& hashSerial, GroupElement& pubcoin);
+    bool WriteExodusPubcoin(const uint256& hashSerial, const GroupElement& pubcoin);
+    bool EraseExodusPubcoin(const uint256& hashSerial);
+
+    std::vector<std::pair<uint256, GroupElement>> ListExodusSerialPubcoinPairs();
+
+    bool ReadExodusMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>& mintPool);
+    bool WriteExodusMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& mintPool);
+    bool EraseExodusMintPoolPair(const uint256& hashPubcoin);
+
+    std::vector<std::pair<uint256, MintPoolEntry>> ListExodusMintPool();
+
     template<typename K, typename V>
     bool WriteExodusMint(const K& k, const V& v)
     {
@@ -340,6 +362,107 @@ public:
             ssValue >> v;
             insertF(v);
         }
+    }
+
+    template<class HDMint>
+    bool ReadExodusHDMint(const uint256& hashPubcoin, HDMint& mint)
+    {
+        return Read(make_pair(std::string("exodus_hdmint"), hashPubcoin), mint);
+    }
+
+    bool HasExodusHDMint(const uint256& hashPubcoin)
+    {
+        return Exists(make_pair(std::string("exodus_hdmint"), hashPubcoin));
+    }
+
+    template<class HDMint>
+    bool WriteExodusHDMint(const HDMint& mint)
+    {
+        return Write(make_pair(std::string("exodus_hdmint"), mint.GetPubCoinHash()), mint, true);
+    }
+
+    bool EraseExodusHDMint(const uint256& hashPubcoin)
+    {
+        return Erase(make_pair(std::string("exodus_hdmint"), hashPubcoin));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListExodusHDMints(InsertF insertF)
+    {
+        Dbc* pcursor = GetCursor();
+        if (!pcursor) {
+            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+        }
+
+        unsigned int flags = DB_SET_RANGE;
+        while (true) {
+
+            // Read next record
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            if (flags == DB_SET_RANGE) {
+                ssKey << std::make_pair(string("exodus_hdmint"), K());
+            }
+
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            int ret = ReadAtCursor(pcursor, ssKey, ssValue, flags);
+            flags = DB_NEXT;
+            if (ret == DB_NOTFOUND) {
+                break;
+            } else if (ret != 0) {
+                pcursor->close();
+                throw runtime_error(std::string(__func__)+" : error scanning DB");
+            }
+
+            // Unserialize
+            string type;
+            ssKey >> type;
+            if (type != "exodus_hdmint")
+                break;
+
+            K key;
+            ssKey >> key;
+
+            V value;
+            ssValue >> value;
+
+            insertF(value);
+        }
+
+        pcursor->close();
+    }
+
+
+    template<class HDMint>
+    bool ArchiveExodusHDMint(const HDMint& mint)
+    {
+        if (!Write(make_pair(string("exodus_archived"), mint.GetPubCoinHash()), mint)) {
+            return error("%s: write failed", __func__);
+        }
+
+        if (!EraseExodusHDMint(mint.GetPubCoinHash())) {
+            return error("%s: failed to erase", __func__);
+        }
+
+        return true;
+    }
+
+
+    template<class HDMint>
+    bool UnarchiveExodusHDMint(uint256 const &hashPubcoin, HDMint& mint)
+    {
+        if (!Read(make_pair(string("exodus_archived"), hashPubcoin), mint)) {
+            return error("%s: failed to retrieve deterministic mint from archive", __func__);
+        }
+
+        if (!WriteExodusHDMint(mint)) {
+            return error("%s: failed to write deterministic mint", __func__);
+        }
+
+        if (!Erase(make_pair(string("exodus_archived"), hashPubcoin))) {
+            return error("%s : failed to erase archived deterministic mint", __func__);
+        }
+
+        return true;
     }
 
 #endif

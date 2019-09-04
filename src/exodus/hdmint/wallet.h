@@ -11,51 +11,66 @@
 #include "../uint256.h"
 #include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
+#include "../walletmodels.h"
 
 #include "tracker.h"
-#include "mintpool.h"
+#include "hdmint.h"
 
-class CExodusHDMint;
+namespace exodus {
 
-class CExodusHDMintWallet
+class HDMintWallet
 {
 private:
-    int32_t nCountNextUse;
-    int32_t nCountNextGenerate;
-    std::string strWalletFile;
+    int32_t countNextUse;
+    int32_t countNextGenerate;
+    std::string walletFile;
     CMintPool mintPool;
-    CHDMintTracker tracker;
+    HDMintTracker tracker;
     uint160 hashSeedMaster;
 
 public:
     int static const COUNT_DEFAULT = 0;
 
-    CExodusHDMintWallet(const std::string& strWalletFile);
+    HDMintWallet(std::string const &walletFile);
 
-    bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
-    void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
-    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
-    bool LoadMintPoolFromDB();
-    bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin);
-    bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
-    bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
-    bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
+    bool SetupWallet(const uint160& hashSeedMaster, bool resetCount = false);
+    bool GenerateMint(
+        uint32_t propertyId,
+        uint8_t denom,
+        exodus::SigmaPrivateKey& coin,
+        HDMint& dMint,
+        boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
+
+    bool RegenerateMint(const HDMint& mint, SigmaMint& entry);
+    bool IsSerialInBlockchain(
+        uint32_t propertyId, uint8_t denomination, uint256 const& pubCoinHash, uint256& txidSpend, CTransaction& tx);
+
     std::pair<uint256,uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
     void GenerateMintPool(int32_t nIndex = 0);
-    bool SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
-    bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
+
+    bool SetMintSeedSeen(
+        std::pair<uint256,MintPoolEntry> const &mintPoolEntryPair, uint32_t propertyId, uint8_t denomination, exodus::SigmaMintChainState const &chainState);
+    bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, exodus::SigmaPrivateKey& coin);
+
     // Count updating functions
     int32_t GetCount();
-    CHDMintTracker& GetTracker() { return tracker; }
+    HDMintTracker & GetTracker() { return tracker; }
+    CMintPool & GetMintPool() { return mintPool; }
+
     void ResetCount();
     void SetCount(int32_t nCount);
     void UpdateCountLocal();
     void UpdateCountDB();
     void UpdateCount();
 
+    void ResetCoinsState();
+
 private:
+    bool CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex = true);
     CKeyID GetZerocoinSeedID(int32_t nCount);
-    bool CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, CKeyID& seedId, bool checkIndex=true);
+    bool LoadMintPoolFromDB();
 };
+
+} // namespace exodus
 
 #endif // EXODUS_HDMINT_WALLET_H

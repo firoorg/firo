@@ -11,7 +11,8 @@ namespace exodus {
 
 Wallet *wallet;
 
-Wallet::Wallet(const std::string& walletFile, CMPMintList& sigmaDb) : walletFile(walletFile)
+Wallet::Wallet(const std::string& walletFile, CMPMintList& sigmaDb)
+    : walletFile(walletFile), mintWallet(walletFile)
 {
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -29,6 +30,14 @@ Wallet::Wallet(const std::string& walletFile, CMPMintList& sigmaDb) : walletFile
         auto h = std::bind(&Wallet::OnMintRemoved, this, _1, _2, _3);
         eventConnections.emplace_front(sigmaDb.MintRemoved.connect(h));
     }
+    {
+        auto h = std::bind(&Wallet::OnSpendAdded, this, _1, _2, _3, _4);
+        eventConnections.emplace_front(sigmaDb.SpendAdded.connect(h));
+    }
+    {
+        auto h = std::bind(&Wallet::OnSpendRemoved, this, _1, _2, _3);
+        eventConnections.emplace_front(sigmaDb.SpendRemoved.connect(h));
+    }
 }
 
 Wallet::~Wallet()
@@ -37,90 +46,142 @@ Wallet::~Wallet()
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomination)
 {
-    SigmaMint mint(property, denomination);
-    SigmaMintId id(mint);
-
-    {
-        LOCK(pwalletMain->cs_wallet);
-        CWalletDB(walletFile).WriteExodusMint(id, mint);
+    SigmaPrivateKey key;
+    HDMint mint;
+    LOCK(pwalletMain->cs_wallet);
+    if (!mintWallet.GenerateMint(property, denomination, key, mint)) {
+        throw std::runtime_error("fail to generate mint");
     }
 
-    return id;
+    mintWallet.GetTracker().Add(mint, true);
+
+    return SigmaMintId(property, denomination, SigmaPublicKey(key));
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
     LOCK(pwalletMain->cs_wallet);
-    return CWalletDB(walletFile).HasExodusMint(id);
+    auto pubcoinHash = primitives::GetPubCoinValueHash(id.key.GetCommitment());
+    return mintWallet.GetTracker().HasPubcoinHash(pubcoinHash);
+}
+
+bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, MintMeta &meta)
+{
+    auto serialHash = primitives::GetSerialHash(serial);
+    return mintWallet.GetTracker().GetMetaFromSerial(serialHash, meta);
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
-    SigmaMint mint;
+    HDMint mint;
+    SigmaMint entry;
 
     LOCK(pwalletMain->cs_wallet);
+    auto pubCoinHash = primitives::GetPubCoinValueHash(id.key.GetCommitment());
 
-    if (!CWalletDB(walletFile).ReadExodusMint(id, mint)) {
+    CWalletDB walletdb(walletFile);
+    if (!walletdb.ReadExodusHDMint(pubCoinHash, mint)) {
         throw std::invalid_argument("sigma mint not found");
     }
 
-    return mint;
+    if (!mintWallet.RegenerateMint(mint, entry)) {
+        throw std::runtime_error("fail to regenerate mint");
+    }
+
+    return entry;
 }
 
 boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
 {
-    std::vector<SigmaMint> spendable;
-
     // Get all spendable mints.
-    ListSigmaMints(property, boost::make_function_output_iterator([&] (const SigmaMint& m) {
-        if (m.denomination != denomination || m.chainState.block < 0 || !m.spentTx.IsNull()) {
-            return;
-        }
-        spendable.push_back(m);
-    }));
+    LOCK(pwalletMain->cs_wallet);
+    auto spendables = mintWallet.GetTracker().ListMetas(true, true, false);
 
-    if (spendable.empty()) {
+    auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](MintMeta const &meta) -> bool {
+        return denomination != meta.denomination;
+    });
+    spendables.erase(eraseFrom, spendables.end());
+
+    if (spendables.empty()) {
         return boost::none;
     }
 
     // Pick the oldest mint.
-    auto oldest = std::min_element(spendable.begin(), spendable.end(), [] (const SigmaMint& a, const SigmaMint& b) {
-        if (a.chainState.group < b.chainState.group) {
-            return true;
-        } else if (a.chainState.group > b.chainState.group) {
-            return false;
+    auto oldest = std::min_element(spendables.begin(), spendables.end(),
+        [](const MintMeta& a, const MintMeta& b) {
+            if (a.chainState.group == b.chainState.group) {
+                return a.chainState.index < b.chainState.index;
+            }
+
+            return a.chainState.group < b.chainState.group;
         }
+    );
 
-        return a.chainState.index < b.chainState.index;
-    });
+    SigmaMint entry;
+    CWalletDB walletdb(walletFile);
+    HDMint mint;
 
-    return *oldest;
+    if (!walletdb.ReadExodusHDMint(oldest->GetPubCoinValueHash(), mint)) {
+        throw std::runtime_error("fail to get mint data");
+    }
+
+    if (!mintWallet.RegenerateMint(mint, entry)) {
+        throw std::runtime_error("fail to regenerate mint");
+    }
+
+    return entry;
 }
 
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
 {
-    LOCK(pwalletMain->cs_wallet);
-
-    auto mint = GetSigmaMint(id);
-
-    mint.spentTx = tx;
-
-    if (!CWalletDB(walletFile).WriteExodusMint(id, mint)) {
-        throw std::runtime_error("set used flag for mint on db fail");
-    }
+    mintWallet.GetTracker().SetMintSpendTx(
+        primitives::GetPubCoinValueHash(id.key.GetCommitment()), tx);
 }
 
 void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)
 {
-    LOCK(pwalletMain->cs_wallet);
+    mintWallet.GetTracker().SetChainState(
+        primitives::GetPubCoinValueHash(id.key.GetCommitment()), state);
+}
 
-    auto mint = GetSigmaMint(id);
+void Wallet::OnSpendAdded(
+    PropertyId property,
+    DenominationId denomination,
+    const secp_primitives::Scalar &serial,
+    const uint256 &tx)
+{
+    auto serialHash = primitives::GetSerialHash(serial);
 
-    mint.chainState = state;
-
-    if (!CWalletDB(walletFile).WriteExodusMint(id, mint)) {
-        throw std::runtime_error("update mint on db fail");
+    MintMeta meta;
+    if (!HasSigmaSpend(serial, meta)) {
+        // the serial is not in wallet.
+        return;
     }
+
+    SigmaPublicKey pubKey;
+    pubKey.SetCommitment(meta.GetPubCoinValue());
+    SigmaMintId id(property, denomination, pubKey);
+
+    SetSigmaMintUsedTransaction(id, tx);
+}
+
+void Wallet::OnSpendRemoved(
+    PropertyId property,
+    DenominationId denomination,
+    const secp_primitives::Scalar &serial)
+{
+    auto serialHash = primitives::GetSerialHash(serial);
+
+    MintMeta meta;
+    if (!HasSigmaSpend(serial, meta)) {
+        // the serial is not in wallet.
+        return;
+    }
+
+    SigmaPublicKey pubKey;
+    pubKey.SetCommitment(meta.GetPubCoinValue());
+    SigmaMintId id(property, denomination, pubKey);
+    SetSigmaMintUsedTransaction(id, uint256());
 }
 
 void Wallet::OnMintAdded(
@@ -131,9 +192,17 @@ void Wallet::OnMintAdded(
     const SigmaPublicKey& pubKey,
     int block)
 {
-    SigmaMintId id(property, denomination, pubKey);
-
     LOCK(pwalletMain->cs_wallet); // Prevent race condition in the gap between a call to HasSigmaEntry and UpdateSigmaMint.
+
+    // Try to catch unseen
+    auto pubCoinHash = primitives::GetPubCoinValueHash(pubKey.GetCommitment());
+    if (mintWallet.GetMintPool().count(pubCoinHash)) {
+        auto entry = mintWallet.GetMintPool().at(pubCoinHash);
+        mintWallet.SetMintSeedSeen(
+            {pubCoinHash, entry}, property, denomination, SigmaMintChainState(block, group, idx));
+    }
+
+    SigmaMintId id(property, denomination, pubKey);
 
     if (!HasSigmaMint(id)) {
         return;

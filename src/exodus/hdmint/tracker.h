@@ -5,55 +5,71 @@
 #ifndef EXODUS_HDMINT_TRACKER_H
 #define EXODUS_HDMINT_TRACKER_H
 
+#include "../../hdmint/mintpool.h"
+#include "../coin_containers.h"
 #include "../primitives/zerocoin.h"
+#include "../walletmodels.h"
 
-#include "mintpool.h"
+#include "hdmint.h"
 
-#include <list>
+namespace exodus {
 
-class CHDExodusMint;
-class CHDExodusMintWallet;
+class HDMintWallet;
 
-class CHDExodusMintTracker
+struct MintMeta
+{
+    uint32_t propertyId;
+    uint8_t denomination;
+    uint256 hashSerial;
+
+    exodus::SigmaMintChainState chainState;
+
+    uint256 spendTx;
+    bool isArchived;
+
+    GroupElement const & GetPubCoinValue() const;
+    void SetPubCoinValue(GroupElement const &other);
+    uint256 const & GetPubCoinValueHash() const;
+    bool isUsed() { return !spendTx.IsNull(); }
+
+private:
+    GroupElement pubCoinValue;
+    uint256 pubCoinValueHash;
+};
+
+class HDMintTracker
 {
 private:
-    bool fInitialized;
-    std::string strWalletFile;
-    std::map<uint256, CMintMeta> mapSerialHashes;
-    std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
-    bool IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial);
-    bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend=false);
-    std::set<uint256> GetMempoolTxids();
+    bool initialized;
+    std::string walletFile;
+    HDMintWallet *mintWallet;
+    std::map<uint256, MintMeta> mapSerialHashes;
+
 public:
-    CHDExodusMintTracker(std::string strWalletFile);
-    ~CHDExodusMintTracker();
-    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
-    void Add(const CSigmaEntry& zerocoin, bool isNew = false, bool isArchived = false);
-    bool Archive(CMintMeta& meta);
+    HDMintTracker(std::string walletFile, HDMintWallet *mintWallet);
+    void Add(const HDMint& dMint, bool isNew = false, bool isArchived = false);
+    bool Archive(MintMeta &meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
-    bool HasMintTx(const uint256& txid);
     bool IsEmpty() const { return mapSerialHashes.empty(); }
     void Init();
-    bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
-    bool GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta);
-    CAmount GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const;
+
+    bool GetMetaFromSerial(const uint256& hashSerial, MintMeta& meta);
+    bool GetMetaFromPubcoin(const uint256& hashPubcoin, MintMeta& meta);
     std::vector<uint256> GetSerialHashes();
-    std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
-    CAmount GetUnconfirmedBalance() const;
-    void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
-    void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
-    void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
-    void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins);
-    void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
-    list<CSigmaEntry> MintsAsZerocoinEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
-    std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
-    void RemovePending(const uint256& txid);
-    void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
-    void SetPubcoinNotUsed(const uint256& hashPubcoin);
-    bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
-    bool UpdateState(const CMintMeta& meta);
+    std::list<MintMeta> GetMints(bool confirmedOnly, bool inactive) const;
+
+    std::vector<SigmaMint> ListMints(bool unusedOnly = true, bool matureOnly = true);
+    std::vector<MintMeta> ListMetas(bool unusedOnly, bool matureOnly, bool load);
+
+    void SetMintSpendTx(const uint256& hashPubcoin, const uint256& txid);
+    void SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState);
+
+    bool UnArchive(const uint256& hashPubcoin);
+    bool UpdateState(MintMeta const &meta);
     void Clear();
 };
+
+}; // namespace exodus
 
 #endif // EXODUS_HDMINT_TRACKER_H

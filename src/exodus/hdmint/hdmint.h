@@ -7,56 +7,52 @@
 
 #include "../primitives/zerocoin.h"
 #include "../sigma.h"
+#include "../walletmodels.h"
+
+namespace exodus {
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
-class CExodusHDMint
+class HDMint
 {
 private:
-    int32_t nCount;
+    uint32_t propertyId;
+    uint8_t denomination;
+
+    int32_t count;
     CKeyID seedId;
     uint256 hashSerial;
     GroupElement pubCoinValue;
-    uint256 txid;
-    int nHeight;
-    int nId;
-    int64_t denom;
-    bool isUsed;
+
+    uint256 spendTx;
+    SigmaMintChainState chainState;
 
 public:
-    CExodusHDMint();
-    CExodusHDMint(const int32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
+    HDMint();
+    HDMint(
+        uint32_t propertyId,
+        uint8_t denomination,
+        int32_t count,
+        const CKeyID& seedId,
+        const uint256& hashSerial,
+        const GroupElement& pubCoinValue);
 
-    boost::optional<sigma::CoinDenomination> GetDenomination() const {
-        sigma::CoinDenomination value;
-        if(denom==0)
-            return boost::none;
-        IntegerToDenomination(denom, value);
-        return value;
-    }
-    int64_t GetDenominationValue() const {
-        return denom;
-    }
-    int32_t GetCount() const { return nCount; }
-    int GetHeight() const { return nHeight; }
-    int GetId() const { return nId; }
+    uint32_t GetPropertyId() const { return propertyId; }
+    uint8_t GetDenomination() const { return denomination; }
+    int32_t GetCount() const { return count; }
     CKeyID GetSeedId() const { return seedId; }
     uint256 GetSerialHash() const { return hashSerial; }
-    GroupElement GetPubcoinValue() const { return pubCoinValue; }
+    GroupElement GetPubCoinValue() const { return pubCoinValue; }
     uint256 GetPubCoinHash() const { return primitives::GetPubCoinValueHash(pubCoinValue); }
-    uint256 GetTxHash() const { return txid; }
-    bool IsUsed() const { return isUsed; }
-    void SetDenomination(const sigma::CoinDenomination value) {
-        int64_t denom;
-        DenominationToInteger(value, denom);
-        this->denom = denom;
-    };
-    void SetDenominationValue(const int64_t& denom) { this->denom = denom; }
-    void SetHeight(const int& nHeight) { this->nHeight = nHeight; }
-    void SetId(const int& nId) { this->nId = nId; }
+
+    uint256 GetSpendTx() const { return spendTx; }
+    SigmaMintChainState GetChainState() const { return chainState; }
+
     void SetNull();
-    void SetTxHash(const uint256& txid) { this->txid = txid; }
-    void SetUsed(const bool isUsed) { this->isUsed = isUsed; }
-    void SetPubcoinValue(const GroupElement pubCoinValue) { this->pubCoinValue = pubCoinValue; }
+
+    void SetSpendTx(const uint256& spendTx) { this->spendTx = spendTx; }
+    void SetPubcoinValue(GroupElement const &pubCoinValue) { this->pubCoinValue = pubCoinValue; }
+    void SetChainState(exodus::SigmaMintChainState const &chainState) { this->chainState = chainState; }
+
     std::string ToString() const;
 
     ADD_SERIALIZE_METHODS;
@@ -64,16 +60,17 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(nCount);
+        READWRITE(propertyId);
+        READWRITE(denomination);
+        READWRITE(count);
         READWRITE(seedId);
         READWRITE(hashSerial);
         READWRITE(pubCoinValue);
-        READWRITE(txid);
-        READWRITE(nHeight);
-        READWRITE(nId);
-        READWRITE(denom);
-        READWRITE(isUsed);
+        READWRITE(spendTx);
+        READWRITE(chainState);
     };
+};
+
 };
 
 #endif // EXODUS_HDMINT_H

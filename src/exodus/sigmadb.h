@@ -7,6 +7,7 @@
 #include "sigma.h"
 
 #include <univalue.h>
+#include <uint256.h>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
@@ -46,7 +47,13 @@ public:
         DenominationId denomination,
         const SigmaPublicKey& pubKey,
         int height);
-    void RecordSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height);
+
+    void RecordSpendSerial(
+        uint32_t propertyId,
+        uint8_t denomination,
+        secp_primitives::Scalar const &serial,
+        int height,
+        uint256 const & spendTx);
 
     template<
         class OutputIt,
@@ -78,13 +85,16 @@ public:
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
     SigmaPublicKey GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
-    bool HasSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial);
+    bool HasSpendSerial(
+        uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, uint256 &spendTx);
 
     uint16_t groupSize;
 
 public:
     boost::signals2::signal<void(PropertyId, DenominationId, MintGroupId, MintGroupIndex, const SigmaPublicKey&, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
+    boost::signals2::signal<void(PropertyId, DenominationId, const secp_primitives::Scalar&, const uint256&)> SpendAdded;
+    boost::signals2::signal<void(PropertyId, DenominationId, const secp_primitives::Scalar&)> SpendRemoved;
 
 private:
     void RecordKeyCreationHistory(int height, leveldb::Slice const &key);

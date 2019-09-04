@@ -1659,6 +1659,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     RequireSaneReferenceAmount(referenceAmount);
 
     // create spend
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     auto mint = wallet->GetSpendableSigmaMint(propertyId, denomination);
 
     if (!mint) {

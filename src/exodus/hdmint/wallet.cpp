@@ -5,26 +5,22 @@
 #include "wallet.h"
 #include "hdmint.h"
 
-#include "../main.h"
-#include "../txdb.h"
-#include "../init.h"
+#include "../exodus.h"
 
-#include "../sigma/openssl_context.h"
-#include "../wallet/walletdb.h"
-#include "../wallet/wallet.h"
-#include "../sigma.h"
-#include "../crypto/hmac_sha256.h"
-#include "../crypto/hmac_sha512.h"
-#include "../keystore.h"
+#include "../../main.h"
+#include "../../init.h"
+
+#include "../../sigma/openssl_context.h"
+#include "../../crypto/hmac_sha256.h"
+#include "../../crypto/hmac_sha512.h"
 
 #include <boost/optional.hpp>
 
-CExodusHDMintWallet::CExodusHDMintWallet(const std::string& strWalletFile) : tracker(strWalletFile)
-{
-    this->strWalletFile = strWalletFile;
-    CWalletDB walletdb(strWalletFile);
-    this->mintPool = CMintPool();
+namespace exodus {
 
+HDMintWallet::HDMintWallet(const std::string& walletFile)
+    : walletFile(walletFile), tracker(walletFile, this)
+{
     //Don't try to do anything else if the wallet is locked.
     if (pwalletMain->IsLocked()) {
         return;
@@ -36,14 +32,22 @@ CExodusHDMintWallet::CExodusHDMintWallet(const std::string& strWalletFile) : tra
 
     if (!SetupWallet(hashSeedMaster)) {
         LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
-        return;
+        throw std::runtime_error("fail to setup wallet");
+    }
+
+    if (!LoadMintPoolFromDB()) {
+        throw std::runtime_error("fail to load mint pool from DB");
     }
 }
-bool CExodusHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
+
+bool HDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool resetCount)
 {
-    CWalletDB walletdb(strWalletFile);
-    if (pwalletMain->IsLocked())
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB walletdb(walletFile);
+
+    if (pwalletMain->IsLocked()) {
         return false;
+    }
 
     if (hashSeedMaster.IsNull()) {
         return error("%s: failed to set master seed.", __func__);
@@ -51,346 +55,279 @@ bool CExodusHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fReset
 
     this->hashSeedMaster = hashSeedMaster;
 
-    nCountNextUse = COUNT_DEFAULT;
-    nCountNextGenerate = COUNT_DEFAULT;
+    countNextUse = COUNT_DEFAULT;
+    countNextGenerate = COUNT_DEFAULT;
 
-    if (fResetCount){
-        walletdb.WriteZerocoinCount(nCountNextUse);
-        walletdb.WriteZerocoinSeedCount(nCountNextGenerate);
-    }else{
-        if (!walletdb.ReadZerocoinCount(nCountNextUse))
-            nCountNextUse = COUNT_DEFAULT;
-        if (!walletdb.ReadZerocoinSeedCount(nCountNextGenerate))
-            nCountNextGenerate = COUNT_DEFAULT;
+    if (resetCount) {
+        walletdb.WriteExodusMintCount(countNextUse);
+        walletdb.WriteExodusMintSeedCount(countNextGenerate);
+    } else {
+
+        if (!walletdb.ReadExodusMintCount(countNextUse)) {
+            countNextUse = COUNT_DEFAULT;
+        }
+
+        if (!walletdb.ReadExodusMintSeedCount(countNextGenerate)) {
+            countNextGenerate = COUNT_DEFAULT;
+        }
     }
 
     return true;
 }
 
 // Regenerate mintPool entry from given values
-std::pair<uint256,uint256> CExodusHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
+// return pubcoin hash, serial hash
+std::pair<uint256, uint256> HDMintWallet::RegenerateMintPoolEntry(
+    const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count)
 {
-    // hashPubcoin, hashSerial
-    std::pair<uint256,uint256> nIndexes;
+    LOCK(pwalletMain->cs_wallet);
 
-    CWalletDB walletdb(strWalletFile);
-    //Is locked
-    if (pwalletMain->IsLocked())
+    CWalletDB walletdb(walletFile);
+    if (pwalletMain->IsLocked()) {
         throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
+    }
 
-    uint512 seedZerocoin;
-    if(!CreateZerocoinSeed(seedZerocoin, nCount, seedId, false))
+    uint512 seed;
+    if (!CreateZerocoinSeed(seed, count, seedId, false)) {
         throw ZerocoinException("Unable to create seed for mint regeneration.");
+    }
 
-    GroupElement commitmentValue;
-    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
-    if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
+    GroupElement commitment;
+    exodus::SigmaPrivateKey coin;
+    if (!SeedToZerocoin(seed, commitment, coin)) {
         throw ZerocoinException("Unable to create zerocoin from seed in mint regeneration.");
+    }
 
-    uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
-    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
+    auto hashPubcoin = primitives::GetPubCoinValueHash(commitment);
+    auto hashSerial = primitives::GetSerialHash(coin.GetSerial());
 
-    MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
+    MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, count);
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-    CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
-    CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
 
-    nIndexes.first = hashPubcoin;
-    nIndexes.second = hashSerial;
+    if (!CWalletDB(walletFile).WriteExodusPubcoin(hashSerial, commitment)) {
+        throw std::runtime_error("fail to store pubcoin");
+    }
 
-    return nIndexes;
+    if (!CWalletDB(walletFile).WriteExodusMintPoolPair(hashPubcoin, mintPoolEntry)) {
+        throw std::runtime_error("fail to store mint pool");
+    }
 
+    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n",
+        __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), count);
+
+    return {hashPubcoin, hashSerial};
 }
 
-// Add up to nIndex + 20 new mints to the mint pool (defaults to adding 20 mints if no param passed)
-void CExodusHDMintWallet::GenerateMintPool(int32_t nIndex)
+// Add up to index + 20 new mints to the mint pool (defaults to adding 20 mints if no param passed)
+void HDMintWallet::GenerateMintPool(int32_t index)
 {
-    CWalletDB walletdb(strWalletFile);
-    //Is locked
+    LOCK(pwalletMain->cs_wallet);
+
+    CWalletDB walletdb(walletFile);
+
+    // Is locked
     if (pwalletMain->IsLocked())
         return;
 
     // Only generate new values (ie. if last generated less than or the same, proceed)
-    if(nCountNextGenerate > nCountNextUse){
+    if (index == 0 && countNextGenerate > countNextUse) {
         return;
     }
 
-    int32_t nLastCount = nCountNextGenerate;
-    int32_t nStop = nLastCount + 20;
-    if(nIndex > 0 && nIndex >= nLastCount)
-        nStop = nIndex + 20;
-    LogPrintf("%s : nLastCount=%d nStop=%d\n", __func__, nLastCount, nStop - 1);
-    for (; nLastCount <= nStop; ++nLastCount) {
-        if (ShutdownRequested())
+    auto lastCount = countNextGenerate;
+    auto stop = lastCount + 20;
+
+    if(index > 0 && index >= lastCount)
+        stop = index;
+
+    LogPrintf("%s : lastCount=%d stop=%d\n", __func__, lastCount, stop - 1);
+    for (; lastCount <= stop; ++lastCount) {
+
+        if (ShutdownRequested()) {
             return;
+        }
 
         CKeyID seedId;
-        uint512 seedZerocoin;
-        if(!CreateZerocoinSeed(seedZerocoin, nLastCount, seedId))
+        uint512 seed;
+        if (!CreateZerocoinSeed(seed, lastCount, seedId)) {
             continue;
+        }
 
-        GroupElement commitmentValue;
-        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
-        if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
+        GroupElement commitment;
+        exodus::SigmaPrivateKey coin;
+        if (!SeedToZerocoin(seed, commitment, coin)) {
             continue;
+        }
 
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitment);
 
-        MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
-        mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-        CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
-        CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
+        MintPoolEntry entry(hashSeedMaster, seedId, lastCount);
+        mintPool.Add(make_pair(hashPubcoin, entry));
+
+        if (!CWalletDB(walletFile).WriteExodusPubcoin(primitives::GetSerialHash(coin.GetSerial()), commitment)) {
+            throw std::runtime_error("fail to store public key");
+        }
+
+        if (!CWalletDB(walletFile).WriteExodusMintPoolPair(hashPubcoin, entry)) {
+            throw std::runtime_error("fail to store mint pool data");
+        }
+
+        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n",
+            __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), lastCount);
     }
 
     // Update local + DB entries for count last generated
-    nCountNextGenerate = nLastCount;
-    walletdb.WriteZerocoinSeedCount(nCountNextGenerate);
-
+    countNextGenerate = lastCount;
+    if (!walletdb.WriteExodusMintSeedCount(countNextGenerate)) {
+        throw std::runtime_error("fail to store mint seed count");
+    }
 }
 
-bool CExodusHDMintWallet::LoadMintPoolFromDB()
+bool HDMintWallet::LoadMintPoolFromDB()
 {
-    vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
+    LOCK(pwalletMain->cs_wallet);
+    mintPool.clear();
 
-    for (auto& mintPoolPair : listMintPool){
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool =
+        CWalletDB(walletFile).ListExodusMintPool();
+
+    for (auto const &mintPoolPair : listMintPool) {
+
         LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
-            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
+            mintPoolPair.first.GetHex(),
+            get<0>(mintPoolPair.second).GetHex(),
+            get<1>(mintPoolPair.second).GetHex(),
+            get<2>(mintPoolPair.second)
+        );
+
         mintPool.Add(mintPoolPair);
     }
 
     return true;
 }
 
-bool CExodusHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial)
-{
-    bool fFound = false;
-    for(const auto& serialPubcoinPair : serialPubcoinPairs){
-        if(hashPubcoin == primitives::GetPubCoinValueHash(serialPubcoinPair.second)){
-            hashSerial = serialPubcoinPair.first;
-            fFound = true;
-            break;
-        }
-    }
-
-    return fFound;
-}
-
-//Catch the counter up with the chain
-void CExodusHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
-{
-    bool found = true;
-    CWalletDB walletdb(strWalletFile);
-
-    set<uint256> setAddedTx;
-    while (found) {
-        found = false;
-        if (fGenerateMintPool)
-            GenerateMintPool();
-        LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
-
-        std::set<uint256> setChecked;
-        if(listMints==boost::none){
-            listMints = list<pair<uint256, MintPoolEntry>>();
-            mintPool.List(listMints.get());
-        }
-        for (pair<uint256, MintPoolEntry>& pMint : listMints.get()) {
-            if (setChecked.count(pMint.first))
-                continue;
-            setChecked.insert(pMint.first);
-
-            if (ShutdownRequested())
-                return;
-
-            uint160& mintHashSeedMaster = get<0>(pMint.second);
-            int32_t& mintCount = get<2>(pMint.second);
-
-            // halt processing if mint already in tracker
-            if (tracker.HasPubcoinHash(pMint.first))
-                continue;
-
-            COutPoint outPoint;
-            if (sigma::GetOutPoint(outPoint, pMint.first)) {
-                const uint256& txHash = outPoint.hash;
-                //this mint has already occurred on the chain, increment counter's state to reflect this
-                LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                found = true;
-
-                uint256 hashBlock;
-                CTransaction tx;
-                if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
-                    LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    found = false;
-                    continue;
-                }
-
-                //Find the denomination
-                boost::optional<sigma::CoinDenomination> denomination = boost::none;
-                bool fFoundMint = false;
-                GroupElement bnValue;
-                for (const CTxOut& out : tx.vout) {
-                    if (!out.scriptPubKey.IsSigmaMint())
-                        continue;
-
-                    sigma::PublicCoin pubcoin;
-                    CValidationState state;
-                    if (!TxOutToPublicCoin(out, pubcoin, state)) {
-                        LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pMint.first.GetHex());
-                        continue;
-                    }
-
-                    // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin.getValue());
-                    if (pMint.first == hashPubcoin) {
-                        denomination = pubcoin.getDenomination();
-                        bnValue = pubcoin.getValue();
-                        fFoundMint = true;
-                        break;
-                    }
-                }
-
-                if (!fFoundMint || denomination == boost::none) {
-                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx.GetHash().GetHex());
-                    found = false;
-                    break;
-                }
-
-                CBlockIndex* pindex = nullptr;
-                if (mapBlockIndex.count(hashBlock))
-                    pindex = mapBlockIndex.at(hashBlock);
-
-                if (!setAddedTx.count(txHash)) {
-                    CBlock block;
-                    CWalletTx wtx(pwalletMain, tx);
-                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-                        wtx.SetMerkleBranch(block);
-
-                    //Fill out wtx so that a transaction record can be created
-                    wtx.nTimeReceived = pindex->GetBlockTime();
-                    pwalletMain->AddToWallet(wtx, false, &walletdb);
-                    setAddedTx.insert(txHash);
-                }
-
-                if(!SetMintSeedSeen(pMint, pindex->nHeight, txHash, denomination.get()))
-                    continue;
-
-                // Only update if the current hashSeedMaster matches the mints'
-                if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
-                    SetCount(++mintCount);
-                    UpdateCountDB();
-                    LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
-                }
-            }
-        }
-    }
-}
-
-bool CExodusHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
+bool HDMintWallet::SetMintSeedSeen(
+    std::pair<uint256, MintPoolEntry> const &mintPoolEntryPair,
+    uint32_t propertyId,
+    uint8_t denomination,
+    exodus::SigmaMintChainState const &chainState)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
     CKeyID seedId = get<1>(mintPoolEntryPair.second);
     int32_t mintCount = get<2>(mintPoolEntryPair.second);
 
-    GroupElement bnValue;
+    GroupElement commitment;
     uint256 hashSerial;
     bool serialInBlockchain = false;
+
     // Can regenerate if unlocked (cheaper)
-    if(!pwalletMain->IsLocked()){
+    if (!pwalletMain->IsLocked()) {
+
         uint512 seedZerocoin;
         CreateZerocoinSeed(seedZerocoin, mintCount, seedId, false);
-        sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
-        if(!SeedToZerocoin(seedZerocoin, bnValue, coin))
+
+        exodus::SigmaPrivateKey coin;
+        if(!SeedToZerocoin(seedZerocoin, commitment, coin)) {
             return false;
-        hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    }else{
+        }
+
+        hashSerial = primitives::GetSerialHash(coin.GetSerial());
+    } else {
+
         // Get serial and pubcoin data from the db
-        CWalletDB walletdb(strWalletFile);
-        std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+        CWalletDB walletdb(walletFile);
+        auto serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
         bool fFound = false;
+
         for(auto serialPubcoinPair : serialPubcoinPairs){
+
             GroupElement pubcoin = serialPubcoinPair.second;
             if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
-                bnValue = pubcoin;
+
+                commitment = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
                 break;
             }
         }
-        // Not found in DB
-        if(!fFound)
-            return false;
 
+        // Not found in DB
+        if (!fFound) {
+            return false;
+        }
     }
 
     // Create mint object
-    CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
-    dMint.SetDenomination(denom);
-    dMint.SetHeight(nHeight);
+    HDMint mint(propertyId, denomination, mintCount, seedId, hashSerial, commitment);
+    mint.SetChainState(chainState);
 
     // Check if this is also already spent
-    CWalletDB walletdb(strWalletFile);
-    int nHeightTx;
-    uint256 txidSpend;
-    CTransaction txSpend;
-    if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
-        //Find transaction details and make a wallettx and add to wallet
-        dMint.SetUsed(true);
-        CWalletTx wtx(pwalletMain, txSpend);
-        CBlockIndex* pindex = chainActive[nHeightTx];
-        CBlock block;
-        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-            wtx.SetMerkleBranch(block);
+    uint256 spendTx;
+    CTransaction tx;
+    if (IsSerialInBlockchain(propertyId, denomination, hashSerial, spendTx, tx)) {
 
-        wtx.nTimeReceived = pindex->nTime;
-        pwalletMain->AddToWallet(wtx, false, &walletdb);
+        //Find transaction details and make a wallettx and add to wallet
+        mint.SetSpendTx(spendTx);
     }
 
     // Add to tracker which also adds to database
-    tracker.Add(dMint, true);
+    tracker.Add(mint, true);
+
+    // Remove from mint pool
+    auto it = mintPool.find(hashPubcoin);
+    if (it != mintPool.end()) {
+        mintPool.erase(it);
+        GenerateMintPool(countNextGenerate + 1);
+    }
 
     return true;
 }
 
-bool CExodusHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoin& coin)
+bool HDMintWallet::SeedToZerocoin(
+    const uint512& seedZerocoin, GroupElement& commit, exodus::SigmaPrivateKey& coin)
 {
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = seedZerocoin.trim256();
     nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
-    coin.setEcdsaSeckey(nSeedPrivKey);
+
+    // generate serial and randomness
+    sigma::PrivateCoin priv(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+    priv.setEcdsaSeckey(nSeedPrivKey);
 
     // Create a key pair
     secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())){
+    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, priv.getEcdsaSeckey())){
         return false;
     }
+
     // Hash the public key in the group to obtain a serial number
-    Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
-    coin.setSerialNumber(serialNumber);
+    Scalar serialNumber = priv.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
 
     //hash randomness seed with Bottom 256 bits of seedZerocoin
     Scalar randomness;
-    uint256 nSeedRandomness = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
-    randomness.memberFromSeed(nSeedRandomness.begin());
-    coin.setRandomness(randomness);
+    uint256 randomnessSeed = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
+    randomness.memberFromSeed(randomnessSeed.begin());
 
-    // Generate a Pedersen commitment to the serial number
-    commit = sigma::SigmaPrimitives<Scalar, GroupElement>::commit(
-             coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
+    coin.SetSerial(serialNumber);
+    coin.SetRandomness(randomness);
+
+    commit = exodus::SigmaPublicKey(coin).GetCommitment();
 
     return true;
 }
 
-CKeyID CExodusHDMintWallet::GetZerocoinSeedID(int32_t nCount){
+CKeyID HDMintWallet::GetZerocoinSeedID(int32_t count)
+{
     // Get CKeyID for n from mintpool
-    uint256 hashPubcoin;
-    std::pair<uint256,MintPoolEntry> mintPoolEntryPair;
+    std::pair<uint256, MintPoolEntry> mintPoolEntryPair;
 
-    if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
+    if(!mintPool.Get(count, hashSeedMaster, mintPoolEntryPair)){
+
         // Add up to mintPool index + 20
-        GenerateMintPool(nCount);
-        if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
+        GenerateMintPool(count);
+        if (!mintPool.Get(count, hashSeedMaster, mintPoolEntryPair)) {
+
             ResetCount();
             throw ZerocoinException("Unable to retrieve mint seed ID");
         }
@@ -399,13 +336,14 @@ CKeyID CExodusHDMintWallet::GetZerocoinSeedID(int32_t nCount){
     return get<1>(mintPoolEntryPair.second);
 }
 
-bool CExodusHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, CKeyID& seedId, bool checkIndex)
+bool HDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex)
 {
     LOCK(pwalletMain->cs_wallet);
     CKey key;
+
     // Ensures value of child index is valid for seed being generated
-    if(checkIndex){
-        if(n < pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX]){
+    if (checkIndex) {
+        if (n < pwalletMain->GetHDChain().nExternalChainCounters[BIP44_EXODUS_MINT_INDEX]) {
             // The only scenario where this can occur is if the counter in wallet did not correctly catch up with the chain during a resync.
             return false;
         }
@@ -413,22 +351,22 @@ bool CExodusHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_
 
     // if passed seedId, we assume generation of seed has occured.
     // Otherwise get new key to be used as seed
-    if(seedId.IsNull()){
-        CPubKey pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
+    if (seedId.IsNull()) {
+        auto pubKey = pwalletMain->GenerateNewKey(BIP44_EXODUS_MINT_INDEX);
         seedId = pubKey.GetID();
     }
 
-    if (!pwalletMain->CCryptoKeyStore::GetKey(seedId, key)){
+    if (!pwalletMain->CCryptoKeyStore::GetKey(seedId, key)) {
         ResetCount();
         throw ZerocoinException("Unable to retrieve generated key for mint seed. Is the wallet locked?");
     }
 
-    // HMAC-SHA512(SHA256(count),key)
+    // HMAC-SHA512(SHA256(count), key)
     unsigned char countHash[CSHA256().OUTPUT_SIZE];
     std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
 
-    std::string nCount = to_string(n);
-    CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
+    auto count = to_string(n);
+    CSHA256().Write(reinterpret_cast<const unsigned char*>(count.data()), count.size()).Finalize(countHash);
 
     CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(&result[0]);
 
@@ -437,138 +375,177 @@ bool CExodusHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_
     return true;
 }
 
-int32_t CExodusHDMintWallet::GetCount()
+int32_t HDMintWallet::GetCount()
 {
-    return nCountNextUse;
+    return countNextUse;
 }
 
-void CExodusHDMintWallet::ResetCount()
+void HDMintWallet::ResetCount()
 {
-    CWalletDB walletdb(strWalletFile);
-    walletdb.ReadZerocoinCount(nCountNextUse);
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB walletdb(walletFile);
+    walletdb.ReadExodusMintCount(countNextUse);
 }
 
-void CExodusHDMintWallet::SetCount(int32_t nCount)
+void HDMintWallet::SetCount(int32_t count)
 {
-    nCountNextUse = nCount;
+    countNextUse = count;
 }
 
-void CExodusHDMintWallet::UpdateCountLocal()
+void HDMintWallet::UpdateCountLocal()
 {
-    nCountNextUse++;
-    LogPrintf("CHDMintWallet : Updating count local to %s\n",nCountNextUse);
+    countNextUse++;
+    LogPrintf("CHDMintWallet : Updating count local to %s\n", countNextUse);
 }
 
-void CExodusHDMintWallet::UpdateCountDB()
+void HDMintWallet::UpdateCountDB()
 {
-    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);
-    CWalletDB walletdb(strWalletFile);
-    walletdb.WriteZerocoinCount(nCountNextUse);
+    LogPrintf("CHDMintWallet : Updating count in DB to %s\n", countNextUse);
+
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB walletdb(walletFile);
+    walletdb.WriteExodusMintCount(countNextUse);
+
     GenerateMintPool();
 }
 
-void CExodusHDMintWallet::UpdateCount()
+void HDMintWallet::UpdateCount()
 {
     UpdateCountLocal();
     UpdateCountDB();
 }
 
-bool CExodusHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry)
+void HDMintWallet::ResetCoinsState()
 {
-    if(mintPoolEntry==boost::none){
-        if(hashSeedMaster.IsNull())
-            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
-        CKeyID seedId = GetZerocoinSeedID(nCountNextUse);
-        mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
-        // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
-        UpdateCountLocal();
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB walletdb(walletFile);
+
+    std::vector<HDMint> mints;
+    walletdb.ListExodusHDMints<uint256, HDMint>([&mints](HDMint const &mint) {
+        mints.push_back(mint);
+    });
+
+    for (auto &m : mints) {
+        m.SetSpendTx(uint256());
+        m.SetChainState(SigmaMintChainState());
+        if (!walletdb.WriteExodusHDMint(m)) {
+            throw std::runtime_error("fail to reset coins state");
+        }
     }
 
-    LogPrintf("GenerateMint: hashSeedMaster: %s seedId: %s nCount: %d\n",
-             get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
+    LoadMintPoolFromDB();
+}
+
+bool HDMintWallet::GenerateMint(
+    uint32_t propertyId,
+    uint8_t denomination,
+    exodus::SigmaPrivateKey& coin,
+    HDMint& mint,
+    boost::optional<MintPoolEntry> mintPoolEntry)
+{
+    if (mintPoolEntry == boost::none) {
+        if(hashSeedMaster.IsNull())
+            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
+
+        CKeyID seedId = GetZerocoinSeedID(countNextUse);
+        mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, countNextUse);
+
+        // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
+        UpdateCount();
+    }
+
+    LogPrintf("%s: hashSeedMaster: %s seedId: %s nCount: %d\n",
+        __func__, get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
 
     uint512 seedZerocoin;
     CreateZerocoinSeed(seedZerocoin, get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), false);
 
-    GroupElement commitmentValue;
-    if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin)){
+    GroupElement commitment;
+    if(!SeedToZerocoin(seedZerocoin, commitment, coin)){
         return false;
     }
 
-    coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
+    uint256 hashSerial = primitives::GetSerialHash(coin.GetSerial());
+    mint = HDMint(propertyId, denomination, get<2>(mintPoolEntry.get()),
+        get<1>(mintPoolEntry.get()), hashSerial, SigmaPublicKey(coin).GetCommitment());
 
-    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    dMint = CHDMint(get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), hashSerial, coin.getPublicCoin().getValue());
-    LogPrintf("GenerateMint: hashPubcoin: %s\n", dMint.GetPubCoinHash().GetHex());
-    dMint.SetDenomination(denom);
+    LogPrintf("%s: hashPubcoin: %s\n", __func__, mint.GetPubCoinHash().GetHex());
 
     return true;
 }
 
-bool CExodusHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
+bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaMint& entry)
 {
     //Generate the coin
-    sigma::PrivateCoin coin(sigma::Params::get_default(), dMint.GetDenomination().get(), false);
-    CHDMint dMintDummy;
-    CKeyID seedId = dMint.GetSeedId();
-    int32_t nCount = dMint.GetCount();
+    exodus::SigmaPrivateKey coin;
+
+    HDMint dMintDummy;
+
+    CKeyID seedId = mint.GetSeedId();
+    int32_t nCount = mint.GetCount();
+
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    GenerateMint(dMint.GetDenomination().get(), coin, dMintDummy, mintPoolEntry);
+    GenerateMint(mint.GetPropertyId(), mint.GetDenomination(), coin, dMintDummy, mintPoolEntry);
 
     //Fill in the zerocoinmint object's details
-    GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    GroupElement commitment = exodus::SigmaPublicKey(coin).GetCommitment();
+    if (primitives::GetPubCoinValueHash(commitment) != mint.GetPubCoinHash())
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
-    zerocoin.value = bnValue;
 
-    Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    auto serial = coin.GetSerial();
+    if (primitives::GetSerialHash(serial) != mint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
-    zerocoin.set_denomination(dMint.GetDenomination().get());
-    zerocoin.randomness = coin.getRandomness();
-    zerocoin.serialNumber = bnSerial;
-    zerocoin.IsUsed = dMint.IsUsed();
-    zerocoin.nHeight = dMint.GetHeight();
-    zerocoin.id = dMint.GetId();
-    zerocoin.ecdsaSecretKey = std::vector<unsigned char>(&coin.getEcdsaSeckey()[0],&coin.getEcdsaSeckey()[32]);
+    entry.key = coin;
+    entry.spentTx = mint.GetSpendTx();
+    entry.property = mint.GetPropertyId();
+    entry.denomination = mint.GetDenomination();
+    entry.chainState = mint.GetChainState();
 
     return true;
 }
 
-bool CExodusHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx)
+bool HDMintWallet::IsSerialInBlockchain(
+    uint32_t propertyId, uint8_t denomination, uint256 const& hashSerial, uint256& txidSpend, CTransaction& tx)
 {
-    txidSpend.SetNull();
-    CMintMeta mMeta;
-    Scalar bnSerial;
-    if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB walletdb(walletFile);
+    secp_primitives::GroupElement commitment;
+
+    if (!walletdb.ReadExodusPubcoin(hashSerial, commitment)) {
+        return error("IsSerialInBlockchain : get exodus mint fail\n");
+    }
+
+    auto hashPubCoin = primitives::GetPubCoinValueHash(commitment);
+
+    HDMint mint;
+    if (!walletdb.ReadExodusHDMint(hashPubCoin, mint)) {
+        return error("IsSerialInBlockchain : get exodus mint fail\n");
+    }
+
+    SigmaMint entry;
+    if (!RegenerateMint(mint, entry)) {
+        return error("IsSerialInBlockchain : fail to regenerate sigma entry");
+    }
+
+    uint256 spendTx;
+    if (!p_mintlistdb->HasSpendSerial(propertyId, denomination, entry.key.GetSerial(), spendTx)) {
         return false;
+    }
 
-    if(!tracker.GetMetaFromSerial(hashSerial, mMeta))
+    uint256 hashBlock;
+    if (!GetTransaction(spendTx, tx, ::Params().GetConsensus(), hashBlock, true)) {
         return false;
+    }
 
-    txidSpend = mMeta.txid;
+    // check block is in block chain
+    if (mapBlockIndex.count(hashBlock)) {
+        if (!chainActive.Contains(mapBlockIndex.at(hashBlock))) {
+            return true;
+        }
+    }
 
-    return IsTransactionInChain(txidSpend, nHeightTx, tx);
+    return false;
 }
 
-bool CExodusHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state)
-{
-    // If you wonder why +1, go to file wallet.cpp and read the comments in function
-    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                          txout.scriptPubKey.end());
-    secp_primitives::GroupElement publicZerocoin;
-    publicZerocoin.deserialize(&coin_serialised[0]);
-
-    sigma::CoinDenomination denomination;
-    if(!IntegerToDenomination(txout.nValue, denomination))
-        return state.DoS(100, error("TxOutToPublicCoin : txout.nValue is not correct"));
-
-    LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicZerocoin.GetHex());
-
-    sigma::PublicCoin checkPubCoin(publicZerocoin, denomination);
-    pubCoin = checkPubCoin;
-
-    return true;
-}
+}; // exodus
