@@ -170,7 +170,7 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 
     // Block if in safe mode
     string strWarning = GetWarnings("api");
-    if (strWarning != "" && !GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE))
+    if (strWarning != "" && !GetBoolArg("-disablesafemode", DEFAULT_DISABLE_SAFEMODE) && request.collection != "apiStatus")
         throw JSONAPIError(API_FORBIDDEN_BY_SAFE_MODE, string("Safe mode: ") + strWarning);
 
     // Return if in warmup
