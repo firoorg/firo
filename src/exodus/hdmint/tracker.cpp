@@ -9,54 +9,46 @@
 #include "wallet.h"
 #include "hdmint.h"
 
-#include "../wallet.h"
-#include "../walletmodels.h"
+namespace exodus
+{
 
-#include "../../util.h"
-#include "../../sync.h"
-#include "../../txdb.h"
-#include "../../libzerocoin/Zerocoin.h"
-#include "../../main.h"
-#include "../../sigma.h"
-#include "../../txmempool.h"
-#include "../../wallet/wallet.h"
-#include "../../wallet/walletdb.h"
-
-#include "../../hdmint/mintpool.h"
-
-namespace exodus {
-
-GroupElement const &MintMeta::GetPubCoinValue() const
+const GroupElement &MintMeta::GetPubCoinValue() const
 {
     return pubCoinValue;
 }
 
-void MintMeta::SetPubCoinValue(GroupElement const &other)
+void MintMeta::SetPubCoinValue(const GroupElement &other)
 {
-    if (other == pubCoinValue)
+    if (other == pubCoinValue) {
         return;
+    }
+
     pubCoinValue = other;
     pubCoinValueHash = primitives::GetPubCoinValueHash(pubCoinValue);
 }
 
-uint256 const & MintMeta::GetPubCoinValueHash() const
+const uint256 &MintMeta::GetPubCoinValueHash() const
 {
     return pubCoinValueHash;
 }
 
-HDMintTracker::HDMintTracker(std::string walletFile, HDMintWallet *wallet)
-    : initialized(false), walletFile(walletFile), mintWallet(wallet)
+HDMintTracker::HDMintTracker(
+    std::string walletFile,
+    HDMintWallet *wallet)
+    : initialized(false),
+    walletFile(walletFile),
+    mintWallet(wallet)
 {
-    //Load all CZerocoinEntries and CHDMints from the database
     if (!initialized) {
         ListMetas(false, false, true);
         initialized = true;
     }
 }
 
-bool HDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, MintMeta& meta)
+bool HDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, MintMeta &meta)
 {
     auto it = mapSerialHashes.find(hashSerial);
+
     if (it == mapSerialHashes.end()) {
         return false;
     }
@@ -81,8 +73,6 @@ std::vector<uint256> HDMintTracker::GetSerialHashes()
 {
     std::vector<uint256> serialHashes;
     for (auto const &it : mapSerialHashes) {
-        if (it.second.isArchived)
-            continue;
 
         serialHashes.push_back(it.first);
     }
@@ -90,14 +80,14 @@ std::vector<uint256> HDMintTracker::GetSerialHashes()
     return serialHashes;
 }
 
-std::list<MintMeta> HDMintTracker::GetMints(bool confirmedOnly, bool inactive) const
+std::vector<MintMeta> HDMintTracker::GetMints(bool confirmedOnly, bool inactive) const
 {
-    std::list<MintMeta> mints;
+    std::vector<MintMeta> mints;
 
     for (auto const &it : mapSerialHashes) {
         auto mint = it.second;
 
-        if ((mint.isArchived || mint.isUsed()) && inactive) {
+        if (mint.IsUsed() && inactive) {
             continue;
         }
 
@@ -120,6 +110,7 @@ bool HDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
             return true;
         }
     }
+
     return false;
 }
 
@@ -138,28 +129,22 @@ bool HDMintTracker::UpdateState(const MintMeta &meta)
 
     HDMint mint;
     if (!walletdb.ReadExodusHDMint(hashPubcoin, mint)) {
-
-        // Check archive just in case
-        if (!meta.isArchived)
-            return error("%s: failed to read deterministic mint from database", __func__);
-
-        // Unarchive this mint since it is being requested and updated
-        if (!walletdb.UnarchiveExodusHDMint(hashPubcoin, mint))
-            return error("%s: failed to unarchive deterministic mint from database", __func__);
+        return error("%s: failed to get hdmint", __func__);
     }
 
     mint.SetChainState(meta.chainState);
     mint.SetSpendTx(meta.spendTx);
 
-    if (!walletdb.WriteExodusHDMint(mint))
+    if (!walletdb.WriteExodusHDMint(mint)) {
         return error("%s: failed to update deterministic mint when writing to db", __func__);
+    }
 
     mapSerialHashes[meta.hashSerial] = meta;
 
     return true;
 }
 
-void HDMintTracker::Add(const HDMint& mint, bool isNew, bool isArchived)
+void HDMintTracker::Add(const HDMint& mint, bool isNew)
 {
     MintMeta meta;
 
@@ -170,7 +155,6 @@ void HDMintTracker::Add(const HDMint& mint, bool isNew, bool isArchived)
     meta.SetPubCoinValue(mint.GetPubCoinValue());
 
     meta.spendTx = mint.GetSpendTx();
-    meta.isArchived = isArchived;
     meta.chainState = mint.GetChainState();
 
     mapSerialHashes[meta.hashSerial] = meta;
@@ -197,8 +181,9 @@ void HDMintTracker::ResetAllMintsChainState()
 void HDMintTracker::SetMintSpendTx(const uint256& pubcoinHash, const uint256& spendTx)
 {
     MintMeta meta;
-    if (!GetMetaFromPubcoin(pubcoinHash, meta))
+    if (!GetMetaFromPubcoin(pubcoinHash, meta)) {
         return;
+    }
 
     meta.spendTx = spendTx;
     UpdateState(meta);
@@ -207,8 +192,9 @@ void HDMintTracker::SetMintSpendTx(const uint256& pubcoinHash, const uint256& sp
 void HDMintTracker::SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState)
 {
     MintMeta meta;
-    if (!GetMetaFromPubcoin(pubcoinHash, meta))
+    if (!GetMetaFromPubcoin(pubcoinHash, meta)) {
         return;
+    }
 
     meta.chainState = chainState;
     UpdateState(meta);
@@ -252,7 +238,7 @@ std::vector<MintMeta> HDMintTracker::ListMetas(bool unusedOnly, bool matureOnly,
         int count = 0;
         walletdb.ListExodusHDMints<uint256, HDMint>([this, &count](HDMint const &mint) {
             count++;
-            Add(mint, false, false);
+            Add(mint, false);
         });
 
         LogPrintf("%s: added %d hdmint(s) from DB\n", __func__, count);

@@ -7,7 +7,6 @@
 
 #include <map>
 
-#include "../libzerocoin/Zerocoin.h"
 #include "../uint256.h"
 #include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
@@ -16,7 +15,8 @@
 #include "tracker.h"
 #include "hdmint.h"
 
-namespace exodus {
+namespace exodus
+{
 
 class HDMintWallet
 {
@@ -42,14 +42,14 @@ public:
         boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
 
     bool RegenerateMint(const HDMint& mint, SigmaMint& entry);
-    bool IsSerialInBlockchain(
-        uint32_t propertyId, uint8_t denomination, uint256 const& pubCoinHash, uint256& txidSpend, CTransaction& tx);
 
-    std::pair<uint256,uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
+    std::pair<uint256, uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
     void GenerateMintPool(int32_t nIndex = 0);
+    HDMintTracker & GetTracker() { return tracker; }
+    CMintPool & GetMintPool() { return mintPool; }
 
     bool SetMintSeedSeen(
-        std::pair<uint256,MintPoolEntry> const &mintPoolEntryPair,
+        std::pair<uint256, MintPoolEntry> const &mintPoolEntryPair,
         uint32_t propertyId,
         uint8_t denomination,
         exodus::SigmaMintChainState const &chainState,
@@ -57,13 +57,10 @@ public:
 
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, exodus::SigmaPrivateKey& coin);
 
-    // Count updating functions
+    // Get and Set count function
     int32_t GetCount();
-    HDMintTracker & GetTracker() { return tracker; }
-    CMintPool & GetMintPool() { return mintPool; }
-
     void ResetCount();
-    void SetCount(int32_t nCount);
+    void SetCount(int32_t count);
     void UpdateCountLocal();
     void UpdateCountDB();
     void UpdateCount();
@@ -72,7 +69,7 @@ public:
 
 private:
     bool CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex = true);
-    CKeyID GetZerocoinSeedID(int32_t nCount);
+    CKeyID GetZerocoinSeedID(int32_t count);
     bool LoadMintPoolFromDB();
 };
 

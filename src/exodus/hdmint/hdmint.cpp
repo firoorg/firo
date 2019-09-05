@@ -5,7 +5,8 @@
 #include <tinyformat.h>
 #include "hdmint.h"
 
-namespace exodus {
+namespace exodus
+{
 
 HDMint::HDMint()
 {

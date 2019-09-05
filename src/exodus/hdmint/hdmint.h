@@ -5,11 +5,13 @@
 #ifndef EXODUS_HDMINT_H
 #define EXODUS_HDMINT_H
 
-#include "../primitives/zerocoin.h"
+#include "../../primitives/zerocoin.h"
+
 #include "../sigma.h"
 #include "../walletmodels.h"
 
-namespace exodus {
+namespace exodus
+{
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 class HDMint
@@ -51,7 +53,7 @@ public:
 
     void SetSpendTx(const uint256& spendTx) { this->spendTx = spendTx; }
     void SetPubcoinValue(GroupElement const &pubCoinValue) { this->pubCoinValue = pubCoinValue; }
-    void SetChainState(exodus::SigmaMintChainState const &chainState) { this->chainState = chainState; }
+    void SetChainState(SigmaMintChainState const &chainState) { this->chainState = chainState; }
 
     std::string ToString() const;
 

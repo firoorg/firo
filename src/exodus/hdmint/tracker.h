@@ -6,13 +6,11 @@
 #define EXODUS_HDMINT_TRACKER_H
 
 #include "../../hdmint/mintpool.h"
-#include "../coin_containers.h"
-#include "../primitives/zerocoin.h"
-#include "../walletmodels.h"
 
 #include "hdmint.h"
 
-namespace exodus {
+namespace exodus
+{
 
 class HDMintWallet;
 
@@ -25,12 +23,11 @@ struct MintMeta
     SigmaMintChainState chainState;
 
     uint256 spendTx;
-    bool isArchived;
 
-    GroupElement const & GetPubCoinValue() const;
+    GroupElement const &GetPubCoinValue() const;
     void SetPubCoinValue(GroupElement const &other);
-    uint256 const & GetPubCoinValueHash() const;
-    bool isUsed() { return !spendTx.IsNull(); }
+    uint256 const &GetPubCoinValueHash() const;
+    bool IsUsed() { return !spendTx.IsNull(); }
 
 private:
     GroupElement pubCoinValue;
@@ -47,7 +44,7 @@ private:
 
 public:
     HDMintTracker(std::string walletFile, HDMintWallet *mintWallet);
-    void Add(const HDMint& dMint, bool isNew = false, bool isArchived = false);
+    void Add(const HDMint& dMint, bool isNew = false);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mapSerialHashes.empty(); }
@@ -56,7 +53,7 @@ public:
     bool GetMetaFromSerial(const uint256& hashSerial, MintMeta& meta);
     bool GetMetaFromPubcoin(const uint256& hashPubcoin, MintMeta& meta);
     std::vector<uint256> GetSerialHashes();
-    std::list<MintMeta> GetMints(bool confirmedOnly, bool inactive) const;
+    std::vector<MintMeta> GetMints(bool confirmedOnly, bool inactive) const;
 
     std::vector<SigmaMint> ListMints(bool unusedOnly = true, bool matureOnly = true);
     std::vector<MintMeta> ListMetas(bool unusedOnly, bool matureOnly, bool load);
@@ -65,7 +62,7 @@ public:
     void SetMintSpendTx(const uint256& hashPubcoin, const uint256& txid);
     void SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState);
 
-    bool UpdateState(MintMeta const &meta);
+    bool UpdateState(const MintMeta &meta);
     void Clear();
 };
 

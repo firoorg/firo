@@ -72,6 +72,7 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
 
 bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, MintMeta &meta)
 {
+    LOCK(pwalletMain->cs_wallet);
     auto serialHash = primitives::GetSerialHash(serial);
     return mintWallet.GetTracker().GetMetaFromSerial(serialHash, meta);
 }
@@ -112,8 +113,11 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, De
     }
 
     // Pick the oldest mint.
-    auto oldest = std::min_element(spendables.begin(), spendables.end(),
-        [](const MintMeta& a, const MintMeta& b) {
+    auto oldest = std::min_element(
+        spendables.begin(),
+        spendables.end(),
+        [](const MintMeta& a, const MintMeta& b) -> bool {
+
             if (a.chainState.group == b.chainState.group) {
                 return a.chainState.index < b.chainState.index;
             }
@@ -197,7 +201,7 @@ void Wallet::OnMintAdded(
     const SigmaPublicKey& pubKey,
     int block)
 {
-    LOCK(pwalletMain->cs_wallet); // Prevent race condition in the gap between a call to HasSigmaEntry and UpdateSigmaMint.
+    LOCK(pwalletMain->cs_wallet);
 
     // Try to catch unseen
     auto pubCoinHash = primitives::GetPubCoinValueHash(pubKey.GetCommitment());
@@ -220,7 +224,7 @@ void Wallet::OnMintRemoved(PropertyId property, DenominationId denomination, con
 {
     SigmaMintId id(property, denomination, pubKey);
 
-    LOCK(pwalletMain->cs_wallet); // Prevent race condition in the gap between a call to HasSigmaEntry and ClearSigmaMintChainState.
+    LOCK(pwalletMain->cs_wallet);
 
     if (!HasSigmaMint(id)) {
         return;

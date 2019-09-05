@@ -47,9 +47,13 @@ public:
         auto mintWallet = this->mintWallet;
 
         CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
-            [&mintWallet, &it](HDMint const &mint){
+            [&mintWallet, &it](HDMint const &mint) {
+
                 SigmaMint entry;
-                mintWallet.RegenerateMint(mint, entry);
+                if (!mintWallet.RegenerateMint(mint, entry)) {
+                    throw std::runtime_error("Fail to regenerate mint");
+                }
+
                 *it++ = std::move(entry);
             }
         );
@@ -65,8 +69,12 @@ public:
         CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
             [&mintWallet, &it, propertyId](HDMint const &mint){
                 if (mint.GetPropertyId() == propertyId) {
+
                     SigmaMint entry;
-                    mintWallet.RegenerateMint(mint, entry);
+                    if (!mintWallet.RegenerateMint(mint, entry)) {
+                        throw std::runtime_error("Fail to regenerate mint");
+                    }
+
                     *it++ = std::move(entry);
                 }
             }
@@ -77,11 +85,11 @@ public:
     SigmaMint GetSigmaMint(const SigmaMintId& id);
     boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
 
-    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
+    void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 
 protected:
-    void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
-    bool HasSigmaSpend(const secp_primitives::Scalar& serial, MintMeta &meta);
+    void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
+    bool HasSigmaSpend(const secp_primitives::Scalar &serial, MintMeta &meta);
 
 private:
     void OnSpendAdded(
