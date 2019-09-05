@@ -75,7 +75,7 @@ public:
     static const int CURRENT_VERSION = VERSION_WITH_BIP44;
 #ifdef ENABLE_EXODUS
     static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
-#elif
+#else
     static const int N_CHANGES = 3; // standard = 0/1, mint = 2
 #endif
     int nVersion;
