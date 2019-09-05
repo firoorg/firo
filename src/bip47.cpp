@@ -73,9 +73,15 @@ namespace bip47 {
     PaymentCode::PaymentCode() {
     }
 
-    PaymentCode::PaymentCode(byte pkey[PUBLIC_KEY_LEN], byte ch[CHAIN_LEN]) {
+    PaymentCode::PaymentCode(byte *pkey, byte *ch) {
         memcpy(pubkey, pkey, PUBLIC_KEY_LEN);
         memcpy(chain, ch, CHAIN_LEN);
+        strPaymentCode = makeV1();
+    }
+
+    PaymentCode::PaymentCode(CPubKey cPubKey, ChainCode chainCode) {
+        memcpy(pubkey, cPubKey.begin(), PUBLIC_KEY_LEN);
+        memcpy(chain, chainCode.begin(), CHAIN_LEN);
         strPaymentCode = makeV1();
     }
 
@@ -140,13 +146,8 @@ namespace bip47 {
     }
 
     CPubKey PaymentCode::getMasterPubkey() {
-
         vector<byte> vpubkey = getPubkey();
-
-        printf("\n Vector size %d\n", vpubkey.size());
         CPubKey masterPubkey(vpubkey);
-//        extPubKey.pubkey = masterPubkey;
-
         return masterPubkey;
     }
 
@@ -162,8 +163,49 @@ namespace bip47 {
         std::copy(payment_code.begin(), payment_code.end(), pcodes);
 
         printf("\nfirst_byte %s\n", (*(pcodes + 3) == 2 || *(pcodes + 3) == 3) ? "True" : "False" );
-
-
         return true;
+    }
+
+    std::string PaymentCode::ToString() {
+        return strPaymentCode;
+    }
+
+    bool PaymentCode::get_payload(byte* payload) {
+        vector<byte> payment_code;
+        DecodeBase58Check(strPaymentCode, payment_code);
+        std::copy(payment_code.begin()+1, payment_code.end(), payload);
+        printf("\n%d payment code byte size\n", payment_code.size());
+        for (int i = 0; i < PAYLOAD_LEN; i++) {
+            printf("%.2x", payload[i]);
+        }
+        return true;
+    }
+
+    /**
+     * @class Bip47Account
+     *
+     */
+
+    Bip47Account::Bip47Account(CExtKey coinTypeKey, int identity) {
+        accountId = identity;
+        coinTypeKey.Derive(key, accountId | BIP32_HARDENED_KEY_LIMIT);
+        paymentCode = PaymentCode(key.Neuter().pubkey, key.chaincode);
+    }
+
+    Bip47Account::Bip47Account(string strPaymentCode):paymentCode(strPaymentCode),accountId(0)
+    {
+        CPubKey cPubKey = paymentCode.getMasterPubkey();
+
+    }
+
+    string Bip47Account::getStringPaymentCode() {
+        return paymentCode.ToString();
+    }
+
+    CBitcoinAddress Bip47Account::getNotificationAddress() {
+        CExtKey key1;
+        key.Derive(key1, 0);
+        CBitcoinAddress address(key1.Neuter().pubkey.GetID());
+        return address;
     }
 }

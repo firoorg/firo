@@ -114,7 +114,7 @@ void init_test_config() {
     fPrintToDebugLog = false; // don't want to write to debug.log file
     fCheckBlockIndex = true;
     SoftSetBoolArg("-dandelion", false);
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(CBaseChainParams::MAIN);
     SoftSetBoolArg("-dandelion", false);
     noui_connect();
 }
@@ -168,12 +168,23 @@ int main(int argc, char* argv[]) {
     purposeKey.Derive(coinTypeKey, 0);
     coinTypeKey.Derive(identityKey, 0);
 
+
+
 //    CExtKey key;
     unsigned char data[80];
     CExtPubKey pubkey;
     pubkey = identityKey.Neuter();
     identityKey.Encode(data);
     pubkey.Encode(data);
+
+    bip47::byte alicepubkey[33];
+    bip47::byte alicechian[32];
+    std::copy(pubkey.pubkey.begin(), pubkey.pubkey.end(), alicepubkey);
+    std::copy(pubkey.chaincode.begin(), pubkey.chaincode.end(), alicechian);
+
+    bip47::PaymentCode alicePcode(alicepubkey, alicechian);
+    printf("\n Payment code of alice \n%s\n", alicePcode.ToString().c_str());
+
 
     printf("Encoded Data\n");
     for(int i = 0; i < 80; i++) {
@@ -206,6 +217,8 @@ int main(int argc, char* argv[]) {
 
     CExtPubKey extPubKey;
     paymentCode.valid();
+    bip47::byte payloads[80] = {};
+    paymentCode.get_payload(payloads);
 
 
     CBitcoinAddress newaddress("TN5pADYZMSDyKpcgicC1d2Z2adHdTgHRGG");
