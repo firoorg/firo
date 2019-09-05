@@ -17,9 +17,120 @@
 #include <zmqserver/zmqabstract.h>
 #include "univalue.h"
 
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/erase.hpp>
+#include <boost/range/algorithm/remove_if.hpp>
+
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
+
+/* Parse help string as JSON object.
+*/
+void parseHelpString(UniValue& result, std::string helpString)
+{
+    std::vector<std::string> categoriesVec;
+    iter_split(categoriesVec, helpString, boost::algorithm::first_finder("\n\n"));
+
+    BOOST_FOREACH(std::string category, categoriesVec){
+        UniValue categoryArr(UniValue::VARR);
+        std::vector<std::string> categoryVec;
+        boost::split(categoryVec, category, boost::is_any_of("\n"), boost::token_compress_on);
+
+        std::string categoryKey = categoryVec[0];
+        categoryKey.erase(boost::remove_if(categoryKey, boost::is_any_of("= ")), categoryKey.end());
+
+        for(unsigned index=1; index<categoryVec.size(); index++){
+           categoryArr.push_back(categoryVec[index]);
+        }
+        result.push_back(Pair(categoryKey,categoryArr));
+    }
+}
+
+/**
+ * (Taken from Qt. Could expose the function there but it's likely we will deprecate Qt in the future)
+ * Split shell command line into a list of arguments. Aims to emulate \c bash and friends.
+ *
+ * - Arguments are delimited with whitespace
+ * - Extra whitespace at the beginning and end and between arguments will be ignored
+ * - Text can be "double" or 'single' quoted
+ * - The backslash \c \ is used as escape character
+ *   - Outside quotes, any character can be escaped
+ *   - Within double quotes, only escape \c " and backslashes before a \c " or another backslash
+ *   - Within single quotes, no escaping is possible and no special interpretation takes place
+ *
+ * @param[out]   args        Parsed arguments will be appended to this list
+ * @param[in]    strCommand  Command line to split
+ */
+bool parseCommandLine(std::vector<std::string> &args, const std::string &strCommand)
+{
+    enum CmdParseState
+    {
+        STATE_EATING_SPACES,
+        STATE_ARGUMENT,
+        STATE_SINGLEQUOTED,
+        STATE_DOUBLEQUOTED,
+        STATE_ESCAPE_OUTER,
+        STATE_ESCAPE_DOUBLEQUOTED
+    } state = STATE_EATING_SPACES;
+    std::string curarg;
+    BOOST_FOREACH(char ch, strCommand)
+    {
+        switch(state)
+        {
+        case STATE_ARGUMENT: // In or after argument
+        case STATE_EATING_SPACES: // Handle runs of whitespace
+            switch(ch)
+            {
+            case '"': state = STATE_DOUBLEQUOTED; break;
+            case '\'': state = STATE_SINGLEQUOTED; break;
+            case '\\': state = STATE_ESCAPE_OUTER; break;
+            case ' ': case '\n': case '\t':
+                if(state == STATE_ARGUMENT) // Space ends argument
+                {
+                    args.push_back(curarg);
+                    curarg.clear();
+                }
+                state = STATE_EATING_SPACES;
+                break;
+            default: curarg += ch; state = STATE_ARGUMENT;
+            }
+            break;
+        case STATE_SINGLEQUOTED: // Single-quoted string
+            switch(ch)
+            {
+            case '\'': state = STATE_ARGUMENT; break;
+            default: curarg += ch;
+            }
+            break;
+        case STATE_DOUBLEQUOTED: // Double-quoted string
+            switch(ch)
+            {
+            case '"': state = STATE_ARGUMENT; break;
+            case '\\': state = STATE_ESCAPE_DOUBLEQUOTED; break;
+            default: curarg += ch;
+            }
+            break;
+        case STATE_ESCAPE_OUTER: // '\' outside quotes
+            curarg += ch; state = STATE_ARGUMENT;
+            break;
+        case STATE_ESCAPE_DOUBLEQUOTED: // '\' in double-quoted text
+            if(ch != '"' && ch != '\\') curarg += '\\'; // keep '\' for everything but the quote and '\' itself
+            curarg += ch; state = STATE_DOUBLEQUOTED;
+            break;
+        }
+    }
+    switch(state) // final state
+    {
+    case STATE_EATING_SPACES:
+        return true;
+    case STATE_ARGUMENT:
+        args.push_back(curarg);
+        return true;
+    default: // ERROR to end in one of the other states
+        return false;
+    }
+}
 
 UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
@@ -112,43 +223,47 @@ UniValue stop(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 
 UniValue rpc(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    std::string strMethod;
-
     switch(type){
         case Initial: {
             // call help command and parse. No data here.
             UniValue request(UniValue::VOBJ);
             UniValue reply(UniValue::VOBJ);
-
-            std::string strMethod = "help";
+            UniValue result(UniValue::VOBJ);
+            
+            std::string method = "help";
             std::vector<std::string> args;
-            UniValue params = RPCConvertValues(strMethod, args);
+            UniValue params = RPCConvertValues(method, args);
 
-            request.push_back(Pair("strMethod", strMethod));
+            request.push_back(Pair("method", method));
             request.push_back(Pair("params", params));
 
             reply = JSONRPCExecOne(request);
 
-            break;
+            UniValue categories(UniValue::VOBJ);
+            std::string replyStr = find_value(reply, "result").get_str();
+            parseHelpString(categories, replyStr);
+
+            result.push_back(Pair("categories", categories));
+            return result;
         }
         case Create: {
             UniValue request(UniValue::VOBJ);
             UniValue reply(UniValue::VOBJ);
 
-            std::string strMethod = find_value(data, "strMethod").get_str();
-            std::string args_str = find_value(data, "args").get_str();
+            std::string method = find_value(data, "method").get_str();
+            std::string argsStr = find_value(data, "args").get_str();
 
             std::vector<std::string> args;
-            boost::split(args, args_str, boost::is_any_of(" "), boost::token_compress_on);
+            parseCommandLine(args, argsStr);
 
-            UniValue params = RPCConvertValues(strMethod, args);
+            UniValue params = RPCConvertValues(method, args);
 
-            request.push_back(Pair("strMethod", strMethod));
+            request.push_back(Pair("method", method));
             request.push_back(Pair("params", params));
 
             reply = JSONRPCExecOne(request);
 
-            break;
+            return reply;
         }
         default: {
             throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");

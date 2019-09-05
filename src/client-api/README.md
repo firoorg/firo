@@ -595,7 +595,7 @@ OPTIONAL: not a necessary parameter to pass.
 `create`:
 ```
     data: {
-        "command": STRING
+        "method": STRING
         "args": STRING
     }
 ```
@@ -603,7 +603,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
    data: {
         "result": STRING,
-        "errored": BOOL
+        "error": STRING (VAR: failure in call)
     },
     meta:{
         status: 200
