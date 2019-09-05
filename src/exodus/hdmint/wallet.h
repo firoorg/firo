@@ -49,7 +49,12 @@ public:
     void GenerateMintPool(int32_t nIndex = 0);
 
     bool SetMintSeedSeen(
-        std::pair<uint256,MintPoolEntry> const &mintPoolEntryPair, uint32_t propertyId, uint8_t denomination, exodus::SigmaMintChainState const &chainState);
+        std::pair<uint256,MintPoolEntry> const &mintPoolEntryPair,
+        uint32_t propertyId,
+        uint8_t denomination,
+        exodus::SigmaMintChainState const &chainState,
+        uint256 const &spendTx = uint256());
+
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, exodus::SigmaPrivateKey& coin);
 
     // Count updating functions

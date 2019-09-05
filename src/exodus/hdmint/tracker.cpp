@@ -285,10 +285,6 @@ std::vector<MintMeta> HDMintTracker::ListMetas(bool unusedOnly, bool matureOnly,
     for (auto const &it : mapSerialHashes) {
         auto mint = it.second;
 
-        // Get only unarchived mints
-        if (!mint.isArchived)
-            continue;
-
         if (unusedOnly && !mint.spendTx.IsNull())
             continue;
 

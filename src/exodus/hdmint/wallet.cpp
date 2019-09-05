@@ -210,7 +210,8 @@ bool HDMintWallet::SetMintSeedSeen(
     std::pair<uint256, MintPoolEntry> const &mintPoolEntryPair,
     uint32_t propertyId,
     uint8_t denomination,
-    exodus::SigmaMintChainState const &chainState)
+    exodus::SigmaMintChainState const &chainState,
+    uint256 const &spendTx)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
@@ -261,15 +262,7 @@ bool HDMintWallet::SetMintSeedSeen(
     // Create mint object
     HDMint mint(propertyId, denomination, mintCount, seedId, hashSerial, commitment);
     mint.SetChainState(chainState);
-
-    // Check if this is also already spent
-    uint256 spendTx;
-    CTransaction tx;
-    if (IsSerialInBlockchain(propertyId, denomination, hashSerial, spendTx, tx)) {
-
-        //Find transaction details and make a wallettx and add to wallet
-        mint.SetSpendTx(spendTx);
-    }
+    mint.SetSpendTx(spendTx);
 
     // Add to tracker which also adds to database
     tracker.Add(mint, true);
