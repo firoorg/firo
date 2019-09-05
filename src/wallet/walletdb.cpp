@@ -1613,104 +1613,112 @@ bool CWalletDB::EraseExodusMintPoolPair(uint256 const &hashPubcoin)
 
 std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListExodusSerialPubcoinPairs()
 {
-    std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
-        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
-    for (;;)
-    {
+    std::vector<std::pair<uint256, GroupElement>> serialPubcoins;
+
+    auto cursor = GetCursor();
+    if (!cursor) {
+        throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
+    }
+
+    unsigned int flags = DB_SET_RANGE;
+
+    while (true) {
+
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("exodus_pubcoin"), ArithToUint256(arith_uint256(0)));
+        if (flags == DB_SET_RANGE) {
+            ssKey << std::make_pair(string("exodus_pubcoin"), ArithToUint256(arith_uint256(0)));
+        }
+
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
-        if (ret == DB_NOTFOUND)
+        int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+        flags = DB_NEXT;
+
+        if (ret == DB_NOTFOUND) {
             break;
-        else if (ret != 0)
-        {
-            pcursor->close();
-            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        } else if (ret) {
+            cursor->close();
+            throw std::runtime_error(std::string(__func__) + " : error scanning DB");
         }
 
         // Unserialize
-        string strType;
-        ssKey >> strType;
-        if (strType != "exodus_pubcoin")
+        string type;
+        ssKey >> type;
+        if (type != "exodus_pubcoin") {
             break;
+        }
 
         uint256 hashSerial;
         ssKey >> hashSerial;
 
-        GroupElement pubcoin;
+        secp_primitives::GroupElement pubcoin;
         ssValue >> pubcoin;
 
-        listSerialPubcoin.push_back(make_pair(hashSerial, pubcoin));
+        serialPubcoins.push_back(std::make_pair(hashSerial, pubcoin));
     }
 
-    pcursor->close();
+    cursor->close();
 
-    return listSerialPubcoin;
+    return serialPubcoins;
 
 }
 
 //! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs
 std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListExodusMintPool()
 {
-    std::vector<std::pair<uint256, MintPoolEntry>> listPool;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
-        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
-    for (;;)
-    {
+    std::vector<std::pair<uint256, MintPoolEntry>> mintPools;
+    auto cursor = GetCursor();
+
+    if (!cursor) {
+        throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
+    }
+
+    unsigned int flags = DB_SET_RANGE;
+    while (true) {
+
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (flags == DB_SET_RANGE) {
             ssKey << make_pair(string("exodus_mintpool"), ArithToUint256(arith_uint256(0)));
+        }
+
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
-        if (ret == DB_NOTFOUND)
+        int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+        flags = DB_NEXT;
+
+        if (ret == DB_NOTFOUND) {
             break;
-        else if (ret != 0)
-        {
-            pcursor->close();
-            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        } else if (ret) {
+            cursor->close();
+            throw runtime_error(std::string(__func__) + " : error scanning DB");
         }
 
         // Unserialize
-
-        try {
-            string type;
-            ssKey >> type;
-            if (type != "exodus_mintpool")
-                break;
-
-            uint256 hashPubcoin;
-            ssKey >> hashPubcoin;
-
-            uint160 hashSeedMaster;
-            ssValue >> hashSeedMaster;
-
-            CKeyID seedId;
-            ssValue >> seedId;
-
-            int32_t count;
-            ssValue >> count;
-
-            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, count);
-
-            listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
-        } catch (std::ios_base::failure const &) {
-            // There maybe some old entries that don't conform to the latest version. Just skipping those.
+        string type;
+        ssKey >> type;
+        if (type != "exodus_mintpool") {
+            break;
         }
+
+        uint256 hashPubcoin;
+        ssKey >> hashPubcoin;
+
+        uint160 hashSeedMaster;
+        ssValue >> hashSeedMaster;
+
+        CKeyID seedId;
+        ssValue >> seedId;
+
+        int32_t count;
+        ssValue >> count;
+
+        MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, count);
+
+        mintPools.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
     }
 
-    pcursor->close();
+    cursor->close();
 
-    return listPool;
+    return mintPools;
 }
 #endif

@@ -329,68 +329,76 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListExodusMint(InsertF insertF)
     {
-        Dbc *pcursor = GetCursor();
-        if (!pcursor)
-            throw std::runtime_error(
-                "CWalletDB::ListExodusMint() : cannot create DB cursor");
+        auto cursor = GetCursor();
+        if (!cursor) {
+            throw std::runtime_error("CWalletDB::ListExodusMint() : cannot create DB cursor");
+        }
 
-        unsigned int fFlags = DB_SET_RANGE;
+        unsigned int flags = DB_SET_RANGE;
         while (true) {
+
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (fFlags == DB_SET_RANGE)
-                ssKey << make_pair(std::string("exodus_sigma_mint"), K());
+            if (flags == DB_SET_RANGE)
+                ssKey << std::make_pair(std::string("exodus_sigma_mint"), K());
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-            fFlags = DB_NEXT;
-            if (ret == DB_NOTFOUND)
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+
+            flags = DB_NEXT;
+            if (ret == DB_NOTFOUND) {
                 break;
-            else if (ret != 0) {
-                pcursor->close();
-                throw std::runtime_error(
-                    "CWalletDB::ListExodusMint() : error scanning DB");
+            } else if (ret != 0) {
+                cursor->close();
+                throw std::runtime_error("CWalletDB::ListExodusMint() : error scanning DB");
             }
+
             // Unserialize
             std::string strType;
             ssKey >> strType;
-            if (strType != "exodus_sigma_mint")
+            if (strType != "exodus_sigma_mint") {
                 break;
+            }
+
             K k;
             ssKey >> k;
+
             V v;
             ssValue >> v;
+
             insertF(v);
         }
+
+        cursor->close();
     }
 
     template<class HDMint>
     bool ReadExodusHDMint(const uint256& hashPubcoin, HDMint& mint)
     {
-        return Read(make_pair(std::string("exodus_hdmint"), hashPubcoin), mint);
+        return Read(std::make_pair(std::string("exodus_hdmint"), hashPubcoin), mint);
     }
 
     bool HasExodusHDMint(const uint256& hashPubcoin)
     {
-        return Exists(make_pair(std::string("exodus_hdmint"), hashPubcoin));
+        return Exists(std::make_pair(std::string("exodus_hdmint"), hashPubcoin));
     }
 
     template<class HDMint>
     bool WriteExodusHDMint(const HDMint& mint)
     {
-        return Write(make_pair(std::string("exodus_hdmint"), mint.GetPubCoinHash()), mint, true);
+        return Write(std::make_pair(std::string("exodus_hdmint"), mint.GetPubCoinHash()), mint, true);
     }
 
     bool EraseExodusHDMint(const uint256& hashPubcoin)
     {
-        return Erase(make_pair(std::string("exodus_hdmint"), hashPubcoin));
+        return Erase(std::make_pair(std::string("exodus_hdmint"), hashPubcoin));
     }
 
     template<typename K, typename V, typename InsertF>
     void ListExodusHDMints(InsertF insertF)
     {
-        Dbc* pcursor = GetCursor();
-        if (!pcursor) {
+        auto cursor = GetCursor();
+        if (!cursor) {
             throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
         }
 
@@ -404,20 +412,22 @@ public:
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(pcursor, ssKey, ssValue, flags);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+
             flags = DB_NEXT;
             if (ret == DB_NOTFOUND) {
                 break;
             } else if (ret != 0) {
-                pcursor->close();
+                cursor->close();
                 throw runtime_error(std::string(__func__)+" : error scanning DB");
             }
 
             // Unserialize
             string type;
             ssKey >> type;
-            if (type != "exodus_hdmint")
+            if (type != "exodus_hdmint") {
                 break;
+            }
 
             K key;
             ssKey >> key;
@@ -428,43 +438,8 @@ public:
             insertF(value);
         }
 
-        pcursor->close();
+        cursor->close();
     }
-
-
-    template<class HDMint>
-    bool ArchiveExodusHDMint(const HDMint& mint)
-    {
-        if (!Write(make_pair(string("exodus_archived"), mint.GetPubCoinHash()), mint)) {
-            return error("%s: write failed", __func__);
-        }
-
-        if (!EraseExodusHDMint(mint.GetPubCoinHash())) {
-            return error("%s: failed to erase", __func__);
-        }
-
-        return true;
-    }
-
-
-    template<class HDMint>
-    bool UnarchiveExodusHDMint(uint256 const &hashPubcoin, HDMint& mint)
-    {
-        if (!Read(make_pair(string("exodus_archived"), hashPubcoin), mint)) {
-            return error("%s: failed to retrieve deterministic mint from archive", __func__);
-        }
-
-        if (!WriteExodusHDMint(mint)) {
-            return error("%s: failed to write deterministic mint", __func__);
-        }
-
-        if (!Erase(make_pair(string("exodus_archived"), hashPubcoin))) {
-            return error("%s : failed to erase archived deterministic mint", __func__);
-        }
-
-        return true;
-    }
-
 #endif
 
 private:
