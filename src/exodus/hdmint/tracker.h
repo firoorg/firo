@@ -22,7 +22,7 @@ struct MintMeta
     uint8_t denomination;
     uint256 hashSerial;
 
-    exodus::SigmaMintChainState chainState;
+    SigmaMintChainState chainState;
 
     uint256 spendTx;
     bool isArchived;
@@ -48,7 +48,6 @@ private:
 public:
     HDMintTracker(std::string walletFile, HDMintWallet *mintWallet);
     void Add(const HDMint& dMint, bool isNew = false, bool isArchived = false);
-    bool Archive(MintMeta &meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mapSerialHashes.empty(); }
@@ -62,10 +61,10 @@ public:
     std::vector<SigmaMint> ListMints(bool unusedOnly = true, bool matureOnly = true);
     std::vector<MintMeta> ListMetas(bool unusedOnly, bool matureOnly, bool load);
 
+    void ResetAllMintsChainState();
     void SetMintSpendTx(const uint256& hashPubcoin, const uint256& txid);
     void SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState);
 
-    bool UnArchive(const uint256& hashPubcoin);
     bool UpdateState(MintMeta const &meta);
     void Clear();
 };

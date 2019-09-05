@@ -37,6 +37,7 @@ public:
 
         return output;
     }
+    void ResetState();
 
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)

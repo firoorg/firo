@@ -58,6 +58,11 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomina
     return SigmaMintId(property, denomination, SigmaPublicKey(key));
 }
 
+void Wallet::ResetState()
+{
+    mintWallet.ResetCoinsState();
+}
+
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
     LOCK(pwalletMain->cs_wallet);

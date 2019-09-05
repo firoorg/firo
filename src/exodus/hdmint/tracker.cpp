@@ -54,42 +54,6 @@ HDMintTracker::HDMintTracker(std::string walletFile, HDMintWallet *wallet)
     }
 }
 
-bool HDMintTracker::Archive(MintMeta &meta)
-{
-    LOCK(pwalletMain->cs_wallet);
-
-    uint256 hashPubcoin = meta.GetPubCoinValueHash();
-
-    if (HasSerialHash(meta.hashSerial))
-        mapSerialHashes.at(meta.hashSerial).isArchived = true;
-
-    CWalletDB walletdb(walletFile);
-    HDMint mint;
-
-    if (!walletdb.ReadExodusHDMint(hashPubcoin, mint))
-        return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
-
-    if (!walletdb.ArchiveExodusHDMint(mint))
-        return error("%s: failed to archive deterministic orphaned mint", __func__);
-
-    LogPrintf("%s: archived pubcoinhash %s\n", __func__, hashPubcoin.GetHex());
-    return true;
-}
-
-bool HDMintTracker::UnArchive(const uint256& hashPubcoin)
-{
-    CWalletDB walletdb(walletFile);
-    HDMint mint;
-
-    if (!walletdb.UnarchiveExodusHDMint(hashPubcoin, mint))
-        return error("%s: failed to unarchive deterministic mint", __func__);
-
-    Add(mint, false);
-    LogPrintf("%s: unarchived %s\n", __func__, hashPubcoin.GetHex());
-
-    return true;
-}
-
 bool HDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, MintMeta& meta)
 {
     auto it = mapSerialHashes.find(hashSerial);
@@ -214,6 +178,18 @@ void HDMintTracker::Add(const HDMint& mint, bool isNew, bool isArchived)
     if (isNew) {
         if (!CWalletDB(walletFile).WriteExodusHDMint(mint)) {
             throw std::runtime_error("fail to store hdmint");
+        }
+    }
+}
+
+void HDMintTracker::ResetAllMintsChainState()
+{
+    for (auto &meta : ListMetas(false, false, false)) {
+
+        meta.chainState = SigmaMintChainState();
+        meta.spendTx = uint256();
+        if (!UpdateState(meta)) {
+            throw std::runtime_error("fail to reset state");
         }
     }
 }

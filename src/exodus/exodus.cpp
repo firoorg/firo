@@ -633,6 +633,16 @@ void CheckWalletUpdate(bool forceUpdate)
     }
     // signal an Exodus balance change
     uiInterface.ExodusBalanceChanged();
+
+    // If exodus state is cleared then also clear exodus mint wallet
+    if (!exodus_prev) {
+        try {
+            wallet->ResetState();
+        } catch (std::runtime_error const &e) {
+            LogPrintf("%s : fail to reset state, %s\n", __func__, e.what());
+            throw;
+        }
+    }
 #endif
 }
 
@@ -3910,8 +3920,8 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         nWaterlineBlock = ConsensusParams().GENESIS_BLOCK - 1;
 
         if (reorgContainsFreeze) {
-           PrintToLog("Reorganization containing freeze related transactions detected, forcing a reparse...\n");
-           clear_all_state(); // unable to reorg freezes safely, clear state and reparse
+            PrintToLog("Reorganization containing freeze related transactions detected, forcing a reparse...\n");
+            clear_all_state(); // unable to reorg freezes safely, clear state and reparse
         } else {
             int best_state_block = load_most_relevant_state();
             if (best_state_block < 0) {

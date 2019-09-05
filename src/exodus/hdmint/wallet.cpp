@@ -27,7 +27,7 @@ HDMintWallet::HDMintWallet(const std::string& walletFile)
     }
 
     // Use MasterKeyId from HDChain as index for mintpool
-    uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+    auto hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
     LogPrintf("hashSeedMaster: %d\n", hashSeedMaster.GetHex());
 
     if (!SetupWallet(hashSeedMaster)) {
@@ -410,23 +410,16 @@ void HDMintWallet::UpdateCount()
 
 void HDMintWallet::ResetCoinsState()
 {
-    LOCK(pwalletMain->cs_wallet);
-    CWalletDB walletdb(walletFile);
-
-    std::vector<HDMint> mints;
-    walletdb.ListExodusHDMints<uint256, HDMint>([&mints](HDMint const &mint) {
-        mints.push_back(mint);
-    });
-
-    for (auto &m : mints) {
-        m.SetSpendTx(uint256());
-        m.SetChainState(SigmaMintChainState());
-        if (!walletdb.WriteExodusHDMint(m)) {
-            throw std::runtime_error("fail to reset coins state");
-        }
+    try {
+        tracker.ResetAllMintsChainState();
+    } catch (std::runtime_error const &e) {
+        LogPrintf("%s : fail to reset all mints chain state, %s\n", __func__, e.what());
+        throw;
     }
 
-    LoadMintPoolFromDB();
+    if (!LoadMintPoolFromDB()) {
+        LogPrintf("%s : fail to reload mint pool after reset all mint chain state\n");
+    }
 }
 
 bool HDMintWallet::GenerateMint(
