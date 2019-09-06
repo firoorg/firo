@@ -69,12 +69,9 @@ static CTxOut createTxOut(int64_t amount, const std::string& dest)
     return CTxOut(amount, GetScriptForDestination(CBitcoinAddress(dest).Get()));
 }
 
-/** Helper to determine hex-encoded payload size. */
 static size_t getPayloadSize(unsigned int nPackets)
 {
-    // multiply by 2 for hex conversion
-    // subtract 1 byte for sequence number
-    return 2 * (PACKET_SIZE - 1) * nPackets;
+    return CLASS_B_CHUNK_PAYLOAD_SIZE * nPackets;
 }
 
 BOOST_AUTO_TEST_CASE(valid_common_class_b)
@@ -98,7 +95,7 @@ BOOST_AUTO_TEST_CASE(valid_common_class_b)
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
     BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-    BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(10));
+    BOOST_CHECK_EQUAL(metaTx.getRaw().size(), getPayloadSize(10));
 }
 
 BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
@@ -130,7 +127,7 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
     BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-    BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(MAX_PACKETS));
+    BOOST_CHECK_EQUAL(metaTx.getRaw().size(), getPayloadSize(CLASS_B_MAX_CHUNKS));
 }
 
 

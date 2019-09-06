@@ -614,9 +614,10 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
     int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
     if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_EXODUS_PROTOCOL);
 
+    auto& payload = mp_obj.getRaw();
     UniValue payloadObj(UniValue::VOBJ);
-    payloadObj.push_back(Pair("payload", mp_obj.getPayload()));
-    payloadObj.push_back(Pair("payloadsize", mp_obj.getPayloadSize()));
+    payloadObj.push_back(Pair("payload", HexStr(payload)));
+    payloadObj.push_back(Pair("payloadsize", payload.size()));
     return payloadObj;
 }
 

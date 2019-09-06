@@ -54,9 +54,6 @@ constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 #define MP_TX_PKT_V1  1
 
 #define MIN_PAYLOAD_SIZE     5
-#define PACKET_SIZE_CLASS_A 19
-#define PACKET_SIZE         31
-#define MAX_PACKETS        255
 
 #define EXODUS_PROPERTY_TYPE_INDIVISIBLE             1
 #define EXODUS_PROPERTY_TYPE_DIVISIBLE               2
