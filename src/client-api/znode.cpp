@@ -165,39 +165,39 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 }
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    // If the Znode list is not yet synced, return the wallet Znodes, as described in znode.conf
-    if(!znodeSync.IsSynced()){        
-        UniValue data(UniValue::VOBJ);
-        UniValue nodes(UniValue::VOBJ);
 
-        int fIndex = 0;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            const std::string& txHash = mne.getTxHash();
-            const std::string& outputIndex = mne.getOutputIndex();
-            std::string key = txHash + outputIndex;
-            CZnode* mn = mnodeman.Find(txHash, outputIndex);
-
-            UniValue node(UniValue::VOBJ);
-            if(mn==NULL){
-                node = mne.ToJSON();
-                node.push_back(Pair("position", fIndex++));
-            }else{
-                node = mn->ToJSON();
-            }
-            nodes.replace(key, node);
-        }
-
-        data.push_back(Pair("nodes", nodes));
-        data.push_back(Pair("total", mnodeman.CountZnodes()));
-
-        return data;
-    }
-
-    // Otherwise, return all Znodes.
     switch(type){
         case Initial: {
             UniValue data(UniValue::VOBJ);
             UniValue nodes(UniValue::VOBJ);
+
+            int fIndex = 0;
+            BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+                const std::string& txHash = mne.getTxHash();
+                const std::string& outputIndex = mne.getOutputIndex();
+                std::string key = txHash + outputIndex;
+                CZnode* mn = mnodeman.Find(txHash, outputIndex);
+
+                UniValue node(UniValue::VOBJ);
+                if(mn==NULL){
+                    node = mne.ToJSON();
+                    node.push_back(Pair("position", fIndex++));
+                }else{
+                    node = mn->ToJSON();
+                }
+                nodes.replace(key, node);
+            }
+
+            /*
+             * If the Znode list is not yet synced, return the wallet Znodes, as described in znode.conf
+             * if it is, process all Znodes, and return along with wallet Znodes.
+             * (if the wallet Znode has started, it will be replaced in the synced list).
+             */
+            if(!znodeSync.IsSynced()){
+                data.push_back(Pair("nodes", nodes));
+                data.push_back(Pair("total", mnodeman.CountZnodes()));
+                return data;
+            }
 
             std::unordered_map<std::string, int> ranks;
 
@@ -223,11 +223,10 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             data.push_back(Pair("nodes", nodes));
             data.push_back(Pair("total", mnodeman.CountZnodes()));
             return data;
-
             break;
         }
         default: {
-
+            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
         }
     }
 
