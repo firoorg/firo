@@ -1,7 +1,6 @@
 Zcoin
 ===============
 
-[![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
 [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
