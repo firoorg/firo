@@ -15,123 +15,153 @@
 
 using namespace std;
 
-UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    string method;
-    try {
-        method = find_value(data, "method").get_str();
-    }catch (const std::exception& e){
-        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-    }
-    
-    UniValue overall(UniValue::VOBJ);
-    UniValue detail(UniValue::VOBJ);
-    UniValue ret(UniValue::VOBJ);
-    
-    int nSuccessful = 0;
-    int nFailed = 0;
+UniValue znodekey(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
-    if (method == "start-alias") {
+    switch(type){
+        case Update: {
+            UniValue key(UniValue::VOBJ);
+            CKey secret;
+            secret.MakeNewKey(false);
 
-        string alias;
-        try {
-            alias = find_value(data, "alias").get_str();
-        }catch (const std::exception& e){
-            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+            key.push_back(Pair("key", CBitcoinSecret(secret).ToString()));
+
+            return key;
+            break;
         }
+        default: {
+            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+        }
+    }
+    return true;
+}
 
-        bool fFound = false;
+UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
-        UniValue status(UniValue::VOBJ);
-        status.push_back(Pair("alias", alias));
+    switch(type){
+        case Update: {
+            string method;
+            try {
+                method = find_value(data, "method").get_str();
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+            }
+            
+            UniValue overall(UniValue::VOBJ);
+            UniValue detail(UniValue::VOBJ);
+            UniValue ret(UniValue::VOBJ);
+            
+            int nSuccessful = 0;
+            int nFailed = 0;
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            if (mne.getAlias() == alias) {
-                fFound = true;
-                std::string strError;
-                CZnodeBroadcast mnb;
+            if (method == "start-alias") {
 
-                bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                            mne.getOutputIndex(), strError, mnb);
-                status.push_back(Pair("success", fResult));
-                if (fResult) {
-                    nSuccessful++;
-                    mnodeman.UpdateZnodeList(mnb);
-                    mnb.RelayZNode();
-                } else {
+                string alias;
+                try {
+                    alias = find_value(data, "alias").get_str();
+                }catch (const std::exception& e){
+                    throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                }
+
+                bool fFound = false;
+
+                UniValue status(UniValue::VOBJ);
+                status.push_back(Pair("alias", alias));
+
+                BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+                    if (mne.getAlias() == alias) {
+                        fFound = true;
+                        std::string strError;
+                        CZnodeBroadcast mnb;
+
+                        bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                                                                    mne.getOutputIndex(), strError, mnb);
+                        status.push_back(Pair("success", fResult));
+                        if (fResult) {
+                            nSuccessful++;
+                            mnodeman.UpdateZnodeList(mnb);
+                            mnb.RelayZNode();
+                        } else {
+                            nFailed++;
+                            status.push_back(Pair("info", strError));
+                        }
+                        mnodeman.NotifyZnodeUpdates();
+                        break;
+                    }
+                }
+
+                if (!fFound) {
                     nFailed++;
-                    status.push_back(Pair("info", strError));
+                    status.push_back(Pair("success", false));
+                    status.push_back(Pair("info", "Could not find alias in config. Verify with list-conf."));
+                }
+
+                detail.push_back(Pair("status", status));
+            }
+
+            else if (method == "start-all" || method == "start-missing") {
+                {
+                    LOCK(pwalletMain->cs_wallet);
+                    EnsureWalletIsUnlocked();
+                }
+
+                if ((method == "start-missing") && !znodeSync.IsZnodeListSynced()) {
+                    throw JSONAPIError(API_CLIENT_IN_INITIAL_DOWNLOAD,
+                                       "You can't use this command until znode list is synced");
+                }
+
+                BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+                    std::string strError;
+
+                    CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+                    CZnode *pmn = mnodeman.Find(vin);
+                    CZnodeBroadcast mnb;
+
+                    if (method == "start-missing" && pmn) continue;
+
+                    bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                                                                mne.getOutputIndex(), strError, mnb);
+
+                    UniValue status(UniValue::VOBJ);
+                    status.push_back(Pair("alias", mne.getAlias()));
+                    status.push_back(Pair("success", fResult));
+
+                    if (fResult) {
+                        nSuccessful++;
+                        mnodeman.UpdateZnodeList(mnb);
+                        mnb.RelayZNode();
+                    } else {
+                        nFailed++;
+                        status.push_back(Pair("info", strError));
+                    }
+
+                    detail.push_back(Pair("status", status));
                 }
                 mnodeman.NotifyZnodeUpdates();
-                break;
-            }
-        }
 
-        if (!fFound) {
-            nFailed++;
-            status.push_back(Pair("success", false));
-            status.push_back(Pair("info", "Could not find alias in config. Verify with list-conf."));
-        }
-
-        detail.push_back(Pair("status", status));
-    }
-
-    else if (method == "start-all" || method == "start-missing") {
-        {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
-        }
-
-        if ((method == "start-missing") && !znodeSync.IsZnodeListSynced()) {
-            throw JSONAPIError(API_CLIENT_IN_INITIAL_DOWNLOAD,
-                               "You can't use this command until znode list is synced");
-        }
-
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            std::string strError;
-
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CZnode *pmn = mnodeman.Find(vin);
-            CZnodeBroadcast mnb;
-
-            if (method == "start-missing" && pmn) continue;
-
-            bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                        mne.getOutputIndex(), strError, mnb);
-
-            UniValue status(UniValue::VOBJ);
-            status.push_back(Pair("alias", mne.getAlias()));
-            status.push_back(Pair("success", fResult));
-
-            if (fResult) {
-                nSuccessful++;
-                mnodeman.UpdateZnodeList(mnb);
-                mnb.RelayZNode();
-            } else {
-                nFailed++;
-                status.push_back(Pair("info", strError));
             }
 
-            detail.push_back(Pair("status", status));
+            else if(method=="update-status"){
+                
+            }
+            else {
+                throw runtime_error("Method not found.");
+            }
+
+            overall.push_back(Pair("successful", nSuccessful));
+            overall.push_back(Pair("failed", nFailed));
+            overall.push_back(Pair("total", nSuccessful + nFailed));
+
+            ret.push_back(Pair("overall", overall));
+            ret.push_back(Pair("detail", detail));
+
+            return ret;
+            break;
         }
-        mnodeman.NotifyZnodeUpdates();
-
+        default: {
+            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+        }
     }
-
-    else if(method=="update-status"){
-        
-    }
-    else {
-        throw runtime_error("Method not found.");
-    }
-
-    overall.push_back(Pair("successful", nSuccessful));
-    overall.push_back(Pair("failed", nFailed));
-    overall.push_back(Pair("total", nSuccessful + nFailed));
-
-    ret.push_back(Pair("overall", overall));
-    ret.push_back(Pair("detail", detail));
-
-    return ret;
+    return true;
 }
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -222,8 +252,9 @@ UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
     { "znode",              "znodeControl",    &znodecontrol,            true,      false,           false  },
+    { "znode",              "znodeKey",        &znodekey,                true,      false,           false  },
+    { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
     { "znode",              "znodeUpdate",     &znodeupdate,             true,      false,           false  }
 };
 void RegisterZnodeAPICommands(CAPITable &tableAPI)

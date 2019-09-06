@@ -29,7 +29,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
 
     sigma::Params* sigmaParams = sigma::Params::get_default();
@@ -110,7 +110,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
 
     // Initially grab the existing transaction metadata from the filesystem.
@@ -140,7 +140,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             CAmount totalAmount = 0;
             if (outputs.size() <= 0) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
+                throw JSONAPIError(API_INVALID_PARAMETER, "Required at least an address to send");
             }
 
             UniValue txMetadataEntry(UniValue::VOBJ);
@@ -154,13 +154,13 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 CScript scriptPubKey = GetScriptForDestination(address.Get());
 
                 if (!address.IsValid())
-                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address: " + strAddr);
+                    throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address: " + strAddr);
 
                 if (!setAddress.insert(address).second)
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
+                    throw JSONAPIError(API_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
 
                 if (nAmount <= 0) {
-                    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+                    throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
                 }
                 totalAmount += nAmount;
 
@@ -184,10 +184,10 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 coins = pwalletMain->SpendSigma(vecSend, wtx, nFeeRequired);
             }
             catch (const InsufficientFunds& e) {
-                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+                throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
             }
             catch (const std::exception& e) {
-                throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+                throw JSONAPIError(API_WALLET_ERROR, e.what());
             }
 
 

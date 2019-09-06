@@ -1074,6 +1074,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 
 ### `znodeControl`
+`update`:
 ```
     data: {
         method: STRING, ["start-all" || "start-missing" || "start-alias"]
@@ -1103,6 +1104,24 @@ OPTIONAL: not a necessary parameter to pass.
           total: INT 
         }
     }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `znodeKey`
+`create`:
+```
+    data: {
+      }
+```
+*Returns:*
+```
+{
+    data: {
+        key: STRING
+    },
     meta:{
        status: 200
     }

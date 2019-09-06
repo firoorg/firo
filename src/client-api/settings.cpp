@@ -196,7 +196,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             {
                 // fail out if the setting already exists
                 if(SettingExists(settingsData, name)){
-                   throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                   throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting = find_value(data, name);
                 setting.replace("disabled", false);
@@ -212,7 +212,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             BOOST_FOREACH(const std::string& name, names){
                 // fail out if setting not found
                 if(!SettingExists(settingsData, name)){
-                   throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                   throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 bool disabled = find_value(find_value(settingsData, name), "disabled").get_bool();
                 setting = find_value(data, name);
@@ -232,11 +232,11 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             for(size_t index=0; index<names.size();index++){
                 string name = names[index].get_str();
                 if(!SettingExists(settingsData, name)){
-                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                    throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 UniValue setting(UniValue::VOBJ);
                 if(!ReadAPISetting(settingsData, setting, name)){
-                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                    throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 result.push_back(Pair(name,setting));
             }

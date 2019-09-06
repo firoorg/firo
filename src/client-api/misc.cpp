@@ -202,7 +202,7 @@ UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHel
     folderPaths.push_back(PERSISTENT_FILENAME);
 
     if(!CreateZipFile(GetDataDir().string() + "/", folderPaths, filePaths, backupPath.string())){
-        throw JSONRPCError(API_MISC_ERROR, "Failed to create backup");
+        throw JSONAPIError(API_MISC_ERROR, "Failed to create backup");
     }
 
     return true;
@@ -266,7 +266,7 @@ UniValue rpc(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             return reply;
         }
         default: {
-            throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
         }
     }
     return true;

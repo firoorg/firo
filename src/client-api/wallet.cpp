@@ -81,7 +81,7 @@ CAmount getLockUnspentAmount()
     BOOST_FOREACH(COutPoint &outpt, vOutpts) {
         uint256 hash = outpt.hash;
         if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
         total += tx.vout[outpt.n].nValue;
     }
@@ -518,18 +518,18 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
                     throw runtime_error("");
 
                 if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass))
-                    throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+                    throw JSONAPIError(API_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
 
                 return true;
             }
             else {
-                throw JSONRPCError(API_WRONG_TYPE_CALLED, "Error: Update type called, but wallet is unencrypted.");
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "Error: Update type called, but wallet is unencrypted.");
             }
             break;
         }
         case Create: {
             if (pwalletMain->IsCrypted())
-                throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+                throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
 
             SecureString strWalletPass;
             strWalletPass.reserve(100);
@@ -547,7 +547,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
                     "Encrypts the wallet with <passphrase>.");
 
             if (!pwalletMain->EncryptWallet(strWalletPass))
-                throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+                throw JSONAPIError(API_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
 
             // BDB seems to have a bad habit of writing old data into
             // slack space in .dat files; that is bad if the old data is
@@ -557,7 +557,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
             break;
         }
         default: {
-            throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
         }
     }
     return true;
