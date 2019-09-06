@@ -91,6 +91,28 @@ BOOST_AUTO_TEST_CASE(proof)
     BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end() - 1), false);
 }
 
+BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
+{
+    std::vector<SigmaPublicKey> pubs;
+
+    // 2 ^ 14 coins
+    int limit = 1 << 14;
+
+    // generate 2 ^ 14 + 1 coins
+    SigmaPrivateKey key;
+    for (int i = 0; i < limit + 1; i++) {
+        key.Generate();
+        pubs.push_back(SigmaPublicKey(key));
+    }
+
+    SigmaProof validProof, invalidProof;
+    validProof.Generate(key, pubs.begin() + 1, pubs.end()); // prove with 2 ^ 14 coins
+    invalidProof.Generate(key, pubs.begin(), pubs.end()); // prove with 2 ^ 14 + 1 coins
+
+    BOOST_CHECK_EQUAL(validProof.Verify(sigma::Params::get_default(), pubs.begin() + 1, pubs.end()), true);
+    BOOST_CHECK_EQUAL(invalidProof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), false);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace exodus
