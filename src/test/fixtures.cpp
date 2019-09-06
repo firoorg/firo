@@ -69,7 +69,7 @@ ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
         const CChainParams& chainparams = Params();
         CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
             scriptPubKey, tx_ids);
-        CBlock& block = pblocktemplate->block;
+        CBlock block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
@@ -79,7 +79,7 @@ ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
             ++block.nNonce;
         }
 
-        //delete pblocktemplate;
+        delete pblocktemplate;
         return block;
     }
 

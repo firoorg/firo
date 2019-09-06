@@ -84,6 +84,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             sub.involvesWatchAddress = involvesWatchAddress;
             sub.type = TransactionRecord::SpendToSelf;
             sub.address = addresses;
+            sub.idx = parts.size();
             sub.debit = -nTxFee;
             parts.append(sub);
         } else {
@@ -95,7 +96,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;
-
+                sub.idx = parts.size();
                 if (mine) {
                     sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                     if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
@@ -124,6 +125,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         CAmount txAmount = 0;
         for (const CTxOut &txout: wtx.vout)
             txAmount += txout.nValue;
+        sub.idx = parts.size();
         sub.debit = -txAmount;
         sub.credit = txAmount;
         sub.address = QCoreApplication::translate("zcoin-core", "Zerocoin->Sigma remint").toStdString();
