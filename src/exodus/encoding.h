@@ -68,19 +68,20 @@ public:
         }
 
         std::array<unsigned char, CPubKey::COMPRESSED_PUBLIC_KEY_SIZE> data = {}; // Zeroes all bytes.
-        auto it = data.begin();
 
         // Write chunk number and payload.
         static_assert(CLASS_B_CHUNK_SIZE + 2 == CPubKey::COMPRESSED_PUBLIC_KEY_SIZE, "Chunk size is not in the expected size");
         static_assert(CLASS_B_CHUNK_PAYLOAD_SIZE + 1 == CLASS_B_CHUNK_SIZE, "Payload size is not in the expected size");
 
-        *it++ = 0x02; // Compressed public key indicator.
-        *it++ = chunk;
+        data[0] = 0x02; // Compressed public key indicator.
+        data[1] = chunk;
 
-        std::copy(first, last, it);
+        std::copy(first, last, data.begin() + 2);
 
         // Obfuscation packet, which is chunk number and payload.
         static_assert(std::tuple_size<decltype(encKey)>::value == CLASS_B_CHUNK_SIZE, "Size of encryption key must be the same as chunk size");
+
+        auto it = data.begin() + 1;
 
         for (unsigned i = 0; i < CLASS_B_CHUNK_SIZE; i++) {
             *it++ ^= encKey[i];
