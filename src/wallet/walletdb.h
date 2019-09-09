@@ -326,8 +326,7 @@ public:
                 break;
             else if (ret != 0) {
                 pcursor->close();
-                throw std::runtime_error(
-                    "CWalletDB::ListExodusMint() : error scanning DB");
+                throw std::runtime_error("CWalletDB::ListExodusMint() : error scanning DB");
             }
             // Unserialize
             std::string strType;
@@ -340,6 +339,8 @@ public:
             ssValue >> v;
             insertF(v);
         }
+
+        pcursor->close();
     }
 
 #endif
