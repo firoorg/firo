@@ -27,7 +27,7 @@
 
 namespace exodus {
 
-static_assert(CPubKey::COMPRESSED_PUBLIC_KEY_SIZE >= 4);
+static_assert(CPubKey::COMPRESSED_PUBLIC_KEY_SIZE >= 4, "Size of compressed public key must be larger than 4 bytes");
 
 constexpr unsigned CLASS_B_MAX_CHUNKS = 255;
 constexpr unsigned CLASS_B_CHUNK_SIZE = CPubKey::COMPRESSED_PUBLIC_KEY_SIZE - 2;
@@ -71,8 +71,8 @@ public:
         auto it = data.begin();
 
         // Write chunk number and payload.
-        static_assert(CLASS_B_CHUNK_SIZE + 2 == CPubKey::COMPRESSED_PUBLIC_KEY_SIZE);
-        static_assert(CLASS_B_CHUNK_PAYLOAD_SIZE + 1 == CLASS_B_CHUNK_SIZE);
+        static_assert(CLASS_B_CHUNK_SIZE + 2 == CPubKey::COMPRESSED_PUBLIC_KEY_SIZE, "Chunk size is not in the expected size");
+        static_assert(CLASS_B_CHUNK_PAYLOAD_SIZE + 1 == CLASS_B_CHUNK_SIZE, "Payload size is not in the expected size");
 
         *it++ = 0x02; // Compressed public key indicator.
         *it++ = chunk;
@@ -80,7 +80,7 @@ public:
         std::copy(first, last, it);
 
         // Obfuscation packet, which is chunk number and payload.
-        static_assert(std::tuple_size<decltype(encKey)>::value == CLASS_B_CHUNK_SIZE);
+        static_assert(std::tuple_size<decltype(encKey)>::value == CLASS_B_CHUNK_SIZE, "Size of encryption key must be the same as chunk size");
 
         for (unsigned i = 0; i < CLASS_B_CHUNK_SIZE; i++) {
             *it++ ^= encKey[i];
@@ -121,7 +121,8 @@ Output EncodeClassB(const std::string& senderAddress, const CPubKey& redeemingKe
 
     PrepareObfuscatedHashes(senderAddress, MAX_SHA256_OBFUSCATION_TIMES, packetKeys);
 
-    static_assert(MAX_SHA256_OBFUSCATION_TIMES == CLASS_B_MAX_CHUNKS); // FIXME: Remove MAX_SHA256_OBFUSCATION_TIMES definition.
+     // FIXME: Remove MAX_SHA256_OBFUSCATION_TIMES definition.
+    static_assert(MAX_SHA256_OBFUSCATION_TIMES == CLASS_B_MAX_CHUNKS, "Value of MAX_SHA256_OBFUSCATION_TIMES is not the same as chunk size");
 
     while (remaining > 0) {
         // Get number of keys required for payload.
