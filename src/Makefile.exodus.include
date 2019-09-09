@@ -46,7 +46,6 @@ EXODUS_CPP = \
   exodus/createpayload.cpp \
   exodus/createtx.cpp \
   exodus/dex.cpp \
-  exodus/encoding.cpp \
   exodus/fees.cpp \
   exodus/fetchwallettx.cpp \
   exodus/log.cpp \

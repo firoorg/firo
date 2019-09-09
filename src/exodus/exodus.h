@@ -1,7 +1,6 @@
-#ifndef EXODUS_H
-#define EXODUS_H
+#ifndef ZCOIN_EXODUS_EXODUS_H
+#define ZCOIN_EXODUS_EXODUS_H
 
-class CBitcoinAddress;
 class CBlockIndex;
 class CCoinsView;
 class CCoinsViewCache;
@@ -13,23 +12,24 @@ class CTransaction;
 #include "sigma.h"
 #include "sigmadb.h"
 
-#include "sync.h"
-#include "uint256.h"
-#include "util.h"
+#include "../base58.h"
+#include "../sync.h"
+#include "../uint256.h"
+#include "../util.h"
 
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
 
-#include "leveldb/status.h"
-
-#include <stdint.h>
+#include <leveldb/status.h>
 
 #include <map>
-#include <string>
-#include <vector>
 #include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
+#include <inttypes.h>
 
 using std::string;
 
@@ -54,9 +54,6 @@ constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 #define MP_TX_PKT_V1  1
 
 #define MIN_PAYLOAD_SIZE     5
-#define PACKET_SIZE_CLASS_A 19
-#define PACKET_SIZE         31
-#define MAX_PACKETS        255
 
 #define EXODUS_PROPERTY_TYPE_INDIVISIBLE             1
 #define EXODUS_PROPERTY_TYPE_DIVISIBLE               2
@@ -356,4 +353,4 @@ void PrintFreezeState();
 
 }
 
-#endif // EXODUS_H
+#endif // ZCOIN_EXODUS_EXODUS_H

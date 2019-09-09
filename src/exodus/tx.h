@@ -12,9 +12,9 @@ class CTransaction;
 #include "../utilstrencodings.h"
 
 #include <string>
+#include <vector>
 
-#include <stdint.h>
-#include <string.h>
+#include <inttypes.h>
 
 using exodus::strTransactionType;
 
@@ -71,8 +71,6 @@ private:
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;
 
-    int pkt_size;
-    unsigned char pkt[1 + MAX_PACKETS * PACKET_SIZE];
     int encodingClass;  // No Marker = 0, Class A = 1, Class B = 2, Class C = 3
 
     std::string sender;
@@ -142,7 +140,7 @@ private:
     bool rpcOnly;
 
     /** Checks whether a pointer to the payload is past it's last position. */
-    bool isOverrun(const char* p);
+    bool isOverrun(const unsigned char *p);
 
     /**
      * Payload parsing
@@ -228,6 +226,7 @@ public:
 
     uint256 getHash() const { return txid; }
     int getBlock() const { return block; }
+    const std::vector<unsigned char>& getRaw() const { return raw; }
     unsigned int getType() const { return type; }
     std::string getTypeString() const { return strTransactionType(getType()); }
     unsigned int getProperty() const { return property; }
@@ -236,7 +235,6 @@ public:
     uint64_t getFeePaid() const { return tx_fee_paid; }
     const std::string& getSender() const { return sender; }
     const std::string& getReceiver() const { return receiver; }
-    std::string getPayload() const { return HexStr(pkt, pkt + pkt_size); }
     uint64_t getAmount() const { return nValue; }
     uint64_t getNewAmount() const { return nNewValue; }
     uint8_t getEcosystem() const { return ecosystem; }
@@ -254,7 +252,6 @@ public:
     uint16_t getAlertType() const { return alert_type; }
     uint32_t getAlertExpiry() const { return alert_expiry; }
     std::string getAlertMessage() const { return alert_text; }
-    int getPayloadSize() const { return pkt_size; }
     uint16_t getFeatureId() const { return feature_id; }
     uint32_t getActivationBlock() const { return activation_block; }
     uint32_t getMinClientVersion() const { return min_client_version; }
@@ -280,10 +277,9 @@ public:
         txid.SetNull();
         block = -1;
         blockTime = 0;
+        raw.clear();
         tx_idx = 0;
         tx_fee_paid = 0;
-        pkt_size = 0;
-        memset(&pkt, 0, sizeof(pkt));
         encodingClass = 0;
         sender.clear();
         receiver.clear();
@@ -331,21 +327,17 @@ public:
     }
 
     /** Sets the given values. */
-    void Set(const std::string& s, const std::string& r, uint64_t n, const uint256& t,
-        int b, unsigned int idx, unsigned char *p, unsigned int size, int encodingClassIn, uint64_t txf)
-    {
-        sender = s;
-        receiver = r;
-        txid = t;
-        block = b;
-        tx_idx = idx;
-        pkt_size = size < sizeof (pkt) ? size : sizeof (pkt);
-        nValue = n;
-        nNewValue = n;
-        encodingClass = encodingClassIn;
-        tx_fee_paid = txf;
-        memcpy(&pkt, p, pkt_size);
-    }
+    void Set(
+        const std::string& s,
+        const std::string& r,
+        uint64_t n,
+        const uint256& t,
+        int b,
+        unsigned int idx,
+        unsigned char *p,
+        unsigned int size,
+        int encodingClassIn,
+        uint64_t txf);
 
     /** Parses the packet or payload. */
     bool interpret_Transaction();
@@ -362,6 +354,9 @@ public:
         if (block != other.block) return block > other.block;
         return tx_idx > other.tx_idx;
     }
+
+private:
+    std::vector<unsigned char> raw;
 };
 
 /** Parses a transaction and populates the CMPTransaction object. */
