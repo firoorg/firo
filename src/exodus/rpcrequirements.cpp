@@ -175,6 +175,17 @@ void RequireSigmaStatus(SigmaStatus status)
 
 namespace exodus {
 
+void RequireSigma(PropertyId property)
+{
+    if (!IsFeatureActivated(FEATURE_SIGMA, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma feature is not activated yet");
+    }
+
+    if (!IsSigmaEnabled(property)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Property has not enabled Sigma");
+    }
+}
+
 void RequireExistingDenomination(PropertyId property, DenominationId denomination)
 {
     if (!IsDenominationValid(property, denomination)) {

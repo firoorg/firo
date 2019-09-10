@@ -13,6 +13,15 @@ namespace exodus {
 
 typedef std::uint32_t PropertyId;
 
+enum class SigmaStatus : uint8_t {
+    SoftDisabled    = 0,
+    SoftEnabled     = 1,
+    HardDisabled    = 2,
+    HardEnabled     = 3
+};
+
+bool IsEnabledFlag(SigmaStatus status);
+
 }
 
 #endif // ZCOIN_EXODUS_PROPERTY_H

@@ -26,6 +26,7 @@ void RequireSigmaStatus(SigmaStatus status);
 
 namespace exodus {
 
+void RequireSigma(PropertyId property);
 void RequireExistingDenomination(PropertyId property, DenominationId denomination);
 
 }
