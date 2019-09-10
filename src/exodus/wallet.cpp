@@ -101,7 +101,8 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, De
 {
     // Get all spendable mints.
     LOCK(pwalletMain->cs_wallet);
-    auto spendables = mintWallet.GetTracker().GetMints(true, true);
+    std::vector<HDMint> spendables;
+    mintWallet.GetTracker().ListHDMints(std::back_inserter(spendables), true, true);
 
     auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](HDMint const &mint) -> bool {
         return denomination != mint.GetDenomination();

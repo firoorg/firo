@@ -11,6 +11,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 
 #include "hdmint.h"
+#include "../../wallet/wallet.h"
 
 namespace exodus {
 
@@ -44,7 +45,7 @@ typedef boost::multi_index_container<
 
 class HDMintWallet;
 
-class HDMintTracker
+class MintTracker
 {
 private:
     std::string walletFile;
@@ -52,19 +53,51 @@ private:
     MintsSet mints;
 
 public:
-    HDMintTracker(std::string const &walletFile, HDMintWallet *mintWallet);
+    MintTracker(std::string const &walletFile, HDMintWallet *mintWallet);
     void Add(const HDMint& dMint, bool isNew = false);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mints.empty(); }
-    void Init();
 
     bool GetMintFromSerialHash(const uint256& hashSerial, HDMint& meta) const;
     bool GetMintFromPubcoinHash(const uint256& hashPubcoin, HDMint& meta) const;
-    std::vector<uint256> GetSerialHashes();
 
-    std::vector<HDMint> GetMints(bool unusedOnly = true, bool matureOnly = true) const;
-    std::vector<SigmaMint> ListMints(bool unusedOnly = true, bool matureOnly = true) const;
+    template<class OutIt>
+    OutIt ListHDMints(OutIt it, bool unusedOnly = true, bool matureOnly = true) const
+    {
+        for (auto const &mint : mints) {
+
+            if (unusedOnly && !mint.GetSpendTx().IsNull()) {
+                continue;
+            }
+
+            bool confirmed = mint.GetChainState().block >= 0;
+            if (matureOnly && !confirmed) {
+                continue;
+            }
+
+            *it++ = mint;
+        }
+
+        return it;
+    }
+
+    template<class OutIt>
+    OutIt ListSigmaMints(OutIt it, bool unusedOnly = true, bool matureOnly = true) const
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (auto const &mint : mints) {
+
+            SigmaMint entry;
+            if (!mintWallet->RegenerateMint(mint, entry)) {
+                throw std::runtime_error("fail to regenerate mint");
+            }
+
+            *it++ = entry;
+        }
+
+        return it;
+    }
 
     void ResetAllMintsChainState();
     void SetMintSpendTx(const uint256& hashPubcoin, const uint256& txid);

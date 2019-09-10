@@ -13,7 +13,7 @@
 namespace exodus
 {
 
-//struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
+// struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 class HDMint
 {
 private:
