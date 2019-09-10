@@ -202,7 +202,7 @@ bool ParseMintKey(
     return false;
 }
 
-bool ParseSerialKey(
+bool ParseSpendSerialKey(
     const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, SpendSerial& serial)
 {
     if (key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::SpendSerial)) {
@@ -329,10 +329,10 @@ void CMPMintList::RecordSpendSerial(
         throw std::runtime_error("record serial fail");
     }
 
-    SpendAdded(propertyId, denomination, serial, spendTx);
-
     // Store key
     RecordKeyCreationHistory(height, GetSlice(keyData));
+
+    SpendAdded(propertyId, denomination, serial, spendTx);
 }
 
 // operation code of histories
@@ -444,7 +444,7 @@ void CMPMintList::DeleteAll(int startBlock)
             uint32_t propertyId;
             uint8_t denomination;
             SpendSerial serialData;
-            ParseSerialKey(key, propertyId, denomination, serialData);
+            ParseSpendSerialKey(key, propertyId, denomination, serialData);
 
             secp_primitives::Scalar serial;
             serial.deserialize(serialData.data());

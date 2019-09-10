@@ -470,6 +470,12 @@ bool HDMintWallet::GenerateMint(
         hashSerial,
         commitment);
 
+    // erase from mempool
+    auto it = mintPool.find(mint.GetPubCoinHash());
+    if (it != mintPool.end()) {
+        mintPool.erase(it);
+    }
+
     LogPrintf("%s: hashPubcoin: %s\n", __func__, mint.GetPubCoinHash().GetHex());
 
     return true;

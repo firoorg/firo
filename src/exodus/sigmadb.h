@@ -5,9 +5,9 @@
 #include "persistence.h"
 #include "property.h"
 #include "sigma.h"
+#include "../uint256.h"
 
 #include <univalue.h>
-#include <uint256.h>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>

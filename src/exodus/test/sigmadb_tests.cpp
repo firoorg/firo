@@ -540,6 +540,7 @@ BOOST_AUTO_TEST_CASE(check_not_exist_serial)
     priv.Generate();
     uint256 spendTx;
     BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(uint256() == spendTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial)
@@ -548,9 +549,12 @@ BOOST_AUTO_TEST_CASE(check_exist_serial)
     exodus::SigmaPrivateKey priv;
     priv.Generate();
     exodus::SigmaProof proof;
-    auto spendTx = uint256S("1");
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, spendTx);
+    auto const expectedTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10, expectedTx);
+
+    uint256 spendTx;
     BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial(), spendTx));
+    BOOST_CHECK(expectedTx == spendTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fail)

@@ -89,7 +89,7 @@ public:
 
 protected:
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
-    bool HasSigmaSpend(const secp_primitives::Scalar &serial, MintMeta &meta);
+    bool HasSigmaSpend(const secp_primitives::Scalar &serial, HDMint &mint);
 
 private:
     void OnSpendAdded(
