@@ -55,6 +55,7 @@ EXODUS_CPP = \
   exodus/parse_string.cpp \
   exodus/pending.cpp \
   exodus/persistence.cpp \
+  exodus/property.cpp \
   exodus/rpc.cpp \
   exodus/rpcpayload.cpp \
   exodus/rpcrawtx.cpp \

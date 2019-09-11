@@ -213,3 +213,20 @@ class ComparisonTestFramework(BitcoinTestFramework):
             extra_args=[['-debug', '-whitelist=127.0.0.1']] * self.num_nodes,
             binary=[self.options.testbinary] +
             [self.options.refbinary]*(self.num_nodes-1))
+
+class ExodusTestFramework(BitcoinTestFramework):
+    def __init__(self):
+        super().__init__()
+        self.addrs = []
+
+    def run_test(self):
+        for rpc in self.nodes:
+            addr = rpc.getnewaddress()
+            rpc.sendtoaddress(addr, 10)
+            self.addrs.append(addr)
+
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+    def setup_nodes(self):
+        return start_nodes(self.num_nodes, self.options.tmpdir, [['-exodus'] for _ in range(self.num_nodes)])

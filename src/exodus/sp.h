@@ -29,13 +29,6 @@ namespace exodus {
 
 constexpr size_t MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
 
-enum class SigmaStatus : uint8_t {
-    SoftDisabled    = 0,
-    SoftEnabled     = 1,
-    HardDisabled    = 2,
-    HardEnabled     = 3
-};
-
 } // namespace exodus
 
 /** LevelDB based storage for currencies, smart properties and tokens.
@@ -263,6 +256,7 @@ std::string getPropertyName(uint32_t propertyId);
 bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
 bool IsSigmaStatusValid(SigmaStatus status);
+bool IsSigmaEnabled(PropertyId property);
 bool IsDenominationValid(PropertyId property, DenominationId denomination);
 int64_t GetDenominationValue(PropertyId property, DenominationId denomination);
 
