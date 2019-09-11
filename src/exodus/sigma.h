@@ -96,10 +96,8 @@ public:
     template<typename Iterator>
     bool Verify(sigma::Params const *params, Iterator begin, Iterator end)
     {
-        proof.params = params;
-
         // Create commitment set.
-        auto gs = (proof.params->get_g() * serial).inverse();
+        auto gs = (params->get_g() * serial).inverse();
         std::vector<secp_primitives::GroupElement> commits;
 
         commits.reserve(std::distance(begin, end));
@@ -110,10 +108,10 @@ public:
 
         // Verify proof.
         sigma::SigmaPlusVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(
-            proof.params->get_g(),
-            proof.params->get_h(),
-            proof.params->get_n(),
-            proof.params->get_m()
+            params->get_g(),
+            params->get_h(),
+            params->get_n(),
+            params->get_m()
         );
 
         return verifier.verify(commits, proof);
@@ -129,11 +127,13 @@ public:
             throw std::invalid_argument("Private key is not valid");
         }
 
-        proof.params = priv.GetParams();
+        proof.n = priv.GetParams()->get_n();
+        proof.m = priv.GetParams()->get_m();
+
         serial = priv.GetSerial();
 
         // Create commitment set.
-        auto gs = (proof.params->get_g() * serial).inverse();
+        auto gs = (priv.GetParams()->get_g() * serial).inverse();
         auto pub = SigmaPublicKey(priv).GetCommitment();
         std::vector<secp_primitives::GroupElement> commits;
         boost::optional<size_t> index;
@@ -156,10 +156,10 @@ public:
 
         // Generate proof.
         sigma::SigmaPlusProver<secp_primitives::Scalar, secp_primitives::GroupElement> prover(
-            proof.params->get_g(),
-            proof.params->get_h(),
-            proof.params->get_n(),
-            proof.params->get_m()
+            priv.GetParams()->get_g(),
+            priv.GetParams()->get_h(),
+            priv.GetParams()->get_n(),
+            priv.GetParams()->get_m()
         );
 
         prover.proof(commits, *index, priv.GetRandomness(), proof);
