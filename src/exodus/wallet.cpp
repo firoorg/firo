@@ -11,7 +11,7 @@ namespace exodus {
 
 Wallet *wallet;
 
-Wallet::Wallet(const std::string& walletFile, CMPMintList& sigmaDb)
+Wallet::Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb)
     : walletFile(walletFile), mintWallet(walletFile)
 {
     using std::placeholders::_1;

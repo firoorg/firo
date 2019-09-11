@@ -34,7 +34,7 @@ namespace exodus {
 
 struct WalletTestingSetup : ::WalletTestingSetup
 {
-    CMPMintList sigmaDb;
+    SigmaDatabase sigmaDb;
     Wallet wallet;
 
     WalletTestingSetup() :

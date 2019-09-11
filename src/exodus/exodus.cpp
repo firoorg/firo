@@ -138,7 +138,6 @@ static int reorgRecoveryMode = 0;
 static int reorgRecoveryMaxHeight = 0;
 
 CMPTxList *exodus::p_txlistdb;
-CMPMintList *exodus::p_mintlistdb;
 CMPTradeList *exodus::t_tradelistdb;
 CMPSTOList *exodus::s_stolistdb;
 CExodusTransactionDB *exodus::p_ExodusTXDB;
@@ -2061,7 +2060,7 @@ void clear_all_state()
     // LevelDB based storage
     _my_sps->Clear();
     p_txlistdb->Clear();
-    p_mintlistdb->Clear();
+    sigmaDb->Clear();
     s_stolistdb->Clear();
     t_tradelistdb->Clear();
     p_ExodusTXDB->Clear();
@@ -2133,7 +2132,7 @@ int exodus_init()
     t_tradelistdb = new CMPTradeList(GetDataDir() / "MP_tradelist", fReindex);
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
-    p_mintlistdb = new CMPMintList(GetDataDir() / "MP_mintlist", fReindex);
+    sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ExodusTXDB = new CExodusTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
     p_feecache = new CExodusFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
@@ -2146,7 +2145,7 @@ int exodus_init()
 
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
-        wallet = new Wallet(pwalletMain->strWalletFile, *p_mintlistdb);
+        wallet = new Wallet(pwalletMain->strWalletFile, *sigmaDb);
     } else {
         wallet = nullptr;
     }
@@ -2241,7 +2240,7 @@ int exodus_shutdown()
     delete wallet; wallet = nullptr;
 #endif
     delete txProcessor; txProcessor = nullptr;
-    delete p_mintlistdb; p_mintlistdb = nullptr;
+    delete sigmaDb; sigmaDb = nullptr;
     delete p_txlistdb; p_txlistdb = nullptr;
     delete t_tradelistdb; t_tradelistdb = nullptr;
     delete s_stolistdb; s_stolistdb = nullptr;
@@ -3827,7 +3826,7 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         s_stolistdb->deleteAboveBlock(pBlockIndex->nHeight);
         p_feecache->RollBackCache(pBlockIndex->nHeight);
         p_feehistory->RollBackHistory(pBlockIndex->nHeight);
-        p_mintlistdb->DeleteAll(pBlockIndex->nHeight);
+        sigmaDb->DeleteAll(pBlockIndex->nHeight);
         reorgRecoveryMaxHeight = 0;
 
         nWaterlineBlock = ConsensusParams().GENESIS_BLOCK - 1;

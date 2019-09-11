@@ -20,7 +20,7 @@ namespace exodus {
 class Wallet
 {
 public:
-    Wallet(const std::string& walletFile, CMPMintList& sigmaDb);
+    Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb);
     virtual ~Wallet();
 
 public:

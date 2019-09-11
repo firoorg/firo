@@ -46,21 +46,21 @@ struct MintRemoved
     SigmaPublicKey pubKey;
 };
 
-struct TestSigmaDb : CMPMintList
+struct TestSigmaDb : SigmaDatabase
 {
     TestSigmaDb(const boost::filesystem::path& path, bool wipe, uint16_t groupSize = TEST_MAX_COINS_PER_GROUP) :
-        CMPMintList(path, wipe, groupSize)
+        SigmaDatabase(path, wipe, groupSize)
     {
     }
 
     uint16_t GetGroupSize()
     {
-        return CMPMintList::GetGroupSize();
+        return SigmaDatabase::GetGroupSize();
     }
 
     uint16_t InitGroupSize(uint16_t groupSize)
     {
-        return CMPMintList::InitGroupSize(groupSize);
+        return SigmaDatabase::InitGroupSize(groupSize);
     }
 
     std::vector<SigmaPublicKey> GetAnonimityGroupAsVector(
@@ -70,11 +70,11 @@ struct TestSigmaDb : CMPMintList
         size_t count)
     {
         std::vector<SigmaPublicKey> pubs;
-        CMPMintList::GetAnonimityGroup(property, denomination, group, count, std::back_inserter(pubs));
+        SigmaDatabase::GetAnonimityGroup(property, denomination, group, count, std::back_inserter(pubs));
         return pubs;
     }
 
-    using CMPMintList::GetAnonimityGroup;
+    using SigmaDatabase::GetAnonimityGroup;
 };
 
 class SigmaDbTestingSetup : public TestingSetup
@@ -498,7 +498,7 @@ BOOST_AUTO_TEST_CASE(group_size_default)
 {
     auto db = CreateDb(0);
 
-    BOOST_CHECK_EQUAL(db->GetGroupSize(), CMPMintList::MAX_GROUP_SIZE);
+    BOOST_CHECK_EQUAL(db->GetGroupSize(), SigmaDatabase::MAX_GROUP_SIZE);
 }
 
 BOOST_AUTO_TEST_CASE(group_size_customsize)
@@ -511,7 +511,7 @@ BOOST_AUTO_TEST_CASE(group_size_customsize)
 BOOST_AUTO_TEST_CASE(group_size_exceed_limit)
 {
     BOOST_CHECK_EXCEPTION(
-        CreateDb(CMPMintList::MAX_GROUP_SIZE + 1),
+        CreateDb(SigmaDatabase::MAX_GROUP_SIZE + 1),
         std::invalid_argument,
         [] (const std::invalid_argument& e) {
             return std::string("group size exceed limit") == e.what();
