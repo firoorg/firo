@@ -11,7 +11,6 @@
 #include <vector>
 #include <string>
 
-const uint32_t BIP47_INDEX = 0x2F;
 
 namespace bip47 {
 
@@ -64,6 +63,7 @@ namespace bip47 {
         vector<byte> getPubkey();
 
         CPubKey getMasterPubkey();
+        bool get_mask(byte* mask, CKey designated, CPubKey bobPubkey, byte* outpoint);
         bool get_payload(byte* payload);
 
 
@@ -113,6 +113,7 @@ namespace bip47 {
 
     void makeNotificationTransaction(std::string payment_code);
     void signTransaction();
+    PaymentCode getPaymentCodeInNotificationTransaction();
 }
 
 #endif //ZCOIN_BIP47_H
