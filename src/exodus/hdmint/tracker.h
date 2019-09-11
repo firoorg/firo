@@ -85,16 +85,9 @@ public:
     template<class OutIt>
     OutIt ListSigmaMints(OutIt it, bool unusedOnly = true, bool matureOnly = true) const
     {
-        LOCK(pwalletMain->cs_wallet);
-        for (auto const &mint : mints) {
-
-            SigmaMint entry;
-            if (!mintWallet->RegenerateMint(mint, entry)) {
-                throw std::runtime_error("fail to regenerate mint");
-            }
-
-            *it++ = entry;
-        }
+        ListSigmaMints([&it](SigmaMint const & m) {
+            *it++ = m;
+        },unusedOnly, matureOnly);
 
         return it;
     }
@@ -107,6 +100,7 @@ public:
     void Clear();
 
 private:
+    size_t ListSigmaMints(std::function<void(SigmaMint const&)>, bool unusedOnly = true, bool matureOnly = true) const;
     void LoadHDMintsFromDB();
 };
 

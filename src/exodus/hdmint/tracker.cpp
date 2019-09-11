@@ -131,6 +131,35 @@ void MintTracker::SetChainState(const uint256& pubcoinHash, const SigmaMintChain
     UpdateState(m);
 }
 
+size_t MintTracker::ListSigmaMints(
+    std::function<void(SigmaMint const&)> f, bool unusedOnly, bool matureOnly) const
+{
+    LOCK(pwalletMain->cs_wallet);
+
+    size_t chosenMints = 0;
+    for (auto const &mint : mints) {
+
+        if (unusedOnly && !mint.GetSpendTx().IsNull()) {
+            continue;
+        }
+
+        bool confirmed = mint.GetChainState().block >= 0;
+        if (matureOnly && !confirmed) {
+            continue;
+        }
+
+        SigmaMint entry;
+        if (!mintWallet->RegenerateMint(mint, entry)) {
+            throw std::runtime_error("fail to regenerate mint");
+        }
+
+        chosenMints++;
+        f(entry);
+    }
+
+    return chosenMints;
+}
+
 void MintTracker::LoadHDMintsFromDB()
 {
     LOCK(pwalletMain->cs_wallet);
