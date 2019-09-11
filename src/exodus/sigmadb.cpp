@@ -158,10 +158,10 @@ leveldb::Slice GetSlice(const std::array<uint8_t, S>& v)
     return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size());
 }
 
-template<typename T>
-leveldb::Slice GetSlice(const std::vector<T>& v)
+template<typename T, typename Allocator>
+leveldb::Slice GetSlice(const std::vector<T, Allocator>& v)
 {
-    return leveldb::Slice(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
+    return leveldb::Slice(reinterpret_cast<const char *>(v.data()), v.size() * sizeof(T));
 }
 
 exodus::SigmaPublicKey ParseMint(const std::string& val)
@@ -225,40 +225,35 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
 
 namespace exodus {
 
-constexpr uint16_t CMPMintList::MAX_GROUP_SIZE;
+SigmaDatabase *sigmaDb;
+
+constexpr uint16_t SigmaDatabase::MAX_GROUP_SIZE;
 
 // Database structure
 // Index height and commitment
 // 0<prob_id><denom><group_id><idx>=<GroupElement><int>
 // Sequence of mint sorted following blockchain
 // 1<seq uint64>=key
-CMPMintList::CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize)
+SigmaDatabase::SigmaDatabase(const boost::filesystem::path& path, bool wipe, uint16_t groupSize)
 {
-    leveldb::Status status = Open(path, fWipe);
-    PrintToLog("Loading mint meta-info database: %s\n", status.ToString());
+    auto status = Open(path, wipe);
+    if (!status.ok()) {
+        throw std::runtime_error("Failed to create " + path.native() + ": " + status.ToString());
+    }
 
     this->groupSize = InitGroupSize(groupSize);
 }
 
-CMPMintList::~CMPMintList()
+SigmaDatabase::~SigmaDatabase()
 {
-    if (exodus_debug_persistence) PrintToLog("CMPMintList closed\n");
 }
 
-std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
+std::pair<MintGroupId, MintGroupIndex> SigmaDatabase::RecordMint(
     PropertyId propertyId,
     DenominationId denomination,
     const SigmaPublicKey& pubKey,
     int height)
 {
-    // Logic:
-    // Get next group id and index for new pubkey by get last group id and amount of coin in group
-    // If the count is equal to limit then move to new group
-    // Record mint by key `0<prob_id><denom><group_id><idx>` with value `<GroupElement><int32_t>`
-    // Record the key `0<prob_id><denom><group_id><idx>` as value of `1<sequence>`
-    // Record Last group Id
-    // Record Mint count for group
-
     auto lastGroup = GetLastGroupId(propertyId, denomination);
     auto mints = GetMintCount(propertyId, denomination, lastGroup);
 
@@ -272,6 +267,7 @@ std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
         nextIdx = 0;
     }
 
+    // Add mint entry.
     auto keyData = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
     auto key = GetSlice(keyData);
 
@@ -280,31 +276,21 @@ std::pair<MintGroupId, MintGroupIndex> CMPMintList::RecordMint(
     std::vector<uint8_t> buffer(commitment.memoryRequired()); // mint
     commitment.serialize(buffer.data());
 
-    auto status = pdb->Put(writeoptions, key, GetSlice(buffer));
-    if (!status.ok()) {
-        throw std::runtime_error("fail to store mint");
-    }
+    AddEntry(key, GetSlice(buffer), height);
 
-    // Store key
-    RecordKeyCreationHistory(height, key);
-
+    // Raise event.
     MintAdded(propertyId, denomination, lastGroup, nextIdx, pubKey, height);
 
     return std::make_pair(lastGroup, nextIdx);
 }
 
-void CMPMintList::RecordSpendSerial(
+void SigmaDatabase::RecordSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
 {
     auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
-    auto status = pdb->Put(writeoptions, GetSlice(keyData), leveldb::Slice());
-    if (!status.ok()) {
-        throw std::runtime_error("record serial fail");
-    }
 
-    // Store key
-    RecordKeyCreationHistory(height, GetSlice(keyData));
+    AddEntry(GetSlice(keyData), leveldb::Slice(), height);
 }
 
 // operation code of histories
@@ -345,7 +331,7 @@ public:
     std::vector<uint8_t> data;
 };
 
-void CMPMintList::DeleteAll(int startBlock)
+void SigmaDatabase::DeleteAll(int startBlock)
 {
     auto nextSequence = GetNextSequence();
     if (nextSequence == 0) {
@@ -428,36 +414,7 @@ void CMPMintList::DeleteAll(int startBlock)
     }
 }
 
-void CMPMintList::RecordKeyCreationHistory(int height, leveldb::Slice const &key)
-{
-    auto nextSequence = GetNextSequence();
-
-    History h;
-    if (IsSpendSerialKey(key)) {
-        h.op = OpCode::StoreSpendSerial;
-    } else if (IsMintKey(key)) {
-        h.op = OpCode::StoreMint;
-    } else {
-        throw std::invalid_argument("RecordKeyCreationHistory() : not found key type");
-    }
-
-    h.block = height;
-    h.data.resize(key.size());
-    std::copy_n(key.data(), key.size(), reinterpret_cast<char*>(h.data.data()));
-
-    CDataStream serialized(SER_DISK, CLIENT_VERSION);
-    serialized << h;
-
-    auto sequenceKey = CreateSequenceKey(nextSequence);
-    auto status = pdb->Put(writeoptions, GetSlice(sequenceKey), leveldb::Slice(&serialized[0], serialized.size()));
-
-    if (!status.ok()) {
-        LogPrintf("%s: Store last exodus mint sequence fail\n", __func__);
-        throw std::runtime_error("fail to record sequence");
-    }
-}
-
-void CMPMintList::RecordGroupSize(uint16_t groupSize)
+void SigmaDatabase::RecordGroupSize(uint16_t groupSize)
 {
     auto key = CreateGroupSizeKey();
 
@@ -469,7 +426,7 @@ void CMPMintList::RecordGroupSize(uint16_t groupSize)
     }
 }
 
-uint16_t CMPMintList::GetGroupSize()
+uint16_t SigmaDatabase::GetGroupSize()
 {
     auto key = CreateGroupSizeKey();
 
@@ -493,7 +450,7 @@ uint16_t CMPMintList::GetGroupSize()
     return 0;
 }
 
-uint16_t CMPMintList::InitGroupSize(uint16_t groupSize)
+uint16_t SigmaDatabase::InitGroupSize(uint16_t groupSize)
 {
     if (groupSize > MAX_GROUP_SIZE) {
         throw std::invalid_argument("group size exceed limit");
@@ -523,7 +480,7 @@ uint16_t CMPMintList::InitGroupSize(uint16_t groupSize)
     return groupSize;
 }
 
-size_t CMPMintList::GetAnonimityGroup(
+size_t SigmaDatabase::GetAnonimityGroup(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
     std::function<void(exodus::SigmaPublicKey&)> insertF)
 {
@@ -560,7 +517,7 @@ size_t CMPMintList::GetAnonimityGroup(
     return i;
 }
 
-uint32_t CMPMintList::GetLastGroupId(
+uint32_t SigmaDatabase::GetLastGroupId(
     uint32_t propertyId,
     uint8_t denomination)
 {
@@ -586,7 +543,7 @@ uint32_t CMPMintList::GetLastGroupId(
     return groupId;
 }
 
-size_t CMPMintList::GetMintCount(
+size_t SigmaDatabase::GetMintCount(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, UINT16_MAX);
@@ -612,7 +569,7 @@ size_t CMPMintList::GetMintCount(
     return count;
 }
 
-uint64_t CMPMintList::GetNextSequence()
+uint64_t SigmaDatabase::GetNextSequence()
 {
     auto key = CreateSequenceKey(UINT64_MAX);
     auto it = NewIterator();
@@ -633,7 +590,7 @@ uint64_t CMPMintList::GetNextSequence()
     return nextSequence;
 }
 
-exodus::SigmaPublicKey CMPMintList::GetMint(
+exodus::SigmaPublicKey SigmaDatabase::GetMint(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
@@ -652,7 +609,7 @@ exodus::SigmaPublicKey CMPMintList::GetMint(
     throw std::runtime_error("not found sigma mint");
 }
 
-bool CMPMintList::HasSpendSerial(
+bool SigmaDatabase::HasSpendSerial(
     uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
 {
     auto serialData = SerializeSpendSerial(serial);
@@ -671,9 +628,46 @@ bool CMPMintList::HasSpendSerial(
     throw std::runtime_error("Error on serial checking");
 }
 
-std::unique_ptr<leveldb::Iterator> CMPMintList::NewIterator() const
+void SigmaDatabase::AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block)
+{
+    leveldb::WriteBatch batch;
+
+    // Add entry writting to batch first.
+    batch.Put(key, value);
+
+    // Prepare history object.
+    History history;
+
+    if (IsMintKey(key)) {
+        history.op = OpCode::StoreMint;
+    } else if (IsSpendSerialKey(key)) {
+        history.op = OpCode::StoreSpendSerial;
+    } else {
+        throw std::invalid_argument("The specified entry is not supported");
+    }
+
+    history.block = block;
+    history.data.insert(history.data.end(), key.data(), key.data() + key.size());
+
+    // Add history writing to batch.
+    auto next = GetNextSequence();
+    auto sequenceKey = CreateSequenceKey(next);
+
+    CDataStream serialized(SER_DISK, CLIENT_VERSION);
+    serialized << history;
+
+    batch.Put(GetSlice(sequenceKey), GetSlice(serialized.vch));
+
+    // Execute batch.
+    auto status = pdb->Write(syncoptions, &batch);
+    if (!status.ok()) {
+        throw std::runtime_error("Failed to write database: " + status.ToString());
+    }
+}
+
+std::unique_ptr<leveldb::Iterator> SigmaDatabase::NewIterator() const
 {
     return std::unique_ptr<leveldb::Iterator>(CDBBase::NewIterator());
 }
 
-};
+} // namespace exodus

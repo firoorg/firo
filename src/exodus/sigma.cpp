@@ -118,7 +118,7 @@ std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
     LOCK(cs_main);
 
     std::vector<SigmaPublicKey> coins;
-    p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
+    sigmaDb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
 
     if (coins.size() < 2) {
         throw std::runtime_error("amount of coins in anonimity is not enough to spend");
@@ -142,7 +142,7 @@ bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
 
     std::vector<SigmaPublicKey> coins;
     coins.reserve(groupSize);
-    p_mintlistdb->GetAnonimityGroup(propertyId, denomination, group, groupSize, std::back_inserter(coins));
+    sigmaDb->GetAnonimityGroup(propertyId, denomination, group, groupSize, std::back_inserter(coins));
 
     return proof.Verify(params, coins.begin(), coins.end());
 }

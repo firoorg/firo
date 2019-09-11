@@ -11,9 +11,12 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 
-#include <cinttypes>
+#include <leveldb/slice.h>
+
 #include <string>
 #include <vector>
+
+#include <inttypes.h>
 
 template<typename T, typename = void>
 struct is_iterator
@@ -29,18 +32,22 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
 
 namespace exodus {
 
-typedef std::uint32_t MintGroupId;
-typedef std::uint16_t MintGroupIndex;
+typedef uint32_t MintGroupId;
+typedef uint16_t MintGroupIndex;
 
-class CMPMintList : public CDBBase
+class SigmaDatabase : public CDBBase
 {
 public:
-    static constexpr uint16_t MAX_GROUP_SIZE = 16384; // Limit of sigma anonimity group, which is 2 ^ 14.
+    /**
+     * Limit of sigma anonimity group, which is 2 ^ 14.
+     */
+    static constexpr uint16_t MAX_GROUP_SIZE = 16384;
 
 public:
-    CMPMintList(const boost::filesystem::path& path, bool fWipe, uint16_t groupSize = 0);
-    virtual ~CMPMintList();
+    SigmaDatabase(const boost::filesystem::path& path, bool wipe, uint16_t groupSize = 0);
+    ~SigmaDatabase() override;
 
+public:
     std::pair<MintGroupId, MintGroupIndex> RecordMint(
         PropertyId propertyId,
         DenominationId denomination,
@@ -86,8 +93,10 @@ public:
     boost::signals2::signal<void(PropertyId, DenominationId, MintGroupId, MintGroupIndex, const SigmaPublicKey&, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
 
+protected:
+    void AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block);
+
 private:
-    void RecordKeyCreationHistory(int height, leveldb::Slice const &key);
     void RecordGroupSize(uint16_t groupSize);
 
     std::unique_ptr<leveldb::Iterator> NewIterator() const;
@@ -97,6 +106,8 @@ protected:
     uint16_t GetGroupSize();
 };
 
-};
+extern SigmaDatabase *sigmaDb;
+
+} // namespace exodus
 
 #endif // ZCOIN_EXODUS_SIGMADB_H

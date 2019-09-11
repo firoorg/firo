@@ -135,7 +135,7 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
         auto denom = mint.first;
         auto& pubkey = mint.second;
 
-        std::tie(group, index) = p_mintlistdb->RecordMint(property, denom, pubkey, block);
+        std::tie(group, index) = sigmaDb->RecordMint(property, denom, pubkey, block);
 
         SimpleMintProcessed(property, denom, group, index, pubkey);
     }
@@ -176,7 +176,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     auto groupSize = tx.getGroupSize();
 
     // check serial in database
-    if (p_mintlistdb->HasSpendSerial(property, denomination, spend.GetSerial())
+    if (sigmaDb->HasSpendSerial(property, denomination, spend.GetSerial())
         || !VerifySigmaSpend(property, denomination, group, groupSize, spend, sigma::Params::get_default())) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
@@ -199,7 +199,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    p_mintlistdb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
+    sigmaDb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
 
     return 0;
 }
