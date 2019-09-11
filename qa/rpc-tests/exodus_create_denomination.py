@@ -8,7 +8,7 @@ class ExodusCreateDenominationTest(ExodusTestFramework):
         super().run_test()
 
         # create non-sigma token
-        self.nodes[0].exodus_sendissuancefixed(self.addrs[0], 1, 2, 0, '', '', 'Normal Token', '', '', '1000000')
+        self.nodes[0].exodus_sendissuancefixed(self.addrs[0], 1, 1, 0, '', '', 'Normal Token', '', '', '1000000')
         self.nodes[0].generate(1)
 
         self.sync_all()
@@ -32,7 +32,7 @@ class ExodusCreateDenominationTest(ExodusTestFramework):
         assert_raises_message(
             JSONRPCException,
             'Invalid address',
-            self.nodes[0].exodus_sendcreatedenomination, 'abc', 3, '1'
+            self.nodes[0].exodus_sendcreatedenomination, 'abc', 4, '1'
         )
 
         assert_raises_message(
@@ -56,13 +56,19 @@ class ExodusCreateDenominationTest(ExodusTestFramework):
         assert_raises_message(
             JSONRPCException,
             'Invalid amount',
-            self.nodes[0].exodus_sendcreatedenomination, self.addrs[0], 3, '0'
+            self.nodes[0].exodus_sendcreatedenomination, self.addrs[0], 3, '0.1' # fixed property will discard all fractional, so it will become 0
         )
 
         assert_raises_message(
             JSONRPCException,
             'Invalid amount',
-            self.nodes[0].exodus_sendcreatedenomination, self.addrs[0], 3, '-1'
+            self.nodes[0].exodus_sendcreatedenomination, self.addrs[0], 4, '0'
+        )
+
+        assert_raises_message(
+            JSONRPCException,
+            'Invalid amount',
+            self.nodes[0].exodus_sendcreatedenomination, self.addrs[0], 4, '-1'
         )
 
         # test parameter validation
