@@ -314,7 +314,7 @@ void SigmaDatabase::RecordSpendSerial(
     auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
 
-    AddEntry(GetSlice(keyData), leveldb::Slice(), height);
+    AddEntry(GetSlice(keyData), leveldb::Slice(std::string(spendTx.begin(), spendTx.end())), height);
 
     SpendAdded(propertyId, denomination, serial, spendTx);
 }
