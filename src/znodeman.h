@@ -313,7 +313,7 @@ public:
     void ProcessVerifyBroadcast(CNode* pnode, const CZnodeVerification& mnv);
 
     /// Return the number of (unique) Znodes
-    int size() { LOCK(cs); return vZnodes.size(); }
+    int size() { return vZnodes.size(); }
 
     std::string ToString() const;
 

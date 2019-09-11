@@ -713,7 +713,7 @@ void SigmaCoinControlDialog::updateView()
     std::map<QString, std::vector<COutput> > mapCoins;
 
     if(fMintTabSelected){
-        model->listCoins(mapCoins, WITH_MINTS);
+        model->listCoins(mapCoins, ALL_COINS);
     }else{
         model->listCoins(mapCoins, ONLY_MINTS);
     }

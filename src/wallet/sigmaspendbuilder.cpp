@@ -167,7 +167,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
-            throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            throw std::runtime_error("Unable to mint a sigma coin.");
         }
 
         // Create script for coin

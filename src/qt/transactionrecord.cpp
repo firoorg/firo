@@ -53,30 +53,69 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     }
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
+        CAmount nTxFee = nDebit - wtx.GetValueOut();
+        bool first = true;
+
+        bool isAllToMe = true;
+        std::string addresses = "";
+        bool involvesWatchAddress = false;
+        bool firstAddress = true;
+
         for (const CTxOut& txout : wtx.vout) {
-            if (wtx.IsChange(txout)) {
-                continue;
-            }
             isminetype mine = wallet->IsMine(txout);
+            if (!mine) {
+                isAllToMe = false;
+                break;
+            } else if (!txout.scriptPubKey.IsSigmaMint()) {
+                CTxDestination address;
+                ExtractDestination(txout.scriptPubKey, address);
+                if (firstAddress) {
+                    addresses.append(CBitcoinAddress(address).ToString());
+                    firstAddress = false;
+                } else
+                    addresses.append(", " + CBitcoinAddress(address).ToString());
+            }
+            if(mine & ISMINE_WATCH_ONLY)
+                involvesWatchAddress = true;
+        }
 
+        if(isAllToMe){
             TransactionRecord sub(hash, nTime);
-            CTxDestination address;
+            sub.involvesWatchAddress = involvesWatchAddress;
+            sub.type = TransactionRecord::SpendToSelf;
+            sub.address = addresses;
+            sub.idx = parts.size();
+            sub.debit = -nTxFee;
+            parts.append(sub);
+        } else {
+            for (const CTxOut& txout : wtx.vout) {
+                if (wtx.IsChange(txout)) {
+                    continue;
+                }
+                isminetype mine = wallet->IsMine(txout);
 
-            if (mine) {
-                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
-                {
-                    sub.type = TransactionRecord::SpendToSelf;
+                TransactionRecord sub(hash, nTime);
+                CTxDestination address;
+                sub.idx = parts.size();
+                if (mine) {
+                    sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                    if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
+                        sub.type = TransactionRecord::SpendToSelf;
+                        sub.address = CBitcoinAddress(address).ToString();
+                        sub.credit = txout.nValue;
+                        parts.append(sub);
+                    }
+                } else {
+                    ExtractDestination(txout.scriptPubKey, address);
+                    sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                    sub.credit = txout.nValue;
+                    sub.debit = -txout.nValue;
+                    if (first) {
+                        sub.debit -= nTxFee;
+                        first = false;
+                    }
                     parts.append(sub);
                 }
-            } else {
-                ExtractDestination(txout.scriptPubKey, address);
-                sub.type = TransactionRecord::SpendToAddress;
-                sub.address = CBitcoinAddress(address).ToString();
-                sub.debit = -txout.nValue;
-                parts.append(sub);
             }
         }
     }
@@ -86,6 +125,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         CAmount txAmount = 0;
         for (const CTxOut &txout: wtx.vout)
             txAmount += txout.nValue;
+        sub.idx = parts.size();
         sub.debit = -txAmount;
         sub.credit = txAmount;
         sub.address = QCoreApplication::translate("zcoin-core", "Zerocoin->Sigma remint").toStdString();
