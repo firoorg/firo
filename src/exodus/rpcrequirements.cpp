@@ -169,7 +169,7 @@ void RequireSigmaStatus(SigmaStatus status)
     }
 
     if (!exodus::IsFeatureActivated(exodus::FEATURE_SIGMA, exodus::GetHeight())) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma status is not accepted");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma feature is not activated yet");
     }
 }
 

@@ -15,6 +15,7 @@ import traceback
 import unittest
 
 from .util import (
+    assert_equal,
     initialize_chain,
     start_nodes,
     connect_nodes_bi,
@@ -230,3 +231,32 @@ class ExodusTestFramework(BitcoinTestFramework):
 
     def setup_nodes(self):
         return start_nodes(self.num_nodes, self.options.tmpdir, [['-exodus'] for _ in range(self.num_nodes)])
+
+    def assert_property_summary(self, prop, id, divisible, cat, subcat, name, url, data):
+        assert_equal(prop['propertyid'], id)
+        assert_equal(prop['name'], name)
+        assert_equal(prop['category'], cat)
+        assert_equal(prop['subcategory'], subcat)
+        assert_equal(prop['data'], data)
+        assert_equal(prop['url'], url)
+        assert_equal(prop['divisible'], divisible)
+
+    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, sigma, createtx, denoms):
+        assert_equal(prop['propertyid'], id)
+        assert_equal(prop['name'], name)
+        assert_equal(prop['category'], cat)
+        assert_equal(prop['subcategory'], subcat)
+        assert_equal(prop['data'], data)
+        assert_equal(prop['url'], url)
+        assert_equal(prop['divisible'], divisible)
+        assert_equal(prop['issuer'], issuer)
+        assert_equal(prop['creationtxid'], createtx)
+        assert_equal(prop['fixedissuance'], fixed)
+        assert_equal(prop['managedissuance'], not fixed)
+        assert_equal(prop['totaltokens'], tokens)
+        assert_equal(prop['sigmastatus'], sigma)
+        assert_equal(len(prop['denominations']), len(denoms))
+
+        for i in range(len(denoms)):
+            assert_equal(prop['denominations'][i]['id'], denoms[i]['id'])
+            assert_equal(prop['denominations'][i]['value'], denoms[i]['value'])
