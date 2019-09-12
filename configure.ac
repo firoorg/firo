@@ -454,6 +454,8 @@ if test x$use_lcov = xyes; then
     AC_MSG_ERROR("lcov testing requested but comparison tool was not specified")
   fi
   LCOV="$LCOV --gcov-tool=$GCOV"
+  AX_CHECK_LINK_FLAG([[--coverage]], [LDFLAGS="$LDFLAGS --coverage"],
+    [AC_MSG_ERROR("lcov testing requested but --coverage linker flag does not work")])
   AX_CHECK_COMPILE_FLAG([--coverage],[CXXFLAGS="$CXXFLAGS --coverage"],
     [AC_MSG_ERROR("lcov testing requested but --coverage flag does not work")])
 fi
