@@ -449,6 +449,8 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
     pwalletMain->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI
     while (file.good()) {
         pwalletMain->ShowProgress("", std::max(1, std::min(99, (int)(((double)file.tellg() / (double)nFilesize) * 100))));
@@ -462,67 +464,88 @@ UniValue importwallet(const UniValue& params, bool fHelp)
         if (vstr.size() < 2)
             continue;
         CBitcoinSecret vchSecret;
-        if (!vchSecret.SetString(vstr[0]))
-            continue;
-        CKey key = vchSecret.GetKey();
-        CPubKey pubkey = key.GetPubKey();
-        assert(key.VerifyPubKey(pubkey));
-        CKeyID keyid = pubkey.GetID();
-        if (pwalletMain->HaveKey(keyid)) {
-            LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
-            continue;
+        // begin zerocoin
+        if(vstr[0] == "zerocoin=1"){    
+            CZerocoinEntry zerocoinEntry;
+            zerocoinEntry.value.SetHex(vstr[1]);
+            zerocoinEntry.denomination = stoi(vstr[2]);
+            zerocoinEntry.randomness.SetHex(vstr[3]);
+            zerocoinEntry.serialNumber.SetHex(vstr[4]);
+            zerocoinEntry.IsUsed = stoi(vstr[5]);
+            zerocoinEntry.nHeight = stoi(vstr[6]);
+            zerocoinEntry.id = stoi(vstr[7]);
+            if(vstr.size()>8){
+                zerocoinEntry.ecdsaSecretKey = ParseHex(vstr[8]);
+                zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
+            }
+            walletdb.WriteZerocoinEntry(zerocoinEntry);
         }
-        int64_t nTime = DecodeDumpTime(vstr[1]);
-        std::string strLabel;
-        bool fLabel = true;
-        // CKeyMetadata
-        bool fHd = false;
-        std::string hdKeypath;
-        CKeyID hdMasterKeyID;
-        for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
-            if (boost::algorithm::starts_with(vstr[nStr], "#"))
-                break;
-            if (vstr[nStr] == "change=1")
-                fLabel = false;
-            if (vstr[nStr] == "reserve=1")
-                fLabel = false;
-            if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
-                strLabel = DecodeDumpString(vstr[nStr].substr(6));
-                fLabel = true;
+        else {
+            if (!vchSecret.SetString(vstr[0]))
+                continue;
+            CKey key = vchSecret.GetKey();
+            CPubKey pubkey = key.GetPubKey();
+            assert(key.VerifyPubKey(pubkey));
+            CKeyID keyid = pubkey.GetID();
+            if (pwalletMain->HaveKey(keyid)) {
+                LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
+                continue;
             }
-            if(boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
-                hdKeypath = vstr[nStr].substr(10);
-                fHd = true;
-            }
-            if(boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
-                hdMasterKeyID.SetHex(vstr[nStr].substr(14));
-            }
-        }
-        LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+            int64_t nTime = DecodeDumpTime(vstr[1]);
+            std::string strLabel;
+            bool fLabel = true;
+            // CKeyMetadata
+            bool fHd = false;
+            std::string hdKeypath;
+            CKeyID hdMasterKeyID;
 
-        // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
-        pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
-        if(fHd){
-            pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
-            pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
-            pwalletMain->mapKeyMetadata[keyid].ParseComponents();
-        }
-
-        if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
-            fGood = false;
-            continue;
-        }
-
-        if(fHd){
-            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
-                zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
-                fMintUpdate = true;
+            for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
+                if (boost::algorithm::starts_with(vstr[nStr], "#"))
+                    break;
+                if (vstr[nStr] == "change=1")
+                    fLabel = false;
+                if (vstr[nStr] == "sigma=1")
+                    fLabel = false;
+                if (vstr[nStr] == "reserve=1")
+                    fLabel = false;
+                if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
+                    strLabel = DecodeDumpString(vstr[nStr].substr(6));
+                    fLabel = true;
+                }
+                if(boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
+                    hdKeypath = vstr[nStr].substr(10);
+                    fHd = true;
+                }
+                if(boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
+                    hdMasterKeyID.SetHex(vstr[nStr].substr(14));
+                }
             }
+            LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+
+            // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
+            pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+            if(fHd){
+                pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
+                pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
+                pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+            }
+
+            if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
+                fGood = false;
+                continue;
+            }
+
+            if(fHd){
+                // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
+                if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
+                    zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
+                    fMintUpdate = true;
+                }
+            }
+            if (fLabel)
+                pwalletMain->SetAddressBook(keyid, strLabel, "receive");
+            nTimeBegin = std::min(nTimeBegin, nTime);
         }
-        if (fLabel)
-            pwalletMain->SetAddressBook(keyid, strLabel, "receive");
-        nTimeBegin = std::min(nTimeBegin, nTime);
     }
     file.close();
     pwalletMain->ShowProgress("", 100); // hide progress dialog in GUI
@@ -538,8 +561,10 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->MarkDirty();
 
-    if(fMintUpdate)
+    if(fMintUpdate){
         zwalletMain->SyncWithChain();
+        zwalletMain->GetTracker().ListMints(false, false);
+    }
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
@@ -697,6 +722,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         std::string strTime = EncodeDumpTime(it->first);
         std::string strAddr = CBitcoinAddress(keyid).ToString();
         CKey key;
+        pwalletMain->mapKeyMetadata[keyid].ParseComponents();
         if (pwalletMain->GetKey(keyid, key)) {
             file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
             if (pwalletMain->mapAddressBook.count(keyid)) {
@@ -707,6 +733,8 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
                 file << "reserve=1";
             } else if (pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
                 file << "inactivehdmaster=1";
+            } else if (pwalletMain->mapKeyMetadata[keyid].nChange.first == 2) {
+                file << "sigma=1";
             } else {
                 file << "change=1";
             }
@@ -723,6 +751,28 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             file << strprintf(" # addr=%s\n", strAddr);
         }
     }
+
+    // Begin dump Zerocoins
+    list <CZerocoinEntry> listZerocoinEntries;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listZerocoinEntries);
+
+    for (auto& zerocoinEntry : listZerocoinEntries) {
+        file << "zerocoin=1 ";
+        file << strprintf("%s ", zerocoinEntry.value.GetHex()); // value
+        file << strprintf("%d ", zerocoinEntry.denomination); // denomination
+        file << strprintf("%s ", zerocoinEntry.randomness.GetHex()); // randomness
+        file << strprintf("%s ", zerocoinEntry.serialNumber.GetHex()); // serialNumber
+        file << strprintf("%d ", zerocoinEntry.IsUsed); // IsUsed
+        file << strprintf("%d ", zerocoinEntry.nHeight); // nHeight
+        file << strprintf("%d ", zerocoinEntry.id); // id
+        if(!zerocoinEntry.ecdsaSecretKey.empty()){
+            file << strprintf("%s ", HexStr(zerocoinEntry.ecdsaSecretKey)); // ecdsaSecretKey
+            file << strprintf("%d ", zerocoinEntry.IsUsedForRemint); // IsUsedForRemint
+        }
+        file << "#\n"; // --
+    }
+
     file << "\n";
     file << "# End of dump\n";
     file.close();

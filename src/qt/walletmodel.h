@@ -214,6 +214,7 @@ public:
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
         std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
+        bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients

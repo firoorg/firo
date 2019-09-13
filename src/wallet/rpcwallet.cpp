@@ -2664,6 +2664,14 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
 
 UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
 
+        if (fHelp || params.size() > 0)
+	        throw runtime_error(
+       	        	"regeneratemintpool\n"
+       		        "\nIf issues exist with the keys that map to mintpool entries in the DB, this function corrects them.\n"
+                    "\nExamples:\n"
+                    + HelpExampleCli("regeneratemintpool", "")
+                    + HelpExampleRpc("regeneratemintpool", "")
+                );
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -2707,9 +2715,9 @@ UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
     }
 
     if(reindexRequired)
-        return "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.";
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.");
 
-    return "No issues with mintpool detected.";
+    return true;
 }
 
 //[zcoin]: zerocoin section

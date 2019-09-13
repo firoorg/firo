@@ -2404,7 +2404,9 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     case InputMode::SIGMA:
         CAmount fee;
         try {
-            wtxNew = pwalletMain->CreateSigmaSpendTransaction(vecRecipients, fee, sigmaSelected, sigmaChanges, &coinControl);
+            bool changeAddedToFee;
+            wtxNew = pwalletMain->CreateSigmaSpendTransaction(
+                vecRecipients, fee, sigmaSelected, sigmaChanges, changeAddedToFee, &coinControl);
         } catch (std::exception const &err) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
             return MP_ERR_CREATE_TX;
