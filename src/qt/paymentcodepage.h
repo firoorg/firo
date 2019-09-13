@@ -13,6 +13,7 @@
 class ClientModel;
 class PlatformStyle;
 class WalletModel;
+class CWallet;
 
 namespace Ui {
     class PaymentcodePage;
@@ -22,6 +23,7 @@ namespace Ui {
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 QT_END_NAMESPACE
+
 
 /** Paymentcode Manager page widget */
 class PaymentcodePage : public QWidget
@@ -49,6 +51,7 @@ private:
     Ui::PaymentcodePage *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
+    CWallet *wallet;
 
 private Q_SLOTS:
     void showContextMenu(const QPoint &);

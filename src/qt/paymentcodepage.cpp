@@ -5,13 +5,75 @@
 #include "clientmodel.h"
 #include "init.h"
 #include "guiutil.h"
+#include "guiconstants.h"
 #include "sync.h"
 #include "wallet/wallet.h"
 #include "walletmodel.h"
 
 #include <QTimer>
 #include <QMessageBox>
+#include <QImage>
+#include <QPixmap>
+#include <QClipboard>
 
+#if defined(HAVE_CONFIG_H)
+#include "bitcoin-config.h" /* for USE_QRCODE */
+#endif
+
+#ifdef USE_QRCODE
+#include <qrencode.h>
+#endif
+
+#include "bip47.h"
+
+QString getDefaultNotificationAddress(CWallet* wallet) {
+    LOCK(wallet->cs_wallet);
+    std::map<CTxDestination, CAddressBookData>::iterator firstofAddresBook = wallet->mapAddressBook.begin();
+    const CBitcoinAddress address = firstofAddresBook->first;
+    return QString::fromStdString(address.ToString());  
+}
+
+QString getPaymentCodeOfNotificationAddress(QString noticationAddr) {
+
+    LOCK(pwalletMain->cs_wallet);
+
+    string strAddress = noticationAddr.toStdString().c_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        return QString::fromStdString("Invalid Zcoin address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        return QString::fromStdString("Address does not refer to a key");
+    CPubKey vchPubkey;
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key))
+        return QString::fromStdString("Cannot get pubkey for address " + strAddress + " is not known");
+
+    if (!pwalletMain->GetPubKey(keyID, vchPubkey))
+        return QString::fromStdString("Cannot get pubkey for address " + strAddress + " is not known");
+
+
+    CExtKey masterKey;
+    CExtKey purposeKey;
+    CExtKey coinTypeKey;
+    CExtKey childKey;
+
+    masterKey.SetMaster(key.begin(), key.size());
+    masterKey.Derive(purposeKey, 0x2F | BIP32_HARDENED_KEY_LIMIT);
+    purposeKey.Derive(coinTypeKey, 0x0 | BIP32_HARDENED_KEY_LIMIT);
+    coinTypeKey.Derive(childKey, BIP32_HARDENED_KEY_LIMIT);
+
+    CExtPubKey ppubkey = masterKey.Neuter();
+
+    bip47::byte ppkey[33];
+    bip47::byte pchain[32];
+
+    memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
+    memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
+
+    bip47::PaymentCode paymentCode(ppkey, pchain);
+    return QString::fromStdString(paymentCode.ToString());
+}
 
 PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
@@ -21,7 +83,57 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
 {
     ui->setupUi(this);
     contextMenu = new QMenu();
+    QString notificationAddr = getDefaultNotificationAddress(pwalletMain);
+    ui->notificationAddressLabel->setText(notificationAddr);
+    ui->notificationAddressLabel->setVisible(false);
+    ui->label->setVisible(false);
+    QString paymentCodeStr = getPaymentCodeOfNotificationAddress(notificationAddr);
+    ui->paymentcodeLabel->setText(paymentCodeStr);
+#ifdef USE_QRCODE
+    ui->paymentcodeQRCode->setText("");
+    if(!paymentCodeStr.isEmpty())
+    {
+        // limit URI length
+        if (paymentCodeStr.length() > MAX_URI_LENGTH)
+        {
+            ui->paymentcodeQRCode->setText(tr("Resulting URI too long, try to reduce the text for label / message."));
+        } else {
+            QRcode *code = QRcode_encodeString(paymentCodeStr.toUtf8().constData(), 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+            if (!code)
+            {
+                ui->paymentcodeQRCode->setText(tr("Error encoding URI into QR Code."));
+                return;
+            }
+            QImage qrImage = QImage(code->width + 8, code->width + 8, QImage::Format_RGB32);
+            qrImage.fill(0xffffff);
+            unsigned char *p = code->data;
+            for (int y = 0; y < code->width; y++)
+            {
+                for (int x = 0; x < code->width; x++)
+                {
+                    qrImage.setPixel(x + 4, y + 4, ((*p & 1) ? 0x0 : 0xffffff));
+                    p++;
+                }
+            }
+            QRcode_free(code);
 
+            QImage qrAddrImage = QImage(QR_IMAGE_SIZE, QR_IMAGE_SIZE+20, QImage::Format_RGB32);
+            qrAddrImage.fill(0xffffff);
+            QPainter painter(&qrAddrImage);
+            painter.drawImage(0, 0, qrImage.scaled(QR_IMAGE_SIZE, QR_IMAGE_SIZE));
+            // QFont font = GUIUtil::fixedPitchFont();
+            // font.setPixelSize(12);
+            // painter.setFont(font);
+            // QRect paddedRect = qrAddrImage.rect();
+            // paddedRect.setHeight(QR_IMAGE_SIZE+12);
+            // painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
+            painter.end();
+
+            ui->paymentcodeQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));
+            // ui->btnSaveAs->setEnabled(true);
+        }
+    }
+#endif
 }
 
 PaymentcodePage::~PaymentcodePage()
