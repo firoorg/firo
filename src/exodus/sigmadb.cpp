@@ -438,7 +438,7 @@ void SigmaDatabase::DeleteAll(int startBlock)
                 SpendRemoved(propertyId, denomination, serial);
             });
 
-            batch.Delete(GetSlice(entry.data));
+            batch.Delete(key);
         } else {
             throw std::runtime_error("opcode is invalid");
         }

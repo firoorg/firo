@@ -45,7 +45,7 @@ typedef boost::multi_index_container<
 
 class HDMintWallet;
 
-class MintTracker
+class SigmaMintTracker
 {
 private:
     std::string walletFile;
@@ -53,14 +53,14 @@ private:
     MintsSet mints;
 
 public:
-    MintTracker(std::string const &walletFile, HDMintWallet *mintWallet);
+    SigmaMintTracker(std::string const &walletFile, HDMintWallet *mintWallet);
     void Add(const HDMint& dMint, bool isNew = false);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mints.empty(); }
 
-    bool GetMintFromSerialHash(const uint256& hashSerial, HDMint& meta) const;
-    bool GetMintFromPubcoinHash(const uint256& hashPubcoin, HDMint& meta) const;
+    bool GetMintFromSerialHash(const uint256& hashSerial, HDMint& mint) const;
+    bool GetMintFromPubcoinHash(const uint256& hashPubcoin, HDMint& mint) const;
 
     template<class OutIt>
     OutIt ListHDMints(OutIt it, bool unusedOnly = true, bool matureOnly = true) const
@@ -96,7 +96,7 @@ public:
     void SetMintSpendTx(const uint256& hashPubcoin, const uint256& txid);
     void SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState);
 
-    bool UpdateState(const HDMint &meta);
+    bool UpdateState(const HDMint &mint);
     void Clear();
 
 private:

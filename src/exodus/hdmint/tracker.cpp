@@ -11,7 +11,7 @@
 
 namespace exodus {
 
-MintTracker::MintTracker(
+SigmaMintTracker::SigmaMintTracker(
     std::string const &walletFile,
     HDMintWallet *wallet)
     : walletFile(walletFile),
@@ -20,7 +20,7 @@ MintTracker::MintTracker(
     LoadHDMintsFromDB();
 }
 
-bool MintTracker::GetMintFromSerialHash(const uint256 &hashSerial, HDMint &mint) const
+bool SigmaMintTracker::GetMintFromSerialHash(const uint256 &hashSerial, HDMint &mint) const
 {
     auto it = mints.find(hashSerial);
     if (it == mints.end()) {
@@ -31,7 +31,7 @@ bool MintTracker::GetMintFromSerialHash(const uint256 &hashSerial, HDMint &mint)
     return true;
 }
 
-bool MintTracker::GetMintFromPubcoinHash(const uint256 &hashPubcoin, HDMint& mint) const
+bool SigmaMintTracker::GetMintFromPubcoinHash(const uint256 &hashPubcoin, HDMint& mint) const
 {
     auto it = mints.get<1>().find(hashPubcoin);
     if (it == mints.get<1>().end()) {
@@ -42,19 +42,19 @@ bool MintTracker::GetMintFromPubcoinHash(const uint256 &hashPubcoin, HDMint& min
     return true;
 }
 
-bool MintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
+bool SigmaMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 {
     HDMint m;
     return GetMintFromPubcoinHash(hashPubcoin, m);
 }
 
-bool MintTracker::HasSerialHash(const uint256& hashSerial) const
+bool SigmaMintTracker::HasSerialHash(const uint256& hashSerial) const
 {
     HDMint m;
     return GetMintFromSerialHash(hashSerial, m);
 }
 
-bool MintTracker::UpdateState(const HDMint &mint)
+bool SigmaMintTracker::UpdateState(const HDMint &mint)
 {
     LOCK(pwalletMain->cs_wallet);
 
@@ -76,7 +76,7 @@ bool MintTracker::UpdateState(const HDMint &mint)
     return true;
 }
 
-void MintTracker::Add(const HDMint& mint, bool isNew)
+void SigmaMintTracker::Add(const HDMint& mint, bool isNew)
 {
     auto it = mints.find(mint.GetSerialHash());
     if (it != mints.end()) {
@@ -94,7 +94,7 @@ void MintTracker::Add(const HDMint& mint, bool isNew)
     }
 }
 
-void MintTracker::ResetAllMintsChainState()
+void SigmaMintTracker::ResetAllMintsChainState()
 {
     for (auto it = mints.begin(); it != mints.end(); it++) {
 
@@ -109,7 +109,7 @@ void MintTracker::ResetAllMintsChainState()
     }
 }
 
-void MintTracker::SetMintSpendTx(const uint256& pubcoinHash, const uint256& spendTx)
+void SigmaMintTracker::SetMintSpendTx(const uint256& pubcoinHash, const uint256& spendTx)
 {
     HDMint m;
     if (!GetMintFromPubcoinHash(pubcoinHash, m)) {
@@ -120,7 +120,7 @@ void MintTracker::SetMintSpendTx(const uint256& pubcoinHash, const uint256& spen
     UpdateState(m);
 }
 
-void MintTracker::SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState)
+void SigmaMintTracker::SetChainState(const uint256& pubcoinHash, const SigmaMintChainState& chainState)
 {
     HDMint m;
     if (!GetMintFromPubcoinHash(pubcoinHash, m)) {
@@ -131,7 +131,7 @@ void MintTracker::SetChainState(const uint256& pubcoinHash, const SigmaMintChain
     UpdateState(m);
 }
 
-size_t MintTracker::ListSigmaMints(
+size_t SigmaMintTracker::ListSigmaMints(
     std::function<void(SigmaMint const&)> f, bool unusedOnly, bool matureOnly) const
 {
     LOCK(pwalletMain->cs_wallet);
@@ -160,7 +160,7 @@ size_t MintTracker::ListSigmaMints(
     return chosenMints;
 }
 
-void MintTracker::LoadHDMintsFromDB()
+void SigmaMintTracker::LoadHDMintsFromDB()
 {
     LOCK(pwalletMain->cs_wallet);
 
@@ -174,7 +174,7 @@ void MintTracker::LoadHDMintsFromDB()
     LogPrintf("%s : load %d hdmints from DB\n", __func__, mints.size());
 }
 
-void MintTracker::Clear()
+void SigmaMintTracker::Clear()
 {
     mints.clear();
 }

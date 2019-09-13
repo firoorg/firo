@@ -25,7 +25,7 @@ private:
     int32_t countNextGenerate;
     std::string walletFile;
     CMintPool mintPool;
-    MintTracker tracker;
+    SigmaMintTracker tracker;
     uint160 hashSeedMaster;
 
 public:
@@ -45,7 +45,7 @@ public:
 
     std::pair<uint256, uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
     void GenerateMintPool(int32_t nIndex = 0);
-    MintTracker & GetTracker() { return tracker; }
+    SigmaMintTracker & GetTracker() { return tracker; }
     CMintPool & GetMintPool() { return mintPool; }
 
     bool SetMintSeedSeen(
