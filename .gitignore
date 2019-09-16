@@ -10,7 +10,6 @@ src/zcoin
 src/zcoind
 src/zcoin-cli
 src/zcoin-tx
-src/bip47
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
@@ -137,3 +136,4 @@ zcoin.includes
 .vs/
 .idea/
 
+src/testbip47
