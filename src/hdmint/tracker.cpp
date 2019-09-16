@@ -35,7 +35,7 @@ CHDMintTracker::~CHDMintTracker()
 
 void CHDMintTracker::Init()
 {
-    //Load all CZerocoinEntries and CHDMints from the database
+    //Load all CSigmaEntries and CHDMints from the database
     if (!fInitialized) {
         ListMints(false, false, false, true);
         fInitialized = true;
@@ -69,10 +69,10 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(dMint, false);
     } else {
-        CSigmaEntry zerocoin;
-        if (!walletdb.UnarchiveZerocoinMint(hashPubcoin, zerocoin))
-            return error("%s: failed to unarchivezerocoin mint", __func__);
-        Add(zerocoin, false);
+        CSigmaEntry sigma;
+        if (!walletdb.UnarchiveSigmaMint(hashPubcoin, sigma))
+            return error("%s: failed to unarchivesigma mint", __func__);
+        Add(sigma, false);
     }
 
     LogPrintf("%s: unarchived %s\n", __func__, hashPubcoin.GetHex());
@@ -118,13 +118,13 @@ std::vector<uint256> CHDMintTracker::GetSerialHashes()
 CAmount CHDMintTracker::GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const
 {
     CAmount nTotal = 0;
-    //! zerocoin specific fields
+    //! sigma specific fields
 
-    std::map<sigma::CoinDenomination, unsigned int> myZerocoinSupply;
+    std::map<sigma::CoinDenomination, unsigned int> mySigmaSupply;
     std::vector<sigma::CoinDenomination> denominations;
     GetAllDenoms(denominations);
     BOOST_FOREACH(sigma::CoinDenomination denomination, denominations){
-        myZerocoinSupply.insert(make_pair(denomination, 0));
+        mySigmaSupply.insert(make_pair(denomination, 0));
     }
 
     {
@@ -142,7 +142,7 @@ CAmount CHDMintTracker::GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) c
             int64_t nValue;
             sigma::DenominationToInteger(meta.denom, nValue);
             nTotal += nValue;
-            myZerocoinSupply.at(meta.denom)++;
+            mySigmaSupply.at(meta.denom)++;
         }
     }
 
@@ -239,22 +239,22 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
             std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
             CT_UPDATED);
     } else {
-        CSigmaEntry zerocoin;
-        if (!walletdb.ReadZerocoinEntry(meta.GetPubCoinValue(), zerocoin))
+        CSigmaEntry sigma;
+        if (!walletdb.ReadSigmaEntry(meta.GetPubCoinValue(), sigma))
             return error("%s: failed to read mint from database", __func__);
 
-        zerocoin.nHeight = meta.nHeight;
-        zerocoin.id = meta.nId;
-        zerocoin.IsUsed = meta.isUsed;
-        zerocoin.set_denomination(meta.denom);
+        sigma.nHeight = meta.nHeight;
+        sigma.id = meta.nId;
+        sigma.IsUsed = meta.isUsed;
+        sigma.set_denomination(meta.denom);
 
-        if (!walletdb.WriteZerocoinEntry(zerocoin))
+        if (!walletdb.WriteSigmaEntry(sigma))
             return error("%s: failed to write mint to database", __func__);
 
         pwalletMain->NotifyZerocoinChanged(
             pwalletMain,
-            zerocoin.value.GetHex(),
-            std::string("Update (") + std::to_string((double)zerocoin.get_denomination_value() / COIN) + "mint)",
+            sigma.value.GetHex(),
+            std::string("Update (") + std::to_string((double)sigma.get_denomination_value() / COIN) + "mint)",
             CT_UPDATED);
     }
 
@@ -288,23 +288,23 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
         CWalletDB(strWalletFile).WriteHDMint(dMint);
 }
 
-void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchived)
+void CHDMintTracker::Add(const CSigmaEntry& sigma, bool isNew, bool isArchived)
 {
     CMintMeta meta;
-    meta.SetPubCoinValue(zerocoin.value);
-    meta.nHeight = zerocoin.nHeight;
-    meta.nId = zerocoin.id;
-    //meta.txid = zerocoin.GetTxHash();
-    meta.isUsed = zerocoin.IsUsed;
-    meta.hashSerial = primitives::GetSerialHash(zerocoin.serialNumber);
-    meta.denom = zerocoin.get_denomination();
+    meta.SetPubCoinValue(sigma.value);
+    meta.nHeight = sigma.nHeight;
+    meta.nId = sigma.id;
+    //meta.txid = sigma.GetTxHash();
+    meta.isUsed = sigma.IsUsed;
+    meta.hashSerial = primitives::GetSerialHash(sigma.serialNumber);
+    meta.denom = sigma.get_denomination();
     meta.isArchived = isArchived;
     meta.isDeterministic = false;
     meta.isSeedCorrect = true;
     mapSerialHashes[meta.hashSerial] = meta;
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoin);
+        CWalletDB(strWalletFile).WriteSigmaEntry(sigma);
 }
 
 void CHDMintTracker::SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid)
@@ -610,7 +610,7 @@ void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSeri
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
-list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){
+list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMatureOnly){
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly, false);
@@ -634,7 +634,7 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
         for (auto& mint : listMintsDB){
             Add(mint);
         }
-        LogPrint("zero", "%s: added %d zerocoinmints from DB\n", __func__, listMintsDB.size());
+        LogPrint("zero", "%s: added %d sigmamints from DB\n", __func__, listMintsDB.size());
 
         std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
         for (auto& dMint : listDeterministicDB) {

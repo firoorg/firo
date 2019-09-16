@@ -56,7 +56,7 @@ static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomi
 
     std::copy_n(coin.getEcdsaSeckey(), 32, zerocoinTx.ecdsaSecretKey.begin());
 
-    if (!CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx)) {
+    if (!CWalletDB(pwalletMain->strWalletFile).WriteSigmaEntry(zerocoinTx)) {
         throw std::runtime_error("Failed to add zerocoin to wallet");
     }
 }

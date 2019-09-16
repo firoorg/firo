@@ -222,13 +222,13 @@ public:
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool WriteZerocoinEntry(const CSigmaEntry& zerocoin);
+    bool WriteSigmaEntry(const CSigmaEntry& zerocoin);
     bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
-    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
+    bool ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
     bool HasZerocoinEntry(const Bignum& pub);
-    bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
+    bool HasSigmaEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool EraseZerocoinEntry(const CSigmaEntry& zerocoin);
+    bool EraseSigmaEntry(const CSigmaEntry& sigma);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
@@ -255,15 +255,15 @@ public:
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
-    bool ReadZerocoinCount(int32_t& nCount);
-    bool WriteZerocoinCount(const int32_t& nCount);
+    bool ReadMintCount(int32_t& nCount);
+    bool WriteMintCount(const int32_t& nCount);
 
-    bool ReadZerocoinSeedCount(int32_t& nCount);
-    bool WriteZerocoinSeedCount(const int32_t& nCount);
+    bool ReadMintSeedCount(int32_t& nCount);
+    bool WriteMintSeedCount(const int32_t& nCount);
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
+    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
     bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
 
     bool WriteHDMint(const CHDMint& dMint);
