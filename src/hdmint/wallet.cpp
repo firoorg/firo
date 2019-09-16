@@ -295,6 +295,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     bool serialInBlockchain = false;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()){
+        LogPrint("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(mintSeed, mintCount, seedId, false);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
@@ -302,6 +303,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
+        LogPrint("%s: Wallet locked, retrieving mind seed..\n", __func__);
         // Get serial and pubcoin data from the db
         CWalletDB walletdb(strWalletFile);
         std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
@@ -309,6 +311,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         for(auto serialPubcoinPair : serialPubcoinPairs){
             GroupElement pubcoin = serialPubcoinPair.second;
             if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
+                LogPrint("%s: Found pubcoin and serial hash\n", __func__);
                 bnValue = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
@@ -316,11 +319,13 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
             }
         }
         // Not found in DB
-        if(!fFound)
+        if(!fFound){
+            LogPrint("%s: Pubcoin not found in DB. \n", __func__);
             return false;
-
+        }
     }
 
+    LogPrint("%s: Creating mint object.. \n", __func__);
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetDenomination(denom);
@@ -333,6 +338,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     CTransaction txSpend;
     if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
         //Find transaction details and make a wallettx and add to wallet
+        LogPrint("%s: Mint object is spent. Setting used..\n", __func__);
         dMint.SetUsed(true);
         CWalletTx wtx(pwalletMain, txSpend);
         CBlockIndex* pindex = chainActive[nHeightTx];
@@ -344,6 +350,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         pwalletMain->AddToWallet(wtx, false, &walletdb);
     }
 
+    LogPrint("%s: Adding mint to tracker.. \n", __func__);
     // Add to tracker which also adds to database
     tracker.Add(dMint, true);
 
