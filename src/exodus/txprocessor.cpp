@@ -7,25 +7,6 @@ namespace exodus {
 
 TxProcessor *txProcessor;
 
-namespace {
-
-bool IsSigmaEnabled(uint32_t propertyId)
-{
-    CMPSPInfo::Entry sp;
-
-    if (!_my_sps->getSP(propertyId, sp)) {
-        return false;
-    }
-
-    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
-        return false;
-    }
-
-    return true;
-}
-
-} // unnamed namespace
-
 int TxProcessor::ProcessTx(CMPTransaction& tx)
 {
     LOCK(cs_main);

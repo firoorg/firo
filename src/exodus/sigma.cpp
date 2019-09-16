@@ -98,7 +98,7 @@ void SigmaPublicKey::Generate(const SigmaPrivateKey& pkey)
 
 // SigmaProof Implementation.
 
-SigmaProof::SigmaProof() : proof(nullptr)
+SigmaProof::SigmaProof() : proof(4, 7) // FIXME : hard coding
 {
 }
 

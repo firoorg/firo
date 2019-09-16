@@ -952,6 +952,7 @@ public:
         CAmount& fee,
         std::vector<CSigmaEntry>& selected,
         std::vector<CHDMint>& changes,
+        bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,

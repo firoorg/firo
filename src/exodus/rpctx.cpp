@@ -1504,6 +1504,22 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
     // perform checks
     RequireExistingProperty(propertyId);
     RequireTokenIssuer(fromAddress, propertyId);
+    RequireSigma(propertyId);
+
+    {
+        LOCK(cs_main);
+
+        CMPSPInfo::Entry info;
+        assert(_my_sps->getSP(propertyId, info));
+
+        if (info.denominations.size() >= MAX_DENOMINATIONS) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "No more room for new denomination");
+        }
+
+        if (std::find(info.denominations.begin(), info.denominations.end(), value) != info.denominations.end()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination with value " + FormatMP(propertyId, value) + " already exists");
+        }
+    }
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_CreateDenomination(propertyId, value);

@@ -20,6 +20,7 @@ EXODUS_TEST_CPP = \
   exodus/test/output_restriction_tests.cpp \
   exodus/test/parsing_b_tests.cpp \
   exodus/test/parsing_c_tests.cpp \
+  exodus/test/property_tests.cpp \
   exodus/test/rounduint64_tests.cpp \
   exodus/test/rules_txs_tests.cpp \
   exodus/test/script_extraction_tests.cpp \

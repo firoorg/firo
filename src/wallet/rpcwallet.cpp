@@ -1922,7 +1922,17 @@ UniValue backupwallet(const UniValue& params, bool fHelp)
             + HelpExampleRpc("backupwallet", "\"backup.dat\"")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    // WARNING: don't lock any mutexes here before calling into pwalletMain->BackupWallet() due to it can cause dead
+    // lock. Here is the example scenario that will cause dead lock if we lock cs_wallet before calling into
+    // pwalletMain->BackupWallet():
+    //
+    // 1. Other threads construct CWalletDB without locking cs_wallet. This is safe because CWalletDB is a thread safe.
+    // 2. This RPC get invoked. Then it lock cs_wallet before calling into pwalletMain->BackupWallet().
+    // 3. pwalletMain->BackupWallet() will loop until the CWalletDB in the step 1 closed.
+    // 4. Thread in step 1 try to lock cs_wallet while CWalletDB still open but it will wait forever due to it already
+    //    locked by this RPC.
+    //
+    // We don't need to worry about pwalletMain->BackupWallet() due to it already thread safe.
 
     string strDest = params[0].get_str();
     if (!pwalletMain->BackupWallet(strDest))
@@ -2654,6 +2664,14 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
 
 UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
 
+        if (fHelp || params.size() > 0)
+	        throw runtime_error(
+       	        	"regeneratemintpool\n"
+       		        "\nIf issues exist with the keys that map to mintpool entries in the DB, this function corrects them.\n"
+                    "\nExamples:\n"
+                    + HelpExampleCli("regeneratemintpool", "")
+                    + HelpExampleRpc("regeneratemintpool", "")
+                );
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -2676,7 +2694,7 @@ UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
     bool reindexRequired = false;
 
     for (auto& mintPoolPair : listMintPool){
-        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
             mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
 
         oldHashPubcoin = mintPoolPair.first;
@@ -2687,7 +2705,7 @@ UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
 
         if(nIndexes.first != oldHashPubcoin){
             walletdb.EraseMintPoolPair(oldHashPubcoin);
-            reindexRequired = true;    
+            reindexRequired = true;
         }
 
         if(!hasSerial || nIndexes.second != oldHashSerial){
@@ -2697,9 +2715,9 @@ UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
     }
 
     if(reindexRequired)
-        return "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.";
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.");
 
-    return "No issues with mintpool detected.";
+    return true;
 }
 
 //[zcoin]: zerocoin section
