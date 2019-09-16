@@ -23,18 +23,22 @@ uint256 CMintMeta::GetPubCoinValueHash() const {
 
 namespace primitives {
 
-uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
-{
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial) {
     CDataStream ss(SER_GETHASH, 0);
     ss << bnSerial;
     return Hash(ss.begin(), ss.end());
 }
 
-uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
-{
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue) {
     CDataStream ss(SER_GETHASH, 0);
     ss << bnValue;
     return Hash(ss.begin(), ss.end());
+}
+
+uint160 GetSerialHash160(const secp_primitives::Scalar &serial) {
+    CDataStream ss(SER_GETHASH, 0);
+    ss << serial;
+    return Hash160(ss.begin(), ss.end());
 }
 
 }

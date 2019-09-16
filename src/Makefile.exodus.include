@@ -82,7 +82,6 @@ EXODUS_H += \
   exodus/wallet.h \
   exodus/walletmodels.h \
   exodus/hdmint/hdmint.h \
-  exodus/hdmint/tracker.h \
   exodus/hdmint/wallet.h
 
 EXODUS_CPP += \
@@ -90,7 +89,6 @@ EXODUS_CPP += \
   exodus/wallet.cpp \
   exodus/walletmodels.cpp \
   exodus/hdmint/hdmint.cpp \
-  exodus/hdmint/tracker.cpp \
   exodus/hdmint/wallet.cpp
 endif
 

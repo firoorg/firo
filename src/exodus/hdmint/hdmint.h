@@ -10,20 +10,17 @@
 #include "../sigma.h"
 #include "../walletmodels.h"
 
-namespace exodus
-{
+namespace exodus {
 
 // struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 class HDMint
 {
 private:
-    uint32_t propertyId;
-    uint8_t denomination;
+    SigmaMintId id;
 
     int32_t count;
     CKeyID seedId;
-    uint256 hashSerial;
-    GroupElement pubCoinValue;
+    uint160 hashSerial;
 
     uint256 spendTx;
     SigmaMintChainState chainState;
@@ -31,29 +28,26 @@ private:
 public:
     HDMint();
     HDMint(
-        uint32_t propertyId,
-        uint8_t denomination,
+        SigmaMintId const &id,
         int32_t count,
         const CKeyID& seedId,
-        const uint256& hashSerial,
-        const GroupElement& pubCoinValue);
+        const uint160& hashSerial);
 
-    uint32_t GetPropertyId() const { return propertyId; }
-    uint8_t GetDenomination() const { return denomination; }
+    SigmaMintId const &GetId() const { return id; }
+
     int32_t GetCount() const { return count; }
-    CKeyID GetSeedId() const { return seedId; }
-    uint256 GetSerialHash() const { return hashSerial; }
-    GroupElement GetPubCoinValue() const { return pubCoinValue; }
-    uint256 GetPubCoinHash() const { return primitives::GetPubCoinValueHash(pubCoinValue); }
+    const CKeyID &GetSeedId() const { return seedId; }
+    const uint160 &GetSerialHash() const { return hashSerial; }
 
-    uint256 GetSpendTx() const { return spendTx; }
-    SigmaMintChainState GetChainState() const { return chainState; }
+    const uint256 &GetSpendTx() const { return spendTx; }
+    const SigmaMintChainState &GetChainState() const { return chainState; }
 
     void SetNull();
 
+    void SetMintId(const SigmaMintId &id) { this->id = id; }
+
     void SetSpendTx(const uint256& spendTx) { this->spendTx = spendTx; }
-    void SetPubcoinValue(GroupElement const &pubCoinValue) { this->pubCoinValue = pubCoinValue; }
-    void SetChainState(SigmaMintChainState const &chainState) { this->chainState = chainState; }
+    void SetChainState(const SigmaMintChainState &chainState) { this->chainState = chainState; }
 
     std::string ToString() const;
 
@@ -62,12 +56,10 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(propertyId);
-        READWRITE(denomination);
+        READWRITE(id);
         READWRITE(count);
         READWRITE(seedId);
         READWRITE(hashSerial);
-        READWRITE(pubCoinValue);
         READWRITE(spendTx);
         READWRITE(chainState);
     };

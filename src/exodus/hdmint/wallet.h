@@ -12,11 +12,9 @@
 #include "../wallet/wallet.h"
 #include "../walletmodels.h"
 
-#include "tracker.h"
 #include "hdmint.h"
 
-namespace exodus
-{
+namespace exodus {
 
 class HDMintWallet
 {
@@ -25,7 +23,6 @@ private:
     int32_t countNextGenerate;
     std::string walletFile;
     CMintPool mintPool;
-    SigmaMintTracker tracker;
     uint160 hashSeedMaster;
 
 public:
@@ -42,10 +39,9 @@ public:
         boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
 
     bool RegenerateMint(const HDMint& mint, SigmaMint& entry);
+    std::pair<uint256, uint160> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
 
-    std::pair<uint256, uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
     void GenerateMintPool(int32_t nIndex = 0);
-    SigmaMintTracker & GetTracker() { return tracker; }
     CMintPool & GetMintPool() { return mintPool; }
 
     bool SetMintSeedSeen(
@@ -65,12 +61,38 @@ public:
     void UpdateCountDB();
     void UpdateCount();
 
+    template<
+        class OutIt,
+        typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
+    > OutIt ListHDMints(OutIt it, bool unusedOnly, bool matureOnly) const
+    {
+        ListHDMints([&it](HDMint &m) {
+            *it++ = m;
+        }, unusedOnly, matureOnly);
+
+        return it;
+    }
+
+    size_t ListHDMints(std::function<void(HDMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
+
+    void Record(const HDMint &mint);
     void ResetCoinsState();
 
+    bool HasMint(SigmaMintId const &id) const;
+    bool HasSerial(secp_primitives::Scalar const &serial) const;
+    HDMint GetMint(SigmaMintId const &id) const;
+    HDMint GetMint(secp_primitives::Scalar const &serial) const;
+    SigmaMintId GetMintId(secp_primitives::Scalar const &serial) const;
+
+    HDMint UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx);
+    HDMint UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
+
 private:
+
     bool CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex = true);
     CKeyID GetZerocoinSeedID(int32_t count);
     bool LoadMintPoolFromDB();
+    HDMint UpdateMint(SigmaMintId const &, std::function<void(HDMint &)> const &);
 };
 
 } // namespace exodus

@@ -296,11 +296,11 @@ public:
     bool ReadExodusMintSeedCount(int32_t &count);
     bool WriteExodusMintSeedCount(int32_t count);
 
-    bool ReadExodusPubcoin(const uint256& hashSerial, GroupElement& pubcoin);
-    bool WriteExodusPubcoin(const uint256& hashSerial, const GroupElement& pubcoin);
-    bool EraseExodusPubcoin(const uint256& hashSerial);
+    bool ReadExodusPubcoin(const uint160& hashSerial, GroupElement& pubcoin);
+    bool WriteExodusPubcoin(const uint160& hashSerial, const GroupElement& pubcoin);
+    bool EraseExodusPubcoin(const uint160& hashSerial);
 
-    std::vector<std::pair<uint256, GroupElement>> ListExodusSerialPubcoinPairs();
+    std::vector<std::pair<uint160, GroupElement>> ListExodusSerialPubcoinPairs();
 
     bool ReadExodusMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>& mintPool);
     bool WriteExodusMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& mintPool);
@@ -372,26 +372,52 @@ public:
         cursor->close();
     }
 
-    template<class HDMint>
-    bool ReadExodusHDMint(const uint256& hashPubcoin, HDMint& mint)
+    template<class Key, class MintID>
+    bool ReadExodusMintID(const Key& k, MintID &id)
     {
-        return Read(std::make_pair(std::string("exodus_hdmint"), hashPubcoin), mint);
+        return Read(std::make_pair(std::string("exodus_mint_id"), k), id);
     }
 
-    bool HasExodusHDMint(const uint256& hashPubcoin)
+    template<class Key, class MintID>
+    bool WriteExodusMintID(const Key& k, const MintID &id)
     {
-        return Exists(std::make_pair(std::string("exodus_hdmint"), hashPubcoin));
+        return Write(std::make_pair(std::string("exodus_mint_id"), k), id);
     }
 
-    template<class HDMint>
-    bool WriteExodusHDMint(const HDMint& mint)
+    template<class Key>
+    bool HasExodusMintID(const Key& k)
     {
-        return Write(std::make_pair(std::string("exodus_hdmint"), mint.GetPubCoinHash()), mint, true);
+        return Exists(std::make_pair(std::string("exodus_mint_id"), k));
     }
 
-    bool EraseExodusHDMint(const uint256& hashPubcoin)
+    template<class Key>
+    bool EraseExodusMintID(const Key& k)
     {
-        return Erase(std::make_pair(std::string("exodus_hdmint"), hashPubcoin));
+        return Erase(std::make_pair(std::string("exodus_mint_id"), k));
+    }
+
+    template<class K, class V>
+    bool ReadExodusHDMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_hdmint"), k), v);
+    }
+
+    template<class K>
+    bool HasExodusHDMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_hdmint"), k));
+    }
+
+    template<class K, class V>
+    bool WriteExodusHDMint(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("exodus_hdmint"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseExodusHDMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_hdmint"), k));
     }
 
     template<typename K, typename V, typename InsertF>

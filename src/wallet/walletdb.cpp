@@ -1579,17 +1579,17 @@ bool CWalletDB::WriteExodusMintSeedCount(int32_t count)
     return Write(std::string("exodus_seed_mintcount"), count);
 }
 
-bool CWalletDB::WriteExodusPubcoin(uint256 const &hashSerial, GroupElement const &pubcoin)
+bool CWalletDB::WriteExodusPubcoin(uint160 const &hashSerial, GroupElement const &pubcoin)
 {
     return Write(std::make_pair(std::string("exodus_pubcoin"), hashSerial), pubcoin);
 }
 
-bool CWalletDB::ReadExodusPubcoin(uint256 const &hashSerial, GroupElement &pubcoin)
+bool CWalletDB::ReadExodusPubcoin(uint160 const &hashSerial, GroupElement &pubcoin)
 {
     return Read(std::make_pair(std::string("exodus_pubcoin"), hashSerial), pubcoin);
 }
 
-bool CWalletDB::EraseExodusPubcoin(uint256 const &hashSerial)
+bool CWalletDB::EraseExodusPubcoin(uint160 const &hashSerial)
 {
     return Erase(std::make_pair(std::string("exodus_pubcoin"), hashSerial));
 }
@@ -1611,9 +1611,9 @@ bool CWalletDB::EraseExodusMintPoolPair(uint256 const &hashPubcoin)
     return Erase(std::make_pair(std::string("exodus_mintpool"), hashPubcoin));
 }
 
-std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListExodusSerialPubcoinPairs()
+std::vector<std::pair<uint160, GroupElement>> CWalletDB::ListExodusSerialPubcoinPairs()
 {
-    std::vector<std::pair<uint256, GroupElement>> serialPubcoins;
+    std::vector<std::pair<uint160, GroupElement>> serialPubcoins;
 
     auto cursor = GetCursor();
     if (!cursor) {
@@ -1627,7 +1627,7 @@ std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListExodusSerialPubcoin
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (flags == DB_SET_RANGE) {
-            ssKey << std::make_pair(string("exodus_pubcoin"), ArithToUint256(arith_uint256(0)));
+            ssKey << std::make_pair(string("exodus_pubcoin"), uint160());
         }
 
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
@@ -1648,7 +1648,7 @@ std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListExodusSerialPubcoin
             break;
         }
 
-        uint256 hashSerial;
+        uint160 hashSerial;
         ssKey >> hashSerial;
 
         secp_primitives::GroupElement pubcoin;

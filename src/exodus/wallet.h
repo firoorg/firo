@@ -45,18 +45,15 @@ public:
         LOCK(pwalletMain->cs_wallet);
 
         auto mintWallet = this->mintWallet;
+        mintWallet.ListHDMints([&](HDMint &mint) {
 
-        CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
-            [&mintWallet, &it](HDMint const &mint) {
-
-                SigmaMint entry;
-                if (!mintWallet.RegenerateMint(mint, entry)) {
-                    throw std::runtime_error("Fail to regenerate mint");
-                }
-
-                *it++ = std::move(entry);
+            SigmaMint entry;
+            if (!mintWallet.RegenerateMint(mint, entry)) {
+                throw std::runtime_error("Fail to regenerate mint");
             }
-        );
+
+            *it++ = entry;
+        }, false, false);
     }
 
     template<class OutputIt>
@@ -65,20 +62,17 @@ public:
         LOCK(pwalletMain->cs_wallet);
 
         auto mintWallet = this->mintWallet;
+        mintWallet.ListHDMints([&](HDMint &mint) {
 
-        CWalletDB(walletFile).ListExodusHDMints<uint256, HDMint>(
-            [&mintWallet, &it, propertyId](HDMint const &mint){
-                if (mint.GetPropertyId() == propertyId) {
-
-                    SigmaMint entry;
-                    if (!mintWallet.RegenerateMint(mint, entry)) {
-                        throw std::runtime_error("Fail to regenerate mint");
-                    }
-
-                    *it++ = std::move(entry);
-                }
+            SigmaMint entry;
+            if (!mintWallet.RegenerateMint(mint, entry)) {
+                throw std::runtime_error("Fail to regenerate mint");
             }
-        );
+
+            if (propertyId == entry.property) {
+                *it++ = entry;
+            }
+        }, false, false);
     }
 
     bool HasSigmaMint(const SigmaMintId& id);
