@@ -18,7 +18,7 @@
 namespace exodus
 {
 
-HDMintWallet::HDMintWallet(const std::string& walletFile) : walletFile(walletFile)
+SigmaWallet::SigmaWallet(const std::string& walletFile) : walletFile(walletFile)
 {
     //Don't try to do anything else if the wallet is locked.
     if (pwalletMain->IsLocked()) {
@@ -39,7 +39,7 @@ HDMintWallet::HDMintWallet(const std::string& walletFile) : walletFile(walletFil
     }
 }
 
-bool HDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool resetCount)
+bool SigmaWallet::SetupWallet(const uint160& hashSeedMaster, bool resetCount)
 {
     LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(walletFile);
@@ -75,7 +75,7 @@ bool HDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool resetCount)
     return true;
 }
 
-std::pair<uint256, uint160> HDMintWallet::RegenerateMintPoolEntry(
+std::pair<uint256, uint160> SigmaWallet::RegenerateMintPoolEntry(
     const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count)
 {
     LOCK(pwalletMain->cs_wallet);
@@ -117,7 +117,7 @@ std::pair<uint256, uint160> HDMintWallet::RegenerateMintPoolEntry(
 }
 
 // Add up to index + 20 new mints to the mint pool (defaults to adding 20 mints if no param passed)
-void HDMintWallet::GenerateMintPool(int32_t index)
+void SigmaWallet::GenerateMintPool(int32_t index)
 {
     LOCK(pwalletMain->cs_wallet);
 
@@ -178,7 +178,7 @@ void HDMintWallet::GenerateMintPool(int32_t index)
     }
 }
 
-bool HDMintWallet::LoadMintPoolFromDB()
+bool SigmaWallet::LoadMintPoolFromDB()
 {
     LOCK(pwalletMain->cs_wallet);
     mintPool.clear();
@@ -202,7 +202,7 @@ bool HDMintWallet::LoadMintPoolFromDB()
     return true;
 }
 
-bool HDMintWallet::SetMintSeedSeen(
+bool SigmaWallet::SetMintSeedSeen(
     std::pair<uint256, MintPoolEntry> const &mintPoolEntryPair,
     uint32_t propertyId,
     uint8_t denomination,
@@ -259,7 +259,7 @@ bool HDMintWallet::SetMintSeedSeen(
     SigmaPublicKey k;
     k.SetCommitment(commitment);
 
-    HDMint mint(SigmaMintId(propertyId, denomination, k), mintCount, seedId, hashSerial);
+    SigmaMint mint(SigmaMintId(propertyId, denomination, k), mintCount, seedId, hashSerial);
     mint.chainState = chainState;
     mint.spendTx = spendTx;
 
@@ -276,7 +276,7 @@ bool HDMintWallet::SetMintSeedSeen(
     return true;
 }
 
-bool HDMintWallet::SeedToZerocoin(
+bool SigmaWallet::SeedToZerocoin(
     const uint512& seedZerocoin, GroupElement& commitment, exodus::SigmaPrivateKey& coin)
 {
     //convert state seed into a seed for the private key
@@ -309,7 +309,7 @@ bool HDMintWallet::SeedToZerocoin(
     return true;
 }
 
-CKeyID HDMintWallet::GetZerocoinSeedID(int32_t count)
+CKeyID SigmaWallet::GetZerocoinSeedID(int32_t count)
 {
     // Get CKeyID for n from mintpool
     std::pair<uint256, MintPoolEntry> mintPoolEntryPair;
@@ -328,7 +328,7 @@ CKeyID HDMintWallet::GetZerocoinSeedID(int32_t count)
     return std::get<1>(mintPoolEntryPair.second);
 }
 
-bool HDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex)
+bool SigmaWallet::CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex)
 {
     LOCK(pwalletMain->cs_wallet);
     CKey key;
@@ -367,12 +367,12 @@ bool HDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& 
     return true;
 }
 
-int32_t HDMintWallet::GetCount()
+int32_t SigmaWallet::GetCount()
 {
     return countNextUse;
 }
 
-void HDMintWallet::ResetCount()
+void SigmaWallet::ResetCount()
 {
     LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(walletFile);
@@ -381,18 +381,18 @@ void HDMintWallet::ResetCount()
     }
 }
 
-void HDMintWallet::SetCount(int32_t count)
+void SigmaWallet::SetCount(int32_t count)
 {
     countNextUse = count;
 }
 
-void HDMintWallet::UpdateCountLocal()
+void SigmaWallet::UpdateCountLocal()
 {
     countNextUse++;
     LogPrintf("%s : Updating count local to %s\n", __func__, countNextUse);
 }
 
-void HDMintWallet::UpdateCountDB()
+void SigmaWallet::UpdateCountDB()
 {
     LogPrintf("%s : Updating count in DB to %s\n", __func__, countNextUse);
 
@@ -406,20 +406,20 @@ void HDMintWallet::UpdateCountDB()
     GenerateMintPool();
 }
 
-void HDMintWallet::UpdateCount()
+void SigmaWallet::UpdateCount()
 {
     UpdateCountLocal();
     UpdateCountDB();
 }
 
-size_t HDMintWallet::ListHDMints(
-    std::function<void(HDMint &)> const &f, bool unusedOnly, bool matureOnly) const
+size_t SigmaWallet::ListSigmaMints(
+    std::function<void(SigmaMint &)> const &f, bool unusedOnly, bool matureOnly) const
 {
     LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(walletFile);
 
     size_t counter = 0;
-    walletdb.ListExodusHDMints<SigmaMintId, HDMint>([&](HDMint &m) {
+    walletdb.ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint &m) {
         auto used = !m.spendTx.IsNull();
         if (unusedOnly && used) {
             return;
@@ -437,12 +437,12 @@ size_t HDMintWallet::ListHDMints(
     return counter;
 }
 
-void HDMintWallet::ResetCoinsState()
+void SigmaWallet::ResetCoinsState()
 {
     try {
         CWalletDB walletdb(walletFile);
 
-        ListHDMints([&walletdb](HDMint &m) {
+        ListSigmaMints([&walletdb](SigmaMint &m) {
 
             m.chainState = SigmaMintChainState();
             m.spendTx = uint256();
@@ -462,11 +462,11 @@ void HDMintWallet::ResetCoinsState()
     }
 }
 
-bool HDMintWallet::GenerateMint(
+bool SigmaWallet::GenerateMint(
     uint32_t propertyId,
     uint8_t denomination,
     SigmaPrivateKey& coin,
-    HDMint& mint,
+    SigmaMint& mint,
     boost::optional<MintPoolEntry> mintPoolEntry)
 {
     if (mintPoolEntry == boost::none) {
@@ -499,7 +499,7 @@ bool HDMintWallet::GenerateMint(
     SigmaPublicKey key;
     key.SetCommitment(commitment);
     auto serialHash = primitives::GetSerialHash160(coin.GetSerial());
-    mint = HDMint(
+    mint = SigmaMint(
         SigmaMintId(propertyId, denomination, key),
         std::get<2>(mintPoolEntry.get()),
         std::get<1>(mintPoolEntry.get()),
@@ -517,9 +517,9 @@ bool HDMintWallet::GenerateMint(
     return true;
 }
 
-bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaPrivateKey &privKey)
+bool SigmaWallet::RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey)
 {
-    HDMint dummyMint;
+    SigmaMint dummyMint;
 
     MintPoolEntry mintPoolEntry(hashSeedMaster, mint.seedId, mint.count);
     GenerateMint(mint.id.property, mint.id.denomination, privKey, dummyMint, mintPoolEntry);
@@ -538,23 +538,23 @@ bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaPrivateKey &privKey)
     return true;
 }
 
-bool HDMintWallet::HasMint(SigmaMintId const &id) const
+bool SigmaWallet::HasMint(SigmaMintId const &id) const
 {
     CWalletDB walletdb(walletFile);
     return walletdb.HasExodusHDMint(id);
 }
 
-bool HDMintWallet::HasSerial(secp_primitives::Scalar const &scalar) const
+bool SigmaWallet::HasSerial(secp_primitives::Scalar const &scalar) const
 {
     CWalletDB walletdb(walletFile);
     auto serialHash = primitives::GetSerialHash160(scalar);
     return walletdb.HasExodusMintID(serialHash);
 }
 
-HDMint HDMintWallet::GetMint(SigmaMintId const &id) const
+SigmaMint SigmaWallet::GetMint(SigmaMintId const &id) const
 {
     CWalletDB walletdb(walletFile);
-    HDMint m;
+    SigmaMint m;
     if (!walletdb.ReadExodusHDMint(id, m)) {
         throw std::runtime_error("fail to read hdmint");
     }
@@ -562,12 +562,12 @@ HDMint HDMintWallet::GetMint(SigmaMintId const &id) const
     return m;
 }
 
-HDMint HDMintWallet::GetMint(secp_primitives::Scalar const &serial) const
+SigmaMint SigmaWallet::GetMint(secp_primitives::Scalar const &serial) const
 {
     return GetMint(GetMintId(serial));
 }
 
-SigmaMintId HDMintWallet::GetMintId(secp_primitives::Scalar const &serial) const
+SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 {
     CWalletDB walletdb(walletFile);
 
@@ -580,7 +580,7 @@ SigmaMintId HDMintWallet::GetMintId(secp_primitives::Scalar const &serial) const
     return id;
 }
 
-HDMint HDMintWallet::UpdateMint(SigmaMintId const &id, std::function<void(HDMint &)> const &modF)
+SigmaMint SigmaWallet::UpdateMint(SigmaMintId const &id, std::function<void(SigmaMint &)> const &modF)
 {
     CWalletDB walletdb(walletFile);
     auto m = GetMint(id);
@@ -593,21 +593,21 @@ HDMint HDMintWallet::UpdateMint(SigmaMintId const &id, std::function<void(HDMint
     return m;
 }
 
-HDMint HDMintWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
+SigmaMint SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
 {
-    return UpdateMint(id, [&tx](HDMint &m) {
+    return UpdateMint(id, [&tx](SigmaMint &m) {
         m.spendTx = tx;
     });
 }
 
-HDMint HDMintWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
+SigmaMint SigmaWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
 {
-    return UpdateMint(id, [&state](HDMint &m) {
+    return UpdateMint(id, [&state](SigmaMint &m) {
         m.chainState = state;
     });
 }
 
-void HDMintWallet::Record(const HDMint& mint)
+void SigmaWallet::Record(const SigmaMint& mint)
 {
     CWalletDB walletdb(walletFile);
     if (!walletdb.WriteExodusHDMint(mint.id, mint)) {

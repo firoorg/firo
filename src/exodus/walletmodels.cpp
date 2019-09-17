@@ -55,12 +55,12 @@ bool SigmaMintId::operator!=(const SigmaMintId& other) const
     return !(*this == other);
 }
 
-HDMint::HDMint()
+SigmaMint::SigmaMint()
 {
     SetNull();
 }
 
-HDMint::HDMint(
+SigmaMint::SigmaMint(
     const SigmaMintId &id,
     int32_t count,
     const CKeyID& seedId,
@@ -72,7 +72,7 @@ HDMint::HDMint(
 {
 }
 
-void HDMint::SetNull()
+void SigmaMint::SetNull()
 {
     id = SigmaMintId();
 
@@ -84,7 +84,7 @@ void HDMint::SetNull()
     chainState = exodus::SigmaMintChainState();
 }
 
-bool HDMint::operator==(const HDMint &other) const {
+bool SigmaMint::operator==(const SigmaMint &other) const {
     return id == other.id
         && count == other.count
         && seedId == other.seedId
@@ -93,14 +93,14 @@ bool HDMint::operator==(const HDMint &other) const {
         && chainState == other.chainState;
 }
 
-bool HDMint::operator!=(const HDMint &other) const {
+bool SigmaMint::operator!=(const SigmaMint &other) const {
     return !(*this == other);
 }
 
-std::string HDMint::ToString() const
+std::string SigmaMint::ToString() const
 {
     return strprintf(
-        " HDMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
+        " SigmaMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
         count, seedId.ToString(), hashSerial.GetHex(), spendTx.GetHex(),
         chainState.block, chainState.group, id.denomination, !spendTx.IsNull());
 }

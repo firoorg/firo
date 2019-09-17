@@ -15,7 +15,7 @@
 
 namespace exodus {
 
-class HDMintWallet
+class SigmaWallet
 {
 private:
     int32_t countNextUse;
@@ -27,17 +27,17 @@ private:
 public:
     int static const COUNT_DEFAULT = 0;
 
-    HDMintWallet(std::string const &walletFile);
+    SigmaWallet(std::string const &walletFile);
 
     bool SetupWallet(const uint160& hashSeedMaster, bool resetCount = false);
     bool GenerateMint(
         uint32_t propertyId,
         uint8_t denom,
         exodus::SigmaPrivateKey& coin,
-        HDMint& dMint,
+        SigmaMint& dMint,
         boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
 
-    bool RegenerateMint(const HDMint& mint, SigmaPrivateKey &privKey);
+    bool RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey);
     std::pair<uint256, uint160> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
 
     void GenerateMintPool(int32_t nIndex = 0);
@@ -63,35 +63,35 @@ public:
     template<
         class OutIt,
         typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
-    > OutIt ListHDMints(OutIt it, bool unusedOnly, bool matureOnly) const
+    > OutIt ListSigmaMints(OutIt it, bool unusedOnly, bool matureOnly) const
     {
-        ListHDMints([&it](HDMint &m) {
+        ListSigmaMints([&it](SigmaMint &m) {
             *it++ = m;
         }, unusedOnly, matureOnly);
 
         return it;
     }
 
-    size_t ListHDMints(std::function<void(HDMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
+    size_t ListSigmaMints(std::function<void(SigmaMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
 
-    void Record(const HDMint &mint);
+    void Record(const SigmaMint &mint);
     void ResetCoinsState();
 
     bool HasMint(SigmaMintId const &id) const;
     bool HasSerial(secp_primitives::Scalar const &serial) const;
-    HDMint GetMint(SigmaMintId const &id) const;
-    HDMint GetMint(secp_primitives::Scalar const &serial) const;
+    SigmaMint GetMint(SigmaMintId const &id) const;
+    SigmaMint GetMint(secp_primitives::Scalar const &serial) const;
     SigmaMintId GetMintId(secp_primitives::Scalar const &serial) const;
 
-    HDMint UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx);
-    HDMint UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
+    SigmaMint UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx);
+    SigmaMint UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
 
 private:
 
     bool CreateZerocoinSeed(uint512& seedZerocoin, int32_t n, CKeyID& seedId, bool checkIndex = true);
     CKeyID GetZerocoinSeedID(int32_t count);
     bool LoadMintPoolFromDB();
-    HDMint UpdateMint(SigmaMintId const &, std::function<void(HDMint &)> const &);
+    SigmaMint UpdateMint(SigmaMintId const &, std::function<void(SigmaMint &)> const &);
 };
 
 } // namespace exodus

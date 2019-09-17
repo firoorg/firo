@@ -64,7 +64,7 @@ using namespace exodus;
 namespace {
 
 #ifdef ENABLE_WALLET
-UniValue SigmaMintToJson(const HDMint& mint, bool verbose)
+UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
 {
     // Load property info.
     CMPSPInfo::Entry info;
@@ -1917,9 +1917,9 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     }
 
     // Get mints that meet criteria.
-    std::vector<HDMint> mints;
+    std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const HDMint& m) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
         if (!m.spendTx.IsNull() || m.chainState.block < 0) {
             return;
         }
@@ -1959,9 +1959,9 @@ UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
         );
     }
 
-    std::vector<HDMint> mints;
+    std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const HDMint& m) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
         if (m.chainState.block >= 0) {
             return;
         }

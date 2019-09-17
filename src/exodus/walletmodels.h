@@ -16,12 +16,6 @@
 
 namespace exodus {
 
-// Declarations.
-
-class HDMint;
-
-// Definitions.
-
 class SigmaMintChainState
 {
 public:
@@ -80,7 +74,7 @@ private:
     }
 };
 
-class HDMint
+class SigmaMint
 {
 public:
     SigmaMintId id;
@@ -93,8 +87,8 @@ public:
     SigmaMintChainState chainState;
 
 public:
-    HDMint();
-    HDMint(
+    SigmaMint();
+    SigmaMint(
         SigmaMintId const &id,
         int32_t count,
         const CKeyID& seedId,
@@ -102,8 +96,8 @@ public:
 
     void SetNull();
 
-    bool operator==(const HDMint &) const;
-    bool operator!=(const HDMint &) const;
+    bool operator==(const SigmaMint &) const;
+    bool operator!=(const SigmaMint &) const;
 
     std::string ToString() const;
 
@@ -165,9 +159,9 @@ struct hash<uint160> : hash<base_blob<160>>
 };
 
 template<>
-struct hash<HDMint>
+struct hash<SigmaMint>
 {
-    size_t operator()(const HDMint& mint) const
+    size_t operator()(const SigmaMint& mint) const
     {
         size_t h = 0;
 
@@ -196,7 +190,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
 }
 
 template<class Char, class Traits>
-basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const HDMint& mint)
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMint& mint)
 {
     os << '{';
     os << "id: " << mint.id << ", ";

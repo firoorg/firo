@@ -45,22 +45,22 @@ public:
         LOCK(pwalletMain->cs_wallet);
 
         auto mintWallet = this->mintWallet;
-        mintWallet.ListHDMints([&](HDMint &mint) {
+        mintWallet.ListSigmaMints([&](SigmaMint &mint) {
 
             *it++ = mint;
         }, false, false);
     }
 
     bool HasSigmaMint(const SigmaMintId& id);
-    HDMint GetSigmaMint(const SigmaMintId& id);
-    boost::optional<HDMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
-    SigmaPrivateKey GetKey(const HDMint &mint);
+    SigmaMint GetSigmaMint(const SigmaMintId& id);
+    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
+    SigmaPrivateKey GetKey(const SigmaMint &mint);
 
     void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 
 protected:
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
-    bool HasSigmaSpend(const secp_primitives::Scalar &serial, HDMint &mint);
+    bool HasSigmaSpend(const secp_primitives::Scalar &serial, SigmaMint &mint);
 
 private:
     void OnSpendAdded(
@@ -87,7 +87,7 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
-    HDMintWallet mintWallet;
+    SigmaWallet mintWallet;
 };
 
 extern Wallet *wallet;

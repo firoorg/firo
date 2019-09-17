@@ -47,7 +47,7 @@ Wallet::~Wallet()
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomination)
 {
     SigmaPrivateKey key;
-    HDMint mint;
+    SigmaMint mint;
     LOCK(pwalletMain->cs_wallet);
     if (!mintWallet.GenerateMint(property, denomination, key, mint)) {
         throw std::runtime_error("fail to generate mint");
@@ -68,15 +68,15 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
     return mintWallet.HasMint(id);
 }
 
-bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, HDMint &mint)
+bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, SigmaMint &mint)
 {
     LOCK(pwalletMain->cs_wallet);
     return mintWallet.HasSerial(serial);
 }
 
-HDMint Wallet::GetSigmaMint(const SigmaMintId& id)
+SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
-    HDMint mint;
+    SigmaMint mint;
 
     CWalletDB walletdb(walletFile);
     if (!walletdb.ReadExodusHDMint(id, mint)) {
@@ -86,15 +86,15 @@ HDMint Wallet::GetSigmaMint(const SigmaMintId& id)
     return mint;
 }
 
-boost::optional<HDMint>
+boost::optional<SigmaMint>
     Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
 {
     // Get all spendable mints.
     LOCK(pwalletMain->cs_wallet);
-    std::vector<HDMint> spendables;
-    mintWallet.ListHDMints(std::back_inserter(spendables), true, true); //GetTracker().ListHDMints(std::back_inserter(spendables), true, true);
+    std::vector<SigmaMint> spendables;
+    mintWallet.ListSigmaMints(std::back_inserter(spendables), true, true);
 
-    auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](HDMint const &mint) -> bool {
+    auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](SigmaMint const &mint) -> bool {
         return denomination != mint.id.denomination;
     });
     spendables.erase(eraseFrom, spendables.end());
@@ -107,7 +107,7 @@ boost::optional<HDMint>
     auto oldest = std::min_element(
         spendables.begin(),
         spendables.end(),
-        [](const HDMint& a, const HDMint& b) -> bool {
+        [](const SigmaMint& a, const SigmaMint& b) -> bool {
 
             if (a.chainState.group == b.chainState.group) {
                 return a.chainState.index < b.chainState.index;
@@ -120,7 +120,7 @@ boost::optional<HDMint>
     return *oldest;
 }
 
-SigmaPrivateKey Wallet::GetKey(const HDMint &mint)
+SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
 {
     SigmaPrivateKey k;
     if (!mintWallet.RegenerateMint(mint, k)) {
@@ -150,7 +150,7 @@ void Wallet::OnSpendAdded(
     const secp_primitives::Scalar &serial,
     const uint256 &tx)
 {
-    HDMint mint;
+    SigmaMint mint;
     if (!HasSigmaSpend(serial, mint)) {
         // the serial is not in wallet.
         return;
@@ -172,7 +172,7 @@ void Wallet::OnSpendRemoved(
     DenominationId denomination,
     const secp_primitives::Scalar &serial)
 {
-    HDMint mint;
+    SigmaMint mint;
     if (!HasSigmaSpend(serial, mint)) {
         // the serial is not in wallet.
         return;
