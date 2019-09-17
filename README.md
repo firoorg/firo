@@ -1,7 +1,6 @@
-Zcoin v0.13.8.4
+Zcoin
 ===============
 
-[![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
 [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
@@ -12,7 +11,7 @@ Zcoin v0.13.8.4
 What is Zcoin?
 --------------
 
-[Zcoin](https://zcoin.io) is a privacy focused cryptocurrency that utilizes zero knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and is now transitioning to the [Sigma protocol](https://zcoin.io/what-is-sigma-and-why-is-it-replacing-zerocoin-in-zcoin/) which has no trusted setup and small proof sizes. Zcoin also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as TOR/i2P.
+[Zcoin](https://zcoin.io) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://zcoin.io/what-is-sigma-and-why-is-it-replacing-zerocoin-in-zcoin/) which has no trusted setup and small proof sizes. Zcoin also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
 Zcoin developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
 
