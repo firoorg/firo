@@ -82,13 +82,13 @@ EXODUS_H += \
   exodus/rpctx.h \
   exodus/wallet.h \
   exodus/walletmodels.h \
-  exodus/hdmint/wallet.h
+  exodus/hdmint/sigmawallet.h
 
 EXODUS_CPP += \
   exodus/rpctx.cpp \
   exodus/wallet.cpp \
   exodus/walletmodels.cpp \
-  exodus/hdmint/wallet.cpp
+  exodus/hdmint/sigmawallet.cpp
 endif
 
 libbitcoin_server_a_SOURCES += \
