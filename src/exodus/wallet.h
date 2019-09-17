@@ -6,7 +6,7 @@
 #include "sigmadb.h"
 #include "sp.h"
 #include "walletmodels.h"
-#include "hdmint/sigmawallet.h"
+#include "sigmawallet.h"
 
 #include "../wallet/wallet.h"
 

@@ -2,15 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef EXODUS_HDMINT_WALLET_H
-#define EXODUS_HDMINT_WALLET_H
+#ifndef ZCOIN_EXODUS_SIGMAWALLET_H
+#define ZCOIN_EXODUS_SIGMAWALLET_H
 
 #include <map>
 
 #include "../uint256.h"
 #include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
-#include "../walletmodels.h"
+
+#include "walletmodels.h"
 
 namespace exodus {
 
@@ -95,4 +96,4 @@ private:
 
 } // namespace exodus
 
-#endif // EXODUS_HDMINT_WALLET_H
+#endif // ZCOIN_EXODUS_SIGMAWALLET_H

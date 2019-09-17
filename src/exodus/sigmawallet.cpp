@@ -4,14 +4,14 @@
 
 #include "sigmawallet.h"
 
-#include "../exodus.h"
+#include "exodus.h"
 
-#include "../../main.h"
-#include "../../init.h"
+#include "../main.h"
+#include "../init.h"
 
-#include "../../sigma/openssl_context.h"
-#include "../../crypto/hmac_sha256.h"
-#include "../../crypto/hmac_sha512.h"
+#include "../sigma/openssl_context.h"
+#include "../crypto/hmac_sha256.h"
+#include "../crypto/hmac_sha512.h"
 
 #include <boost/optional.hpp>
 

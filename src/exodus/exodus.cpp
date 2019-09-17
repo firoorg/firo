@@ -29,7 +29,7 @@
 #include "utilsbitcoin.h"
 #include "version.h"
 #ifdef ENABLE_WALLET
-#include "hdmint/sigmawallet.h"
+#include "sigmawallet.h"
 #include "wallet.h"
 #endif
 #include "walletcache.h"
