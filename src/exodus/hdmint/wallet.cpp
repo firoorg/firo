@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet.h"
-#include "hdmint.h"
 
 #include "../exodus.h"
 
@@ -261,8 +260,8 @@ bool HDMintWallet::SetMintSeedSeen(
     k.SetCommitment(commitment);
 
     HDMint mint(SigmaMintId(propertyId, denomination, k), mintCount, seedId, hashSerial);
-    mint.SetChainState(chainState);
-    mint.SetSpendTx(spendTx);
+    mint.chainState = chainState;
+    mint.spendTx = spendTx;
 
     // Add to tracker which also adds to database
     Record(mint);
@@ -421,12 +420,12 @@ size_t HDMintWallet::ListHDMints(
 
     size_t counter = 0;
     walletdb.ListExodusHDMints<SigmaMintId, HDMint>([&](HDMint &m) {
-        auto used = !m.GetSpendTx().IsNull();
+        auto used = !m.spendTx.IsNull();
         if (unusedOnly && used) {
             return;
         }
 
-        auto confirmed = m.GetChainState().block >= 0;
+        auto confirmed = m.chainState.block >= 0;
         if (matureOnly && !confirmed) {
             return;
         }
@@ -445,10 +444,10 @@ void HDMintWallet::ResetCoinsState()
 
         ListHDMints([&walletdb](HDMint &m) {
 
-            m.SetChainState(SigmaMintChainState());
-            m.SetSpendTx(uint256());
+            m.chainState = SigmaMintChainState();
+            m.spendTx = uint256();
 
-            if (!walletdb.WriteExodusHDMint(m.GetId(), m)) {
+            if (!walletdb.WriteExodusHDMint(m.id, m)) {
                throw std::runtime_error("fail to update hdmint");
             }
 
@@ -518,34 +517,23 @@ bool HDMintWallet::GenerateMint(
     return true;
 }
 
-bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaMint& entry)
+bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaPrivateKey &privKey)
 {
-    //Generate the coin
-    exodus::SigmaPrivateKey coin;
-    HDMint dMintDummy;
+    HDMint dummyMint;
 
-    auto seedId = mint.GetSeedId();
-    auto count = mint.GetCount();
-
-    MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, count);
-    GenerateMint(mint.GetId().property, mint.GetId().denomination, coin, dMintDummy, mintPoolEntry);
+    MintPoolEntry mintPoolEntry(hashSeedMaster, mint.seedId, mint.count);
+    GenerateMint(mint.id.property, mint.id.denomination, privKey, dummyMint, mintPoolEntry);
 
     //Fill in the zerocoinmint object's details
-    exodus::SigmaPublicKey pubKey(coin);
-    if (pubKey.GetCommitment() != mint.GetId().key.GetCommitment()) {
+    exodus::SigmaPublicKey pubKey(privKey);
+    if (pubKey.GetCommitment() != mint.id.key.GetCommitment()) {
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
     }
 
-    auto &serial = coin.GetSerial();
-    if (primitives::GetSerialHash160(serial) != mint.GetSerialHash()) {
+    auto &serial = privKey.GetSerial();
+    if (primitives::GetSerialHash160(serial) != mint.hashSerial) {
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
     }
-
-    entry.key = coin;
-    entry.spentTx = mint.GetSpendTx();
-    entry.property = mint.GetId().property;
-    entry.denomination = mint.GetId().denomination;
-    entry.chainState = mint.GetChainState();
 
     return true;
 }
@@ -608,25 +596,25 @@ HDMint HDMintWallet::UpdateMint(SigmaMintId const &id, std::function<void(HDMint
 HDMint HDMintWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
 {
     return UpdateMint(id, [&tx](HDMint &m) {
-        m.SetSpendTx(tx);
+        m.spendTx = tx;
     });
 }
 
 HDMint HDMintWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
 {
     return UpdateMint(id, [&state](HDMint &m) {
-        m.SetChainState(state);
+        m.chainState = state;
     });
 }
 
 void HDMintWallet::Record(const HDMint& mint)
 {
     CWalletDB walletdb(walletFile);
-    if (!walletdb.WriteExodusHDMint(mint.GetId(), mint)) {
+    if (!walletdb.WriteExodusHDMint(mint.id, mint)) {
         throw std::runtime_error("fail to write hdmint");
     }
 
-    if (!walletdb.WriteExodusMintID(mint.GetSerialHash(), mint.GetId())) {
+    if (!walletdb.WriteExodusMintID(mint.hashSerial, mint.id)) {
         throw std::runtime_error("fail to record id");
     }
 }

@@ -72,6 +72,11 @@ bool SigmaPublicKey::operator==(const SigmaPublicKey& other) const
     return commitment == other.commitment;
 }
 
+bool SigmaPublicKey::operator!=(const SigmaPublicKey& other) const
+{
+    return !(commitment == other.commitment);
+}
+
 bool SigmaPublicKey::IsValid() const
 {
     return commitment.isMember();

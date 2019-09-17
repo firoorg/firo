@@ -38,13 +38,6 @@ SigmaMintId::SigmaMintId() : property(0), denomination(0)
 {
 }
 
-SigmaMintId::SigmaMintId(const SigmaMint& mint) :
-    property(mint.property),
-    denomination(mint.denomination),
-    key(mint.key)
-{
-}
-
 SigmaMintId::SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key) :
     property(property),
     denomination(denomination),
@@ -62,31 +55,54 @@ bool SigmaMintId::operator!=(const SigmaMintId& other) const
     return !(*this == other);
 }
 
-// SigmaMint Implementation.
+HDMint::HDMint()
+{
+    SetNull();
+}
 
-SigmaMint::SigmaMint() : property(0), denomination(0)
+HDMint::HDMint(
+    const SigmaMintId &id,
+    int32_t count,
+    const CKeyID& seedId,
+    const uint160& hashSerial)
+    : id(id),
+    count(count),
+    seedId(seedId),
+    hashSerial(hashSerial)
 {
 }
 
-SigmaMint::SigmaMint(PropertyId property, DenominationId denomination) :
-    property(property),
-    denomination(denomination)
+void HDMint::SetNull()
 {
-    key.Generate();
+    id = SigmaMintId();
+
+    count = 0;
+    seedId.SetNull();
+    hashSerial.SetNull();
+
+    spendTx.SetNull();
+    chainState = exodus::SigmaMintChainState();
 }
 
-bool SigmaMint::operator==(const SigmaMint& other) const
-{
-    return property == other.property &&
-           denomination == other.denomination &&
-           chainState == other.chainState &&
-           key == other.key &&
-           spentTx == other.spentTx;
+bool HDMint::operator==(const HDMint &other) const {
+    return id == other.id
+        && count == other.count
+        && seedId == other.seedId
+        && hashSerial == other.hashSerial
+        && spendTx == other.spendTx
+        && chainState == other.chainState;
 }
 
-bool SigmaMint::operator!=(const SigmaMint& other) const
-{
+bool HDMint::operator!=(const HDMint &other) const {
     return !(*this == other);
+}
+
+std::string HDMint::ToString() const
+{
+    return strprintf(
+        " HDMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
+        count, seedId.ToString(), hashSerial.GetHex(), spendTx.GetHex(),
+        chainState.block, chainState.group, id.denomination, !spendTx.IsNull());
 }
 
 }

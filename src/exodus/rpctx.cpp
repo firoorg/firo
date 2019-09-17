@@ -1682,19 +1682,27 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no coin to spend");
     }
 
+    SigmaPrivateKey key;
+    try {
+        key = wallet->GetKey(mint.get());
+    } catch (const std::runtime_error &e) {
+        error("%s : fail to generate key to spend, %s\n", __func__, e.what());
+        throw JSONRPCError(RPC_WALLET_ERROR, "fail to generate key to spend");
+    }
+
     SigmaProof proof;
     MintGroupIndex groupSize;
 
     std::tie(proof, groupSize) = CreateSigmaSpend(
-        (*mint).key,
-        (*mint).property,
-        (*mint).denomination,
+        key,
+        (*mint).id.property,
+        (*mint).id.denomination,
         (*mint).chainState.group
     );
 
     auto spend = CreatePayload_SimpleSpend(
-        (*mint).property,
-        (*mint).denomination,
+        (*mint).id.property,
+        (*mint).id.denomination,
         (*mint).chainState.group,
         groupSize,
         proof
@@ -1720,7 +1728,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(result, error_str(result));
     } else {
         // mark the coin as used
-        wallet->SetSigmaMintUsedTransaction(SigmaMintId(*mint), txid);
+        wallet->SetSigmaMintUsedTransaction(mint->id, txid);
 
         if (!autoCommit) {
             return rawHex;
@@ -1730,7 +1738,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
                 "Spend",
                 EXODUS_TYPE_SIMPLE_SPEND,
                 propertyId,
-                GetDenominationValue((*mint).property, (*mint).denomination),
+                GetDenominationValue((*mint).id.property, (*mint).id.denomination),
                 false
             );
             return txid.GetHex();

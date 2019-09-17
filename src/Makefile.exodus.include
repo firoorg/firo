@@ -82,14 +82,12 @@ EXODUS_H += \
   exodus/rpctx.h \
   exodus/wallet.h \
   exodus/walletmodels.h \
-  exodus/hdmint/hdmint.h \
   exodus/hdmint/wallet.h
 
 EXODUS_CPP += \
   exodus/rpctx.cpp \
   exodus/wallet.cpp \
   exodus/walletmodels.cpp \
-  exodus/hdmint/hdmint.cpp \
   exodus/hdmint/wallet.cpp
 endif
 

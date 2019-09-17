@@ -64,7 +64,7 @@ using namespace exodus;
 namespace {
 
 #ifdef ENABLE_WALLET
-UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
+UniValue SigmaMintToJson(const HDMint& mint, bool verbose)
 {
     // Load property info.
     CMPSPInfo::Entry info;
@@ -72,22 +72,22 @@ UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
     {
         LOCK(cs_main);
 
-        if (!_my_sps->getSP(mint.property, info)) {
-            throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
+        if (!_my_sps->getSP(mint.id.property, info)) {
+            throw std::invalid_argument("property " + std::to_string(mint.id.property) + " is not valid");
         }
     }
 
-    if (mint.denomination >= info.denominations.size()) {
-        throw std::invalid_argument("denomination " + std::to_string(mint.denomination) + " is not valid");
+    if (mint.id.denomination >= info.denominations.size()) {
+        throw std::invalid_argument("denomination " + std::to_string(mint.id.denomination) + " is not valid");
     }
 
-    auto value = info.denominations[mint.denomination];
+    auto value = info.denominations[mint.id.denomination];
 
     // Construct JSON.
     UniValue json(UniValue::VOBJ);
 
-    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.property)));
-    json.push_back(Pair("denomination", mint.denomination));
+    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.id.property)));
+    json.push_back(Pair("denomination", mint.id.denomination));
 
     if (info.isDivisible()) {
         json.push_back(Pair("value", FormatDivisibleMP(value)));
@@ -1917,18 +1917,18 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     }
 
     // Get mints that meet criteria.
-    std::vector<SigmaMint> mints;
+    std::vector<HDMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
-        if (!m.spentTx.IsNull() || m.chainState.block < 0) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const HDMint& m) {
+        if (!m.spendTx.IsNull() || m.chainState.block < 0) {
             return;
         }
 
-        if (property && m.property != property.get()) {
+        if (property && m.id.property != property.get()) {
             return;
         }
 
-        if (denomination && m.denomination != denomination.get()) {
+        if (denomination && m.id.denomination != denomination.get()) {
             return;
         }
 
@@ -1959,9 +1959,9 @@ UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
         );
     }
 
-    std::vector<SigmaMint> mints;
+    std::vector<HDMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const HDMint& m) {
         if (m.chainState.block >= 0) {
             return;
         }

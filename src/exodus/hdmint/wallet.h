@@ -12,8 +12,6 @@
 #include "../wallet/wallet.h"
 #include "../walletmodels.h"
 
-#include "hdmint.h"
-
 namespace exodus {
 
 class HDMintWallet
@@ -38,7 +36,7 @@ public:
         HDMint& dMint,
         boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
 
-    bool RegenerateMint(const HDMint& mint, SigmaMint& entry);
+    bool RegenerateMint(const HDMint& mint, SigmaPrivateKey &privKey);
     std::pair<uint256, uint160> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& count);
 
     void GenerateMintPool(int32_t nIndex = 0);

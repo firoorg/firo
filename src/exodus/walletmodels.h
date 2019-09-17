@@ -7,6 +7,7 @@
 
 #include "../serialize.h"
 #include "../uint256.h"
+#include "../pubkey.h"
 
 #include <functional>
 #include <ostream>
@@ -17,7 +18,7 @@ namespace exodus {
 
 // Declarations.
 
-class SigmaMint;
+class HDMint;
 
 // Definitions.
 
@@ -62,7 +63,6 @@ public:
 
 public:
     SigmaMintId();
-    explicit SigmaMintId(const SigmaMint& mint);
     SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key);
 
     bool operator==(const SigmaMintId& other) const;
@@ -80,34 +80,45 @@ private:
     }
 };
 
-class SigmaMint
+class HDMint
 {
 public:
-    PropertyId property;
-    DenominationId denomination;
+    SigmaMintId id;
+
+    int32_t count;
+    CKeyID seedId;
+    uint160 hashSerial;
+
+    uint256 spendTx;
     SigmaMintChainState chainState;
-    SigmaPrivateKey key;
-    uint256 spentTx;
 
 public:
-    SigmaMint();
-    SigmaMint(PropertyId property, DenominationId denomination);
+    HDMint();
+    HDMint(
+        SigmaMintId const &id,
+        int32_t count,
+        const CKeyID& seedId,
+        const uint160& hashSerial);
 
-    bool operator==(const SigmaMint& other) const;
-    bool operator!=(const SigmaMint& other) const;
+    void SetNull();
+
+    bool operator==(const HDMint &) const;
+    bool operator!=(const HDMint &) const;
+
+    std::string ToString() const;
 
     ADD_SERIALIZE_METHODS;
 
-private:
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(property);
-        READWRITE(denomination);
+        READWRITE(id);
+        READWRITE(count);
+        READWRITE(seedId);
+        READWRITE(hashSerial);
+        READWRITE(spendTx);
         READWRITE(chainState);
-        READWRITE(key);
-        READWRITE(spentTx);
-    }
+    };
 };
 
 } // namespace exodus
@@ -149,17 +160,22 @@ struct hash<SigmaMintId>
 };
 
 template<>
-struct hash<SigmaMint>
+struct hash<uint160> : hash<base_blob<160>>
 {
-    size_t operator()(const SigmaMint& mint) const
+};
+
+template<>
+struct hash<HDMint>
+{
+    size_t operator()(const HDMint& mint) const
     {
         size_t h = 0;
 
-        h ^= hash<PropertyId>()(mint.property);
-        h ^= hash<DenominationId>()(mint.denomination);
+        h ^= hash<SigmaMintId>()(mint.id);
+        h ^= hash<int32_t>()(mint.count);
+        h ^= hash<uint160>()(mint.hashSerial);
+        h ^= hash<uint256>()(mint.spendTx);
         h ^= hash<SigmaMintChainState>()(mint.chainState);
-        h ^= hash<SigmaPrivateKey>()(mint.key);
-        h ^= hash<uint256>()(mint.spentTx);
 
         return h;
     }
@@ -180,14 +196,15 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
 }
 
 template<class Char, class Traits>
-basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMint& mint)
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const HDMint& mint)
 {
     os << '{';
-    os << "property: " << mint.property << ", ";
-    os << "denomination: " << mint.denomination << ", ";
+    os << "id: " << mint.id << ", ";
+    os << "count: " << mint.count << ", ";
+    os << "seedId: " << mint.seedId << ", ";
+    os << "hashSerial: " << mint.hashSerial << ", ";
+    os << "spentTx: " << mint.spendTx.GetHex() << ", ";
     os << "chainState: " << mint.chainState << ", ";
-    os << "key: " << mint.key << ", ";
-    os << "spentTx: " << mint.spentTx.GetHex();
     os << '}';
 
     return os;

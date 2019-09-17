@@ -47,37 +47,14 @@ public:
         auto mintWallet = this->mintWallet;
         mintWallet.ListHDMints([&](HDMint &mint) {
 
-            SigmaMint entry;
-            if (!mintWallet.RegenerateMint(mint, entry)) {
-                throw std::runtime_error("Fail to regenerate mint");
-            }
-
-            *it++ = entry;
-        }, false, false);
-    }
-
-    template<class OutputIt>
-    void ListSigmaMints(uint32_t propertyId, OutputIt it)
-    {
-        LOCK(pwalletMain->cs_wallet);
-
-        auto mintWallet = this->mintWallet;
-        mintWallet.ListHDMints([&](HDMint &mint) {
-
-            SigmaMint entry;
-            if (!mintWallet.RegenerateMint(mint, entry)) {
-                throw std::runtime_error("Fail to regenerate mint");
-            }
-
-            if (propertyId == entry.property) {
-                *it++ = entry;
-            }
+            *it++ = mint;
         }, false, false);
     }
 
     bool HasSigmaMint(const SigmaMintId& id);
-    SigmaMint GetSigmaMint(const SigmaMintId& id);
-    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
+    HDMint GetSigmaMint(const SigmaMintId& id);
+    boost::optional<HDMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
+    SigmaPrivateKey GetKey(const HDMint &mint);
 
     void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 

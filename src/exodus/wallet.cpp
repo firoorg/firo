@@ -54,7 +54,7 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomina
     }
 
     mintWallet.Record(mint);
-    return mint.GetId();
+    return mint.id;
 }
 
 void Wallet::ResetState()
@@ -74,27 +74,20 @@ bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, HDMint &mint)
     return mintWallet.HasSerial(serial);
 }
 
-SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
+HDMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
     HDMint mint;
-    SigmaMint entry;
-
-    LOCK(pwalletMain->cs_wallet);
-    // auto pubCoinHash = primitives::GetPubCoinValueHash(id.key.GetCommitment());
 
     CWalletDB walletdb(walletFile);
     if (!walletdb.ReadExodusHDMint(id, mint)) {
         throw std::invalid_argument("sigma mint not found");
     }
 
-    if (!mintWallet.RegenerateMint(mint, entry)) {
-        throw std::runtime_error("fail to regenerate mint");
-    }
-
-    return entry;
+    return mint;
 }
 
-boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
+boost::optional<HDMint>
+    Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
 {
     // Get all spendable mints.
     LOCK(pwalletMain->cs_wallet);
@@ -102,7 +95,7 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, De
     mintWallet.ListHDMints(std::back_inserter(spendables), true, true); //GetTracker().ListHDMints(std::back_inserter(spendables), true, true);
 
     auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](HDMint const &mint) -> bool {
-        return denomination != mint.GetId().denomination;
+        return denomination != mint.id.denomination;
     });
     spendables.erase(eraseFrom, spendables.end());
 
@@ -116,20 +109,29 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, De
         spendables.end(),
         [](const HDMint& a, const HDMint& b) -> bool {
 
-            if (a.GetChainState().group == b.GetChainState().group) {
-                return a.GetChainState().index < b.GetChainState().index;
+            if (a.chainState.group == b.chainState.group) {
+                return a.chainState.index < b.chainState.index;
             }
 
-            return a.GetChainState().group < b.GetChainState().group;
+            return a.chainState.group < b.chainState.group;
         }
     );
 
-    SigmaMint entry;
-    if (!mintWallet.RegenerateMint((*oldest), entry)) {
-        throw std::runtime_error("fail to regenerate mint");
+    return *oldest;
+}
+
+SigmaPrivateKey Wallet::GetKey(const HDMint &mint)
+{
+    SigmaPrivateKey k;
+    if (!mintWallet.RegenerateMint(mint, k)) {
+        throw std::runtime_error("fail to regenerate private key");
     }
 
-    return entry;
+    if (mint.id.key != SigmaPublicKey(k)) {
+        throw std::runtime_error("regenerated key doesn't matched with old value");
+    }
+
+    return k;
 }
 
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
