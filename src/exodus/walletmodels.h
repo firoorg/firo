@@ -81,7 +81,7 @@ public:
 
     int32_t count;
     CKeyID seedId;
-    uint160 hashSerial;
+    uint160 serialId;
 
     uint256 spendTx;
     SigmaMintChainState chainState;
@@ -109,7 +109,7 @@ public:
         READWRITE(id);
         READWRITE(count);
         READWRITE(seedId);
-        READWRITE(hashSerial);
+        READWRITE(serialId);
         READWRITE(spendTx);
         READWRITE(chainState);
     };
@@ -167,7 +167,7 @@ struct hash<SigmaMint>
 
         h ^= hash<SigmaMintId>()(mint.id);
         h ^= hash<int32_t>()(mint.count);
-        h ^= hash<uint160>()(mint.hashSerial);
+        h ^= hash<uint160>()(mint.serialId);
         h ^= hash<uint256>()(mint.spendTx);
         h ^= hash<SigmaMintChainState>()(mint.chainState);
 
@@ -195,8 +195,8 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
     os << '{';
     os << "id: " << mint.id << ", ";
     os << "count: " << mint.count << ", ";
-    os << "seedId: " << mint.seedId << ", ";
-    os << "hashSerial: " << mint.hashSerial << ", ";
+    os << "seedId: " << mint.seedId.GetHex() << ", ";
+    os << "serialId: " << mint.serialId.GetHex() << ", ";
     os << "spentTx: " << mint.spendTx.GetHex() << ", ";
     os << "chainState: " << mint.chainState << ", ";
     os << '}';

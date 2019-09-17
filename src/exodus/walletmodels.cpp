@@ -64,11 +64,11 @@ SigmaMint::SigmaMint(
     const SigmaMintId &id,
     int32_t count,
     const CKeyID& seedId,
-    const uint160& hashSerial)
+    const uint160& serialId)
     : id(id),
     count(count),
     seedId(seedId),
-    hashSerial(hashSerial)
+    serialId(serialId)
 {
 }
 
@@ -78,7 +78,7 @@ void SigmaMint::SetNull()
 
     count = 0;
     seedId.SetNull();
-    hashSerial.SetNull();
+    serialId.SetNull();
 
     spendTx.SetNull();
     chainState = exodus::SigmaMintChainState();
@@ -88,7 +88,7 @@ bool SigmaMint::operator==(const SigmaMint &other) const {
     return id == other.id
         && count == other.count
         && seedId == other.seedId
-        && hashSerial == other.hashSerial
+        && serialId == other.serialId
         && spendTx == other.spendTx
         && chainState == other.chainState;
 }
@@ -100,8 +100,8 @@ bool SigmaMint::operator!=(const SigmaMint &other) const {
 std::string SigmaMint::ToString() const
 {
     return strprintf(
-        " SigmaMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
-        count, seedId.ToString(), hashSerial.GetHex(), spendTx.GetHex(),
+        " SigmaMint:\n   count=%d\n   seedId=%s\n   serialId=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
+        count, seedId.ToString(), serialId.GetHex(), spendTx.GetHex(),
         chainState.block, chainState.group, id.denomination, !spendTx.IsNull());
 }
 

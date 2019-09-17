@@ -531,7 +531,7 @@ bool SigmaWallet::RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey
     }
 
     auto &serial = privKey.GetSerial();
-    if (primitives::GetSerialHash160(serial) != mint.hashSerial) {
+    if (primitives::GetSerialHash160(serial) != mint.serialId) {
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
     }
 
@@ -614,7 +614,7 @@ void SigmaWallet::Record(const SigmaMint& mint)
         throw std::runtime_error("fail to write hdmint");
     }
 
-    if (!walletdb.WriteExodusMintID(mint.hashSerial, mint.id)) {
+    if (!walletdb.WriteExodusMintID(mint.serialId, mint.id)) {
         throw std::runtime_error("fail to record id");
     }
 }
