@@ -532,7 +532,7 @@ bool HDMintWallet::RegenerateMint(const HDMint& mint, SigmaMint& entry)
 
     //Fill in the zerocoinmint object's details
     exodus::SigmaPublicKey pubKey(coin);
-    if (pubKey.GetCommitment() == mint.GetId().key.GetCommitment()) {
+    if (pubKey.GetCommitment() != mint.GetId().key.GetCommitment()) {
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
     }
 
