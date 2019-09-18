@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>776</width>
-    <height>540</height>
+    <width>842</width>
+    <height>599</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1">
@@ -19,8 +19,14 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>180</height>
+      </size>
+     </property>
      <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+      <enum>QFrame::NoFrame</enum>
      </property>
      <property name="frameShadow">
       <enum>QFrame::Sunken</enum>
@@ -32,21 +38,56 @@
          <number>6</number>
         </property>
         <item row="2" column="2">
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="3">
          <widget class="QRImageWidget" name="paymentcodeQRCode">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="minimumSize">
            <size>
-            <width>300</width>
-            <height>320</height>
+            <width>155</width>
+            <height>155</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>155</width>
+            <height>155</height>
            </size>
           </property>
           <property name="toolTip">
            <string>QR Code</string>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">background-color: rgb(0, 0, 0);
+background-color: rgb(238, 238, 236);</string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <property name="midLineWidth">
+           <number>1</number>
           </property>
           <property name="textFormat">
            <enum>Qt::PlainText</enum>
@@ -143,8 +184,11 @@
                  <string>&amp;Copy Payment Code</string>
                 </property>
                 <property name="icon">
-                 <iconset>
-                  <normaloff>../res/icons/editcopy.png</normaloff>../res/icons/editcopy.png</iconset>
+                 <iconset resource="../bitcoin.qrc">
+                  <normaloff>:/icons/editcopy</normaloff>:/icons/editcopy</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>false</bool>
                 </property>
                </widget>
               </item>
@@ -174,6 +218,22 @@
           </property>
          </widget>
         </item>
+        <item row="2" column="4">
+         <spacer name="horizontalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
        </layout>
       </item>
      </layout>
@@ -200,6 +260,9 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="styleSheet">
+      <string notr="true">border-right-color: rgba(191, 64, 64, 0);</string>
+     </property>
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
@@ -221,9 +284,28 @@
        </widget>
       </item>
       <item>
-       <widget class="QTableView" name="notificationTransacdtionsView">
+       <spacer name="verticalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Fixed</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QTableView" name="notificationTransactionsView">
         <property name="contextMenuPolicy">
          <enum>Qt::CustomContextMenu</enum>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color: rgb(211, 215, 207);</string>
         </property>
         <property name="tabKeyNavigation">
          <bool>false</bool>
@@ -246,10 +328,27 @@
   </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>notificationTransacdtionsView</tabstop>
+  <tabstop>notificationTransactionsView</tabstop>
  </tabstops>
  <resources>
   <include location="../bitcoin.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>copyPaymentcodeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>PaymentcodePage</receiver>
+   <slot>show()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>279</x>
+     <y>322</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>420</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

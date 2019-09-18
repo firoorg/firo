@@ -9,12 +9,14 @@
 #include "sync.h"
 #include "wallet/wallet.h"
 #include "walletmodel.h"
+#include "recentpaymentcodetransactionstablemodel.h"
 
 #include <QTimer>
 #include <QMessageBox>
 #include <QImage>
 #include <QPixmap>
 #include <QClipboard>
+#include <QHeaderView>
 
 #if defined(HAVE_CONFIG_H)
 #include "bitcoin-config.h" /* for USE_QRCODE */
@@ -25,6 +27,8 @@
 #endif
 
 #include "bip47.h"
+
+#define PCODE_QR_IMAGE_SIZE 150
 
 QString getDefaultNotificationAddress(CWallet* wallet) {
     LOCK(wallet->cs_wallet);
@@ -78,6 +82,7 @@ QString getPaymentCodeOfNotificationAddress(QString noticationAddr) {
 PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::PaymentcodePage),
+    columnResizingFixer(0),
     clientModel(0),
     walletModel(0)
 {
@@ -89,6 +94,8 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
     ui->label->setVisible(false);
     QString paymentCodeStr = getPaymentCodeOfNotificationAddress(notificationAddr);
     ui->paymentcodeLabel->setText(paymentCodeStr);
+
+
 #ifdef USE_QRCODE
     ui->paymentcodeQRCode->setText("");
     if(!paymentCodeStr.isEmpty())
@@ -117,15 +124,15 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
             }
             QRcode_free(code);
 
-            QImage qrAddrImage = QImage(QR_IMAGE_SIZE, QR_IMAGE_SIZE+20, QImage::Format_RGB32);
+            QImage qrAddrImage = QImage(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE, QImage::Format_RGB32);
             qrAddrImage.fill(0xffffff);
             QPainter painter(&qrAddrImage);
-            painter.drawImage(0, 0, qrImage.scaled(QR_IMAGE_SIZE, QR_IMAGE_SIZE));
+            painter.drawImage(0, 0, qrImage.scaled(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE));
             // QFont font = GUIUtil::fixedPitchFont();
             // font.setPixelSize(12);
             // painter.setFont(font);
             // QRect paddedRect = qrAddrImage.rect();
-            // paddedRect.setHeight(QR_IMAGE_SIZE+12);
+            // paddedRect.setHeight(PCODE_QR_IMAGE_SIZE+12);
             // painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
             painter.end();
 
@@ -141,6 +148,10 @@ PaymentcodePage::~PaymentcodePage()
     delete ui;
 }
 
+void PaymentcodePage::copy_button_clicked() {
+    
+}
+
 void PaymentcodePage::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
@@ -149,9 +160,45 @@ void PaymentcodePage::setClientModel(ClientModel *model)
 void PaymentcodePage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
+
+        if(model && model->getOptionsModel())
+    {
+        // connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+
+        QTableView* tableView = ui->notificationTransactionsView;
+
+        RecentPCodeTransactionsTableModel *pmodel = model->getRecentPCodeTransactionsTableModel();
+
+        tableView->verticalHeader()->hide();
+        tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        tableView->setModel(pmodel);
+        tableView->setAlternatingRowColors(true);
+        tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+        tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
+        tableView->setColumnWidth(RecentPCodeTransactionsTableModel::RPCode, 600);
+        tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Fee, 130);
+        tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Timestamp, 150);
+
+        tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::RPCode, QHeaderView::Stretch);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Fee, QHeaderView::Interactive);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Timestamp, QHeaderView::Interactive);
+        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 150, 300, this);
+    }
+
+    
+    
 }
 
 void PaymentcodePage::showContextMenu(const QPoint &point)
 {
     contextMenu->exec(QCursor::pos());
+}
+
+// We override the virtual resizeEvent of the QWidget to adjust tables column
+// sizes as the tables width is proportional to the dialogs width.
+void PaymentcodePage::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    // columnResizingFixer->stretchColumnWidth(RecentPCodeTransactionsTableModel::RPCode);
+
 }
