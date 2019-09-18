@@ -1396,11 +1396,10 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
 bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
     LOCK(cs_wallet);
     bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if(upgradeChain){ // Upgrade HDChain to latest version
+    if(upgradeChain && !IsLocked()){ // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
-
+        NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
