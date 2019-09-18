@@ -53,7 +53,6 @@ class Bip47Account {
         return result;
     }
 
-
 };
 
 #endif

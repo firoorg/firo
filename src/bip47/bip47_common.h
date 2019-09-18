@@ -1,3 +1,8 @@
+
+/* Copyright (c) 2019 jin
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef COMMON_H
 #define COMMON_H
 #include <iostream>
@@ -8,6 +13,10 @@
 #include <openssl/sha.h>
 #include "uint256.h"
 #include "util.h"
+#include "utilstrencodings.h"
+#include "openssl_context.h"
+#include "include/secp256k1_ecdh.h"
+
     typedef std::string  String;
     typedef bool boolean;
     #define null    nullptr  
