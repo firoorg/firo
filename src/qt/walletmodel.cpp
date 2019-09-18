@@ -9,6 +9,7 @@
 #include "guiutil.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
+#include "recentpaymentcodetransactionstablemodel.h"
 #include "transactiontablemodel.h"
 
 #include "base58.h"
@@ -36,6 +37,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
+    recentPCodeTransactionsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
@@ -46,6 +48,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
     addressTableModel = new AddressTableModel(wallet, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    recentPCodeTransactionsTableModel = new RecentPCodeTransactionsTableModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -472,6 +475,11 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+RecentPCodeTransactionsTableModel *WalletModel::getRecentPCodeTransactionsTableModel()
+{
+    return recentPCodeTransactionsTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const

@@ -1,6 +1,8 @@
 #ifndef BITCOIN_QT_PAYMENTCODEPAGE_H
 #define BITCOIN_QT_PAYMENTCODEPAGE_H
 
+#include "guiutil.h"
+
 #include "primitives/transaction.h"
 #include "platformstyle.h"
 #include "sync.h"
@@ -43,15 +45,18 @@ private:
     bool fFilterUpdated;
 
 public Q_SLOTS:
-
+    void copy_button_clicked();
 
 Q_SIGNALS:
 
 private:
     Ui::PaymentcodePage *ui;
+    GUIUtil::TableViewLastColumnResizingFixer *columnResizingFixer;
     ClientModel *clientModel;
     WalletModel *walletModel;
     CWallet *wallet;
+
+    virtual void resizeEvent(QResizeEvent *event);
 
 private Q_SLOTS:
     void showContextMenu(const QPoint &);
