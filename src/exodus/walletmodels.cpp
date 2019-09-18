@@ -32,36 +32,6 @@ void SigmaMintChainState::Clear() noexcept
     index = 0;
 }
 
-// SigmaMintId Implementation.
-
-SigmaMintId::SigmaMintId() : property(0), denomination(0)
-{
-}
-
-SigmaMintId::SigmaMintId(const SigmaMint& mint) :
-    property(mint.property),
-    denomination(mint.denomination),
-    key(mint.key)
-{
-}
-
-SigmaMintId::SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key) :
-    property(property),
-    denomination(denomination),
-    key(key)
-{
-}
-
-bool SigmaMintId::operator==(const SigmaMintId& other) const
-{
-    return property == other.property && denomination == other.denomination && key == other.key;
-}
-
-bool SigmaMintId::operator!=(const SigmaMintId& other) const
-{
-    return !(*this == other);
-}
-
 // SigmaMint Implementation.
 
 SigmaMint::SigmaMint() : property(0), denomination(0)
@@ -89,4 +59,42 @@ bool SigmaMint::operator!=(const SigmaMint& other) const
     return !(*this == other);
 }
 
+// SigmaMintId Implementation.
+
+SigmaMintId::SigmaMintId() : property(0), denomination(0)
+{
 }
+
+SigmaMintId::SigmaMintId(const SigmaMint& mint, const SigmaParams& params) :
+    SigmaMintId(mint.property, mint.denomination, SigmaPublicKey(mint.key, params))
+{
+}
+
+SigmaMintId::SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key) :
+    property(property),
+    denomination(denomination),
+    key(key)
+{
+}
+
+bool SigmaMintId::operator==(const SigmaMintId& other) const
+{
+    return property == other.property && denomination == other.denomination && key == other.key;
+}
+
+bool SigmaMintId::operator!=(const SigmaMintId& other) const
+{
+    return !(*this == other);
+}
+
+// SigmaSpend Implementation.
+
+SigmaSpend::SigmaSpend(const SigmaMintId& mint, MintGroupId group, size_t groupSize, const SigmaProof& proof) :
+    mint(mint),
+    group(group),
+    groupSize(groupSize),
+    proof(proof)
+{
+}
+
+} // namespace exodus

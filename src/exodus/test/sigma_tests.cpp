@@ -4,24 +4,42 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <stdexcept>
 #include <vector>
 
 namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_sigma_tests, TestingSetup)
 
+BOOST_AUTO_TEST_CASE(params)
+{
+    auto g = secp_primitives::GroupElement().set_base_g();
+    SigmaParams params(g, 7, 4);
+
+    BOOST_CHECK_EQUAL(params.g, g);
+    BOOST_CHECK_EQUAL(params.m, 7);
+    BOOST_CHECK_EQUAL(params.n, 4);
+    BOOST_CHECK_EQUAL(params.h.size(), 7 * 4);
+}
+
+BOOST_AUTO_TEST_CASE(params_validation)
+{
+    BOOST_CHECK_THROW(SigmaParams(secp_primitives::GroupElement().set_base_g(), 0, 1), std::invalid_argument);
+    BOOST_CHECK_THROW(SigmaParams(secp_primitives::GroupElement().set_base_g(), 1, 0), std::invalid_argument);
+}
+
 BOOST_AUTO_TEST_CASE(private_key)
 {
     SigmaPrivateKey key;
 
-    auto serial = key.GetSerial();
-    auto randomness = key.GetRandomness();
+    auto serial = key.serial;
+    auto randomness = key.randomness;
 
     key.Generate();
 
     BOOST_CHECK(key.IsValid());
-    BOOST_CHECK_NE(key.GetSerial(), serial);
-    BOOST_CHECK_NE(key.GetRandomness(), randomness);
+    BOOST_CHECK_NE(key.serial, serial);
+    BOOST_CHECK_NE(key.randomness, randomness);
 }
 
 BOOST_AUTO_TEST_CASE(private_key_hash)
@@ -38,38 +56,42 @@ BOOST_AUTO_TEST_CASE(private_key_hash)
 
 BOOST_AUTO_TEST_CASE(public_key)
 {
+    auto& params = DefaultSigmaParams;
     SigmaPrivateKey priv;
     SigmaPublicKey pub;
 
-    auto commit = pub.GetCommitment();
+    auto commit = pub.commitment;
 
     priv.Generate();
-    pub.Generate(priv);
+    pub.Generate(priv, params);
 
     BOOST_CHECK(pub.IsValid());
-    BOOST_CHECK_NE(pub.GetCommitment(), commit);
+    BOOST_CHECK_NE(pub.commitment, commit);
 
     // Try a second time to see if we still get the same result.
-    commit = pub.GetCommitment();
-    pub.Generate(priv);
+    commit = pub.commitment;
+    pub.Generate(priv, params);
 
-    BOOST_CHECK_EQUAL(pub.GetCommitment(), commit);
+    BOOST_CHECK_EQUAL(pub.commitment, commit);
 }
 
 BOOST_AUTO_TEST_CASE(public_key_hash)
 {
+    auto& params = DefaultSigmaParams;
     SigmaPrivateKey key1, key2;
     std::hash<SigmaPublicKey> hasher;
 
     key1.Generate();
     key2.Generate();
 
-    BOOST_CHECK_EQUAL(hasher(SigmaPublicKey(key1)), hasher(SigmaPublicKey(key1)));
-    BOOST_CHECK_NE(hasher(SigmaPublicKey(key1)), hasher(SigmaPublicKey(key2)));
+    BOOST_CHECK_EQUAL(hasher(SigmaPublicKey(key1, params)), hasher(SigmaPublicKey(key1, params)));
+    BOOST_CHECK_NE(hasher(SigmaPublicKey(key1, params)), hasher(SigmaPublicKey(key2, params)));
 }
 
 BOOST_AUTO_TEST_CASE(proof)
 {
+    auto& params = DefaultSigmaParams;
+
     // Create keys.
     SigmaPrivateKey key1, key2, key3;
 
@@ -78,21 +100,22 @@ BOOST_AUTO_TEST_CASE(proof)
     key3.Generate();
 
     // Crete proof.
-    SigmaProof proof;
+    SigmaProof proof(params);
     std::vector<SigmaPublicKey> pubs({
-        SigmaPublicKey(key1),
-        SigmaPublicKey(key2),
-        SigmaPublicKey(key3)
+        SigmaPublicKey(key1, params),
+        SigmaPublicKey(key2, params),
+        SigmaPublicKey(key3, params)
     });
 
     proof.Generate(key2, pubs.begin(), pubs.end());
 
-    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), true);
-    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end() - 1), false);
+    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end()), true);
+    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1), false);
 }
 
 BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
 {
+    auto& params = DefaultSigmaParams;
     std::vector<SigmaPublicKey> pubs;
 
     // 2 ^ 14 coins
@@ -102,15 +125,15 @@ BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
     SigmaPrivateKey key;
     for (int i = 0; i < limit + 1; i++) {
         key.Generate();
-        pubs.push_back(SigmaPublicKey(key));
+        pubs.push_back(SigmaPublicKey(key, params));
     }
 
-    SigmaProof validProof, invalidProof;
+    SigmaProof validProof(params), invalidProof(params);
     validProof.Generate(key, pubs.begin() + 1, pubs.end()); // prove with 2 ^ 14 coins
     invalidProof.Generate(key, pubs.begin(), pubs.end()); // prove with 2 ^ 14 + 1 coins
 
-    BOOST_CHECK_EQUAL(validProof.Verify(sigma::Params::get_default(), pubs.begin() + 1, pubs.end()), true);
-    BOOST_CHECK_EQUAL(invalidProof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), false);
+    BOOST_CHECK_EQUAL(validProof.Verify(pubs.begin() + 1, pubs.end()), true);
+    BOOST_CHECK_EQUAL(invalidProof.Verify(pubs.begin(), pubs.end()), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

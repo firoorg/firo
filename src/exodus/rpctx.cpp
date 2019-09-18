@@ -4,33 +4,35 @@
  * This file contains RPC calls for creating and sending Exodus transactions.
  */
 
-#include "exodus/rpctx.h"
+#include "rpctx.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/dex.h"
-#include "exodus/errors.h"
-#include "exodus/exodus.h"
-#include "exodus/pending.h"
-#include "exodus/rpcrequirements.h"
-#include "exodus/rpcvalues.h"
-#include "exodus/sp.h"
-#include "exodus/tx.h"
-
-#include "init.h"
-#include "main.h"
-#include "rpc/server.h"
-#include "sync.h"
-#include "wallet/wallet.h"
+#include "createpayload.h"
+#include "dex.h"
+#include "errors.h"
+#include "exodus.h"
+#include "pending.h"
+#include "rpcrequirements.h"
+#include "rpcvalues.h"
+#include "sp.h"
+#include "tx.h"
 #include "wallet.h"
+
+#include "../init.h"
+#include "../main.h"
+#include "../rpc/server.h"
+#include "../sync.h"
+#include "../wallet/wallet.h"
+#include "../wallet/walletexcept.h"
 
 #include <univalue.h>
 
 #include <boost/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
-#include <stdint.h>
 #include <stdexcept>
 #include <string>
+
+#include <inttypes.h>
 
 using std::runtime_error;
 using namespace exodus;
@@ -1675,29 +1677,25 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     RequireSaneReferenceAmount(referenceAmount);
 
     // create spend
-    auto mint = wallet->GetSpendableSigmaMint(propertyId, denomination);
+    SigmaMintId mint;
+    std::vector<unsigned char> payload;
 
-    if (!mint) {
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no coin to spend");
+    try {
+        auto spend = wallet->CreateSigmaSpend(propertyId, denomination);
+        mint = spend.mint;
+
+        payload = CreatePayload_SimpleSpend(
+            mint.property,
+            mint.denomination,
+            spend.group,
+            spend.groupSize,
+            spend.proof
+        );
+    } catch (InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (WalletError &e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
-
-    SigmaProof proof;
-    MintGroupIndex groupSize;
-
-    std::tie(proof, groupSize) = CreateSigmaSpend(
-        (*mint).key,
-        (*mint).property,
-        (*mint).denomination,
-        (*mint).chainState.group
-    );
-
-    auto spend = CreatePayload_SimpleSpend(
-        (*mint).property,
-        (*mint).denomination,
-        (*mint).chainState.group,
-        groupSize,
-        proof
-    );
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
@@ -1707,7 +1705,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         toAddress,
         "",
         referenceAmount,
-        spend,
+        payload,
         txid,
         rawHex,
         autoCommit,
@@ -1719,7 +1717,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         throw JSONRPCError(result, error_str(result));
     } else {
         // mark the coin as used
-        wallet->SetSigmaMintUsedTransaction(SigmaMintId(*mint), txid);
+        wallet->SetSigmaMintUsedTransaction(mint, txid);
 
         if (!autoCommit) {
             return rawHex;
@@ -1729,14 +1727,13 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
                 "Spend",
                 EXODUS_TYPE_SIMPLE_SPEND,
                 propertyId,
-                GetDenominationValue((*mint).property, (*mint).denomination),
+                GetDenominationValue(mint.property, mint.denomination),
                 false
             );
             return txid.GetHex();
         }
     }
 }
-
 
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode

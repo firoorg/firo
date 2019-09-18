@@ -22,3 +22,11 @@ WalletLocked::WalletLocked() : WalletError(_("Wallet locked, unable to create tr
 InsufficientFunds::InsufficientFunds() : WalletError(_("Insufficient funds"))
 {
 }
+
+InsufficientFunds::InsufficientFunds(const char *what) : WalletError(what)
+{
+}
+
+InsufficientFunds::InsufficientFunds(const std::string& what) : WalletError(what)
+{
+}

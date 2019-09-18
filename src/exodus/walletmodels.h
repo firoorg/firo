@@ -15,12 +15,6 @@
 
 namespace exodus {
 
-// Declarations.
-
-class SigmaMint;
-
-// Definitions.
-
 class SigmaMintChainState
 {
 public:
@@ -53,33 +47,6 @@ private:
     }
 };
 
-class SigmaMintId
-{
-public:
-    PropertyId property;
-    DenominationId denomination;
-    SigmaPublicKey key;
-
-public:
-    SigmaMintId();
-    explicit SigmaMintId(const SigmaMint& mint);
-    SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key);
-
-    bool operator==(const SigmaMintId& other) const;
-    bool operator!=(const SigmaMintId& other) const;
-
-    ADD_SERIALIZE_METHODS;
-
-private:
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(property);
-        READWRITE(denomination);
-        READWRITE(key);
-    }
-};
-
 class SigmaMint
 {
 public:
@@ -108,6 +75,45 @@ private:
         READWRITE(key);
         READWRITE(spentTx);
     }
+};
+
+class SigmaMintId
+{
+public:
+    PropertyId property;
+    DenominationId denomination;
+    SigmaPublicKey key;
+
+public:
+    SigmaMintId();
+    SigmaMintId(const SigmaMint& mint, const SigmaParams& params);
+    SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key);
+
+    bool operator==(const SigmaMintId& other) const;
+    bool operator!=(const SigmaMintId& other) const;
+
+    ADD_SERIALIZE_METHODS;
+
+private:
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(property);
+        READWRITE(denomination);
+        READWRITE(key);
+    }
+};
+
+class SigmaSpend
+{
+public:
+    SigmaMintId mint;
+    MintGroupId group;
+    size_t groupSize;
+    SigmaProof proof;
+
+public:
+    SigmaSpend(const SigmaMintId& mint, MintGroupId group, size_t groupSize, const SigmaProof& proof);
 };
 
 } // namespace exodus

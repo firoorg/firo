@@ -1,7 +1,10 @@
 #ifndef ZCOIN_EXODUS_SIGMA_H
 #define ZCOIN_EXODUS_SIGMA_H
 
-#include "../sigma/params.h"
+#include "../clientversion.h"
+#include "../streams.h"
+#include "../utilstrencodings.h"
+
 #include "../sigma/sigmaplus_proof.h"
 #include "../sigma/sigmaplus_prover.h"
 #include "../sigma/sigmaplus_verifier.h"
@@ -23,169 +26,178 @@
 
 namespace exodus {
 
-// Sigma Cryptographic Primitives.
+class SigmaParams
+{
+public:
+    secp_primitives::GroupElement g;
+    unsigned m, n;
+    std::vector<secp_primitives::GroupElement> h;
+
+public:
+    SigmaParams(const secp_primitives::GroupElement& g, unsigned m, unsigned n);
+};
+
 class SigmaPrivateKey
 {
 public:
-    explicit SigmaPrivateKey(const sigma::Params *params = sigma::Params::get_default());
+    secp_primitives::Scalar serial;
+    secp_primitives::Scalar randomness;
 
-    const sigma::Params * GetParams() const { return params; };
-    const secp_primitives::Scalar& GetSerial() const { return serial; }
-    const secp_primitives::Scalar& GetRandomness() const { return randomness; }
+public:
+    SigmaPrivateKey();
 
+public:
     bool operator==(const SigmaPrivateKey& other) const;
     bool operator!=(const SigmaPrivateKey& other) const;
 
+public:
     bool IsValid() const;
 
-    void SetSerial(const secp_primitives::Scalar& v);
-    void SetRandomness(const secp_primitives::Scalar& v);
-    void Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness);
+public:
     void Generate();
 
+public:
     ADD_SERIALIZE_METHODS;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(serial);
         READWRITE(randomness);
     }
-
-private:
-    const sigma::Params *params;
-    secp_primitives::Scalar serial;
-    secp_primitives::Scalar randomness;
 };
 
 class SigmaPublicKey
 {
 public:
+    secp_primitives::GroupElement commitment;
+
+public:
     SigmaPublicKey();
-    explicit SigmaPublicKey(const SigmaPrivateKey& pkey);
+    SigmaPublicKey(const SigmaPrivateKey& key, const SigmaParams& params);
 
+public:
     bool operator==(const SigmaPublicKey& other) const;
+    bool operator!=(const SigmaPublicKey& other) const;
 
-    const secp_primitives::GroupElement& GetCommitment() const { return commitment; }
-
+public:
     bool IsValid() const;
 
-    void SetCommitment(const secp_primitives::GroupElement& v);
-    void Generate(const SigmaPrivateKey& pkey);
+public:
+    void Generate(const SigmaPrivateKey& key, const SigmaParams& params);
 
+public:
     ADD_SERIALIZE_METHODS;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(commitment);
     }
-
-private:
-    secp_primitives::GroupElement commitment;
 };
 
 class SigmaProof
 {
 public:
-    SigmaProof();
+    const SigmaParams& params;
+    secp_primitives::Scalar serial;
+    sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 
-    const secp_primitives::Scalar& GetSerial() const { return serial; }
-    const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& GetProof() const { return proof; }
+public:
+    explicit SigmaProof(const SigmaParams& params);
 
-    template<typename Iterator>
-    bool Verify(sigma::Params const *params, Iterator begin, Iterator end)
+    template<typename PublicKey>
+    SigmaProof(const SigmaParams& params, const SigmaPrivateKey& key, PublicKey first, PublicKey last) :
+        SigmaProof(params)
+    {
+        Generate(key, first, last);
+    }
+
+public:
+    bool operator==(const SigmaProof& other) const;
+    bool operator!=(const SigmaProof& other) const;
+
+public:
+    template<typename PublicKey>
+    bool Verify(PublicKey first, PublicKey last) const
     {
         // Create commitment set.
-        auto gs = (params->get_g() * serial).inverse();
+        auto gs = (params.g * serial).inverse();
         std::vector<secp_primitives::GroupElement> commits;
 
-        commits.reserve(std::distance(begin, end));
+        commits.reserve(std::distance(first, last));
 
-        for (auto it = begin; it != end; it++) {
-            commits.emplace_back(it->GetCommitment() + gs);
+        for (auto it = first; it != last; it++) {
+            commits.emplace_back(it->commitment + gs);
         }
 
         // Verify proof.
         sigma::SigmaPlusVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(
-            params->get_g(),
-            params->get_h(),
-            params->get_n(),
-            params->get_m()
+            params.g,
+            params.h,
+            params.n,
+            params.m
         );
 
         return verifier.verify(commits, proof);
     }
 
-    void SetSerial(const secp_primitives::Scalar& v);
-    void SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& v);
-
-    template<typename Iterator>
-    void Generate(const SigmaPrivateKey& priv, Iterator begin, Iterator end)
+public:
+    template<typename PublicKey>
+    void Generate(const SigmaPrivateKey& priv, PublicKey first, PublicKey last)
     {
         if (!priv.IsValid()) {
             throw std::invalid_argument("Private key is not valid");
         }
 
-        proof.n = priv.GetParams()->get_n();
-        proof.m = priv.GetParams()->get_m();
-
-        serial = priv.GetSerial();
-
         // Create commitment set.
-        auto gs = (priv.GetParams()->get_g() * serial).inverse();
-        auto pub = SigmaPublicKey(priv).GetCommitment();
+        auto gs = (params.g * priv.serial).inverse();
+        SigmaPublicKey pub(priv, params);
         std::vector<secp_primitives::GroupElement> commits;
         boost::optional<size_t> index;
 
-        commits.reserve(std::distance(begin, end));
+        commits.reserve(std::distance(first, last));
 
-        for (auto it = begin; it != end; it++) {
-            auto& commit = it->GetCommitment();
+        for (auto it = first; it != last; it++) {
+            auto& commit = it->commitment;
 
-            if (commit == pub) {
-                index = std::distance(begin, it);
+            if (commit == pub.commitment) {
+                index = std::distance(first, it);
             }
 
             commits.emplace_back(commit + gs);
         }
 
-        if (index == boost::none) {
+        if (!index) {
             throw std::invalid_argument("No commitment for private key in the set");
         }
 
         // Generate proof.
         sigma::SigmaPlusProver<secp_primitives::Scalar, secp_primitives::GroupElement> prover(
-            priv.GetParams()->get_g(),
-            priv.GetParams()->get_h(),
-            priv.GetParams()->get_n(),
-            priv.GetParams()->get_m()
+            params.g,
+            params.h,
+            params.n,
+            params.m
         );
 
-        prover.proof(commits, *index, priv.GetRandomness(), proof);
+        prover.proof(commits, *index, priv.randomness, proof);
+        serial = priv.serial;
     }
 
+public:
     ADD_SERIALIZE_METHODS;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(serial);
         READWRITE(proof);
     }
-
-private:
-    secp_primitives::Scalar serial;
-    sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 };
 
-// Exodus Specific.
 typedef std::uint8_t DenominationId;
 
-std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
-    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group);
-bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params);
+extern const SigmaParams DefaultSigmaParams;
 
 } // namespace exodus
 
@@ -202,8 +214,8 @@ struct hash<SigmaPrivateKey>
     {
         size_t h = 0;
 
-        h ^= hash<secp_primitives::Scalar>()(k.GetSerial());
-        h ^= hash<secp_primitives::Scalar>()(k.GetRandomness());
+        h ^= hash<secp_primitives::Scalar>()(k.serial);
+        h ^= hash<secp_primitives::Scalar>()(k.randomness);
 
         return h;
     }
@@ -214,22 +226,32 @@ struct hash<SigmaPublicKey>
 {
     size_t operator()(const SigmaPublicKey& k) const
     {
-        return k.GetCommitment().hash();
+        return k.commitment.hash();
     }
 };
 
 // basic_ostream supports.
 
-template<class Char, class Traits>
+template<typename Char, typename Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPrivateKey& k)
 {
-    return os << "{serial: " << k.GetSerial().GetHex() << ", randomness: " << k.GetRandomness().GetHex() << '}';
+    return os << "{serial: " << k.serial.GetHex() << ", randomness: " << k.randomness.GetHex() << '}';
 }
 
-template<class Char, class Traits>
+template<typename Char, typename Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaPublicKey& k)
 {
-    return os << "{commitment: " << k.GetCommitment().tostring() << '}';
+    return os << "{commitment: " << k.commitment.tostring() << '}';
+}
+
+template<typename Char, typename Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaProof& p)
+{
+    CDataStream buffer(SER_DISK, CLIENT_VERSION);
+
+    buffer << p.proof;
+
+    return os << "{serial: " << p.serial.GetHex() << ", proof: " << HexStr(buffer.vch) << '}';
 }
 
 } // namespace std

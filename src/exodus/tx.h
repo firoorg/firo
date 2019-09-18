@@ -11,6 +11,7 @@ class CTransaction;
 #include "../uint256.h"
 #include "../utilstrencodings.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -134,7 +135,7 @@ private:
     uint8_t denomination;
     uint32_t group;
     uint16_t groupSize;
-    exodus::SigmaProof spend;
+    std::unique_ptr<exodus::SigmaProof> spend;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -263,7 +264,7 @@ public:
     uint8_t getDenomination() const { return denomination; }
     uint32_t getGroup() const { return group; }
     uint16_t getGroupSize() const { return groupSize; }
-    exodus::SigmaProof const & getSpend() const { return spend; }
+    const exodus::SigmaProof *getSpend() const { return spend.get(); }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

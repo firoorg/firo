@@ -2,12 +2,13 @@
 #define ZCOIN_EXODUS_WALLET_H
 
 #include "exodus.h"
+#include "property.h"
 #include "sigma.h"
 #include "sigmadb.h"
 #include "sp.h"
 #include "walletmodels.h"
 
-#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
 
 #include <boost/optional.hpp>
 
@@ -19,7 +20,7 @@ namespace exodus {
 class Wallet
 {
 public:
-    Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb);
+    Wallet(const std::string& walletFile);
     virtual ~Wallet();
 
 public:
@@ -28,8 +29,6 @@ public:
     template<class Denomination, class Output>
     Output CreateSigmaMints(PropertyId property, Denomination begin, Denomination end, Output output)
     {
-        LOCK(pwalletMain->cs_wallet);
-
         for (auto it = begin; it != end; it++) {
             *output++ = CreateSigmaMint(property, *it);
         }
@@ -37,11 +36,12 @@ public:
         return output;
     }
 
+    SigmaSpend CreateSigmaSpend(PropertyId property, DenominationId denomination);
+
+public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        LOCK(pwalletMain->cs_wallet);
-
         auto insertF = [&it] (SigmaMint& mint) {
             *it++ = std::move(mint);
         };
@@ -52,8 +52,6 @@ public:
     template<class OutputIt>
     void ListSigmaMints(uint32_t propertyId, OutputIt it)
     {
-        LOCK(pwalletMain->cs_wallet);
-
         auto insertF = [propertyId, &it](SigmaMint& mint) {
             if (mint.property == propertyId) {
                 *it++ = std::move(mint);
@@ -65,12 +63,15 @@ public:
 
     bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
-    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
 
+public:
     void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
 
 protected:
     void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
+
+private:
+    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
 
 private:
     void OnMintAdded(

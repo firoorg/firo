@@ -2133,7 +2133,7 @@ int exodus_init()
 
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
-        wallet = new Wallet(pwalletMain->strWalletFile, *sigmaDb);
+        wallet = new Wallet(pwalletMain->strWalletFile);
     } else {
         wallet = nullptr;
     }

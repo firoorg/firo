@@ -90,6 +90,14 @@ public:
     uint16_t groupSize;
 
 public:
+    bool VerifySpend(
+        PropertyId property,
+        DenominationId denomination,
+        MintGroupId group,
+        size_t groupSize,
+        const SigmaProof& proof);
+
+public:
     boost::signals2::signal<void(PropertyId, DenominationId, MintGroupId, MintGroupIndex, const SigmaPublicKey&, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
 

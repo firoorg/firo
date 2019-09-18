@@ -151,14 +151,16 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    auto spend = tx.getSpend(); // intentionally copy
+    auto spend = tx.getSpend();
     auto denomination = tx.getDenomination();
     auto group = tx.getGroup();
     auto groupSize = tx.getGroupSize();
 
+    assert(spend);
+
     // check serial in database
-    if (sigmaDb->HasSpendSerial(property, denomination, spend.GetSerial())
-        || !VerifySigmaSpend(property, denomination, group, groupSize, spend, sigma::Params::get_default())) {
+    if (sigmaDb->HasSpendSerial(property, denomination, spend->serial) ||
+        !sigmaDb->VerifySpend(property, denomination, group, groupSize, *spend)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
     }
@@ -180,7 +182,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    sigmaDb->RecordSpendSerial(property, denomination, spend.GetSerial(), block);
+    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block);
 
     return 0;
 }

@@ -4,32 +4,42 @@
 #include "../sigma/sigma_primitives.h"
 #include "../main.h"
 
+#include <array>
 #include <stdexcept>
 
 #include <assert.h>
 
 namespace exodus {
 
+const SigmaParams DefaultSigmaParams(secp_primitives::GroupElement().set_base_g(), 7, 4);
+
+// SigmaParams Implementation.
+
+SigmaParams::SigmaParams(const secp_primitives::GroupElement& g, unsigned m, unsigned n) :
+    g(g),
+    m(m),
+    n(n)
+{
+    if (!g.isMember() || m == 0 || n == 0) {
+        throw std::invalid_argument("Invalid Sigma parameters");
+    }
+
+    std::array<unsigned char, 32> hash;
+
+    g.sha256(hash.data());
+    h.reserve(m * n);
+
+    for (unsigned i = 0; i < m * n; i++) {
+        h.emplace_back();
+        h[i].generate(hash.data());
+        h[i].sha256(hash.data());
+    }
+}
+
 // SigmaPrivateKey Implementation.
 
-SigmaPrivateKey::SigmaPrivateKey(const sigma::Params *params) : params(params)
+SigmaPrivateKey::SigmaPrivateKey()
 {
-    assert(params != nullptr);
-}
-
-bool SigmaPrivateKey::IsValid() const
-{
-    return serial.isMember() && randomness.isMember();
-}
-
-void SigmaPrivateKey::SetSerial(const secp_primitives::Scalar& v)
-{
-    serial = v;
-}
-
-void SigmaPrivateKey::SetRandomness(const secp_primitives::Scalar& v)
-{
-    randomness = v;
 }
 
 bool SigmaPrivateKey::operator==(const SigmaPrivateKey& other) const
@@ -42,10 +52,9 @@ bool SigmaPrivateKey::operator!=(const SigmaPrivateKey& other) const
     return !(*this == other);
 }
 
-void SigmaPrivateKey::Set(const secp_primitives::Scalar& serial, const secp_primitives::Scalar& randomness)
+bool SigmaPrivateKey::IsValid() const
 {
-    SetSerial(serial);
-    SetRandomness(randomness);
+    return serial.isMember() && randomness.isMember();
 }
 
 void SigmaPrivateKey::Generate()
@@ -62,9 +71,9 @@ SigmaPublicKey::SigmaPublicKey()
 {
 }
 
-SigmaPublicKey::SigmaPublicKey(const SigmaPrivateKey& pkey)
+SigmaPublicKey::SigmaPublicKey(const SigmaPrivateKey& key, const SigmaParams& params)
 {
-    Generate(pkey);
+    Generate(key, params);
 }
 
 bool SigmaPublicKey::operator==(const SigmaPublicKey& other) const
@@ -72,79 +81,46 @@ bool SigmaPublicKey::operator==(const SigmaPublicKey& other) const
     return commitment == other.commitment;
 }
 
+bool SigmaPublicKey::operator!=(const SigmaPublicKey& other) const
+{
+    return !(*this == other);
+}
+
 bool SigmaPublicKey::IsValid() const
 {
     return commitment.isMember();
 }
 
-void SigmaPublicKey::SetCommitment(const secp_primitives::GroupElement& v)
+void SigmaPublicKey::Generate(const SigmaPrivateKey& key, const SigmaParams& params)
 {
-    commitment = v;
-}
-
-void SigmaPublicKey::Generate(const SigmaPrivateKey& pkey)
-{
-    if (!pkey.IsValid()) {
+    if (!key.IsValid()) {
         throw std::invalid_argument("The private key is not valid");
     }
 
     commitment = sigma::SigmaPrimitives<secp_primitives::Scalar, secp_primitives::GroupElement>::commit(
-        pkey.GetParams()->get_g(),
-        pkey.GetSerial(),
-        pkey.GetParams()->get_h0(),
-        pkey.GetRandomness()
+        params.g,
+        key.serial,
+        params.h[0],
+        key.randomness
     );
 }
 
 // SigmaProof Implementation.
 
-SigmaProof::SigmaProof() : proof(4, 7) // FIXME : hard coding
+SigmaProof::SigmaProof(const SigmaParams& params) :
+    params(params),
+    proof(params.n, params.m)
 {
 }
 
-void SigmaProof::SetSerial(const secp_primitives::Scalar& v)
+bool SigmaProof::operator==(const SigmaProof& other) const
 {
-    serial = v;
+    return serial == other.serial;
 }
 
-void SigmaProof::SetProof(const sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement>& v)
+bool SigmaProof::operator!=(const SigmaProof& other) const
 {
-    proof = v;
-}
-
-std::pair<SigmaProof, uint16_t> CreateSigmaSpend(
-    SigmaPrivateKey const &priv, uint32_t propertyId, uint8_t denomination, uint32_t group)
-{
-    LOCK(cs_main);
-
-    std::vector<SigmaPublicKey> coins;
-    sigmaDb->GetAnonimityGroup(propertyId, denomination, group, std::back_inserter(coins));
-
-    if (coins.size() < 2) {
-        throw std::runtime_error("amount of coins in anonimity is not enough to spend");
-    }
-
-    SigmaProof p;
-    p.Generate(priv, coins.begin(), coins.end());
-
-    // Make sure spend is spendable.
-    if (!VerifySigmaSpend(propertyId, denomination, group, coins.size(), p, priv.GetParams())) {
-        throw std::runtime_error("failed to create spendable mint");
-    }
-
-    return std::make_pair(p, coins.size());
-}
-
-bool VerifySigmaSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, SigmaProof &proof, sigma::Params const *params)
-{
-    LOCK(cs_main);
-
-    std::vector<SigmaPublicKey> coins;
-    coins.reserve(groupSize);
-    sigmaDb->GetAnonimityGroup(propertyId, denomination, group, groupSize, std::back_inserter(coins));
-
-    return proof.Verify(params, coins.begin(), coins.end());
+    return !(*this == other);
 }
 
 } // namespace exodus
