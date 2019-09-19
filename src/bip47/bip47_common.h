@@ -14,8 +14,8 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "openssl_context.h"
-#include "include/secp256k1_ecdh.h"
+// #include "sigma/openssl_context.h"
+#include <secp256k1_ecdh.h>
 
     typedef std::string  String;
     typedef bool boolean;

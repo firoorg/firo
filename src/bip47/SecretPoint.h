@@ -49,7 +49,7 @@ class SecretPoint {
         std::vector<unsigned char> pubkey_hash(32, 0);
         secp256k1_context *context = OpenSSLContext::get_context();
         // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
-        if (1 != secp256k1_ecdh(context, pubkey_hash.data(), &pubKey,privKey)) {
+        if (1 != secp256k1_ecdh(context, pubkey_hash.data(), &pubKey,privKey.begin())) {
             throw std::runtime_error("Unable to compute public key hash with secp256k1_ecdh.");
         }
         std::vector<unsigned char> hash(CSHA256::OUTPUT_SIZE);
@@ -66,8 +66,8 @@ class SecretPoint {
     }
 
     void loadPublicKey(std::vector<unsigned char> data){
-        secp256k1_context *context = OpenSSLContext::get_context();
-        secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
+        // secp256k1_context *context = OpenSSLContext::get_context();
+        // secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
     }
 
     CKey loadPrivateKey(std::vector<unsigned char> data) {
