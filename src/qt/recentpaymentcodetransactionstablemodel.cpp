@@ -25,9 +25,6 @@ RecentPCodeTransactionsTableModel::RecentPCodeTransactionsTableModel(CWallet *wa
     // parent->loadReceiveRequests(vReceiveRequests);
     // BOOST_FOREACH(const std::string& request, vReceiveRequests)
         // addNewRequest(request);
-
-    printf("Initialize RecentPCode Table Model with 3 init data\n");
-
     RecentPCodeTransactionEntry  ptx1(1, 0.12, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
     RecentPCodeTransactionEntry  ptx2(2, 0.35, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
     RecentPCodeTransactionEntry  ptx3(3, 0.35, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGTQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
