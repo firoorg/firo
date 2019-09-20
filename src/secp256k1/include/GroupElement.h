@@ -101,7 +101,7 @@ public:
 
   std::size_t hash() const;
 
-  void set_base_g();
+  GroupElement& set_base_g();
 
   friend class MultiExponent;
 private:

@@ -1,116 +1,103 @@
 #include "../sigma.h"
+#include "../sigmadb.h"
+#include "../sigmaprimitives.h"
 
 #include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
+#include <stddef.h>
 #include <vector>
 
 namespace exodus {
+namespace {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigma_tests, TestingSetup)
-
-BOOST_AUTO_TEST_CASE(private_key)
+struct SigmaDatabaseFixture : TestingSetup
 {
-    SigmaPrivateKey key;
-
-    auto serial = key.GetSerial();
-    auto randomness = key.GetRandomness();
-
-    key.Generate();
-
-    BOOST_CHECK(key.IsValid());
-    BOOST_CHECK_NE(key.GetSerial(), serial);
-    BOOST_CHECK_NE(key.GetRandomness(), randomness);
-}
-
-BOOST_AUTO_TEST_CASE(private_key_hash)
-{
-    SigmaPrivateKey key1, key2;
-    std::hash<SigmaPrivateKey> hasher;
-
-    key1.Generate();
-    key2.Generate();
-
-    BOOST_CHECK_EQUAL(hasher(key1), hasher(key1));
-    BOOST_CHECK_NE(hasher(key1), hasher(key2));
-}
-
-BOOST_AUTO_TEST_CASE(public_key)
-{
-    SigmaPrivateKey priv;
-    SigmaPublicKey pub;
-
-    auto commit = pub.GetCommitment();
-
-    priv.Generate();
-    pub.Generate(priv);
-
-    BOOST_CHECK(pub.IsValid());
-    BOOST_CHECK_NE(pub.GetCommitment(), commit);
-
-    // Try a second time to see if we still get the same result.
-    commit = pub.GetCommitment();
-    pub.Generate(priv);
-
-    BOOST_CHECK_EQUAL(pub.GetCommitment(), commit);
-}
-
-BOOST_AUTO_TEST_CASE(public_key_hash)
-{
-    SigmaPrivateKey key1, key2;
-    std::hash<SigmaPublicKey> hasher;
-
-    key1.Generate();
-    key2.Generate();
-
-    BOOST_CHECK_EQUAL(hasher(SigmaPublicKey(key1)), hasher(SigmaPublicKey(key1)));
-    BOOST_CHECK_NE(hasher(SigmaPublicKey(key1)), hasher(SigmaPublicKey(key2)));
-}
-
-BOOST_AUTO_TEST_CASE(proof)
-{
-    // Create keys.
-    SigmaPrivateKey key1, key2, key3;
-
-    key1.Generate();
-    key2.Generate();
-    key3.Generate();
-
-    // Crete proof.
-    SigmaProof proof;
-    std::vector<SigmaPublicKey> pubs({
-        SigmaPublicKey(key1),
-        SigmaPublicKey(key2),
-        SigmaPublicKey(key3)
-    });
-
-    proof.Generate(key2, pubs.begin(), pubs.end());
-
-    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), true);
-    BOOST_CHECK_EQUAL(proof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end() - 1), false);
-}
-
-BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
-{
-    std::vector<SigmaPublicKey> pubs;
-
-    // 2 ^ 14 coins
-    int limit = 1 << 14;
-
-    // generate 2 ^ 14 + 1 coins
-    SigmaPrivateKey key;
-    for (int i = 0; i < limit + 1; i++) {
-        key.Generate();
-        pubs.push_back(SigmaPublicKey(key));
+    SigmaDatabaseFixture()
+    {
+        sigmaDb = new SigmaDatabase(pathTemp / "exodus-sigmadb", true, 10);
     }
 
-    SigmaProof validProof, invalidProof;
-    validProof.Generate(key, pubs.begin() + 1, pubs.end()); // prove with 2 ^ 14 coins
-    invalidProof.Generate(key, pubs.begin(), pubs.end()); // prove with 2 ^ 14 + 1 coins
+    ~SigmaDatabaseFixture()
+    {
+        delete sigmaDb; sigmaDb = nullptr;
+    }
+};
 
-    BOOST_CHECK_EQUAL(validProof.Verify(sigma::Params::get_default(), pubs.begin() + 1, pubs.end()), true);
-    BOOST_CHECK_EQUAL(invalidProof.Verify(sigma::Params::get_default(), pubs.begin(), pubs.end()), false);
+SigmaPublicKey CreateMint()
+{
+    SigmaPrivateKey key;
+    key.Generate();
+    return SigmaPublicKey(key, DefaultSigmaParams);
+}
+
+std::vector<SigmaPublicKey> CreateMints(size_t n)
+{
+    std::vector<SigmaPublicKey> mints;
+
+    while (n--) {
+        mints.push_back(CreateMint());
+    }
+
+    return mints;
+}
+
+} // unnamed namespace
+
+BOOST_AUTO_TEST_SUITE(exodus_sigma_tests)
+
+BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
+{
+    auto& params = DefaultSigmaParams;
+    SigmaPrivateKey key;
+    SigmaProof proof(params);
+    std::vector<SigmaPublicKey> anonimitySet;
+    bool increaseBlock = false;
+    int block = 100;
+
+    // Create set of mint that contains our spendable mint.
+    key.Generate();
+
+    anonimitySet.push_back(SigmaPublicKey(key, params));
+
+    for (auto& mint : CreateMints(sigmaDb->groupSize - 2)) { // -2 to make anonimitySet not a full group.
+        anonimitySet.push_back(mint);
+    }
+
+    proof.Generate(key, anonimitySet.begin(), anonimitySet.end());
+
+    // Generate spendable group.
+    for (unsigned i = 0; i < sigmaDb->groupSize; i++) {
+        if (i < anonimitySet.size()) {
+            sigmaDb->RecordMint(3, 0, anonimitySet[i], block);
+        } else {
+            sigmaDb->RecordMint(3, 0, CreateMint(), block);
+        }
+
+        sigmaDb->RecordMint(3, 1, CreateMint(), block);
+        sigmaDb->RecordMint(4, 0, CreateMint(), block);
+
+        if (increaseBlock) {
+            block++;
+            increaseBlock = false;
+        } else {
+            increaseBlock = true;
+        }
+    }
+
+    // Generate non-spendable group.
+    for (auto& mint : CreateMints(sigmaDb->groupSize)) {
+        sigmaDb->RecordMint(3, 0, mint, block);
+    }
+
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size(), proof), true);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() - 1, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() + 1, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, sigmaDb->groupSize + 1, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 1, 0, sigmaDb->groupSize, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(4, 0, 0, sigmaDb->groupSize, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 1, sigmaDb->groupSize, proof), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

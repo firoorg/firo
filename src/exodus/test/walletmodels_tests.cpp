@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_init)
     SigmaPublicKey pub;
 
     priv.Generate();
-    pub.Generate(priv);
+    pub.Generate(priv, DefaultSigmaParams);
 
     SigmaMintId id(1, 5, pub);
 
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
     SigmaPublicKey pub;
 
     priv.Generate();
-    pub.Generate(priv);
+    pub.Generate(priv, DefaultSigmaParams);
 
     SigmaMintId original(1, 5, pub), deserialized;
     CDataStream stream(SER_DISK, CLIENT_VERSION);
@@ -277,6 +277,21 @@ BOOST_AUTO_TEST_CASE(sigma_mint_hash)
 
     BOOST_CHECK_EQUAL(hasher(mint1), hasher(mint1));
     BOOST_CHECK_NE(hasher(mint1), hasher(mint2));
+}
+
+BOOST_AUTO_TEST_CASE(sigma_spend_init)
+{
+    auto& params = DefaultSigmaParams;
+    SigmaMint mint(3, 0);
+    SigmaMintId id(mint, params);
+    std::vector<SigmaPublicKey> anonimitySet = { SigmaPublicKey(mint.key, params), SigmaPublicKey(SigmaMint(3, 0).key, params) };
+    SigmaProof proof(params, mint.key, anonimitySet.begin(), anonimitySet.end());
+    SigmaSpend spend(id, 1, 100, proof);
+
+    BOOST_CHECK_EQUAL(spend.mint, id);
+    BOOST_CHECK_EQUAL(spend.group, 1);
+    BOOST_CHECK_EQUAL(spend.groupSize, 100);
+    BOOST_CHECK_EQUAL(spend.proof, proof);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

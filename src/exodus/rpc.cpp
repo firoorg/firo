@@ -1899,7 +1899,7 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
 
     // Get parameters.
     boost::optional<PropertyId> property;
-    boost::optional<DenominationId> denomination;
+    boost::optional<SigmaDenomination> denomination;
     bool verbose = false;
 
     if (params.size() > 0) {
@@ -1908,7 +1908,7 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     }
 
     if (params.size() > 1) {
-        denomination = ParseDenomination(params[1]);
+        denomination = ParseSigmaDenomination(params[1]);
         RequireExistingDenomination(property.get(), denomination.get());
     }
 

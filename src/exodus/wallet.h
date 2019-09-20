@@ -2,13 +2,13 @@
 #define ZCOIN_EXODUS_WALLET_H
 
 #include "exodus.h"
-#include "sigma.h"
-#include "sigmadb.h"
+#include "property.h"
+#include "sigmaprimitives.h"
 #include "sp.h"
 #include "walletmodels.h"
 #include "sigmawallet.h"
 
-#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
 
 #include <boost/optional.hpp>
 
@@ -20,17 +20,15 @@ namespace exodus {
 class Wallet
 {
 public:
-    Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb);
+    Wallet(const std::string& walletFile);
     virtual ~Wallet();
 
 public:
-    SigmaMintId CreateSigmaMint(PropertyId property, DenominationId denomination);
+    SigmaMintId CreateSigmaMint(PropertyId property, SigmaDenomination denomination);
 
     template<class Denomination, class Output>
     Output CreateSigmaMints(PropertyId property, Denomination begin, Denomination end, Output output)
     {
-        LOCK(pwalletMain->cs_wallet);
-
         for (auto it = begin; it != end; it++) {
             *output++ = CreateSigmaMint(property, *it);
         }
@@ -39,11 +37,12 @@ public:
     }
     void ResetState();
 
+    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
+
+public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        LOCK(pwalletMain->cs_wallet);
-
         auto mintWallet = this->mintWallet;
         mintWallet.ListSigmaMints([&](SigmaMint &mint) {
 
@@ -53,7 +52,6 @@ public:
 
     bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
-    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
     SigmaPrivateKey GetKey(const SigmaMint &mint);
 
     void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
@@ -76,13 +74,13 @@ private:
 
     void OnMintAdded(
         PropertyId property,
-        DenominationId denomination,
-        MintGroupId group,
-        MintGroupIndex idx,
+        SigmaDenomination denomination,
+        SigmaMintGroup group,
+        SigmaMintIndex idx,
         const SigmaPublicKey& pubKey,
         int block);
 
-    void OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey);
+    void OnMintRemoved(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey);
 
 private:
     std::string walletFile;

@@ -6,7 +6,7 @@ class CTransaction;
 struct CMutableTransaction;
 struct PrevTxsEntry;
 
-#include "sigma.h"
+#include "sigmaprimitives.h"
 
 #include <univalue.h>
 
@@ -41,7 +41,7 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value);
 
 namespace exodus {
 
-DenominationId ParseDenomination(const UniValue& value);
+SigmaDenomination ParseSigmaDenomination(const UniValue& value);
 
 }
 

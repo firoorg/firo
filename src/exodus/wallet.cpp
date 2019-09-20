@@ -1,7 +1,13 @@
 #include "wallet.h"
 
-#include "../wallet/wallet.h"
+#include "sigma.h"
+
+#include "../main.h"
+#include "../sync.h"
+#include "../util.h"
+
 #include "../wallet/walletdb.h"
+#include "../wallet/walletexcept.h"
 
 #include <boost/function_output_iterator.hpp>
 
@@ -11,7 +17,7 @@ namespace exodus {
 
 Wallet *wallet;
 
-Wallet::Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb)
+Wallet::Wallet(const std::string& walletFile)
     : walletFile(walletFile), mintWallet(walletFile)
 {
     using std::placeholders::_1;
@@ -22,13 +28,15 @@ Wallet::Wallet(const std::string& walletFile, SigmaDatabase& sigmaDb)
     using std::placeholders::_6;
 
     // Subscribe to events.
+    LOCK(cs_main);
+
     {
         auto h = std::bind(&Wallet::OnMintAdded, this, _1, _2, _3, _4, _5, _6);
-        eventConnections.emplace_front(sigmaDb.MintAdded.connect(h));
+        eventConnections.emplace_front(sigmaDb->MintAdded.connect(h));
     }
     {
         auto h = std::bind(&Wallet::OnMintRemoved, this, _1, _2, _3);
-        eventConnections.emplace_front(sigmaDb.MintRemoved.connect(h));
+        eventConnections.emplace_front(sigmaDb->MintRemoved.connect(h));
     }
     {
         auto h = std::bind(&Wallet::OnSpendAdded, this, _1, _2, _3, _4);
@@ -44,7 +52,7 @@ Wallet::~Wallet()
 {
 }
 
-SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomination)
+SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     SigmaPrivateKey key;
     SigmaMint mint;
@@ -62,9 +70,41 @@ void Wallet::ResetState()
     mintWallet.ResetCoinsState();
 }
 
+SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination)
+{
+    LOCK(cs_main);
+
+    auto mint = GetSpendableSigmaMint(property, denomination);
+    if (!mint) {
+        throw InsufficientFunds(_("No available mint to spend"));
+    }
+
+    // Get anonimity set for spend.
+    std::vector<SigmaPublicKey> anonimitySet;
+
+    sigmaDb->GetAnonimityGroup(
+        mint->property,
+        mint->denomination,
+        mint->chainState.group,
+        std::back_inserter(anonimitySet)
+    );
+
+    if (anonimitySet.size() < 2) {
+        throw WalletError(_("Amount of coins in anonimity set is not enough to spend"));
+    }
+
+    // Create spend.
+    SigmaProof proof(DefaultSigmaParams, mint->key, anonimitySet.begin(), anonimitySet.end());
+
+    if (!VerifySigmaSpend(mint->property, mint->denomination, mint->chainState.group, anonimitySet.size(), proof)) {
+        throw WalletError(_("Failed to create spendable spend"));
+    }
+
+    return SigmaSpend(SigmaMintId(*mint, DefaultSigmaParams), mint->chainState.group, anonimitySet.size(), proof);
+}
+
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
-    LOCK(pwalletMain->cs_wallet);
     return mintWallet.HasMint(id);
 }
 
@@ -80,7 +120,7 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 
     CWalletDB walletdb(walletFile);
     if (!walletdb.ReadExodusHDMint(id, mint)) {
-        throw std::invalid_argument("sigma mint not found");
+        throw std::invalid_argument("Mint with specified identifier is not exists");
     }
 
     return mint;
@@ -126,11 +166,9 @@ SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
     if (!mintWallet.RegenerateMint(mint, k)) {
         throw std::runtime_error("fail to regenerate private key");
     }
-
     if (mint.id.key != SigmaPublicKey(k)) {
         throw std::runtime_error("regenerated key doesn't matched with old value");
     }
-
     return k;
 }
 
@@ -143,7 +181,6 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 {
     mintWallet.UpdateMintChainstate(id, state);
 }
-
 void Wallet::OnSpendAdded(
     PropertyId property,
     DenominationId denomination,
@@ -155,7 +192,6 @@ void Wallet::OnSpendAdded(
         // the serial is not in wallet.
         return;
     }
-
     SigmaMintId id;
     try {
         id = mintWallet.GetMintId(serial);
@@ -163,7 +199,6 @@ void Wallet::OnSpendAdded(
         LogPrintf("%s : fail to get mint id when spend added have been triggered, %s\n", e.what());
         throw;
     }
-
     SetSigmaMintUsedTransaction(id, tx);
 }
 
@@ -189,9 +224,9 @@ void Wallet::OnSpendRemoved(
 
 void Wallet::OnMintAdded(
     PropertyId property,
-    DenominationId denomination,
-    MintGroupId group,
-    MintGroupIndex idx,
+    SigmaDenomination denomination,
+    SigmaMintGroup group,
+    SigmaMintIndex idx,
     const SigmaPublicKey& pubKey,
     int block)
 {
@@ -217,11 +252,9 @@ void Wallet::OnMintAdded(
     }
 }
 
-void Wallet::OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey)
+void Wallet::OnMintRemoved(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey)
 {
     SigmaMintId id(property, denomination, pubKey);
-
-    LOCK(pwalletMain->cs_wallet);
 
     if (!HasSigmaMint(id)) {
         return;

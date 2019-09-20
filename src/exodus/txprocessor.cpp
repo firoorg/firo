@@ -1,5 +1,7 @@
 #include "txprocessor.h"
+
 #include "rules.h"
+#include "sigma.h"
 
 #include "../base58.h"
 
@@ -65,7 +67,7 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    std::vector<DenominationId> denominations;
+    std::vector<SigmaDenomination> denominations;
     denominations.reserve(tx.getMints().size());
 
     for (auto &mint : tx.getMints()) {
@@ -110,8 +112,8 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
     assert(update_tally_map(sender, property, -amount, BALANCE));
 
     for (auto &mint : tx.getMints()) {
-        MintGroupId group;
-        MintGroupIndex index;
+        SigmaMintGroup group;
+        SigmaMintIndex index;
 
         auto denom = mint.first;
         auto& pubkey = mint.second;
@@ -151,10 +153,12 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    auto spend = tx.getSpend(); // intentionally copy
+    auto spend = tx.getSpend();
     auto denomination = tx.getDenomination();
     auto group = tx.getGroup();
     auto groupSize = tx.getGroupSize();
+
+    assert(spend);
 
     // check serial in database
     uint256 spendTx;
@@ -181,7 +185,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    sigmaDb->RecordSpendSerial(property, denomination, spend.GetSerial(), block, tx.getHash());
+    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block);
 
     return 0;
 }

@@ -550,8 +550,9 @@ const void* GroupElement::get_value() const {
     return g_;
 }
 
-void GroupElement::set_base_g() {
+GroupElement& GroupElement::set_base_g() {
     secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &secp256k1_ge_const_g);
+    return *this;
 }
 
 } // namespace secp_primitives

@@ -15,7 +15,6 @@ EXODUS_TEST_CPP = \
   exodus/test/exodus_tests.cpp \
   exodus/test/lock_tests.cpp \
   exodus/test/marker_tests.cpp \
-  exodus/test/sigmadb_tests.cpp \
   exodus/test/obfuscation_tests.cpp \
   exodus/test/output_restriction_tests.cpp \
   exodus/test/parsing_b_tests.cpp \
@@ -28,6 +27,8 @@ EXODUS_TEST_CPP = \
   exodus/test/sender_bycontribution_tests.cpp \
   exodus/test/sender_firstin_tests.cpp \
   exodus/test/sigma_tests.cpp \
+  exodus/test/sigmadb_tests.cpp \
+  exodus/test/sigmaprimitives_tests.cpp \
   exodus/test/sp_tests.cpp \
   exodus/test/strtoint64_tests.cpp \
   exodus/test/swapbyteorder_tests.cpp \
