@@ -79,7 +79,6 @@ class SigmaMint
 public:
     SigmaMintId id;
 
-    int32_t count;
     CKeyID seedId;
     uint160 serialId;
 
@@ -90,7 +89,6 @@ public:
     SigmaMint();
     SigmaMint(
         SigmaMintId const &id,
-        int32_t count,
         const CKeyID& seedId,
         const uint160& hashSerial);
 
@@ -107,7 +105,6 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(id);
-        READWRITE(count);
         READWRITE(seedId);
         READWRITE(serialId);
         READWRITE(spendTx);
@@ -166,7 +163,6 @@ struct hash<SigmaMint>
         size_t h = 0;
 
         h ^= hash<SigmaMintId>()(mint.id);
-        h ^= hash<int32_t>()(mint.count);
         h ^= hash<uint160>()(mint.serialId);
         h ^= hash<uint256>()(mint.spendTx);
         h ^= hash<SigmaMintChainState>()(mint.chainState);
@@ -194,7 +190,6 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
 {
     os << '{';
     os << "id: " << mint.id << ", ";
-    os << "count: " << mint.count << ", ";
     os << "seedId: " << mint.seedId.GetHex() << ", ";
     os << "serialId: " << mint.serialId.GetHex() << ", ";
     os << "spentTx: " << mint.spendTx.GetHex() << ", ";

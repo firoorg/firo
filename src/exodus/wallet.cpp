@@ -53,7 +53,7 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomina
         throw std::runtime_error("fail to generate mint");
     }
 
-    mintWallet.Record(mint);
+    mintWallet.AddToWallet(mint);;
     return mint.id;
 }
 
@@ -197,7 +197,6 @@ void Wallet::OnMintAdded(
 {
     LOCK(pwalletMain->cs_wallet);
 
-    auto pubCoinHash = primitives::GetPubCoinValueHash(pubKey.GetCommitment());
     SigmaMintId id(property, denomination, pubKey);
     auto isMintTracked = HasSigmaMint(id);
 
@@ -205,12 +204,16 @@ void Wallet::OnMintAdded(
 
         // 1. is tracked then update state
         SetSigmaMintChainState(id, SigmaMintChainState(block, group, idx));
-    } else if (mintWallet.GetMintPool().count(pubCoinHash)) {
+    } else if (mintWallet.CountInMintPool(pubKey)) {
 
         // 2. isn't tracked but is in wallet then add it
-        auto entry = mintWallet.GetMintPool().at(pubCoinHash);
+        MintPoolEntry entry;
+        if (!mintWallet.GetMintPoolEntry(pubKey, entry)) {
+            error("%s : Fail to get mint pool entry from public key");
+        }
+
         mintWallet.SetMintSeedSeen(
-            {pubCoinHash, entry}, property, denomination, SigmaMintChainState(block, group, idx));
+            entry, property, denomination, SigmaMintChainState(block, group, idx));
     }
 }
 
@@ -227,4 +230,4 @@ void Wallet::OnMintRemoved(PropertyId property, DenominationId denomination, con
     SetSigmaMintChainState(id, SigmaMintChainState());
 }
 
-}
+} // namespace exodus

@@ -290,86 +290,22 @@ public:
     bool WriteHDChain(const CHDChain& chain);
 
 #ifdef ENABLE_EXODUS
-    bool ReadExodusMintCount(int32_t &count);
-    bool WriteExodusMintCount(int32_t count);
 
-    bool ReadExodusMintSeedCount(int32_t &count);
-    bool WriteExodusMintSeedCount(int32_t count);
-
-    bool ReadExodusPubcoin(const uint160& hashSerial, GroupElement& pubcoin);
-    bool WriteExodusPubcoin(const uint160& hashSerial, const GroupElement& pubcoin);
-    bool EraseExodusPubcoin(const uint160& hashSerial);
-
-    std::vector<std::pair<uint160, GroupElement>> ListExodusSerialPubcoinPairs();
-
-    bool ReadExodusMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>& mintPool);
-    bool WriteExodusMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& mintPool);
-    bool EraseExodusMintPoolPair(const uint256& hashPubcoin);
-
-    std::vector<std::pair<uint256, MintPoolEntry>> ListExodusMintPool();
-
-    template<typename K, typename V>
-    bool WriteExodusMint(const K& k, const V& v)
+    template<class MintPool>
+    bool ReadExodusMintPool(MintPool &mintPool)
     {
-        return Write(std::make_pair(std::string("exodus_sigma_mint"), k), v);
+        return Read(std::string("exodus_mint_pool"), mintPool);
     }
 
-    template<typename K, typename V>
-    bool ReadExodusMint(const K& k, V& v)
+    template<class MintPool>
+    bool WriteExodusMintPool(MintPool const &mintPool)
     {
-        return Read(std::make_pair(std::string("exodus_sigma_mint"), k), v);
+        return Write(std::string("exodus_mint_pool"), mintPool, true);
     }
 
-    template<typename K>
-    bool HasExodusMint(const K& k)
+    bool HasExodusMintPool()
     {
-        return Exists(std::make_pair(std::string("exodus_sigma_mint"), k));
-    }
-
-    template<typename K, typename V, typename InsertF>
-    void ListExodusMint(InsertF insertF)
-    {
-        auto cursor = GetCursor();
-        if (!cursor) {
-            throw std::runtime_error("CWalletDB::ListExodusMint() : cannot create DB cursor");
-        }
-
-        unsigned int flags = DB_SET_RANGE;
-        while (true) {
-
-            // Read next record
-            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (flags == DB_SET_RANGE)
-                ssKey << std::make_pair(std::string("exodus_sigma_mint"), K());
-
-            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
-
-            flags = DB_NEXT;
-            if (ret == DB_NOTFOUND) {
-                break;
-            } else if (ret != 0) {
-                cursor->close();
-                throw std::runtime_error("CWalletDB::ListExodusMint() : error scanning DB");
-            }
-
-            // Unserialize
-            std::string strType;
-            ssKey >> strType;
-            if (strType != "exodus_sigma_mint") {
-                break;
-            }
-
-            K k;
-            ssKey >> k;
-
-            V v;
-            ssValue >> v;
-
-            insertF(v);
-        }
-
-        cursor->close();
+        return Exists(std::string("exodus_mint_pool"));
     }
 
     template<class Key, class MintID>

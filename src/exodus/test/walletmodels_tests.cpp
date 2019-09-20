@@ -159,14 +159,12 @@ BOOST_AUTO_TEST_CASE(sigma_mint_equality)
     SigmaMint left, right;
 
     left.id = SigmaMintId(1, 1, pub);
-    left.count = 0;
     left.seedId = uint160();
     left.serialId = primitives::GetSerialHash160(key.GetSerial());
     left.spendTx = tx;
     left.chainState = SigmaMintChainState(500, 1, 50);
 
     right.id = SigmaMintId(1, 1, pub);
-    right.count = 0;
     right.seedId = uint160();
     right.serialId = primitives::GetSerialHash160(key.GetSerial());
     right.spendTx = tx;
@@ -187,7 +185,6 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
     SigmaMint left, right;
 
     left.id = SigmaMintId(1, 1, pub);
-    left.count = 0;
     left.seedId = Hash160(zero);
     left.serialId = Hash160(zero);
     left.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
@@ -208,12 +205,6 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
     // Pubkey
     right = left;
     right.id.key = SigmaPublicKey();
-
-    BOOST_CHECK_NE(left, right);
-
-    // Count
-    right = left;
-    right.count = 1;
 
     BOOST_CHECK_NE(left, right);
 
@@ -263,7 +254,6 @@ BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
     SigmaPublicKey pub(priv);
 
     original.id = SigmaMintId(1, 1, pub);
-    original.count = 0;
     original.seedId = Hash160({0x00});
     original.serialId = Hash160({0x00});
     original.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
