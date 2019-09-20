@@ -23,7 +23,7 @@ class RecentPCodeTransactionEntry
 public:
     RecentPCodeTransactionEntry() : nVersion(RecentPCodeTransactionEntry::CURRENT_VERSION), id(0) { }
 
-    RecentPCodeTransactionEntry(int64_t pid, double_t pfee, QString prpccode): nVersion(RecentPCodeTransactionEntry::CURRENT_VERSION), id(pid), date(QDateTime::currentDateTime()), rpcode(prpccode) {}       
+    RecentPCodeTransactionEntry(int64_t pid, double_t pfee, QString prpccode): nVersion(RecentPCodeTransactionEntry::CURRENT_VERSION), id(pid), fee(pfee), date(QDateTime::currentDateTime()), rpcode(prpccode) {}       
     
     static const int CURRENT_VERSION = 1;
     int nVersion;

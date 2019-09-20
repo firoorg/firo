@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QMessageBox>
 #include <QImage>
+#include <QFont>
 #include <QPixmap>
 #include <QClipboard>
 #include <QHeaderView>
@@ -179,10 +180,15 @@ void PaymentcodePage::setWalletModel(WalletModel *model)
         tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Fee, 130);
         tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Timestamp, 150);
 
+        // QFont font("Arial", 20, QFont::Bold);
+        // tableView->horizontalHeader()->setFont( font );
+        // tableView->verticalHeader()->resizeSections(QHeaderView::ResizeToContents);
+
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::RPCode, QHeaderView::Stretch);
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Fee, QHeaderView::Interactive);
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Timestamp, QHeaderView::Interactive);
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 150, 300, this);
+        tableView->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft);
+        // columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 150, 300, this);
     }
 
     

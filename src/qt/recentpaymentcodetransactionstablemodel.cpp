@@ -27,7 +27,7 @@ RecentPCodeTransactionsTableModel::RecentPCodeTransactionsTableModel(CWallet *wa
         // addNewRequest(request);
     RecentPCodeTransactionEntry  ptx1(1, 0.12, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
     RecentPCodeTransactionEntry  ptx2(2, 0.35, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
-    RecentPCodeTransactionEntry  ptx3(3, 0.35, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGTQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
+    RecentPCodeTransactionEntry  ptx3(3, 0.32, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGTQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
 
     addNewRequest(ptx1);
     addNewRequest(ptx2);
@@ -73,7 +73,7 @@ QVariant RecentPCodeTransactionsTableModel::data(const QModelIndex &index, int r
         case RPCode:
             return rec->rpcode;
         case Fee:
-            return QString::number(rec->fee);
+            return QString("%1 XZC").arg(QString::number(rec->fee, 'f', 8));
             // if(rec->recipient.label.isEmpty() && role == Qt::DisplayRole)
             // {
             //     return tr("(no label)");
@@ -101,11 +101,11 @@ QVariant RecentPCodeTransactionsTableModel::data(const QModelIndex &index, int r
             //     return BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), rec->recipient.amount);
         }
     }
-    else if (role == Qt::TextAlignmentRole)
-    {
-        if (index.column() == Fee)
-            return (int)(Qt::AlignRight|Qt::AlignVCenter);
-    }
+    // else if (role == Qt::TextAlignmentRole)
+    // {
+    //     if (index.column() == Fee)
+    //         return (int)(Qt::AlignRight|Qt::AlignVCenter);
+    // }
     return QVariant();
 }
 
