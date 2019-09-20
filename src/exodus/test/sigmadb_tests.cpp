@@ -18,10 +18,25 @@
 
 namespace std {
 
-template<class Char, class Traits, class Item1, class Item2>
+template<typename Char, typename Traits, typename Item1, typename Item2>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const pair<Item1, Item2>& p)
 {
     return os << '(' << p.first << ", " << p.second << ')';
+}
+
+template<typename Char, typename Traits, typename Item, typename Allocator>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const vector<Item, Allocator>& v)
+{
+    os << '(';
+    for (size_t i = 0; i < v.size();) {
+        os << v[i];
+        if (++i != v.size()) {
+            os << ", ";
+        }
+    }
+    os << ')';
+
+    return os;
 }
 
 } // namespace std
@@ -32,9 +47,9 @@ namespace {
 struct MintAdded
 {
     PropertyId property;
-    DenominationId denomination;
-    MintGroupId group;
-    MintGroupIndex index;
+    SigmaDenomination denomination;
+    SigmaMintGroup group;
+    SigmaMintIndex index;
     SigmaPublicKey pubKey;
     int block;
 };
@@ -42,7 +57,7 @@ struct MintAdded
 struct MintRemoved
 {
     PropertyId property;
-    DenominationId denomination;
+    SigmaDenomination denomination;
     SigmaPublicKey pubKey;
 };
 
@@ -65,8 +80,8 @@ struct TestSigmaDb : SigmaDatabase
 
     std::vector<SigmaPublicKey> GetAnonimityGroupAsVector(
         PropertyId property,
-        DenominationId denomination,
-        MintGroupId group,
+        SigmaDenomination denomination,
+        SigmaMintGroup group,
         size_t count)
     {
         std::vector<SigmaPublicKey> pubs;
@@ -102,9 +117,9 @@ public:
 
         sigconns.emplace_front(db->MintAdded.connect([this] (
             PropertyId p,
-            DenominationId d,
-            MintGroupId g,
-            MintGroupIndex i,
+            SigmaDenomination d,
+            SigmaMintGroup g,
+            SigmaMintIndex i,
             const SigmaPublicKey& k,
             int b) {
             mintAdded.push_back(MintAdded{
@@ -119,7 +134,7 @@ public:
 
         sigconns.emplace_front(db->MintRemoved.connect([this] (
             PropertyId p,
-            DenominationId d,
+            SigmaDenomination d,
             const SigmaPublicKey& k) {
             mintRemoved.push_back(MintRemoved{
                 .property = p,
@@ -135,20 +150,23 @@ private:
     std::forward_list<boost::signals2::scoped_connection> sigconns;
 };
 
-SigmaPublicKey GetNewPubcoin()
+SigmaPublicKey CreateMint()
 {
-    SigmaPrivateKey priv;
-    priv.Generate();
-    return SigmaPublicKey(priv);
+    SigmaPrivateKey key;
+    key.Generate();
+    return SigmaPublicKey(key, DefaultSigmaParams);
 }
 
-std::vector<SigmaPublicKey> GetPubcoins(size_t n)
+std::vector<SigmaPublicKey> CreateMints(size_t n)
 {
-    std::vector<SigmaPublicKey> pubs;
+    std::vector<SigmaPublicKey> mints;
+    mints.reserve(n);
+
     while (n--) {
-        pubs.push_back(GetNewPubcoin());
+        mints.push_back(CreateMint());
     }
-    return pubs;
+
+    return mints;
 }
 
 std::vector<SigmaPublicKey> GetFirstN(
@@ -165,15 +183,15 @@ BOOST_FIXTURE_TEST_SUITE(exodus_sigmadb_tests, SigmaDbTestingSetup)
 BOOST_AUTO_TEST_CASE(record_one_coin)
 {
     auto db = CreateDb();
-    auto mint = GetNewPubcoin();
+    auto mint = CreateMint();
     PropertyId propId = 1;
-    DenominationId denom = 0;
+    SigmaDenomination denom = 0;
 
     BOOST_CHECK_EQUAL(0, db->GetMintCount(propId, denom, 0));
     BOOST_CHECK_EQUAL(0, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(
-        std::make_pair(MintGroupId(0), MintGroupIndex(0)),
+        std::make_pair(SigmaMintGroup(0), SigmaMintIndex(0)),
         db->RecordMint(propId, denom, mint, 100)
     );
 
@@ -207,111 +225,117 @@ BOOST_AUTO_TEST_CASE(getmint_notfound)
 BOOST_AUTO_TEST_CASE(getmint_test)
 {
     auto db = CreateDb();
-    auto mint = GetNewPubcoin();
+    auto mint = CreateMint();
     uint32_t propId = 1;
     uint32_t denom = 0;
     db->RecordMint(propId, denom, mint, 100);
 
-    BOOST_CHECK(mint == db->GetMint(propId, denom, 0, 0));
+    BOOST_CHECK_EQUAL(mint, db->GetMint(propId, denom, 0, 0));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_no_anycoin)
 {
     auto db = CreateDb();
 
-    BOOST_CHECK(db->GetAnonimityGroupAsVector(0, 0, 0, 100).empty());
+    BOOST_CHECK_EQUAL(db->GetAnonimityGroupAsVector(0, 0, 0, 100).empty(), true);
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_coin_in_other_group)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(10);
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
+
+    for (auto& mint : CreateMints(10)) {
+        db->RecordMint(1, 1, mint, 10);
     }
-    BOOST_CHECK(db->GetAnonimityGroupAsVector(2, 2, 0, 11).empty());
-    BOOST_CHECK(db->GetAnonimityGroupAsVector(2, 2, 0, 1).empty());
+
+    BOOST_CHECK_EQUAL(db->GetAnonimityGroupAsVector(2, 2, 0, 11).empty(), true);
+    BOOST_CHECK_EQUAL(db->GetAnonimityGroupAsVector(2, 2, 0, 1).empty(), true);
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_have_one_group)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(10);
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
+    auto mints = CreateMints(10);
+
+    for (auto& mint : mints) {
+        db->RecordMint(1, 1, mint, 10);
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK_EQUAL(mints, db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK_EQUAL(mints, db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK_EQUAL(GetFirstN(mints, 5), db->GetAnonimityGroupAsVector(1, 1, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymityset_many_properties)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(10);
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
+    auto mints1 = CreateMints(10);
+    auto mints2 = CreateMints(10);
+
+    for (auto& mint : mints1) {
+        db->RecordMint(1, 1, mint, 10);
     }
 
-    auto property2Pubs = GetPubcoins(10);
-    for (auto const &pub : property2Pubs) {
-        db->RecordMint(2, 1, pub, 10);
+    for (auto& mint : mints2) {
+        db->RecordMint(2, 1, mint, 10);
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
-    BOOST_CHECK(property2Pubs == db->GetAnonimityGroupAsVector(2, 1, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
-    BOOST_CHECK(property2Pubs == db->GetAnonimityGroupAsVector(2, 1, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(property2Pubs, 5) == db->GetAnonimityGroupAsVector(2, 1, 0, 5));
+    BOOST_CHECK_EQUAL(mints1, db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(2, 1, 0, 11));
+    BOOST_CHECK_EQUAL(mints1, db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(2, 1, 0, 10));
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 5), db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK_EQUAL(GetFirstN(mints2, 5), db->GetAnonimityGroupAsVector(2, 1, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymity_set_many_denominations)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(10);
-    auto denom2Pubs = GetPubcoins(10);
-
+    auto mints1 = CreateMints(10);
+    auto mints2 = CreateMints(10);
     int blocks = 10;
-    for (size_t i = 0; i < pubs.size(); i++) {
-        db->RecordMint(1, 1, pubs[i], blocks);
-        db->RecordMint(1, 2, denom2Pubs[i], 10);
-        blocks++;
+
+    for (auto& mint : mints1) {
+        db->RecordMint(1, 1, mint, blocks++);
     }
 
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 11));
-    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroupAsVector(1, 2, 0, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
-    BOOST_CHECK(denom2Pubs == db->GetAnonimityGroupAsVector(1, 2, 0, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 5) == db->GetAnonimityGroupAsVector(1, 2, 0, 5));
+    for (auto& mint : mints2) {
+        db->RecordMint(1, 2, mint, 10);
+    }
+
+    BOOST_CHECK_EQUAL(mints1, db->GetAnonimityGroupAsVector(1, 1, 0, 11));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(1, 2, 0, 11));
+    BOOST_CHECK_EQUAL(mints1, db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(1, 2, 0, 10));
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 5), db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK_EQUAL(GetFirstN(mints2, 5), db->GetAnonimityGroupAsVector(1, 2, 0, 5));
 }
 
 BOOST_AUTO_TEST_CASE(get_anonymity_set_many_groups)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(10);
-    int countGroup1 = 0;
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
-        countGroup1++;
+    auto mints1 = CreateMints(10);
+    auto mints2 = CreateMints(10);
+    int count = 0;
+
+    for (auto& mint : mints1) {
+        db->RecordMint(1, 1, mint, 10);
+        count++;
     }
 
-    for (; countGroup1 < TEST_MAX_COINS_PER_GROUP; countGroup1++) {
-        db->RecordMint(1, 1, pubs[0], 10);
+    for (; count < TEST_MAX_COINS_PER_GROUP; count++) {
+        db->RecordMint(1, 1, mints1[0], 10);
     }
 
-    auto group1Pubs = GetPubcoins(10);
-    for (auto const &pub : group1Pubs) {
-        db->RecordMint(1, 1, pub, 10);
+    for (auto& mint : mints2) {
+        db->RecordMint(1, 1, mint, 10);
     }
 
-    BOOST_CHECK(group1Pubs == db->GetAnonimityGroupAsVector(1, 1, 1, 11));
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 10));
-    BOOST_CHECK(group1Pubs == db->GetAnonimityGroupAsVector(1, 1, 1, 10));
-    BOOST_CHECK(GetFirstN(pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 0, 5));
-    BOOST_CHECK(GetFirstN(group1Pubs, 5) == db->GetAnonimityGroupAsVector(1, 1, 1, 5));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(1, 1, 1, 11));
+    BOOST_CHECK_EQUAL(mints1, db->GetAnonimityGroupAsVector(1, 1, 0, 10));
+    BOOST_CHECK_EQUAL(mints2, db->GetAnonimityGroupAsVector(1, 1, 1, 10));
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 5), db->GetAnonimityGroupAsVector(1, 1, 0, 5));
+    BOOST_CHECK_EQUAL(GetFirstN(mints2, 5), db->GetAnonimityGroupAsVector(1, 1, 1, 5));
 }
 
 BOOST_AUTO_TEST_CASE(delete_an_empty_set_of_coins)
@@ -326,19 +350,21 @@ BOOST_AUTO_TEST_CASE(delete_an_empty_set_of_coins)
 BOOST_AUTO_TEST_CASE(delete_block_which_have_no_coins)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(1);
-    db->RecordMint(1, 1, pubs[0], 10); // store at block 10
+    auto mints = CreateMints(1);
+
+    db->RecordMint(1, 1, mints[0], 10); // store at block 10
+
     BOOST_CHECK_NO_THROW(db->DeleteAll(11)); // delete at block 11
-    BOOST_CHECK(pubs == db->GetAnonimityGroupAsVector(1, 1, 0, 1));
+    BOOST_CHECK_EQUAL(mints, db->GetAnonimityGroupAsVector(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
 }
 
 BOOST_AUTO_TEST_CASE(delete_one_coin)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(1);
+    auto mint = CreateMint();
 
-    db->RecordMint(1, 1, pubs[0], 10);
+    db->RecordMint(1, 1, mint, 10);
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(10));
 
@@ -348,150 +374,134 @@ BOOST_AUTO_TEST_CASE(delete_one_coin)
     BOOST_CHECK_EQUAL(1, mintRemoved.size());
     BOOST_CHECK_EQUAL(1, mintRemoved[0].property);
     BOOST_CHECK_EQUAL(1, mintRemoved[0].denomination);
-    BOOST_CHECK_EQUAL(pubs[0], mintRemoved[0].pubKey);
+    BOOST_CHECK_EQUAL(mint, mintRemoved[0].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_one_of_two_coin)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(2);
+    auto mints = CreateMints(2);
 
-    db->RecordMint(1, 1, pubs[0], 10); // store at block 10
-    db->RecordMint(1, 1, pubs[1], 11); // store at block 11
+    db->RecordMint(1, 1, mints[0], 10); // store at block 10
+    db->RecordMint(1, 1, mints[1], 11); // store at block 11
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11)); // delete at block 11
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 2));
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 1));
+    BOOST_CHECK_EQUAL(GetFirstN(mints, 1), db->GetAnonimityGroupAsVector(1, 1, 0, 2));
+    BOOST_CHECK_EQUAL(GetFirstN(mints, 1), db->GetAnonimityGroupAsVector(1, 1, 0, 1));
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(1, mintRemoved.size());
     BOOST_CHECK_EQUAL(1, mintRemoved[0].property);
     BOOST_CHECK_EQUAL(1, mintRemoved[0].denomination);
-    BOOST_CHECK_EQUAL(pubs[1], mintRemoved[0].pubKey);
+    BOOST_CHECK_EQUAL(mints[1], mintRemoved[0].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_denominations)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(2);
-    auto denom2Pubs = GetPubcoins(2);
+    auto mints1 = CreateMints(2);
+    auto mints2 = CreateMints(2);
 
-    db->RecordMint(1, 0, pubs[0], 10);
-    db->RecordMint(1, 1, denom2Pubs[0], 10);
-    db->RecordMint(1, 0, pubs[1], 11);
-    db->RecordMint(1, 1, denom2Pubs[1], 12);
+    db->RecordMint(1, 0, mints1[0], 10);
+    db->RecordMint(1, 1, mints2[0], 10);
+    db->RecordMint(1, 0, mints1[1], 11);
+    db->RecordMint(1, 1, mints2[1], 12);
 
     BOOST_CHECK_EQUAL(4, db->GetNextSequence());
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(denom2Pubs, 1) == db->GetAnonimityGroupAsVector(1, 1, 0, 2));
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 1), db->GetAnonimityGroupAsVector(1, 0, 0, 2));
+    BOOST_CHECK_EQUAL(GetFirstN(mints2, 1), db->GetAnonimityGroupAsVector(1, 1, 0, 2));
     BOOST_CHECK_EQUAL(2, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(2, mintRemoved.size());
     BOOST_CHECK_EQUAL(1, mintRemoved[0].property);
     BOOST_CHECK_EQUAL(1, mintRemoved[0].denomination);
-    BOOST_CHECK_EQUAL(denom2Pubs[1], mintRemoved[0].pubKey);
+    BOOST_CHECK_EQUAL(mints2[1], mintRemoved[0].pubKey);
 
     BOOST_CHECK_EQUAL(1, mintRemoved[1].property);
     BOOST_CHECK_EQUAL(0, mintRemoved[1].denomination);
-    BOOST_CHECK_EQUAL(pubs[1], mintRemoved[1].pubKey);
+    BOOST_CHECK_EQUAL(mints1[1], mintRemoved[1].pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(delete_two_coins_from_two_properties)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(2);
-    auto property2Pubs = GetPubcoins(2);
+    auto mints1 = CreateMints(2);
+    auto mints2 = CreateMints(2);
 
-    db->RecordMint(1, 0, pubs[0], 10);
-    db->RecordMint(2, 0, property2Pubs[0], 10);
-    db->RecordMint(1, 0, pubs[1], 11);
-    db->RecordMint(2, 0, property2Pubs[1], 12);
+    db->RecordMint(1, 0, mints1[0], 10);
+    db->RecordMint(2, 0, mints2[0], 10);
+    db->RecordMint(1, 0, mints1[1], 11);
+    db->RecordMint(2, 0, mints2[1], 12);
 
     BOOST_CHECK_EQUAL(4, db->GetNextSequence());
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
-    BOOST_CHECK(GetFirstN(property2Pubs, 1) == db->GetAnonimityGroupAsVector(2, 0, 0, 2));
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 1), db->GetAnonimityGroupAsVector(1, 0, 0, 2));
+    BOOST_CHECK_EQUAL(GetFirstN(mints2, 1), db->GetAnonimityGroupAsVector(2, 0, 0, 2));
     BOOST_CHECK_EQUAL(2, db->GetNextSequence());
 }
 
 BOOST_AUTO_TEST_CASE(delete_three_coins_from_two_groups)
 {
     auto db = CreateDb();
-    auto pubs = GetPubcoins(2);
-    auto group1Pubs = GetPubcoins(2);
-    db->RecordMint(1, 0, pubs[0], 10);
-    db->RecordMint(1, 0, pubs[1], 11);
+    auto mints1 = CreateMints(2);
+    auto mints2 = CreateMints(2);
+    unsigned count = 0;
 
-    size_t coinCount = 2;
-    for (;coinCount < TEST_MAX_COINS_PER_GROUP; coinCount++) {
-        db->RecordMint(1, 0, pubs[0], 11);
+    db->RecordMint(1, 0, mints1[0], 10);
+    db->RecordMint(1, 0, mints1[1], 11);
+    count += 2;
+
+    for (;count < TEST_MAX_COINS_PER_GROUP; count++) {
+        db->RecordMint(1, 0, mints1[0], 11);
     }
 
-    BOOST_CHECK(std::make_pair(uint32_t(1), uint16_t(0)) ==
-        db->RecordMint(1, 0, group1Pubs[0], 12));
-    BOOST_CHECK(std::make_pair(uint32_t(1), uint16_t(1)) ==
-        db->RecordMint(1, 0, group1Pubs[1], 13));
-
+    BOOST_CHECK_EQUAL(std::make_pair(uint32_t(1), uint16_t(0)), db->RecordMint(1, 0, mints2[0], 12)); count++;
+    BOOST_CHECK_EQUAL(std::make_pair(uint32_t(1), uint16_t(1)), db->RecordMint(1, 0, mints2[1], 13)); count++;
     BOOST_CHECK_EQUAL(1, db->GetLastGroupId(1, 0));
-
-    BOOST_CHECK_EQUAL(coinCount + 2, db->GetNextSequence());
+    BOOST_CHECK_EQUAL(count, db->GetNextSequence());
 
     BOOST_CHECK_NO_THROW(db->DeleteAll(11));
 
-    BOOST_CHECK(GetFirstN(pubs, 1) == db->GetAnonimityGroupAsVector(1, 0, 0, 2));
-
-    BOOST_CHECK(db->GetAnonimityGroupAsVector(1, 0, 1, 1).empty());
-
+    BOOST_CHECK_EQUAL(GetFirstN(mints1, 1), db->GetAnonimityGroupAsVector(1, 0, 0, 2));
+    BOOST_CHECK_EQUAL(db->GetAnonimityGroupAsVector(1, 0, 1, 1).empty(), true);
     BOOST_CHECK_EQUAL(1, db->GetNextSequence());
-
-    // assert last group id of propertyId = 1 and denomination = 0 is decreased to 0
-    BOOST_CHECK_EQUAL(0, db->GetLastGroupId(1, 0));
+    BOOST_CHECK_EQUAL(0, db->GetLastGroupId(1, 0)); // assert last group id of propertyId = 1 and denomination = 0 is decreased to 0
 }
 
 BOOST_AUTO_TEST_CASE(get_anonimity_group_by_back_insert_iterator)
 {
     auto db = CreateDb();
-    size_t cointAmount = 10;
-    auto pubs = GetPubcoins(cointAmount);
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
+    auto mints = CreateMints(10);
+
+    for (auto& mint : mints) {
+        db->RecordMint(1, 1, mint, 10);
     }
 
     std::vector<SigmaPublicKey> anonimityGroup;
-    db->GetAnonimityGroup(1, 1, 0, cointAmount, std::back_inserter(anonimityGroup));
+    db->GetAnonimityGroup(1, 1, 0, 10, std::back_inserter(anonimityGroup));
 
-    BOOST_CHECK(pubs == anonimityGroup);
+    BOOST_CHECK_EQUAL(mints, anonimityGroup);
 }
 
 BOOST_AUTO_TEST_CASE(get_anonimity_group_by_iterator)
 {
     auto db = CreateDb();
-    constexpr size_t coinAmount = 10;
-    auto pubs = GetPubcoins(coinAmount);
-    for (auto const &pub : pubs) {
-        db->RecordMint(1, 1, pub, 10);
+    auto mints = CreateMints(10);
+    std::vector<SigmaPublicKey> result(10);
+
+    for (auto& mint : mints) {
+        db->RecordMint(1, 1, mint, 10);
     }
 
-    std::vector<SigmaPublicKey> anonimityGroup;
-    anonimityGroup.resize(coinAmount);
-    db->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroup.begin());
+    db->GetAnonimityGroup(1, 1, 0, 10, result.begin());
 
-    BOOST_CHECK(pubs == anonimityGroup);
-
-    std::array<SigmaPublicKey, coinAmount> anonimityGroupArr;
-    db->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroupArr.begin());
-    BOOST_CHECK(pubs == std::vector<SigmaPublicKey>(anonimityGroupArr.begin(), anonimityGroupArr.end()));
-
-    std::list<SigmaPublicKey> anonimityGroupList;
-    anonimityGroupList.resize(coinAmount);
-    db->GetAnonimityGroup(1, 1, 0, coinAmount, anonimityGroupList.begin());
-    BOOST_CHECK(pubs == std::vector<SigmaPublicKey>(anonimityGroupList.begin(), anonimityGroupList.end()));
+    BOOST_CHECK_EQUAL(mints, result);
 }
 
 BOOST_AUTO_TEST_CASE(group_size_default)
@@ -536,108 +546,126 @@ BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
 BOOST_AUTO_TEST_CASE(check_not_exist_serial)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv;
+    SigmaPrivateKey priv;
+
     priv.Generate();
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, priv.serial), false);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv;
-    priv.Generate();
-    exodus::SigmaProof proof;
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
+    SigmaPrivateKey key;
+
+    key.Generate();
+
+    db->RecordSpendSerial(1, 1, key.serial, 10);
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key.serial), true);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fail)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv;
-    priv.Generate();
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 2, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(2, 1, priv.GetSerial()));
+    SigmaPrivateKey key;
+
+    key.Generate();
+
+    db->RecordSpendSerial(1, 1, key.serial, 10);
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 2, key.serial), false);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(2, 1, key.serial), false);
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_serial)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv;
-    priv.Generate();
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
+    SigmaPrivateKey key;
+
+    key.Generate();
+
+    db->RecordSpendSerial(1, 1, key.serial, 10);
     db->DeleteAll(10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key.serial), false);
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_two_serials)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv, priv2;
-    priv.Generate();
-    priv2.Generate();
+    SigmaPrivateKey key1, key2;
 
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 10);
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    key1.Generate();
+    key2.Generate();
+
+    db->RecordSpendSerial(1, 1, key1.serial, 10);
+    db->RecordSpendSerial(1, 1, key2.serial, 10);
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), true);
 
     db->DeleteAll(10);
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), false);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
 }
 
 BOOST_AUTO_TEST_CASE(try_to_delete_the_block_after)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv, priv2;
-    priv.Generate();
-    priv2.Generate();
+    SigmaPrivateKey key1, key2;
 
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11);
+    key1.Generate();
+    key2.Generate();
+
+    db->RecordSpendSerial(1, 1, key1.serial, 10);
+    db->RecordSpendSerial(1, 1, key2.serial, 11);
 
     db->DeleteAll(11);
 
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
 }
 
 BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
 {
     auto db = CreateDb();
-    exodus::SigmaPrivateKey priv, priv2;
-    priv.Generate();
-    priv2.Generate();
+    SigmaPrivateKey key1, key2;
+
+    key1.Generate();
+    key2.Generate();
 
     // block 10
     // 10 mints, 1 serial
-    auto pubs = GetPubcoins(10);
-    for (auto const & p : pubs) {
-        db->RecordMint(1, 1, p, 10);
+    for (auto& mint : CreateMints(10)) {
+        db->RecordMint(1, 1, mint, 10);
     }
-    db->RecordSpendSerial(1, 1, priv.GetSerial(), 10);
+
+    db->RecordSpendSerial(1, 1, key1.serial, 10);
+
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
     // block 11
     // 10 mints, 1 serial
-    auto pubs2 = GetPubcoins(10);
-    for (auto const & p : pubs2) {
-        db->RecordMint(1, 1, p, 11);
+    for (auto& mint : CreateMints(10)) {
+        db->RecordMint(1, 1, mint, 11);
     }
-    db->RecordSpendSerial(1, 1, priv2.GetSerial(), 11);
+
+    db->RecordSpendSerial(1, 1, key2.serial, 11);
+
     BOOST_CHECK_EQUAL(22, db->GetNextSequence());
     BOOST_CHECK_EQUAL(20, db->GetMintCount(1, 1, 0));
 
     // delete all in block 11
     db->DeleteAll(11);
+
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
-    BOOST_CHECK(db->HasSpendSerial(1, 1, priv.GetSerial()));
-    BOOST_CHECK(!db->HasSpendSerial(1, 1, priv2.GetSerial()));
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

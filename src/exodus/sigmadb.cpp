@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+namespace exodus {
+
 enum class KeyType : uint8_t
 {
     Mint = 0,
@@ -164,19 +166,16 @@ leveldb::Slice GetSlice(const std::vector<T, Allocator>& v)
     return leveldb::Slice(reinterpret_cast<const char *>(v.data()), v.size() * sizeof(T));
 }
 
-exodus::SigmaPublicKey ParseMint(const std::string& val)
+SigmaPublicKey ParseMint(const std::string& val)
 {
     if (val.size() != secp_primitives::GroupElement::serialize_size) {
         throw std::runtime_error("ParseMint() : invalid key size");
     }
 
-    secp_primitives::GroupElement commitment;
-    commitment.deserialize(reinterpret_cast<const unsigned char*>(val.data()));
+    SigmaPublicKey key;
+    key.commitment.deserialize(reinterpret_cast<const unsigned char*>(val.data()));
 
-    exodus::SigmaPublicKey pubKey;
-    pubKey.SetCommitment(commitment);
-
-    return pubKey;
+    return key;
 }
 
 bool ParseMintKey(
@@ -223,8 +222,6 @@ void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
     }
 }
 
-namespace exodus {
-
 SigmaDatabase *sigmaDb;
 
 constexpr uint16_t SigmaDatabase::MAX_GROUP_SIZE;
@@ -248,9 +245,9 @@ SigmaDatabase::~SigmaDatabase()
 {
 }
 
-std::pair<MintGroupId, MintGroupIndex> SigmaDatabase::RecordMint(
+std::pair<SigmaMintGroup, SigmaMintIndex> SigmaDatabase::RecordMint(
     PropertyId propertyId,
-    DenominationId denomination,
+    SigmaDenomination denomination,
     const SigmaPublicKey& pubKey,
     int height)
 {
@@ -271,10 +268,8 @@ std::pair<MintGroupId, MintGroupIndex> SigmaDatabase::RecordMint(
     auto keyData = CreateMintKey(propertyId, denomination, lastGroup, nextIdx);
     auto key = GetSlice(keyData);
 
-    auto& commitment = pubKey.GetCommitment();
-
-    std::vector<uint8_t> buffer(commitment.memoryRequired()); // mint
-    commitment.serialize(buffer.data());
+    std::vector<uint8_t> buffer(pubKey.commitment.memoryRequired());
+    pubKey.commitment.serialize(buffer.data());
 
     AddEntry(key, GetSlice(buffer), height);
 
@@ -508,7 +503,7 @@ size_t SigmaDatabase::GetAnonimityGroup(
 
         auto pub = ParseMint(it->value().ToString());
 
-        if (!pub.GetCommitment().isMember()) {
+        if (!pub.commitment.isMember()) {
             throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
         }
         insertF(pub);

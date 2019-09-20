@@ -867,8 +867,10 @@ bool CMPTransaction::interpret_SimpleSpend()
         SER_NETWORK, PROTOCOL_VERSION
     );
 
+    spend.reset(new SigmaProof(DefaultSigmaParams));
+
     try {
-        serialized >> spend;
+        serialized >> *spend;
     } catch (std::ios_base::failure&) {
         PrintToLog("\tsize of data is less than spend size");
         return false;

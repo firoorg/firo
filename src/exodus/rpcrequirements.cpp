@@ -186,7 +186,7 @@ void RequireSigma(PropertyId property)
     }
 }
 
-void RequireExistingDenomination(PropertyId property, DenominationId denomination)
+void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination)
 {
     if (!IsDenominationValid(property, denomination)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination is not valid");

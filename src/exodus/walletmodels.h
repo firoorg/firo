@@ -2,8 +2,7 @@
 #define ZCOIN_EXODUS_WALLETMODELS_H
 
 #include "property.h"
-#include "sigma.h"
-#include "sigmadb.h"
+#include "sigmaprimitives.h"
 
 #include "../serialize.h"
 #include "../uint256.h"
@@ -15,22 +14,16 @@
 
 namespace exodus {
 
-// Declarations.
-
-class SigmaMint;
-
-// Definitions.
-
 class SigmaMintChainState
 {
 public:
     int block;
-    MintGroupId group;
-    MintGroupIndex index;
+    SigmaMintGroup group;
+    SigmaMintIndex index;
 
 public:
     SigmaMintChainState() noexcept;
-    SigmaMintChainState(int block, MintGroupId group, MintGroupIndex index) noexcept;
+    SigmaMintChainState(int block, SigmaMintGroup group, SigmaMintIndex index) noexcept;
 
     bool operator==(const SigmaMintChainState& other) const noexcept;
     bool operator!=(const SigmaMintChainState& other) const noexcept;
@@ -53,45 +46,18 @@ private:
     }
 };
 
-class SigmaMintId
-{
-public:
-    PropertyId property;
-    DenominationId denomination;
-    SigmaPublicKey key;
-
-public:
-    SigmaMintId();
-    explicit SigmaMintId(const SigmaMint& mint);
-    SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key);
-
-    bool operator==(const SigmaMintId& other) const;
-    bool operator!=(const SigmaMintId& other) const;
-
-    ADD_SERIALIZE_METHODS;
-
-private:
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(property);
-        READWRITE(denomination);
-        READWRITE(key);
-    }
-};
-
 class SigmaMint
 {
 public:
     PropertyId property;
-    DenominationId denomination;
+    SigmaDenomination denomination;
     SigmaMintChainState chainState;
     SigmaPrivateKey key;
     uint256 spentTx;
 
 public:
     SigmaMint();
-    SigmaMint(PropertyId property, DenominationId denomination);
+    SigmaMint(PropertyId property, SigmaDenomination denomination);
 
     bool operator==(const SigmaMint& other) const;
     bool operator!=(const SigmaMint& other) const;
@@ -110,6 +76,45 @@ private:
     }
 };
 
+class SigmaMintId
+{
+public:
+    PropertyId property;
+    SigmaDenomination denomination;
+    SigmaPublicKey key;
+
+public:
+    SigmaMintId();
+    SigmaMintId(const SigmaMint& mint, const SigmaParams& params);
+    SigmaMintId(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& key);
+
+    bool operator==(const SigmaMintId& other) const;
+    bool operator!=(const SigmaMintId& other) const;
+
+    ADD_SERIALIZE_METHODS;
+
+private:
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(property);
+        READWRITE(denomination);
+        READWRITE(key);
+    }
+};
+
+class SigmaSpend
+{
+public:
+    SigmaMintId mint;
+    SigmaMintGroup group;
+    size_t groupSize;
+    SigmaProof proof;
+
+public:
+    SigmaSpend(const SigmaMintId& mint, SigmaMintGroup group, size_t groupSize, const SigmaProof& proof);
+};
+
 } // namespace exodus
 
 namespace std {
@@ -126,8 +131,8 @@ struct hash<SigmaMintChainState>
         size_t h = 0;
 
         h ^= hash<int>()(state.block);
-        h ^= hash<MintGroupId>()(state.group);
-        h ^= hash<MintGroupIndex>()(state.index);
+        h ^= hash<SigmaMintGroup>()(state.group);
+        h ^= hash<SigmaMintIndex>()(state.index);
 
         return h;
     }
@@ -141,7 +146,7 @@ struct hash<SigmaMintId>
         size_t h = 0;
 
         h ^= hash<PropertyId>()(id.property);
-        h ^= hash<DenominationId>()(id.denomination);
+        h ^= hash<SigmaDenomination>()(id.denomination);
         h ^= hash<SigmaPublicKey>()(id.key);
 
         return h;
@@ -156,7 +161,7 @@ struct hash<SigmaMint>
         size_t h = 0;
 
         h ^= hash<PropertyId>()(mint.property);
-        h ^= hash<DenominationId>()(mint.denomination);
+        h ^= hash<SigmaDenomination>()(mint.denomination);
         h ^= hash<SigmaMintChainState>()(mint.chainState);
         h ^= hash<SigmaPrivateKey>()(mint.key);
         h ^= hash<uint256>()(mint.spentTx);

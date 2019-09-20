@@ -1,7 +1,8 @@
 #ifndef ZCOIN_EXODUS_RPCREQUIREMENTS_H
 #define ZCOIN_EXODUS_RPCREQUIREMENTS_H
 
-#include "sp.h"
+#include "property.h"
+#include "sigmaprimitives.h"
 
 #include <stdint.h>
 #include <string>
@@ -27,7 +28,7 @@ void RequireSigmaStatus(SigmaStatus status);
 namespace exodus {
 
 void RequireSigma(PropertyId property);
-void RequireExistingDenomination(PropertyId property, DenominationId denomination);
+void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);
 
 }
 
