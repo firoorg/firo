@@ -3,6 +3,7 @@
 #include "bip47_common.h"
 #include "key.h"
 #include "pubkey.h"
+#include "sigma/openssl_context.h"
 class SecretPoint {
     private:
         CKey  privKey ;
@@ -66,8 +67,8 @@ class SecretPoint {
     }
 
     void loadPublicKey(std::vector<unsigned char> data){
-        // secp256k1_context *context = OpenSSLContext::get_context();
-        // secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
+        secp256k1_context *context = OpenSSLContext::get_context();
+        secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
     }
 
     CKey loadPrivateKey(std::vector<unsigned char> data) {

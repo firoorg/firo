@@ -249,6 +249,7 @@ BITCOIN_CORE_H = \
   bip47/PaymentAddress.h \
   bip47/PaymentCode.h \
   bip47/Bip47ChannelAddress.h \
+  bip47/SecretPoint.h \
   zerocoin.h \
   sigma.h \
   coin_containers.h \
@@ -360,6 +361,7 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/PaymentAddress.cpp \
   bip47/PaymentCode.cpp \
   bip47/Bip47ChannelAddress.cpp \
+  bip47/SecretPoint.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
