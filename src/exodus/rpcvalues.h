@@ -6,7 +6,7 @@ class CTransaction;
 struct CMutableTransaction;
 struct PrevTxsEntry;
 
-#include "sigma.h"
+#include "sigmaprimitives.h"
 
 #include <univalue.h>
 

@@ -1,4 +1,4 @@
-#include "../sigma.h"
+#include "../sigmaprimitives.h"
 
 #include "../../test/test_bitcoin.h"
 
@@ -9,7 +9,7 @@
 
 namespace exodus {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigma_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_sigmaprimitives_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(params)
 {

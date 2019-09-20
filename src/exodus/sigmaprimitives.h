@@ -1,5 +1,5 @@
-#ifndef ZCOIN_EXODUS_SIGMA_H
-#define ZCOIN_EXODUS_SIGMA_H
+#ifndef ZCOIN_EXODUS_SIGMAPRIMITIVES_H
+#define ZCOIN_EXODUS_SIGMAPRIMITIVES_H
 
 #include "../clientversion.h"
 #include "../streams.h"
@@ -256,4 +256,4 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
 
 } // namespace std
 
-#endif // ZCOIN_EXODUS_SIGMA_H
+#endif // ZCOIN_EXODUS_SIGMAPRIMITIVES_H

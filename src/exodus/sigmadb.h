@@ -4,7 +4,7 @@
 #include "convert.h"
 #include "persistence.h"
 #include "property.h"
-#include "sigma.h"
+#include "sigmaprimitives.h"
 
 #include <univalue.h>
 

@@ -1,13 +1,11 @@
-#include "exodus.h"
-#include "sigma.h"
+#include "sigmaprimitives.h"
 
 #include "../sigma/sigma_primitives.h"
-#include "../main.h"
+
+#include <GroupElement.h>
 
 #include <array>
 #include <stdexcept>
-
-#include <assert.h>
 
 namespace exodus {
 
