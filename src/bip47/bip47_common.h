@@ -14,7 +14,6 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
-// #include "sigma/openssl_context.h"
 #include <secp256k1_ecdh.h>
 
     typedef std::string  String;
