@@ -37,7 +37,7 @@ bool CHDChain::SetMnemonic(const SecureString& mnemonic_, const SecureString& pa
     SecureString mnemonicNew = mnemonic_;
     if(setMasterKeyID) {
         if(mnemonicNew.empty())
-            mnemonicNew = Mnemonic::mnemonic_generate(256);
+            mnemonicNew = Mnemonic::mnemonic_generate(f12Words ? 128 : 256);
         if(!Mnemonic::mnemonic_check(mnemonicNew))
             throw std::runtime_error(std::string(__func__) + ": mnemonic is invalid");
         Mnemonic::mnemonic_to_seed(mnemonicNew, passPhrase_, seed);
@@ -73,4 +73,9 @@ SecureVector CHDChain::GetSeed() const
 uint256 CHDChain::GetSeedHash() const
 {
     return Hash(seed.begin(), seed.end());
+}
+
+void CHDChain::Set12Words(bool Use12Words)
+{
+    f12Words = Use12Words;
 }

@@ -703,7 +703,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         }
 
         // if we are using HD, replace the HD master key (seed) with a new one
-        if(!hdChain.IsNull()) {
+        if(!hdChain.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
             assert(EncryptHDChain(vMasterKey));
             SetMinVersion(FEATURE_HD);
             assert(SetHDChain(hdChain, false));
@@ -1405,6 +1405,9 @@ void CWallet::GenerateNewHDChain(){
 
         std::string mnemonic = GetArg("-mnemonic", "");
         std::string mnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
+        //Use 24 words by default;
+        bool use12Words = GetBoolArg("-use12", false);
+        newHdChain.Set12Words(use12Words);
 
         SecureString secureMnemonic(mnemonic.begin(), mnemonic.end());
         SecureString securePassphrase(mnemonicPassphrase.begin(), mnemonicPassphrase.end());

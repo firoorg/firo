@@ -704,7 +704,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     // add the base58check encoded extended master if the wallet uses HD
     CHDChain chain = pwalletMain->GetHDChain();
     CKeyID masterKeyID = chain.masterKeyID;
-    if(!chain.IsNull())
+    if(!chain.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
     {
         if(chain.IsCrypted())
         {
