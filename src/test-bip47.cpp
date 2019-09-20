@@ -236,8 +236,8 @@ void RunTest_ChainCode(){
 
 
     masterKey.Derive(purposeKey, 0x2F | BIP32_HARDENED_KEY_LIMIT);
-    purposeKey.Derive(coinTypeKey, 0);
-    coinTypeKey.Derive(identityKey, 0);
+    purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
+    coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
 
     //    CExtKey key;
     unsigned char data[80];
@@ -267,7 +267,7 @@ void RunTest_ChainCode(){
 
     CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
 
-    printf("Pubkey value is %s\n",b58pubkey.ToString().c_str());
+    printf("Pubkey value is %s\n", b58pubkey.ToString().c_str());
 
     std::string strPcode = "PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA";
     PaymentCode paymentCode(strPcode);

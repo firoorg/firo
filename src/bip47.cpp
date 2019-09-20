@@ -115,8 +115,6 @@ namespace bip47 {
         vector<byte> payment_code_checksum(std::begin(payment_code), std::end(payment_code));
         ret = EncodeBase58Check(payment_code_checksum);
 
-        printf("encode ret = %s\n", ret.c_str());
-
         return ret;
     };
 
@@ -161,8 +159,6 @@ namespace bip47 {
 
         byte pcodes[PAYLOAD_LEN] = {};
         std::copy(payment_code.begin(), payment_code.end(), pcodes);
-
-        printf("\nfirst_byte %s\n", (*(pcodes + 3) == 2 || *(pcodes + 3) == 3) ? "True" : "False" );
         return true;
     }
 
@@ -174,10 +170,6 @@ namespace bip47 {
         vector<byte> payment_code;
         DecodeBase58Check(strPaymentCode, payment_code);
         std::copy(payment_code.begin()+1, payment_code.end(), payload);
-        printf("\n%d payment code byte size\n", payment_code.size());
-        for (int i = 0; i < PAYLOAD_LEN; i++) {
-            printf("%.2x", payload[i]);
-        }
         return true;
     }
 
