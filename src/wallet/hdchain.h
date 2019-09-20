@@ -13,6 +13,7 @@ public:
     SecureVector mnemonic;
     SecureVector passPhrase;
     bool fIsCrypted;
+    bool f12Words;
     CKeyID masterKeyID; //!< master key hash160
 
     static const int VERSION_BASIC = 1;
@@ -40,6 +41,7 @@ public:
             READWRITE(passPhrase);
             READWRITE(seed);
             READWRITE(fIsCrypted);
+            READWRITE(f12Words);
         }
     }
 
@@ -60,6 +62,8 @@ public:
     SecureVector GetSeed() const;
 
     uint256 GetSeedHash() const;
+
+    void Set12Words(bool Use12Words = false);
 };
 
 #endif //ZCOIN_HDCHAIN_H
