@@ -195,7 +195,9 @@ public:
     }
 };
 
-typedef std::uint8_t DenominationId;
+typedef uint8_t SigmaDenomination;
+typedef uint32_t SigmaMintGroup;
+typedef uint16_t SigmaMintIndex;
 
 extern const SigmaParams DefaultSigmaParams;
 

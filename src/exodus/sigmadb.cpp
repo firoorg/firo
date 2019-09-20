@@ -245,9 +245,9 @@ SigmaDatabase::~SigmaDatabase()
 {
 }
 
-std::pair<MintGroupId, MintGroupIndex> SigmaDatabase::RecordMint(
+std::pair<SigmaMintGroup, SigmaMintIndex> SigmaDatabase::RecordMint(
     PropertyId propertyId,
-    DenominationId denomination,
+    SigmaDenomination denomination,
     const SigmaPublicKey& pubKey,
     int height)
 {
@@ -621,24 +621,6 @@ bool SigmaDatabase::HasSpendSerial(
     }
 
     throw std::runtime_error("Error on serial checking");
-}
-
-bool SigmaDatabase::VerifySpend(
-    PropertyId property,
-    DenominationId denomination,
-    MintGroupId group,
-    size_t groupSize,
-    const SigmaProof& proof)
-{
-    std::vector<SigmaPublicKey> anonimitySet; // Don't preallocate the vector due to it will allow attacker to crash all client.
-
-    GetAnonimityGroup(property, denomination, group, groupSize, std::back_inserter(anonimitySet));
-
-    if (anonimitySet.size() != groupSize) {
-        return false;
-    }
-
-    return proof.Verify(anonimitySet.begin(), anonimitySet.end());
 }
 
 void SigmaDatabase::AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block)

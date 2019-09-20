@@ -8,7 +8,7 @@ SigmaMintChainState::SigmaMintChainState() noexcept : block(-1), group(0), index
 {
 }
 
-SigmaMintChainState::SigmaMintChainState(int block, MintGroupId group, MintGroupIndex index) noexcept :
+SigmaMintChainState::SigmaMintChainState(int block, SigmaMintGroup group, SigmaMintIndex index) noexcept :
     block(block),
     group(group),
     index(index)
@@ -38,7 +38,7 @@ SigmaMint::SigmaMint() : property(0), denomination(0)
 {
 }
 
-SigmaMint::SigmaMint(PropertyId property, DenominationId denomination) :
+SigmaMint::SigmaMint(PropertyId property, SigmaDenomination denomination) :
     property(property),
     denomination(denomination)
 {
@@ -70,7 +70,7 @@ SigmaMintId::SigmaMintId(const SigmaMint& mint, const SigmaParams& params) :
 {
 }
 
-SigmaMintId::SigmaMintId(PropertyId property, DenominationId denomination, const SigmaPublicKey& key) :
+SigmaMintId::SigmaMintId(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& key) :
     property(property),
     denomination(denomination),
     key(key)
@@ -89,7 +89,7 @@ bool SigmaMintId::operator!=(const SigmaMintId& other) const
 
 // SigmaSpend Implementation.
 
-SigmaSpend::SigmaSpend(const SigmaMintId& mint, MintGroupId group, size_t groupSize, const SigmaProof& proof) :
+SigmaSpend::SigmaSpend(const SigmaMintId& mint, SigmaMintGroup group, size_t groupSize, const SigmaProof& proof) :
     mint(mint),
     group(group),
     groupSize(groupSize),

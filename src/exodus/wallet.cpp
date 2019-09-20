@@ -1,5 +1,7 @@
 #include "wallet.h"
 
+#include "sigma.h"
+
 #include "../main.h"
 #include "../sync.h"
 #include "../util.h"
@@ -41,7 +43,7 @@ Wallet::~Wallet()
 {
 }
 
-SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomination)
+SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     SigmaMint mint(property, denomination);
     SigmaMintId id(mint, DefaultSigmaParams);
@@ -51,7 +53,7 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, DenominationId denomina
     return id;
 }
 
-SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, DenominationId denomination)
+SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination)
 {
     LOCK(cs_main);
 
@@ -77,7 +79,7 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, DenominationId denomina
     // Create spend.
     SigmaProof proof(DefaultSigmaParams, mint->key, anonimitySet.begin(), anonimitySet.end());
 
-    if (!sigmaDb->VerifySpend(mint->property, mint->denomination, mint->chainState.group, anonimitySet.size(), proof)) {
+    if (!VerifySigmaSpend(mint->property, mint->denomination, mint->chainState.group, anonimitySet.size(), proof)) {
         throw WalletError(_("Failed to create spendable spend"));
     }
 
@@ -122,7 +124,7 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
     }
 }
 
-boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     std::vector<SigmaMint> spendable;
 
@@ -154,9 +156,9 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, De
 
 void Wallet::OnMintAdded(
     PropertyId property,
-    DenominationId denomination,
-    MintGroupId group,
-    MintGroupIndex idx,
+    SigmaDenomination denomination,
+    SigmaMintGroup group,
+    SigmaMintIndex idx,
     const SigmaPublicKey& pubKey,
     int block)
 {
@@ -169,7 +171,7 @@ void Wallet::OnMintAdded(
     SetSigmaMintChainState(id, SigmaMintChainState(block, group, idx));
 }
 
-void Wallet::OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey)
+void Wallet::OnMintRemoved(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey)
 {
     SigmaMintId id(property, denomination, pubKey);
 

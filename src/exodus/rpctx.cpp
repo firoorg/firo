@@ -1580,7 +1580,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     auto keys = denominations.getKeys();
 
     // collect all mints need to be created
-    std::vector<DenominationId> denoms;
+    std::vector<SigmaDenomination> denoms;
     for (const auto& denom : keys) {
         auto denomId = std::stoul(denom);
         if (denomId > UINT8_MAX) {
@@ -1592,7 +1592,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
         }
 
-        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<DenominationId>(denomId));
+        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<SigmaDenomination>(denomId));
 
         int remainingConfirms;
         try {
@@ -1619,7 +1619,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     RequireBalance(fromAddress, propertyId, amount);
 
-    std::vector<std::pair<DenominationId, SigmaPublicKey>> mints;
+    std::vector<std::pair<SigmaDenomination, SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
 
     wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
@@ -1668,7 +1668,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     // obtain parameters & info
     auto toAddress = ParseAddress(params[0]);
     auto propertyId = ParsePropertyId(params[1]);
-    auto denomination = ParseDenomination(params[2]);
+    auto denomination = ParseSigmaDenomination(params[2]);
     auto referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
 
     // perform checks

@@ -1,5 +1,7 @@
 #include "txprocessor.h"
+
 #include "rules.h"
+#include "sigma.h"
 
 #include "../base58.h"
 
@@ -65,7 +67,7 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 901;
     }
 
-    std::vector<DenominationId> denominations;
+    std::vector<SigmaDenomination> denominations;
     denominations.reserve(tx.getMints().size());
 
     for (auto &mint : tx.getMints()) {
@@ -110,8 +112,8 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
     assert(update_tally_map(sender, property, -amount, BALANCE));
 
     for (auto &mint : tx.getMints()) {
-        MintGroupId group;
-        MintGroupIndex index;
+        SigmaMintGroup group;
+        SigmaMintIndex index;
 
         auto denom = mint.first;
         auto& pubkey = mint.second;
@@ -160,7 +162,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
 
     // check serial in database
     if (sigmaDb->HasSpendSerial(property, denomination, spend->serial) ||
-        !sigmaDb->VerifySpend(property, denomination, group, groupSize, *spend)) {
+        !VerifySigmaSpend(property, denomination, group, groupSize, *spend)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
     }

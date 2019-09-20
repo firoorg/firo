@@ -1,5 +1,3 @@
-// Smart Properties & Crowd Sales
-
 #include "sp.h"
 
 #include "log.h"
@@ -663,7 +661,7 @@ bool exodus::IsSigmaEnabled(PropertyId property)
     return IsEnabledFlag(info.sigmaStatus);
 }
 
-bool exodus::IsDenominationValid(PropertyId property, DenominationId denomination)
+bool exodus::IsDenominationValid(PropertyId property, SigmaDenomination denomination)
 {
     CMPSPInfo::Entry info;
 
@@ -676,7 +674,7 @@ bool exodus::IsDenominationValid(PropertyId property, DenominationId denominatio
     return denomination < info.denominations.size();
 }
 
-int64_t exodus::GetDenominationValue(PropertyId property, DenominationId denomination)
+int64_t exodus::GetDenominationValue(PropertyId property, SigmaDenomination denomination)
 {
     CMPSPInfo::Entry info;
 

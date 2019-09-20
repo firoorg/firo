@@ -47,9 +47,9 @@ namespace {
 struct MintAdded
 {
     PropertyId property;
-    DenominationId denomination;
-    MintGroupId group;
-    MintGroupIndex index;
+    SigmaDenomination denomination;
+    SigmaMintGroup group;
+    SigmaMintIndex index;
     SigmaPublicKey pubKey;
     int block;
 };
@@ -57,7 +57,7 @@ struct MintAdded
 struct MintRemoved
 {
     PropertyId property;
-    DenominationId denomination;
+    SigmaDenomination denomination;
     SigmaPublicKey pubKey;
 };
 
@@ -80,8 +80,8 @@ struct TestSigmaDb : SigmaDatabase
 
     std::vector<SigmaPublicKey> GetAnonimityGroupAsVector(
         PropertyId property,
-        DenominationId denomination,
-        MintGroupId group,
+        SigmaDenomination denomination,
+        SigmaMintGroup group,
         size_t count)
     {
         std::vector<SigmaPublicKey> pubs;
@@ -117,9 +117,9 @@ public:
 
         sigconns.emplace_front(db->MintAdded.connect([this] (
             PropertyId p,
-            DenominationId d,
-            MintGroupId g,
-            MintGroupIndex i,
+            SigmaDenomination d,
+            SigmaMintGroup g,
+            SigmaMintIndex i,
             const SigmaPublicKey& k,
             int b) {
             mintAdded.push_back(MintAdded{
@@ -134,7 +134,7 @@ public:
 
         sigconns.emplace_front(db->MintRemoved.connect([this] (
             PropertyId p,
-            DenominationId d,
+            SigmaDenomination d,
             const SigmaPublicKey& k) {
             mintRemoved.push_back(MintRemoved{
                 .property = p,
@@ -185,13 +185,13 @@ BOOST_AUTO_TEST_CASE(record_one_coin)
     auto db = CreateDb();
     auto mint = CreateMint();
     PropertyId propId = 1;
-    DenominationId denom = 0;
+    SigmaDenomination denom = 0;
 
     BOOST_CHECK_EQUAL(0, db->GetMintCount(propId, denom, 0));
     BOOST_CHECK_EQUAL(0, db->GetNextSequence());
 
     BOOST_CHECK_EQUAL(
-        std::make_pair(MintGroupId(0), MintGroupIndex(0)),
+        std::make_pair(SigmaMintGroup(0), SigmaMintIndex(0)),
         db->RecordMint(propId, denom, mint, 100)
     );
 
@@ -666,60 +666,6 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
 
     BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
     BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
-}
-
-BOOST_AUTO_TEST_CASE(verify_spend)
-{
-    auto db = CreateDb();
-    auto& params = DefaultSigmaParams;
-    SigmaPrivateKey key;
-    SigmaProof proof(params);
-    std::vector<SigmaPublicKey> anonimitySet;
-    bool increaseBlock = false;
-    int block = 100;
-
-    // Create set of mint that contains our spendable mint.
-    key.Generate();
-
-    anonimitySet.push_back(SigmaPublicKey(key, params));
-
-    for (auto& mint : CreateMints(db->groupSize - 2)) { // -2 to make anonimitySet not a full group.
-        anonimitySet.push_back(mint);
-    }
-
-    proof.Generate(key, anonimitySet.begin(), anonimitySet.end());
-
-    // Generate spendable group.
-    for (unsigned i = 0; i < db->groupSize; i++) {
-        if (i < anonimitySet.size()) {
-            db->RecordMint(3, 0, anonimitySet[i], block);
-        } else {
-            db->RecordMint(3, 0, CreateMint(), block);
-        }
-
-        db->RecordMint(3, 1, CreateMint(), block);
-        db->RecordMint(4, 0, CreateMint(), block);
-
-        if (increaseBlock) {
-            block++;
-            increaseBlock = false;
-        } else {
-            increaseBlock = true;
-        }
-    }
-
-    // Generate non-spendable group.
-    for (auto& mint : CreateMints(db->groupSize)) {
-        db->RecordMint(3, 0, mint, block);
-    }
-
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 0, 0, anonimitySet.size(), proof), true);
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 0, 0, anonimitySet.size() - 1, proof), false);
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 0, 0, anonimitySet.size() + 1, proof), false);
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 0, 0, db->groupSize + 1, proof), false);
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 1, 0, db->groupSize, proof), false);
-    BOOST_CHECK_EQUAL(db->VerifySpend(4, 0, 0, db->groupSize, proof), false);
-    BOOST_CHECK_EQUAL(db->VerifySpend(3, 0, 1, db->groupSize, proof), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

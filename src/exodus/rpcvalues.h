@@ -41,7 +41,7 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value);
 
 namespace exodus {
 
-DenominationId ParseDenomination(const UniValue& value);
+SigmaDenomination ParseSigmaDenomination(const UniValue& value);
 
 }
 

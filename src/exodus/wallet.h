@@ -3,8 +3,7 @@
 
 #include "exodus.h"
 #include "property.h"
-#include "sigma.h"
-#include "sigmadb.h"
+#include "sigmaprimitives.h"
 #include "sp.h"
 #include "walletmodels.h"
 
@@ -24,7 +23,7 @@ public:
     virtual ~Wallet();
 
 public:
-    SigmaMintId CreateSigmaMint(PropertyId property, DenominationId denomination);
+    SigmaMintId CreateSigmaMint(PropertyId property, SigmaDenomination denomination);
 
     template<class Denomination, class Output>
     Output CreateSigmaMints(PropertyId property, Denomination begin, Denomination end, Output output)
@@ -36,7 +35,7 @@ public:
         return output;
     }
 
-    SigmaSpend CreateSigmaSpend(PropertyId property, DenominationId denomination);
+    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
 
 public:
     template<class OutputIt>
@@ -71,18 +70,18 @@ protected:
     void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
 
 private:
-    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, DenominationId denomination);
+    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination);
 
 private:
     void OnMintAdded(
         PropertyId property,
-        DenominationId denomination,
-        MintGroupId group,
-        MintGroupIndex idx,
+        SigmaDenomination denomination,
+        SigmaMintGroup group,
+        SigmaMintIndex idx,
         const SigmaPublicKey& pubKey,
         int block);
 
-    void OnMintRemoved(PropertyId property, DenominationId denomination, const SigmaPublicKey& pubKey);
+    void OnMintRemoved(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey);
 
 private:
     std::string walletFile;

@@ -26,6 +26,7 @@ EXODUS_TEST_CPP = \
   exodus/test/script_solver_tests.cpp \
   exodus/test/sender_bycontribution_tests.cpp \
   exodus/test/sender_firstin_tests.cpp \
+  exodus/test/sigma_tests.cpp \
   exodus/test/sigmadb_tests.cpp \
   exodus/test/sigmaprimitives_tests.cpp \
   exodus/test/sp_tests.cpp \

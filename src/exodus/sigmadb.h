@@ -32,9 +32,6 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
 
 namespace exodus {
 
-typedef uint32_t MintGroupId;
-typedef uint16_t MintGroupIndex;
-
 class SigmaDatabase : public CDBBase
 {
 public:
@@ -48,9 +45,9 @@ public:
     ~SigmaDatabase() override;
 
 public:
-    std::pair<MintGroupId, MintGroupIndex> RecordMint(
+    std::pair<SigmaMintGroup, SigmaMintIndex> RecordMint(
         PropertyId propertyId,
-        DenominationId denomination,
+        SigmaDenomination denomination,
         const SigmaPublicKey& pubKey,
         int height);
     void RecordSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height);
@@ -90,16 +87,8 @@ public:
     uint16_t groupSize;
 
 public:
-    bool VerifySpend(
-        PropertyId property,
-        DenominationId denomination,
-        MintGroupId group,
-        size_t groupSize,
-        const SigmaProof& proof);
-
-public:
-    boost::signals2::signal<void(PropertyId, DenominationId, MintGroupId, MintGroupIndex, const SigmaPublicKey&, int)> MintAdded;
-    boost::signals2::signal<void(PropertyId, DenominationId, const SigmaPublicKey&)> MintRemoved;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, SigmaMintGroup, SigmaMintIndex, const SigmaPublicKey&, int)> MintAdded;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, const SigmaPublicKey&)> MintRemoved;
 
 protected:
     void AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block);

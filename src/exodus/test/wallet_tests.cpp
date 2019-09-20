@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "../property.h"
-#include "../sigma.h"
 #include "../sigmadb.h"
+#include "../sigmaprimitives.h"
 #include "../wallet.h"
 #include "../walletmodels.h"
 
@@ -50,7 +50,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
         delete sigmaDb; sigmaDb = nullptr;
     }
 
-    SigmaMint CreateSigmaMint(PropertyId property, DenominationId denomination)
+    SigmaMint CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
     {
         auto id = wallet->CreateSigmaMint(property, denomination);
         return wallet->GetSigmaMint(id);
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
 {
-    std::vector<DenominationId> denominations = {0, 1, 0, 2};
+    std::vector<SigmaDenomination> denominations = {0, 1, 0, 2};
     std::vector<SigmaMintId> ids(5);
     std::unordered_set<SigmaMint> mints;
 
@@ -280,8 +280,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
 BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_owned)
 {
     auto id = wallet->CreateSigmaMint(1, 0);
-    MintGroupId group;
-    MintGroupIndex index;
+    SigmaMintGroup group;
+    SigmaMintIndex index;
     SigmaMint mint;
 
     // Add.
@@ -303,8 +303,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
 {
     // Add our mint first so we can test if the other mint does not alter our mint state.
     auto id = wallet->CreateSigmaMint(1, 0);
-    MintGroupId group;
-    MintGroupIndex index;
+    SigmaMintGroup group;
+    SigmaMintIndex index;
 
     std::tie(group, index) = sigmaDb->RecordMint(1, 0, id.key, 100);
 
