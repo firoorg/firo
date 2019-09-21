@@ -8,7 +8,6 @@
 #include "amount.h"
 #include "exoassetsdialog.h"
 #include "znodelist.h"
-#include "paymentcodepage.h"
 #include "sigmadialog.h"
 
 #include <QStackedWidget>
@@ -32,7 +31,6 @@ class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 class ZerocoinPage;
-class PaymentcodePage;
 class Zc2SigmaPage;
 
 QT_BEGIN_NAMESPACE
@@ -81,7 +79,6 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-    PaymentcodePage *paymentcodePage;
     ExoAssetsDialog *exoAssetsPage;
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
@@ -132,8 +129,6 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to paymentcode page */
-    void gotoPaymentcodePage();
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
     /** Switch to sigma page */
