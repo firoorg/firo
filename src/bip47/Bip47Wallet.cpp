@@ -1,0 +1,1 @@
+#include "Bip47Wallet.h"
