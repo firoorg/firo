@@ -82,6 +82,10 @@ const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips
 const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_MINT_INDEX = 0x2;
 
+const uint32_t BIP47_INDEX = 0x2F;
+const uint32_t BIP47_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+const uint32_t BIP47_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+
 class CBlockIndex;
 class CCoinControl;
 class COutput;
@@ -669,6 +673,7 @@ private:
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
+    CBip47HDChain bip47hdChain;
 
 public:
     /*
@@ -685,6 +690,7 @@ public:
 
     std::set<int64_t> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
+    std::map<CKeyID, CKeyMetadata> Bip47mapKeyMetadata;
     //znode
     int64_t nKeysLeftSinceAutoBackup;
 
@@ -791,7 +797,8 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey(uint32_t nChange=0);
+    CPubKey GenerateNewKey(uint32_t nChange=0); // Bip44
+    CPubKey GenerateBip47NewKey(uint32_t nChange=0); // Bip47
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)

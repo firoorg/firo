@@ -133,3 +133,8 @@ zcoin.creator
 zcoin.creator.user
 zcoin.files
 zcoin.includes
+.idea/
+.vs/
+.idea/
+
+src/testbip47

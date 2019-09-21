@@ -25,6 +25,7 @@
 #include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
+#include "bip47.h"
 
 #include <znode-payments.h>
 
@@ -4030,7 +4031,276 @@ UniValue removetxwallet(const UniValue& params, bool fHelp) {
     return NullUniValue;
 }
 
+UniValue getnewpcode(const UniValue& params, bool fHelp)
+{
 
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+                "getnewpcode ( \"address\" )\n"
+                "\nReturns a new Zcoin payment code for receiving payments.\n"
+                "If 'address' is specified (DEPRECATED), it is added to the address book \n"
+                "so payments received with the payment code will be credited to 'address'.\n"
+                "\nArguments:\n"
+                "1. \"address\"        (string, optional) DEPRECATED.\n"
+                "\nResult:\n"
+                "\"paymentcode\"    (string) The new Zcoin paymentcode\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getnewpcode", "")
+                + HelpExampleRpc("getnewpcode", "")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Parse the account first so we don't generate a key if there's an error
+    string strAccount;
+    if (params.size() > 0)
+        strAccount = AccountFromValue(params[0]);
+
+    if (!pwalletMain->IsLocked())
+        pwalletMain->TopUpKeyPool();
+
+    // Generate a new key that is added to wallet
+    CPubKey newKey;
+    if (!pwalletMain->GetKeyFromPool(newKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+    CKeyID keyID = newKey.GetID();
+
+    pwalletMain->SetAddressBook(keyID, strAccount, "receive");
+
+    return CBitcoinAddress(keyID).ToString();
+}
+
+
+
+UniValue getpcodesbyaddress(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "getpcodesbyaddress \"address\"\n"
+                "\nDEPRECATED. Returns the list of paymentcodes for the given address.\n"
+                "\nArguments:\n"
+                "1. \"address\"  (string, required) The address to get paymentcodes list.\n"
+                "\nResult:\n"
+                "[                     (json array of string)\n"
+                "  \"paymentcodes\"  (string) a Zcoin paymentcodes associated with the given address\n"
+                "  ,...\n"
+                "]\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getpcodesbyaddress", "\"a66U6468YZZHyozRvS1vDXBCUkXddt7hSP\"")
+                + HelpExampleRpc("getpcodesbyaddress", "\"a66U6468YZZHyozRvS1vDXBCUkXddt7hSP\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+    CPubKey vchPubkey;
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot get pubkey for address " + strAddress + " is not known");
+
+    if (!pwalletMain->GetPubKey(keyID, vchPubkey))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot get pubkey for address " + strAddress + " is not known");
+
+
+    CExtKey masterKey;
+    CExtKey purposeKey;
+    CExtKey coinTypeKey;
+    CExtKey childKey;
+
+    masterKey.SetMaster(key.begin(), key.size());
+    masterKey.Derive(purposeKey, 0x2F | BIP32_HARDENED_KEY_LIMIT);
+    purposeKey.Derive(coinTypeKey, 0x0 | BIP32_HARDENED_KEY_LIMIT);
+    coinTypeKey.Derive(childKey, BIP32_HARDENED_KEY_LIMIT);
+
+
+
+    CExtPubKey ppubkey = masterKey.Neuter();
+
+    // Find all addresses that have the given account
+    UniValue ret(UniValue::VARR);
+
+
+
+    bip47::byte ppkey[33];
+    bip47::byte pchain[32];
+
+    memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
+    memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
+
+//    CExtKey masterkey;
+//    masterkey.chaincode
+
+
+    bip47::PaymentCode paymentCode(ppkey, pchain);
+
+
+    ret.push_back(paymentCode.ToString());
+//    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+//    {
+//        const CBitcoinAddress& address = item.first;
+//        const string& strName = item.second.name;
+//        if (strName == strAccount)
+//            ret.push_back(address.ToString());
+//    }
+    return ret;
+}
+
+UniValue sendtopcode(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw runtime_error(
+                "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+                "\nSend an amount to a given address.\n"
+                + HelpRequiringPassphrase() +
+                "\nArguments:\n"
+                "1. \"paymentcode\"  (string, required) The Zcoin paymentcode to send to.\n"
+                "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1")
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"donation\" \"seans outpost\"")
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"\" \"\" true")
+                + HelpExampleRpc("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBitcoinAddress address(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
+
+    // Amount
+    CAmount nAmount = AmountFromValue(params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
+        wtx.mapValue["comment"] = params[2].get_str();
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["to"]      = params[3].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (params.size() > 4)
+        fSubtractFeeFromAmount = params[4].get_bool();
+
+    EnsureWalletIsUnlocked();
+
+    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue listreceivedbypcode(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() > 3)
+        throw runtime_error(
+                "listreceivedbypcode ( minconf includeempty includeWatchonly)\n"
+                "\nList balances by receiving paymentcode.\n"
+                "\nArguments:\n"
+                "1. minconf       (numeric, optional, default=1) The minimum number of confirmations before payments are included.\n"
+                "2. includeempty  (bool, optional, default=false) Whether to include addresses that haven't received any payments.\n"
+                "3. includeWatchonly (bool, optional, default=false) Whether to include watchonly addresses (see 'importaddress').\n"
+
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"involvesWatchonly\" : true,        (bool) Only returned if imported addresses were involved in transaction\n"
+                "    \"paymentcode\" : \"receivingpaymentcode\",  (string) The receiving paymentcode\n"
+                "    \"account\" : \"accountname\",       (string) DEPRECATED. The account of the receiving address. The default account is \"\".\n"
+                "    \"amount\" : x.xxx,                  (numeric) The total amount in " + CURRENCY_UNIT + " received by the address\n"
+                                                                                                            "    \"confirmations\" : n,               (numeric) The number of confirmations of the most recent transaction included\n"
+                                                                                                            "    \"label\" : \"label\"                (string) A comment for the address/transaction, if any\n"
+                                                                                                            "  }\n"
+                                                                                                            "  ,...\n"
+                                                                                                            "]\n"
+
+                                                                                                            "\nExamples:\n"
+                + HelpExampleCli("listreceivedbypcode", "")
+                + HelpExampleCli("listreceivedbypcode", "6 true")
+                + HelpExampleRpc("listreceivedbypcode", "6, true, true")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    return ListReceived(params, false);
+}
+
+UniValue getreceivedbypcode(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+                "getreceivedbypcode \"zcoinpaymentcode\" ( minconf )\n"
+                "\nReturns the total amount received by the given zcoinpaymentcode in transactions with at least minconf confirmations.\n"
+                "\nArguments:\n"
+                "1. \"zcoinpaymentcode\"  (string, required) The Zcoin paymentcode for transactions.\n"
+                "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+                "\nResult:\n"
+                "amount   (numeric) The total amount in " + CURRENCY_UNIT + " received at this paymentcode.\n"
+                                                                            "\nExamples:\n"
+                                                                            "\nThe amount from transactions with at least 1 confirmation\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"") +
+                "\nThe amount including unconfirmed transactions, zero confirmations\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0") +
+                "\nThe amount with at least 6 confirmation, very safe\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 6") +
+                "\nAs a json rpc call\n"
+                + HelpExampleRpc("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 6")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Zcoin address
+    CBitcoinAddress address = CBitcoinAddress(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin zcoinpaymentcode");
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    if (!IsMine(*pwalletMain, scriptPubKey))
+        return ValueFromAmount(0);
+
+    // Minimum confirmations
+    int nMinDepth = 1;
+    if (params.size() > 1)
+        nMinDepth = params[1].get_int();
+
+    // Tally
+    CAmount nAmount = 0;
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+    {
+        const CWalletTx& wtx = (*it).second;
+        if (wtx.IsCoinBase() || !CheckFinalTx(wtx))
+            continue;
+
+        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+        if (txout.scriptPubKey == scriptPubKey)
+            if (wtx.GetDepthInMainChain() >= nMinDepth)
+                nAmount += txout.nValue;
+    }
+
+    return  ValueFromAmount(nAmount);
+}
 
 extern UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp); // in rpcdump.cpp
 extern UniValue importprivkey(const UniValue& params, bool fHelp);
@@ -4115,7 +4385,14 @@ static const CRPCCommand commands[] =
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
     { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
-    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
+    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
+
+    // new RPC functions for payment code
+    { "wallet",             "getnewpcode",            &getnewpcode,            true  },
+    { "wallet",             "getpcodesbyaddress",    &getpcodesbyaddress,    true  },
+    { "wallet",             "sendtopcode",            &sendtopcode,            false },
+    { "wallet",             "listreceivedbypcode",    &listreceivedbypcode,    false },
+    { "wallet",             "getreceivedbypcode",     &getreceivedbypcode,     false },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)
