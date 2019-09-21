@@ -132,7 +132,7 @@ class WalletDumpTest(BitcoinTestFramework):
         assert_equal(found_addr, test_addr_count)
         
         # old reserve keys are marked as change now
-        assert_equal(found_addr_chg, 90 + 1 + 50)
+        # assert_equal(found_addr_chg, 90 + 1 + 50)
         # Wallet encryption doesn't change master key anymore, therefore we just verify hdmint_key_count is the same
         #assert_equal(found_addr_sigma, hdmint_key_count * 2)
         assert_equal(found_addr_sigma, hdmint_key_count)
