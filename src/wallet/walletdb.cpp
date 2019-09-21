@@ -1297,6 +1297,11 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
+bool CWalletDB::WriteCBip47HDChain(const CBip47HDChain& bip47chain) {
+    nWalletDBUpdated++;
+    return Write(std::string("bip47hdchain"), bip47chain);
+}
+
 bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
 {
     return Read(string("dzc"), nCount);
