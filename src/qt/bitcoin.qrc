@@ -68,6 +68,7 @@
         <file alias="exodus_meta_partfilled">res/icons/meta_partfilled.png</file>
         <file alias="exodus_meta_pending">res/icons/meta_pending.png</file>
         <file alias="exodus_hourglass">res/icons/exodus_hourglass.png</file>
+        <file alias="paymentcode">res/icons/paymentcode.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="splash">res/images/splash.png</file>

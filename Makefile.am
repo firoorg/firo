@@ -15,6 +15,7 @@ pkgconfig_DATA = libbitcoinconsensus.pc
 endif
 
 BITCOIND_BIN=$(top_builddir)/src/$(BITCOIN_DAEMON_NAME)$(EXEEXT)
+BITCOIN_BIP47_BIN=$(top_builddir)/src/$(BITCOIN_BIP47_NAME)$(EXEEXT)
 BITCOIN_QT_BIN=$(top_builddir)/src/qt/$(BITCOIN_GUI_NAME)$(EXEEXT)
 BITCOIN_CLI_BIN=$(top_builddir)/src/$(BITCOIN_CLI_NAME)$(EXEEXT)
 BITCOIN_WIN_INSTALLER=$(PACKAGE)-$(PACKAGE_VERSION)-win$(WINDOWS_BITS)-setup$(EXEEXT)
@@ -148,6 +149,9 @@ $(BITCOIN_QT_BIN): FORCE
 	$(MAKE) -C src qt/$(@F)
 
 $(BITCOIND_BIN): FORCE
+	$(MAKE) -C src $(@F)
+
+$(BITCOIN_BIP47_BIN): FORCE
 	$(MAKE) -C src $(@F)
 
 $(BITCOIN_CLI_BIN): FORCE
