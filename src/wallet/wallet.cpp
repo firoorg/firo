@@ -164,7 +164,9 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
         if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
-            SecureVector seed = hdChain.GetSeed();
+            CHDChain tmpHDChain = hdChain;
+            DecryptHDChain(tmpHDChain);
+            SecureVector seed = tmpHDChain.GetSeed();
             masterKey.SetMaster(&seed[0], seed.size());
         } else {
             // try to get the master key
@@ -631,10 +633,10 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
     if (IsCrypted())
         return false;
 
-    CKeyingMaterial vMasterKey;
+    CKeyingMaterial _vMasterKey;
 
-    vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
-    GetStrongRandBytes(&vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
+    _vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
+    GetStrongRandBytes(&_vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
 
     CMasterKey kMasterKey;
 
@@ -660,7 +662,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
     if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations,
                                       kMasterKey.nDerivationMethod))
         return false;
-    if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
+    if (!crypter.Encrypt(_vMasterKey, kMasterKey.vchCryptedKey))
         return false;
 
     {
@@ -677,7 +679,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
             pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
         }
 
-        if (!EncryptKeys(vMasterKey)) {
+        if (!EncryptKeys(_vMasterKey)) {
             if (fFileBacked) {
                 pwalletdbEncryption->TxnAbort();
                 delete pwalletdbEncryption;
@@ -704,7 +706,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
 
         // if we are using HD, replace the HD master key (seed) with a new one
         if(!hdChain.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
-            assert(EncryptHDChain(vMasterKey));
+            assert(EncryptHDChain(_vMasterKey));
             SetMinVersion(FEATURE_HD);
             assert(SetHDChain(hdChain, false));
         } else if (!hdChain.masterKeyID.IsNull()) {
@@ -725,7 +727,13 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         Unlock(strWalletPassphrase, true);
 
 
-        NewKeyPool();
+        if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
+            TopUpKeyPool();
+        }
+        else {
+            NewKeyPool();
+        }
+
         Lock();
 
         // Need to completely rewrite the wallet file; if we don't, bdb might keep
