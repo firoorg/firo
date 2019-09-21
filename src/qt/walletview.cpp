@@ -6,7 +6,6 @@
 
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
-#include "paymentcodepage.h"
 #include "sigmadialog.h"
 #include "zc2sigmapage.h"
 #include "askpassphrasedialog.h"
@@ -54,7 +53,6 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     overviewPage(0),
     sendExodusView(0),
     sigmaView(0),
-    paymentcodePage(0),
     blankSigmaView(0),
     zc2SigmaPage(0),
     exodusTransactionsView(0),
@@ -73,7 +71,6 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sigmaPage = new QWidget(this);
     zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
-    paymentcodePage = new PaymentcodePage(platformStyle);
     toolboxPage = new QWidget(this);
     znodeListPage = new ZnodeList(platformStyle);
 
@@ -87,7 +84,6 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
-    addWidget(paymentcodePage);
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
     addWidget(zc2SigmaPage);
@@ -244,7 +240,6 @@ void WalletView::setClientModel(ClientModel *clientModel)
 
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
-    paymentcodePage->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
     exoAssetsPage->setClientModel(clientModel);
     if (pwalletMain->IsHDSeedAvailable()) {
@@ -269,7 +264,6 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     zcoinTransactionList->setModel(walletModel);
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
-    paymentcodePage->setWalletModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setWalletModel(walletModel);
@@ -389,11 +383,6 @@ void WalletView::gotoZnodePage()
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
-}
-
-void WalletView::gotoPaymentcodePage()
-{
-    setCurrentWidget(paymentcodePage);
 }
 
 void WalletView::gotoZerocoinPage()
