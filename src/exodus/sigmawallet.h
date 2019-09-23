@@ -15,6 +15,7 @@
 #include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
 
+#include "sigmadb.h"
 #include "walletmodels.h"
 
 namespace exodus {

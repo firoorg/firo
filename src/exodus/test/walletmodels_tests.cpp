@@ -9,11 +9,11 @@
 
 namespace exodus {
 
-SigmaMintId GenerateSigmaMintId(PropertyId property, DenominationId denom)
+SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
 {
     SigmaPrivateKey priv;
     priv.Generate();
-    SigmaPublicKey pub(priv);
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
 
     return SigmaMintId(property, denom, pub);
 }
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_default)
 
     BOOST_CHECK_EQUAL(id.property, 0);
     BOOST_CHECK_EQUAL(id.denomination, 0);
-    BOOST_CHECK_EQUAL(id.key, SigmaPublicKey());
+    BOOST_CHECK_EQUAL(id.pubKey, SigmaPublicKey());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_init)
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_init)
 
     BOOST_CHECK_EQUAL(id.property, 1);
     BOOST_CHECK_EQUAL(id.denomination, 5);
-    BOOST_CHECK_EQUAL(id.key, pub);
+    BOOST_CHECK_EQUAL(id.pubKey, pub);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
 
     BOOST_CHECK_EQUAL(deserialized.property, original.property);
     BOOST_CHECK_EQUAL(deserialized.denomination, original.denomination);
-    BOOST_CHECK_EQUAL(deserialized.key, original.key);
+    BOOST_CHECK_EQUAL(deserialized.pubKey, original.pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_hash)
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
     BOOST_CHECK(mint.spendTx.IsNull());
     BOOST_CHECK_EQUAL(mint.id.property, 0);
     BOOST_CHECK_EQUAL(mint.id.denomination, 0);
-    BOOST_CHECK_EQUAL(mint.id.key, SigmaPublicKey());
+    BOOST_CHECK_EQUAL(mint.id.pubKey, SigmaPublicKey());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
 }
 
@@ -154,19 +154,19 @@ BOOST_AUTO_TEST_CASE(sigma_mint_equality)
     auto tx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
     SigmaPrivateKey key;
     key.Generate();
-    SigmaPublicKey pub(key);
+    SigmaPublicKey pub(key, DefaultSigmaParams);
 
     SigmaMint left, right;
 
     left.id = SigmaMintId(1, 1, pub);
     left.seedId = uint160();
-    left.serialId = primitives::GetSerialHash160(key.GetSerial());
+    left.serialId = primitives::GetSerialHash160(key.serial);
     left.spendTx = tx;
     left.chainState = SigmaMintChainState(500, 1, 50);
 
     right.id = SigmaMintId(1, 1, pub);
     right.seedId = uint160();
-    right.serialId = primitives::GetSerialHash160(key.GetSerial());
+    right.serialId = primitives::GetSerialHash160(key.serial);
     right.spendTx = tx;
     right.chainState = SigmaMintChainState(500, 1, 50);
 
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 {
     SigmaPrivateKey priv;
     priv.Generate();
-    SigmaPublicKey pub(priv);
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
 
     std::vector<unsigned char> zero = {0x00};
     std::vector<unsigned char> one = {0x01};
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 
     // Pubkey
     right = left;
-    right.id.key = SigmaPublicKey();
+    right.id.pubKey = SigmaPublicKey();
 
     BOOST_CHECK_NE(left, right);
 
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
 
     SigmaPrivateKey priv;
     priv.Generate();
-    SigmaPublicKey pub(priv);
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
 
     original.id = SigmaMintId(1, 1, pub);
     original.seedId = Hash160({0x00});
@@ -282,10 +282,17 @@ BOOST_AUTO_TEST_CASE(sigma_mint_hash)
 BOOST_AUTO_TEST_CASE(sigma_spend_init)
 {
     auto& params = DefaultSigmaParams;
-    SigmaMint mint(3, 0);
-    SigmaMintId id(mint, params);
-    std::vector<SigmaPublicKey> anonimitySet = { SigmaPublicKey(mint.key, params), SigmaPublicKey(SigmaMint(3, 0).key, params) };
-    SigmaProof proof(params, mint.key, anonimitySet.begin(), anonimitySet.end());
+    SigmaPrivateKey key1, key2;
+    key1.Generate();
+    key2.Generate();
+
+    SigmaPublicKey pub1(key1, params), pub2(key2, params);
+
+    SigmaMintId id(3, 0, pub1);
+    SigmaMint mint(id, Hash160({0x00}), Hash160({0x01}));
+
+    std::vector<SigmaPublicKey> anonimitySet = { pub1, pub2 };
+    SigmaProof proof(params, key1, anonimitySet.begin(), anonimitySet.end());
     SigmaSpend spend(id, 1, 100, proof);
 
     BOOST_CHECK_EQUAL(spend.mint, id);

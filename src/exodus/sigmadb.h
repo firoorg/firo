@@ -6,6 +6,8 @@
 #include "property.h"
 #include "sigmaprimitives.h"
 
+#include "../uint256.h"
+
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
@@ -56,7 +58,7 @@ public:
         uint8_t denomination,
         secp_primitives::Scalar const &serial,
         int height,
-        uint256 const & spendTx);
+        uint256 const &spendTx);
 
     template<
         class OutputIt,
@@ -96,8 +98,8 @@ public:
 public:
     boost::signals2::signal<void(PropertyId, SigmaDenomination, SigmaMintGroup, SigmaMintIndex, const SigmaPublicKey&, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, SigmaDenomination, const SigmaPublicKey&)> MintRemoved;
-    boost::signals2::signal<void(PropertyId, DenominationId, const secp_primitives::Scalar&, const uint256&)> SpendAdded;
-    boost::signals2::signal<void(PropertyId, DenominationId, const secp_primitives::Scalar&)> SpendRemoved;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, const secp_primitives::Scalar&, const uint256&)> SpendAdded;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, const secp_primitives::Scalar&)> SpendRemoved;
 
 protected:
     void AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block);

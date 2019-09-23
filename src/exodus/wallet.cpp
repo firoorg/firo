@@ -40,11 +40,11 @@ Wallet::Wallet(const std::string& walletFile)
     }
     {
         auto h = std::bind(&Wallet::OnSpendAdded, this, _1, _2, _3, _4);
-        eventConnections.emplace_front(sigmaDb.SpendAdded.connect(h));
+        eventConnections.emplace_front(sigmaDb->SpendAdded.connect(h));
     }
     {
         auto h = std::bind(&Wallet::OnSpendRemoved, this, _1, _2, _3);
-        eventConnections.emplace_front(sigmaDb.SpendRemoved.connect(h));
+        eventConnections.emplace_front(sigmaDb->SpendRemoved.connect(h));
     }
 }
 
@@ -83,8 +83,8 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     std::vector<SigmaPublicKey> anonimitySet;
 
     sigmaDb->GetAnonimityGroup(
-        mint->property,
-        mint->denomination,
+        mint->id.property,
+        mint->id.denomination,
         mint->chainState.group,
         std::back_inserter(anonimitySet)
     );
@@ -94,13 +94,14 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     }
 
     // Create spend.
-    SigmaProof proof(DefaultSigmaParams, mint->key, anonimitySet.begin(), anonimitySet.end());
+    auto key = GetKey(mint.get());
+    SigmaProof proof(DefaultSigmaParams, key, anonimitySet.begin(), anonimitySet.end());
 
-    if (!VerifySigmaSpend(mint->property, mint->denomination, mint->chainState.group, anonimitySet.size(), proof)) {
+    if (!VerifySigmaSpend(mint->id.property, mint->id.denomination, mint->chainState.group, anonimitySet.size(), proof)) {
         throw WalletError(_("Failed to create spendable spend"));
     }
 
-    return SigmaSpend(SigmaMintId(*mint, DefaultSigmaParams), mint->chainState.group, anonimitySet.size(), proof);
+    return SigmaSpend(mint->id, mint->chainState.group, anonimitySet.size(), proof);
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
@@ -127,7 +128,7 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 }
 
 boost::optional<SigmaMint>
-    Wallet::GetSpendableSigmaMint(PropertyId property, DenominationId denomination)
+    Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     // Get all spendable mints.
     LOCK(pwalletMain->cs_wallet);
@@ -166,7 +167,8 @@ SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
     if (!mintWallet.RegenerateMint(mint, k)) {
         throw std::runtime_error("fail to regenerate private key");
     }
-    if (mint.id.key != SigmaPublicKey(k)) {
+
+    if (mint.id.pubKey != SigmaPublicKey(k, DefaultSigmaParams)) {
         throw std::runtime_error("regenerated key doesn't matched with old value");
     }
     return k;
@@ -183,7 +185,7 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 }
 void Wallet::OnSpendAdded(
     PropertyId property,
-    DenominationId denomination,
+    SigmaDenomination denomination,
     const secp_primitives::Scalar &serial,
     const uint256 &tx)
 {
@@ -204,7 +206,7 @@ void Wallet::OnSpendAdded(
 
 void Wallet::OnSpendRemoved(
     PropertyId property,
-    DenominationId denomination,
+    SigmaDenomination denomination,
     const secp_primitives::Scalar &serial)
 {
     SigmaMint mint;

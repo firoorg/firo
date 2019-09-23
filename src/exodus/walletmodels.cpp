@@ -34,24 +34,22 @@ void SigmaMintChainState::Clear() noexcept
 
 // SigmaMint Implementation.
 
-SigmaMint::SigmaMint() : property(0), denomination(0)
+SigmaMint::SigmaMint()
 {
 }
 
-SigmaMint::SigmaMint(PropertyId property, SigmaDenomination denomination) :
-    property(property),
-    denomination(denomination)
+SigmaMint::SigmaMint(SigmaMintId const &id, CKeyID const &seedId, uint160 const &serialId) :
+    id(id), seedId(seedId), serialId(serialId)
 {
-    key.Generate();
 }
 
 bool SigmaMint::operator==(const SigmaMint& other) const
 {
-    return property == other.property &&
-           denomination == other.denomination &&
+    return id == other.id &&
+           seedId == other.seedId &&
+           serialId == other.serialId &&
            chainState == other.chainState &&
-           key == other.key &&
-           spentTx == other.spentTx;
+           spendTx == other.spendTx;
 }
 
 bool SigmaMint::operator!=(const SigmaMint& other) const
@@ -62,24 +60,18 @@ bool SigmaMint::operator!=(const SigmaMint& other) const
 // SigmaMintId Implementation.
 SigmaMintId::SigmaMintId() : property(0), denomination(0)
 {
-    SetNull();
 }
 
-SigmaMintId::SigmaMintId(const SigmaMint& mint, const SigmaParams& params) :
-    SigmaMintId(mint.property, mint.denomination, SigmaPublicKey(mint.key, params))
-{
-}
-
-SigmaMintId::SigmaMintId(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& key) :
-    serialId(serialId)
+SigmaMintId::SigmaMintId(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey) :
+    property(property),
     denomination(denomination),
-    key(key)
+    pubKey(pubKey)
 {
 }
 
 bool SigmaMintId::operator==(const SigmaMintId& other) const
 {
-    return property == other.property && denomination == other.denomination && key == other.key;
+    return property == other.property && denomination == other.denomination && pubKey == other.pubKey;
 }
 
 bool SigmaMintId::operator!=(const SigmaMintId& other) const

@@ -52,6 +52,9 @@ public:
 
     bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
+    boost::optional<SigmaMint> GetSpendableSigmaMint(
+        PropertyId property, SigmaDenomination denomination);
+
     SigmaPrivateKey GetKey(const SigmaMint &mint);
 
     void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
@@ -63,13 +66,13 @@ protected:
 private:
     void OnSpendAdded(
         PropertyId property,
-        DenominationId denomination,
+        SigmaDenomination denomination,
         const secp_primitives::Scalar &serial,
         const uint256 &tx);
 
     void OnSpendRemoved(
         PropertyId property,
-        DenominationId denomination,
+        SigmaDenomination denomination,
         const secp_primitives::Scalar &serial);
 
     void OnMintAdded(

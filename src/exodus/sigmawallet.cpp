@@ -185,8 +185,8 @@ bool SigmaWallet::SeedToPrivateKey(
     auto randomnessSeed = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
     randomness.memberFromSeed(randomnessSeed.begin());
 
-    coin.SetSerial(serialNumber);
-    coin.SetRandomness(randomness);
+    coin.serial = serialNumber;
+    coin.randomness = randomness;
 
     return true;
 }
@@ -210,7 +210,7 @@ bool SigmaWallet::AddToWallet(const SigmaMint& mint)
         }
     }
 
-    RemoveFromMintPool(mint.id.key);
+    RemoveFromMintPool(mint.id.pubKey);
     GenerateMintPool();
 
     return isNew;
@@ -233,7 +233,7 @@ bool SigmaWallet::GenerateMint(
     }
 
     LogPrintf("%s: publicKey: %s seedId: %s\n",
-        __func__, mintPoolEntry->key.GetCommitment().GetHex(), mintPoolEntry->seedId.GetHex());
+        __func__, mintPoolEntry->key.commitment.GetHex(), mintPoolEntry->seedId.GetHex());
 
     uint512 seed;
     auto index = GenerateSeed(mintPoolEntry->seedId, seed);
@@ -241,15 +241,15 @@ bool SigmaWallet::GenerateMint(
         return false;
     }
 
-    SigmaPublicKey key(coin);
-    auto serialId = primitives::GetSerialHash160(coin.GetSerial());
+    SigmaPublicKey key(coin, DefaultSigmaParams);
+    auto serialId = primitives::GetSerialHash160(coin.serial);
     mint = SigmaMint(
         SigmaMintId(propertyId, denomination, key),
         mintPoolEntry->seedId,
         serialId
     );
 
-    LogPrintf("%s: pubcoin: %s\n", __func__, key.GetCommitment().GetHex());
+    LogPrintf("%s: pubcoin: %s\n", __func__, key.commitment.GetHex());
     return true;
 }
 
@@ -270,20 +270,19 @@ bool SigmaWallet::RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey
 {
     SigmaMint dummyMint;
 
-    MintPoolEntry mintPoolEntry(mint.id.key, mint.seedId);
+    MintPoolEntry mintPoolEntry(mint.id.pubKey, mint.seedId);
     if (!GenerateMint(mint.id.property, mint.id.denomination, privKey, dummyMint, mintPoolEntry)) {
 
         return error("%s: failed to generate mint", __func__);
     }
 
     // Verify regenered
-    exodus::SigmaPublicKey pubKey(privKey);
-    if (pubKey.GetCommitment() != mint.id.key.GetCommitment()) {
+    exodus::SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
+    if (pubKey != mint.id.pubKey) {
         return error("%s: failed to correctly generate mint, pubcoin mismatch", __func__);
     }
 
-    auto &serial = privKey.GetSerial();
-    if (primitives::GetSerialHash160(serial) != mint.serialId) {
+    if (primitives::GetSerialHash160(privKey.serial) != mint.serialId) {
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
     }
 
@@ -339,7 +338,7 @@ bool SigmaWallet::SetMintSeedSeen(
             return false;
         }
 
-        serialId = primitives::GetSerialHash160(coin.GetSerial());
+        serialId = primitives::GetSerialHash160(coin.serial);
     } else {
 
         SigmaMint mint;
@@ -500,7 +499,7 @@ size_t SigmaWallet::GenerateMintPool(size_t expectedCoins)
             continue;
         }
 
-        SigmaPublicKey publicKey(coin);
+        SigmaPublicKey publicKey(coin, DefaultSigmaParams);
         mintPool.push_back(MintPoolEntry(publicKey, seedId));
 
         generatedCoins++;
