@@ -27,6 +27,9 @@ struct MintPoolEntry {
     MintPoolEntry();
     MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId);
 
+    bool operator==(MintPoolEntry const &) const;
+    bool operator!=(MintPoolEntry const &) const;
+
     ADD_SERIALIZE_METHODS;
 
     template<typename Stream, typename Operation>

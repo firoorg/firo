@@ -27,6 +27,16 @@ MintPoolEntry::MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId)
 {
 }
 
+bool MintPoolEntry::operator==(MintPoolEntry const &another) const
+{
+    return key == another.key && seedId == another.seedId;
+}
+
+bool MintPoolEntry::operator!=(MintPoolEntry const &another) const
+{
+    return !(*this == another);
+}
+
 SigmaWallet::SigmaWallet(const std::string& walletFile) : walletFile(walletFile)
 {
     // Don't try to do anything else if the wallet is locked.
