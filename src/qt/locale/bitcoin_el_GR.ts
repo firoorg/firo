@@ -151,7 +151,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Στείλε νομίσματα σε μια διεύθυνση zcoin</translation>
+        <translation>Στείλε νομίσματα σε μια διεύθυνση Zcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>

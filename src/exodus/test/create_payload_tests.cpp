@@ -427,7 +427,7 @@ BOOST_AUTO_TEST_CASE(payload_unfreeze_tokens)
 
 BOOST_AUTO_TEST_CASE(payload_feature_deactivation)
 {
-    // Omni Core feature activation [type 65533, version 65535]
+    // Exodus Core feature activation [type 65533, version 65535]
     std::vector<unsigned char> vch = CreatePayload_DeactivateFeature(
         static_cast<uint16_t>(1));        // feature identifier: 1 (OP_RETURN)
 
@@ -436,7 +436,7 @@ BOOST_AUTO_TEST_CASE(payload_feature_deactivation)
 
 BOOST_AUTO_TEST_CASE(payload_feature_activation)
 {
-    // Omni Core feature activation [type 65534, version 65535]
+    // Exodus Core feature activation [type 65534, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ActivateFeature(
         static_cast<uint16_t>(1),        // feature identifier: 1 (OP_RETURN)
         static_cast<uint32_t>(370000),   // activation block
@@ -447,7 +447,7 @@ BOOST_AUTO_TEST_CASE(payload_feature_activation)
 
 BOOST_AUTO_TEST_CASE(payload_exodus_alert_block)
 {
-    // Omni Core client notification [type 65535, version 65535]
+    // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
         static_cast<int32_t>(1),            // alert target: by block number
         static_cast<uint64_t>(300000),      // expiry value: 300000
@@ -458,7 +458,7 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_block)
 
 BOOST_AUTO_TEST_CASE(payload_exodus_alert_blockexpiry)
 {
-    // Omni Core client notification [type 65535, version 65535]
+    // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
         static_cast<int32_t>(2),            // alert target: by block time
         static_cast<uint64_t>(1439528630),  // expiry value: 1439528630
@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_blockexpiry)
 
 BOOST_AUTO_TEST_CASE(payload_exodus_alert_minclient)
 {
-    // Omni Core client notification [type 65535, version 65535]
+    // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
         static_cast<int32_t>(3),            // alert target: by client version
         static_cast<uint64_t>(900100),      // expiry value: v0.0.9.1

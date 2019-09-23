@@ -507,55 +507,58 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
 
         // Priority
         dPriorityInputs += (double)out.tx->vout[out.i].nValue * (out.nDepth+1);
-
-        // Bytes
-        CTxDestination address;
-        int witnessversion = 0;
-        std::vector<unsigned char> witnessprogram;
-        if (out.tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
-        {
-            nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
-            fWitness = true;
-        }
-        else if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
-        {
-            CPubKey pubkey;
-            CKeyID *keyid = boost::get<CKeyID>(&address);
-            if (keyid && model->getPubKey(*keyid, pubkey))
+        if(fMintTabSelected){
+            // Bytes
+            CTxDestination address;
+            int witnessversion = 0;
+            std::vector<unsigned char> witnessprogram;
+            if (out.tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
             {
-                nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
-                if (!pubkey.IsCompressed())
-                    nQuantityUncompressed++;
+                nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
+                fWitness = true;
             }
-            else
-                nBytesInputs += 148; // in all error cases, simply assume 148 here
+            else if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
+            {
+                CPubKey pubkey;
+                CKeyID *keyid = boost::get<CKeyID>(&address);
+                if (keyid && model->getPubKey(*keyid, pubkey))
+                {
+                    nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
+                    if (!pubkey.IsCompressed())
+                        nQuantityUncompressed++;
+                }
+                else
+                    nBytesInputs += 148; // in all error cases, simply assume 148 here
+            }
+            else nBytesInputs += 148;
+        } else {
+            nBytesInputs += 1363; //1363 is the size of each vin containing sigma proof
         }
-        else nBytesInputs += 148;
     }
 
     // calculation
     if (nQuantity > 0)
     {
         // Bytes
-        nBytes = nBytesInputs + ((SigmaCoinControlDialog::payAmounts.size() > 0 ? SigmaCoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
-        if (fWitness)
-        {
-            // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
-            // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
-            // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
-            nBytes += 2; // account for the serialized marker and flag bytes
-            nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
+        if(fMintTabSelected) {
+            nBytes = nBytesInputs +
+                     ((SigmaCoinControlDialog::payAmounts.size() > 0 ? SigmaCoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+            if (fWitness) {
+                // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
+                // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
+                // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
+                nBytes += 2; // account for the serialized marker and flag bytes
+                nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
+            }
+        } else {
+            //34 is the size of each normal vout,  10 is the size of empty transaction,
+            nBytes = nBytesInputs + SigmaCoinControlDialog::payAmounts.size() * 34  + 10;
         }
 
         // Priority
         double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
         dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed * 29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
         sPriorityLabel = SigmaCoinControlDialog::getPriorityLabel(dPriority, mempoolEstimatePriority);
-
-        // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
-        if (SigmaCoinControlDialog::fSubtractFeeFromAmount)
-            if (nAmount - nPayAmount == 0)
-                nBytes -= 34;
 
         // Fee
         nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
@@ -571,30 +574,37 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
             if (fAllowFree && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
                 nPayFee = 0;
 
-        if (nPayAmount > 0)
-        {
+        if (nPayAmount > 0) {
             nChange = nAmount - nPayAmount;
             if (!SigmaCoinControlDialog::fSubtractFeeFromAmount)
                 nChange -= nPayFee;
 
-            // Never create dust outputs; if we would, just add the dust to the fee.
-            if (nChange > 0 && nChange < MIN_CHANGE)
-            {
-                CTxOut txout(nChange, (CScript)std::vector<unsigned char>(24, 0));
-                if (txout.IsDust(::minRelayTxFee))
-                {
-                    if (SigmaCoinControlDialog::fSubtractFeeFromAmount) // dust-change will be raised until no dust
-                        nChange = txout.GetDustThreshold(::minRelayTxFee);
-                    else
-                    {
-                        nPayFee += nChange;
-                        nChange = 0;
+            if (fMintTabSelected) {
+                // Never create dust outputs; if we would, just add the dust to the fee.
+                if (nChange > 0 && nChange < MIN_CHANGE) {
+                    CTxOut txout(nChange, (CScript) std::vector<unsigned char>(24, 0));
+                    if (txout.IsDust(::minRelayTxFee)) {
+                        if (SigmaCoinControlDialog::fSubtractFeeFromAmount) // dust-change will be raised until no dust
+                            nChange = txout.GetDustThreshold(::minRelayTxFee);
+                        else {
+                            nPayFee += nChange;
+                            nChange = 0;
+                        }
                     }
                 }
-            }
 
-            if (nChange == 0 && !SigmaCoinControlDialog::fSubtractFeeFromAmount)
-                nBytes -= 34;
+                if (nChange == 0 && !SigmaCoinControlDialog::fSubtractFeeFromAmount)
+                    nBytes -= 34;
+
+            } else { //adding sizes of automatic remints
+                std::vector<sigma::CoinDenomination> denominations;
+                sigma::GetAllDenoms(denominations);
+                std::vector<sigma::CoinDenomination> coinsOut;
+                CAmount mintedChange = CWallet::SelectMintCoinsForAmount(nChange, denominations,coinsOut);
+                nBytes += 44 * coinsOut.size(); //44 is the siz of each vout containing sigma mint
+                //add remaining to fee
+                nPayFee += nChange - mintedChange;
+            }
         }
 
         // after fee
@@ -703,7 +713,7 @@ void SigmaCoinControlDialog::updateView()
     std::map<QString, std::vector<COutput> > mapCoins;
 
     if(fMintTabSelected){
-        model->listCoins(mapCoins, WITH_MINTS);
+        model->listCoins(mapCoins, ALL_COINS);
     }else{
         model->listCoins(mapCoins, ONLY_MINTS);
     }
@@ -758,7 +768,7 @@ void SigmaCoinControlDialog::updateView()
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
 
-                // if listMode or change => show bitcoin address. In tree mode, address is not shown again for direct wallet address outputs
+                // if listMode or change => show Zcoin address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
 

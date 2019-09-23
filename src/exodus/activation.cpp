@@ -129,7 +129,7 @@ void ClearActivations()
 }
 
 /**
- * Determines whether the sender is an authorized source for Omni Core feature activation.
+ * Determines whether the sender is an authorized source for Exodus Core feature activation.
  *
  * The option "-exodusactivationallowsender=source" can be used to whitelist additional sources,
  * and the option "-exodusactivationignoresender=source" can be used to ignore a source.

@@ -1,5 +1,5 @@
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
@@ -402,9 +402,9 @@ bool CheckSigmaTransaction(
     auto& consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
+    int realHeight = nHeight;
 
-    {
+    if (realHeight == INT_MAX) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
@@ -945,14 +945,10 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
         }
     }
 
-    index->sigmaMintedPubCoins.clear();
-
     // roll back spends
     BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
         containers.RemoveSpend(serial.first);
     }
-
-    index->sigmaSpentSerials.clear();
 }
 
 bool CSigmaState::GetCoinGroupInfo(
@@ -1004,6 +1000,8 @@ int CSigmaState::GetCoinSetForSpend(
         int coinGroupID,
         uint256& blockHash_out,
         std::vector<sigma::PublicCoin>& coins_out) {
+
+    coins_out.clear();
 
     pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 

@@ -30,6 +30,7 @@ TOR_LIBS = tor/src/core/libtor-app.a \
     tor/src/lib/libtor-evloop.a \
     tor/src/lib/libtor-thread.a \
     tor/src/lib/libtor-compress.a \
+    @LIBZSTD@ \
     tor/src/lib/libtor-net.a \
     tor/src/lib/libtor-buf.a \
     tor/src/lib/libtor-time.a \
@@ -240,7 +241,7 @@ BITCOIN_CORE_H = \
   hdmint/tracker.h \
   hdmint/wallet.h \
   zerocoin.h \
-  zerocoin_v3.h \
+  sigma.h \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
@@ -295,7 +296,7 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
-  zerocoin_v3.cpp \
+  sigma.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
@@ -326,7 +327,7 @@ libbitcoin_wallet_a_SOURCES = \
   znodeman.cpp \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
-  zerocoin_v3.cpp \
+  sigma.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \

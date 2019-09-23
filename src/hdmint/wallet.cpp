@@ -10,7 +10,7 @@
 #include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
@@ -29,6 +29,7 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWall
 
     // Use MasterKeyId from HDChain as index for mintpool
     uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+    LogPrintf("hashSeedMaster: %d\n", hashSeedMaster.GetHex());
 
     if (!SetupWallet(hashSeedMaster)) {
         LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
@@ -37,7 +38,6 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWall
 }
 bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 {
-
     CWalletDB walletdb(strWalletFile);
     if (pwalletMain->IsLocked())
         return false;
@@ -65,29 +65,38 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 }
 
 // Regenerate mintPool entry from given values
-void CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
+std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
 {
+    // hashPubcoin, hashSerial
+    std::pair<uint256,uint256> nIndexes;
+
     CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())
-        return;
+        throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
 
     uint512 seedZerocoin;
     if(!CreateZerocoinSeed(seedZerocoin, nCount, seedId, false))
-        return;
+        throw ZerocoinException("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
     sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
     if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
-        return;
+        throw ZerocoinException("Unable to create zerocoin from seed in mint regeneration.");
 
     uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
+    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
 
     MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-    CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+    CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
     CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nCount);
+    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
+
+    nIndexes.first = hashPubcoin;
+    nIndexes.second = hashSerial;
+
+    return nIndexes;
 
 }
 
@@ -129,7 +138,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
         CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), nLastCount);
+        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
     // Update local + DB entries for count last generated
@@ -142,10 +151,27 @@ bool CHDMintWallet::LoadMintPoolFromDB()
 {
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
 
-    for (auto& mintPoolPair : listMintPool)
+    for (auto& mintPoolPair : listMintPool){
+        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
         mintPool.Add(mintPoolPair);
+    }
 
     return true;
+}
+
+bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial)
+{
+    bool fFound = false;
+    for(const auto& serialPubcoinPair : serialPubcoinPairs){
+        if(hashPubcoin == primitives::GetPubCoinValueHash(serialPubcoinPair.second)){
+            hashSerial = serialPubcoinPair.first;
+            fFound = true;
+            break;
+        }
+    }
+
+    return fFound;
 }
 
 //Catch the counter up with the chain
@@ -427,10 +453,12 @@ void CHDMintWallet::SetCount(int32_t nCount)
 void CHDMintWallet::UpdateCountLocal()
 {
     nCountNextUse++;
+    LogPrintf("CHDMintWallet : Updating count local to %s\n",nCountNextUse);
 }
 
 void CHDMintWallet::UpdateCountDB()
 {
+    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);	
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteZerocoinCount(nCountNextUse);
     GenerateMintPool();
@@ -453,6 +481,9 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         UpdateCountLocal();
     }
 
+    LogPrintf("GenerateMint: hashSeedMaster: %s seedId: %s nCount: %d\n", 
+             get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
+
     uint512 seedZerocoin;
     CreateZerocoinSeed(seedZerocoin, get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), false);
 
@@ -465,6 +496,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     dMint = CHDMint(get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), hashSerial, coin.getPublicCoin().getValue());
+    LogPrintf("GenerateMint: hashPubcoin: %s\n", dMint.GetPubCoinHash().GetHex());
     dMint.SetDenomination(denom);
 
     return true;

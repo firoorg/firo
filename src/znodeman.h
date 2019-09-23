@@ -313,7 +313,7 @@ public:
     void ProcessVerifyBroadcast(CNode* pnode, const CZnodeVerification& mnv);
 
     /// Return the number of (unique) Znodes
-    int size() { LOCK(cs); return vZnodes.size(); }
+    int size() { return vZnodes.size(); }
 
     std::string ToString() const;
 
@@ -321,7 +321,7 @@ public:
     void UpdateZnodeList(CZnodeBroadcast mnb);
     /// Perform complete check and only then update list and maps
     bool CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, int& nDos);
-    bool IsMnbRecoveryRequested(const uint256& hash) { LOCK(cs); return mMnbRecoveryRequests.count(hash); }
+    bool IsMnbRecoveryRequested(const uint256& hash) { return mMnbRecoveryRequests.count(hash); }
 
     void UpdateLastPaid();
 

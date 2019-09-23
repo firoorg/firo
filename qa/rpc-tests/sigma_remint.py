@@ -37,7 +37,7 @@ class RemintSigmaTest(BitcoinTestFramework):
 
         zcoin_mint = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mint) == 10, 'Should be 10 Zcoin mints after zcoin mint, but was: {}' \
+        assert len(zcoin_mint) == 10, 'Should be 10 zcoin mints after zcoin mint, but was: {}' \
                 .format(len(zcoin_mint))
         
         for denom in zcoin_denoms:

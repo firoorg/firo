@@ -246,7 +246,7 @@ template<typename Stream> inline void Serialize(Stream& s, bool a, int, int=0)  
 template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0) { char f=ser_readdata8(s); a=f; }
 
 /**
- * Please note that zcoin drops support for big-endian architectures and thus these functions are simple read/writes
+ * Please note that Zcoin drops support for big-endian architectures and thus these functions are simple read/writes
  * It significantly improves MTP structures serialization performance
  */
 

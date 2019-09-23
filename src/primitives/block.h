@@ -16,7 +16,7 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "zerocoin_params.h"
 
-// Can't include zerocoin_v3.h
+// Can't include sigma.h
 namespace sigma {
 class CSigmaTxInfo;
 

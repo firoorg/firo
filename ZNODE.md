@@ -7,7 +7,7 @@ Znode Build Instructions and Notes
 Prerequisites
 -------------
  - Ubuntu 16.04+
- - Libraries to build from zcoin source
+ - Libraries to build from Zcoin source
  - Port **8168** is open
 
 Step 1. Build

@@ -13,7 +13,7 @@
 #include "hdmint/wallet.h"
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 #include "txmempool.h"
 
 using namespace std;
@@ -387,6 +387,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     COutPoint outPoint;
     sigma::PublicCoin pubCoin(mint.GetPubCoinValue(), mint.denom);
     bool isMintInChain = GetOutPoint(outPoint, pubCoin);
+    LogPrintf("UpdateMetaStatus : isMintInChain: %d\n", isMintInChain);
     const uint256& txidMint = outPoint.hash;
 
     //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
@@ -396,10 +397,13 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     if(!isPendingSpend && fSpend)
         isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
 
+    LogPrintf("UpdateMetaStatus : isPendingSpend: %d\n", isPendingSpend);
+
     // See if there is a blockchain record of spending this mint
     CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     Scalar bnSerial;
     bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
+    LogPrintf("UpdateMetaStatus : isConfirmedSpend: %d\n", isConfirmedSpend);
 
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
@@ -420,6 +424,8 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
             }
             mint.txid = txidMint;
         }
+
+        LogPrintf("UpdateMetaStatus : mint.txid = %d\n", mint.txid.GetHex());
 
         if (setMempool.count(mint.txid)) {
             if(mint.nHeight>-1) mint.nHeight = -1;
@@ -550,6 +556,8 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
     std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& pubcoin : pubCoins) {
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+
+        LogPrintf("UpdateMintStateFromMempool: hashPubcoin=%d\n", hashPubcoin.GetHex());
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
             // If found in db but not in memory - this is likely a resync

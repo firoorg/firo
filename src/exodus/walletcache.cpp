@@ -61,11 +61,11 @@ void WalletTXIDCacheInit()
     std::list<CAccountingEntry> acentries;
     CWallet::TxItems txOrdered = pwalletMain->wtxOrdered;
 
-    // Iterate through the wallet, checking if each transaction is Omni (via levelDB)
+    // Iterate through the wallet, checking if each transaction is Exodus (via levelDB)
     for (CWallet::TxItems::reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
         const CWalletTx* pwtx = it->second.first;
         if (pwtx != NULL) {
-            // get the hash of the transaction and check leveldb to see if this is an Omni tx, if so add to cache
+            // get the hash of the transaction and check leveldb to see if this is an Exodus tx, if so add to cache
             const uint256& hash = pwtx->GetHash();
             if (p_txlistdb->exists(hash)) {
                 walletTXIDCache.push_back(hash);
