@@ -92,6 +92,7 @@
 #include "client-api/server.h"
 #include "client-api/register.h"
 
+bool fFeeEstimatesInitialized = false;
 
 static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
 static CZMQReplierInterface* pzmqReplierInterface = NULL;

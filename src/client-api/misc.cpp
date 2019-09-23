@@ -62,7 +62,7 @@ void parseHelpString(UniValue& result, std::string helpString)
  * @param[out]   args        Parsed arguments will be appended to this list
  * @param[in]    strCommand  Command line to split
  */
-bool parseCommandLine(std::vector<std::string> &args, const std::string &strCommand)
+bool parseFromCommandLine(std::vector<std::string> &args, const std::string &strCommand)
 {
     enum CmdParseState
     {
@@ -254,7 +254,7 @@ UniValue rpc(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             std::string argsStr = find_value(data, "args").get_str();
 
             std::vector<std::string> args;
-            parseCommandLine(args, argsStr);
+            parseFromCommandLine(args, argsStr);
 
             UniValue params = RPCConvertValues(method, args);
 
