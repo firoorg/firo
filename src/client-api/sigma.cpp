@@ -179,9 +179,25 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             CAmount nFeeRequired = 0;
             std::vector<CSigmaEntry> coins;
+            std::vector<CHDMint> changes;
+            bool fChangeAddedToFee;
+            std::string txidStr;
 
             try {
-                coins = pwalletMain->SpendSigma(vecSend, wtx, nFeeRequired);
+                // create transaction
+                wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee);
+
+                // Write tx data to filesystem
+                txidStr = wtx.GetHash().GetHex();
+                txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
+                if(!txMetadataUni.replace("data", txMetadataData)){
+                    throw runtime_error("Could not replace key/value pair.");
+                }
+                setTxMetadata(txMetadataUni);
+
+                // commit transaction
+                pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+
             }
             catch (const InsufficientFunds& e) {
                 throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
@@ -211,14 +227,6 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             }
             LogPrintf("mintUpdates: %s\n", mintUpdates.write());
             GetMainSignals().UpdatedMintStatus(mintUpdates.write());
-
-            string txidStr = wtx.GetHash().GetHex();
-            txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-            if(!txMetadataUni.replace("data", txMetadataData)){
-                throw runtime_error("Could not replace key/value pair.");
-            }
-            //write back tx metadata to FS
-            setTxMetadata(txMetadataUni);
 
             return txidStr;
         }

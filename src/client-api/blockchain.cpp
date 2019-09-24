@@ -89,7 +89,6 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
         throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
 
-    LogPrintf("transaction string: %s\n", transaction.ToString());
     CWalletTx wtx(pwalletMain, transaction);
 
     isminefilter filter = ISMINE_ALL;
