@@ -29,9 +29,12 @@ class Bip47Account {
         return paymentCode.toString();
     }
 
-    // Address getNotificationAddress() {
-    //     return HDKeyDerivation.deriveChildKey(key, ChildNumber.ZERO).toAddress(params);
-    // }
+    CBitcoinAddress getNotificationAddress() {
+        CExtPubKey key0;
+        key.Derive(key0 ,0);
+        CBitcoinAddress address(key0.pubkey.GetID());
+        return address;
+    }
 
     CExtPubKey getNotificationKey() {
         CExtPubKey result ;

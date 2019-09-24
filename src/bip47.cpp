@@ -197,6 +197,7 @@ namespace bip47 {
     CBitcoinAddress Bip47Account::getNotificationAddress() {
         CExtKey key1;
         key.Derive(key1, 0);
+    
         CBitcoinAddress address(key1.Neuter().pubkey.GetID());
         return address;
     }
