@@ -65,16 +65,15 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
     auto mint = wallet->GetSigmaMint(id);
 
     BOOST_CHECK(id.pubKey.IsValid());
-    BOOST_CHECK_EQUAL(id, mint.id);
+    BOOST_CHECK_EQUAL(id.property, mint.property);
+    BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
 
     BOOST_CHECK(mint.spendTx.IsNull());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
-    BOOST_CHECK(mint.id.pubKey.IsValid());
-    BOOST_CHECK_NE(mint.id.pubKey, SigmaPublicKey());
 
     auto priv = wallet->GetKey(mint);
     SigmaPublicKey pub(priv, DefaultSigmaParams);
-    BOOST_CHECK_EQUAL(mint.id.pubKey, pub);
+    BOOST_CHECK_EQUAL(id.pubKey, pub);
 
     auto another = CreateSigmaMint(1, 1);
 
@@ -101,10 +100,10 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
         auto mint = wallet->GetSigmaMint(id);
 
         BOOST_CHECK_EQUAL(id.property, 1);
-        BOOST_CHECK_EQUAL(id, mint.id);
+        BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
         BOOST_CHECK(id.pubKey.IsValid());
 
-        BOOST_CHECK_NE(mint.id.pubKey, SigmaPublicKey());
+        BOOST_CHECK_NE(id.pubKey, SigmaPublicKey());
 
         BOOST_CHECK(mint.spendTx.IsNull());
         BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
@@ -113,7 +112,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
 
         auto priv = wallet->GetKey(mint);
         SigmaPublicKey pub(priv, DefaultSigmaParams);
-        BOOST_CHECK_EQUAL(pub, mint.id.pubKey);
+        BOOST_CHECK_EQUAL(pub, id.pubKey);
     }
 }
 
@@ -186,7 +185,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
 
     for (auto& mint : mints) {
-        auto it = ids.find(mint.id);
+        SigmaPublicKey pub(wallet->GetKey(mint), DefaultSigmaParams);
+        auto it = ids.find(SigmaMintId(mint.property, mint.denomination, pub));
 
         BOOST_CHECK(it != ids.end());
         BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
@@ -219,16 +219,17 @@ BOOST_AUTO_TEST_CASE(sigma_mint_get)
     auto owned = wallet->CreateSigmaMint(1, 1);
     auto mint = wallet->GetSigmaMint(owned);
 
-    BOOST_CHECK_EQUAL(owned, mint.id);
+    SigmaPublicKey pub(wallet->GetKey(mint), DefaultSigmaParams);
+    BOOST_CHECK_EQUAL(owned, SigmaMintId(mint.property, mint.denomination, pub));
 
     // Get non-existence.
-    SigmaPrivateKey priv;
-    SigmaPublicKey pub;
+    SigmaPrivateKey otherPriv;
+    SigmaPublicKey otherPub;
 
-    priv.Generate();
-    pub.Generate(priv, DefaultSigmaParams);
+    otherPriv.Generate();
+    otherPub.Generate(otherPriv, DefaultSigmaParams);
 
-    SigmaMintId other(1, 1, pub);
+    SigmaMintId other(1, 1, otherPub);
 
     BOOST_CHECK_THROW(wallet->GetSigmaMint(other), std::invalid_argument);
 }

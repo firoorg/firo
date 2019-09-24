@@ -211,6 +211,11 @@ struct hash<uint256> : hash<base_blob<256>>
 {
 };
 
+template<>
+struct hash<uint160> : hash<base_blob<160>>
+{
+};
+
 } // namespace std
 
 #endif // BITCOIN_UINT256_H

@@ -62,7 +62,7 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denom
     }
 
     mintWallet.AddToWallet(mint);;
-    return mint.id;
+    return SigmaMintId(property, denomination, SigmaPublicKey(key, DefaultSigmaParams));
 }
 
 void Wallet::ResetState()
@@ -83,8 +83,8 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     std::vector<SigmaPublicKey> anonimitySet;
 
     sigmaDb->GetAnonimityGroup(
-        mint->id.property,
-        mint->id.denomination,
+        mint->property,
+        mint->denomination,
         mint->chainState.group,
         std::back_inserter(anonimitySet)
     );
@@ -97,11 +97,12 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     auto key = GetKey(mint.get());
     SigmaProof proof(DefaultSigmaParams, key, anonimitySet.begin(), anonimitySet.end());
 
-    if (!VerifySigmaSpend(mint->id.property, mint->id.denomination, mint->chainState.group, anonimitySet.size(), proof)) {
+    if (!VerifySigmaSpend(mint->property, mint->denomination, mint->chainState.group, anonimitySet.size(), proof)) {
         throw WalletError(_("Failed to create spendable spend"));
     }
 
-    return SigmaSpend(mint->id, mint->chainState.group, anonimitySet.size(), proof);
+    return SigmaSpend(SigmaMintId(mint->property, mint->denomination, SigmaPublicKey(key, DefaultSigmaParams)),
+        mint->chainState.group, anonimitySet.size(), proof);
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
@@ -136,7 +137,7 @@ boost::optional<SigmaMint>
     mintWallet.ListSigmaMints(std::back_inserter(spendables), true, true);
 
     auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](SigmaMint const &mint) -> bool {
-        return denomination != mint.id.denomination;
+        return denomination != mint.denomination;
     });
     spendables.erase(eraseFrom, spendables.end());
 
@@ -163,15 +164,7 @@ boost::optional<SigmaMint>
 
 SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
 {
-    SigmaPrivateKey k;
-    if (!mintWallet.RegenerateMint(mint, k)) {
-        throw std::runtime_error("fail to regenerate private key");
-    }
-
-    if (mint.id.pubKey != SigmaPublicKey(k, DefaultSigmaParams)) {
-        throw std::runtime_error("regenerated key doesn't matched with old value");
-    }
-    return k;
+    return mintWallet.GetPrivateKeyFromSeedId(mint.seedId);
 }
 
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)

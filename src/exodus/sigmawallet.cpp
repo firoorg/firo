@@ -207,23 +207,45 @@ bool SigmaWallet::AddToWallet(const SigmaMint& mint)
     bool isNew = false;
 
     CWalletDB walletdb(walletFile);
-    if (!walletdb.HasExodusHDMint(mint.id)) {
+    SigmaMintId id(
+        mint.property,
+        mint.denomination,
+        SigmaPublicKey(
+            GetPrivateKeyFromSeedId(mint.seedId),
+            DefaultSigmaParams
+        )
+    );
+
+    if (!walletdb.HasExodusHDMint(id)) {
 
         isNew = true;
 
-        if (!walletdb.WriteExodusHDMint(mint.id, mint)) {
+        if (!walletdb.WriteExodusHDMint(id, mint)) {
             throw std::runtime_error("fail to write hdmint");
         }
 
-        if (!walletdb.WriteExodusMintID(mint.serialId, mint.id)) {
+        if (!walletdb.WriteExodusMintID(mint.serialId, id)) {
             throw std::runtime_error("fail to record id");
         }
     }
 
-    RemoveFromMintPool(mint.id.pubKey);
+    RemoveFromMintPool(id.pubKey);
     GenerateMintPool();
 
     return isNew;
+}
+
+SigmaPrivateKey SigmaWallet::GetPrivateKeyFromSeedId(CKeyID const &seedId)
+{
+    uint512 seed;
+    SigmaPrivateKey priv;
+
+    GenerateSeed(seedId, seed);
+    if (!SeedToPrivateKey(seed, priv)) {
+        throw std::runtime_error("fail to generate private key from seed");
+    }
+
+    return priv;
 }
 
 bool SigmaWallet::GenerateMint(
@@ -245,16 +267,13 @@ bool SigmaWallet::GenerateMint(
     LogPrintf("%s: publicKey: %s seedId: %s\n",
         __func__, mintPoolEntry->key.commitment.GetHex(), mintPoolEntry->seedId.GetHex());
 
-    uint512 seed;
-    auto index = GenerateSeed(mintPoolEntry->seedId, seed);
-    if (!SeedToPrivateKey(seed, coin)) {
-        return false;
-    }
+    coin = GetPrivateKeyFromSeedId(mintPoolEntry->seedId);
 
     SigmaPublicKey key(coin, DefaultSigmaParams);
     auto serialId = primitives::GetSerialHash160(coin.serial);
     mint = SigmaMint(
-        SigmaMintId(propertyId, denomination, key),
+        propertyId,
+        denomination,
         mintPoolEntry->seedId,
         serialId
     );
@@ -280,15 +299,17 @@ bool SigmaWallet::RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey
 {
     SigmaMint dummyMint;
 
-    MintPoolEntry mintPoolEntry(mint.id.pubKey, mint.seedId);
-    if (!GenerateMint(mint.id.property, mint.id.denomination, privKey, dummyMint, mintPoolEntry)) {
+    auto priv = GetPrivateKeyFromSeedId(mint.seedId);
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
 
+    MintPoolEntry mintPoolEntry(pub, mint.seedId);
+    if (!GenerateMint(mint.property, mint.denomination, privKey, dummyMint, mintPoolEntry)) {
         return error("%s: failed to generate mint", __func__);
     }
 
     // Verify regenered
     exodus::SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
-    if (pubKey != mint.id.pubKey) {
+    if (pubKey != pub) {
         return error("%s: failed to correctly generate mint, pubcoin mismatch", __func__);
     }
 
@@ -304,12 +325,17 @@ void SigmaWallet::ResetCoinsState()
     try {
         CWalletDB walletdb(walletFile);
 
-        ListSigmaMints([&walletdb](SigmaMint &m) {
+        ListSigmaMints([&](SigmaMint &m) {
 
             m.chainState = SigmaMintChainState();
             m.spendTx = uint256();
 
-            if (!walletdb.WriteExodusHDMint(m.id, m)) {
+            auto priv = GetPrivateKeyFromSeedId(m.seedId);
+            SigmaPublicKey pub(priv, DefaultSigmaParams);
+
+            if (!walletdb.WriteExodusHDMint(
+                SigmaMintId(m.property, m.denomination, pub), m)) {
+
                throw std::runtime_error("fail to update hdmint");
             }
 
@@ -361,7 +387,8 @@ bool SigmaWallet::SetMintSeedSeen(
 
     // Create mint object
     SigmaMint mint(
-        SigmaMintId(propertyId, denomination, mintPoolEntry.key),
+        propertyId,
+        denomination,
         seedId,
         serialId);
     mint.chainState = chainState;

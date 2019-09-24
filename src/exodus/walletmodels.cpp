@@ -34,22 +34,23 @@ void SigmaMintChainState::Clear() noexcept
 
 // SigmaMint Implementation.
 
-SigmaMint::SigmaMint()
+SigmaMint::SigmaMint() : property(0), denomination(0)
 {
 }
 
-SigmaMint::SigmaMint(SigmaMintId const &id, CKeyID const &seedId, uint160 const &serialId) :
-    id(id), seedId(seedId), serialId(serialId)
+SigmaMint::SigmaMint(PropertyId property, SigmaDenomination denomination, CKeyID const &seedId, uint160 const &serialId) :
+    property(property), denomination(denomination), seedId(seedId), serialId(serialId)
 {
 }
 
 bool SigmaMint::operator==(const SigmaMint& other) const
 {
-    return id == other.id &&
-           seedId == other.seedId &&
-           serialId == other.serialId &&
-           chainState == other.chainState &&
-           spendTx == other.spendTx;
+    return property == other.property &&
+            denomination == other.denomination &&
+            seedId == other.seedId &&
+            serialId == other.serialId &&
+            chainState == other.chainState &&
+            spendTx == other.spendTx;
 }
 
 bool SigmaMint::operator!=(const SigmaMint& other) const

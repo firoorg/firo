@@ -84,9 +84,10 @@ private:
     // Mint updating
 public:
     bool AddToWallet(SigmaMint const &entry);
+    SigmaPrivateKey GetPrivateKeyFromSeedId(CKeyID const &seedId);
     bool GenerateMint(
-        uint32_t propertyId,
-        uint8_t denom,
+        PropertyId propertyId,
+        SigmaDenomination denom,
         exodus::SigmaPrivateKey& coin,
         SigmaMint& dMint,
         boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
@@ -94,8 +95,8 @@ public:
     void ResetCoinsState();
     bool SetMintSeedSeen(
         MintPoolEntry const &mintPoolEntry,
-        uint32_t propertyId,
-        uint8_t denomination,
+        PropertyId propertyId,
+        SigmaDenomination denomination,
         exodus::SigmaMintChainState const &chainState,
         uint256 const &spendTx = uint256());
 

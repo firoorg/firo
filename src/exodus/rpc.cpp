@@ -72,22 +72,22 @@ UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
     {
         LOCK(cs_main);
 
-        if (!_my_sps->getSP(mint.id.property, info)) {
-            throw std::invalid_argument("property " + std::to_string(mint.id.property) + " is not valid");
+        if (!_my_sps->getSP(mint.property, info)) {
+            throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
         }
     }
 
-    if (mint.id.denomination >= info.denominations.size()) {
-        throw std::invalid_argument("denomination " + std::to_string(mint.id.denomination) + " is not valid");
+    if (mint.denomination >= info.denominations.size()) {
+        throw std::invalid_argument("denomination " + std::to_string(mint.denomination) + " is not valid");
     }
 
-    auto value = info.denominations[mint.id.denomination];
+    auto value = info.denominations[mint.denomination];
 
     // Construct JSON.
     UniValue json(UniValue::VOBJ);
 
-    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.id.property)));
-    json.push_back(Pair("denomination", mint.id.denomination));
+    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.property)));
+    json.push_back(Pair("denomination", mint.denomination));
 
     if (info.isDivisible()) {
         json.push_back(Pair("value", FormatDivisibleMP(value)));
@@ -1924,11 +1924,11 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
             return;
         }
 
-        if (property && m.id.property != property.get()) {
+        if (property && m.property != property.get()) {
             return;
         }
 
-        if (denomination && m.id.denomination != denomination.get()) {
+        if (denomination && m.denomination != denomination.get()) {
             return;
         }
 

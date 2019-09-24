@@ -82,15 +82,15 @@ EXODUS_CPP = \
 if ENABLE_WALLET
 EXODUS_H += \
   exodus/rpctx.h \
+  exodus/sigmawallet.h \
   exodus/wallet.h \
-  exodus/walletmodels.h \
-  exodus/sigmawallet.h
+  exodus/walletmodels.h
 
 EXODUS_CPP += \
   exodus/rpctx.cpp \
+  exodus/sigmawallet.cpp \
   exodus/wallet.cpp \
-  exodus/walletmodels.cpp \
-  exodus/sigmawallet.cpp
+  exodus/walletmodels.cpp
 endif
 
 libbitcoin_server_a_SOURCES += \
