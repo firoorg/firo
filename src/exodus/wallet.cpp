@@ -86,6 +86,11 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     return SigmaSpend(SigmaMintId(*mint, DefaultSigmaParams), mint->chainState.group, anonimitySet.size(), proof);
 }
 
+bool Wallet::EraseSigmaMint(const SigmaMintId &id)
+{
+    return CWalletDB(walletFile).EraseExodusMint(id);
+}
+
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
     return CWalletDB(walletFile).HasExodusMint(id);
