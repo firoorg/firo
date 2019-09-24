@@ -30,6 +30,7 @@ TOR_LIBS = tor/src/core/libtor-app.a    \
     tor/src/lib/libtor-evloop.a \
     tor/src/lib/libtor-thread.a \
     tor/src/lib/libtor-compress.a \
+    @LIBZSTD@ \
     tor/src/lib/libtor-net.a \
     tor/src/lib/libtor-buf.a \
     tor/src/lib/libtor-time.a \
