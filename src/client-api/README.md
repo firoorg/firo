@@ -564,7 +564,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 
 ### `rpc`
-`get`:
+`initial`:
 ```
     data: {
     }
