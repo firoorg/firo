@@ -205,7 +205,7 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fF
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
         if(!fFirstUnlock && zwalletMain){
-            CHDChain hdChain = pwalletMain->GetHDChain();
+            auto &hdChain = pwalletMain->GetHDChain();
             uint160 hashSeedMaster = hdChain.masterKeyID;
             zwalletMain->SetupWallet(hashSeedMaster, false);
             zwalletMain->SyncWithChain();
