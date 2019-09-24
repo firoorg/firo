@@ -613,7 +613,6 @@ boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
 {
     boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_METADATA_FILENAME);
 
-    LogPrintf("API: pathConfigFile tx metadata: %s\n", pathConfigFile.string());
     if(!boost::filesystem::exists(pathConfigFile)){
         UniValue txMetadataUni(UniValue::VOBJ);
         txMetadataUni.push_back(Pair("type", "tx_metadata"));
