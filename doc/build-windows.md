@@ -22,9 +22,22 @@ Make sure you install the build requirements mentioned in
 Then, install the toolchains and curl:
 
     sudo apt-get install g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl
+*******************
+Build dependancies
+-------------
+To build dependancies for Windows 32-bit:
+------------------
+
+    make -C depends HOST=i686-w64-mingw32 -j`nproc`
+
+To build dependancies for Windows 64-bit:
+------------------
+
+    make -C depends HOST=x86_64-w64-mingw32 -j`nproc`
+*******************
 
 *******************
-Before starting to compile you need to update mingw alternatives
+Before starting to compile you need to update MinGW alternatives
 -------------
 For Windows 32-bit:
 
@@ -40,20 +53,31 @@ For Windows 64-bit:
 To build executables for Windows 32-bit:
 ------------------
 
-    cd depends
-    make HOST=i686-w64-mingw32 -j`nproc`
-    cd ..
+    ./autogen.sh
     ./configure --prefix=`pwd`/depends/i686-w64-mingw32
     make
 
 To build executables for Windows 64-bit:
 ------------------
 
-    cd depends
-    make HOST=x86_64-w64-mingw32 -j`nproc`
-    cd ..
+    ./autogen.sh
     ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32
     make
+
+You will likely want to reset the MinGW alternatives following build:
+
+********************
+To reset MinGW alternatives for Windows 32-bit:
+------------------
+
+    sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-win32
+    sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-gcc-win32
+
+To reset MinGW alternatives for Windows 64-bit:
+------------------
+
+    sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-win32
+    sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-win32
 
 For further documentation on the depends system see [README.md](../depends/README.md) in the depends directory.
 
