@@ -70,8 +70,8 @@ You will likely want to reset the MinGW alternatives following build:
 To reset MinGW alternatives for Windows 32-bit:
 ------------------
 
-    sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-win32
-    sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-gcc-win32
+    sudo update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-win32
+    sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-gcc-win32
 
 To reset MinGW alternatives for Windows 64-bit:
 ------------------
