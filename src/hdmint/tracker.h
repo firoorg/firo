@@ -26,7 +26,7 @@ public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
     void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
-    void Add(const CSigmaEntry& zerocoin, bool isNew = false, bool isArchived = false);
+    void Add(const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
@@ -44,7 +44,7 @@ public:
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins);
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
-    list<CSigmaEntry> MintsAsZerocoinEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
+    list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     void RemovePending(const uint256& txid);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
