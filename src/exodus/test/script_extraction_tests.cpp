@@ -1,15 +1,19 @@
-#include "exodus/script.h"
+#include "../script.h"
 
-#include "base58.h"
-#include "pubkey.h"
-#include "script/script.h"
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../base58.h"
+#include "../../pubkey.h"
+#include "../../utilstrencodings.h"
+
+#include "../../script/script.h"
+
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <string>
 #include <vector>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_script_extraction_tests, BasicTestingSetup)
 
@@ -29,10 +33,12 @@ BOOST_AUTO_TEST_CASE(extract_pubkey_test)
     BOOST_CHECK_EQUAL(outtype, TX_PUBKEY);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 1);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(vchPayload));
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 1);
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload));
 }
 
 BOOST_AUTO_TEST_CASE(extract_pubkeyhash_test)
@@ -53,10 +59,12 @@ BOOST_AUTO_TEST_CASE(extract_pubkeyhash_test)
     BOOST_CHECK_EQUAL(outtype, TX_PUBKEYHASH);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 1);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(ToByteVector(keyId)));
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 1);
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(ToByteVector(keyId)));
 }
 
 BOOST_AUTO_TEST_CASE(extract_multisig_test)
@@ -85,55 +93,14 @@ BOOST_AUTO_TEST_CASE(extract_multisig_test)
     BOOST_CHECK_EQUAL(outtype, TX_MULTISIG);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 3);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(vchPayload1));
-    BOOST_CHECK_EQUAL(vstrSolutions[1], HexStr(vchPayload2));
-    BOOST_CHECK_EQUAL(vstrSolutions[2], HexStr(vchPayload3));
-}
+    std::vector<std::vector<unsigned char>> solutions;
 
-BOOST_AUTO_TEST_CASE(extract_multisig_with_skip_test)
-{
-    std::vector<unsigned char> vchPayload1 = ParseHex(
-        "02619c30f643a4679ec2f690f3d6564df7df2ae23ae4a55393ae0bef22db9dbcaf");
-    std::vector<unsigned char> vchPayload2 = ParseHex(
-        "026766a63686d2cc5d82c929d339b7975010872aa6bf76f6fac69f28f8e293a914");
-    std::vector<unsigned char> vchPayload3 = ParseHex(
-        "02959b8e2f2e4fb67952cda291b467a1781641c94c37feaa0733a12782977da23b");
-    std::vector<unsigned char> vchPayload4 = ParseHex(
-        "0261a017029ec4688ec9bf33c44ad2e595f83aaf3ed4f3032d1955715f5ffaf6b8");
-    std::vector<unsigned char> vchPayload5 = ParseHex(
-        "02dc1a0afc933d703557d9f5e86423a5cec9fee4bfa850b3d02ceae72117178802");
+    GetPushedValues(script, std::back_inserter(solutions));
 
-    CPubKey pubKey1(vchPayload1.begin(), vchPayload1.end());
-    CPubKey pubKey2(vchPayload2.begin(), vchPayload2.end());
-    CPubKey pubKey3(vchPayload3.begin(), vchPayload3.end());
-    CPubKey pubKey4(vchPayload4.begin(), vchPayload4.end());
-    CPubKey pubKey5(vchPayload5.begin(), vchPayload5.end());
-
-    // 1-of-5 bare multisig script
-    CScript script;
-    script << CScript::EncodeOP_N(1);
-    script << ToByteVector(pubKey1);
-    script << ToByteVector(pubKey2) << ToByteVector(pubKey3);
-    script << ToByteVector(pubKey4) << ToByteVector(pubKey5);
-    script << CScript::EncodeOP_N(5);
-    script << OP_CHECKMULTISIG;
-
-    // Check script type
-    txnouttype outtype;
-    BOOST_CHECK(GetOutputType(script, outtype));
-    BOOST_CHECK_EQUAL(outtype, TX_MULTISIG);
-
-    // Confirm extracted data, and skip first public key
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions, true));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 4);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(vchPayload2));
-    BOOST_CHECK_EQUAL(vstrSolutions[1], HexStr(vchPayload3));
-    BOOST_CHECK_EQUAL(vstrSolutions[2], HexStr(vchPayload4));
-    BOOST_CHECK_EQUAL(vstrSolutions[3], HexStr(vchPayload5));
+    BOOST_CHECK_EQUAL(solutions.size(), 3);
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload1));
+    BOOST_CHECK_EQUAL(HexStr(solutions[1]), HexStr(vchPayload2));
+    BOOST_CHECK_EQUAL(HexStr(solutions[2]), HexStr(vchPayload3));
 }
 
 BOOST_AUTO_TEST_CASE(extract_scripthash_test)
@@ -158,10 +125,12 @@ BOOST_AUTO_TEST_CASE(extract_scripthash_test)
     BOOST_CHECK_EQUAL(outtype, TX_SCRIPTHASH);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 1);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(ToByteVector(innerId)));
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 1);
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(ToByteVector(innerId)));
 }
 
 BOOST_AUTO_TEST_CASE(extract_no_nulldata_test)
@@ -176,9 +145,11 @@ BOOST_AUTO_TEST_CASE(extract_no_nulldata_test)
     BOOST_CHECK_EQUAL(outtype, TX_NULL_DATA);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 0);
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(extract_empty_nulldata_test)
@@ -193,10 +164,12 @@ BOOST_AUTO_TEST_CASE(extract_empty_nulldata_test)
     BOOST_CHECK_EQUAL(outtype, TX_NULL_DATA);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 1);
-    BOOST_CHECK_EQUAL(vstrSolutions[0].size(), 0);
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 1);
+    BOOST_CHECK_EQUAL(solutions[0].size(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(extract_nulldata_test)
@@ -214,10 +187,12 @@ BOOST_AUTO_TEST_CASE(extract_nulldata_test)
     BOOST_CHECK_EQUAL(outtype, TX_NULL_DATA);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 1);
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(vchPayload));
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), 1);
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload));
 }
 
 BOOST_AUTO_TEST_CASE(extract_nulldata_multipush_test)
@@ -247,11 +222,14 @@ BOOST_AUTO_TEST_CASE(extract_nulldata_multipush_test)
     BOOST_CHECK_EQUAL(outtype, TX_NULL_DATA);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), vstrPayloads.size());
-    for (unsigned n = 0; n < vstrSolutions.size(); ++n) {
-        BOOST_CHECK_EQUAL(vstrSolutions[n], vstrPayloads[n]);
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), vstrPayloads.size());
+
+    for (unsigned n = 0; n < solutions.size(); ++n) {
+        BOOST_CHECK_EQUAL(HexStr(solutions[n]), vstrPayloads[n]);
     }
 }
 
@@ -278,13 +256,17 @@ BOOST_AUTO_TEST_CASE(extract_anypush_test)
     BOOST_CHECK_EQUAL(outtype, TX_NONSTANDARD);
 
     // Confirm extracted data
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(script, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), vvchPayloads.size());
-    for (size_t n = 0; n < vstrSolutions.size(); ++n) {
-        BOOST_CHECK_EQUAL(vstrSolutions[n], HexStr(vvchPayloads[n]));
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(script, std::back_inserter(solutions));
+
+    BOOST_CHECK_EQUAL(solutions.size(), vvchPayloads.size());
+
+    for (size_t n = 0; n < solutions.size(); ++n) {
+        BOOST_CHECK_EQUAL(HexStr(solutions[n]), HexStr(vvchPayloads[n]));
     }
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

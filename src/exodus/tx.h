@@ -6,7 +6,10 @@ class CMPOffer;
 class CTransaction;
 
 #include "exodus.h"
+#include "packetencoder.h"
 #include "sp.h"
+
+#include <boost/optional.hpp>
 
 #include "../uint256.h"
 #include "../utilstrencodings.h"
@@ -72,7 +75,7 @@ private:
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;
 
-    int encodingClass;  // No Marker = 0, Class A = 1, Class B = 2, Class C = 3
+    boost::optional<exodus::PacketClass> packetClass;
 
     std::string sender;
     std::string receiver;
@@ -249,7 +252,7 @@ public:
     uint8_t getEarlyBirdBonus() const { return early_bird; }
     uint8_t getIssuerBonus() const { return percentage; }
     bool isRpcOnly() const { return rpcOnly; }
-    int getEncodingClass() const { return encodingClass; }
+    const boost::optional<exodus::PacketClass>& getPacketClass() const { return packetClass; }
     uint16_t getAlertType() const { return alert_type; }
     uint32_t getAlertExpiry() const { return alert_expiry; }
     std::string getAlertMessage() const { return alert_text; }
@@ -281,7 +284,7 @@ public:
         raw.clear();
         tx_idx = 0;
         tx_fee_paid = 0;
-        encodingClass = 0;
+        packetClass = boost::none;
         sender.clear();
         receiver.clear();
         type = 0;
@@ -337,7 +340,7 @@ public:
         unsigned int idx,
         unsigned char *p,
         unsigned int size,
-        int encodingClassIn,
+        const boost::optional<exodus::PacketClass>& packetClass,
         uint64_t txf);
 
     /** Parses the packet or payload. */

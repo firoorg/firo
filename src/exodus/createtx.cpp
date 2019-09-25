@@ -1,20 +1,23 @@
-#include "exodus/createtx.h"
+#include "createtx.h"
 
-#include "exodus/encoding.h"
-#include "exodus/script.h"
+#include "packetencoder.h"
+#include "script.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "pubkey.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "uint256.h"
+#include "../base58.h"
+#include "../coins.h"
+#include "../pubkey.h"
+#include "../uint256.h"
 
-#include <stdint.h>
+#include "../primitives/transaction.h"
+
+#include "../script/script.h"
+#include "../script/standard.h"
+
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <inttypes.h>
 
 /** Creates a new previous output entry. */
 PrevTxsEntry::PrevTxsEntry(const uint256& txid, uint32_t nOut, int64_t nValue, const CScript& scriptPubKey)
@@ -143,14 +146,14 @@ ExodusTxBuilder& ExodusTxBuilder::addReference(const std::string& destination, i
 /** Embeds a payload with class C (op-return) encoding. */
 ExodusTxBuilder& ExodusTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
 {
-    transaction.vout.push_back(EncodeClassC(data.begin(), data.end()));
+    transaction.vout.push_back(exodus::EncodeClassC(data.begin(), data.end()));
     return *this;
 }
 
 /** Embeds a payload with class B (bare-multisig) encoding. */
 ExodusTxBuilder& ExodusTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
 {
-    EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
+    exodus::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
     return *this;
 }
 

@@ -1,25 +1,28 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/exodus.h"
-#include "exodus/script.h"
-#include "exodus/tx.h"
-#include "exodus/encoding.h"
-#include "exodus/createpayload.h"
+#include "../createpayload.h"
+#include "../exodus.h"
+#include "../script.h"
+#include "../tx.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
+#include "../../base58.h"
+#include "../../coins.h"
 
-#include <stdint.h>
-#include <limits>
-#include <vector>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+#include <limits>
+#include <vector>
+
+#include <inttypes.h>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_sender_firstin_tests, BasicTestingSetup)
 
@@ -133,5 +136,6 @@ BOOST_AUTO_TEST_CASE(invalid_inputs)
     }
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

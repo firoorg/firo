@@ -2,6 +2,7 @@
 
 #include "log.h"
 #include "exodus.h"
+#include "packetencoder.h"
 #include "uint256_extensions.h"
 #include "utilsbitcoin.h"
 
@@ -65,7 +66,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     PrintToLog("Loading smart property database: %s\n", status.ToString());
 
     // special cases for constant SPs EXODUS and TEXODUS
-    implied_exodus.issuer = ExodusAddress().ToString();
+    implied_exodus.issuer = GetSystemAddress().ToString();
     implied_exodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
     implied_exodus.num_tokens = 700000;
     implied_exodus.category = "N/A";
@@ -73,7 +74,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_exodus.name = "Exodus";
     implied_exodus.url = "https://www.zcoin.io";
     implied_exodus.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
-    implied_texodus.issuer = ExodusAddress().ToString();
+    implied_texodus.issuer = GetSystemAddress().ToString();
     implied_texodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
     implied_texodus.num_tokens = 700000;
     implied_texodus.category = "N/A";

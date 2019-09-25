@@ -76,21 +76,6 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
-/** Helper to convert class number to string. */
-static std::string intToClass(int encodingClass)
-{
-    switch (encodingClass) {
-        case EXODUS_CLASS_A:
-            return "A";
-        case EXODUS_CLASS_B:
-            return "B";
-        case EXODUS_CLASS_C:
-            return "C";
-    }
-
-    return "-";
-}
-
 void CMPTransaction::Set(
     const std::string& s,
     const std::string& r,
@@ -100,7 +85,7 @@ void CMPTransaction::Set(
     unsigned int idx,
     unsigned char *p,
     unsigned int size,
-    int encodingClassIn,
+    const boost::optional<exodus::PacketClass>& packetClass,
     uint64_t txf)
 {
     sender = s;
@@ -110,7 +95,7 @@ void CMPTransaction::Set(
     tx_idx = idx;
     nValue = n;
     nNewValue = n;
-    encodingClass = encodingClassIn;
+    this->packetClass = packetClass;
     tx_fee_paid = txf;
     raw.clear();
     raw.insert(raw.end(), p, p + size);
@@ -233,7 +218,7 @@ bool CMPTransaction::interpret_TransactionType()
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t------------------------------\n");
-        PrintToLog("\t         version: %d, class %s\n", txVersion, intToClass(encodingClass));
+        PrintToLog("\t         version: %d, class %s\n", txVersion, std::to_string(*packetClass));
         PrintToLog("\t            type: %d (%s)\n", txType, strTransactionType(txType));
     }
 

@@ -1,21 +1,15 @@
-/**
- * @file exodus.cpp
- *
- * This file contains the core of Exodus Core.
- */
-
 #include "exodus.h"
 
 #include "activation.h"
 #include "consensushash.h"
 #include "convert.h"
 #include "dex.h"
-#include "encoding.h"
 #include "errors.h"
 #include "fees.h"
 #include "log.h"
 #include "mdex.h"
 #include "notifications.h"
+#include "packetencoder.h"
 #include "pending.h"
 #include "persistence.h"
 #include "rules.h"
@@ -97,12 +91,6 @@ using std::string;
 using std::vector;
 
 using namespace exodus;
-
-static string exodus_address = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
-
-static const string exodus_mainnet = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
-static const string exodus_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
-static const string getmoney_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
 
 static int nWaterlineBlock = 0;
 
@@ -505,7 +493,7 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
         assert(before == after);
         PrintToLog("%s(%s, %u=0x%X, %+d, ttype=%d) ERROR: insufficient balance (=%d)\n", __func__, who, propertyId, propertyId, amount, ttype, before);
     }
-    if (exodus_debug_tally && (exodus_address != who || exodus_debug_exo)) {
+    if (exodus_debug_tally && (CBitcoinAddress(who) != GetSystemAddress() || exodus_debug_exo)) {
         PrintToLog("%s(%s, %u=0x%X, %+d, ttype=%d): before=%d, after=%d\n", __func__, who, propertyId, propertyId, amount, ttype, before, after);
     }
 
@@ -566,7 +554,7 @@ static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
     }
 
     if (exodus_delta > 0) {
-        update_tally_map(exodus_address, EXODUS_PROPERTY_EXODUS, exodus_delta, BALANCE);
+        update_tally_map(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, exodus_delta, BALANCE);
         exodus_prev = devexodus;
     }
 
@@ -631,105 +619,6 @@ void CheckWalletUpdate(bool forceUpdate)
     // signal an Exodus balance change
     uiInterface.ExodusBalanceChanged();
 #endif
-}
-
-/**
- * Returns the encoding class, used to embed a payload.
- *
- *   0 None
- *   1 Class A (p2pkh)
- *   2 Class B (multisig)
- *   3 Class C (op-return)
- */
-int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
-{
-    bool hasExodus = false;
-    bool hasMultisig = false;
-    bool hasOpReturn = false;
-
-    /* Fast Search
-     * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or exodus marker bytes
-     * This allows to drop non-Exodus transactions with less work
-     */
-    std::string strClassC = "65786f647573";
-    std::string strClassAB = "76a914030de47b81d0e0a2932746e939de3a7352a3f19288ac";
-    bool examineClosely = false;
-    for (unsigned int n = 0; n < tx.vout.size(); ++n) {
-        const CTxOut& output = tx.vout[n];
-        std::string strSPB = HexStr(output.scriptPubKey.begin(), output.scriptPubKey.end());
-        if (strSPB != strClassAB) { // not an exodus marker
-            if (nBlock < 0) { // class C not enabled yet, no need to search for marker bytes
-                continue;
-            } else {
-                if (strSPB.find(strClassC) != std::string::npos) {
-                    examineClosely = true;
-                    break;
-                }
-            }
-        } else {
-            examineClosely = true;
-            break;
-        }
-    }
-
-    // Examine everything when not on mainnet
-    if (isNonMainNet()) {
-        examineClosely = true;
-    }
-
-    if (!examineClosely) return NO_MARKER;
-
-    for (unsigned int n = 0; n < tx.vout.size(); ++n) {
-        const CTxOut& output = tx.vout[n];
-
-        txnouttype outType;
-        if (!GetOutputType(output.scriptPubKey, outType)) {
-            continue;
-        }
-        if (!IsAllowedOutputType(outType, nBlock)) {
-            continue;
-        }
-
-        if (outType == TX_PUBKEYHASH) {
-            CTxDestination dest;
-            if (ExtractDestination(output.scriptPubKey, dest)) {
-                CBitcoinAddress address(dest);
-                if (address == ExodusAddress()) {
-                    hasExodus = true;
-                }
-            }
-        }
-        if (outType == TX_MULTISIG) {
-            hasMultisig = true;
-        }
-        if (outType == TX_NULL_DATA) {
-            // Ensure there is a payload, and the first pushed element equals,
-            // or starts with the "exodus" marker
-            std::vector<std::string> scriptPushes;
-            if (!GetScriptPushes(output.scriptPubKey, scriptPushes)) {
-                continue;
-            }
-            if (!scriptPushes.empty()) {
-                std::vector<unsigned char> vchMarker = GetExMarker();
-                std::vector<unsigned char> vchPushed = ParseHex(scriptPushes[0]);
-                if (vchPushed.size() < vchMarker.size()) {
-                    continue;
-                }
-                if (std::equal(vchMarker.begin(), vchMarker.end(), vchPushed.begin())) {
-                    hasOpReturn = true;
-                }
-            }
-        }
-    }
-
-    if (hasOpReturn) {
-        return EXODUS_CLASS_C;
-    }
-    if (hasExodus && hasMultisig) {
-        return EXODUS_CLASS_B;
-    }
-
-    return NO_MARKER;
 }
 
 // TODO: move
@@ -810,9 +699,9 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     mp_tx.Set(wtx.GetHash(), nBlock, idx, nTime);
 
     // ### CLASS IDENTIFICATION AND MARKER CHECK ###
-    int exodusClass = GetEncodingClass(wtx, nBlock);
+    auto exodusClass = DeterminePacketClass(wtx, nBlock);
 
-    if (exodusClass == NO_MARKER) {
+    if (!exodusClass) {
         return -1; // No Exodus/Exodus marker, thus not a valid Exodus transaction
     }
 
@@ -822,7 +711,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     }
 
     // ### SENDER IDENTIFICATION ###
-    std::string strSender;
+    boost::optional<CBitcoinAddress> sender;
     int64_t inAll = 0;
 
     { // needed to ensure the cache isn't cleared in the meantime when doing parallel queries
@@ -836,15 +725,14 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     assert(view.HaveInputs(wtx));
 
-    if (exodusClass != EXODUS_CLASS_C)
-    {
-        if (InputMode::SIGMA == inputMode) {
-            PrintToLog("%s() ERROR: sigma input is allowed only on class c\n", __func__, wtx.GetHash().GetHex());
+    if (*exodusClass != PacketClass::C) {
+        if (inputMode != InputMode::NORMAL) {
+            PrintToLog("%s() ERROR: other input than normal is not allowed when packet class is not C\n", __func__, wtx.GetHash().GetHex());
             return -101;
         }
 
         // OLD LOGIC - collect input amounts and identify sender via "largest input by sum"
-        std::map<std::string, int64_t> inputs_sum_of_values;
+        std::map<CBitcoinAddress, int64_t> inputs_sum_of_values;
 
         for (unsigned int i = 0; i < wtx.vin.size(); ++i) {
             if (exodus_debug_vin) PrintToLog("vin=%d:%s\n", i, ScriptToAsmStr(wtx.vin[i].scriptSig));
@@ -863,20 +751,24 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 return -105;
             }
             if (ExtractDestination(txOut.scriptPubKey, source)) { // extract the destination of the previous transaction's vout[n] and check it's allowed type
-                CBitcoinAddress addressSource(source);
-                inputs_sum_of_values[addressSource.ToString()] += txOut.nValue;
+                inputs_sum_of_values[CBitcoinAddress(source)] += txOut.nValue;
             }
             else return -106;
         }
 
         int64_t nMax = 0;
-        for (std::map<std::string, int64_t>::iterator it = inputs_sum_of_values.begin(); it != inputs_sum_of_values.end(); ++it) { // find largest by sum
+        for (auto it = inputs_sum_of_values.begin(); it != inputs_sum_of_values.end(); ++it) { // find largest by sum
             int64_t nTemp = it->second;
             if (nTemp > nMax) {
-                strSender = it->first;
-                if (exodus_debug_exo) PrintToLog("looking for The Sender: %s , nMax=%lu, nTemp=%d\n", strSender, nMax, nTemp);
+                sender = it->first;
+                if (exodus_debug_exo) PrintToLog("looking for The Sender: %s , nMax=%lu, nTemp=%d\n", sender->ToString(), nMax, nTemp);
                 nMax = nTemp;
             }
+        }
+
+        if (!sender) {
+            PrintToLog("Failed to determine sender for transaction %s\n", wtx.GetHash().GetHex());
+            return -5;
         }
     }
     else if (inputMode != InputMode::SIGMA)
@@ -904,7 +796,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
         CTxDestination source;
         if (ExtractDestination(txOut.scriptPubKey, source)) {
-            strSender = CBitcoinAddress(source).ToString();
+            sender.emplace(source);
         }
         else return -110;
     }
@@ -922,26 +814,11 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     } // end of LOCK(cs_tx_cache)
 
     int64_t outAll = wtx.GetValueOut();
-    int64_t txFee = inAll - outAll; // miner fee
-
-    switch (inputMode) {
-    case InputMode::SIGMA:
-        break;
-    case InputMode::NORMAL:
-    default:
-        if (!strSender.empty()) {
-            if (exodus_debug_verbose) PrintToLog("The Sender: %s : fee= %s\n", strSender, FormatDivisibleMP(txFee));
-        } else {
-            PrintToLog("The sender is still EMPTY !!! txid: %s\n", wtx.GetHash().GetHex());
-            return -5;
-        }
-    }
 
     // ### DATA POPULATION ### - save output addresses, values and scripts
-    std::string strReference;
+    boost::optional<CBitcoinAddress> referenceAddr;
     std::vector<unsigned char> payload;
-    std::vector<std::string> script_data;
-    std::vector<std::string> address_data;
+    std::vector<CBitcoinAddress> address_data;
     std::vector<int64_t> value_data;
 
     for (unsigned int n = 0; n < wtx.vout.size(); ++n) {
@@ -955,58 +832,52 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         CTxDestination dest;
         if (ExtractDestination(wtx.vout[n].scriptPubKey, dest)) {
             CBitcoinAddress address(dest);
-            if (!(address == ExodusAddress())) {
-                // saving for Class A processing or reference
-                GetScriptPushes(wtx.vout[n].scriptPubKey, script_data);
-                address_data.push_back(address.ToString());
+            if (address != GetSystemAddress()) {
+                // saving for reference
+                address_data.push_back(address);
                 value_data.push_back(wtx.vout[n].nValue);
                 if (exodus_debug_parser_data) PrintToLog("saving address_data #%d: %s:%s\n", n, address.ToString(), ScriptToAsmStr(wtx.vout[n].scriptPubKey));
             }
         }
     }
-    if (exodus_debug_parser_data) PrintToLog(" address_data.size=%lu\n script_data.size=%lu\n value_data.size=%lu\n", address_data.size(), script_data.size(), value_data.size());
+    if (exodus_debug_parser_data) PrintToLog(" address_data.size=%lu\n value_data.size=%lu\n", address_data.size(), value_data.size());
 
     // ### CLASS B / CLASS C PARSING ###
     if (exodus_debug_parser_data) PrintToLog("Beginning reference identification\n");
-    bool referenceFound = false; // bool to hold whether we've found the reference yet
+
     bool changeRemoved = false; // bool to hold whether we've ignored the first output to sender as change
     unsigned int potentialReferenceOutputs = 0; // int to hold number of potential reference outputs
     for (unsigned k = 0; k < address_data.size(); ++k) { // how many potential reference outputs do we have, if just one select it right here
-        const std::string& addr = address_data[k];
-        if (exodus_debug_parser_data) PrintToLog("ref? data[%d]:%s: %s (%s)\n", k, script_data[k], addr, FormatIndivisibleMP(value_data[k]));
-        if (addr != exodus_address) {
-            ++potentialReferenceOutputs;
-            if (1 == potentialReferenceOutputs) {
-                strReference = addr;
-                referenceFound = true;
-                if (exodus_debug_parser_data) PrintToLog("Single reference potentially id'd as follows: %s \n", strReference);
-            } else { //as soon as potentialReferenceOutputs > 1 we need to go fishing
-                strReference.clear(); // avoid leaving strReference populated for sanity
-                referenceFound = false;
-                if (exodus_debug_parser_data) PrintToLog("More than one potential reference candidate, blanking strReference, need to go fishing\n");
-            }
+        auto& addr = address_data[k];
+        if (exodus_debug_parser_data) PrintToLog("ref? data[%d]: %s (%s)\n", k, addr.ToString(), FormatIndivisibleMP(value_data[k]));
+
+        ++potentialReferenceOutputs;
+        if (1 == potentialReferenceOutputs) {
+            referenceAddr = addr;
+            if (exodus_debug_parser_data) PrintToLog("Single reference potentially id'd as follows: %s \n", referenceAddr->ToString());
+        } else { //as soon as potentialReferenceOutputs > 1 we need to go fishing
+            referenceAddr = boost::none; // avoid leaving referenceAddr populated for sanity
+            if (exodus_debug_parser_data) PrintToLog("More than one potential reference candidate, blanking referenceAddr, need to go fishing\n");
         }
     }
-    if (!referenceFound) { // do we have a reference now? or do we need to dig deeper
+    if (!referenceAddr) { // do we have a reference now? or do we need to dig deeper
         if (exodus_debug_parser_data) PrintToLog("Reference has not been found yet, going fishing\n");
         for (unsigned k = 0; k < address_data.size(); ++k) {
-            const std::string& addr = address_data[k];
-            if (addr != exodus_address) { // removed strSender restriction, not to spec
-                if (addr == strSender && !changeRemoved) {
-                    changeRemoved = true; // per spec ignore first output to sender as change if multiple possible ref addresses
-                    if (exodus_debug_parser_data) PrintToLog("Removed change\n");
-                } else {
-                    strReference = addr; // this may be set several times, but last time will be highest vout
-                    if (exodus_debug_parser_data) PrintToLog("Resetting strReference as follows: %s \n ", strReference);
-                }
+            auto& addr = address_data[k];
+
+            if (sender && !changeRemoved && addr == *sender) {
+                changeRemoved = true; // per spec ignore first output to sender as change if multiple possible ref addresses
+                if (exodus_debug_parser_data) PrintToLog("Removed change\n");
+            } else {
+                referenceAddr = addr; // this may be set several times, but last time will be highest vout
+                if (exodus_debug_parser_data) PrintToLog("Resetting referenceAddr as follows: %s \n ", referenceAddr->ToString());
             }
         }
     }
-    if (exodus_debug_parser_data) PrintToLog("Ending reference identification\nFinal decision on reference identification is: %s\n", strReference);
 
-    if (exodusClass == EXODUS_CLASS_B) {
+    if (*exodusClass == PacketClass::B) {
         // ### CLASS B SPECIFC PARSING ###
-        std::vector<std::string> multisig_script_data;
+        std::vector<std::vector<unsigned char>> multisig_script_data;
 
         // ### POPULATE MULTISIG SCRIPT DATA ###
         for (unsigned int i = 0; i < wtx.vout.size(); ++i) {
@@ -1027,7 +898,13 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 }
                 // ignore first public key, as it should belong to the sender
                 // and it be used to avoid the creation of unspendable dust
-                GetScriptPushes(wtx.vout[i].scriptPubKey, multisig_script_data, true);
+                std::vector<std::vector<unsigned char>> pushes;
+
+                GetPushedValues(wtx.vout[i].scriptPubKey, std::back_inserter(pushes));
+
+                for (auto it = pushes.begin() + 1; it < pushes.end(); it++) {
+                    multisig_script_data.push_back(std::move(*it));
+                }
             }
         }
 
@@ -1045,35 +922,34 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
 
         // ### PREPARE A FEW VARS ###
-        std::string strObfuscatedHashes[1+MAX_SHA256_OBFUSCATION_TIMES];
-        PrepareObfuscatedHashes(strSender, 1+nPackets, strObfuscatedHashes);
+        PacketKeyGenerator keyGenerator(sender->ToString());
         unsigned char packets[CLASS_B_MAX_CHUNKS][32];
         unsigned int mdata_count = 0;  // multisig data count
 
         // ### DEOBFUSCATE MULTISIG PACKETS ###
         for (unsigned int k = 0; k < nPackets; ++k) {
             assert(mdata_count < CLASS_B_MAX_CHUNKS);
-            assert(mdata_count < MAX_SHA256_OBFUSCATION_TIMES);
 
-            std::vector<unsigned char> hash = ParseHex(strObfuscatedHashes[mdata_count+1]);
-            std::vector<unsigned char> packet = ParseHex(multisig_script_data[k].substr(2*1,2*CLASS_B_CHUNK_SIZE));
+            auto hash = keyGenerator.Next();
+            std::array<unsigned char, CLASS_B_CHUNK_SIZE> packet;
+
+            std::copy_n(multisig_script_data[k].begin() + 1, CLASS_B_CHUNK_SIZE, packet.begin());
+
             for (unsigned int i = 0; i < packet.size(); i++) { // this is a data packet, must deobfuscate now
                 packet[i] ^= hash[i];
             }
-            memcpy(&packets[mdata_count], &packet[0], CLASS_B_CHUNK_SIZE);
+            memcpy(&packets[mdata_count], packet.data(), CLASS_B_CHUNK_SIZE);
             ++mdata_count;
 
             if (exodus_debug_parser_data) {
-                CPubKey key(ParseHex(multisig_script_data[k]));
+                CPubKey key(multisig_script_data[k]);
                 CKeyID keyID = key.GetID();
                 std::string strAddress = CBitcoinAddress(keyID).ToString();
-                PrintToLog("multisig_data[%d]:%s: %s\n", k, multisig_script_data[k], strAddress);
+                PrintToLog("multisig_data[%d]:%s: %s\n", k, HexStr(multisig_script_data[k]), strAddress);
             }
             if (exodus_debug_parser) {
-                if (!packet.empty()) {
-                    std::string strPacket = HexStr(packet.begin(), packet.end());
-                    PrintToLog("packet #%d: %s\n", mdata_count, strPacket);
-                }
+                std::string strPacket = HexStr(packet.begin(), packet.end());
+                PrintToLog("packet #%d: %s\n", mdata_count, strPacket);
             }
         }
 
@@ -1088,9 +964,9 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
             payload.insert(payload.end(), packets[m] + 1, packets[m] + CLASS_B_CHUNK_SIZE);
         }
-    } else if (exodusClass == EXODUS_CLASS_C) {
+    } else if (*exodusClass == PacketClass::C) {
         // ### CLASS C SPECIFIC PARSING ###
-        std::vector<std::string> op_return_script_data;
+        std::vector<std::vector<unsigned char>> op_return_script_data;
 
         // ### POPULATE OP RETURN SCRIPT DATA ###
         for (unsigned int n = 0; n < wtx.vout.size(); ++n) {
@@ -1103,36 +979,30 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             }
             if (whichType == TX_NULL_DATA) {
                 // only consider outputs, which are explicitly tagged
-                std::vector<std::string> vstrPushes;
-                if (!GetScriptPushes(wtx.vout[n].scriptPubKey, vstrPushes)) {
+                std::vector<std::vector<unsigned char>> pushes;
+
+                GetPushedValues(wtx.vout[n].scriptPubKey, std::back_inserter(pushes));
+
+                if (pushes.empty() || pushes[0].size() < magic.size() || !std::equal(magic.begin(), magic.end(), pushes[0].begin())) {
                     continue;
                 }
-                // TODO: maybe encapsulate the following sort of messy code
-                if (!vstrPushes.empty()) {
-                    std::vector<unsigned char> vchMarker = GetExMarker();
-                    std::vector<unsigned char> vchPushed = ParseHex(vstrPushes[0]);
-                    if (vchPushed.size() < vchMarker.size()) {
-                        continue;
-                    }
-                    if (std::equal(vchMarker.begin(), vchMarker.end(), vchPushed.begin())) {
-                        size_t sizeHex = vchMarker.size() * 2;
-                        // strip out the marker at the very beginning
-                        vstrPushes[0] = vstrPushes[0].substr(sizeHex);
-                        // add the data to the rest
-                        op_return_script_data.insert(op_return_script_data.end(), vstrPushes.begin(), vstrPushes.end());
 
-                        if (exodus_debug_parser_data) {
-                            PrintToLog("Class C transaction detected: %s parsed to %s at vout %d\n", wtx.GetHash().GetHex(), vstrPushes[0], n);
-                        }
-                    }
+                // Strip out the magic at the very beginning
+                pushes[0].erase(pushes[0].begin(), pushes[0].begin() + magic.size());
+
+                for (auto& push : pushes) {
+                    op_return_script_data.push_back(std::move(push));
+                }
+
+                if (exodus_debug_parser_data) {
+                    PrintToLog("Class C transaction detected: %s parsed to %s at vout %d\n", wtx.GetHash().GetHex(), HexStr(pushes[0]), n);
                 }
             }
         }
         // ### EXTRACT PAYLOAD FOR CLASS C ###
         for (unsigned int n = 0; n < op_return_script_data.size(); ++n) {
             if (!op_return_script_data[n].empty()) {
-                assert(IsHex(op_return_script_data[n])); // via GetScriptPushes()
-                std::vector<unsigned char> vch = ParseHex(op_return_script_data[n]);
+                auto& vch = op_return_script_data[n];
                 unsigned int payload_size = vch.size();
 
                 // Actually CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE is not right but we can't fix it due to
@@ -1153,8 +1023,19 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     // ### SET MP TX INFO ###
     if (exodus_debug_verbose) PrintToLog("single_pkt: %s\n", HexStr(payload));
-    mp_tx.Set(strSender, strReference, 0, wtx.GetHash(), nBlock, idx, payload.data(), payload.size(),
-        exodusClass, (inAll-outAll));
+
+    mp_tx.Set(
+        sender ? sender->ToString() : "",
+        referenceAddr ? referenceAddr->ToString() : "",
+        0,
+        wtx.GetHash(),
+        nBlock,
+        idx,
+        payload.data(),
+        payload.size(),
+        exodusClass,
+        inAll - outAll
+    );
 
     return 0;
 }
@@ -2078,10 +1959,6 @@ int exodus_init()
     InitDebugLogLevels();
     ShrinkDebugLog();
 
-    if (isNonMainNet()) {
-        exodus_address = exodus_testnet;
-    }
-
     // check for --autocommit option and set transaction commit flag accordingly
     if (!GetBoolArg("-autocommit", true)) {
         PrintToLog("Process was started with --autocommit set to false. "
@@ -2181,7 +2058,7 @@ int exodus_init()
     // collect the real Exodus balances available at the snapshot time
     // redundant? do we need to show it both pre-parse and post-parse?  if so let's label the printfs accordingly
     if (exodus_debug_exo) {
-        int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
+        int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
         PrintToLog("Exodus balance at start: %s\n", FormatDivisibleMP(exodus_balance));
     }
 
@@ -2204,7 +2081,7 @@ int exodus_init()
     exodus_initial_scan(nWaterlineBlock);
 
     // display Exodus balance
-    int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
+    int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
 
     PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
     PrintToLog("Exodus initialization completed\n");
@@ -2306,7 +2183,7 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
  */
 bool exodus::UseEncodingClassC(size_t nDataSize)
 {
-    size_t nTotalSize = nDataSize + GetExMarker().size(); // Marker "exodus"
+    size_t nTotalSize = nDataSize + magic.size(); // Marker "exodus"
     bool fDataEnabled = GetBoolArg("-datacarrier", true);
     int nBlockNow = GetHeight();
     if (!IsAllowedOutputType(TX_NULL_DATA, nBlockNow)) {
@@ -2316,17 +2193,22 @@ bool exodus::UseEncodingClassC(size_t nDataSize)
 }
 
 // This function requests the wallet create an Exodus transaction using the supplied parameters and payload
-int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,
-        int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit, InputMode inputMode)
+int exodus::WalletTxBuilder(
+    const std::string& senderAddress,
+    const std::string& receiverAddress,
+    const std::string& redemptionAddress,
+    int64_t referenceAmount,
+    const std::vector<unsigned char>& data,
+    uint256& txid,
+    std::string& rawHex,
+    bool commit,
+    InputMode inputMode)
 {
 #ifdef ENABLE_WALLET
     if (pwalletMain == NULL) return MP_ERR_WALLET_ACCESS;
 
     // Determine the class to send the transaction via - default is Class C
-    int exodusTxClass = EXODUS_CLASS_C;
-    if (inputMode == InputMode::NORMAL) {
-        if (!UseEncodingClassC(data.size())) exodusTxClass = EXODUS_CLASS_B;
-    }
+    bool useClassC = (inputMode == InputMode::NORMAL && !UseEncodingClassC(data.size())) ? false : true;
 
     // Prepare the transaction - first setup some vars
     CCoinControl coinControl;
@@ -2347,30 +2229,30 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     }
 
     // Encode the data outputs
-    switch(exodusTxClass) {
-        case EXODUS_CLASS_B: { // declaring vars in a switch here so use an expicit code block
-            if (inputMode != InputMode::NORMAL) {
-                return MP_INPUTS_INVALID;
-            }
-            CPubKey redeemingPubKey;
-            const std::string& sAddress = redemptionAddress.empty() ? senderAddress : redemptionAddress;
-            if (!AddressToPubKey(sAddress, redeemingPubKey)) {
-                return MP_REDEMP_BAD_VALIDATION;
-            }
+    if (useClassC) {
+        try {
+            vecSend.push_back(EncodeClassC(data.begin(), data.end()));
+        } catch (std::exception& e) {
+            PrintToLog("Fail to encode packet with class C: %s\n", e.what());
+            return MP_ENCODING_ERROR;
+        }
+    } else {
+        CPubKey redeemingPubKey;
 
-            try {
-                EncodeClassB(senderAddress, redeemingPubKey, data.begin(), data.end(), std::back_inserter(vecSend));
-            } catch (...) {
-                return MP_ENCODING_ERROR;
-            }
-        break; }
-        case EXODUS_CLASS_C:
-            try {
-                vecSend.push_back(EncodeClassC(data.begin(), data.end()));
-            } catch (...) {
-                return MP_ENCODING_ERROR;
-            }
-        break;
+        if (inputMode != InputMode::NORMAL) {
+            return MP_INPUTS_INVALID;
+        }
+
+        if (!AddressToPubKey(redemptionAddress.empty() ? senderAddress : redemptionAddress, redeemingPubKey)) {
+            return MP_REDEMP_BAD_VALIDATION;
+        }
+
+        try {
+            EncodeClassB(senderAddress, redeemingPubKey, data.begin(), data.end(), std::back_inserter(vecSend));
+        } catch (std::exception &e) {
+            PrintToLog("Fail to encode packet with class B: %s\n", e.what());
+            return MP_ENCODING_ERROR;
+        }
     }
 
     // Then add a paytopubkeyhash output for the recipient (if needed) - note we do this last as we want this to be the highest vout
@@ -3882,7 +3764,7 @@ int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
     devexodus = calculate_and_update_devexodus(pBlockIndex->GetBlockTime(), nBlockNow);
 
     if (exodus_debug_exo) {
-        int64_t balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
+        int64_t balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
         PrintToLog("devexodus for block %d: %d, Exodus balance: %d\n", nBlockNow, devexodus, FormatDivisibleMP(balance));
     }
 
@@ -3934,36 +3816,4 @@ int exodus_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex)
 int exodus_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex)
 {
     return 0;
-}
-
-/**
- * Returns the Exodus address.
- *
- * Main network:
- *   1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P
- *
- * Test network:
- *   mpexoDuSkGGqvqrkrjiFng38QPkJQVFyqv
- *
- * @return The Exodus address
- */
-const CBitcoinAddress ExodusAddress()
-{
-    if (isNonMainNet()) {
-        static CBitcoinAddress testAddress(exodus_testnet);
-        return testAddress;
-    } else {
-        static CBitcoinAddress mainAddress(exodus_mainnet);
-        return mainAddress;
-    }
-}
-
-/**
- * @return The marker for class C transactions.
- */
-const std::vector<unsigned char> GetExMarker()
-{
-    static unsigned char pch[] = {0x65, 0x78, 0x6f, 0x64, 0x75, 0x73}; // Hex-encoded: "exodus"
-
-    return std::vector<unsigned char>(pch, pch + sizeof(pch) / sizeof(pch[0]));
 }

@@ -1,19 +1,22 @@
-#include "exodus/encoding.h"
+#include "../packetencoder.h"
+#include "../script.h"
 
-#include "exodus/script.h"
+#include "../../base58.h"
+#include "../../pubkey.h"
+#include "../../utilstrencodings.h"
 
-#include "base58.h"
-#include "pubkey.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
-#include <stdint.h>
+#include <iterator>
 #include <string>
 #include <vector>
+
+#include <inttypes.h>
 
 BOOST_FIXTURE_TEST_SUITE(exodus_encoding_b_tests, BasicTestingSetup)
 
@@ -94,24 +97,27 @@ BOOST_AUTO_TEST_CASE(class_b_maidsafe)
     BOOST_CHECK(GetOutputType(scriptPubKeyC, outtypeC));
     BOOST_CHECK_EQUAL(outtypeC, TX_PUBKEYHASH);
 
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(scriptPubKeyA, vstrSolutions));
-    BOOST_CHECK(GetScriptPushes(scriptPubKeyB, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 6);
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(scriptPubKeyA, std::back_inserter(solutions));
+    BOOST_CHECK_EQUAL(solutions.empty(), false);
+
+    GetPushedValues(scriptPubKeyB, std::back_inserter(solutions));
+    BOOST_CHECK_EQUAL(solutions.size(), 6);
 
     // Vout 0
-    BOOST_CHECK_EQUAL(vstrSolutions[0],
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]),
             "02619c30f643a4679ec2f690f3d6564df7df2ae23ae4a55393ae0bef22db9dbcaf");
-    BOOST_CHECK_EQUAL(vstrSolutions[1].substr(2, 62), // Remove prefix ...
+    BOOST_CHECK_EQUAL(HexStr(solutions[1].begin() + 1, solutions[1].begin() + 32), // Remove prefix ...
             "6766a63686d2cc5d82c929d339b7975010872aa6bf76f6fac69f28f8e293a9");
-    BOOST_CHECK_EQUAL(vstrSolutions[2].substr(2, 62), // ... and ECDSA byte
+    BOOST_CHECK_EQUAL(HexStr(solutions[2].begin() + 1, solutions[2].begin() + 32), // ... and ECDSA byte
             "959b8e2f2e4fb67952cda291b467a1781641c94c37feaa0733a12782977da2");
     // Vout 1
-    BOOST_CHECK_EQUAL(vstrSolutions[3],
+    BOOST_CHECK_EQUAL(HexStr(solutions[3]),
             "02619c30f643a4679ec2f690f3d6564df7df2ae23ae4a55393ae0bef22db9dbcaf");
-    BOOST_CHECK_EQUAL(vstrSolutions[4].substr(2, 62), // Because these ...
+    BOOST_CHECK_EQUAL(HexStr(solutions[4].begin() + 1, solutions[4].begin() + 32), // Because these ...
             "61a017029ec4688ec9bf33c44ad2e595f83aaf3ed4f3032d1955715f5ffaf6");
-    BOOST_CHECK_EQUAL(vstrSolutions[5].substr(2, 62), // ... are semi-random
+    BOOST_CHECK_EQUAL(HexStr(solutions[5].begin() + 1, solutions[5].begin() + 32), // ... are semi-random
             "dc1a0afc933d703557d9f5e86423a5cec9fee4bfa850b3d02ceae721171788");
 }
 
@@ -157,29 +163,34 @@ BOOST_AUTO_TEST_CASE(class_b_tetherus)
     BOOST_CHECK(GetOutputType(scriptPubKeyD, outtypeD));
     BOOST_CHECK_EQUAL(outtypeD, TX_PUBKEYHASH);
 
-    std::vector<std::string> vstrSolutions;
-    BOOST_CHECK(GetScriptPushes(scriptPubKeyA, vstrSolutions));
-    BOOST_CHECK(GetScriptPushes(scriptPubKeyB, vstrSolutions));
-    BOOST_CHECK(GetScriptPushes(scriptPubKeyC, vstrSolutions));
-    BOOST_CHECK_EQUAL(vstrSolutions.size(), 9);
+    std::vector<std::vector<unsigned char>> solutions;
+
+    GetPushedValues(scriptPubKeyA, std::back_inserter(solutions));
+    BOOST_CHECK_EQUAL(solutions.empty(), false);
+
+    GetPushedValues(scriptPubKeyB, std::back_inserter(solutions));
+    BOOST_CHECK_EQUAL(solutions.empty(), false);
+
+    GetPushedValues(scriptPubKeyC, std::back_inserter(solutions));
+    BOOST_CHECK_EQUAL(solutions.empty(), false);
 
     // Vout 0
-    BOOST_CHECK_EQUAL(vstrSolutions[0], HexStr(pubKey.begin(), pubKey.end()));
-    BOOST_CHECK_EQUAL(vstrSolutions[1].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(pubKey.begin(), pubKey.end()));
+    BOOST_CHECK_EQUAL(HexStr(solutions[1].begin() + 1, solutions[1].begin() + 32),
             "f88f01791557f6d57e6b7ddf86d2de2117e6cc4ba325a4e309d4a1a55015d7");
-    BOOST_CHECK_EQUAL(vstrSolutions[2].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[2].begin() + 1, solutions[2].begin() + 32),
             "a94f47f4c3b8c36876399f19ecd61cf452248330fa5da9a1947d6dc7a189a1");
     // Vout 1
-    BOOST_CHECK_EQUAL(vstrSolutions[3], HexStr(pubKey.begin(), pubKey.end()));
-    BOOST_CHECK_EQUAL(vstrSolutions[4].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[3]), HexStr(pubKey.begin(), pubKey.end()));
+    BOOST_CHECK_EQUAL(HexStr(solutions[4].begin() + 1, solutions[4].begin() + 32),
             "6d7e7235fc2c6769e351196c9ccdc4c804184b5bb9b210f27d3f0a613654fe");
-    BOOST_CHECK_EQUAL(vstrSolutions[5].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[5].begin() + 1, solutions[5].begin() + 32),
             "8991cff7cc6d93c266615d2a9223cef4d7b11c05c16b0cec12a90ee7b39cf8");
     // Vout 2
-    BOOST_CHECK_EQUAL(vstrSolutions[6], HexStr(pubKey.begin(), pubKey.end()));
-    BOOST_CHECK_EQUAL(vstrSolutions[7].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[6]), HexStr(pubKey.begin(), pubKey.end()));
+    BOOST_CHECK_EQUAL(HexStr(solutions[7].begin() + 1, solutions[7].begin() + 32),
             "29b3e0919adc41a316aad4f41444d9bf3a9b639550f2aa735676ffff25ba38");
-    BOOST_CHECK_EQUAL(vstrSolutions[8].substr(2, 62),
+    BOOST_CHECK_EQUAL(HexStr(solutions[8].begin() + 1, solutions[8].begin() + 32),
             "f15446771c5c585dd25d8d62df5195b77799aa8eac2f2196c54b73ca05f72f");
 }
 

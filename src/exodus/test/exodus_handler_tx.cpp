@@ -1,34 +1,35 @@
-#include "exodus/createtx.h"
-#include "exodus/errors.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/tx.h"
-#include "exodus/wallettxs.h"
+#include "../convert.h"
+#include "../createpayload.h"
+#include "../createtx.h"
+#include "../errors.h"
+#include "../exodus.h"
+#include "../tx.h"
+#include "../utilsbitcoin.h"
+#include "../wallettxs.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "core_io.h"
-#include "main.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "test/fixtures.h"
-#include "utilstrencodings.h"
+#include "../../base58.h"
+#include "../../coins.h"
+#include "../../core_io.h"
+#include "../../main.h"
+#include "../../utilstrencodings.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/convert.h"
+#include "../../primitives/transaction.h"
 
-#include "exodus/utilsbitcoin.h"
+#include "../../script/script.h"
+#include "../../script/standard.h"
 
-#include "wallet/wallet.h"
+#include "../../test/fixtures.h"
+#include "../../test/test_bitcoin.h"
+
+#include "../../wallet/wallet.h"
 
 #include <boost/test/unit_test.hpp>
 
-#include <stdint.h>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <inttypes.h>
 
 /**
  * Pushes bytes to the end of a vector.

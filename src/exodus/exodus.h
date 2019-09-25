@@ -43,12 +43,6 @@ constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 // maximum size of string fields
 #define SP_STRING_FIELD_LEN 256
 
-// Exodus Transaction Class
-#define NO_MARKER    0
-#define EXODUS_CLASS_A 1
-#define EXODUS_CLASS_B 2
-#define EXODUS_CLASS_C 3
-
 // Exodus Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
@@ -101,12 +95,6 @@ std::string FormatDivisibleShortMP(int64_t amount);
 std::string FormatMP(uint32_t propertyId, int64_t amount, bool fSign = false);
 std::string FormatShortMP(uint32_t propertyId, int64_t amount);
 std::string FormatByType(int64_t amount, uint16_t propertyType);
-
-/** Returns the Exodus address. */
-const CBitcoinAddress ExodusAddress();
-
-/** Returns the marker for class C transactions. */
-const std::vector<unsigned char> GetExMarker();
 
 //! Used to indicate, whether to automatically commit created transactions
 extern bool autoCommit;
@@ -316,9 +304,6 @@ CMPTally* getTally(const std::string& address);
 int64_t getTotalTokens(uint32_t propertyId, int64_t* n_owners_total = NULL);
 
 std::string strTransactionType(uint16_t txType);
-
-/** Returns the encoding class, used to embed a payload. */
-int GetEncodingClass(const CTransaction& tx, int nBlock);
 
 /** Determines, whether it is valid to use a Class C transaction for a given payload size. */
 bool UseEncodingClassC(size_t nDataSize);
