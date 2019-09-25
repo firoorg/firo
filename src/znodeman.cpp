@@ -828,7 +828,6 @@ int CZnodeMan::GetZnodeRank(const CTxIn& vin, int nBlockHeight, int nMinProtocol
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& scorePair, vecZnodeScores) {
         nRank++;
-        //scorePair.second->SetRank(nRank);
         if(scorePair.second->vin.prevout == vin.prevout) return nRank;
     }
 
@@ -974,7 +973,6 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
         if(fZnodesAdded) {
             NotifyZnodeUpdates();
         }
-
     } else if (strCommand == NetMsgType::MNPING) { //Znode Ping
 
         CZnodePing mnp;
@@ -1791,7 +1789,6 @@ void CZnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
     LogPrint("znode", "CZnodeMan::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
 
     CheckSameAddr();
-    LogPrintf("CZnodeMan::UpdatedBlockTip \n");
     if(fZNode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
         UpdateLastPaid();

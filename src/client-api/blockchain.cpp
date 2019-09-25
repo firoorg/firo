@@ -115,11 +115,55 @@ UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     return getblockObj;
 }
 
+UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    UniValue ret(UniValue::VOBJ);
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    uint256 hash = uint256S(find_value(data, "txHash").get_str());
+    CWalletTx *wtx = const_cast<CWalletTx*>(pwalletMain->GetWalletTx(hash));
+
+    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0){
+        ret.push_back(Pair("result", false));
+        ret.push_back(Pair("error", "Transaction is abandoned or already in chain"));
+        return ret;
+    }
+    if (wtx->GetRequestCount() > 0){
+        ret.push_back(Pair("result", false));
+        ret.push_back(Pair("error", "Transaction has already been requested to be rebroadcast"));
+        return ret;
+    }
+
+    CCoinsViewCache &view = *pcoinsTip;
+    const CCoins* existingCoins = view.AccessCoins(hash);
+    bool fHaveMempool = mempool.exists(hash);
+    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+    if (!fHaveMempool && !fHaveChain) {
+        // push to local node and sync with wallets
+        CValidationState state;
+        bool fMissingInputs;
+        if (!AcceptToMemoryPool(mempool, state, (CTransaction)*wtx, true, false, &fMissingInputs, true, false, maxTxFee)){
+            ret.push_back(Pair("result", false));
+            ret.push_back(Pair("error", "Transaction not accepted to mempool"));
+            return ret;
+        }
+    } else if (fHaveChain) {
+        ret.push_back(Pair("result", false));
+        ret.push_back(Pair("error", "transaction already in block chain"));
+        return ret;
+    }
+
+    RelayTransaction((CTransaction)*wtx);
+    ret.push_back(Pair("result", true));
+    return ret;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
+    { "blockchain",         "rebroadcast",     &rebroadcast,             true,      false,           false  },
     { "blockchain",         "transaction",     &transaction,             true,      false,           false  }
     
 };
