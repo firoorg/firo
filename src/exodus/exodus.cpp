@@ -2343,7 +2343,7 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
 
     // Select the inputs
     if (0 >= SelectCoins(senderAddress, coinControl, referenceAmount, inputMode)) {
-        return MP_INPUTS_INVALID;
+        return inputMode == InputMode::SIGMA ? MP_SIGMA_INPUTS_INVALID : MP_INPUTS_INVALID;
     }
 
     // Encode the data outputs
@@ -2409,7 +2409,7 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
                 vecRecipients, fee, sigmaSelected, sigmaChanges, changeAddedToFee, &coinControl);
         } catch (std::exception const &err) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
-            return MP_ERR_CREATE_TX;
+            return MP_ERR_CREATE_SIGMA_TX;
         }
         break;
     default:
