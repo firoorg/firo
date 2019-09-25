@@ -1,27 +1,29 @@
 #ifndef PAYMENTADDRESS_H
 #define PAYMENTADDRESS_H
-#define PaymentCode char*
 #define NetworkParameters char*
+#include "wallet/wallet.h"
+#include "PaymentCode.h"
+
 class PaymentAddress
 {
 private:
     /* data */
     int index ;
-    char* privKey ;
+    vector<unsigned char> privKey;
     PaymentCode paymentCode;
     NetworkParameters networkParameters;
 public:
     PaymentAddress(/* args */);
     PaymentAddress(PaymentCode paymentCode_t) ;
-    PaymentAddress(NetworkParameters networkParameters, PaymentCode paymentCode, int index, char* privKey) ;
+    PaymentAddress(NetworkParameters networkParameters, PaymentCode paymentCode, int index, vector<unsigned char> privKey) ;
     ~PaymentAddress();
     PaymentCode getPaymentCode() ;
     void setPaymentCode(PaymentCode paymentCode_t) ;
     int getIndex() ;
     void setIndex(int inedx_t);
-    char* getPrivKey();
-    void setIndexAndPrivKey(int index, char* privKey);
-    void setPrivKey(char* privKey);
+    vector<unsigned char> getPrivKey();
+    void setIndexAndPrivKey(int index, vector<unsigned char> privKey);
+    void setPrivKey(vector<unsigned char> privKey);
 };
 
 #endif

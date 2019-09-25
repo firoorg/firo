@@ -52,7 +52,7 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
     /*
     
     */
-    vector<unsigned char> outpoint = ParseHex(wtx.vin[0].prevout.ToString());;
+    vector<unsigned char> outpoint = ParseHex(wtx.vin[0].prevout.ToString());
     vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 
     vector<unsigned char> op_return = PaymentCode::blind(mBip47Accounts[0].getPaymentCode().getPayload(), mask);
