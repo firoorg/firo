@@ -185,7 +185,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block, spendTx);
+    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block, tx.getHash());
 
     return 0;
 }

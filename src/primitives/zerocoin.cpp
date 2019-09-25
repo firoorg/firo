@@ -35,10 +35,4 @@ uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue) {
     return Hash(ss.begin(), ss.end());
 }
 
-uint160 GetSerialHash160(const secp_primitives::Scalar &serial) {
-    CDataStream ss(SER_GETHASH, 0);
-    ss << serial;
-    return Hash160(ss.begin(), ss.end());
-}
-
 }

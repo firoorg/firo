@@ -573,6 +573,7 @@ BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fa
     auto db = CreateDb();
     SigmaPrivateKey key;
 
+    key.Generate();
     auto spendTx = uint256S("1");
     db->RecordSpendSerial(1, 1, key.serial, 10, spendTx);
 

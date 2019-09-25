@@ -3,11 +3,8 @@
 #include "../../clientversion.h"
 #include "../../streams.h"
 #include "../../test/test_bitcoin.h"
-#include "../../primitives/zerocoin.h"
 
 #include <boost/test/unit_test.hpp>
-
-namespace exodus {
 
 SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
 {
@@ -17,6 +14,8 @@ SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
 
     return SigmaMintId(property, denom, pub);
 }
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_walletmodels_tests, BasicTestingSetup)
 
@@ -129,8 +128,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
 BOOST_AUTO_TEST_CASE(sigma_mint_id_hash)
 {
     SigmaMintId id1, id2;
-    id1 = GenerateSigmaMintId(0, 3);
-    id2 = GenerateSigmaMintId(0, 3);
+    id1 = GenerateSigmaMintId(3, 0);
+    id2 = GenerateSigmaMintId(3, 0);
 
     std::hash<SigmaMintId> hasher;
 
@@ -145,7 +144,6 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
     BOOST_CHECK(mint.spendTx.IsNull());
     BOOST_CHECK_EQUAL(mint.property, 0);
     BOOST_CHECK_EQUAL(mint.denomination, 0);
-    // BOOST_CHECK_EQUAL(mint.spendTx, uint256());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
 }
 
@@ -158,17 +156,21 @@ BOOST_AUTO_TEST_CASE(sigma_mint_equality)
 
     SigmaMint left, right;
 
+    std::vector<unsigned char> rawUint160;
+    rawUint160.resize(20);
+    std::fill(rawUint160.begin(), rawUint160.end(), 1);
+
     left.property = 1;
     left.denomination = 1;
-    left.seedId = uint160();
-    left.serialId = primitives::GetSerialHash160(key.serial);
+    left.seedId = uint160(rawUint160);
+    left.serialId = GetSerialId(key.serial);
     left.spendTx = tx;
     left.chainState = SigmaMintChainState(500, 1, 50);
 
     right.property = 1;
     right.denomination = 1;
-    right.seedId = uint160();
-    right.serialId = primitives::GetSerialHash160(key.serial);
+    right.seedId = uint160(rawUint160);
+    right.serialId = GetSerialId(key.serial);
     right.spendTx = tx;
     right.chainState = SigmaMintChainState(500, 1, 50);
 
@@ -223,21 +225,9 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 
     BOOST_CHECK_NE(left, right);
 
-    // Block
+    // Chain State
     right = left;
-    right.chainState.block = 501;
-
-    BOOST_CHECK_NE(left, right);
-
-    // Group
-    right = left;
-    right.chainState.group = 2;
-
-    BOOST_CHECK_NE(left, right);
-
-    // Index
-    right = left;
-    right.chainState.index = 51;
+    right.chainState.Clear();
 
     BOOST_CHECK_NE(left, right);
 }

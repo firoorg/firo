@@ -270,7 +270,7 @@ bool SigmaWallet::GenerateMint(
     coin = GetPrivateKeyFromSeedId(mintPoolEntry->seedId);
 
     SigmaPublicKey key(coin, DefaultSigmaParams);
-    auto serialId = primitives::GetSerialHash160(coin.serial);
+    auto serialId = GetSerialId(coin.serial);
     mint = SigmaMint(
         propertyId,
         denomination,
@@ -313,7 +313,7 @@ bool SigmaWallet::RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey
         return error("%s: failed to correctly generate mint, pubcoin mismatch", __func__);
     }
 
-    if (primitives::GetSerialHash160(privKey.serial) != mint.serialId) {
+    if (GetSerialId(privKey.serial) != mint.serialId) {
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
     }
 
@@ -374,7 +374,7 @@ bool SigmaWallet::SetMintSeedSeen(
             return false;
         }
 
-        serialId = primitives::GetSerialHash160(coin.serial);
+        serialId = GetSerialId(coin.serial);
     } else {
 
         SigmaMint mint;
@@ -423,7 +423,7 @@ bool SigmaWallet::HasMint(SigmaMintId const &id) const
 bool SigmaWallet::HasSerial(secp_primitives::Scalar const &scalar) const
 {
     CWalletDB walletdb(walletFile);
-    auto serialHash = primitives::GetSerialHash160(scalar);
+    auto serialHash = GetSerialId(scalar);
     return walletdb.HasExodusMintID(serialHash);
 }
 
@@ -448,7 +448,7 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
     CWalletDB walletdb(walletFile);
 
     SigmaMintId id;
-    auto serialHash = primitives::GetSerialHash160(serial);
+    auto serialHash = GetSerialId(serial);
     if (!walletdb.ReadExodusMintID(serialHash, id)) {
         throw std::runtime_error("fail to read id");
     }

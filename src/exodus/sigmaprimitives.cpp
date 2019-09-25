@@ -1,5 +1,6 @@
 #include "sigmaprimitives.h"
 
+#include "../hash.h"
 #include "../sigma/sigma_primitives.h"
 
 #include <GroupElement.h>
@@ -8,6 +9,13 @@
 #include <stdexcept>
 
 namespace exodus {
+
+uint160 GetSerialId(const secp_primitives::Scalar &serial)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << serial;
+    return Hash160(ss.begin(), ss.end());
+}
 
 const SigmaParams DefaultSigmaParams(secp_primitives::GroupElement().set_base_g(), 7, 4);
 
