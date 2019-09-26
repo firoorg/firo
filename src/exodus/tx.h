@@ -79,6 +79,7 @@ private:
 
     std::string sender;
     std::string receiver;
+    boost::optional<CAmount> referenceAmount;
 
     unsigned int type;
     unsigned short version; // = MP_TX_PKT_V0;
@@ -287,6 +288,7 @@ public:
         packetClass = boost::none;
         sender.clear();
         receiver.clear();
+        referenceAmount = boost::none;
         type = 0;
         version = 0;
         nValue = 0;
@@ -341,7 +343,8 @@ public:
         unsigned char *p,
         unsigned int size,
         const boost::optional<exodus::PacketClass>& packetClass,
-        uint64_t txf);
+        uint64_t txf,
+        const boost::optional<CAmount>& referenceAmount);
 
     /** Parses the packet or payload. */
     bool interpret_Transaction();
@@ -358,6 +361,9 @@ public:
         if (block != other.block) return block > other.block;
         return tx_idx > other.tx_idx;
     }
+
+private:
+    bool CheckPropertyCreationFee();
 
 private:
     std::vector<unsigned char> raw;

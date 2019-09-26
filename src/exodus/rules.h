@@ -1,14 +1,16 @@
-#ifndef EXODUS_RULES_H
-#define EXODUS_RULES_H
+#ifndef ZCOIN_EXODUS_RULES_H
+#define ZCOIN_EXODUS_RULES_H
 
-#include "uint256.h"
+#include "../base58.h"
+#include "../uint256.h"
 
-#include <stdint.h>
 #include <string>
 #include <vector>
 
-namespace exodus
-{
+#include <inttypes.h>
+
+namespace exodus {
+
 //! Feature identifier to enable Class C transaction parsing and processing
 const uint16_t FEATURE_CLASS_C = 1;
 //! Feature identifier to enable the distributed token exchange
@@ -64,79 +66,155 @@ struct ConsensusCheckpoint
 // TODO: remove remaining global heights
 // TODO: add Exodus addresses to params
 
-/** Base class for consensus parameters.
- */
+/**
+ * Base class for consensus parameters.
+ **/
 class CConsensusParams
 {
 public:
-    //! First block of the Exodus feature
+    /**
+     * First block of the Exodus feature.
+     **/
     int GENESIS_BLOCK;
 
-    //! Minimum number of blocks to use for notice rules on activation
+    /**
+     * Minimum number of blocks to use for notice rules on activation.
+     **/
     int MIN_ACTIVATION_BLOCKS;
-    //! Maximum number of blocks to use for notice rules on activation
+
+    /**
+     * Maximum number of blocks to use for notice rules on activation.
+     **/
     int MAX_ACTIVATION_BLOCKS;
 
-    //! Waiting period after enabling freezing before addresses may be frozen
+    /**
+     * Waiting period after enabling freezing before addresses may be frozen.
+     **/
     int EXODUS_FREEZE_WAIT_PERIOD;
 
-    //! Block to enable pay-to-pubkey-hash support
+    /**
+     * Block to enable pay-to-pubkey-hash support.
+     **/
     int PUBKEYHASH_BLOCK;
-    //! Block to enable pay-to-script-hash support
+
+    /**
+     * Block to enable pay-to-script-hash support.
+     **/
     int SCRIPTHASH_BLOCK;
-    //! Block to enable bare-multisig based encoding
+
+    /**
+     * Block to enable bare-multisig based encoding.
+     **/
     int MULTISIG_BLOCK;
-    //! Block to enable OP_RETURN based encoding
+
+    /**
+     * Block to enable OP_RETURN based encoding.
+     **/
     int NULLDATA_BLOCK;
 
-    //! Block to enable alerts and notifications
+    /**
+     * Block to enable alerts and notifications.
+     **/
     int EXODUS_ALERT_BLOCK;
-    //! Block to enable simple send transactions
+
+    /**
+     * Block to enable simple send transactions.
+     **/
     int EXODUS_SEND_BLOCK;
-    //! Block to enable DEx transactions
+
+    /**
+     * Block to enable DEx transactions.
+     **/
     int EXODUS_DEX_BLOCK;
-    //! Block to enable smart property transactions
+
+    /**
+     * Block to enable smart property transactions.
+     **/
     int EXODUS_SP_BLOCK;
-    //! Block to enable managed properties
+
+    /**
+     * Block to enable managed properties.
+     **/
     int EXODUS_MANUALSP_BLOCK;
-    //! Block to enable send-to-owners transactions
+
+    /**
+     * Block to enable send-to-owners transactions.
+     **/
     int EXODUS_STO_BLOCK;
-    //! Block to enable MetaDEx transactions
+
+    /**
+     * Block to enable MetaDEx transactions.
+     **/
     int EXODUS_METADEX_BLOCK;
-    //! Block to enable "send all" transactions
+
+    /**
+     * Block to enable "send all" transactions.
+     **/
     int EXODUS_SEND_ALL_BLOCK;
-    //! Block to enable betting transactions
+
+    /**
+     * Block to enable betting transactions.
+     **/
     int EXODUS_BET_BLOCK;
-    //! Block to enable cross property STO (v1)
+
+    /**
+     * Block to enable cross property STO (v1).
+     **/
     int EXODUS_STOV1_BLOCK;
 
-    //! Block to deactivate crowdsale participations when "granting tokens"
+    /**
+     * Block to deactivate crowdsale participations when "granting tokens".
+     **/
     int GRANTEFFECTS_FEATURE_BLOCK;
-    //! Block to disable DEx "over-offers" and to switch to plain integer math
+
+    /**
+     * Block to disable DEx "over-offers" and to switch to plain integer math.
+     **/
     int DEXMATH_FEATURE_BLOCK;
-    //! Block to disable ecosystem crossovers in crowdsale logic
+
+    /**
+     * Block to disable ecosystem crossovers in crowdsale logic.
+     **/
     int SPCROWDCROSSOVER_FEATURE_BLOCK;
-    //! Block to enable trading of non-Omni pairs
+
+    /**
+     * Block to enable trading of non-Omni pairs.
+     **/
     int TRADEALLPAIRS_FEATURE_BLOCK;
-    //! Block to enable the fee system & 0.05% fee for trading non-Omni pairs
+
+    /**
+     * Block to enable the fee system & 0.05% fee for trading non-Omni pairs.
+     **/
     int FEES_FEATURE_BLOCK;
-    //! Block to activate the waiting period for enabling managed property address freezing
+
+    /**
+     * Block to activate the waiting period for enabling managed property address freezing.
+     **/
     int FREEZENOTICE_FEATURE_BLOCK;
 
-    //! Block to activate sigma
+    /**
+     * Block to activate Sigma related features.
+     **/
     int SIGMA_FEATURE_BLOCK;
 
-    /** Returns a mapping of transaction types, and the blocks at which they are enabled. */
+    /**
+     * The address to receive property creation fee.
+     **/
+    CBitcoinAddress PROPERTY_CREATION_FEE_RECEIVER;
+
+    /**
+     * Returns a mapping of transaction types, and the blocks at which they are enabled.
+     **/
     virtual std::vector<TransactionRestriction> GetRestrictions() const;
 
-    /** Returns an empty vector of consensus checkpoints. */
+    /**
+     * Returns an empty vector of consensus checkpoints.
+     **/
     virtual std::vector<ConsensusCheckpoint> GetCheckpoints() const;
 
-    /** Destructor. */
     virtual ~CConsensusParams() {}
 
 protected:
-    /** Constructor, only to be called from derived classes. */
     CConsensusParams() {}
 };
 
@@ -200,6 +278,7 @@ bool IsTransactionTypeAllowed(int txBlock, uint32_t txProperty, uint16_t txType,
 
 /** Compares a supplied block, block hash and consensus hash against a hardcoded list of checkpoints. */
 bool VerifyCheckpoint(int block, const uint256& blockHash);
-}
 
-#endif // EXODUS_RULES_H
+} // namespace exodus
+
+#endif // ZCOIN_EXODUS_RULES_H

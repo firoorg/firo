@@ -817,9 +817,10 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     // ### DATA POPULATION ### - save output addresses, values and scripts
     boost::optional<CBitcoinAddress> referenceAddr;
+    boost::optional<CAmount> referenceAmount;
     std::vector<unsigned char> payload;
     std::vector<CBitcoinAddress> address_data;
-    std::vector<int64_t> value_data;
+    std::vector<CAmount> value_data;
 
     for (unsigned int n = 0; n < wtx.vout.size(); ++n) {
         txnouttype whichType;
@@ -854,9 +855,11 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         ++potentialReferenceOutputs;
         if (1 == potentialReferenceOutputs) {
             referenceAddr = addr;
+            referenceAmount = value_data[k];
             if (exodus_debug_parser_data) PrintToLog("Single reference potentially id'd as follows: %s \n", referenceAddr->ToString());
         } else { //as soon as potentialReferenceOutputs > 1 we need to go fishing
             referenceAddr = boost::none; // avoid leaving referenceAddr populated for sanity
+            referenceAmount = boost::none;
             if (exodus_debug_parser_data) PrintToLog("More than one potential reference candidate, blanking referenceAddr, need to go fishing\n");
         }
     }
@@ -870,6 +873,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 if (exodus_debug_parser_data) PrintToLog("Removed change\n");
             } else {
                 referenceAddr = addr; // this may be set several times, but last time will be highest vout
+                referenceAmount = value_data[k];
                 if (exodus_debug_parser_data) PrintToLog("Resetting referenceAddr as follows: %s \n ", referenceAddr->ToString());
             }
         }
@@ -1034,7 +1038,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         payload.data(),
         payload.size(),
         exodusClass,
-        inAll - outAll
+        inAll - outAll,
+        referenceAmount
     );
 
     return 0;

@@ -86,7 +86,8 @@ void CMPTransaction::Set(
     unsigned char *p,
     unsigned int size,
     const boost::optional<exodus::PacketClass>& packetClass,
-    uint64_t txf)
+    uint64_t txf,
+    const boost::optional<CAmount>& referenceAmount)
 {
     sender = s;
     receiver = r;
@@ -99,6 +100,7 @@ void CMPTransaction::Set(
     tx_fee_paid = txf;
     raw.clear();
     raw.insert(raw.end(), p, p + size);
+    this->referenceAmount = referenceAmount;
 }
 
 /** Checks whether a pointer to the payload is past it's last position. */
@@ -1795,14 +1797,24 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -37);
     }
 
-    if (!IsSigmaStatusValid(sigmaStatus)) {
-        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 900;
+    CMPSPInfo::Entry newSP;
+
+    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        if (!CheckPropertyCreationFee()) {
+            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+            return PKT_ERROR_SP - 105;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
     }
 
     // ------------------------------------------
 
-    CMPSPInfo::Entry newSP;
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -1815,7 +1827,6 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
     newSP.fixed = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
-    newSP.sigmaStatus = sigmaStatus;
 
     const uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);
@@ -1897,6 +1908,13 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
     if (NULL != getCrowd(sender)) {
         PrintToLog("%s(): rejected: sender %s has an active crowdsale\n", __func__, sender);
         return (PKT_ERROR_SP -39);
+    }
+
+    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
+        if (!CheckPropertyCreationFee()) {
+            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+            return PKT_ERROR_SP - 105;
+        }
     }
 
     // ------------------------------------------
@@ -2035,14 +2053,24 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -37);
     }
 
-    if (!IsSigmaStatusValid(sigmaStatus)) {
-        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 900;
+    CMPSPInfo::Entry newSP;
+
+    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        if (!CheckPropertyCreationFee()) {
+            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+            return PKT_ERROR_SP - 105;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
     }
 
     // ------------------------------------------
 
-    CMPSPInfo::Entry newSP;
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -2055,7 +2083,6 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
     newSP.manual = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
-    newSP.sigmaStatus = sigmaStatus;
 
     uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);
@@ -2716,4 +2743,13 @@ int CMPTransaction::logicMath_Alert()
     AlertNotify(alert_text);
 
     return 0;
+}
+
+bool CMPTransaction::CheckPropertyCreationFee()
+{
+    if (receiver.empty() || !referenceAmount) {
+        return false;
+    }
+
+    return receiver == ConsensusParams().PROPERTY_CREATION_FEE_RECEIVER.ToString() && *referenceAmount >= (100 * COIN);
 }
