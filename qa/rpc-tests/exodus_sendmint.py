@@ -12,7 +12,7 @@ class ExodusSendMintTest(ExodusTestFramework):
         self.nodes[0].generatetoaddress(100, self.addrs[0])
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())
 
-        assert(sigma_start_block == self.nodes[0].getblockcount())
+        assert_equal(sigma_start_block, self.nodes[0].getblockcount())
 
         # create non-sigma
         self.nodes[0].exodus_sendissuancefixed(

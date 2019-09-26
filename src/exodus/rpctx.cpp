@@ -1642,7 +1642,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             try {
                 wallet->EraseSigmaMint(id);
             } catch (std::runtime_error const &e) {
-                LogPrintf("%s : Fail to erase sigma mints, %s", __func__, e.what());
+                LogPrintf("%s : Fail to erase sigma mints, %s\n", __func__, e.what());
             }
         }
         throw JSONRPCError(result, error_str(result));

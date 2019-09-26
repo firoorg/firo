@@ -36,7 +36,7 @@ public:
     }
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
-    bool EraseSigmaMint(SigmaMintId const &id);
+    void EraseSigmaMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
