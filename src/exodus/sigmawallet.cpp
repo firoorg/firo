@@ -81,23 +81,13 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512& seed)
             "Unable to retrieve generated key for mint seed. Is the wallet locked?");
     }
 
-    // HMAC-SHA512(SHA256(count), key)
-    std::array<unsigned char, CSHA256::OUTPUT_SIZE> countHash;
-
-    std::vector<unsigned char> result;
-    result.resize(CSHA512::OUTPUT_SIZE);
-
+    // HMAC-SHA512(key, count)
+    // `count` is LE unsigned 32 bits integer
+    std::array<unsigned char, CSHA512::OUTPUT_SIZE> result;
     auto seedIndex = GetSeedIndex(seedId);
-    auto count = std::to_string(seedIndex);
-    CSHA256().
-        Write(
-            reinterpret_cast<const unsigned char*>(count.data()),
-            count.size()
-        ).
-        Finalize(countHash.data());
 
-    CHMAC_SHA512(countHash.data(), sizeof(countHash)).
-        Write(key.begin(), key.size()).
+    CHMAC_SHA512(key.begin(), key.size()).
+        Write(reinterpret_cast<const unsigned char*>(&seedIndex), sizeof(seedIndex)).
         Finalize(result.data());
 
     seed = uint512(result);
