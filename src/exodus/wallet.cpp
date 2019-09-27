@@ -134,7 +134,7 @@ boost::optional<SigmaMint>
     // Get all spendable mints.
     LOCK(pwalletMain->cs_wallet);
     std::vector<SigmaMint> spendables;
-    mintWallet.ListSigmaMints(std::back_inserter(spendables), true, true);
+    mintWallet.ListMints(std::back_inserter(spendables), true, true);
 
     auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](SigmaMint const &mint) -> bool {
         return denomination != mint.denomination;

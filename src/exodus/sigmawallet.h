@@ -7,9 +7,10 @@
 
 #include <map>
 
+#include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
-#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
 
 #include "../uint256.h"
 #include "../primitives/zerocoin.h"
@@ -44,14 +45,6 @@ class SigmaWallet
 {
 private:
 
-    struct MintPoolEntryPublicKeyIndex
-    {
-        typedef SigmaPublicKey result_type;
-        result_type operator() (MintPoolEntry const &entry) const {
-            return entry.key;
-        }
-    };
-
     typedef boost::multi_index_container<
         MintPoolEntry,
         boost::multi_index::indexed_by<
@@ -59,24 +52,25 @@ private:
             boost::multi_index::sequenced<>,
             // Public Key index
             boost::multi_index::hashed_unique<
-                MintPoolEntryPublicKeyIndex, std::hash<SigmaPublicKey>
+                boost::multi_index::member<MintPoolEntry, SigmaPublicKey, &MintPoolEntry::key>,
+                std::hash<SigmaPublicKey>
             >
         >
-    > IndexedMintPool;
+    > MintPool;
 
     std::string walletFile;
-    IndexedMintPool mintPool;
+    MintPool mintPool;
     uint160 masterId;
 
 public:
     SigmaWallet(std::string const &walletFile);
 
 private:
-    bool SetupWallet(const uint160& masterId);
+    void ReloadMasterKey();
 
     // Generator
 private:
-    uint32_t CreateNextSeed(CKeyID &seedId, uint512 &seed);
+    uint32_t GenerateNewSeed(CKeyID &seedId, uint512 &seed);
     uint32_t GenerateSeed(CKeyID const &seedId, uint512 &seed);
     uint32_t GetSeedIndex(CKeyID const &seedId);
     bool SeedToPrivateKey(uint512 const &seed, exodus::SigmaPrivateKey &coin);
@@ -119,15 +113,15 @@ public:
     template<
         class OutIt,
         typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
-    > OutIt ListSigmaMints(OutIt it, bool unusedOnly, bool matureOnly) const
+    > OutIt ListMints(OutIt it, bool unusedOnly, bool matureOnly) const
     {
-        ListSigmaMints([&it](SigmaMint &m) {
+        ListMints([&it](SigmaMint &m) {
             *it++ = m;
         }, unusedOnly, matureOnly);
 
         return it;
     }
-    size_t ListSigmaMints(std::function<void(SigmaMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
+    size_t ListMints(std::function<void(SigmaMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
     bool RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey);
 
     // MintPool state

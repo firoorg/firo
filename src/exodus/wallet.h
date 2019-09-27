@@ -44,7 +44,7 @@ public:
     void ListSigmaMints(OutputIt it)
     {
         auto mintWallet = this->mintWallet;
-        mintWallet.ListSigmaMints([&](SigmaMint &mint) {
+        mintWallet.ListMints([&](SigmaMint &mint) {
 
             *it++ = mint;
         }, false, false);

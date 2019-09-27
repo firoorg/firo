@@ -15,8 +15,7 @@
 
 #include <boost/optional.hpp>
 
-namespace exodus
-{
+namespace exodus {
 
 MintPoolEntry::MintPoolEntry()
 {
@@ -39,35 +38,20 @@ bool MintPoolEntry::operator!=(MintPoolEntry const &another) const
 
 SigmaWallet::SigmaWallet(const std::string& walletFile) : walletFile(walletFile)
 {
-    // Don't try to do anything else if the wallet is locked.
-    if (pwalletMain->IsLocked()) {
-        return;
-    }
-
-    // Use MasterKeyId from HDChain as index for mintpool
-    auto masterId = pwalletMain->GetHDChain().masterKeyID;
-    LogPrintf("masterId: %d\n", masterId.GetHex());
-
-    if (!SetupWallet(masterId)) {
-
-        LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, masterId.GetHex());
-        throw std::runtime_error("fail to setup wallet");
-    }
+    ReloadMasterKey();
 }
 
-bool SigmaWallet::SetupWallet(const uint160& masterId)
+void SigmaWallet::ReloadMasterKey()
 {
-    CWalletDB walletdb(walletFile);
-
     if (pwalletMain->IsLocked()) {
-        return false;
+        throw std::runtime_error("Unable to reload master key because wallet is locked");
     }
+
+    masterId = pwalletMain->GetHDChain().masterKeyID;
 
     if (masterId.IsNull()) {
-        return error("%s: failed to set master seed.", __func__);
+        throw std::runtime_error("Master id is null");
     }
-
-    this->masterId = masterId;
 
     // Load mint pool from DB
     LoadMintPool();
@@ -77,12 +61,10 @@ bool SigmaWallet::SetupWallet(const uint160& masterId)
 
     // Refill mint pool
     GenerateMintPool();
-
-    return true;
 }
 
 // Generator
-uint32_t SigmaWallet::CreateNextSeed(CKeyID &seedId, uint512& seed)
+uint32_t SigmaWallet::GenerateNewSeed(CKeyID &seedId, uint512& seed)
 {
     LOCK(pwalletMain->cs_wallet);
     seedId = pwalletMain->GenerateNewKey(BIP44_EXODUS_MINT_INDEX).GetID();
@@ -91,8 +73,9 @@ uint32_t SigmaWallet::CreateNextSeed(CKeyID &seedId, uint512& seed)
 
 uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512& seed)
 {
+    LOCK(pwalletMain->cs_wallet);
     CKey key;
-    if (!pwalletMain->CCryptoKeyStore::GetKey(seedId, key)) {
+    if (!pwalletMain->GetKey(seedId, key)) {
         throw std::runtime_error(
             "Unable to retrieve generated key for mint seed. Is the wallet locked?");
     }
@@ -325,7 +308,7 @@ void SigmaWallet::ResetCoinsState()
     try {
         CWalletDB walletdb(walletFile);
 
-        ListSigmaMints([&](SigmaMint &m) {
+        ListMints([&](SigmaMint &m) {
 
             m.chainState = SigmaMintChainState();
             m.spendTx = uint256();
@@ -456,7 +439,7 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
     return id;
 }
 
-size_t SigmaWallet::ListSigmaMints(
+size_t SigmaWallet::ListMints(
     std::function<void(SigmaMint &)> const &f, bool unusedOnly, bool matureOnly) const
 {
     LOCK(pwalletMain->cs_wallet);
@@ -529,7 +512,7 @@ size_t SigmaWallet::GenerateMintPool(size_t expectedCoins)
 
         CKeyID seedId;
         uint512 seed;
-        auto index = CreateNextSeed(seedId, seed);
+        auto index = GenerateNewSeed(seedId, seed);
 
         SigmaPrivateKey coin;
         if (!SeedToPrivateKey(seed, coin)) {
