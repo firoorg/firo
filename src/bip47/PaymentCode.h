@@ -1,5 +1,5 @@
 #ifndef PAYMENTCODE_H
-#define PAYMENT_H
+#define PAYMENTCODE_H
 #include "bip47_common.h"
 #include "base58.h"
 #include "crypto/hmac_sha512.h"

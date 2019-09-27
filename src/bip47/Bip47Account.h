@@ -11,47 +11,19 @@ class Bip47Account {
     PaymentCode paymentCode;
 
     public:
-    Bip47Account(CBaseChainParams *parameters, CExtKey &coinType, int identity) {
-        params = parameters;
-        accountId = identity;
-        CExtKey temp_key ;
-        coinType.Derive(temp_key,accountId | HARDENED_BIT);
-        key = temp_key.Neuter();
-        paymentCode = PaymentCode(key.pubkey.begin(), key.chaincode.begin());
-    }
-    Bip47Account(CBaseChainParams *parameters, String strPaymentCode) {
-        params = parameters;
-        accountId = 0;
-        PaymentCode::createMasterPubKeyFromPaymentCode(strPaymentCode,key);
-        paymentCode = PaymentCode(strPaymentCode);
-    }
-    String getStringPaymentCode() {
-        return paymentCode.toString();
-    }
+    Bip47Account(CBaseChainParams *parameters, CExtKey &coinType, int identity);
+    Bip47Account(CBaseChainParams *parameters, String strPaymentCode);
+    String getStringPaymentCode();
 
-    // Address getNotificationAddress() {
-    //     return HDKeyDerivation.deriveChildKey(key, ChildNumber.ZERO).toAddress(params);
-    // }
+    CBitcoinAddress getNotificationAddress();
 
-    CExtPubKey getNotificationKey() {
-        CExtPubKey result ;
-        key.Derive(result,0);
-        return result;
-    }
+    CExtPubKey getNotificationKey();
 
-    PaymentCode getPaymentCode() {
-        return paymentCode;
-    }
+    PaymentCode getPaymentCode();
 
-    Bip47ChannelAddress addressAt(int idx) {
-        return Bip47ChannelAddress(params, key, idx);
-    }
+    Bip47ChannelAddress addressAt(int idx);
 
-    CExtPubKey keyAt(int idx) {
-        CExtPubKey result ;
-        key.Derive(result,idx);
-        return result;
-    }
+    CExtPubKey keyAt(int idx);
 
 };
 
