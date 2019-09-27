@@ -8,8 +8,6 @@
 
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
-#include "../init.h"
-#include "../main.h"
 #include "../sigma/openssl_context.h"
 
 #include <regex>
@@ -113,6 +111,41 @@ std::uint32_t GetBIP44AddressIndex(std::string const &path)
     return child;
 }
 
+secp_primitives::Scalar GetSerialFromPublicKey(
+    secp256k1_context const *context,
+    secp256k1_pubkey *pubkey)
+{
+    std::array<uint8_t, 32> pubkey_hash;
+
+    static const unsigned char one[32] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+
+    if (!secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0])) {
+        throw std::runtime_error("Unable to compute public key hash with secp256k1_ecdh.");
+    }
+
+    std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
+    std::array<uint8_t, sizeof(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER) - 1 +
+        std::tuple_size<typeof(pubkey_hash)>::value> pre;
+
+    auto ptr = std::copy(
+        reinterpret_cast<unsigned char const*>(zpts.data()),
+        reinterpret_cast<unsigned char const*>(zpts.data() + zpts.size()),
+        pre.data()
+    );
+
+    std::copy(pubkey_hash.begin(), pubkey_hash.end(), ptr);
+
+    std::array<unsigned char, CSHA256::OUTPUT_SIZE>  hash;
+    CSHA256().Write(pre.data(), pre.size()).Finalize(hash.data());
+
+    return Scalar(hash.data());
+}
+
 }
 
 uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
@@ -139,28 +172,24 @@ bool SigmaWallet::GeneratePrivateKey(
     const uint512& seed, exodus::SigmaPrivateKey& coin)
 {
     //convert state seed into a seed for the private key
-    uint256 nSeedPrivKey = seed.trim256();
-    nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
-
-    // generate serial and randomness
-    sigma::PrivateCoin priv(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
-    priv.setEcdsaSeckey(nSeedPrivKey);
+    uint256 privkey = seed.trim256();
+    privkey = Hash(privkey.begin(), privkey.end());
 
     // Create a key pair
     secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, priv.getEcdsaSeckey())) {
+    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, privkey.begin())) {
         return false;
     }
 
     // Hash the public key in the group to obtain a serial number
-    auto serialNumber = priv.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+    auto serial = GetSerialFromPublicKey(OpenSSLContext::get_context(), &pubkey);
 
     //hash randomness seed with Bottom 256 bits of seedZerocoin
     Scalar randomness;
     auto randomnessSeed = ArithToUint512(UintToArith512(seed) >> 256).trim256();
     randomness.memberFromSeed(randomnessSeed.begin());
 
-    coin.serial = serialNumber;
+    coin.serial = serial;
     coin.randomness = randomness;
 
     return true;
