@@ -86,6 +86,13 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
     return SigmaSpend(SigmaMintId(*mint, DefaultSigmaParams), mint->chainState.group, anonimitySet.size(), proof);
 }
 
+void Wallet::EraseSigmaMint(const SigmaMintId &id)
+{
+    if (!CWalletDB(walletFile).EraseExodusMint(id)) {
+        throw std::runtime_error("Fail to erase dangling mint from wallet");
+    }
+}
+
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
     return CWalletDB(walletFile).HasExodusMint(id);
