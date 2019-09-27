@@ -13,6 +13,7 @@
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
 
+#include <regex>
 #include <boost/optional.hpp>
 
 namespace exodus {
@@ -86,7 +87,8 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512& seed)
     std::vector<unsigned char> result;
     result.resize(CSHA512::OUTPUT_SIZE);
 
-    auto count = std::to_string(GetSeedIndex(seedId));
+    auto seedIndex = GetSeedIndex(seedId);
+    auto count = std::to_string(seedIndex);
     CSHA256().
         Write(
             reinterpret_cast<const unsigned char*>(count.data()),
@@ -100,64 +102,55 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512& seed)
 
     seed = uint512(result);
 
-    return GetSeedIndex(seedId);
+    return seedIndex;
 }
 
-bool GetChildFromPath(string const &path, std::pair<uint32_t, bool> &child)
+namespace {
+
+std::uint32_t GetBIP44AddressIndex(std::string const &path)
 {
-    auto startPos = path.find_last_of('/') + 1;
-    if (startPos >= path.size()) {
-        return false;
+    const std::regex re(R"delim(^m/44'/\d+'/\d+'/\d+/(\d+)$)delim");
+
+    std::smatch match;
+    if (!std::regex_match(path, match, re)) {
+        throw std::runtime_error("Fail to match BIP44 path");
     }
 
-    auto childData = path.substr(startPos);
-
-    auto isHardened = childData.back() == '\'';
-    if (isHardened) {
-        childData.resize(childData.size() - 1);
+    auto child = std::stol(match.str(1));
+    if (child > std::numeric_limits<uint32_t>::max()) {
+        throw std::runtime_error("Address index is exceed limit");
     }
 
-    if (childData.empty()) {
-        return false;
-    }
+    return child;
+}
 
-    auto childPos = std::stol(childData);
-
-    if (childPos > std::numeric_limits<uint32_t>::max()) {
-        return false;
-    }
-
-    child = {static_cast<uint32_t>(childPos), isHardened};
-
-    return true;
 }
 
 uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
 {
-    if (!pwalletMain->mapKeyMetadata.count(seedId)) {
+    LOCK(pwalletMain->cs_wallet);
+    auto it = pwalletMain->mapKeyMetadata.find(seedId);
+    if (it == pwalletMain->mapKeyMetadata.end()) {
         throw std::runtime_error("key not found");
     }
 
-    auto const &meta = pwalletMain->mapKeyMetadata[seedId];
-
     // parse last index
-    std::pair<uint32_t, bool> child;
-    if (!GetChildFromPath(meta.hdKeypath, child)) {
-        throw std::runtime_error("fail to parse HD key path");
+    uint32_t addressIndex;
+    try {
+        addressIndex = GetBIP44AddressIndex(it->second.hdKeypath);
+    } catch (std::runtime_error const &e) {
+        error("%s : fail to get child from, %s\n", __func__, e.what());
+        throw;
     }
 
-    if (child.second) {
-        throw std::runtime_error("hardened is not allowed");
-    }
-
-    return child.first;
+    return addressIndex;
 }
 
-bool SigmaWallet::SeedToPrivateKey(
-    const uint512& seedZerocoin, exodus::SigmaPrivateKey& coin)
+bool SigmaWallet::GeneratePrivateKey(
+    const uint512& seed, exodus::SigmaPrivateKey& coin)
 {
     //convert state seed into a seed for the private key
-    uint256 nSeedPrivKey = seedZerocoin.trim256();
+    uint256 nSeedPrivKey = seed.trim256();
     nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
 
     // generate serial and randomness
@@ -175,7 +168,7 @@ bool SigmaWallet::SeedToPrivateKey(
 
     //hash randomness seed with Bottom 256 bits of seedZerocoin
     Scalar randomness;
-    auto randomnessSeed = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
+    auto randomnessSeed = ArithToUint512(UintToArith512(seed) >> 256).trim256();
     randomness.memberFromSeed(randomnessSeed.begin());
 
     coin.serial = serialNumber;
@@ -224,7 +217,7 @@ SigmaPrivateKey SigmaWallet::GetPrivateKeyFromSeedId(CKeyID const &seedId)
     SigmaPrivateKey priv;
 
     GenerateSeed(seedId, seed);
-    if (!SeedToPrivateKey(seed, priv)) {
+    if (!GeneratePrivateKey(seed, priv)) {
         throw std::runtime_error("fail to generate private key from seed");
     }
 
@@ -353,7 +346,7 @@ bool SigmaWallet::SetMintSeedSeen(
         GenerateSeed(seedId, seed);
 
         SigmaPrivateKey coin;
-        if (!SeedToPrivateKey(seed, coin)) {
+        if (!GeneratePrivateKey(seed, coin)) {
             return false;
         }
 
@@ -515,7 +508,7 @@ size_t SigmaWallet::GenerateMintPool(size_t expectedCoins)
         auto index = GenerateNewSeed(seedId, seed);
 
         SigmaPrivateKey coin;
-        if (!SeedToPrivateKey(seed, coin)) {
+        if (!GeneratePrivateKey(seed, coin)) {
             continue;
         }
 

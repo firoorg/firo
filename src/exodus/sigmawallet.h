@@ -73,7 +73,7 @@ private:
     uint32_t GenerateNewSeed(CKeyID &seedId, uint512 &seed);
     uint32_t GenerateSeed(CKeyID const &seedId, uint512 &seed);
     uint32_t GetSeedIndex(CKeyID const &seedId);
-    bool SeedToPrivateKey(uint512 const &seed, exodus::SigmaPrivateKey &coin);
+    bool GeneratePrivateKey(uint512 const &seed, exodus::SigmaPrivateKey &coin);
 
     // Mint updating
 public:
