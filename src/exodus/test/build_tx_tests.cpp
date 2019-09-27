@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_without_mints)
     uint256 txid;
     std::string rawHex;
     BOOST_CHECK_EQUAL(
-        MPRPCErrorCode::MP_INPUTS_INVALID,
+        MPRPCErrorCode::MP_SIGMA_INPUTS_INVALID,
         exodus::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, exodus::InputMode::SIGMA)
     );
 }

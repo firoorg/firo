@@ -1591,6 +1591,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     // perform checks
     RequireExistingProperty(propertyId);
+    RequireSigma(propertyId);
     auto keys = denominations.getKeys();
 
     // collect all mints need to be created
@@ -1633,10 +1634,12 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     RequireBalance(fromAddress, propertyId, amount);
 
+    std::vector<SigmaMintId> ids;
     std::vector<std::pair<SigmaDenomination, SigmaPublicKey>> mints;
     mints.reserve(denoms.size());
 
     wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+        ids.push_back(m);
         mints.push_back(std::make_pair(m.denomination, m.key));
     }));
 
@@ -1649,6 +1652,13 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
+        for (auto const &id : ids) {
+            try {
+                wallet->EraseSigmaMint(id);
+            } catch (std::runtime_error const &e) {
+                LogPrintf("%s : Fail to erase sigma mints, %s\n", __func__, e.what());
+            }
+        }
         throw JSONRPCError(result, error_str(result));
     } else {
         if (!autoCommit) {
