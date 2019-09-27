@@ -5,15 +5,12 @@
 #ifndef ZCOIN_EXODUS_SIGMAWALLET_H
 #define ZCOIN_EXODUS_SIGMAWALLET_H
 
-#include <map>
-
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/member.hpp>
 
 #include "../uint256.h"
-#include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
 
 #include "sigmadb.h"
@@ -73,6 +70,8 @@ private:
     uint32_t GenerateNewSeed(CKeyID &seedId, uint512 &seed);
     uint32_t GenerateSeed(CKeyID const &seedId, uint512 &seed);
     uint32_t GetSeedIndex(CKeyID const &seedId);
+
+protected:
     bool GeneratePrivateKey(uint512 const &seed, exodus::SigmaPrivateKey &coin);
 
     // Mint updating

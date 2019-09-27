@@ -6,12 +6,11 @@
 
 #include "exodus.h"
 
-#include "../main.h"
-#include "../init.h"
-
-#include "../sigma/openssl_context.h"
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
+#include "../init.h"
+#include "../main.h"
+#include "../sigma/openssl_context.h"
 
 #include <regex>
 #include <boost/optional.hpp>

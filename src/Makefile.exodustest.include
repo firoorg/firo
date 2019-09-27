@@ -38,6 +38,7 @@ EXODUS_TEST_CPP = \
 
 if ENABLE_WALLET
 EXODUS_TEST_CPP += \
+  exodus/test/sigmawallet_tests.cpp \
   exodus/test/wallet_tests.cpp \
   exodus/test/walletmodels_tests.cpp
 endif
