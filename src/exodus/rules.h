@@ -1,6 +1,7 @@
 #ifndef ZCOIN_EXODUS_RULES_H
 #define ZCOIN_EXODUS_RULES_H
 
+#include "../amount.h"
 #include "../base58.h"
 #include "../uint256.h"
 
@@ -196,6 +197,11 @@ public:
      * Block to activate Sigma related features.
      **/
     int SIGMA_FEATURE_BLOCK;
+
+    /**
+     * Amount of XZC to pay when create a new property on main ecosystem.
+     **/
+    CAmount PROPERTY_CREATION_FEE;
 
     /**
      * The address to receive property creation fee.

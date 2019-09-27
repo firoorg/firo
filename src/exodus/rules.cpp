@@ -131,6 +131,7 @@ CMainConsensusParams::CMainConsensusParams()
 
     // Sigma releated
     SIGMA_FEATURE_BLOCK = 204901; //Approx Thursday, October 10, 2019 8:00:00 AM UTC
+    PROPERTY_CREATION_FEE = 100 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3");
 }
 
@@ -176,6 +177,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
 
     // sigma related
     SIGMA_FEATURE_BLOCK = 100000;
+    PROPERTY_CREATION_FEE = 100 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 
@@ -221,6 +223,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
 
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
+    PROPERTY_CREATION_FEE = 100 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 

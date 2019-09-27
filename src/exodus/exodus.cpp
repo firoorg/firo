@@ -796,7 +796,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
         CTxDestination source;
         if (ExtractDestination(txOut.scriptPubKey, source)) {
-            sender.emplace(source);
+            sender = source;
         }
         else return -110;
     }

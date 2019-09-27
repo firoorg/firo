@@ -2747,9 +2747,15 @@ int CMPTransaction::logicMath_Alert()
 
 bool CMPTransaction::CheckPropertyCreationFee()
 {
+    if (ecosystem != EXODUS_PROPERTY_EXODUS) {
+        return true;
+    }
+
     if (receiver.empty() || !referenceAmount) {
         return false;
     }
 
-    return receiver == ConsensusParams().PROPERTY_CREATION_FEE_RECEIVER.ToString() && *referenceAmount >= (100 * COIN);
+    auto& consensus = ConsensusParams();
+
+    return receiver == consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString() && *referenceAmount >= consensus.PROPERTY_CREATION_FEE;
 }
