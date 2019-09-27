@@ -81,8 +81,7 @@ CAmount getLockUnspentAmount()
     BOOST_FOREACH(COutPoint &outpt, vOutpts) {
         uint256 hash = outpt.hash;
         if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
-            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
-
+            continue;
         total += tx.vout[outpt.n].nValue;
     }
 
@@ -332,21 +331,16 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             }
             if (wtx.IsCoinBase())
             {
-                int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
-                CScript payee;
-
-                mnpayments.GetBlockPayee(txHeight, payee);
-                //compare address of payee to addr. 
-                CTxDestination payeeDest;
-                ExtractDestination(payee, payeeDest);
-                CBitcoinAddress payeeAddr(payeeDest);
-                if(addr.ToString() == payeeAddr.ToString()){
+                int txHeight = getBlockHeight(wtx.hashBlock.GetHex()).get_int();
+                if(txHeight == -1){
+                    category = "coinbase";
+                }
+                else if(r.vout==1 && txHeight >= Params().GetConsensus().nZnodePaymentsStartBlock){
                     category = "znode";
                 }
-                else if (wtx.GetDepthInMainChain() < 1)
-                    category = "orphan";
-                else
+                else {
                     category = "mined";
+                }
             }
             else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.

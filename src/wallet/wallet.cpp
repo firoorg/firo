@@ -39,6 +39,7 @@
 #include "instantx.h"
 #include "znode.h"
 #include "znode-sync.h"
+#include "znodeconfig.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
@@ -935,6 +936,23 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
         }
 
     }
+    // If Znode payment, lock corresponding outpoint
+    if (GetBoolArg("-znconflock", true) && (znodeConfig.getCount() > 0)) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+            uint256 mnTxHash(uint256S(mne.getTxHash()));
+            int outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
+
+            COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
+
+            if(IsMine(CTxIn(outpoint)) == ISMINE_SPENDABLE){
+                if(mnTxHash==wtxIn.GetHash())
+                    LockCoin(outpoint); //Lock if this transaction is a znode colleteral payment
+            }else {
+                UnlockCoin(outpoint); // Unlock any spent Znode collateral
+            }
+        }
+    }
+
     LogPrintf("CWallet::AddToWallet -> ok\n");
     return true;
 }
@@ -1180,6 +1198,9 @@ void CWallet::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex,
         if (mapWallet.count(txin.prevout.hash))
             mapWallet[txin.prevout.hash].MarkDirty();
     }
+
+    // Notify of wallet transaction
+    GetMainSignals().WalletTransaction(tx);
 }
 
 

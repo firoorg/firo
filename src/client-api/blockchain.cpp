@@ -89,11 +89,11 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
         throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
 
-    CWalletTx wtx(pwalletMain, transaction);
-
-    isminefilter filter = ISMINE_ALL;
+    const CWalletTx * wtx = pwalletMain->GetWalletTx(transaction.GetHash());
+    if(wtx==NULL)
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     
-    ListAPITransactions(wtx, ret, filter);
+    ListAPITransactions(*wtx, ret, ISMINE_ALL);
 
     return ret;
 }

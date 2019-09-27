@@ -135,6 +135,18 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     std::map<std::string, CZMQFactory> factories;
     std::list<CZMQAbstract*> notifiers;
 
+    // Ordering here implies ordering of topic publishing.
+    std::vector<std::string> pubIndexes = {
+        "pubblock", 
+        "pubrawtx", 
+        "pubblockinfo", 
+        "pubbalance", 
+        "pubznodeupdate", 
+        "pubmintstatus", 
+        "pubsettings", 
+        "pubstatus"
+    };
+
     factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
@@ -144,16 +156,14 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     
-    for (std::map<string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
+    BOOST_FOREACH(string pubIndex, pubIndexes)
     {
-        string index = i->first;
-        string address = BaseParams().APIAddr();
-        string port = index=="pubstatus" ? to_string(BaseParams().APIOpenPUBPort()) :
-                                           to_string(BaseParams().APIAuthPUBPort());
-
-        CZMQFactory factory = factories[i->first];
+        CZMQFactory factory = factories[pubIndex];
         CZMQAbstract *notifier = factory();
-        notifier->SetType("zmq" + i->first);
+        string address = BaseParams().APIAddr();
+        string port = pubIndex=="pubstatus" ? to_string(BaseParams().APIOpenPUBPort()) :
+                                           to_string(BaseParams().APIAuthPUBPort());
+        notifier->SetType("zmq" + pubIndex);
         notifier->SetAddress(address);
         notifier->SetPort(port);
         notifier->SetAuthority(address + port);
@@ -241,7 +251,7 @@ void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindex)
     }
 }
 
-void CZMQPublisherInterface::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, const CBlock* pblock)
+void CZMQPublisherInterface::WalletTransaction(const CTransaction& tx)
 {
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
