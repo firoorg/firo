@@ -1,6 +1,84 @@
 #include "Bip47Wallet.h"
 #include "Bip47Account.h"
 #include "SecretPoint.h"
+#include "Bip47Util.h"
+#include "script/ismine.h"
+
+Bip47Wallet::Bip47Wallet(string strWalletFileIn, string coinName, string seedStr) 
+:CWallet(strWalletFileIn)
+{
+    this->coinName = coinName;
+
+}
+
+string Bip47Wallet::getPaymentCodeForAddress(string address) {
+    if (channels.find(address) == channels.end()) {
+        return "";
+    }
+    return channels.find(address)->second.getPaymentCode();
+    
+}
+
+CBitcoinAddress Bip47Wallet::getAddressOfReceived(CTransaction tx) 
+{
+    isminefilter filter = ISMINE_ALL;
+    for (int i = 0; i < tx.vout.size(); i++) {
+        try
+        {
+            if(tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
+                CTxDestination address;
+                if(ExtractDestination(tx.vout[i].scriptPubKey, address)) {
+                    isminefilter mine = ::IsMine(*this, address);
+                    if(mine & ISMINE_ALL) {
+                        return CBitcoinAddress(address);
+                    }
+                }
+            }
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+        
+    }
+    return CBitcoinAddress();
+}
+
+CBitcoinAddress Bip47Wallet::getAddressOfSent(CTransaction tx) {
+    isminefilter filter = ISMINE_ALL;
+    for (int i = 0; i < tx.vout.size(); i++) {
+        try
+        {
+            if(tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
+                CTxDestination address;
+                if(ExtractDestination(tx.vout[i].scriptPubKey, address)) {
+                    isminefilter mine = ::IsMine(*this, address);
+                    if(!(mine & ISMINE_ALL)) {
+                        return CBitcoinAddress(address);
+                    }
+                }
+            }
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+        
+    }
+    return CBitcoinAddress();
+}
+
+/**
+ *  @todo Get Private key in Bip47Accounts 
+ * */
+PaymentCode Bip47Wallet::getPaymentCodeInNotificationTransaction(CTransaction tx) 
+{
+    mBip47Accounts[0].getNotificationPrivKey().key;
+    // Bip47Util::getPaymentCodeInNotificationTransaction();
+    
+    return PaymentCode();
+    // mBip47Accounts[0].getNotificationKey().getPrivkeybyste
+}
 
 void Bip47Wallet::makeNotificationTransaction(String paymentCode) 
 {
@@ -69,6 +147,12 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
     if(!pwalletMain->CommitTransaction(wtx, reservekey)) {
 
     }
+}
+
+CTransaction* Bip47Wallet::getSignedNotificationTransaction(CWalletTx &sendRequest, string paymentCode) {
+    CommitTransaction(sendRequest);
+    return (CTransaction*)&sendRequest;
+    
 }
 
 void Bip47Wallet::deriveAccount(vector<unsigned char> hd_seed) 
