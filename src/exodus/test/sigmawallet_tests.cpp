@@ -155,6 +155,67 @@ BOOST_AUTO_TEST_CASE(tryrecover_already_in_wallet_coin)
     BOOST_CHECK_EQUAL(true, sigmaWallet.HasMint(id));
 }
 
+BOOST_AUTO_TEST_CASE(listmints_empty_wallet)
+{
+    std::vector<SigmaMint> mints;
+    sigmaWallet.ListMints(std::back_inserter(mints), false, false);
+    BOOST_CHECK_EQUAL(0, mints.size());
+}
+
+BOOST_AUTO_TEST_CASE(listmints_non_empty_wallet)
+{
+    // generate 3 coins which is
+    // 1. unconfirmed
+    // 2. confirmed and unspend
+    // 3. spend
+    PropertyId prop = 10;
+    SigmaDenomination denom = 0;
+
+    auto unconfirmed = sigmaWallet.GenerateMint(prop, denom);
+    auto unspend = sigmaWallet.GenerateMint(prop, denom);
+    sigmaWallet.UpdateMintChainstate(
+        SigmaMintId(prop, denom, SigmaPublicKey(unspend.second, DefaultSigmaParams)),
+        SigmaMintChainState(100, 0, 1000));
+
+    auto spend = sigmaWallet.GenerateMint(prop, denom);
+    sigmaWallet.UpdateMintChainstate(
+        SigmaMintId(prop, denom, SigmaPublicKey(spend.second, DefaultSigmaParams)),
+        SigmaMintChainState(100, 0, 1001));
+
+    sigmaWallet.UpdateMintSpendTx(
+        SigmaMintId(prop, denom, SigmaPublicKey(spend.second, DefaultSigmaParams)),
+        uint256S("1"));
+
+    // prepare testing function
+    auto sigmaMintComparer = [](SigmaMint const &a, SigmaMint const &b) -> bool {
+        return a.property == b.property &&
+            a.denomination == b.denomination &&
+            a.seedId == b.seedId;
+    };
+
+    auto testListMints =
+        [&](std::vector<SigmaMint> const &expected, bool unusedOnly, bool matureOnly) {
+
+        std::vector<SigmaMint> mints;
+        sigmaWallet.ListMints(std::back_inserter(mints), unusedOnly, matureOnly);
+        BOOST_CHECK_EQUAL(expected.size(), mints.size());
+        BOOST_CHECK_EQUAL(
+            true,
+            std::is_permutation(
+                mints.begin(), mints.end(),
+                expected.begin(),
+                sigmaMintComparer
+            )
+        );
+    };
+
+    // test
+    testListMints({unconfirmed.first, unspend.first, spend.first}, false, false);
+    testListMints({unconfirmed.first, unspend.first}, true, false);
+    testListMints({unspend.first, spend.first}, false, true);
+    testListMints({unspend.first}, true, true);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }

@@ -380,11 +380,11 @@ bool SigmaWallet::HasMint(SigmaMintId const &id) const
     return walletdb.HasExodusHDMint(id);
 }
 
-bool SigmaWallet::HasMint(secp_primitives::Scalar const &scalar) const
+bool SigmaWallet::HasMint(secp_primitives::Scalar const &serial) const
 {
     CWalletDB walletdb(walletFile);
-    auto serialHash = GetSerialId(scalar);
-    return walletdb.HasExodusMintID(serialHash);
+    auto id = GetSerialId(serial);
+    return walletdb.HasExodusMintID(id);
 }
 
 SigmaMint SigmaWallet::GetMint(SigmaMintId const &id) const
@@ -417,23 +417,12 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 }
 
 size_t SigmaWallet::ListMints(
-    std::function<void(SigmaMint const&)> const &f, bool unusedOnly, bool matureOnly) const
+    std::function<void(SigmaMint const&)> const &f) const
 {
-    LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(walletFile);
 
     size_t counter = 0;
     walletdb.ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
-        auto used = !m.spendTx.IsNull();
-        if (unusedOnly && used) {
-            return;
-        }
-
-        auto confirmed = m.chainState.block >= 0;
-        if (matureOnly && !confirmed) {
-            return;
-        }
-
         counter++;
         f(m);
     });

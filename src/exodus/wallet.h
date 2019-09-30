@@ -44,10 +44,7 @@ public:
     void ListSigmaMints(OutputIt it)
     {
         auto mintWallet = this->mintWallet;
-        mintWallet.ListMints([&](SigmaMint const &mint) {
-
-            *it++ = mint;
-        }, false, false);
+        mintWallet.ListMints(it, false, false);
     }
 
     bool HasSigmaMint(const SigmaMintId& id);
