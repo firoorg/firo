@@ -514,17 +514,14 @@ void SigmaWallet::LoadMintPool()
 
     CWalletDB walletdb(walletFile);
 
-    if (walletdb.HasExodusMintPool()) {
-
-        std::vector<MintPoolEntry> mintPoolData;
-        if (!walletdb.ReadExodusMintPool(mintPoolData)) {
-            throw std::runtime_error("fail to load mint pool from DB");
-        }
-
+    std::vector<MintPoolEntry> mintPoolData;
+    if (walletdb.ReadExodusMintPool(mintPoolData)) {
         for (auto &entry : mintPoolData) {
             mintPool.push_back(std::move(entry));
         }
     }
+
+    LogPrintf("%s : load mint pool size %d\n", __func__, mintPool.size());
 }
 
 void SigmaWallet::SaveMintPool()
@@ -543,16 +540,20 @@ void SigmaWallet::SaveMintPool()
 
 bool SigmaWallet::RemoveFromMintPool(SigmaPublicKey const &publicKey)
 {
+    LOCK(pwalletMain->cs_wallet);
+
     auto &publicKeyIndex = mintPool.get<1>();
     auto it = publicKeyIndex.find(publicKey);
 
     if (it != publicKeyIndex.end()) {
+
         publicKeyIndex.erase(it);
         SaveMintPool();
+        return true;
     }
 
     // publicKey is not in the pool
     return false;
 }
 
-}; // exodus
+} // exodus
