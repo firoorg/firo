@@ -319,27 +319,15 @@ bool SigmaWallet::SetMintSeedSeen(
 
     uint160 serialId;
 
-    // Can regenerate if unlocked (cheaper)
-    if (!pwalletMain->IsLocked()) {
+    uint512 seed;
+    GenerateSeed(seedId, seed);
 
-        uint512 seed;
-        GenerateSeed(seedId, seed);
-
-        SigmaPrivateKey coin;
-        if (!GeneratePrivateKey(seed, coin)) {
-            return false;
-        }
-
-        serialId = GetSerialId(coin.serial);
-    } else {
-
-        SigmaMint mint;
-        if (!CWalletDB(walletFile).ReadExodusHDMint(id, mint)) {
-            return false;
-        }
-
-        serialId = mint.serialId;
+    SigmaPrivateKey coin;
+    if (!GeneratePrivateKey(seed, coin)) {
+        return false;
     }
+
+    serialId = GetSerialId(coin.serial);
 
     // Create mint object
     SigmaMint mint(
@@ -353,6 +341,22 @@ bool SigmaWallet::SetMintSeedSeen(
     WriteMint(id, mint);
 
     return true;
+}
+
+bool SigmaWallet::TryRecoverMint(
+    SigmaMintId const &id,
+    SigmaMintChainState const &chainState)
+{
+    if (!CountInMintPool(id.pubKey)) {
+        return false;
+    }
+
+    MintPoolEntry entry;
+    if (!GetMintPoolEntry(id.pubKey, entry)) {
+        return error("%s : Fail to get mint pool entry from public key\n", __func__);
+    }
+
+    return SetMintSeedSeen(entry, id.property, id.denomination, chainState, uint256());
 }
 
 SigmaMint SigmaWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
@@ -376,7 +380,7 @@ bool SigmaWallet::HasMint(SigmaMintId const &id) const
     return walletdb.HasExodusHDMint(id);
 }
 
-bool SigmaWallet::HasSerial(secp_primitives::Scalar const &scalar) const
+bool SigmaWallet::HasMint(secp_primitives::Scalar const &scalar) const
 {
     CWalletDB walletdb(walletFile);
     auto serialHash = GetSerialId(scalar);

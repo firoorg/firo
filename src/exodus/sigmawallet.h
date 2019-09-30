@@ -40,7 +40,7 @@ struct MintPoolEntry {
 
 class SigmaWallet
 {
-private:
+protected:
 
     typedef boost::multi_index_container<
         MintPoolEntry,
@@ -83,16 +83,19 @@ public:
         boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
+    bool TryRecoverMint(
+        SigmaMintId const &id,
+        SigmaMintChainState const &chainState);
+
+private:
     bool SetMintSeedSeen(
         MintPoolEntry const &mintPoolEntry,
         PropertyId propertyId,
         SigmaDenomination denomination,
         exodus::SigmaMintChainState const &chainState,
         uint256 const &spendTx = uint256());
-
-private:
-    void WriteMint(SigmaMintId const &id, SigmaMint const &entry);
     SigmaMint UpdateMint(SigmaMintId const &, std::function<void(SigmaMint &)> const &);
+    void WriteMint(SigmaMintId const &id, SigmaMint const &entry);
 
 public:
     SigmaMint UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
@@ -102,7 +105,7 @@ public:
 public:
 
     bool HasMint(SigmaMintId const &id) const;
-    bool HasSerial(secp_primitives::Scalar const &serial) const;
+    bool HasMint(secp_primitives::Scalar const &serial) const;
     SigmaMint GetMint(SigmaMintId const &id) const;
     SigmaMint GetMint(secp_primitives::Scalar const &serial) const;
     SigmaMintId GetMintId(secp_primitives::Scalar const &serial) const;

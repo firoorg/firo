@@ -109,7 +109,7 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
 bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, SigmaMint &mint)
 {
     LOCK(pwalletMain->cs_wallet);
-    return mintWallet.HasSerial(serial);
+    return mintWallet.HasMint(serial);
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
@@ -230,16 +230,14 @@ void Wallet::OnMintAdded(
 
         // 1. is tracked then update state
         SetSigmaMintChainState(id, SigmaMintChainState(block, group, idx));
-    } else if (mintWallet.CountInMintPool(pubKey)) {
+    } else {
 
-        // 2. isn't tracked but is in wallet then add it
-        MintPoolEntry entry;
-        if (!mintWallet.GetMintPoolEntry(pubKey, entry)) {
-            error("%s : Fail to get mint pool entry from public key");
+        // 2. try to recover new mint
+        if (mintWallet.TryRecoverMint(
+            id, SigmaMintChainState(block, group, idx)
+        )) {
+            LogPrintf("%s : Found new mint when try to recover\n", __func__);
         }
-
-        mintWallet.SetMintSeedSeen(
-            entry, property, denomination, SigmaMintChainState(block, group, idx));
     }
 }
 

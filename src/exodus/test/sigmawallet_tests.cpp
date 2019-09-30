@@ -23,6 +23,13 @@ public:
     {
         return SigmaWallet::GeneratePrivateKey(seed, coin);
     }
+
+    template<class OutIt>
+    void GetMintPoolEntry(OutIt it) {
+        for (auto const & e : mintPool) {
+            *it++ = e;
+        }
+    }
 };
 
 struct SigmaWalletTestingSetup : ::WalletTestingSetup
@@ -54,6 +61,98 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
     BOOST_CHECK_EQUAL(
         std::string("d2e5b830ab1fa8235a9af7db4fd554de5757a0e594acbfc1a4526c3fb26bcbbd"),
         key.randomness.GetHex());
+}
+
+BOOST_AUTO_TEST_CASE(verify_mint_pool_have_been_generened)
+{
+    std::vector<MintPoolEntry> mintPool;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
+    BOOST_CHECK_EQUAL(20, mintPool.size());
+}
+
+BOOST_AUTO_TEST_CASE(tryrecover_random_coin)
+{
+    SigmaPrivateKey priv;
+    priv.Generate();
+
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
+    SigmaMintId id(1, 0, pub);
+
+
+    std::vector<MintPoolEntry> mintPool;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
+
+    // verify state before
+    BOOST_CHECK_EQUAL(false, sigmaWallet.HasMint(id));
+
+    // `false` should be returned
+    BOOST_CHECK_EQUAL(false, sigmaWallet.TryRecoverMint(
+        id, SigmaMintChainState(1000, 0, 1000)
+    ));
+
+    // verify after, mint wallet should not change
+    std::vector<MintPoolEntry> mintPoolAfter;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));
+
+    BOOST_CHECK(mintPool == mintPoolAfter);
+    BOOST_CHECK_EQUAL(false, sigmaWallet.HasMint(id));
+}
+
+BOOST_AUTO_TEST_CASE(tryrecover_mintpool_coin)
+{
+    std::vector<MintPoolEntry> mintPool;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
+    SigmaMintId id(1, 0, mintPool.front().key);
+
+    // verify state before
+    BOOST_CHECK_EQUAL(false, sigmaWallet.HasMint(id));
+
+    BOOST_CHECK_EQUAL(true, sigmaWallet.TryRecoverMint(
+        id,
+        SigmaMintChainState(1000, 0, 1000)
+    ));
+
+    // verify state after, mint wallet should be updated
+    std::vector<MintPoolEntry> mintPoolAfter;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));
+
+    BOOST_CHECK(mintPool != mintPoolAfter);
+
+    // mintPool[1:] == mintPoolAfter[:size - 1]
+    BOOST_CHECK_EQUAL(true,
+        std::equal(mintPool.begin() + 1, mintPool.end(), mintPoolAfter.begin()));
+
+    BOOST_CHECK_EQUAL(true, sigmaWallet.HasMint(id));
+}
+
+BOOST_AUTO_TEST_CASE(tryrecover_already_in_wallet_coin)
+{
+    PropertyId prop = 1;
+    SigmaDenomination denom = 0;
+
+    SigmaPrivateKey priv;
+    std::tie(std::ignore, priv) = sigmaWallet.GenerateMint(prop, denom);
+
+    SigmaMintId id(prop, denom, SigmaPublicKey(priv, DefaultSigmaParams));
+
+    std::vector<MintPoolEntry> mintPool;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
+
+    // verify state before
+    BOOST_CHECK_EQUAL(true, sigmaWallet.HasMint(id));
+
+    BOOST_CHECK_EQUAL(false, sigmaWallet.TryRecoverMint(
+        id,
+        SigmaMintChainState(1000, 0, 1000)
+    ));
+
+    // verify state after, mint wallet should not be changed
+    std::vector<MintPoolEntry> mintPoolAfter;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));
+
+    BOOST_CHECK(mintPool == mintPoolAfter);
+
+    BOOST_CHECK_EQUAL(true, sigmaWallet.HasMint(id));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
