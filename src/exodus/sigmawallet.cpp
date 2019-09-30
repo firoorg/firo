@@ -280,21 +280,22 @@ void SigmaWallet::ClearMintsChainState()
     try {
         CWalletDB walletdb(walletFile);
 
-        ListMints([&](SigmaMint &m) {
+        std::vector<SigmaMint> coins;
+        ListMints(std::back_inserter(coins), false, false);
 
-            m.chainState = SigmaMintChainState();
-            m.spendTx = uint256();
+        for (auto &coin : coins) {
+            coin.chainState = SigmaMintChainState();
+            coin.spendTx = uint256();
 
-            auto priv = GeneratePrivateKey(m.seedId);
+            auto priv = GeneratePrivateKey(coin.seedId);
             SigmaPublicKey pub(priv, DefaultSigmaParams);
 
             if (!walletdb.WriteExodusHDMint(
-                SigmaMintId(m.property, m.denomination, pub), m)) {
+                SigmaMintId(coin.property, coin.denomination, pub), coin)) {
 
                throw std::runtime_error("fail to update hdmint");
             }
-
-        }, false, false);
+        }
 
     } catch (std::runtime_error const &e) {
         LogPrintf("%s : fail to reset all mints chain state, %s\n", __func__, e.what());
@@ -412,13 +413,13 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 }
 
 size_t SigmaWallet::ListMints(
-    std::function<void(SigmaMint &)> const &f, bool unusedOnly, bool matureOnly) const
+    std::function<void(SigmaMint const&)> const &f, bool unusedOnly, bool matureOnly) const
 {
     LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(walletFile);
 
     size_t counter = 0;
-    walletdb.ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint &m) {
+    walletdb.ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
         auto used = !m.spendTx.IsNull();
         if (unusedOnly && used) {
             return;

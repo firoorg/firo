@@ -112,13 +112,13 @@ public:
         typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
     > OutIt ListMints(OutIt it, bool unusedOnly, bool matureOnly) const
     {
-        ListMints([&it](SigmaMint &m) {
+        ListMints([&it](SigmaMint const &m) {
             *it++ = m;
         }, unusedOnly, matureOnly);
 
         return it;
     }
-    size_t ListMints(std::function<void(SigmaMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
+    size_t ListMints(std::function<void(SigmaMint const&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
 
     // MintPool state
 public:
