@@ -41,6 +41,8 @@ SigmaWallet::SigmaWallet() : walletFile(pwalletMain->strWalletFile)
 
 void SigmaWallet::ReloadMasterKey()
 {
+    LOCK(pwalletMain->cs_wallet);
+
     if (pwalletMain->IsLocked()) {
         throw std::runtime_error("Unable to reload master key because wallet is locked");
     }
@@ -55,10 +57,10 @@ void SigmaWallet::ReloadMasterKey()
     LoadMintPool();
 
     // Clean up any mint entry that isn't corresponded to current masterId
-    CleanUp();
+    RemoveInvalidMintPoolEntries();
 
     // Refill mint pool
-    GenerateMintPool();
+    FillMintPool();
 }
 
 // Generator
@@ -211,7 +213,7 @@ void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
     }
 
     RemoveFromMintPool(id.pubKey);
-    GenerateMintPool();
+    FillMintPool();
 }
 
 SigmaPrivateKey SigmaWallet::GeneratePrivateKey(CKeyID const &seedId)
@@ -347,7 +349,7 @@ bool SigmaWallet::TryRecoverMint(
     SigmaMintId const &id,
     SigmaMintChainState const &chainState)
 {
-    if (!CountInMintPool(id.pubKey)) {
+    if (!IsMintInPool(id.pubKey)) {
         return false;
     }
 
@@ -432,8 +434,10 @@ size_t SigmaWallet::ListMints(
 
 // MintPool state
 
-void SigmaWallet::CleanUp()
+void SigmaWallet::RemoveInvalidMintPoolEntries()
 {
+    LOCK(pwalletMain->cs_wallet);
+
     bool updated = false;
     for (auto it = mintPool.begin(); it != mintPool.end(); it++) {
 
@@ -451,13 +455,16 @@ void SigmaWallet::CleanUp()
     }
 }
 
-size_t SigmaWallet::CountInMintPool(SigmaPublicKey const &pubKey)
+bool SigmaWallet::IsMintInPool(SigmaPublicKey const &pubKey)
 {
+    LOCK(pwalletMain->cs_wallet);
     return mintPool.get<1>().count(pubKey);
 }
 
 bool SigmaWallet::GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry)
 {
+    LOCK(pwalletMain->cs_wallet);
+
     auto &publicKeyIndex = mintPool.get<1>();
     auto it = publicKeyIndex.find(pubKey);
 
@@ -470,23 +477,24 @@ bool SigmaWallet::GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &
 }
 
 // Generate coins to mint pool until amount of coins in mint pool touch the expected amount.
-size_t SigmaWallet::GenerateMintPool(size_t expectedCoins)
+size_t SigmaWallet::FillMintPool()
 {
-    size_t generatedCoins;
+    LOCK(pwalletMain->cs_wallet);
 
-    while (mintPool.size() < expectedCoins) {
+    size_t generatedCoins;
+    while (mintPool.size() < mintPoolCapacity) {
 
         CKeyID seedId;
         uint512 seed;
-        auto index = GenerateNewSeed(seedId, seed);
+        GenerateNewSeed(seedId, seed);
 
-        SigmaPrivateKey coin;
-        if (!GeneratePrivateKey(seed, coin)) {
+        SigmaPrivateKey privKey;
+        if (!GeneratePrivateKey(seed, privKey)) {
             continue;
         }
 
-        SigmaPublicKey publicKey(coin, DefaultSigmaParams);
-        mintPool.push_back(MintPoolEntry(publicKey, seedId));
+        SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
+        mintPool.push_back(MintPoolEntry(pubKey, seedId));
 
         generatedCoins++;
     }
@@ -500,6 +508,8 @@ size_t SigmaWallet::GenerateMintPool(size_t expectedCoins)
 
 void SigmaWallet::LoadMintPool()
 {
+    LOCK(pwalletMain->cs_wallet);
+
     mintPool.clear();
 
     CWalletDB walletdb(walletFile);
@@ -519,6 +529,8 @@ void SigmaWallet::LoadMintPool()
 
 void SigmaWallet::SaveMintPool()
 {
+    LOCK(pwalletMain->cs_wallet);
+
     std::vector<MintPoolEntry> mintPoolData;
     for (auto const &entry : mintPool) {
         mintPoolData.push_back(entry);

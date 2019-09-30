@@ -24,8 +24,24 @@ public:
         return SigmaWallet::GeneratePrivateKey(seed, coin);
     }
 
+    void LoadMintPool()
+    {
+        SigmaWallet::LoadMintPool();
+    }
+
+    void SaveMintPool()
+    {
+        SigmaWallet::SaveMintPool();
+    }
+
+    MintPool& GetMintPool()
+    {
+        return mintPool;
+    }
+
     template<class OutIt>
-    void GetMintPoolEntry(OutIt it) {
+    void GetMintPoolEntry(OutIt it)
+    {
         for (auto const & e : mintPool) {
             *it++ = e;
         }
@@ -68,6 +84,45 @@ BOOST_AUTO_TEST_CASE(verify_mint_pool_have_been_generened)
     std::vector<MintPoolEntry> mintPool;
     sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
     BOOST_CHECK_EQUAL(20, mintPool.size());
+}
+
+BOOST_AUTO_TEST_CASE(save_and_load_mintpool)
+{
+    std::vector<MintPoolEntry> mints;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mints));
+
+    // delete last mint from pool and save
+    sigmaWallet.GetMintPool().resize(19);
+    sigmaWallet.SaveMintPool();
+
+    // delete more 9 mints
+    sigmaWallet.GetMintPool().resize(10);
+    std::vector<MintPoolEntry> mutatedMintPools;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mutatedMintPools));
+    BOOST_CHECK_EQUAL(10, mutatedMintPools.size());
+    BOOST_CHECK_EQUAL(
+        true,
+        std::equal(
+            mutatedMintPools.begin(),
+            mutatedMintPools.end(),
+            mints.begin()
+        )
+    );
+
+    // load mint pool back
+    sigmaWallet.LoadMintPool();
+
+    std::vector<MintPoolEntry> loadedMintPools;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(loadedMintPools));
+    BOOST_CHECK_EQUAL(19, loadedMintPools.size());
+    BOOST_CHECK_EQUAL(
+        true,
+        std::equal(
+            loadedMintPools.begin(),
+            loadedMintPools.end(),
+            mints.begin()
+        )
+    );
 }
 
 BOOST_AUTO_TEST_CASE(tryrecover_random_coin)

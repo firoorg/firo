@@ -59,6 +59,8 @@ protected:
     MintPool mintPool;
     uint160 masterId;
 
+    static constexpr unsigned mintPoolCapacity = 20;
+
 public:
     SigmaWallet();
 
@@ -137,12 +139,12 @@ public:
 
     // MintPool state
 public:
-    size_t CountInMintPool(SigmaPublicKey const &pubKey);
+    bool IsMintInPool(SigmaPublicKey const &pubKey);
     bool GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry);
 
-private:
-    void CleanUp(); // Remove MintPool entry that isn't belong to current masterId.
-    size_t GenerateMintPool(size_t expectedCoins = 20);
+protected:
+    void RemoveInvalidMintPoolEntries(); // Remove MintPool entry that isn't belong to current masterId.
+    size_t FillMintPool();
     void LoadMintPool();
     void SaveMintPool();
     bool RemoveFromMintPool(SigmaPublicKey const &publicKey);
