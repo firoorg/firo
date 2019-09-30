@@ -18,7 +18,7 @@ namespace exodus {
 Wallet *wallet;
 
 Wallet::Wallet(const std::string& walletFile)
-    : walletFile(walletFile), mintWallet(walletFile)
+    : walletFile(walletFile), mintWallet()
 {
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -54,20 +54,16 @@ Wallet::~Wallet()
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
-    SigmaPrivateKey key;
-    SigmaMint mint;
     LOCK(pwalletMain->cs_wallet);
-    if (!mintWallet.GenerateMint(property, denomination, key, mint)) {
-        throw std::runtime_error("fail to generate mint");
-    }
+    SigmaPrivateKey priv;
+    std::tie(std::ignore, priv) = mintWallet.GenerateMint(property, denomination);
 
-    mintWallet.AddToWallet(mint);;
-    return SigmaMintId(property, denomination, SigmaPublicKey(key, DefaultSigmaParams));
+    return SigmaMintId(property, denomination, SigmaPublicKey(priv, DefaultSigmaParams));
 }
 
 void Wallet::ResetState()
 {
-    mintWallet.ResetCoinsState();
+    mintWallet.ClearMintsChainState();
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination)
@@ -164,7 +160,7 @@ boost::optional<SigmaMint>
 
 SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
 {
-    return mintWallet.GetPrivateKeyFromSeedId(mint.seedId);
+    return mintWallet.GeneratePrivateKey(mint.seedId);
 }
 
 void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)

@@ -14,7 +14,7 @@ namespace exodus {
 class TestSigmaWallet : public SigmaWallet {
 
 public:
-    TestSigmaWallet(std::string const &walletFile) : SigmaWallet(walletFile)
+    TestSigmaWallet() : SigmaWallet()
     {
     }
 
@@ -25,16 +25,16 @@ public:
     }
 };
 
-struct WalletTestingSetup : ::WalletTestingSetup
+struct SigmaWalletTestingSetup : ::WalletTestingSetup
 {
-    WalletTestingSetup() : sigmaWallet(pwalletMain->strWalletFile)
+    SigmaWalletTestingSetup() : sigmaWallet()
     {
     }
 
     TestSigmaWallet sigmaWallet;
 };
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmawallet_tests, WalletTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_sigmawallet_tests, SigmaWalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_private_key)
 {

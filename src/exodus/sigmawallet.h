@@ -60,7 +60,7 @@ private:
     uint160 masterId;
 
 public:
-    SigmaWallet(std::string const &walletFile);
+    SigmaWallet();
 
 private:
     void ReloadMasterKey();
@@ -76,16 +76,13 @@ protected:
 
     // Mint updating
 public:
-    bool AddToWallet(SigmaMint const &entry);
-    SigmaPrivateKey GetPrivateKeyFromSeedId(CKeyID const &seedId);
-    bool GenerateMint(
+    SigmaPrivateKey GeneratePrivateKey(CKeyID const &seedId);
+    std::pair<SigmaMint, SigmaPrivateKey> GenerateMint(
         PropertyId propertyId,
         SigmaDenomination denom,
-        exodus::SigmaPrivateKey& coin,
-        SigmaMint& dMint,
-        boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
+        boost::optional<CKeyID> seedId = boost::none);
 
-    void ResetCoinsState();
+    void ClearMintsChainState();
     bool SetMintSeedSeen(
         MintPoolEntry const &mintPoolEntry,
         PropertyId propertyId,
@@ -94,6 +91,7 @@ public:
         uint256 const &spendTx = uint256());
 
 private:
+    void WriteMint(SigmaMintId const &id, SigmaMint const &entry);
     SigmaMint UpdateMint(SigmaMintId const &, std::function<void(SigmaMint &)> const &);
 
 public:
@@ -121,7 +119,6 @@ public:
         return it;
     }
     size_t ListMints(std::function<void(SigmaMint&)> const &, bool unusedOnly = true, bool matureOnly = true) const;
-    bool RegenerateMint(const SigmaMint& mint, SigmaPrivateKey &privKey);
 
     // MintPool state
 public:
