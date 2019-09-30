@@ -1,3 +1,4 @@
+
 This document is to describe the architecture of the Client API project. For API call info, see `src/client-api/README.md`.
 
 ### Running
@@ -25,5 +26,47 @@ The idea of an external event occuring has been discussed. There are situations 
 ### Topic ID
 Each topic has a topic ID, which is simply a string identifying the topic. In order to receive data for a publisher, you must be subscribed to that topic ID. Each topic ID is defined in `zmqserver/zmqpublisher.h`.
 
-Example
+## Examples
+
+For playing with the project I recommend running in regtest mode.
+Your `zcoin.conf` file should be, at the least:
+```
+clientapi=1
+regtest=1
+dandelion=0
+```
+
+### Publisher
 For an example of the publisher in action, see `client-api/examples/sub_example.py`.
+- To run on MacOS: 
+    `python sub_example.py regtest auth mac`
+- To run on Linux (tested on Ubuntu only): 
+    `python sub_example.py regtest auth ubuntu`
+- can also run on Windows Subsysten for Linux (WSL):
+    `python sub_example.py regtest auth windows_wsl`
+
+You can then eg. generate blocks using `./zcoin-cli generate 10`, and you should see block updates being published in your terminal window.
+
+### Replier
+
+   To use the examples for the replier, please first download and setup the `zcoin-client` repo.
+    You will need Node.js installed.
+        `git clone https://github.com/zcoinofficial/zcoin-client`
+        `npm install`
+
+#### Using zcoin-client examples
+   You will need to rebuild `zcoind` without ZMQ authentication, as this is currently not implemented in the Node examples.
+   - Open `zmqserver/zmqabstract.h` and change `ZMQ_AUTH` to `false`.
+    
+   in zcoin-client: `cd examples/api`
+     Then run an example, eg. `node apiStatus.js`
+
+#### Using the GUI itself
+   You can make calls from the `zcoin-client` GUI within Chrome Dev Tools. All methods are available but must be formatted correctly.
+    - First run `zcoind`
+    - then run `npm run dev` from `zcoin-client`
+    - Open Chrome Dev Tools from the taskbar
+    - Use the following command:
+        `await $daemon.send(null, '{TYPE}', '{METHOD_NAME}', {JSON_ARGS})`
+
+   refer to https://github.com/zcoinofficial/zcoin/tree/client-api/src/client-api for data formats.
