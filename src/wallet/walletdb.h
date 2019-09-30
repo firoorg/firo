@@ -356,6 +356,13 @@ public:
         return Erase(std::make_pair(std::string("exodus_hdmint"), k));
     }
 
+    template<typename K>
+    bool EraseExodusMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_sigma_mint"), k));
+    }
+
+
     template<typename K, typename V, typename InsertF>
     void ListExodusHDMints(InsertF insertF)
     {

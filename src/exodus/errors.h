@@ -14,6 +14,7 @@ enum MPRPCErrorCode
 
     //ClassAgnosticWalletTXBuilder(
     MP_INPUTS_INVALID =             -212,
+    MP_SIGMA_INPUTS_INVALID =       -214,
     MP_ENCODING_ERROR =             -250,
     MP_REDEMP_ILLEGAL =             -233,
     MP_REDEMP_BAD_KEYID =           -220,
@@ -23,6 +24,7 @@ enum MPRPCErrorCode
     MP_ERR_WALLET_ACCESS =          -205,
     MP_ERR_INPUTSELECT_FAIL =       -206,
     MP_ERR_CREATE_TX =              -211,
+    MP_ERR_CREATE_SIGMA_TX =        -215,
     MP_ERR_COMMIT_TX =              -213,
 
     //gettransaction_MP, listtransactions_MP
@@ -51,6 +53,9 @@ inline std::string error_str(int ec) {
       case MP_INPUTS_INVALID:
           ec_str = "Error choosing inputs for the send transaction";
           break;
+      case MP_SIGMA_INPUTS_INVALID:
+          ec_str = "Error no sigma mints to pay as transaction fee";
+          break;
       case MP_ENCODING_ERROR:
           ec_str = "Packet too large";
           break;
@@ -77,6 +82,9 @@ inline std::string error_str(int ec) {
           break;
       case MP_ERR_CREATE_TX:
           ec_str = "Error creating transaction (wallet may be locked or fees may not be sufficient)";
+          break;
+      case MP_ERR_CREATE_SIGMA_TX:
+          ec_str = "Error creating sigma spend transaction (wallet may be locked or sigma fees may not be sufficient)";
           break;
       case MP_ERR_COMMIT_TX:
           ec_str = "Error committing transaction";
