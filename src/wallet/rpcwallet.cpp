@@ -4133,22 +4133,9 @@ UniValue getpcodesbyaddress(const UniValue& params, bool fHelp)
     memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
     memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
 
-//    CExtKey masterkey;
-//    masterkey.chaincode
-
-
     PaymentCode paymentCode(ppkey, pchain);
     
-
-
     ret.push_back(paymentCode.toString());
-//    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
-//    {
-//        const CBitcoinAddress& address = item.first;
-//        const string& strName = item.second.name;
-//        if (strName == strAccount)
-//            ret.push_back(address.ToString());
-//    }
     return ret;
 }
 
