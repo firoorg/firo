@@ -132,7 +132,7 @@ secp_primitives::Scalar GetSerialFromPublicKey(
 
     std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
     std::array<uint8_t, sizeof(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER) - 1 +
-        std::tuple_size<typeof(pubkey_hash)>::value> pre;
+        std::tuple_size<decltype(pubkey_hash)>::value> pre;
 
     auto ptr = std::copy(
         reinterpret_cast<unsigned char const*>(zpts.data()),
