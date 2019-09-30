@@ -27,7 +27,7 @@
 #include <qrencode.h>
 #endif
 
-#include "bip47.h"
+#include "bip47/PaymentCode.h"
 
 #define PCODE_QR_IMAGE_SIZE 150
 
@@ -70,14 +70,14 @@ QString getPaymentCodeOfNotificationAddress(QString noticationAddr) {
 
     CExtPubKey ppubkey = masterKey.Neuter();
 
-    bip47::byte ppkey[33];
-    bip47::byte pchain[32];
+    unsigned char ppkey[33];
+    unsigned char pchain[32];
 
     memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
     memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
 
-    bip47::PaymentCode paymentCode(ppkey, pchain);
-    return QString::fromStdString(paymentCode.ToString());
+    PaymentCode paymentCode(ppkey, pchain);
+    return QString::fromStdString(paymentCode.toString());
 }
 
 PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *parent) :

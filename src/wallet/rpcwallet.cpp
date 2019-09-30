@@ -25,7 +25,7 @@
 #include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
-#include "bip47.h"
+#include "bip47/PaymentCode.h"
 
 #include <znode-payments.h>
 
@@ -4127,8 +4127,8 @@ UniValue getpcodesbyaddress(const UniValue& params, bool fHelp)
 
 
 
-    bip47::byte ppkey[33];
-    bip47::byte pchain[32];
+    unsigned char ppkey[33];
+    unsigned char pchain[32];
 
     memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
     memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
@@ -4137,10 +4137,11 @@ UniValue getpcodesbyaddress(const UniValue& params, bool fHelp)
 //    masterkey.chaincode
 
 
-    bip47::PaymentCode paymentCode(ppkey, pchain);
+    PaymentCode paymentCode(ppkey, pchain);
+    
 
 
-    ret.push_back(paymentCode.ToString());
+    ret.push_back(paymentCode.toString());
 //    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
 //    {
 //        const CBitcoinAddress& address = item.first;

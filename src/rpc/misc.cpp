@@ -14,7 +14,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "bip47.h"
+#include "bip47/PaymentCode.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -1217,8 +1217,8 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
 #endif
 
     std::string strPcode = params[0].get_str();
-    bip47::PaymentCode paymentCode(strPcode);
-    CPubKey masterPubkey = paymentCode.getPubkey();
+    PaymentCode paymentCode(strPcode);
+    CPubKey masterPubkey(paymentCode.getPubKey());
     printf("\n master pubkey size %d\n", masterPubkey.size());
 
     if (masterPubkey.IsValid()) {
@@ -1232,7 +1232,7 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
 //    CBitcoinAddress address(params[0].get_str());
 //    bool isValid = address.IsValid();
 
-    bool isValid = paymentCode.valid();
+    bool isValid = paymentCode.isValid();
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
