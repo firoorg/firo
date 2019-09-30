@@ -56,6 +56,7 @@ A function with one or more operations.
 | [unlockWallet](#unlockwallet)     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
 | [updateLabels](#updatelabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
 | [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
+| [znodeKey](#znodekey)             | Generate a new znode key. | 🔐 | - | – |
 | [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
 
 ## data

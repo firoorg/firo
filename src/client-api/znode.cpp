@@ -251,7 +251,7 @@ UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "znode",              "znodeControl",    &znodecontrol,            true,      false,           false  },
+    { "znode",              "znodeControl",    &znodecontrol,            true,      true,            false  },
     { "znode",              "znodeKey",        &znodekey,                true,      false,           false  },
     { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
     { "znode",              "znodeUpdate",     &znodeupdate,             true,      false,           false  }
