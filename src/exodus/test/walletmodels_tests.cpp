@@ -6,6 +6,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+namespace {
+
 SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
 {
     SigmaPrivateKey priv;
@@ -13,6 +15,8 @@ SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
     SigmaPublicKey pub(priv, DefaultSigmaParams);
 
     return SigmaMintId(property, denom, pub);
+}
+
 }
 
 namespace exodus {
