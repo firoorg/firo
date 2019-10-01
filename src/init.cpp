@@ -1672,6 +1672,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
 
     bool fLoaded = false;
+    bool fWorkerStarted = false;
     while (!fLoaded) {
         bool fReset = fReindex;
         std::string strLoadError;
@@ -1709,12 +1710,20 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
                     if (fPruneMode)
                         CleanupBlockRevFiles();
+
+                    if(fApi){
+                        pzmqPublisherInterface->StartWorker();
+                        fWorkerStarted = true;
+                    }
                 }
                 LogPrintf("LoadBlockIndex...\n");
                 if (!LoadBlockIndex()) {
                     strLoadError = _("Error loading block database");
                     break;
                 }
+
+                if(fApi && !fWorkerStarted)
+                    pzmqPublisherInterface->StartWorker();
 
                 if (!fReindex) {
                     CBlockIndex *tip = chainActive.Tip();

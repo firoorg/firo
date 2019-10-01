@@ -111,8 +111,13 @@ CZMQReplierInterface* CZMQReplierInterface::Create()
 
 CZMQPublisherInterface::CZMQPublisherInterface()
 {
+}
+
+bool CZMQPublisherInterface::StartWorker()
+{
     // Create worker
     worker = new boost::thread(boost::bind(&CZMQThreadPublisher::Thread));
+    return true;
 }
 
 CZMQPublisherInterface::~CZMQPublisherInterface()

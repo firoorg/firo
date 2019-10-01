@@ -29,6 +29,7 @@ class CZMQPublisherInterface : public CValidationInterface, CZMQInterface
 {
 public:
     CZMQPublisherInterface();
+    bool StartWorker();
     virtual ~CZMQPublisherInterface();
     CZMQPublisherInterface* Create();
 
