@@ -241,7 +241,7 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 
     EnsureWalletIsUnlocked();
 
-    list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(true, false);
+    list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(true, false);
     UniValue results(UniValue::VOBJ);
 
     BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {

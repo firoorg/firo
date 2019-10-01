@@ -18,7 +18,9 @@ extraction:
   cpp:
     prepare:
       packages:
+        - asciidoc-base
         - bsdmainutils
+        - lcov
         - libboost-all-dev
         - libbz2-dev
         - libcap-dev
@@ -26,8 +28,10 @@ extraction:
         - libdb5.3++-dev
         - libevent-dev
         - libminiupnpc-dev
+        - libnacl-dev
         - libprotobuf-dev
         - libqrencode-dev
+        - libseccomp-dev
         - libssl-dev
         - libzmq3-dev
         - protobuf-compiler

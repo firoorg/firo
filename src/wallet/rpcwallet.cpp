@@ -3706,7 +3706,7 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(false, false);
+    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
@@ -3792,7 +3792,7 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(false, false);
+    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
