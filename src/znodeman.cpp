@@ -9,6 +9,7 @@
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "znode.h"
+#include "znodeconfig.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "util.h"

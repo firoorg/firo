@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ZMQ_ZMQPUBLISHER_H
-#define BITCOIN_ZMQ_ZMQPUBLISHER_H
+#ifndef ZCOIN_ZMQ_ZMQPUBLISHER_H
+#define ZCOIN_ZMQ_ZMQPUBLISHER_H
 
 #include "zmqabstract.h"
 #include "univalue.h"
@@ -91,6 +91,14 @@ public:
     bool NotifyAPIStatus();
 };
 
+class CZMQZnodeListEvent : virtual public CZMQAbstractPublisher
+{
+    /* Znode List notification
+    */
+public:
+    bool NotifyZnodeList();
+};
+
 class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
 {
      /* Settings updated
@@ -173,6 +181,13 @@ public:
     void SetMethod(){ method= "apiStatus";}
 };
 
+class CZMQZnodeListTopic : public CZMQZnodeListEvent
+{
+public:
+    void SetTopic(){ topic = "znodeList";}
+    void SetMethod(){ method= "znodeList";}
+};
+
 class CZMQZnodeTopic : public CZMQZnodeEvent
 {
 public:
@@ -187,4 +202,4 @@ public:
     void SetMethod(){ method= "mintStatus";}
 };
 
-#endif // BITCOIN_ZMQ_ZMQPUBLISHER_H
+#endif // ZCOIN_ZMQ_ZMQPUBLISHER_H

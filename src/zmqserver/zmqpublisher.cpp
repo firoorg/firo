@@ -196,6 +196,13 @@ bool CZMQAPIStatusEvent::NotifyAPIStatus()
     return true;
 }
 
+bool CZMQZnodeListEvent::NotifyZnodeList()
+{
+    request.push_back(Pair("type", "initial"));
+    Execute();
+    return true;
+}
+
 
 bool CZMQConnectionsEvent::NotifyConnections()
 {

@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ZMQAPI_ZMQCONFIG_H
-#define BITCOIN_ZMQAPI_ZMQCONFIG_H
+#ifndef ZCOIN_ZMQAPI_ZMQCONFIG_H
+#define ZCOIN_ZMQAPI_ZMQCONFIG_H
 
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
@@ -19,4 +19,4 @@
 
 void zmqError(const char *str);
 
-#endif // BITCOIN_ZMQAPI_ZMQCONFIG_H
+#endif // ZCOIN_ZMQAPI_ZMQCONFIG_H

@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
-#define BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#ifndef ZCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#define ZCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
 
 #include "validationinterface.h"
 #include <string>
@@ -38,6 +38,7 @@ protected:
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void NumConnectionsChanged();
     void UpdateSyncStatus();
+    void NotifyZnodeList();
     void NotifyAPIStatus();
     void UpdatedZnode(CZnode &znode);
     void UpdatedMintStatus(std::string update);
@@ -54,4 +55,4 @@ public:
     CZMQReplierInterface* Create();
 };
 
-#endif // BITCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
+#endif // ZCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H

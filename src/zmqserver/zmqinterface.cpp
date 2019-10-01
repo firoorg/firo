@@ -144,7 +144,8 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
         "pubznodeupdate", 
         "pubmintstatus", 
         "pubsettings", 
-        "pubstatus"
+        "pubstatus",
+        "pubznodelist",
     };
 
     factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
@@ -155,6 +156,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubmintstatus"] = CZMQAbstract::Create<CZMQMintStatusTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
+    factories["pubznodelist"] = CZMQAbstract::Create<CZMQZnodeListTopic>;
     
     BOOST_FOREACH(string pubIndex, pubIndexes)
     {
@@ -206,6 +208,23 @@ void CZMQPublisherInterface::NotifyAPIStatus()
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyAPIStatus())
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::NotifyZnodeList()
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyZnodeList())
         {
             i++;
         }

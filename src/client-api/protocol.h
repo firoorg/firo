@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_APIPROTOCOL_H
-#define BITCOIN_APIPROTOCOL_H
+#ifndef ZCOIN_APIPROTOCOL_H
+#define ZCOIN_APIPROTOCOL_H
 #include "univalue.h"
 
 #include <list>
@@ -70,4 +70,4 @@ UniValue JSONAPIReplyObj(const UniValue& result, const UniValue& error);
 std::string JSONAPIReply(const UniValue& result, const UniValue& error);
 UniValue JSONAPIError(int code, const std::string& message);
 
-#endif //BITCOIN_APIPROTOCOL_H
+#endif //ZCOIN_APIPROTOCOL_H

@@ -42,6 +42,11 @@ bool CZMQAbstract::NotifyAPIStatus()
     return true;
 }
 
+bool CZMQAbstract::NotifyZnodeList()
+{
+    return true;
+}
+
 bool CZMQAbstract::NotifyZnodeUpdate(CZnode &znode)
 {
     return true;

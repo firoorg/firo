@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ZMQ_ZMQABSTRACT_H
-#define BITCOIN_ZMQ_ZMQABSTRACT_H
+#ifndef ZCOIN_ZMQ_ZMQABSTRACT_H
+#define ZCOIN_ZMQ_ZMQABSTRACT_H
 
 #include "zmqconfig.h"
 
@@ -58,6 +58,7 @@ public:
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
     virtual bool NotifyAPIStatus();
+    virtual bool NotifyZnodeList();
     virtual bool NotifyZnodeUpdate(CZnode &znode);
     virtual bool NotifyMintStatusUpdate(std::string update);
     virtual bool NotifySettingsUpdate(std::string update);
@@ -82,4 +83,4 @@ protected:
     uint32_t nSequence; //!< upcounting per message sequence number
 };
 
-#endif // BITCOIN_ZMQ_ZMQABSTRACT_H
+#endif // ZCOIN_ZMQ_ZMQABSTRACT_H

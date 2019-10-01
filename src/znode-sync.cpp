@@ -47,7 +47,7 @@ bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
 
 bool CZnodeSync::GetBlockchainSynced(bool fBlockAccepted){
     bool currentBlockchainSynced = fBlockchainSynced;
-    IsBlockchainSynced(fBlockAccepted ? true : false);
+    IsBlockchainSynced(fBlockAccepted);
     if(currentBlockchainSynced != fBlockchainSynced){
         GetMainSignals().UpdateSyncStatus();
     }

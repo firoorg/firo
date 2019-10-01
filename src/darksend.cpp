@@ -16,6 +16,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "validationinterface.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -2507,6 +2508,7 @@ void ThreadCheckDarkSendPool() {
 
         // try to sync from all available nodes, one step at a time
         znodeSync.ProcessTick();
+
         if (znodeSync.GetBlockchainSynced() && !ShutdownRequested()) {
 
             nTick++;
@@ -2524,17 +2526,18 @@ void ThreadCheckDarkSendPool() {
                 mnodeman.CheckAndRemove();
                 mnpayments.CheckAndRemove();
                 instantsend.CheckAndRemove();
-                mnodeman.GetZnodeRanks(-1, 0, true);
-                mnodeman.UpdateLastPaid();
+                GetMainSignals().NotifyZnodeList();
+                //mnodeman.GetZnodeRanks(-1, 0);
+                //mnodeman.UpdateLastPaid();
             }
             if (fZNode && (nTick % (60 * 5) == 0)) {
                 mnodeman.DoFullVerificationStep();
             }
 
-            if(znodeSync.IsSynced() && nTick % 10 == 0){
-                mnodeman.GetZnodeRanks();
-                mnodeman.UpdateLastPaid();
-            }
+            // if(znodeSync.IsSynced() && nTick % 10 == 0){
+            //     mnodeman.GetZnodeRanks();
+            //     mnodeman.UpdateLastPaid();
+            // }
 
 //            if(nTick % (60 * 5) == 0) {
 //                governance.DoMaintenance();

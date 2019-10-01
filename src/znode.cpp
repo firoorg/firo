@@ -307,6 +307,18 @@ bool CZnode::IsValidNetAddr(CService addrIn) {
            (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
 }
 
+bool CZnode::IsMyZnode(){
+    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        const std::string& txHash = mne.getTxHash();
+        const std::string& outputIndex = mne.getOutputIndex();
+
+        if(txHash==vin.prevout.hash.ToString().substr(0,64) &&
+           outputIndex==to_string(vin.prevout.n))
+            return true;
+    }
+    return false;
+}
+
 znode_info_t CZnode::GetInfo() {
     znode_info_t info;
     info.vin = vin;
@@ -362,42 +374,48 @@ std::string CZnode::GetStatus() const {
 void CZnode::SetStatus(int newState) {
     if(nActiveState!=newState){
         nActiveState = newState;
-        GetMainSignals().UpdatedZnode(*this);
+        if(IsMyZnode())
+            GetMainSignals().UpdatedZnode(*this);
     }
 }
 
 void CZnode::SetLastPing(CZnodePing newZnodePing) {
     if(lastPing!=newZnodePing){
         lastPing = newZnodePing;
+        if(IsMyZnode())
+            GetMainSignals().UpdatedZnode(*this);
     }
 }
 
 void CZnode::SetTimeLastPaid(int64_t newTimeLastPaid) {
      if(nTimeLastPaid!=newTimeLastPaid){
         nTimeLastPaid = newTimeLastPaid;
-        GetMainSignals().UpdatedZnode(*this);
+        if(IsMyZnode())
+            GetMainSignals().UpdatedZnode(*this);
     }   
 }
 
 void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
      if(nBlockLastPaid!=newBlockLastPaid){
         nBlockLastPaid = newBlockLastPaid;
-        GetMainSignals().UpdatedZnode(*this);
+        if(IsMyZnode())
+            GetMainSignals().UpdatedZnode(*this);
     }   
 }
 
 void CZnode::SetRank(int newRank, bool nPublish) {
      if(nRank!=newRank){
         nRank = newRank;
-        if(nRank < 0 || nRank > mnodeman.GetFullZnodeVector().size()) nRank = 0;
-        if(nPublish){
+        if(nRank < 0 || nRank > mnodeman.size()) nRank = 0;
+        if(IsMyZnode())
             GetMainSignals().UpdatedZnode(*this);
-        }
     }   
 }
 
 void CZnode::SetRemoved(){
     SetStatus(ZNODE_REMOVED);
+        if(IsMyZnode())
+            GetMainSignals().UpdatedZnode(*this);
 }
 
 std::string CZnode::ToString() const {

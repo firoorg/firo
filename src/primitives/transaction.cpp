@@ -234,9 +234,8 @@ bool CTransaction::IsSigmaSpend() const
 bool CTransaction::IsZerocoinMint() const
 {
     for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsZerocoinMint()){
+        if (txout.scriptPubKey.IsZerocoinMint())
             return true;
-        }
     }
     return false;
 }

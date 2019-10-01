@@ -101,6 +101,11 @@ if __name__ == "__main__":
     apistatusfilter = b"apiStatus"
     socket.setsockopt(zmq.SUBSCRIBE, apistatusfilter)
 
+    znodelistfilter = b"znodeList"
+    socket.setsockopt(zmq.SUBSCRIBE, znodelistfilter)
+
+
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

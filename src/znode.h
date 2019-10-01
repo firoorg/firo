@@ -287,6 +287,8 @@ public:
 
     bool IsValidForPayment();
 
+    bool IsMyZnode();
+
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 

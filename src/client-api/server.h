@@ -2,8 +2,8 @@
 
 using namespace std;
 
-#ifndef BITCOIN_API_SERVER_H
-#define BITCOIN_API_SERVER_H
+#ifndef ZCOIN_API_SERVER_H
+#define ZCOIN_API_SERVER_H
 
 
 
@@ -90,4 +90,4 @@ public:
 
 extern CAPITable tableAPI;
 
-#endif // BITCOIN_APIAPI_SERVER_H
+#endif // ZCOIN_APIAPI_SERVER_H

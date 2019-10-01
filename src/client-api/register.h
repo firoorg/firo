@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_APIREGISTER_H
-#define BITCOIN_APIREGISTER_H
+#ifndef ZCOIN_APIREGISTER_H
+#define ZCOIN_APIREGISTER_H
 
 /** These are in one header file to avoid creating tons of single-function
  * headers for everything under src/client-api/ */

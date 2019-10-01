@@ -49,6 +49,7 @@ protected:
     virtual void UpdatedMintStatus(std::string update) {};
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
+    virtual void NotifyZnodeList() {}
     virtual void UpdatedBalance() {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
@@ -88,6 +89,8 @@ struct CMainSignals {
     boost::signals2::signal<void (std::string)> UpdatedSettings;
     /** Notifies listeners of API status */
     boost::signals2::signal<void ()> NotifyAPIStatus;
+    /** Notifies listeners of Znode list */
+    boost::signals2::signal<void ()> NotifyZnodeList;
     /** Notifies listeners of balance */
     boost::signals2::signal<void ()> UpdatedBalance;
 };

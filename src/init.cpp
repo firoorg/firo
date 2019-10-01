@@ -890,7 +890,6 @@ bool AppInitServers(boost::thread_group &threadGroup) {
         return false;
     if (!StartRPC())
         return false;
-
     if (!StartHTTPRPC())
         return false;
     if (GetBoolArg("-rest", DEFAULT_REST_ENABLE) && !StartREST())
