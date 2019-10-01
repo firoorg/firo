@@ -452,6 +452,24 @@ void SigmaWallet::RemoveInvalidMintPoolEntries()
     }
 }
 
+void SigmaWallet::PushFrontToMintPool(SigmaMintId const &id)
+{
+    CWalletDB walletdb(walletFile);
+    SigmaMint mint;
+    if (!walletdb.ReadExodusHDMint(id, mint)) {
+        throw std::runtime_error("no mint data in wallet");
+    }
+
+    SigmaPublicKey pubKey(GeneratePrivateKey(mint.seedId), DefaultSigmaParams);
+
+    mintPool.push_front(MintPoolEntry(pubKey, mint.seedId));
+    SaveMintPool();
+
+    if (!walletdb.EraseExodusHDMint(id)) {
+        throw std::runtime_error("fail to erase mint from wallet");
+    }
+}
+
 bool SigmaWallet::IsMintInPool(SigmaPublicKey const &pubKey)
 {
     LOCK(pwalletMain->cs_wallet);

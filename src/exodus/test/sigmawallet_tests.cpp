@@ -271,6 +271,43 @@ BOOST_AUTO_TEST_CASE(listmints_non_empty_wallet)
     testListMints({unspend.first}, true, true);
 }
 
+BOOST_AUTO_TEST_CASE(push_out_wallet_mint_back)
+{
+    SigmaPrivateKey privKey;
+    privKey.Generate();
+    SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
+
+    SigmaMintId id(10, 0, pubKey);
+
+    BOOST_CHECK_EXCEPTION(
+        sigmaWallet.PushFrontToMintPool(id),
+        std::runtime_error,
+        [](std::runtime_error const &e) -> bool{
+            return std::string("no mint data in wallet") == e.what();
+        }
+    );
+}
+
+BOOST_AUTO_TEST_CASE(push_mint_back)
+{
+    std::vector<MintPoolEntry> mintPool;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPool));
+
+    SigmaMint mint;
+    SigmaPrivateKey privKey;
+    std::tie(mint, privKey) = sigmaWallet.GenerateMint(1, 0);
+
+    SigmaMintId id(1, 0, SigmaPublicKey(privKey, DefaultSigmaParams));
+
+    sigmaWallet.PushFrontToMintPool(id);
+
+    std::vector<MintPoolEntry> mintPoolAfter;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));
+
+    BOOST_CHECK_EQUAL(21, mintPoolAfter.size());
+    BOOST_CHECK(MintPoolEntry(id.pubKey, mint.seedId) == mintPoolAfter.front());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }

@@ -103,9 +103,7 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
 
 void Wallet::EraseSigmaMint(const SigmaMintId &id)
 {
-    if (!CWalletDB(walletFile).EraseExodusMint(id)) {
-        throw std::runtime_error("Fail to erase dangling mint from wallet");
-    }
+    mintWallet.PushFrontToMintPool(id);
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)

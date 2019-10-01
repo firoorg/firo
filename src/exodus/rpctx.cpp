@@ -1638,6 +1638,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
+        std::reverse(ids.begin(), ids.end());
         for (auto const &id : ids) {
             try {
                 wallet->EraseSigmaMint(id);

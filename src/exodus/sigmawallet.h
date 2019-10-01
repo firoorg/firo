@@ -139,6 +139,7 @@ public:
 
     // MintPool state
 public:
+    void PushFrontToMintPool(SigmaMintId const &id);
     bool IsMintInPool(SigmaPublicKey const &pubKey);
     bool GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry);
 
