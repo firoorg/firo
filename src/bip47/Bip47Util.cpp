@@ -18,10 +18,7 @@ bool BIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
     return false;
 }
 
-/**
- *  @todo Implement the validate code
- *
- * */
+
 bool BIP47Util::isValidNotificationTransactionOpReturn(CTxOut txout) {
     vector<unsigned char> op_date;
     return getOpCodeData(txout, op_date);

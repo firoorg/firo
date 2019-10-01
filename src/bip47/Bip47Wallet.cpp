@@ -11,13 +11,7 @@ Bip47Wallet::Bip47Wallet(string strWalletFileIn, string coinName, string seedStr
 
 }
 
-string Bip47Wallet::getPaymentCodeForAddress(string address) {
-    if (channels.find(address) == channels.end()) {
-        return "";
-    }
-    return channels.find(address)->second.getPaymentCode();
-    
-}
+
 
 CBitcoinAddress Bip47Wallet::getAddressOfReceived(CTransaction tx) 
 {
@@ -68,17 +62,124 @@ CBitcoinAddress Bip47Wallet::getAddressOfSent(CTransaction tx) {
     return CBitcoinAddress();
 }
 
-/**
- *  @todo Get Private key in Bip47Accounts 
- * */
+
 PaymentCode Bip47Wallet::getPaymentCodeInNotificationTransaction(CTransaction tx) 
 {
-    mBip47Accounts[0].getNotificationPrivKey().key;
-    // Bip47Util::getPaymentCodeInNotificationTransaction();
-    
-    return PaymentCode();
-    // mBip47Accounts[0].getNotificationKey().getPrivkeybyste
+    PaymentCode paymentCode;
+    vector<unsigned char> prvKeyBytes(mBip47Accounts[0].getNotificationPrivKey().key.begin(), mBip47Accounts[0].getNotificationPrivKey().key.end());
+    BIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes , tx, paymentCode);
+    return paymentCode;
 }
+
+bool Bip47Wallet::savePaymentCode(PaymentCode paymentCode) 
+{
+    std::map<std::string, Bip47PaymentChannel>::iterator it = channels.find(paymentCode.toString());
+    // If contains paymentcode
+    if(it != channels.end()) {
+        try {
+            Bip47PaymentChannel paymentChannel = it->second;
+            paymentChannel.generateKeys(this);
+            return true;
+        } catch (std::exception &e){
+            LogPrint("savePaymentCode Error: in Bip47Wallet.cpp", "%s", e.what());
+            return false;
+        }
+    } else { // if not
+        Bip47PaymentChannel paymentChannel(paymentCode.toString());
+        try {
+            paymentChannel.generateKeys(this);
+            channels.insert(make_pair(paymentCode.toString(), paymentChannel));
+            return true;
+        } catch (std::exception &e) {
+            LogPrint("savePaymentCode Error: in Bip47Wallet.cpp", "%s", e.what());
+            return false;
+        }
+    }
+}
+
+Bip47Account Bip47Wallet::getAccount(int i)
+{
+    return mBip47Accounts[i];
+}
+
+CBitcoinAddress Bip47Wallet::getAddressOfKey(CExtPubKey pkey)
+{
+    CBitcoinAddress address(pkey.pubkey.GetID());
+    return address;
+}
+
+bool Bip47Wallet::generateNewBip47IncomingAddress(std::string strAddress) 
+{
+    std::map<std::string, Bip47PaymentChannel>::iterator it = channels.begin();
+    while(it != channels.end()) 
+    {
+        Bip47PaymentChannel paymentChannel = it->second;
+        std::list<Bip47Address> bip47Addresses = paymentChannel.getIncomingAddresses();
+        std::list<Bip47Address>::iterator addit = bip47Addresses.begin();
+        while (addit != bip47Addresses.end())
+        {
+            if(addit->getAddress().compare(strAddress) != 0) 
+            {
+                addit++;
+                continue;
+            }
+
+            if(addit->isSeen()) 
+            {
+                return false;
+            }
+
+            int nextIndex = paymentChannel.getCurrentIncomingIndex() + 1;
+
+            /**
+             * @todo BIP47Util getReceiveAddress works.
+             * */
+            try
+            {
+                return true;
+            }
+            catch(const std::exception& e)
+            {
+                std::cerr << e.what() << '\n';
+            }
+            return false;
+        }
+        
+        it++;
+    }
+    return false;
+}
+
+Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForAddress(std::string strAddres) 
+{
+    std::map<std::string, Bip47PaymentChannel>::iterator it = channels.begin();
+
+    while(it != channels.end()) {
+        Bip47PaymentChannel paymentChannel = it->second;
+        std::list<Bip47Address> bip47Addresses = paymentChannel.getIncomingAddresses();
+        std::list<Bip47Address>::iterator bip47Address = bip47Addresses.begin();
+        while (bip47Address != bip47Addresses.end())
+        {
+            if( bip47Address->getAddress().compare(strAddres) == 0) {
+                return paymentChannel;
+            }
+            bip47Address++;
+        }
+        
+        it++;
+    }
+    return Bip47PaymentChannel();
+}
+
+string Bip47Wallet::getPaymentCodeForAddress(string address) {
+
+    if (channels.find(address) == channels.end()) {
+        return "";
+    }
+    return channels.find(address)->second.getPaymentCode();
+    
+}
+
 
 void Bip47Wallet::makeNotificationTransaction(String paymentCode) 
 {
@@ -109,10 +210,6 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
         
     }
 
-    /* @todo
-        Alice selects the private key corresponding to the designated pubkey
-
-    */
     CPubKey designatedPubKey;
     reservekey.GetReservedKey(designatedPubKey);
     CKey privKey;
@@ -127,9 +224,7 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
     
     SecretPoint secretPoint(dataPriv, dataPub);
 
-    /*
-    
-    */
+
     vector<unsigned char> outpoint = ParseHex(wtx.vin[0].prevout.ToString());
     vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 

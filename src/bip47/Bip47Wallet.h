@@ -18,13 +18,17 @@ public:
     
 
 
-    Bip47Account getAccount(int i);
     void makeNotificationTransaction(String paymentCode);
     CTransaction* getSignedNotificationTransaction(CWalletTx &sendRequest, string paymentCode);
     bool isNotificationTransaction();
     CBitcoinAddress getAddressOfReceived(CTransaction tx);
     CBitcoinAddress getAddressOfSent(CTransaction tx);
     PaymentCode getPaymentCodeInNotificationTransaction(CTransaction tx);
+    bool savePaymentCode(PaymentCode paymentCode);
+    Bip47Account getAccount(int i);
+    CBitcoinAddress getAddressOfKey(CExtPubKey pkey);
+    bool generateNewBip47IncomingAddress(std::string strAddress);
+    Bip47PaymentChannel getBip47PaymentChannelForAddress(std::string strAddres);
     string getPaymentCodeForAddress(string address);
 
 
