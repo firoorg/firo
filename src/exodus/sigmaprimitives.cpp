@@ -48,6 +48,13 @@ SigmaPrivateKey::SigmaPrivateKey()
 {
 }
 
+SigmaPrivateKey::SigmaPrivateKey(
+    secp_primitives::Scalar const &serial,
+    secp_primitives::Scalar const &randomness)
+    : serial(serial), randomness(randomness)
+{
+}
+
 bool SigmaPrivateKey::operator==(const SigmaPrivateKey& other) const
 {
     return serial == other.serial && randomness == other.randomness;

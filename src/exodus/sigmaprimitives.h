@@ -48,6 +48,9 @@ public:
 
 public:
     SigmaPrivateKey();
+    SigmaPrivateKey(
+        secp_primitives::Scalar const &serial,
+        secp_primitives::Scalar const &randomness);
 
 public:
     bool operator==(const SigmaPrivateKey& other) const;

@@ -19,9 +19,9 @@ public:
     }
 
 public:
-    bool GeneratePrivateKey(uint512 const &seed, exodus::SigmaPrivateKey &coin)
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed)
     {
-        return SigmaWallet::GeneratePrivateKey(seed, coin);
+        return SigmaWallet::GeneratePrivateKey(seed);
     }
 
     void LoadMintPool()
@@ -67,11 +67,10 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
         "9026b2f94984f94a289208a2941579ef321dee63d8fd6346ef665c6f60df"
     );
 
-    SigmaPrivateKey key;
-    sigmaWallet.GeneratePrivateKey(seed, key);
+    auto key = sigmaWallet.GeneratePrivateKey(seed);
 
     BOOST_CHECK_EQUAL(
-        std::string("4d75cc284921b44e9acbf67cdabbd8a5c61057a4fa5b7aedbe01994e55e3c0b6"),
+        std::string("cb30cc143888ef4e09bb4cfd6d0a699e3c089f42419a8a200132e3190e0e5951"),
         key.serial.GetHex());
 
     BOOST_CHECK_EQUAL(

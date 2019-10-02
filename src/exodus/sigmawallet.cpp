@@ -113,41 +113,6 @@ std::uint32_t GetBIP44AddressIndex(std::string const &path)
     return child;
 }
 
-secp_primitives::Scalar GetSerialFromPublicKey(
-    secp256k1_context const *context,
-    secp256k1_pubkey *pubkey)
-{
-    std::array<uint8_t, 32> pubkey_hash;
-
-    static const unsigned char one[32] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-
-    if (!secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0])) {
-        throw std::runtime_error("Unable to compute public key hash with secp256k1_ecdh.");
-    }
-
-    std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
-    std::array<uint8_t, sizeof(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER) - 1 +
-        std::tuple_size<decltype(pubkey_hash)>::value> pre;
-
-    auto ptr = std::copy(
-        reinterpret_cast<unsigned char const*>(zpts.data()),
-        reinterpret_cast<unsigned char const*>(zpts.data() + zpts.size()),
-        pre.data()
-    );
-
-    std::copy(pubkey_hash.begin(), pubkey_hash.end(), ptr);
-
-    std::array<unsigned char, CSHA256::OUTPUT_SIZE>  hash;
-    CSHA256().Write(pre.data(), pre.size()).Finalize(hash.data());
-
-    return Scalar(hash.data());
-}
-
 }
 
 uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
@@ -170,38 +135,26 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
     return addressIndex;
 }
 
-bool SigmaWallet::GeneratePrivateKey(
-    const uint512& seed, exodus::SigmaPrivateKey& coin)
+SigmaPrivateKey SigmaWallet::GeneratePrivateKey(const uint512& seed)
 {
-    //convert state seed into a seed for the private key
-    uint256 privkey = seed.trim256();
-    privkey = Hash(privkey.begin(), privkey.end());
+    SigmaPrivateKey priv;
 
-    // Create a key pair
-    secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, privkey.begin())) {
-        return false;
-    }
+    // first 32 bytes as seed
+    uint256 serialSeed;
+    std::copy(seed.begin(), seed.begin() + 32, serialSeed.begin());
+    priv.serial.memberFromSeed(serialSeed.begin());
 
-    // Hash the public key in the group to obtain a serial number
-    auto serial = GetSerialFromPublicKey(OpenSSLContext::get_context(), &pubkey);
+    // last 32 bytes as seed
+    uint256 randomnessSeed;
+    std::copy(seed.begin() + 32, seed.end(), randomnessSeed.begin());
+    priv.randomness.memberFromSeed(randomnessSeed.begin());
 
-    //hash randomness seed with Bottom 256 bits of seedZerocoin
-    Scalar randomness;
-    auto randomnessSeed = ArithToUint512(UintToArith512(seed) >> 256).trim256();
-    randomness.memberFromSeed(randomnessSeed.begin());
-
-    coin.serial = serial;
-    coin.randomness = randomness;
-
-    return true;
+    return priv;
 }
 
 // Mint Updating
 void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
 {
-    bool isNew = false;
-
     CWalletDB walletdb(walletFile);
 
     if (!walletdb.WriteExodusMint(id, mint)) {
@@ -219,14 +172,9 @@ void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
 SigmaPrivateKey SigmaWallet::GeneratePrivateKey(CKeyID const &seedId)
 {
     uint512 seed;
-    SigmaPrivateKey priv;
 
     GenerateSeed(seedId, seed);
-    if (!GeneratePrivateKey(seed, priv)) {
-        throw std::runtime_error("fail to generate private key from seed");
-    }
-
-    return priv;
+    return GeneratePrivateKey(seed);
 }
 
 std::pair<SigmaMint, SigmaPrivateKey> SigmaWallet::GenerateMint(
@@ -283,18 +231,18 @@ void SigmaWallet::ClearMintsChainState()
     CWalletDB walletdb(walletFile);
     walletdb.TxnBegin();
 
-    std::vector<SigmaMint> coins;
-    ListMints(std::back_inserter(coins), &walletdb);
+    std::vector<SigmaMint> mints;
+    ListMints(std::back_inserter(mints), &walletdb);
 
-    for (auto &coin : coins) {
-        coin.chainState = SigmaMintChainState();
-        coin.spendTx = uint256();
+    for (auto &m : mints) {
+        m.chainState = SigmaMintChainState();
+        m.spendTx = uint256();
 
-        auto priv = GeneratePrivateKey(coin.seedId);
+        auto priv = GeneratePrivateKey(m.seedId);
         SigmaPublicKey pub(priv, DefaultSigmaParams);
 
         if (!walletdb.WriteExodusMint(
-            SigmaMintId(coin.property, coin.denomination, pub), coin)) {
+            SigmaMintId(m.property, m.denomination, pub), m)) {
 
             throw std::runtime_error("fail to update hdmint");
         }
@@ -327,10 +275,7 @@ bool SigmaWallet::TryRecoverMint(
     uint512 seed;
     GenerateSeed(seedId, seed);
 
-    SigmaPrivateKey coin;
-    if (!GeneratePrivateKey(seed, coin)) {
-        return false;
-    }
+    auto coin = GeneratePrivateKey(seed);
 
     auto serialId = GetSerialId(coin.serial);
 
@@ -507,12 +452,9 @@ size_t SigmaWallet::FillMintPool()
 
         CKeyID seedId;
         uint512 seed;
-        auto index = GenerateNewSeed(seedId, seed);
 
-        SigmaPrivateKey privKey;
-        if (!GeneratePrivateKey(seed, privKey)) {
-            continue;
-        }
+        auto index = GenerateNewSeed(seedId, seed);
+        auto privKey = GeneratePrivateKey(seed);
 
         SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
         mintPool.emplace(pubKey, seedId, index);
