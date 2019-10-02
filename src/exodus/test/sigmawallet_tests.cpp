@@ -136,6 +136,7 @@ BOOST_AUTO_TEST_CASE(verify_mintpool_on_fresh_startup)
     for (auto const &mint : mints) {
         mintPoolIndexs.push_back(mint.index);
     }
+    std::sort(mintPoolIndexs.begin(), mintPoolIndexs.end());
 
     // generate sequence
     std::vector<uint32_t> seq;
@@ -143,13 +144,7 @@ BOOST_AUTO_TEST_CASE(verify_mintpool_on_fresh_startup)
 
     std::generate(seq.begin(), seq.end(), [n = 0] () mutable { return n++; });
 
-    BOOST_CHECK_EQUAL(mintPoolIndexs.size(), seq.size());
-    BOOST_CHECK(
-        std::is_permutation(
-            seq.begin(), seq.end(),
-            mintPoolIndexs.begin(), mintPoolIndexs.end()
-        )
-    );
+    BOOST_CHECK(seq == mintPoolIndexs);
 }
 
 BOOST_AUTO_TEST_CASE(tryrecover_random_coin)
