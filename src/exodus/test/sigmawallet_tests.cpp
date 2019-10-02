@@ -92,11 +92,12 @@ BOOST_AUTO_TEST_CASE(save_and_load_mintpool)
     sigmaWallet.GetMintPoolEntry(std::back_inserter(mints));
 
     // delete last mint from pool and save
-    sigmaWallet.GetMintPool().resize(19);
+    auto &pool = sigmaWallet.GetMintPool();
+    pool.erase(pool.find(19), pool.end());
     sigmaWallet.SaveMintPool();
 
     // delete more 9 mints
-    sigmaWallet.GetMintPool().resize(10);
+    pool.erase(pool.find(10), pool.end());
     std::vector<MintPoolEntry> mutatedMintPools;
     sigmaWallet.GetMintPoolEntry(std::back_inserter(mutatedMintPools));
     BOOST_CHECK_EQUAL(10, mutatedMintPools.size());
@@ -280,7 +281,7 @@ BOOST_AUTO_TEST_CASE(push_out_wallet_mint_back)
     SigmaMintId id(10, 0, pubKey);
 
     BOOST_CHECK_EXCEPTION(
-        sigmaWallet.PushFrontToMintPool(id),
+        sigmaWallet.DeleteUnconfirmedMint(id),
         std::runtime_error,
         [](std::runtime_error const &e) -> bool{
             return std::string("no mint data in wallet") == e.what();
@@ -299,13 +300,13 @@ BOOST_AUTO_TEST_CASE(push_mint_back)
 
     SigmaMintId id(1, 0, SigmaPublicKey(privKey, DefaultSigmaParams));
 
-    sigmaWallet.PushFrontToMintPool(id);
+    sigmaWallet.DeleteUnconfirmedMint(id);
 
     std::vector<MintPoolEntry> mintPoolAfter;
     sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));
 
     BOOST_CHECK_EQUAL(21, mintPoolAfter.size());
-    BOOST_CHECK(MintPoolEntry(id.pubKey, mint.seedId) == mintPoolAfter.front());
+    BOOST_CHECK(mint.seedId == mintPoolAfter.front().seedId);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -101,9 +101,9 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
         mint->chainState.group, anonimitySet.size(), proof);
 }
 
-void Wallet::EraseSigmaMint(const SigmaMintId &id)
+void Wallet::DeleteUnconfirmedMint(const SigmaMintId &id)
 {
-    mintWallet.PushFrontToMintPool(id);
+    mintWallet.DeleteUnconfirmedMint(id);
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)

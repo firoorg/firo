@@ -18,14 +18,17 @@ MintPoolEntry::MintPoolEntry()
 {
 }
 
-MintPoolEntry::MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId)
-    : key(key), seedId(seedId)
+MintPoolEntry::MintPoolEntry(
+    SigmaPublicKey const &key, CKeyID const &seedId, uint32_t index)
+    : key(key), seedId(seedId), index(index)
 {
 }
 
 bool MintPoolEntry::operator==(MintPoolEntry const &another) const
 {
-    return key == another.key && seedId == another.seedId;
+    return key == another.key &&
+        seedId == another.seedId &&
+        index == another.index;
 }
 
 bool MintPoolEntry::operator!=(MintPoolEntry const &another) const
@@ -237,7 +240,7 @@ std::pair<SigmaMint, SigmaPrivateKey> SigmaWallet::GenerateMint(
             throw std::runtime_error("unable to generate mint");
         }
 
-        seedId = mintPool.front().seedId;
+        seedId = mintPool.begin()->seedId;
     }
 
     auto privKey = GeneratePrivateKey(seedId.get());
@@ -302,21 +305,24 @@ void SigmaWallet::ClearMintsChainState()
     }
 }
 
-bool SigmaWallet::SetMintSeedSeen(
-    MintPoolEntry const &mintPoolEntry,
-    uint32_t propertyId,
-    uint8_t denomination,
-    exodus::SigmaMintChainState const &chainState,
+bool SigmaWallet::TryRecoverMint(
+    SigmaMintId const &id,
+    SigmaMintChainState const &chainState,
     uint256 const &spendTx)
 {
+    if (!IsMintInPool(id.pubKey)) {
+        return false;
+    }
+
+    MintPoolEntry entry;
+    if (!GetMintPoolEntry(id.pubKey, entry)) {
+        return error("%s : Fail to get mint pool entry from public key\n", __func__);
+    }
+
     // Regenerate the mint
-    auto const &pubcoin = mintPoolEntry.key;
-    auto const &seedId = mintPoolEntry.seedId;
+    auto const &pubcoin = id.pubKey;
+    auto const &seedId = entry.seedId;
     auto seedIndex = GetSeedIndex(seedId);
-
-    SigmaMintId id(propertyId, denomination, pubcoin);
-
-    uint160 serialId;
 
     uint512 seed;
     GenerateSeed(seedId, seed);
@@ -326,12 +332,12 @@ bool SigmaWallet::SetMintSeedSeen(
         return false;
     }
 
-    serialId = GetSerialId(coin.serial);
+    auto serialId = GetSerialId(coin.serial);
 
     // Create mint object
     SigmaMint mint(
-        propertyId,
-        denomination,
+        id.property,
+        id.denomination,
         seedId,
         serialId);
     mint.chainState = chainState;
@@ -346,16 +352,7 @@ bool SigmaWallet::TryRecoverMint(
     SigmaMintId const &id,
     SigmaMintChainState const &chainState)
 {
-    if (!IsMintInPool(id.pubKey)) {
-        return false;
-    }
-
-    MintPoolEntry entry;
-    if (!GetMintPoolEntry(id.pubKey, entry)) {
-        return error("%s : Fail to get mint pool entry from public key\n", __func__);
-    }
-
-    return SetMintSeedSeen(entry, id.property, id.denomination, chainState, uint256());
+    return TryRecoverMint(id, chainState, uint256());
 }
 
 SigmaMint SigmaWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
@@ -452,7 +449,7 @@ void SigmaWallet::RemoveInvalidMintPoolEntries()
     }
 }
 
-void SigmaWallet::PushFrontToMintPool(SigmaMintId const &id)
+void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
 {
     CWalletDB walletdb(walletFile);
     SigmaMint mint;
@@ -460,9 +457,14 @@ void SigmaWallet::PushFrontToMintPool(SigmaMintId const &id)
         throw std::runtime_error("no mint data in wallet");
     }
 
+    if (mint.IsOnChain()) {
+        throw std::invalid_argument("try to delete onchain mint");
+    }
+
     SigmaPublicKey pubKey(GeneratePrivateKey(mint.seedId), DefaultSigmaParams);
 
-    mintPool.push_front(MintPoolEntry(pubKey, mint.seedId));
+    auto index = GetSeedIndex(mint.seedId);
+    mintPool.emplace(pubKey, mint.seedId, index);
     SaveMintPool();
 
     if (!walletdb.EraseExodusHDMint(id)) {
@@ -501,7 +503,7 @@ size_t SigmaWallet::FillMintPool()
 
         CKeyID seedId;
         uint512 seed;
-        GenerateNewSeed(seedId, seed);
+        auto index = GenerateNewSeed(seedId, seed);
 
         SigmaPrivateKey privKey;
         if (!GeneratePrivateKey(seed, privKey)) {
@@ -509,7 +511,7 @@ size_t SigmaWallet::FillMintPool()
         }
 
         SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
-        mintPool.push_back(MintPoolEntry(pubKey, seedId));
+        mintPool.emplace(pubKey, seedId, index);
 
         generatedCoins++;
     }
@@ -532,7 +534,7 @@ void SigmaWallet::LoadMintPool()
     std::vector<MintPoolEntry> mintPoolData;
     if (walletdb.ReadExodusMintPool(mintPoolData)) {
         for (auto &entry : mintPoolData) {
-            mintPool.push_back(std::move(entry));
+            mintPool.insert(std::move(entry));
         }
     }
 

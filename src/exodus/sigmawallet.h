@@ -7,8 +7,8 @@
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
-#include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
 
 #include "../uint256.h"
 #include "../wallet/wallet.h"
@@ -21,9 +21,10 @@ namespace exodus {
 struct MintPoolEntry {
     SigmaPublicKey key;
     CKeyID seedId;
+    uint32_t index;
 
     MintPoolEntry();
-    MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId);
+    MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId, uint32_t index);
 
     bool operator==(MintPoolEntry const &) const;
     bool operator!=(MintPoolEntry const &) const;
@@ -35,6 +36,7 @@ struct MintPoolEntry {
     {
         READWRITE(key);
         READWRITE(seedId);
+        READWRITE(index);
     }
 };
 
@@ -46,7 +48,9 @@ protected:
         MintPoolEntry,
         boost::multi_index::indexed_by<
             // Sequence
-            boost::multi_index::sequenced<>,
+            boost::multi_index::ordered_unique<
+                boost::multi_index::member<MintPoolEntry, uint32_t, &MintPoolEntry::index>
+            >,
             // Public Key index
             boost::multi_index::hashed_unique<
                 boost::multi_index::member<MintPoolEntry, SigmaPublicKey, &MintPoolEntry::key>,
@@ -88,14 +92,12 @@ public:
     bool TryRecoverMint(
         SigmaMintId const &id,
         SigmaMintChainState const &chainState);
+    bool TryRecoverMint(
+        SigmaMintId const &id,
+        SigmaMintChainState const &chainState,
+        uint256 const &spendTx);
 
 private:
-    bool SetMintSeedSeen(
-        MintPoolEntry const &mintPoolEntry,
-        PropertyId propertyId,
-        SigmaDenomination denomination,
-        exodus::SigmaMintChainState const &chainState,
-        uint256 const &spendTx = uint256());
     SigmaMint UpdateMint(SigmaMintId const &, std::function<void(SigmaMint &)> const &);
     void WriteMint(SigmaMintId const &id, SigmaMint const &entry);
 
@@ -139,7 +141,7 @@ public:
 
     // MintPool state
 public:
-    void PushFrontToMintPool(SigmaMintId const &id);
+    void DeleteUnconfirmedMint(SigmaMintId const &id);
     bool IsMintInPool(SigmaPublicKey const &pubKey);
     bool GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry);
 

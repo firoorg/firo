@@ -4,9 +4,9 @@
 #include "exodus.h"
 #include "property.h"
 #include "sigmaprimitives.h"
+#include "sigmawallet.h"
 #include "sp.h"
 #include "walletmodels.h"
-#include "sigmawallet.h"
 
 #include "../wallet/walletdb.h"
 
@@ -38,7 +38,7 @@ public:
     void ResetState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
-    void EraseSigmaMint(SigmaMintId const &id);
+    void DeleteUnconfirmedMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
