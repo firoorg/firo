@@ -143,15 +143,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue obj(UniValue::VOBJ);
     UniValue modules(UniValue::VOBJ);
     
-    CZnode *myZnode = mnodeman.Find(activeZnode.vin);
-    if(myZnode!=NULL){
-        UniValue znodeObj(UniValue::VOBJ);
-        znodeObj = myZnode->ToJSON();
-        obj.push_back(Pair("myZnode",znodeObj));
-    }else {
-        obj.push_back(Pair("myZnode",NullUniValue));
-    }
-
     modules.push_back(Pair("API", !APIIsInWarmup()));
     modules.push_back(Pair("Znode", znodeSync.IsSynced()));
 
@@ -171,7 +162,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
-    obj.push_back(Pair("reindexing",    fReindex));
+    obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
 #ifdef WIN32
     obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));

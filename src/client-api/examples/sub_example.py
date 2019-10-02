@@ -98,13 +98,8 @@ if __name__ == "__main__":
     settingsfilter = b"settings"
     socket.setsockopt(zmq.SUBSCRIBE, settingsfilter)
 
-    apistatusfilter = b"apiStatus"
-    socket.setsockopt(zmq.SUBSCRIBE, apistatusfilter)
-
     znodelistfilter = b"znodeList"
     socket.setsockopt(zmq.SUBSCRIBE, znodelistfilter)
-
-
 
     while True:
       message = socket.recv()

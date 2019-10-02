@@ -944,9 +944,8 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
 
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
 
-            if(IsMine(CTxIn(outpoint)) == ISMINE_SPENDABLE){
-                if(mnTxHash==wtxIn.GetHash())
-                    LockCoin(outpoint); //Lock if this transaction is a znode colleteral payment
+            if(IsMine(CTxIn(outpoint)) == ISMINE_SPENDABLE && !IsSpent(mnTxHash, outputIndex)){
+                LockCoin(outpoint); //Lock if this transaction is an available znode colleteral payment  
             }else {
                 UnlockCoin(outpoint); // Unlock any spent Znode collateral
             }
@@ -1618,10 +1617,19 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
 }
 
 void CWallet::ReacceptWalletTransactions() {
-    LogPrintf("CWallet::ReacceptWalletTransactions()\n");
     // If transactions aren't being broadcasted, don't let them into local mempool either
     if (!fBroadcastTransactions)
         return;
+
+    // // If we've already reaccepted wallet transactions, stop
+    // if(fWalletTxesReaccepted)
+    //     return;
+
+    // // if not synced, return (but only if API is on)
+    // if(!znodeSync.IsBlockchainSynced() && fApi)
+    //     return;
+
+    LogPrintf("CWallet::ReacceptWalletTransactions()\n");
     LOCK2(cs_main, cs_wallet);
     std::map < int64_t, CWalletTx * > mapSorted;
 
@@ -1647,7 +1655,7 @@ void CWallet::ReacceptWalletTransactions() {
     {
         CWalletTx &wtx = *(item.second);
 
-        LOCK(mempool.cs);
+        //LOCK(mempool.cs);
         CValidationState state;
         // LogPrintf("CWallet::ReacceptWalletTransactions(): re-accepting transaction %s to mempool/stempool.\n", wtx.GetHash().ToString());
 
@@ -1661,6 +1669,8 @@ void CWallet::ReacceptWalletTransactions() {
             wtx.RelayWalletTransaction(false);
         }
     }
+
+    //fWalletTxesReaccepted = true;
 }
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
@@ -2869,25 +2879,23 @@ bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
         throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
     }
 
-    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoin(listPubCoin);
+    CBigNum pubCoin;
+    CZerocoinEntry pubCoinItem;
+
     vector<unsigned char> vchZeroMint;
     vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
                        txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-
-    CBigNum pubCoin;
     pubCoin.setvch(vchZeroMint);
-    LogPrintf("Pubcoin=%s\n", pubCoin.GetHex());
-    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-        if (pubCoinItem.value == pubCoin){
-            fIsAvailable = !(pubCoinItem.IsUsed ||
-                           (!pubCoinItem.IsUsed &&
-                            (pubCoinItem.randomness == 0 ||
-                             pubCoinItem.serialNumber == 0)));
-            return true;
-        }
+
+    if(walletdb.ReadZerocoinEntry(pubCoin, pubCoinItem)){
+        fIsAvailable = !(pubCoinItem.IsUsed ||
+                       (!pubCoinItem.IsUsed &&
+                        (pubCoinItem.randomness == 0 ||
+                         pubCoinItem.serialNumber == 0)));
+        return true;
     }
+
     return false;
 }
 

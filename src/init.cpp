@@ -1623,6 +1623,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("Step 7: load block chain ************************************\n");
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
+    pzmqPublisherInterface->StartWorker();
 
     // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
     boost::filesystem::path blocksDir = GetDataDir() / "blocks";
@@ -1672,7 +1673,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
 
     bool fLoaded = false;
-    bool fWorkerStarted = false;
     while (!fLoaded) {
         bool fReset = fReindex;
         std::string strLoadError;
@@ -1710,20 +1710,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
                     if (fPruneMode)
                         CleanupBlockRevFiles();
-
-                    if(fApi){
-                        pzmqPublisherInterface->StartWorker();
-                        fWorkerStarted = true;
-                    }
                 }
                 LogPrintf("LoadBlockIndex...\n");
                 if (!LoadBlockIndex()) {
                     strLoadError = _("Error loading block database");
                     break;
                 }
-
-                if(fApi && !fWorkerStarted)
-                    pzmqPublisherInterface->StartWorker();
 
                 if (!fReindex) {
                     CBlockIndex *tip = chainActive.Tip();
@@ -1884,6 +1876,13 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         exodus_init();
     }
 
+    // Set API loaded before wallet sync and immediately notify
+    if(fApi){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+    }
+
+
     // ********************************************************* Step 8: load wallet
 
 #ifdef ENABLE_WALLET
@@ -2026,25 +2025,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
 
-    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
-        LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Znodes:\n");
-        uint256 mnTxHash;
-        int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            mnTxHash.SetHex(mne.getTxHash());
-            outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
-            COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
-            // don't lock non-spendable outpoint (i.e. it's already spent or it's not from this wallet at all)
-            if (pwalletMain->IsMine(CTxIn(outpoint)) != ISMINE_SPENDABLE) {
-                LogPrintf("  %s %s - IS NOT SPENDABLE, was not locked\n", mne.getTxHash(), mne.getOutputIndex());
-                continue;
-            }
-            pwalletMain->LockCoin(outpoint);
-            LogPrintf("  %s %s - locked successfully\n", mne.getTxHash(), mne.getOutputIndex());
-        }
-    }
-
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
@@ -2124,9 +2104,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 12: finished
 
     SetRPCWarmupFinished();
-    if(fApi){
-        SetAPIWarmupFinished();
-    }
+
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET
