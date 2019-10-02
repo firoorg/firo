@@ -10,8 +10,19 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <ostream>
 #include <string>
 #include <vector>
+
+namespace std {
+
+template<typename Char, typename Traits, typename Allocator>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const std::vector<unsigned char, Allocator>& v)
+{
+    return os << HexStr(v);
+}
+
+} // namespace std
 
 namespace exodus {
 
@@ -38,7 +49,7 @@ BOOST_AUTO_TEST_CASE(extract_pubkey_test)
     GetPushedValues(script, std::back_inserter(solutions));
 
     BOOST_CHECK_EQUAL(solutions.size(), 1);
-    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload));
+    BOOST_CHECK_EQUAL(solutions[0], vchPayload);
 }
 
 BOOST_AUTO_TEST_CASE(extract_pubkeyhash_test)
@@ -64,7 +75,7 @@ BOOST_AUTO_TEST_CASE(extract_pubkeyhash_test)
     GetPushedValues(script, std::back_inserter(solutions));
 
     BOOST_CHECK_EQUAL(solutions.size(), 1);
-    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(ToByteVector(keyId)));
+    BOOST_CHECK_EQUAL(solutions[0], ToByteVector(keyId));
 }
 
 BOOST_AUTO_TEST_CASE(extract_multisig_test)
@@ -98,9 +109,9 @@ BOOST_AUTO_TEST_CASE(extract_multisig_test)
     GetPushedValues(script, std::back_inserter(solutions));
 
     BOOST_CHECK_EQUAL(solutions.size(), 3);
-    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload1));
-    BOOST_CHECK_EQUAL(HexStr(solutions[1]), HexStr(vchPayload2));
-    BOOST_CHECK_EQUAL(HexStr(solutions[2]), HexStr(vchPayload3));
+    BOOST_CHECK_EQUAL(solutions[0], vchPayload1);
+    BOOST_CHECK_EQUAL(solutions[1], vchPayload2);
+    BOOST_CHECK_EQUAL(solutions[2], vchPayload3);
 }
 
 BOOST_AUTO_TEST_CASE(extract_scripthash_test)
@@ -130,7 +141,7 @@ BOOST_AUTO_TEST_CASE(extract_scripthash_test)
     GetPushedValues(script, std::back_inserter(solutions));
 
     BOOST_CHECK_EQUAL(solutions.size(), 1);
-    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(ToByteVector(innerId)));
+    BOOST_CHECK_EQUAL(solutions[0], ToByteVector(innerId));
 }
 
 BOOST_AUTO_TEST_CASE(extract_no_nulldata_test)
@@ -192,7 +203,7 @@ BOOST_AUTO_TEST_CASE(extract_nulldata_test)
     GetPushedValues(script, std::back_inserter(solutions));
 
     BOOST_CHECK_EQUAL(solutions.size(), 1);
-    BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(vchPayload));
+    BOOST_CHECK_EQUAL(solutions[0], vchPayload);
 }
 
 BOOST_AUTO_TEST_CASE(extract_nulldata_multipush_test)
@@ -263,7 +274,7 @@ BOOST_AUTO_TEST_CASE(extract_anypush_test)
     BOOST_CHECK_EQUAL(solutions.size(), vvchPayloads.size());
 
     for (size_t n = 0; n < solutions.size(); ++n) {
-        BOOST_CHECK_EQUAL(HexStr(solutions[n]), HexStr(vvchPayloads[n]));
+        BOOST_CHECK_EQUAL(solutions[n], vvchPayloads[n]);
     }
 }
 
