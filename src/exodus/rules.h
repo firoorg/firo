@@ -12,30 +12,65 @@
 
 namespace exodus {
 
-//! Feature identifier to enable Class C transaction parsing and processing
-const uint16_t FEATURE_CLASS_C = 1;
-//! Feature identifier to enable the distributed token exchange
-const uint16_t FEATURE_METADEX = 2;
-//! Feature identifier to enable betting transactions
-const uint16_t FEATURE_BETTING = 3;
-//! Feature identifier to disable crowdsale participations when "granting tokens"
-const uint16_t FEATURE_GRANTEFFECTS = 4;
-//! Feature identifier to disable DEx "over-offers" and to switch to plain integer math
-const uint16_t FEATURE_DEXMATH = 5;
-//! Feature identifier to enable Send All transactions
-const uint16_t FEATURE_SENDALL = 6;
-//! Feature identifier disable ecosystem crossovers in crowdsale logic
-const uint16_t FEATURE_SPCROWDCROSSOVER = 7;
-//! Feature identifier to enable non-Omni pairs on the distributed exchange
-const uint16_t FEATURE_TRADEALLPAIRS = 8;
-//! Feature identifier to enable the fee cache and strip 0.05% fees from non-Omni pairs
-const uint16_t FEATURE_FEES = 9;
-//! Feature identifier to enable cross property (v1) Send To Owners
-const uint16_t FEATURE_STOV1 = 10;
-//! Feature identifier to activate the waiting period for enabling managed property address freezing
-const uint16_t FEATURE_FREEZENOTICE = 14;
-//! Feature identifier to activate sigma on exodus
-const uint16_t FEATURE_SIGMA = 15;
+/**
+ * Feature identifier to enable Class C transaction parsing and processing.
+ **/
+constexpr uint16_t FEATURE_CLASS_C = 1;
+
+/**
+ * Feature identifier to enable the distributed token exchange.
+ **/
+constexpr uint16_t FEATURE_METADEX = 2;
+
+/**
+ * Feature identifier to enable betting transactions.
+ **/
+constexpr uint16_t FEATURE_BETTING = 3;
+
+/**
+ * Feature identifier to disable crowdsale participations when "granting tokens".
+ **/
+constexpr uint16_t FEATURE_GRANTEFFECTS = 4;
+
+/**
+ * Feature identifier to disable DEx "over-offers" and to switch to plain integer math.
+ **/
+constexpr uint16_t FEATURE_DEXMATH = 5;
+
+/**
+ * Feature identifier to enable Send All transactions.
+ **/
+constexpr uint16_t FEATURE_SENDALL = 6;
+
+/**
+ * Feature identifier disable ecosystem crossovers in crowdsale logic.
+ **/
+constexpr uint16_t FEATURE_SPCROWDCROSSOVER = 7;
+
+/**
+ * Feature identifier to enable non-Omni pairs on the distributed exchange.
+ **/
+constexpr uint16_t FEATURE_TRADEALLPAIRS = 8;
+
+/**
+ * Feature identifier to enable the fee cache and strip 0.05% fees from non-Omni pairs.
+ **/
+constexpr uint16_t FEATURE_FEES = 9;
+
+/**
+ * Feature identifier to enable cross property (v1) Send To Owners.
+ **/
+constexpr uint16_t FEATURE_STOV1 = 10;
+
+/**
+ * Feature identifier to activate the waiting period for enabling managed property address freezing.
+ **/
+constexpr uint16_t FEATURE_FREEZENOTICE = 14;
+
+/**
+ * Feature identifier to activate sigma on exodus.
+ **/
+constexpr uint16_t FEATURE_SIGMA = 15;
 
 //! When (propertyTotalTokens / EXODUS_FEE_THRESHOLD) is reached fee distribution will occur
 const int64_t EXODUS_FEE_THRESHOLD = 100000; // 0.001%
@@ -197,6 +232,11 @@ public:
      * Block to activate Sigma related features.
      **/
     int SIGMA_FEATURE_BLOCK;
+
+    /**
+     * Block to activate property creation fee.
+     **/
+    int PROPERTY_CREATION_FEE_BLOCK;
 
     /**
      * Amount of XZC to pay when create a new property on main ecosystem.

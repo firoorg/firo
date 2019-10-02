@@ -1,7 +1,9 @@
 #ifndef ZCOIN_EXODUS_PROPERTY_H
 #define ZCOIN_EXODUS_PROPERTY_H
 
-#include <cinttypes>
+#include <string>
+
+#include <inttypes.h>
 
 namespace exodus {
 
@@ -11,7 +13,8 @@ namespace exodus {
 // maximum numeric values from the spec:
 #define MAX_INT_8_BYTES (9223372036854775807UL)
 
-typedef std::uint32_t PropertyId;
+typedef uint8_t EcosystemId;
+typedef uint32_t PropertyId;
 
 enum class SigmaStatus : uint8_t {
     SoftDisabled    = 0,
@@ -21,7 +24,10 @@ enum class SigmaStatus : uint8_t {
 };
 
 bool IsEnabledFlag(SigmaStatus status);
+bool IsRequireCreationFee(EcosystemId ecosystem);
+bool IsRequireCreationFee(EcosystemId ecosystem, int block);
+bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network);
 
-}
+} // namespace exodus
 
 #endif // ZCOIN_EXODUS_PROPERTY_H

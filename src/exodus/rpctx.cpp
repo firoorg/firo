@@ -502,7 +502,7 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
     std::string receiver;
     CAmount fee = 0;
 
-    if (ecosystem == EXODUS_PROPERTY_EXODUS && GetHeight() >= consensus.SIGMA_FEATURE_BLOCK) {
+    if (IsRequireCreationFee(ecosystem)) {
         receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
         fee = consensus.PROPERTY_CREATION_FEE;
     }
@@ -592,7 +592,7 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
     std::string receiver;
     CAmount fee = 0;
 
-    if (ecosystem == EXODUS_PROPERTY_EXODUS && GetHeight() >= consensus.SIGMA_FEATURE_BLOCK) {
+    if (IsRequireCreationFee(ecosystem)) {
         receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
         fee = consensus.PROPERTY_CREATION_FEE;
     }

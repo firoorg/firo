@@ -107,7 +107,8 @@ void CMPTransaction::Set(
 bool CMPTransaction::isOverrun(const unsigned char *p)
 {
     ptrdiff_t pos = p - raw.data();
-    return (pos > raw.size());
+    assert(pos >= 0);
+    return (static_cast<size_t>(pos) > raw.size());
 }
 
 // -------------------- PACKET PARSING -----------------------
@@ -1797,17 +1798,17 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -37);
     }
 
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
+
     CMPSPInfo::Entry newSP;
 
-    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
         if (!IsSigmaStatusValid(sigmaStatus)) {
             PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
             return PKT_ERROR_SP - 900;
-        }
-
-        if (!CheckPropertyCreationFee()) {
-            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
-            return PKT_ERROR_SP - 105;
         }
 
         newSP.sigmaStatus = sigmaStatus;
@@ -1910,11 +1911,9 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
         return (PKT_ERROR_SP -39);
     }
 
-    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
-        if (!CheckPropertyCreationFee()) {
-            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
-            return PKT_ERROR_SP - 105;
-        }
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
     }
 
     // ------------------------------------------
@@ -2053,17 +2052,17 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -37);
     }
 
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
+
     CMPSPInfo::Entry newSP;
 
-    if (block >= ConsensusParams().SIGMA_FEATURE_BLOCK) {
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
         if (!IsSigmaStatusValid(sigmaStatus)) {
             PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
             return PKT_ERROR_SP - 900;
-        }
-
-        if (!CheckPropertyCreationFee()) {
-            PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
-            return PKT_ERROR_SP - 105;
         }
 
         newSP.sigmaStatus = sigmaStatus;
@@ -2747,10 +2746,6 @@ int CMPTransaction::logicMath_Alert()
 
 bool CMPTransaction::CheckPropertyCreationFee()
 {
-    if (ecosystem != EXODUS_PROPERTY_EXODUS) {
-        return true;
-    }
-
     if (receiver.empty() || !referenceAmount) {
         return false;
     }
