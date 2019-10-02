@@ -93,6 +93,12 @@ EXODUS_CPP += \
   exodus/walletmodels.cpp
 endif
 
+zcoind_LDADD += $(BOOST_REGEX_LIB)
+
+if ENABLE_QT
+qt_zcoin_qt_LDADD += $(BOOST_REGEX_LIB)
+endif
+
 libbitcoin_server_a_SOURCES += \
   $(EXODUS_CPP) \
   $(EXODUS_H)

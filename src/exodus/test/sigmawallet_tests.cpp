@@ -125,6 +125,32 @@ BOOST_AUTO_TEST_CASE(save_and_load_mintpool)
     );
 }
 
+BOOST_AUTO_TEST_CASE(verify_mintpool_on_fresh_startup)
+{
+    // get sequence
+    std::vector<MintPoolEntry> mints;
+    sigmaWallet.GetMintPoolEntry(std::back_inserter(mints));
+
+    std::vector<uint32_t> mintPoolIndexs;
+    for (auto const &mint : mints) {
+        mintPoolIndexs.push_back(mint.index);
+    }
+
+    // generate sequence
+    std::vector<uint32_t> seq;
+    seq.resize(mintPoolIndexs.size());
+
+    std::generate(seq.begin(), seq.end(), [n = 0] () mutable { return n++; });
+
+    BOOST_CHECK_EQUAL(mintPoolIndexs.size(), seq.size());
+    BOOST_CHECK(
+        std::is_permutation(
+            seq.begin(), seq.end(),
+            mintPoolIndexs.begin(), mintPoolIndexs.end()
+        )
+    );
+}
+
 BOOST_AUTO_TEST_CASE(tryrecover_random_coin)
 {
     SigmaPrivateKey priv;

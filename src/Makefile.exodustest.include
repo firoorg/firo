@@ -43,6 +43,8 @@ EXODUS_TEST_CPP += \
   exodus/test/walletmodels_tests.cpp
 endif
 
+test_test_bitcoin_LDADD += $(BOOST_REGEX_LIB)
+
 BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \
   $(EXODUS_TEST_H)

@@ -8,8 +8,8 @@
 
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
-#include "../sigma/openssl_context.h"
 
+#include <boost/regex.hpp>
 #include <boost/optional.hpp>
 
 namespace exodus {
@@ -100,12 +100,14 @@ namespace {
 
 std::uint32_t GetBIP44AddressIndex(std::string const &path)
 {
-    auto lastSlash = path.find_last_of('/');
-    if (lastSlash == std::string::npos) {
+    static const boost::regex re(R"delim(^m/44'/\d+'/\d+'/\d+/(\d+)$)delim");
+
+    boost::smatch match;
+    if (!boost::regex_match(path, match, re)) {
         throw std::runtime_error("Fail to match BIP44 path");
     }
 
-    auto child = std::stol(path.substr(lastSlash + 1));
+    auto child = std::stol(match.str(1));
     if (child > std::numeric_limits<uint32_t>::max()) {
         throw std::runtime_error("Address index is exceed limit");
     }
