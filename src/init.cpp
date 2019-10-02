@@ -1862,6 +1862,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         CWallet::InitLoadWallet();
         if (!pwalletMain)
             return false;
+        Bip47Wallet::initLoadBip47Wallet();
+        if (!pbip47WalletMain)
+            return false;
+
+        
     }
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");

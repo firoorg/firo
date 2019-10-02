@@ -9,8 +9,10 @@
 #include "znode-payments.h"
 #include "znodeman.h"
 #include "protocol.h"
+#include "bip47/Bip47Wallet.h"
 
 extern CWallet *pwalletMain;
+extern Bip47Wallet *pbip47WalletMain;
 
 // Keep track of the active Znode
 CActiveZnode activeZnode;

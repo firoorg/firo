@@ -10,8 +10,7 @@
 Bip47Wallet *pbip47WalletMain = NULL;
 const char *DEFAULT_BIP47_WALLET_DAT = "bip47_wallet.dat";
 
-Bip47Wallet::Bip47Wallet(string strWalletFileIn, string coinName, string seedStr) 
-:CWallet(strWalletFileIn)
+Bip47Wallet::Bip47Wallet(string strWalletFileIn, string coinName, string seedStr) :CWallet(strWalletFileIn)
 {
     this->coinName = coinName;
     
@@ -25,7 +24,7 @@ bool Bip47Wallet::initLoadBip47Wallet()
     /**
      * @Todo set correct seed str to create bip47 wallet
      * */
-    Bip47Wallet *walletInstance = new Bip47Wallet(bip47WalletFile, "zcoin", "");
+    Bip47Wallet *walletInstance = new Bip47Wallet(bip47WalletFile, "zcoin", "64dca76abc9c6f0cf3d212d248c380c4622c8f93b2c425ec6a5567fd5db57e10d3e6f94a2f6af4ac2edb8998072aad92098db73558c323777abf5bd1082d970a");
     pbip47WalletMain = walletInstance;
 }
 

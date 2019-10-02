@@ -4,15 +4,17 @@
 #include "bip47_common.h"
 #include "wallet/wallet.h"
 #include "Bip47PaymentChannel.h"
+#include "Bip47Account.h"
 
-class Bip47Account;
 class PaymentCode;
+
+extern Bip47Wallet* pbip47WalletMain;
 
 class Bip47Wallet :public CWallet
 {
 public:
     Bip47Wallet();
-    ~Bip47Wallet();
+    ~Bip47Wallet(){};
 
     static bool initLoadBip47Wallet();
 
