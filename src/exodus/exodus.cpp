@@ -994,9 +994,11 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 // Strip out the magic at the very beginning
                 pushes[0].erase(pushes[0].begin(), pushes[0].begin() + magic.size());
 
-                for (auto& push : pushes) {
-                    op_return_script_data.push_back(std::move(push));
-                }
+                op_return_script_data.insert(
+                    op_return_script_data.end(),
+                    std::make_move_iterator(pushes.begin()),
+                    std::make_move_iterator(pushes.end())
+                );
 
                 if (exodus_debug_parser_data) {
                     PrintToLog("Class C transaction detected: %s parsed to %s at vout %d\n", wtx.GetHash().GetHex(), HexStr(pushes[0]), n);
