@@ -414,7 +414,7 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
     SigmaPublicKey pubKey(GeneratePrivateKey(mint.seedId), DefaultSigmaParams);
 
     auto index = GetSeedIndex(mint.seedId);
-    mintPool.emplace(pubKey, mint.seedId, index);
+    mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
     SaveMintPool();
 
     if (!walletdb.EraseExodusMint(id)) {
@@ -458,7 +458,7 @@ size_t SigmaWallet::FillMintPool()
         auto privKey = GeneratePrivateKey(seed);
 
         SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
-        mintPool.emplace(pubKey, seedId, index);
+        mintPool.insert(MintPoolEntry(pubKey, seedId, index));
 
         generatedCoins++;
     }
