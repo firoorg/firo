@@ -559,13 +559,16 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
         }
     }
 
-    no = 0;
     if(tx.IsZerocoinRemint()) {
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
-            handleRemint(input, no, tx.GetHash(), height, txNumber, tx.vout[no].nValue, addressIndex, addressUnspentIndex, spentIndex);
-            ++no;
+        CAmount remintValue = 0;
+        for (std::vector<CTxOut>::const_iterator iter_out = tx.vout.begin(); iter_out != tx.vout.end(); ++iter_out) {
+            remintValue += iter_out->nValue;
         }
+        if (tx.vin.size() != 1) {
+           error("A Zerocoin to Sigma remint tx shoud have just 1 input");
+           return;
+        }
+        handleRemint(tx.vin[0], 0, tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
     if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
@@ -592,17 +595,20 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
     if(spentIndex)
         pSpentBegin = spentIndex->size();
 
-    size_t no = 0;
-
     if(tx.IsZerocoinRemint()) {
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
-            handleRemint(input, no, tx.GetHash(), height, txNumber, tx.vout[no].nValue, addressIndex, addressUnspentIndex, spentIndex);
-            ++no;
+        CAmount remintValue = 0;
+        for (std::vector<CTxOut>::const_iterator iter_out = tx.vout.begin(); iter_out != tx.vout.end(); ++iter_out) {
+            remintValue += iter_out->nValue;
         }
+        if (tx.vin.size() != 1) {
+           error("A Zerocoin to Sigma remint tx shoud have just 1 input");
+           return;
+        }
+        handleRemint(tx.vin[0], 0, tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
-    no = 0;
+    size_t no = 0;
+
     if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
