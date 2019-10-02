@@ -632,16 +632,6 @@ void CheckWalletUpdate(bool forceUpdate)
     }
     // signal an Exodus balance change
     uiInterface.ExodusBalanceChanged();
-
-    // If exodus state is cleared then also clear exodus mint wallet
-    if (!exodus_prev) {
-        try {
-            wallet->ResetState();
-        } catch (std::runtime_error const &e) {
-            LogPrintf("%s : fail to reset state, %s\n", __func__, e.what());
-            throw;
-        }
-    }
 #endif
 }
 
@@ -2068,6 +2058,13 @@ void clear_all_state()
     p_feehistory->Clear();
     assert(p_txlistdb->setDBVersion() == DB_VERSION); // new set of databases, set DB version
     exodus_prev = 0;
+
+    // Clear wallet state
+#ifdef ENABLE_WALLET
+    if (wallet) {
+        wallet->ClearAllChainState();
+    }
+#endif
 }
 
 /**

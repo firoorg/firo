@@ -279,30 +279,27 @@ SigmaMint SigmaWallet::UpdateMint(const SigmaMintId &id, const std::function<voi
 
 void SigmaWallet::ClearMintsChainState()
 {
-    try {
-        CWalletDB walletdb(walletFile);
+    CWalletDB walletdb(walletFile);
+    walletdb.TxnBegin();
 
-        std::vector<SigmaMint> coins;
-        ListMints(std::back_inserter(coins), false, false);
+    std::vector<SigmaMint> coins;
+    ListMints(std::back_inserter(coins), false, false, &walletdb);
 
-        for (auto &coin : coins) {
-            coin.chainState = SigmaMintChainState();
-            coin.spendTx = uint256();
+    for (auto &coin : coins) {
+        coin.chainState = SigmaMintChainState();
+        coin.spendTx = uint256();
 
-            auto priv = GeneratePrivateKey(coin.seedId);
-            SigmaPublicKey pub(priv, DefaultSigmaParams);
+        auto priv = GeneratePrivateKey(coin.seedId);
+        SigmaPublicKey pub(priv, DefaultSigmaParams);
 
-            if (!walletdb.WriteExodusHDMint(
-                SigmaMintId(coin.property, coin.denomination, pub), coin)) {
+        if (!walletdb.WriteExodusHDMint(
+            SigmaMintId(coin.property, coin.denomination, pub), coin)) {
 
-               throw std::runtime_error("fail to update hdmint");
-            }
+            throw std::runtime_error("fail to update hdmint");
         }
-
-    } catch (std::runtime_error const &e) {
-        LogPrintf("%s : fail to reset all mints chain state, %s\n", __func__, e.what());
-        throw;
     }
+
+    walletdb.TxnCommit();
 }
 
 bool SigmaWallet::TryRecoverMint(
@@ -413,12 +410,16 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 }
 
 size_t SigmaWallet::ListMints(
-    std::function<void(SigmaMint const&)> const &f) const
+    std::function<void(SigmaMint const&)> const &f, CWalletDB* db) const
 {
-    CWalletDB walletdb(walletFile);
+    std::unique_ptr<CWalletDB> localDB;
+    if (!db) {
+        db = new CWalletDB(walletFile);
+        localDB.reset(db);
+    }
 
     size_t counter = 0;
-    walletdb.ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
+    db->ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
         counter++;
         f(m);
     });
@@ -499,7 +500,7 @@ size_t SigmaWallet::FillMintPool()
     LOCK(pwalletMain->cs_wallet);
 
     size_t generatedCoins;
-    while (mintPool.size() < mintPoolCapacity) {
+    while (mintPool.size() < MintPoolCapacity) {
 
         CKeyID seedId;
         uint512 seed;

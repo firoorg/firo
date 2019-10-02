@@ -61,7 +61,7 @@ SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denom
     return SigmaMintId(property, denomination, SigmaPublicKey(priv, DefaultSigmaParams));
 }
 
-void Wallet::ResetState()
+void Wallet::ClearAllChainState()
 {
     mintWallet.ClearMintsChainState();
 }

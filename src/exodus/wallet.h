@@ -35,7 +35,7 @@ public:
 
         return output;
     }
-    void ResetState();
+    void ClearAllChainState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
     void DeleteUnconfirmedMint(SigmaMintId const &id);
@@ -44,7 +44,6 @@ public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        auto mintWallet = this->mintWallet;
         mintWallet.ListMints(it, false, false);
     }
 

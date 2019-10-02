@@ -63,7 +63,7 @@ protected:
     MintPool mintPool;
     uint160 masterId;
 
-    static constexpr unsigned mintPoolCapacity = 20;
+    static constexpr unsigned MintPoolCapacity = 20;
 
 public:
     SigmaWallet();
@@ -117,7 +117,7 @@ public:
     template<
         class OutIt,
         typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
-    > OutIt ListMints(OutIt it, bool unusedOnly, bool matureOnly) const
+    > OutIt ListMints(OutIt it, bool unusedOnly, bool matureOnly, CWalletDB *db = nullptr) const
     {
         ListMints([&it, unusedOnly, matureOnly](SigmaMint const &m) {
 
@@ -133,11 +133,11 @@ public:
             }
 
             *it++ = m;
-        });
+        }, db);
 
         return it;
     }
-    size_t ListMints(std::function<void(SigmaMint const&)> const &) const;
+    size_t ListMints(std::function<void(SigmaMint const&)> const &, CWalletDB* db = nullptr) const;
 
     // MintPool state
 public:
