@@ -166,13 +166,13 @@ BOOST_AUTO_TEST_CASE(class_b_tetherus)
     std::vector<std::vector<unsigned char>> solutions;
 
     GetPushedValues(scriptPubKeyA, std::back_inserter(solutions));
-    BOOST_CHECK_EQUAL(solutions.empty(), false);
+    BOOST_CHECK_EQUAL(solutions.size(), 3);
 
     GetPushedValues(scriptPubKeyB, std::back_inserter(solutions));
-    BOOST_CHECK_EQUAL(solutions.empty(), false);
+    BOOST_CHECK_EQUAL(solutions.size(), 6);
 
     GetPushedValues(scriptPubKeyC, std::back_inserter(solutions));
-    BOOST_CHECK_EQUAL(solutions.empty(), false);
+    BOOST_CHECK_EQUAL(solutions.size(), 9);
 
     // Vout 0
     BOOST_CHECK_EQUAL(HexStr(solutions[0]), HexStr(pubKey.begin(), pubKey.end()));
