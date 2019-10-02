@@ -204,7 +204,7 @@ void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
 
     CWalletDB walletdb(walletFile);
 
-    if (!walletdb.WriteExodusHDMint(id, mint)) {
+    if (!walletdb.WriteExodusMint(id, mint)) {
         throw std::runtime_error("fail to write hdmint");
     }
 
@@ -271,7 +271,7 @@ SigmaMint SigmaWallet::UpdateMint(const SigmaMintId &id, const std::function<voi
     auto m = GetMint(id);
     modifier(m);
 
-    if (!walletdb.WriteExodusHDMint(id, m)) {
+    if (!walletdb.WriteExodusMint(id, m)) {
         throw std::runtime_error("fail to update mint");
     }
 
@@ -293,7 +293,7 @@ void SigmaWallet::ClearMintsChainState()
         auto priv = GeneratePrivateKey(coin.seedId);
         SigmaPublicKey pub(priv, DefaultSigmaParams);
 
-        if (!walletdb.WriteExodusHDMint(
+        if (!walletdb.WriteExodusMint(
             SigmaMintId(coin.property, coin.denomination, pub), coin)) {
 
             throw std::runtime_error("fail to update hdmint");
@@ -373,7 +373,7 @@ SigmaMint SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &t
 bool SigmaWallet::HasMint(SigmaMintId const &id) const
 {
     CWalletDB walletdb(walletFile);
-    return walletdb.HasExodusHDMint(id);
+    return walletdb.HasExodusMint(id);
 }
 
 bool SigmaWallet::HasMint(secp_primitives::Scalar const &serial) const
@@ -387,7 +387,7 @@ SigmaMint SigmaWallet::GetMint(SigmaMintId const &id) const
 {
     CWalletDB walletdb(walletFile);
     SigmaMint m;
-    if (!walletdb.ReadExodusHDMint(id, m)) {
+    if (!walletdb.ReadExodusMint(id, m)) {
         throw std::runtime_error("fail to read hdmint");
     }
 
@@ -422,7 +422,7 @@ size_t SigmaWallet::ListMints(
     }
 
     size_t counter = 0;
-    db->ListExodusHDMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
+    db->ListExodusMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
         counter++;
         f(m);
     });
@@ -457,7 +457,7 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
 {
     CWalletDB walletdb(walletFile);
     SigmaMint mint;
-    if (!walletdb.ReadExodusHDMint(id, mint)) {
+    if (!walletdb.ReadExodusMint(id, mint)) {
         throw std::runtime_error("no mint data in wallet");
     }
 
@@ -471,7 +471,7 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
     mintPool.emplace(pubKey, mint.seedId, index);
     SaveMintPool();
 
-    if (!walletdb.EraseExodusHDMint(id)) {
+    if (!walletdb.EraseExodusMint(id)) {
         throw std::runtime_error("fail to erase mint from wallet");
     }
 }

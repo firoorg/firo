@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_get)
 
     SigmaMintId other(1, 1, otherPub);
 
-    BOOST_CHECK_THROW(wallet->GetSigmaMint(other), std::invalid_argument);
+    BOOST_CHECK_THROW(wallet->GetSigmaMint(other), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
     // Other mint should not added to our wallet.
     BOOST_CHECK_THROW(
         wallet->GetSigmaMint(SigmaMintId(1, 0, otherPub)),
-        std::invalid_argument
+        std::runtime_error
     );
 
     // Remove other mint and our chain state should not updated.

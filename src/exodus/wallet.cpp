@@ -116,14 +116,7 @@ bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
-    SigmaMint mint;
-
-    CWalletDB walletdb(walletFile);
-    if (!walletdb.ReadExodusHDMint(id, mint)) {
-        throw std::invalid_argument("Mint with specified identifier is not exists");
-    }
-
-    return mint;
+    return mintWallet.GetMint(id);
 }
 
 boost::optional<SigmaMint>

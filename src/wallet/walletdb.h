@@ -73,11 +73,7 @@ public:
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
     static const int CURRENT_VERSION = VERSION_WITH_BIP44;
-#ifdef ENABLE_EXODUS
     static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
-#else
-    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
-#endif
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -333,38 +329,31 @@ public:
     }
 
     template<class K, class V>
-    bool ReadExodusHDMint(const K& k, V& v)
+    bool ReadExodusMint(const K& k, V& v)
     {
-        return Read(std::make_pair(std::string("exodus_hdmint"), k), v);
+        return Read(std::make_pair(std::string("exodus_mint"), k), v);
     }
 
     template<class K>
-    bool HasExodusHDMint(const K& k)
+    bool HasExodusMint(const K& k)
     {
-        return Exists(std::make_pair(std::string("exodus_hdmint"), k));
+        return Exists(std::make_pair(std::string("exodus_mint"), k));
     }
 
     template<class K, class V>
-    bool WriteExodusHDMint(const K &k, const V &v)
+    bool WriteExodusMint(const K &k, const V &v)
     {
-        return Write(std::make_pair(std::string("exodus_hdmint"), k), v, true);
+        return Write(std::make_pair(std::string("exodus_mint"), k), v, true);
     }
 
     template<class K>
-    bool EraseExodusHDMint(const K& k)
-    {
-        return Erase(std::make_pair(std::string("exodus_hdmint"), k));
-    }
-
-    template<typename K>
     bool EraseExodusMint(const K& k)
     {
-        return Erase(std::make_pair(std::string("exodus_sigma_mint"), k));
+        return Erase(std::make_pair(std::string("exodus_mint"), k));
     }
 
-
     template<typename K, typename V, typename InsertF>
-    void ListExodusHDMints(InsertF insertF)
+    void ListExodusMints(InsertF insertF)
     {
         auto cursor = GetCursor();
         if (!cursor) {
@@ -377,7 +366,7 @@ public:
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             if (flags == DB_SET_RANGE) {
-                ssKey << std::make_pair(string("exodus_hdmint"), K());
+                ssKey << std::make_pair(string("exodus_mint"), K());
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
@@ -392,9 +381,9 @@ public:
             }
 
             // Unserialize
-            string type;
+            std::string type;
             ssKey >> type;
-            if (type != "exodus_hdmint") {
+            if (type != "exodus_mint") {
                 break;
             }
 
