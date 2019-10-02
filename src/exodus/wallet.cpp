@@ -17,8 +17,7 @@ namespace exodus {
 
 Wallet *wallet;
 
-Wallet::Wallet(const std::string& walletFile)
-    : walletFile(walletFile), mintWallet()
+Wallet::Wallet(const std::string& walletFile) : walletFile(walletFile)
 {
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -54,7 +53,6 @@ Wallet::~Wallet()
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
-    LOCK(pwalletMain->cs_wallet);
     SigmaPrivateKey priv;
     std::tie(std::ignore, priv) = mintWallet.GenerateMint(property, denomination);
 
@@ -101,7 +99,7 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
         mint->chainState.group, anonimitySet.size(), proof);
 }
 
-void Wallet::DeleteUnconfirmedMint(const SigmaMintId &id)
+void Wallet::DeleteUnconfirmedSigmaMint(const SigmaMintId &id)
 {
     mintWallet.DeleteUnconfirmedMint(id);
 }
@@ -111,9 +109,8 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
     return mintWallet.HasMint(id);
 }
 
-bool Wallet::HasSigmaSpend(const secp_primitives::Scalar& serial, SigmaMint &mint)
+bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 {
-    LOCK(pwalletMain->cs_wallet);
     return mintWallet.HasMint(serial);
 }
 
@@ -133,14 +130,29 @@ boost::optional<SigmaMint>
     Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     // Get all spendable mints.
-    LOCK(pwalletMain->cs_wallet);
     std::vector<SigmaMint> spendables;
-    mintWallet.ListMints(std::back_inserter(spendables), true, true);
 
-    auto eraseFrom = std::remove_if(spendables.begin(), spendables.end(), [denomination](SigmaMint const &mint) -> bool {
-        return denomination != mint.denomination;
-    });
-    spendables.erase(eraseFrom, spendables.end());
+    mintWallet.ListMints(boost::make_function_output_iterator(
+        [denomination, &spendables] (SigmaMint const &mint) {
+
+            // doesn't match
+            if (denomination != mint.denomination) {
+                return;
+            }
+
+            // is not on chain
+            if (mint.chainState.block < 0) {
+                return;
+            }
+
+            // is spend
+            if (!mint.spendTx.IsNull()) {
+                return;
+            }
+
+            spendables.push_back(mint);
+        }
+    ));
 
     if (spendables.empty()) {
         return boost::none;
@@ -177,17 +189,18 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 {
     mintWallet.UpdateMintChainstate(id, state);
 }
+
 void Wallet::OnSpendAdded(
     PropertyId property,
     SigmaDenomination denomination,
     const secp_primitives::Scalar &serial,
     const uint256 &tx)
 {
-    SigmaMint mint;
-    if (!HasSigmaSpend(serial, mint)) {
+    if (!HasSigmaMint(serial)) {
         // the serial is not in wallet.
         return;
     }
+
     SigmaMintId id;
     try {
         id = mintWallet.GetMintId(serial);
@@ -203,8 +216,7 @@ void Wallet::OnSpendRemoved(
     SigmaDenomination denomination,
     const secp_primitives::Scalar &serial)
 {
-    SigmaMint mint;
-    if (!HasSigmaSpend(serial, mint)) {
+    if (!HasSigmaMint(serial)) {
         // the serial is not in wallet.
         return;
     }
@@ -226,14 +238,11 @@ void Wallet::OnMintAdded(
     const SigmaPublicKey& pubKey,
     int block)
 {
-    LOCK(pwalletMain->cs_wallet);
-
     SigmaMintId id(property, denomination, pubKey);
-    auto isMintTracked = HasSigmaMint(id);
 
-    if (isMintTracked) {
+    if (HasSigmaMint(id)) {
 
-        // 1. is tracked then update state
+        // 1. is in wallet then update state
         SetSigmaMintChainState(id, SigmaMintChainState(block, group, idx));
     } else {
 

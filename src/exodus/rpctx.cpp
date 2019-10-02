@@ -1640,7 +1640,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     if (result != 0) {
         for (auto const &id : ids) {
             try {
-                wallet->DeleteUnconfirmedMint(id);
+                wallet->DeleteUnconfirmedSigmaMint(id);
             } catch (std::runtime_error const &e) {
                 LogPrintf("%s : Fail to erase sigma mints, %s\n", __func__, e.what());
             }

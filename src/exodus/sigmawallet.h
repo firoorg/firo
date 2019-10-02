@@ -117,21 +117,9 @@ public:
     template<
         class OutIt,
         typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
-    > OutIt ListMints(OutIt it, bool unusedOnly, bool matureOnly, CWalletDB *db = nullptr) const
+    > OutIt ListMints(OutIt it, CWalletDB *db = nullptr) const
     {
-        ListMints([&it, unusedOnly, matureOnly](SigmaMint const &m) {
-
-            auto used = !m.spendTx.IsNull();
-
-            if (unusedOnly && used) {
-                return;
-            }
-
-            auto confirmed = m.chainState.block >= 0;
-            if (matureOnly && !confirmed) {
-                return;
-            }
-
+        ListMints([&it](SigmaMint const &m) {
             *it++ = m;
         }, db);
 

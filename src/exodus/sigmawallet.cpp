@@ -234,6 +234,7 @@ std::pair<SigmaMint, SigmaPrivateKey> SigmaWallet::GenerateMint(
     uint8_t denomination,
     boost::optional<CKeyID> seedId)
 {
+    LOCK(pwalletMain->cs_wallet);
     if (seedId == boost::none) {
 
         if (mintPool.empty()) {
@@ -283,7 +284,7 @@ void SigmaWallet::ClearMintsChainState()
     walletdb.TxnBegin();
 
     std::vector<SigmaMint> coins;
-    ListMints(std::back_inserter(coins), false, false, &walletdb);
+    ListMints(std::back_inserter(coins), &walletdb);
 
     for (auto &coin : coins) {
         coin.chainState = SigmaMintChainState();
@@ -307,13 +308,15 @@ bool SigmaWallet::TryRecoverMint(
     SigmaMintChainState const &chainState,
     uint256 const &spendTx)
 {
+    LOCK(pwalletMain->cs_wallet);
+
     if (!IsMintInPool(id.pubKey)) {
         return false;
     }
 
     MintPoolEntry entry;
     if (!GetMintPoolEntry(id.pubKey, entry)) {
-        return error("%s : Fail to get mint pool entry from public key\n", __func__);
+        throw std::runtime_error("Fail to get mint from pool");
     }
 
     // Regenerate the mint

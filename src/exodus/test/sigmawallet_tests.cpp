@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE(tryrecover_already_in_wallet_coin)
 BOOST_AUTO_TEST_CASE(listmints_empty_wallet)
 {
     std::vector<SigmaMint> mints;
-    sigmaWallet.ListMints(std::back_inserter(mints), false, false);
+    sigmaWallet.ListMints(std::back_inserter(mints));
     BOOST_CHECK_EQUAL(0, mints.size());
 }
 
@@ -249,27 +249,20 @@ BOOST_AUTO_TEST_CASE(listmints_non_empty_wallet)
             a.seedId == b.seedId;
     };
 
-    auto testListMints =
-        [&](std::vector<SigmaMint> const &expected, bool unusedOnly, bool matureOnly) {
 
-        std::vector<SigmaMint> mints;
-        sigmaWallet.ListMints(std::back_inserter(mints), unusedOnly, matureOnly);
-        BOOST_CHECK_EQUAL(expected.size(), mints.size());
-        BOOST_CHECK_EQUAL(
-            true,
-            std::is_permutation(
-                mints.begin(), mints.end(),
-                expected.begin(),
-                sigmaMintComparer
-            )
-        );
-    };
 
-    // test
-    testListMints({unconfirmed.first, unspend.first, spend.first}, false, false);
-    testListMints({unconfirmed.first, unspend.first}, true, false);
-    testListMints({unspend.first, spend.first}, false, true);
-    testListMints({unspend.first}, true, true);
+    std::vector<SigmaMint> mints;
+    sigmaWallet.ListMints(std::back_inserter(mints));
+    BOOST_CHECK_EQUAL(
+        true,
+        std::is_permutation(
+            mints.begin(), mints.end(),
+            std::vector<SigmaMint>{
+                unconfirmed.first, unspend.first, spend.first
+            }.begin(),
+            sigmaMintComparer
+        )
+    );
 }
 
 BOOST_AUTO_TEST_CASE(push_out_wallet_mint_back)

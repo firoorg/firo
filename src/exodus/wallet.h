@@ -38,27 +38,25 @@ public:
     void ClearAllChainState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
-    void DeleteUnconfirmedMint(SigmaMintId const &id);
+    void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        mintWallet.ListMints(it, false, false);
+        mintWallet.ListMints(it);
     }
 
-    bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
-    boost::optional<SigmaMint> GetSpendableSigmaMint(
-        PropertyId property, SigmaDenomination denomination);
-
     SigmaPrivateKey GetKey(const SigmaMint &mint);
-
+    bool HasSigmaMint(const SigmaMintId& id);
+    bool HasSigmaMint(const secp_primitives::Scalar &serial);
     void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 
 protected:
+    boost::optional<SigmaMint> GetSpendableSigmaMint(
+        PropertyId property, SigmaDenomination denomination);
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
-    bool HasSigmaSpend(const secp_primitives::Scalar &serial, SigmaMint &mint);
 
 private:
     void OnSpendAdded(

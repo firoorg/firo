@@ -29,7 +29,6 @@
 #include "utilsbitcoin.h"
 #include "version.h"
 #ifdef ENABLE_WALLET
-#include "sigmawallet.h"
 #include "wallet.h"
 #endif
 #include "walletcache.h"
@@ -40,7 +39,6 @@
 #include "../coincontrol.h"
 #include "../coins.h"
 #include "../core_io.h"
-#include "../hdmint/hdmint.h"
 #include "../init.h"
 #include "../main.h"
 #include "../primitives/block.h"
