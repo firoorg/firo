@@ -14,6 +14,8 @@ public:
     Bip47Wallet();
     ~Bip47Wallet();
 
+    static bool initLoadBip47Wallet();
+
     Bip47Wallet(string strWalletFileIn, string coinName, string seedStr);
     
 
@@ -30,6 +32,12 @@ public:
     bool generateNewBip47IncomingAddress(std::string strAddress);
     Bip47PaymentChannel getBip47PaymentChannelForAddress(std::string strAddres);
     string getPaymentCodeForAddress(string address);
+    Bip47PaymentChannel getBip47PaymentChannelForOutgoingAddress(std::string strAddress);
+    Bip47PaymentChannel getBip47PaymentChannelForPaymentCode(std::string paymentCode);
+    CAmount getValueOfTransaction(CTransaction tx);
+    CAmount getValueSentToMe(CTransaction tx);
+
+
 
 
     void deriveAccount(vector<unsigned char> hd_seed);

@@ -4,11 +4,29 @@
 #include "Bip47Util.h"
 #include "script/ismine.h"
 
+/**
+ * The default bip47 wallet file name and instance.
+ * */
+Bip47Wallet *pbip47WalletMain = NULL;
+const char *DEFAULT_BIP47_WALLET_DAT = "bip47_wallet.dat";
+
 Bip47Wallet::Bip47Wallet(string strWalletFileIn, string coinName, string seedStr) 
 :CWallet(strWalletFileIn)
 {
     this->coinName = coinName;
+    
 
+}
+
+bool Bip47Wallet::initLoadBip47Wallet()
+{
+    LogPrintf("InitLoadBip47Wallet()\n");
+    std::string bip47WalletFile = GetArg("-bip47wallet", DEFAULT_BIP47_WALLET_DAT);
+    /**
+     * @Todo set correct seed str to create bip47 wallet
+     * */
+    Bip47Wallet *walletInstance = new Bip47Wallet(bip47WalletFile, "zcoin", "");
+    pbip47WalletMain = walletInstance;
 }
 
 
@@ -150,7 +168,7 @@ bool Bip47Wallet::generateNewBip47IncomingAddress(std::string strAddress)
     return false;
 }
 
-Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForAddress(std::string strAddres) 
+Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForAddress(std::string strAddress) 
 {
     std::map<std::string, Bip47PaymentChannel>::iterator it = channels.begin();
 
@@ -160,7 +178,7 @@ Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForAddress(std::string st
         std::list<Bip47Address>::iterator bip47Address = bip47Addresses.begin();
         while (bip47Address != bip47Addresses.end())
         {
-            if( bip47Address->getAddress().compare(strAddres) == 0) {
+            if( bip47Address->getAddress().compare(strAddress) == 0) {
                 return paymentChannel;
             }
             bip47Address++;
@@ -171,7 +189,8 @@ Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForAddress(std::string st
     return Bip47PaymentChannel();
 }
 
-string Bip47Wallet::getPaymentCodeForAddress(string address) {
+string Bip47Wallet::getPaymentCodeForAddress(string address)
+{
 
     if (channels.find(address) == channels.end()) {
         return "";
@@ -179,6 +198,63 @@ string Bip47Wallet::getPaymentCodeForAddress(string address) {
     return channels.find(address)->second.getPaymentCode();
     
 }
+
+Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForOutgoingAddress(std::string strAddress)
+{
+    std::map<std::string, Bip47PaymentChannel>::iterator it = channels.begin();
+
+    while(it != channels.end()) {
+        Bip47PaymentChannel paymentChannel = it->second;
+        std::list<std::string> outgoingAddresses = paymentChannel.getOutgoingAddresses();
+        std::list<std::string>::iterator outgoingAddress = outgoingAddresses.begin();
+        while (outgoingAddress != outgoingAddresses.end())
+        {
+            if( outgoingAddress->compare(strAddress) == 0) {
+                return paymentChannel;
+            }
+            outgoingAddress++;
+        }
+        
+        it++;
+    }
+    return Bip47PaymentChannel();
+}
+
+Bip47PaymentChannel Bip47Wallet::getBip47PaymentChannelForPaymentCode(std::string paymentCode)
+{
+    std::map<std::string, Bip47PaymentChannel>::iterator it = channels.begin();
+
+    while(it != channels.end()) 
+    {
+        Bip47PaymentChannel paymentChannel = it->second;
+        if (paymentChannel.getPaymentCode().compare(paymentCode) == 0)
+        {
+            return paymentChannel;
+        }
+        it++;
+    }
+
+    return Bip47PaymentChannel();
+}
+
+CAmount Bip47Wallet::getValueOfTransaction(CTransaction tx)
+{
+    return tx.GetValueOut();
+}
+
+/**
+ * @todo check vout address is contains my address
+ * */
+CAmount Bip47Wallet::getValueSentToMe(CTransaction tx)
+{
+    
+    return 0;
+}
+
+
+
+
+
 
 
 void Bip47Wallet::makeNotificationTransaction(String paymentCode) 

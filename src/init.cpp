@@ -44,6 +44,7 @@
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#include "bip47/Bip47Wallet.h"
 #endif
 
 #include <stdint.h>
