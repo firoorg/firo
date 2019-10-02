@@ -42,6 +42,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
     {
         sigmaDb = new SigmaDatabase(pathTemp / "exodus_sigma_tests", true, 10);
         wallet = new Wallet(pwalletMain->strWalletFile);
+        wallet->ReloadMasterKey();
     }
 
     ~WalletTestingSetup()

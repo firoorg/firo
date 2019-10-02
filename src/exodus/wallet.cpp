@@ -51,6 +51,11 @@ Wallet::~Wallet()
 {
 }
 
+void Wallet::ReloadMasterKey()
+{
+    mintWallet.ReloadMasterKey();
+}
+
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     SigmaPrivateKey priv;

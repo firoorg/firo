@@ -38,7 +38,6 @@ bool MintPoolEntry::operator!=(MintPoolEntry const &another) const
 
 SigmaWallet::SigmaWallet() : walletFile(pwalletMain->strWalletFile)
 {
-    ReloadMasterKey();
 }
 
 void SigmaWallet::ReloadMasterKey()

@@ -24,6 +24,9 @@ public:
     virtual ~Wallet();
 
 public:
+    void ReloadMasterKey();
+
+public:
     SigmaMintId CreateSigmaMint(PropertyId property, SigmaDenomination denomination);
 
     template<class Denomination, class Output>

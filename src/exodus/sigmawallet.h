@@ -68,7 +68,7 @@ protected:
 public:
     SigmaWallet();
 
-private:
+public:
     void ReloadMasterKey();
 
     // Generator

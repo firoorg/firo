@@ -2141,6 +2141,10 @@ int exodus_init()
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
         wallet = new Wallet(pwalletMain->strWalletFile);
+
+        if (!pwalletMain->IsLocked()) {
+            wallet->ReloadMasterKey();
+        }
     } else {
         wallet = nullptr;
     }

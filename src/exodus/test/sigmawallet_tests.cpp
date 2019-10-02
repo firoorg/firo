@@ -52,6 +52,7 @@ struct SigmaWalletTestingSetup : ::WalletTestingSetup
 {
     SigmaWalletTestingSetup() : sigmaWallet()
     {
+        sigmaWallet.ReloadMasterKey();
     }
 
     TestSigmaWallet sigmaWallet;
