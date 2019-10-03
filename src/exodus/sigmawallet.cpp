@@ -8,30 +8,31 @@
 
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
+#include "../wallet/wallet.h"
 
 #include <boost/optional.hpp>
 #include <boost/regex.hpp>
 
 namespace exodus {
 
-MintPoolEntry::MintPoolEntry()
+SigmaWallet::MintPoolEntry::MintPoolEntry()
 {
 }
 
-MintPoolEntry::MintPoolEntry(
+SigmaWallet::MintPoolEntry::MintPoolEntry(
     SigmaPublicKey const &key, CKeyID const &seedId, uint32_t index)
     : key(key), seedId(seedId), index(index)
 {
 }
 
-bool MintPoolEntry::operator==(MintPoolEntry const &another) const
+bool SigmaWallet::MintPoolEntry::operator==(MintPoolEntry const &another) const
 {
     return key == another.key &&
         seedId == another.seedId &&
         index == another.index;
 }
 
-bool MintPoolEntry::operator!=(MintPoolEntry const &another) const
+bool SigmaWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) const
 {
     return !(*this == another);
 }

@@ -11,38 +11,38 @@
 #include <boost/multi_index/ordered_index.hpp>
 
 #include "../uint256.h"
-#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
 
 #include "sigmadb.h"
 #include "walletmodels.h"
 
 namespace exodus {
 
-struct MintPoolEntry {
-    SigmaPublicKey key;
-    CKeyID seedId;
-    uint32_t index;
-
-    MintPoolEntry();
-    MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId, uint32_t index);
-
-    bool operator==(MintPoolEntry const &) const;
-    bool operator!=(MintPoolEntry const &) const;
-
-    ADD_SERIALIZE_METHODS;
-
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(key);
-        READWRITE(seedId);
-        READWRITE(index);
-    }
-};
-
 class SigmaWallet
 {
 protected:
+
+    struct MintPoolEntry {
+        SigmaPublicKey key;
+        CKeyID seedId;
+        uint32_t index;
+
+        MintPoolEntry();
+        MintPoolEntry(SigmaPublicKey const &key, CKeyID const &seedId, uint32_t index);
+
+        bool operator==(MintPoolEntry const &) const;
+        bool operator!=(MintPoolEntry const &) const;
+
+        ADD_SERIALIZE_METHODS;
+
+        template<typename Stream, typename Operation>
+        void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+        {
+            READWRITE(key);
+            READWRITE(seedId);
+            READWRITE(index);
+        }
+    };
 
     typedef boost::multi_index_container<
         MintPoolEntry,
