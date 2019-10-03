@@ -1626,7 +1626,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
         ids.push_back(m);
-        mints.push_back(std::make_pair(m.denomination, m.key));
+        mints.push_back(std::make_pair(m.denomination, m.pubKey));
     }));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
@@ -1640,7 +1640,7 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     if (result != 0) {
         for (auto const &id : ids) {
             try {
-                wallet->EraseSigmaMint(id);
+                wallet->DeleteUnconfirmedSigmaMint(id);
             } catch (std::runtime_error const &e) {
                 LogPrintf("%s : Fail to erase sigma mints, %s\n", __func__, e.what());
             }

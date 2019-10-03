@@ -4,6 +4,7 @@
 #include "property.h"
 #include "sigmaprimitives.h"
 
+#include "../pubkey.h"
 #include "../serialize.h"
 #include "../uint256.h"
 
@@ -46,46 +47,15 @@ private:
     }
 };
 
-class SigmaMint
-{
-public:
-    PropertyId property;
-    SigmaDenomination denomination;
-    SigmaMintChainState chainState;
-    SigmaPrivateKey key;
-    uint256 spentTx;
-
-public:
-    SigmaMint();
-    SigmaMint(PropertyId property, SigmaDenomination denomination);
-
-    bool operator==(const SigmaMint& other) const;
-    bool operator!=(const SigmaMint& other) const;
-
-    ADD_SERIALIZE_METHODS;
-
-private:
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(property);
-        READWRITE(denomination);
-        READWRITE(chainState);
-        READWRITE(key);
-        READWRITE(spentTx);
-    }
-};
-
 class SigmaMintId
 {
 public:
     PropertyId property;
     SigmaDenomination denomination;
-    SigmaPublicKey key;
+    SigmaPublicKey pubKey;
 
 public:
     SigmaMintId();
-    SigmaMintId(const SigmaMint& mint, const SigmaParams& params);
     SigmaMintId(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& key);
 
     bool operator==(const SigmaMintId& other) const;
@@ -99,7 +69,51 @@ private:
     {
         READWRITE(property);
         READWRITE(denomination);
-        READWRITE(key);
+        READWRITE(pubKey);
+    }
+};
+
+class SigmaMint
+{
+public:
+    PropertyId property;
+    SigmaDenomination denomination;
+
+    CKeyID seedId;
+    uint160 serialId;
+
+    SigmaMintChainState chainState;
+    uint256 spendTx;
+
+public:
+    SigmaMint();
+    SigmaMint(PropertyId property, SigmaDenomination denomination, CKeyID const &seedId, uint160 const &serialId);
+
+    bool IsOnChain() const
+    {
+        return chainState.block >= 0;
+    }
+
+    bool IsSpent() const
+    {
+        return !spendTx.IsNull();
+    }
+
+    bool operator==(const SigmaMint& other) const;
+    bool operator!=(const SigmaMint& other) const;
+
+    ADD_SERIALIZE_METHODS;
+
+private:
+    template<typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(property);
+        READWRITE(denomination);
+        READWRITE(seedId);
+        READWRITE(serialId);
+        READWRITE(chainState);
+        READWRITE(spendTx);
     }
 };
 
@@ -128,13 +142,9 @@ struct hash<SigmaMintChainState>
 {
     size_t operator()(const SigmaMintChainState& state) const
     {
-        size_t h = 0;
-
-        h ^= hash<int>()(state.block);
-        h ^= hash<SigmaMintGroup>()(state.group);
-        h ^= hash<SigmaMintIndex>()(state.index);
-
-        return h;
+        return hash<int>()(state.block)
+            ^ hash<SigmaMintGroup>()(state.group)
+            ^ hash<SigmaMintIndex>()(state.index);
     }
 };
 
@@ -143,13 +153,9 @@ struct hash<SigmaMintId>
 {
     size_t operator()(const SigmaMintId& id) const
     {
-        size_t h = 0;
-
-        h ^= hash<PropertyId>()(id.property);
-        h ^= hash<SigmaDenomination>()(id.denomination);
-        h ^= hash<SigmaPublicKey>()(id.key);
-
-        return h;
+        return hash<PropertyId>()(id.property)
+            ^ hash<SigmaDenomination>()(id.denomination)
+            ^ hash<SigmaPublicKey>()(id.pubKey);
     }
 };
 
@@ -158,15 +164,12 @@ struct hash<SigmaMint>
 {
     size_t operator()(const SigmaMint& mint) const
     {
-        size_t h = 0;
-
-        h ^= hash<PropertyId>()(mint.property);
-        h ^= hash<SigmaDenomination>()(mint.denomination);
-        h ^= hash<SigmaMintChainState>()(mint.chainState);
-        h ^= hash<SigmaPrivateKey>()(mint.key);
-        h ^= hash<uint256>()(mint.spentTx);
-
-        return h;
+        return hash<PropertyId>()(mint.property)
+            ^ hash<SigmaDenomination>()(mint.denomination)
+            ^ hash<uint160>()(mint.seedId)
+            ^ hash<uint160>()(mint.serialId)
+            ^ hash<SigmaMintChainState>()(mint.chainState)
+            ^ hash<uint256>()(mint.spendTx);
     }
 };
 
@@ -175,7 +178,7 @@ struct hash<SigmaMint>
 template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMintId& id)
 {
-    return os << "{property: " << id.property << ", denomination: " << id.denomination << ", key: " << id.key << '}';
+    return os << "{property: " << id.property << ", denomination: " << id.denomination << ", pubKey: " << id.pubKey << '}';
 }
 
 template<class Char, class Traits>
@@ -190,9 +193,10 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
     os << '{';
     os << "property: " << mint.property << ", ";
     os << "denomination: " << mint.denomination << ", ";
+    os << "seedId: " << mint.seedId.GetHex() << ", ";
+    os << "serialId: " << mint.serialId.GetHex() << ", ";
     os << "chainState: " << mint.chainState << ", ";
-    os << "key: " << mint.key << ", ";
-    os << "spentTx: " << mint.spentTx.GetHex();
+    os << "spentTx: " << mint.spendTx.GetHex();
     os << '}';
 
     return os;

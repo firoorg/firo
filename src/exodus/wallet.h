@@ -4,6 +4,7 @@
 #include "exodus.h"
 #include "property.h"
 #include "sigmaprimitives.h"
+#include "sigmawallet.h"
 #include "sp.h"
 #include "walletmodels.h"
 
@@ -23,6 +24,9 @@ public:
     virtual ~Wallet();
 
 public:
+    void ReloadMasterKey();
+
+public:
     SigmaMintId CreateSigmaMint(PropertyId property, SigmaDenomination denomination);
 
     template<class Denomination, class Output>
@@ -34,46 +38,41 @@ public:
 
         return output;
     }
+    void ClearAllChainState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
-    void EraseSigmaMint(SigmaMintId const &id);
+    void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        auto insertF = [&it] (SigmaMint& mint) {
-            *it++ = std::move(mint);
-        };
-
-        CWalletDB(walletFile).ListExodusMint<SigmaMintId, SigmaMint>(insertF);
+        mintWallet.ListMints(it);
     }
 
-    template<class OutputIt>
-    void ListSigmaMints(uint32_t propertyId, OutputIt it)
-    {
-        auto insertF = [propertyId, &it](SigmaMint& mint) {
-            if (mint.property == propertyId) {
-                *it++ = std::move(mint);
-            }
-        };
-
-        CWalletDB(walletFile).ListExodusMint<SigmaMintId, SigmaMint>(insertF);
-    }
-
-    bool HasSigmaMint(const SigmaMintId& id);
     SigmaMint GetSigmaMint(const SigmaMintId& id);
-
-public:
-    void SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx);
+    SigmaPrivateKey GetKey(const SigmaMint &mint);
+    bool HasSigmaMint(const SigmaMintId& id);
+    bool HasSigmaMint(const secp_primitives::Scalar &serial);
+    void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 
 protected:
-    void SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state);
+    boost::optional<SigmaMint> GetSpendableSigmaMint(
+        PropertyId property, SigmaDenomination denomination);
+    void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
 
 private:
-    boost::optional<SigmaMint> GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination);
+    void OnSpendAdded(
+        PropertyId property,
+        SigmaDenomination denomination,
+        const secp_primitives::Scalar &serial,
+        const uint256 &tx);
 
-private:
+    void OnSpendRemoved(
+        PropertyId property,
+        SigmaDenomination denomination,
+        const secp_primitives::Scalar &serial);
+
     void OnMintAdded(
         PropertyId property,
         SigmaDenomination denomination,
@@ -87,6 +86,7 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
+    SigmaWallet mintWallet;
 };
 
 extern Wallet *wallet;

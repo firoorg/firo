@@ -3,6 +3,7 @@
 
 #include "../clientversion.h"
 #include "../streams.h"
+#include "../uint256.h"
 #include "../utilstrencodings.h"
 
 #include "../sigma/sigmaplus_proof.h"
@@ -26,6 +27,8 @@
 
 namespace exodus {
 
+uint160 GetSerialId(const secp_primitives::Scalar &serial);
+
 class SigmaParams
 {
 public:
@@ -45,6 +48,9 @@ public:
 
 public:
     SigmaPrivateKey();
+    SigmaPrivateKey(
+        secp_primitives::Scalar const &serial,
+        secp_primitives::Scalar const &randomness);
 
 public:
     bool operator==(const SigmaPrivateKey& other) const;

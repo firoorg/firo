@@ -161,8 +161,9 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     assert(spend);
 
     // check serial in database
-    if (sigmaDb->HasSpendSerial(property, denomination, spend->serial) ||
-        !VerifySigmaSpend(property, denomination, group, groupSize, *spend)) {
+    uint256 spendTx;
+    if (sigmaDb->HasSpendSerial(property, denomination, spend->serial, spendTx)
+        || !VerifySigmaSpend(property, denomination, group, groupSize, *spend)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
     }
@@ -184,7 +185,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
-    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block);
+    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block, tx.getHash());
 
     return 0;
 }

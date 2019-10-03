@@ -6,6 +6,19 @@
 
 #include <boost/test/unit_test.hpp>
 
+namespace {
+
+SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
+{
+    SigmaPrivateKey priv;
+    priv.Generate();
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
+
+    return SigmaMintId(property, denom, pub);
+}
+
+}
+
 namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_walletmodels_tests, BasicTestingSetup)
@@ -79,17 +92,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_default)
 
     BOOST_CHECK_EQUAL(id.property, 0);
     BOOST_CHECK_EQUAL(id.denomination, 0);
-    BOOST_CHECK_EQUAL(id.key, SigmaPublicKey());
-}
-
-BOOST_AUTO_TEST_CASE(sigma_mint_id_from_mint)
-{
-    SigmaMint mint(1, 5);
-    SigmaMintId id(mint, DefaultSigmaParams);
-
-    BOOST_CHECK_EQUAL(id.property, 1);
-    BOOST_CHECK_EQUAL(id.denomination, 5);
-    BOOST_CHECK_EQUAL(id.key, SigmaPublicKey(mint.key, DefaultSigmaParams));
+    BOOST_CHECK_EQUAL(id.pubKey, SigmaPublicKey());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_init)
@@ -104,7 +107,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_init)
 
     BOOST_CHECK_EQUAL(id.property, 1);
     BOOST_CHECK_EQUAL(id.denomination, 5);
-    BOOST_CHECK_EQUAL(id.key, pub);
+    BOOST_CHECK_EQUAL(id.pubKey, pub);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
@@ -123,13 +126,15 @@ BOOST_AUTO_TEST_CASE(sigma_mint_id_serialization)
 
     BOOST_CHECK_EQUAL(deserialized.property, original.property);
     BOOST_CHECK_EQUAL(deserialized.denomination, original.denomination);
-    BOOST_CHECK_EQUAL(deserialized.key, original.key);
+    BOOST_CHECK_EQUAL(deserialized.pubKey, original.pubKey);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_id_hash)
 {
-    SigmaMint mint1(3, 0), mint2(3, 0);
-    SigmaMintId id1(mint1, DefaultSigmaParams), id2(mint2, DefaultSigmaParams);
+    SigmaMintId id1, id2;
+    id1 = GenerateSigmaMintId(3, 0);
+    id2 = GenerateSigmaMintId(3, 0);
+
     std::hash<SigmaMintId> hasher;
 
     BOOST_CHECK_EQUAL(hasher(id1), hasher(id1));
@@ -140,68 +145,59 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
 {
     SigmaMint mint;
 
-    BOOST_CHECK(mint.spentTx.IsNull());
+    BOOST_CHECK(!mint.IsSpent());
     BOOST_CHECK_EQUAL(mint.property, 0);
     BOOST_CHECK_EQUAL(mint.denomination, 0);
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
-    BOOST_CHECK_EQUAL(mint.key, SigmaPrivateKey());
-}
-
-BOOST_AUTO_TEST_CASE(sigma_mint_generate)
-{
-    SigmaMint mint(1, 5);
-
-    BOOST_CHECK(mint.spentTx.IsNull());
-    BOOST_CHECK_EQUAL(mint.property, 1);
-    BOOST_CHECK_EQUAL(mint.denomination, 5);
-    BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
-    BOOST_CHECK_NE(mint.key, SigmaPrivateKey());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_equality)
 {
     auto tx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
     SigmaPrivateKey key;
+    key.Generate();
+    SigmaPublicKey pub(key, DefaultSigmaParams);
+
     SigmaMint left, right;
 
-    key.Generate();
+    std::vector<unsigned char> rawUint160;
+    rawUint160.resize(20);
+    std::fill(rawUint160.begin(), rawUint160.end(), 1);
 
-    left.spentTx = tx;
     left.property = 1;
     left.denomination = 1;
-    left.chainState.block = 500;
-    left.chainState.group = 1;
-    left.chainState.index = 50;
-    left.key = key;
+    left.seedId = uint160(rawUint160);
+    left.serialId = GetSerialId(key.serial);
+    left.spendTx = tx;
+    left.chainState = SigmaMintChainState(500, 1, 50);
 
-    right.spentTx = tx;
     right.property = 1;
     right.denomination = 1;
-    right.chainState.block = 500;
-    right.chainState.group = 1;
-    right.chainState.index = 50;
-    right.key = key;
+    right.seedId = uint160(rawUint160);
+    right.serialId = GetSerialId(key.serial);
+    right.spendTx = tx;
+    right.chainState = SigmaMintChainState(500, 1, 50);
 
     BOOST_CHECK_EQUAL(left, right);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 {
+    SigmaPrivateKey priv;
+    priv.Generate();
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
+
+    std::vector<unsigned char> zero = {0x00};
+    std::vector<unsigned char> one = {0x01};
+
     SigmaMint left, right;
 
-    left.spentTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
     left.property = 1;
     left.denomination = 1;
-    left.chainState.block = 500;
-    left.chainState.group = 1;
-    left.chainState.index = 50;
-    left.key.Generate();
-
-    // Spent Tx.
-    right = left;
-    right.spentTx.SetNull();
-
-    BOOST_CHECK_NE(left, right);
+    left.seedId = Hash160(zero);
+    left.serialId = Hash160(zero);
+    left.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
+    left.chainState = SigmaMintChainState(500, 1, 50);
 
     // Property.
     right = left;
@@ -215,22 +211,46 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 
     BOOST_CHECK_NE(left, right);
 
-    // Chain state.
+    // Seed Id
     right = left;
-    right.chainState.Clear();
+    right.seedId = Hash160(one);
 
     BOOST_CHECK_NE(left, right);
 
-    // Key.
+    // Serial Id
     right = left;
-    right.key.Generate();
+    right.serialId = Hash160(one);
+
+    BOOST_CHECK_NE(left, right);
+
+    // Spend Tx
+    right = left;
+    right.spendTx = uint256();
+
+    BOOST_CHECK_NE(left, right);
+
+    // Chain State
+    right = left;
+    right.chainState.Clear();
 
     BOOST_CHECK_NE(left, right);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
 {
-    SigmaMint original(1, 1), deserialized;
+    SigmaMint original, deserialized;
+
+    SigmaPrivateKey priv;
+    priv.Generate();
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
+
+    original.property = 1;
+    original.denomination = 1;
+    original.seedId = Hash160({0x00});
+    original.serialId = Hash160({0x00});
+    original.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
+    original.chainState = SigmaMintChainState(500, 1, 50);
+
     CDataStream stream(SER_DISK, CLIENT_VERSION);
 
     stream << original;
@@ -241,7 +261,10 @@ BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_hash)
 {
-    SigmaMint mint1(3, 0), mint2(3, 0);
+    SigmaMint mint1, mint2;
+    mint1.denomination = 0;
+    mint2.denomination = 1;
+
     std::hash<SigmaMint> hasher;
 
     BOOST_CHECK_EQUAL(hasher(mint1), hasher(mint1));
@@ -251,10 +274,17 @@ BOOST_AUTO_TEST_CASE(sigma_mint_hash)
 BOOST_AUTO_TEST_CASE(sigma_spend_init)
 {
     auto& params = DefaultSigmaParams;
-    SigmaMint mint(3, 0);
-    SigmaMintId id(mint, params);
-    std::vector<SigmaPublicKey> anonimitySet = { SigmaPublicKey(mint.key, params), SigmaPublicKey(SigmaMint(3, 0).key, params) };
-    SigmaProof proof(params, mint.key, anonimitySet.begin(), anonimitySet.end());
+    SigmaPrivateKey key1, key2;
+    key1.Generate();
+    key2.Generate();
+
+    SigmaPublicKey pub1(key1, params), pub2(key2, params);
+
+    SigmaMintId id(3, 0, pub1);
+    SigmaMint mint(3, 0, Hash160({0x00}), Hash160({0x01}));
+
+    std::vector<SigmaPublicKey> anonimitySet = { pub1, pub2 };
+    SigmaProof proof(params, key1, anonimitySet.begin(), anonimitySet.end());
     SigmaSpend spend(id, 1, 100, proof);
 
     BOOST_CHECK_EQUAL(spend.mint, id);

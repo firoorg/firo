@@ -546,11 +546,12 @@ BOOST_AUTO_TEST_CASE(use_differnet_group_size_from_database)
 BOOST_AUTO_TEST_CASE(check_not_exist_serial)
 {
     auto db = CreateDb();
-    SigmaPrivateKey priv;
+    SigmaPrivateKey key;
 
-    priv.Generate();
-
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, priv.serial), false);
+    key.Generate();
+    uint256 spendTx;
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, key.serial, spendTx));
+    BOOST_CHECK(uint256() == spendTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial)
@@ -559,10 +560,12 @@ BOOST_AUTO_TEST_CASE(check_exist_serial)
     SigmaPrivateKey key;
 
     key.Generate();
+    auto const spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, key.serial, 10, spendTx);
 
-    db->RecordSpendSerial(1, 1, key.serial, 10);
-
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key.serial), true);
+    uint256 outTx;
+    BOOST_CHECK(db->HasSpendSerial(1, 1, key.serial, outTx));
+    BOOST_CHECK(spendTx == outTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fail)
@@ -571,11 +574,14 @@ BOOST_AUTO_TEST_CASE(check_exist_serial_with_different_group_and_denom_should_fa
     SigmaPrivateKey key;
 
     key.Generate();
+    auto spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, key.serial, 10, spendTx);
 
-    db->RecordSpendSerial(1, 1, key.serial, 10);
+    uint256 outputSpendTx;
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 2, key.serial, outputSpendTx), false);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(2, 1, key.serial, outputSpendTx), false);
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 2, key.serial), false);
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(2, 1, key.serial), false);
+    BOOST_CHECK(uint256() == outputSpendTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_serial)
@@ -585,51 +591,84 @@ BOOST_AUTO_TEST_CASE(check_deleted_serial)
 
     key.Generate();
 
-    db->RecordSpendSerial(1, 1, key.serial, 10);
+    auto spendTx = uint256S("1");
+    db->RecordSpendSerial(1, 1, key.serial, 10, spendTx);
     db->DeleteAll(10);
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key.serial), false);
+    uint256 outputSpendTx;
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key.serial, outputSpendTx), false);
+
+    BOOST_CHECK(uint256() == outputSpendTx);
 }
 
 BOOST_AUTO_TEST_CASE(check_deleted_two_serials)
 {
+    auto spendTx1 = uint256S("1");
+    auto spendTx2 = uint256S("2");
+
     auto db = CreateDb();
     SigmaPrivateKey key1, key2;
 
     key1.Generate();
     key2.Generate();
 
-    db->RecordSpendSerial(1, 1, key1.serial, 10);
-    db->RecordSpendSerial(1, 1, key2.serial, 10);
+    db->RecordSpendSerial(1, 1, key1.serial, 10, spendTx1);
+    db->RecordSpendSerial(1, 1, key2.serial, 10, spendTx2);
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), true);
+    uint256 outputSpendTx1, outputSpendTx2;
+    BOOST_CHECK(db->HasSpendSerial(1, 1, key1.serial, outputSpendTx1));
+    BOOST_CHECK(db->HasSpendSerial(1, 1, key2.serial, outputSpendTx2));
+
+    BOOST_CHECK(spendTx1 == outputSpendTx1);
+    BOOST_CHECK(spendTx2 == outputSpendTx2);
+
+    auto spendTx3 = uint256S("3");
+    db->RecordSpendSerial(1, 1, key2.serial, 10, spendTx3);
+
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial, outputSpendTx1), true);
+    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial, outputSpendTx2), true);
+
+    BOOST_CHECK(spendTx1 == outputSpendTx1);
+    BOOST_CHECK(spendTx3 == outputSpendTx2);
 
     db->DeleteAll(10);
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), false);
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
+    uint256 spendTx4;
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, key1.serial, spendTx4));
+    BOOST_CHECK(uint256() == spendTx4);
+
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, key2.serial, spendTx4));
+    BOOST_CHECK(uint256() == spendTx4);
 }
 
 BOOST_AUTO_TEST_CASE(try_to_delete_the_block_after)
 {
+    auto spendTx1 = uint256S("1");
+    auto spendTx2 = uint256S("2");
+
     auto db = CreateDb();
     SigmaPrivateKey key1, key2;
 
     key1.Generate();
     key2.Generate();
-
-    db->RecordSpendSerial(1, 1, key1.serial, 10);
-    db->RecordSpendSerial(1, 1, key2.serial, 11);
+    db->RecordSpendSerial(1, 1, key1.serial, 10, spendTx1);
+    db->RecordSpendSerial(1, 1, key2.serial, 11, spendTx2);
 
     db->DeleteAll(11);
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
+    uint256 outputSpendTx1, outputSpendTx2;
+    BOOST_CHECK(db->HasSpendSerial(1, 1, key1.serial, outputSpendTx1));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, key2.serial, outputSpendTx2));
+
+    BOOST_CHECK(spendTx1 == outputSpendTx1);
+    BOOST_CHECK(uint256() == outputSpendTx2);
 }
 
 BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
 {
+    auto spendTx1 = uint256S("1");
+    auto spendTx2 = uint256S("2");
+
     auto db = CreateDb();
     SigmaPrivateKey key1, key2;
 
@@ -642,8 +681,7 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
         db->RecordMint(1, 1, mint, 10);
     }
 
-    db->RecordSpendSerial(1, 1, key1.serial, 10);
-
+    db->RecordSpendSerial(1, 1, key1.serial, 10, spendTx1);
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
@@ -653,8 +691,7 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
         db->RecordMint(1, 1, mint, 11);
     }
 
-    db->RecordSpendSerial(1, 1, key2.serial, 11);
-
+    db->RecordSpendSerial(1, 1, key2.serial, 11, spendTx2);
     BOOST_CHECK_EQUAL(22, db->GetNextSequence());
     BOOST_CHECK_EQUAL(20, db->GetMintCount(1, 1, 0));
 
@@ -664,8 +701,12 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
     BOOST_CHECK_EQUAL(11, db->GetNextSequence());
     BOOST_CHECK_EQUAL(10, db->GetMintCount(1, 1, 0));
 
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key1.serial), true);
-    BOOST_CHECK_EQUAL(db->HasSpendSerial(1, 1, key2.serial), false);
+    uint256 outSpendTx1, outSpendTx2;
+    BOOST_CHECK(db->HasSpendSerial(1, 1, key1.serial, outSpendTx1));
+    BOOST_CHECK(!db->HasSpendSerial(1, 1, key2.serial, outSpendTx2));
+
+    BOOST_CHECK(spendTx1 == outSpendTx1);
+    BOOST_CHECK(uint256() == outSpendTx2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

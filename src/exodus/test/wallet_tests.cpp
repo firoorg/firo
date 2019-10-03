@@ -42,6 +42,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
     {
         sigmaDb = new SigmaDatabase(pathTemp / "exodus_sigma_tests", true, 10);
         wallet = new Wallet(pwalletMain->strWalletFile);
+        wallet->ReloadMasterKey();
     }
 
     ~WalletTestingSetup()
@@ -61,22 +62,23 @@ BOOST_FIXTURE_TEST_SUITE(exodus_wallet_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
 {
-    auto id = wallet->CreateSigmaMint(1, 1);
+    auto id = wallet->CreateSigmaMint(1, 2);
     auto mint = wallet->GetSigmaMint(id);
 
-    BOOST_CHECK_EQUAL(id.property, 1);
-    BOOST_CHECK_EQUAL(id.denomination, 1);
-    BOOST_CHECK(id.key.IsValid());
-    BOOST_CHECK_EQUAL(id.key, SigmaPublicKey(mint.key, DefaultSigmaParams));
+    BOOST_CHECK(id.pubKey.IsValid());
+    BOOST_CHECK_EQUAL(1, id.property);
+    BOOST_CHECK_EQUAL(2, id.denomination);
+    BOOST_CHECK_EQUAL(id.property, mint.property);
+    BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
 
-    BOOST_CHECK(mint.spentTx.IsNull());
-    BOOST_CHECK_EQUAL(mint.property, id.property);
-    BOOST_CHECK_EQUAL(mint.denomination, id.denomination);
+    BOOST_CHECK(!mint.IsSpent());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
-    BOOST_CHECK(mint.key.IsValid());
-    BOOST_CHECK_NE(mint.key, SigmaPrivateKey());
 
-    auto another = CreateSigmaMint(1, 1);
+    auto priv = wallet->GetKey(mint);
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
+    BOOST_CHECK_EQUAL(id.pubKey, pub);
+
+    auto another = CreateSigmaMint(1, 2);
 
     BOOST_CHECK_NE(another, mint);
 }
@@ -101,17 +103,20 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
         auto mint = wallet->GetSigmaMint(id);
 
         BOOST_CHECK_EQUAL(id.property, 1);
-        BOOST_CHECK(id.key.IsValid());
-        BOOST_CHECK_EQUAL(id.key, SigmaPublicKey(mint.key, DefaultSigmaParams));
-
-        BOOST_CHECK(mint.spentTx.IsNull());
         BOOST_CHECK_EQUAL(mint.property, id.property);
-        BOOST_CHECK_EQUAL(mint.denomination, id.denomination);
+        BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
+        BOOST_CHECK(id.pubKey.IsValid());
+
+        BOOST_CHECK_NE(id.pubKey, SigmaPublicKey());
+
+        BOOST_CHECK(!mint.IsSpent());
         BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
-        BOOST_CHECK(mint.key.IsValid());
-        BOOST_CHECK_NE(mint.key, SigmaPrivateKey());
 
         BOOST_CHECK(mints.insert(std::move(mint)).second);
+
+        auto priv = wallet->GetKey(mint);
+        SigmaPublicKey pub(priv, DefaultSigmaParams);
+        BOOST_CHECK_EQUAL(pub, id.pubKey);
     }
 }
 
@@ -121,7 +126,7 @@ BOOST_AUTO_TEST_CASE(sigma_spend_create_no_spendable_mint)
     BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0), InsufficientFunds);
 
     // Different denomination and property type.
-    auto mint = wallet->CreateSigmaMint(3, 0);
+    auto mintId = wallet->CreateSigmaMint(3, 0);
 
     BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 1), InsufficientFunds);
     BOOST_CHECK_THROW(wallet->CreateSigmaSpend(4, 0), InsufficientFunds);
@@ -130,8 +135,8 @@ BOOST_AUTO_TEST_CASE(sigma_spend_create_no_spendable_mint)
     BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0), InsufficientFunds);
 
     // Already spent.
-    sigmaDb->RecordMint(3, 0, mint.key, 100);
-    wallet->SetSigmaMintUsedTransaction(mint, uint256S("890e968f9b65dbacd576100c9b1c446f06471ed27df845ab7a24931cb640b388"));
+    sigmaDb->RecordMint(3, 0, mintId.pubKey, 100);
+    wallet->SetSigmaMintUsedTransaction(mintId, uint256S("890e968f9b65dbacd576100c9b1c446f06471ed27df845ab7a24931cb640b388"));
 
     BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0), InsufficientFunds);
 }
@@ -139,25 +144,25 @@ BOOST_AUTO_TEST_CASE(sigma_spend_create_no_spendable_mint)
 BOOST_AUTO_TEST_CASE(sigma_spend_create_with_spendable_mints)
 {
     // Create first full group and one mint in a next group.
-    auto expectedMint = wallet->CreateSigmaMint(3, 0);
-    sigmaDb->RecordMint(3, 0, expectedMint.key, 100);
+    auto expectedMintId = wallet->CreateSigmaMint(3, 0);
+    sigmaDb->RecordMint(3, 0, expectedMintId.pubKey, 100);
 
     for (unsigned i = 1; i <= sigmaDb->groupSize; i++) {
-        auto mint = wallet->CreateSigmaMint(3, 0);
-        sigmaDb->RecordMint(3, 0, mint.key, 100 + i);
+        auto mintid = wallet->CreateSigmaMint(3, 0);
+        sigmaDb->RecordMint(3, 0, mintid.pubKey, 100 + i);
     }
 
     auto spend = wallet->CreateSigmaSpend(3, 0);
 
-    BOOST_CHECK_EQUAL(spend.mint, expectedMint);
+    BOOST_CHECK_EQUAL(spend.mint, expectedMintId);
     BOOST_CHECK_EQUAL(spend.group, 0);
     BOOST_CHECK_EQUAL(spend.groupSize, sigmaDb->groupSize);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_spend_create_not_enough_anonimity)
 {
-    auto mint = wallet->CreateSigmaMint(3, 0);
-    sigmaDb->RecordMint(3, 0, mint.key, 100);
+    auto mintId = wallet->CreateSigmaMint(3, 0);
+    sigmaDb->RecordMint(3, 0, mintId.pubKey, 100);
 
     BOOST_CHECK_EXCEPTION(wallet->CreateSigmaSpend(3, 0), WalletError, [] (const WalletError& e) {
         return e.what() == std::string("Amount of coins in anonimity set is not enough to spend");
@@ -184,39 +189,8 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
 
     for (auto& mint : mints) {
-        auto it = ids.find(SigmaMintId(mint, DefaultSigmaParams));
-
-        BOOST_CHECK(it != ids.end());
-        BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
-
-        ids.erase(it);
-    }
-
-    BOOST_CHECK_EQUAL(ids.size(), 0);
-}
-
-BOOST_AUTO_TEST_CASE(sigma_mint_listing_specific_property)
-{
-    // Create mints.
-    std::unordered_set<SigmaMintId> ids;
-
-    wallet->CreateSigmaMint(1, 0);
-    wallet->CreateSigmaMint(1, 1);
-
-    ids.insert(wallet->CreateSigmaMint(2, 0));
-    ids.insert(wallet->CreateSigmaMint(2, 0));
-
-    BOOST_CHECK_EQUAL(ids.size(), 2);
-
-    // List mints.
-    std::unordered_set<SigmaMint> mints;
-
-    wallet->ListSigmaMints(2, std::inserter(mints, mints.end()));
-
-    BOOST_CHECK_EQUAL(mints.size(), ids.size());
-
-    for (auto& mint : mints) {
-        auto it = ids.find(SigmaMintId(mint, DefaultSigmaParams));
+        SigmaPublicKey pub(wallet->GetKey(mint), DefaultSigmaParams);
+        auto it = ids.find(SigmaMintId(mint.property, mint.denomination, pub));
 
         BOOST_CHECK(it != ids.end());
         BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
@@ -248,18 +222,19 @@ BOOST_AUTO_TEST_CASE(sigma_mint_get)
     auto owned = wallet->CreateSigmaMint(1, 1);
     auto mint = wallet->GetSigmaMint(owned);
 
-    BOOST_CHECK_EQUAL(owned, SigmaMintId(mint, DefaultSigmaParams));
+    SigmaPublicKey pub(wallet->GetKey(mint), DefaultSigmaParams);
+    BOOST_CHECK_EQUAL(owned, SigmaMintId(mint.property, mint.denomination, pub));
 
     // Get non-existence.
-    SigmaPrivateKey priv;
-    SigmaPublicKey pub;
+    SigmaPrivateKey otherPriv;
+    SigmaPublicKey otherPub;
 
-    priv.Generate();
-    pub.Generate(priv, DefaultSigmaParams);
+    otherPriv.Generate();
+    otherPub.Generate(otherPriv, DefaultSigmaParams);
 
-    SigmaMintId other(1, 1, pub);
+    SigmaMintId other(1, 1, otherPub);
 
-    BOOST_CHECK_THROW(wallet->GetSigmaMint(other), std::invalid_argument);
+    BOOST_CHECK_THROW(wallet->GetSigmaMint(other), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
@@ -270,11 +245,11 @@ BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
 
     wallet->SetSigmaMintUsedTransaction(id, tx);
     mint = wallet->GetSigmaMint(id);
-    BOOST_CHECK_EQUAL(mint.spentTx, tx);
+    BOOST_CHECK_EQUAL(mint.spendTx, tx);
 
     wallet->SetSigmaMintUsedTransaction(id, uint256());
     mint = wallet->GetSigmaMint(id);
-    BOOST_CHECK(mint.spentTx.IsNull());
+    BOOST_CHECK(!mint.IsSpent());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_owned)
@@ -285,7 +260,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_owned)
     SigmaMint mint;
 
     // Add.
-    std::tie(group, index) = sigmaDb->RecordMint(1, 0, id.key, 100);
+    std::tie(group, index) = sigmaDb->RecordMint(1, 0, id.pubKey, 100);
     mint = wallet->GetSigmaMint(id);
 
     BOOST_CHECK_EQUAL(mint.chainState.block, 100);
@@ -306,7 +281,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
     SigmaMintGroup group;
     SigmaMintIndex index;
 
-    std::tie(group, index) = sigmaDb->RecordMint(1, 0, id.key, 100);
+    std::tie(group, index) = sigmaDb->RecordMint(1, 0, id.pubKey, 100);
 
     // Add other mint.
     SigmaPrivateKey otherPriv;
@@ -329,7 +304,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_not_owned)
     // Other mint should not added to our wallet.
     BOOST_CHECK_THROW(
         wallet->GetSigmaMint(SigmaMintId(1, 0, otherPub)),
-        std::invalid_argument
+        std::runtime_error
     );
 
     // Remove other mint and our chain state should not updated.

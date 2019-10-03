@@ -6,6 +6,8 @@
 #include "property.h"
 #include "sigmaprimitives.h"
 
+#include "../uint256.h"
+
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
@@ -50,7 +52,13 @@ public:
         SigmaDenomination denomination,
         const SigmaPublicKey& pubKey,
         int height);
-    void RecordSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height);
+
+    void RecordSpendSerial(
+        uint32_t propertyId,
+        uint8_t denomination,
+        secp_primitives::Scalar const &serial,
+        int height,
+        uint256 const &spendTx);
 
     template<
         class OutputIt,
@@ -82,13 +90,16 @@ public:
     size_t GetMintCount(uint32_t propertyId, uint8_t denomination, uint32_t groupId);
     uint64_t GetNextSequence();
     SigmaPublicKey GetMint(uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index);
-    bool HasSpendSerial(uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial);
+    bool HasSpendSerial(
+        uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, uint256 &spendTx);
 
     uint16_t groupSize;
 
 public:
     boost::signals2::signal<void(PropertyId, SigmaDenomination, SigmaMintGroup, SigmaMintIndex, const SigmaPublicKey&, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, SigmaDenomination, const SigmaPublicKey&)> MintRemoved;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, const secp_primitives::Scalar&, const uint256&)> SpendAdded;
+    boost::signals2::signal<void(PropertyId, SigmaDenomination, const secp_primitives::Scalar&)> SpendRemoved;
 
 protected:
     void AddEntry(const leveldb::Slice& key, const leveldb::Slice& value, int block);

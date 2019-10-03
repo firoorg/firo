@@ -29,6 +29,7 @@ public:
     }
 
     explicit base_blob(const std::vector<unsigned char>& vch);
+    explicit base_blob(const std::array<unsigned char, WIDTH>& vch);
 
     bool IsNull() const
     {
@@ -176,6 +177,7 @@ public:
     uint512() {}
     uint512(const base_blob<512>& b) : base_blob<512>(b) {}
     explicit uint512(const std::vector<unsigned char>& vch) : base_blob<512>(vch) {}
+    explicit uint512(const std::array<unsigned char, 64>& vch) : base_blob<512>(vch) {}
 
      /** A cheap hash function that just returns 64 bits from the result, it can be
      * used when the contents are considered uniformly random. It is not appropriate
@@ -208,6 +210,11 @@ struct hash<base_blob<Size>>
 
 template<>
 struct hash<uint256> : hash<base_blob<256>>
+{
+};
+
+template<>
+struct hash<uint160> : hash<base_blob<160>>
 {
 };
 

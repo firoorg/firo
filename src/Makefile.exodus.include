@@ -82,13 +82,21 @@ EXODUS_CPP = \
 if ENABLE_WALLET
 EXODUS_H += \
   exodus/rpctx.h \
+  exodus/sigmawallet.h \
   exodus/wallet.h \
   exodus/walletmodels.h
 
 EXODUS_CPP += \
   exodus/rpctx.cpp \
+  exodus/sigmawallet.cpp \
   exodus/wallet.cpp \
   exodus/walletmodels.cpp
+endif
+
+zcoind_LDADD += $(BOOST_REGEX_LIB)
+
+if ENABLE_QT
+qt_zcoin_qt_LDADD += $(BOOST_REGEX_LIB)
 endif
 
 libbitcoin_server_a_SOURCES += \

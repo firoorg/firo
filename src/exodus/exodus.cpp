@@ -2056,6 +2056,13 @@ void clear_all_state()
     p_feehistory->Clear();
     assert(p_txlistdb->setDBVersion() == DB_VERSION); // new set of databases, set DB version
     exodus_prev = 0;
+
+    // Clear wallet state
+#ifdef ENABLE_WALLET
+    if (wallet) {
+        wallet->ClearAllChainState();
+    }
+#endif
 }
 
 /**
@@ -2134,6 +2141,10 @@ int exodus_init()
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
         wallet = new Wallet(pwalletMain->strWalletFile);
+
+        if (!pwalletMain->IsLocked()) {
+            wallet->ReloadMasterKey();
+        }
     } else {
         wallet = nullptr;
     }
@@ -3822,8 +3833,8 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         nWaterlineBlock = ConsensusParams().GENESIS_BLOCK - 1;
 
         if (reorgContainsFreeze) {
-           PrintToLog("Reorganization containing freeze related transactions detected, forcing a reparse...\n");
-           clear_all_state(); // unable to reorg freezes safely, clear state and reparse
+            PrintToLog("Reorganization containing freeze related transactions detected, forcing a reparse...\n");
+            clear_all_state(); // unable to reorg freezes safely, clear state and reparse
         } else {
             int best_state_block = load_most_relevant_state();
             if (best_state_block < 0) {

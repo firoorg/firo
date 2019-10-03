@@ -201,6 +201,26 @@ bool ParseMintKey(
     return false;
 }
 
+bool ParseSpendSerialKey(
+    const leveldb::Slice& key, uint32_t& propertyId, uint8_t& denomination, SpendSerial& serial)
+{
+    if (key.size() > 0 && key.data()[0] == static_cast<char>(KeyType::SpendSerial)) {
+        if (key.size() != SPEND_KEY_SIZE) {
+           throw std::runtime_error("invalid key size");
+        }
+
+        auto it = key.data() + sizeof(KeyType);
+        std::memcpy(&propertyId, it, sizeof(propertyId));
+        std::memcpy(&denomination, it += sizeof(propertyId), sizeof(denomination));
+        std::memcpy(serial.data(), it += sizeof(denomination), std::tuple_size<SpendSerial>::value);
+
+        exodus::swapByteOrder(propertyId);
+
+        return true;
+    }
+    return false;
+}
+
 SpendSerial SerializeSpendSerial(secp_primitives::Scalar const &serial)
 {
     SpendSerial s;
@@ -280,12 +300,18 @@ std::pair<SigmaMintGroup, SigmaMintIndex> SigmaDatabase::RecordMint(
 }
 
 void SigmaDatabase::RecordSpendSerial(
-    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, int height)
+    uint32_t propertyId,
+    uint8_t denomination,
+    secp_primitives::Scalar const &serial,
+    int height,
+    uint256 const &spendTx)
 {
     auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
 
-    AddEntry(GetSlice(keyData), leveldb::Slice(), height);
+    AddEntry(GetSlice(keyData), leveldb::Slice(std::string(spendTx.begin(), spendTx.end())), height);
+
+    SpendAdded(propertyId, denomination, serial, spendTx);
 }
 
 // operation code of histories
@@ -391,7 +417,23 @@ void SigmaDatabase::DeleteAll(int startBlock)
 
             batch.Delete(GetSlice(entry.data));
         } else if (entry.op == OpCode::StoreSpendSerial) {
-            batch.Delete(GetSlice(entry.data));
+            auto key = GetSlice(entry.data);
+
+            // retrieve meta data of spend
+            uint32_t propertyId;
+            uint8_t denomination;
+            SpendSerial serialData;
+            ParseSpendSerialKey(key, propertyId, denomination, serialData);
+
+            secp_primitives::Scalar serial;
+            serial.deserialize(serialData.data());
+
+            // function to trigger event
+            defers.push_back([this, propertyId, denomination, serial]() {
+                SpendRemoved(propertyId, denomination, serial);
+            });
+
+            batch.Delete(key);
         } else {
             throw std::runtime_error("opcode is invalid");
         }
@@ -605,7 +647,7 @@ exodus::SigmaPublicKey SigmaDatabase::GetMint(
 }
 
 bool SigmaDatabase::HasSpendSerial(
-    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial)
+    uint32_t propertyId, uint8_t denomination, secp_primitives::Scalar const &serial, uint256 &spendTx)
 {
     auto serialData = SerializeSpendSerial(serial);
     auto keyData = CreateSpendSerialKey(propertyId, denomination, serialData);
@@ -613,6 +655,7 @@ bool SigmaDatabase::HasSpendSerial(
     auto status = pdb->Get(readoptions, GetSlice(keyData), &data);
 
     if (status.ok()) {
+        spendTx = uint256(std::vector<unsigned char>(data.begin(), data.end()));
         return true;
     }
 

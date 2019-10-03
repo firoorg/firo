@@ -38,6 +38,7 @@ EXODUS_TEST_CPP = \
 
 if ENABLE_WALLET
 EXODUS_TEST_CPP += \
+  exodus/test/sigmawallet_tests.cpp \
   exodus/test/wallet_tests.cpp \
   exodus/test/walletmodels_tests.cpp
 endif
@@ -45,6 +46,8 @@ endif
 BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \
   $(EXODUS_TEST_H)
+
+test_test_bitcoin_LDADD += $(BOOST_REGEX_LIB)
 
 CLEAN_EXODUS_TEST = exodus/test/*.gcda exodus/test/*.gcno
 
