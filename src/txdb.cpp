@@ -487,19 +487,19 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
         spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addrType.first, addrType.second)));
 }
 
-void handleRemint(CTxIn const & input, size_t inputNo, uint256 const & txHash, int height, int txNumber, CAmount nValue,
+void handleRemint(CTxIn const & input, uint256 const & txHash, int height, int txNumber, CAmount nValue,
         AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
 {
     if(!input.IsZerocoinRemint())
         return;
 
     if (addressIndex) {
-        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, inputNo, true), nValue * -1));
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, 0, true), nValue * -1));
         addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(AddressType::zerocoinRemint, uint160(), input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
     }
 
     if (spentIndex)
-        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, nValue, AddressType::zerocoinRemint, uint160())));
+        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, 0, height, nValue, AddressType::zerocoinRemint, uint160())));
 }
 
 
@@ -568,7 +568,7 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
            error("A Zerocoin to Sigma remint tx shoud have just 1 input");
            return;
         }
-        handleRemint(tx.vin[0], 0, tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
+        handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
     if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
@@ -604,7 +604,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
            error("A Zerocoin to Sigma remint tx shoud have just 1 input");
            return;
         }
-        handleRemint(tx.vin[0], 0, tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
+        handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
     size_t no = 0;
