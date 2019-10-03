@@ -1,9 +1,3 @@
-/**
- * @file rpctx.cpp
- *
- * This file contains RPC calls for creating and sending Exodus transactions.
- */
-
 #include "rpctx.h"
 
 #include "createpayload.h"
@@ -13,8 +7,10 @@
 #include "pending.h"
 #include "rpcrequirements.h"
 #include "rpcvalues.h"
+#include "rules.h"
 #include "sp.h"
 #include "tx.h"
+#include "utilsbitcoin.h"
 #include "wallet.h"
 
 #include "../init.h"
@@ -500,9 +496,18 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
     );
 
     // request the wallet build the transaction (and if needed commit it)
+    auto& consensus = ConsensusParams();
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    std::string receiver;
+    CAmount fee = 0;
+
+    if (IsRequireCreationFee(ecosystem)) {
+        receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
+        fee = consensus.PROPERTY_CREATION_FEE;
+    }
+
+    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -581,9 +586,18 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
     );
 
     // request the wallet build the transaction (and if needed commit it)
+    auto& consensus = ConsensusParams();
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    std::string receiver;
+    CAmount fee = 0;
+
+    if (IsRequireCreationFee(ecosystem)) {
+        receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
+        fee = consensus.PROPERTY_CREATION_FEE;
+    }
+
+    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {

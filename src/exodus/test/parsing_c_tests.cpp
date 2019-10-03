@@ -1,27 +1,31 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/rules.h"
-#include "exodus/script.h"
-#include "exodus/tx.h"
+#include "../createpayload.h"
+#include "../exodus.h"
+#include "../packetencoder.h"
+#include "../rules.h"
+#include "../script.h"
+#include "../tx.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../base58.h"
+#include "../../coins.h"
+#include "../../utilstrencodings.h"
 
-#include <stdint.h>
-#include <limits>
-#include <vector>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+#include <limits>
+#include <vector>
+
+#include <inttypes.h>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_parsing_c_tests, BasicTestingSetup)
 
@@ -80,7 +84,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
 
         std::vector<CTxOut> txOutputs;
         txOutputs.push_back(OpReturn_SimpleSend());
-        txOutputs.push_back(createTxOut(2700000, ExodusAddress().ToString()));
+        txOutputs.push_back(createTxOut(2700000, GetSystemAddress().ToString()));
 
         CTransaction dummyTx = TxClassC(txInputs, txOutputs);
 
@@ -210,7 +214,7 @@ BOOST_AUTO_TEST_CASE(trimmed_op_return)
         std::vector<CTxOut> txOutputs;
 
         std::vector<unsigned char> vchFiller(CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE, 0x07);
-        std::vector<unsigned char> vchPayload = GetExMarker();
+        std::vector<unsigned char> vchPayload(magic.begin(), magic.end());
         vchPayload.insert(vchPayload.end(), vchFiller.begin(), vchFiller.end());
 
         // These will be trimmed:
@@ -434,5 +438,6 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
     }
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

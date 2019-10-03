@@ -1,5 +1,4 @@
 #include "exodus.h"
-#include "encoding.h"
 #include "errors.h"
 #include "log.h"
 #include "sigmadb.h"

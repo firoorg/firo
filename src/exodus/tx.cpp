@@ -76,21 +76,6 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
-/** Helper to convert class number to string. */
-static std::string intToClass(int encodingClass)
-{
-    switch (encodingClass) {
-        case EXODUS_CLASS_A:
-            return "A";
-        case EXODUS_CLASS_B:
-            return "B";
-        case EXODUS_CLASS_C:
-            return "C";
-    }
-
-    return "-";
-}
-
 void CMPTransaction::Set(
     const std::string& s,
     const std::string& r,
@@ -100,8 +85,9 @@ void CMPTransaction::Set(
     unsigned int idx,
     unsigned char *p,
     unsigned int size,
-    int encodingClassIn,
-    uint64_t txf)
+    const boost::optional<exodus::PacketClass>& packetClass,
+    uint64_t txf,
+    const boost::optional<CAmount>& referenceAmount)
 {
     sender = s;
     receiver = r;
@@ -110,17 +96,19 @@ void CMPTransaction::Set(
     tx_idx = idx;
     nValue = n;
     nNewValue = n;
-    encodingClass = encodingClassIn;
+    this->packetClass = packetClass;
     tx_fee_paid = txf;
     raw.clear();
     raw.insert(raw.end(), p, p + size);
+    this->referenceAmount = referenceAmount;
 }
 
 /** Checks whether a pointer to the payload is past it's last position. */
 bool CMPTransaction::isOverrun(const unsigned char *p)
 {
     ptrdiff_t pos = p - raw.data();
-    return (pos > raw.size());
+    assert(pos >= 0);
+    return (static_cast<size_t>(pos) > raw.size());
 }
 
 // -------------------- PACKET PARSING -----------------------
@@ -233,7 +221,7 @@ bool CMPTransaction::interpret_TransactionType()
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t------------------------------\n");
-        PrintToLog("\t         version: %d, class %s\n", txVersion, intToClass(encodingClass));
+        PrintToLog("\t         version: %d, class %s\n", txVersion, std::to_string(*packetClass));
         PrintToLog("\t            type: %d (%s)\n", txType, strTransactionType(txType));
     }
 
@@ -1810,14 +1798,24 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -37);
     }
 
-    if (!IsSigmaStatusValid(sigmaStatus)) {
-        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 900;
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
+
+    CMPSPInfo::Entry newSP;
+
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
     }
 
     // ------------------------------------------
 
-    CMPSPInfo::Entry newSP;
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -1830,7 +1828,6 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
     newSP.fixed = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
-    newSP.sigmaStatus = sigmaStatus;
 
     const uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);
@@ -1912,6 +1909,11 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
     if (NULL != getCrowd(sender)) {
         PrintToLog("%s(): rejected: sender %s has an active crowdsale\n", __func__, sender);
         return (PKT_ERROR_SP -39);
+    }
+
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
     }
 
     // ------------------------------------------
@@ -2050,14 +2052,24 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -37);
     }
 
-    if (!IsSigmaStatusValid(sigmaStatus)) {
-        PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
-        return PKT_ERROR_SP - 900;
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
+
+    CMPSPInfo::Entry newSP;
+
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
     }
 
     // ------------------------------------------
 
-    CMPSPInfo::Entry newSP;
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -2070,7 +2082,6 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
     newSP.manual = true;
     newSP.creation_block = blockHash;
     newSP.update_block = newSP.creation_block;
-    newSP.sigmaStatus = sigmaStatus;
 
     uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
     assert(propertyId > 0);
@@ -2731,4 +2742,15 @@ int CMPTransaction::logicMath_Alert()
     AlertNotify(alert_text);
 
     return 0;
+}
+
+bool CMPTransaction::CheckPropertyCreationFee()
+{
+    if (receiver.empty() || !referenceAmount) {
+        return false;
+    }
+
+    auto& consensus = ConsensusParams();
+
+    return receiver == consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString() && *referenceAmount >= consensus.PROPERTY_CREATION_FEE;
 }

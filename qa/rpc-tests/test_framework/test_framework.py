@@ -223,7 +223,7 @@ class ExodusTestFramework(BitcoinTestFramework):
     def run_test(self):
         for rpc in self.nodes:
             addr = rpc.getnewaddress()
-            rpc.sendtoaddress(addr, 10)
+            rpc.sendtoaddress(addr, 500)
             self.addrs.append(addr)
 
         self.nodes[0].generate(1)

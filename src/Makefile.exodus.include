@@ -5,7 +5,6 @@ EXODUS_H = \
   exodus/createpayload.h \
   exodus/createtx.h \
   exodus/dex.h \
-  exodus/encoding.h \
   exodus/errors.h \
   exodus/fees.h \
   exodus/fetchwallettx.h \
@@ -13,6 +12,7 @@ EXODUS_H = \
   exodus/mdex.h \
   exodus/notifications.h \
   exodus/exodus.h \
+  exodus/packetencoder.h \
   exodus/parse_string.h \
   exodus/pending.h \
   exodus/persistence.h \
@@ -53,6 +53,7 @@ EXODUS_CPP = \
   exodus/mdex.cpp \
   exodus/notifications.cpp \
   exodus/exodus.cpp \
+  exodus/packetencoder.cpp \
   exodus/parse_string.cpp \
   exodus/pending.cpp \
   exodus/persistence.cpp \

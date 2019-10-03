@@ -1,26 +1,29 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/script.h"
-#include "exodus/tx.h"
+#include "../createpayload.h"
+#include "../exodus.h"
+#include "../script.h"
+#include "../tx.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
+#include "../../base58.h"
+#include "../../coins.h"
 
-#include <stdint.h>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
+
+#include <boost/test/unit_test.hpp>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
 
-#include <boost/test/unit_test.hpp>
+#include <inttypes.h>
 
-using namespace exodus;
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_parsing_b_tests, BasicTestingSetup)
 
@@ -130,5 +133,6 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
     BOOST_CHECK_EQUAL(metaTx.getRaw().size(), getPayloadSize(CLASS_B_MAX_CHUNKS));
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

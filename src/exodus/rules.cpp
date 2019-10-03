@@ -95,16 +95,20 @@ std::vector<ConsensusCheckpoint> CConsensusParams::GetCheckpoints() const
 CMainConsensusParams::CMainConsensusParams()
 {
     GENESIS_BLOCK = 108888;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 2048;  // ~2 weeks
     MAX_ACTIVATION_BLOCKS = 12288; // ~12 weeks
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 4096; // ~4 weeks
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -116,6 +120,7 @@ CMainConsensusParams::CMainConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -123,8 +128,14 @@ CMainConsensusParams::CMainConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
     // Sigma releated
-    SIGMA_FEATURE_BLOCK = 204901; //Approx Thursday, October 10, 2019 8:00:00 AM UTC
+    SIGMA_FEATURE_BLOCK = 210000;
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 210000;
+    PROPERTY_CREATION_FEE = 100 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3");
 }
 
 /**
@@ -133,16 +144,20 @@ CMainConsensusParams::CMainConsensusParams()
 CTestNetConsensusParams::CTestNetConsensusParams()
 {
     GENESIS_BLOCK = 87000;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 0;
     MAX_ACTIVATION_BLOCKS = 999999;
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 0;
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -154,6 +169,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -161,8 +177,14 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
     // sigma related
-    SIGMA_FEATURE_BLOCK = 72000;
+    SIGMA_FEATURE_BLOCK = 100000;
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 100000;
+    PROPERTY_CREATION_FEE = 100 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 
 /**
@@ -171,16 +193,20 @@ CTestNetConsensusParams::CTestNetConsensusParams()
 CRegTestConsensusParams::CRegTestConsensusParams()
 {
     GENESIS_BLOCK = 101;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 5;
     MAX_ACTIVATION_BLOCKS = 10;
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 10;
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -192,6 +218,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -199,8 +226,14 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 500;
+    PROPERTY_CREATION_FEE = 100 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 
 //! Consensus parameters for mainnet

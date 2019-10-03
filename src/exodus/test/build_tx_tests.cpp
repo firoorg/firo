@@ -1,29 +1,36 @@
-#include "exodus/createtx.h"
-#include "exodus/errors.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/wallettxs.h"
+#include "../createtx.h"
+#include "../errors.h"
+#include "../exodus.h"
+#include "../packetencoder.h"
+#include "../utilsbitcoin.h"
+#include "../wallettxs.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "core_io.h"
-#include "main.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "test/fixtures.h"
-#include "utilstrencodings.h"
-#include "exodus/utilsbitcoin.h"
+#include "../../base58.h"
+#include "../../coins.h"
+#include "../../core_io.h"
+#include "../../main.h"
+#include "../../utilstrencodings.h"
 
-#include "wallet/wallet.h"
+#include "../../primitives/transaction.h"
 
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
+#include "../../test/fixtures.h"
+
+#include "../../wallet/wallet.h"
+
+#include <boost/optional/optional_io.hpp>
 #include <boost/test/unit_test.hpp>
 
-#include <stdint.h>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <inttypes.h>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_build_tx_tests, ZerocoinTestingSetup200)
 
@@ -46,8 +53,8 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
     BOOST_CHECK(!decTx.IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
-        EXODUS_CLASS_B,
-        exodus::GetEncodingClass(decTx, chainActive.Height())
+        PacketClass::B,
+        DeterminePacketClass(decTx, chainActive.Height())
     );
 }
 
@@ -70,8 +77,8 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
     BOOST_CHECK(!decTx.IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
-        EXODUS_CLASS_C,
-        exodus::GetEncodingClass(decTx, chainActive.Height())
+        PacketClass::C,
+        DeterminePacketClass(decTx, chainActive.Height())
     );
 }
 
@@ -139,9 +146,11 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
     BOOST_CHECK(decTx.IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
-        EXODUS_CLASS_C,
-        exodus::GetEncodingClass(decTx, chainActive.Height())
+        PacketClass::C,
+        DeterminePacketClass(decTx, chainActive.Height())
     );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus
