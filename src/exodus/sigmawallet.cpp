@@ -9,8 +9,8 @@
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
 
-#include <boost/regex.hpp>
 #include <boost/optional.hpp>
+#include <boost/regex.hpp>
 
 namespace exodus {
 
@@ -106,12 +106,12 @@ std::uint32_t GetBIP44AddressIndex(std::string const &path)
         throw std::runtime_error("Fail to match BIP44 path");
     }
 
-    auto child = std::stol(match.str(1));
-    if (child > std::numeric_limits<uint32_t>::max()) {
+    auto index = std::stol(match.str(1));
+    if (index > std::numeric_limits<uint32_t>::max()) {
         throw std::runtime_error("Address index is exceed limit");
     }
 
-    return child;
+    return index;
 }
 
 }
@@ -129,7 +129,7 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
     try {
         addressIndex = GetBIP44AddressIndex(it->second.hdKeypath);
     } catch (std::runtime_error const &e) {
-        error("%s : fail to get child from, %s\n", __func__, e.what());
+        LogPrintf("%s : fail to get child from, %s\n", __func__, e.what());
         throw;
     }
 
@@ -259,26 +259,20 @@ bool SigmaWallet::TryRecoverMint(
 {
     LOCK(pwalletMain->cs_wallet);
 
-    if (!IsMintInPool(id.pubKey)) {
+    MintPoolEntry entry;
+    if (!GetMintPoolEntry(id.pubKey, entry)) {
         return false;
     }
 
-    MintPoolEntry entry;
-    if (!GetMintPoolEntry(id.pubKey, entry)) {
-        throw std::runtime_error("Fail to get mint from pool");
-    }
-
     // Regenerate the mint
-    auto const &pubcoin = id.pubKey;
     auto const &seedId = entry.seedId;
-    auto seedIndex = GetSeedIndex(seedId);
 
     uint512 seed;
     GenerateSeed(seedId, seed);
 
-    auto coin = GeneratePrivateKey(seed);
+    auto privKey = GeneratePrivateKey(seed);
 
-    auto serialId = GetSerialId(coin.serial);
+    auto serialId = GetSerialId(privKey.serial);
 
     // Create mint object
     SigmaMint mint(
@@ -449,7 +443,7 @@ size_t SigmaWallet::FillMintPool()
     LOCK(pwalletMain->cs_wallet);
 
     size_t generatedCoins;
-    while (mintPool.size() < MintPoolCapacity) {
+    while (mintPool.size() < MINTPOOL_CAPACITY) {
 
         CKeyID seedId;
         uint512 seed;

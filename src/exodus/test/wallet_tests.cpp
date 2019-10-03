@@ -62,21 +62,23 @@ BOOST_FIXTURE_TEST_SUITE(exodus_wallet_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
 {
-    auto id = wallet->CreateSigmaMint(1, 1);
+    auto id = wallet->CreateSigmaMint(1, 2);
     auto mint = wallet->GetSigmaMint(id);
 
     BOOST_CHECK(id.pubKey.IsValid());
+    BOOST_CHECK_EQUAL(1, id.property);
+    BOOST_CHECK_EQUAL(2, id.denomination);
     BOOST_CHECK_EQUAL(id.property, mint.property);
     BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
 
-    BOOST_CHECK(mint.spendTx.IsNull());
+    BOOST_CHECK(!mint.IsSpent());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
 
     auto priv = wallet->GetKey(mint);
     SigmaPublicKey pub(priv, DefaultSigmaParams);
     BOOST_CHECK_EQUAL(id.pubKey, pub);
 
-    auto another = CreateSigmaMint(1, 1);
+    auto another = CreateSigmaMint(1, 2);
 
     BOOST_CHECK_NE(another, mint);
 }
@@ -101,12 +103,13 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
         auto mint = wallet->GetSigmaMint(id);
 
         BOOST_CHECK_EQUAL(id.property, 1);
+        BOOST_CHECK_EQUAL(mint.property, id.property);
         BOOST_CHECK_EQUAL(id.denomination, mint.denomination);
         BOOST_CHECK(id.pubKey.IsValid());
 
         BOOST_CHECK_NE(id.pubKey, SigmaPublicKey());
 
-        BOOST_CHECK(mint.spendTx.IsNull());
+        BOOST_CHECK(!mint.IsSpent());
         BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
 
         BOOST_CHECK(mints.insert(std::move(mint)).second);
@@ -191,7 +194,6 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
 
         BOOST_CHECK(it != ids.end());
         BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
-        BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
 
         ids.erase(it);
     }
@@ -247,7 +249,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_set_used)
 
     wallet->SetSigmaMintUsedTransaction(id, uint256());
     mint = wallet->GetSigmaMint(id);
-    BOOST_CHECK(mint.spendTx.IsNull());
+    BOOST_CHECK(!mint.IsSpent());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_owned)

@@ -63,7 +63,7 @@ protected:
     MintPool mintPool;
     uint160 masterId;
 
-    static constexpr unsigned MintPoolCapacity = 20;
+    static constexpr unsigned MINTPOOL_CAPACITY = 20;
 
 public:
     SigmaWallet();

@@ -89,8 +89,14 @@ public:
     SigmaMint();
     SigmaMint(PropertyId property, SigmaDenomination denomination, CKeyID const &seedId, uint160 const &serialId);
 
-    bool IsOnChain() {
+    bool IsOnChain() const
+    {
         return chainState.block >= 0;
+    }
+
+    bool IsSpent() const
+    {
+        return !spendTx.IsNull();
     }
 
     bool operator==(const SigmaMint& other) const;

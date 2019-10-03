@@ -131,20 +131,25 @@ boost::optional<SigmaMint>
     std::vector<SigmaMint> spendables;
 
     mintWallet.ListMints(boost::make_function_output_iterator(
-        [denomination, &spendables] (SigmaMint const &mint) {
+        [property, denomination, &spendables] (SigmaMint const &mint) {
 
-            // doesn't match
+            // property is't matched
+            if (property != mint.property) {
+                return;
+            }
+
+            // denomination is't matched
             if (denomination != mint.denomination) {
                 return;
             }
 
-            // is not on chain
-            if (mint.chainState.block < 0) {
+            // isn't on chain
+            if (!mint.IsOnChain()) {
                 return;
             }
 
-            // is spend
-            if (!mint.spendTx.IsNull()) {
+            // is spent
+            if (mint.IsSpent()) {
                 return;
             }
 

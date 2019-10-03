@@ -11,10 +11,11 @@
 
 namespace exodus {
 
-class TestSigmaWallet : public SigmaWallet {
+class TestSigmaWallet : public SigmaWallet
+{
 
 public:
-    TestSigmaWallet() : SigmaWallet()
+    TestSigmaWallet()
     {
     }
 
@@ -50,7 +51,7 @@ public:
 
 struct SigmaWalletTestingSetup : ::WalletTestingSetup
 {
-    SigmaWalletTestingSetup() : sigmaWallet()
+    SigmaWalletTestingSetup()
     {
         sigmaWallet.ReloadMasterKey();
     }
@@ -136,7 +137,6 @@ BOOST_AUTO_TEST_CASE(verify_mintpool_on_fresh_startup)
     for (auto const &mint : mints) {
         mintPoolIndexs.push_back(mint.index);
     }
-    std::sort(mintPoolIndexs.begin(), mintPoolIndexs.end());
 
     // generate sequence
     std::vector<uint32_t> seq;
@@ -199,6 +199,8 @@ BOOST_AUTO_TEST_CASE(tryrecover_mintpool_coin)
     BOOST_CHECK_EQUAL(true,
         std::equal(mintPool.begin() + 1, mintPool.end(), mintPoolAfter.begin()));
 
+    BOOST_CHECK_EQUAL(20, mintPoolAfter.size()); // ensure mint pool is refilled
+    BOOST_CHECK_EQUAL(20, mintPoolAfter.back().index); // make sure new coin contain next index
     BOOST_CHECK_EQUAL(true, sigmaWallet.HasMint(id));
 }
 
@@ -286,7 +288,7 @@ BOOST_AUTO_TEST_CASE(listmints_non_empty_wallet)
     );
 }
 
-BOOST_AUTO_TEST_CASE(push_out_wallet_mint_back)
+BOOST_AUTO_TEST_CASE(delete_out_wallet_mint)
 {
     SigmaPrivateKey privKey;
     privKey.Generate();
@@ -314,7 +316,11 @@ BOOST_AUTO_TEST_CASE(push_mint_back)
 
     SigmaMintId id(1, 0, SigmaPublicKey(privKey, DefaultSigmaParams));
 
+    BOOST_CHECK(sigmaWallet.HasMint(id));
+    BOOST_CHECK(!sigmaWallet.IsMintInPool(id.pubKey));
     sigmaWallet.DeleteUnconfirmedMint(id);
+    BOOST_CHECK(!sigmaWallet.HasMint(id));
+    BOOST_CHECK(sigmaWallet.IsMintInPool(id.pubKey));
 
     std::vector<MintPoolEntry> mintPoolAfter;
     sigmaWallet.GetMintPoolEntry(std::back_inserter(mintPoolAfter));

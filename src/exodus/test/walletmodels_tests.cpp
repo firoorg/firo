@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
 {
     SigmaMint mint;
 
-    BOOST_CHECK(mint.spendTx.IsNull());
+    BOOST_CHECK(!mint.IsSpent());
     BOOST_CHECK_EQUAL(mint.property, 0);
     BOOST_CHECK_EQUAL(mint.denomination, 0);
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
