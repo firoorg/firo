@@ -97,6 +97,7 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
 }
 
 //// PaymentCodeOrBitcoinAddress?
+// @todo Update the validator for paymentcode
 
 PaymentCodeOrBitcoinAddressEntryValidator::PaymentCodeOrBitcoinAddressEntryValidator(QObject *parent) :
     QValidator(parent)
