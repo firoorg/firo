@@ -2025,6 +2025,27 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
 
+    // Lock Existing Znodes
+    if (GetBoolArg("-znconflock", true) && (znodeConfig.getCount() > 0)) {
+        LogPrintf(" Locking Existing Znodes..\n");
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+            uint256 mnTxHash(uint256S(mne.getTxHash()));
+            int outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
+
+            COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
+
+            if(pwalletMain->IsMine(CTxIn(outpoint)) == ISMINE_SPENDABLE &&
+              !pwalletMain->IsSpent(mnTxHash, outputIndex)){
+                pwalletMain->LockCoin(outpoint); //Lock if this transaction is an available znode colleteral payment
+            }else {
+                pwalletMain->UnlockCoin(outpoint); // Unlock any spent/unavailable Znode collateral
+            }
+        }
+        if(fApi)
+            GetMainSignals().UpdatedBalance();
+    }
+
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
