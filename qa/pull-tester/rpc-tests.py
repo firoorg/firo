@@ -102,6 +102,7 @@ if ENABLE_ZMQ:
 
 testScripts = [
     'exodus_create_denomination.py',
+    'exodus_property_creation_fee.py',
     'exodus_sendmint.py',
     'exodus_sendspend.py',
     'mempool_doublesend_oneblock.py',
