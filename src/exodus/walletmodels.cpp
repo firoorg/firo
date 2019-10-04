@@ -46,11 +46,12 @@ SigmaMint::SigmaMint(PropertyId property, SigmaDenomination denomination, CKeyID
 bool SigmaMint::operator==(const SigmaMint& other) const
 {
     return property == other.property &&
-            denomination == other.denomination &&
-            seedId == other.seedId &&
-            serialId == other.serialId &&
-            chainState == other.chainState &&
-            spendTx == other.spendTx;
+           denomination == other.denomination &&
+           seedId == other.seedId &&
+           serialId == other.serialId &&
+           createdTx == other.createdTx &&
+           chainState == other.chainState &&
+           spendTx == other.spendTx;
 }
 
 bool SigmaMint::operator!=(const SigmaMint& other) const

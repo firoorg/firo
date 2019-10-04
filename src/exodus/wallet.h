@@ -8,6 +8,8 @@
 #include "sp.h"
 #include "walletmodels.h"
 
+#include "../uint256.h"
+
 #include "../wallet/walletdb.h"
 
 #include <boost/optional.hpp>
@@ -38,6 +40,10 @@ public:
 
         return output;
     }
+
+    void SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx);
+    void SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& tx);
+
     void ClearAllChainState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
@@ -54,7 +60,6 @@ public:
     SigmaPrivateKey GetKey(const SigmaMint &mint);
     bool HasSigmaMint(const SigmaMintId& id);
     bool HasSigmaMint(const secp_primitives::Scalar &serial);
-    void SetSigmaMintUsedTransaction(const SigmaMintId &id, const uint256 &tx);
 
 protected:
     boost::optional<SigmaMint> GetSpendableSigmaMint(
@@ -91,6 +96,6 @@ private:
 
 extern Wallet *wallet;
 
-}
+} // namespace exodus
 
 #endif // ZCOIN_EXODUS_WALLET_H

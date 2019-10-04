@@ -6,6 +6,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <ostream>
+
 namespace {
 
 SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
@@ -17,7 +19,17 @@ SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)
     return SigmaMintId(property, denom, pub);
 }
 
+} // unnamed namespace
+
+namespace std {
+
+template<typename Char, typename Traits, unsigned Size>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const base_blob<Size>& v)
+{
+    return os << v.GetHex();
 }
+
+} // namespace std
 
 namespace exodus {
 
@@ -145,59 +157,68 @@ BOOST_AUTO_TEST_CASE(sigma_mint_default)
 {
     SigmaMint mint;
 
-    BOOST_CHECK(!mint.IsSpent());
     BOOST_CHECK_EQUAL(mint.property, 0);
     BOOST_CHECK_EQUAL(mint.denomination, 0);
+    BOOST_CHECK_EQUAL(mint.seedId, CKeyID());
+    BOOST_CHECK_EQUAL(mint.serialId, uint160());
+    BOOST_CHECK_EQUAL(mint.createdTx, uint256());
     BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
+    BOOST_CHECK_EQUAL(mint.spendTx, uint256());
+}
+
+BOOST_AUTO_TEST_CASE(sigma_mint_init)
+{
+    CKeyID seed;
+    uint160 serial;
+
+    seed.SetHex("c20c027ecb57f6bca0e7995f089f2476872ce3c2");
+    serial.SetHex("9ef47fe3beb4eca6521644d810f8d82aafa25deb");
+
+    SigmaMint mint(3, 1, seed, serial);
+
+    BOOST_CHECK_EQUAL(mint.property, 3);
+    BOOST_CHECK_EQUAL(mint.denomination, 1);
+    BOOST_CHECK_EQUAL(mint.seedId, seed);
+    BOOST_CHECK_EQUAL(mint.serialId, serial);
+    BOOST_CHECK_EQUAL(mint.createdTx, uint256());
+    BOOST_CHECK_EQUAL(mint.chainState, SigmaMintChainState());
+    BOOST_CHECK_EQUAL(mint.spendTx, uint256());
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_equality)
 {
-    auto tx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
-    SigmaPrivateKey key;
-    key.Generate();
-    SigmaPublicKey pub(key, DefaultSigmaParams);
-
     SigmaMint left, right;
-
-    std::vector<unsigned char> rawUint160;
-    rawUint160.resize(20);
-    std::fill(rawUint160.begin(), rawUint160.end(), 1);
 
     left.property = 1;
     left.denomination = 1;
-    left.seedId = uint160(rawUint160);
-    left.serialId = GetSerialId(key.serial);
-    left.spendTx = tx;
+    left.seedId.SetHex("6b9271111f615f2add38ecca577bd8297cdada76");
+    left.serialId.SetHex("e452b723bd12bfcc441e675eedcfad5c8a80435d");
+    left.createdTx.SetHex("d256b698c4c1caa75fcbeec68e6636119e02526c58eea91088eba71d9e25e768");
     left.chainState = SigmaMintChainState(500, 1, 50);
+    left.spendTx.SetHex("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
 
     right.property = 1;
     right.denomination = 1;
-    right.seedId = uint160(rawUint160);
-    right.serialId = GetSerialId(key.serial);
-    right.spendTx = tx;
+    right.seedId.SetHex("6b9271111f615f2add38ecca577bd8297cdada76");
+    right.serialId.SetHex("e452b723bd12bfcc441e675eedcfad5c8a80435d");
+    right.createdTx.SetHex("d256b698c4c1caa75fcbeec68e6636119e02526c58eea91088eba71d9e25e768");
     right.chainState = SigmaMintChainState(500, 1, 50);
+    right.spendTx.SetHex("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
 
     BOOST_CHECK_EQUAL(left, right);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 {
-    SigmaPrivateKey priv;
-    priv.Generate();
-    SigmaPublicKey pub(priv, DefaultSigmaParams);
-
-    std::vector<unsigned char> zero = {0x00};
-    std::vector<unsigned char> one = {0x01};
-
     SigmaMint left, right;
 
     left.property = 1;
     left.denomination = 1;
-    left.seedId = Hash160(zero);
-    left.serialId = Hash160(zero);
-    left.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
+    left.seedId.SetHex("6b9271111f615f2add38ecca577bd8297cdada76");
+    left.serialId.SetHex("e452b723bd12bfcc441e675eedcfad5c8a80435d");
+    left.createdTx.SetHex("d256b698c4c1caa75fcbeec68e6636119e02526c58eea91088eba71d9e25e768");
     left.chainState = SigmaMintChainState(500, 1, 50);
+    left.spendTx.SetHex("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
 
     // Property.
     right = left;
@@ -213,43 +234,72 @@ BOOST_AUTO_TEST_CASE(sigma_mint_unequality)
 
     // Seed Id
     right = left;
-    right.seedId = Hash160(one);
+    right.seedId.SetHex("aa53d9c19d2a435e586c5539e5696b9e0b49600a");
 
     BOOST_CHECK_NE(left, right);
 
     // Serial Id
     right = left;
-    right.serialId = Hash160(one);
+    right.serialId.SetHex("aa53d9c19d2a435e586c5539e5696b9e0b49600a");
 
     BOOST_CHECK_NE(left, right);
 
-    // Spend Tx
+    // Created TX.
     right = left;
-    right.spendTx = uint256();
+    right.createdTx.SetHex("4feba033ccba0e98c48359e1974ef3257127cc1794baaa2a66f3773b42a313dd");
 
     BOOST_CHECK_NE(left, right);
 
     // Chain State
     right = left;
-    right.chainState.Clear();
+    right.chainState = SigmaMintChainState(1000, 0, 0);
 
     BOOST_CHECK_NE(left, right);
+
+    // Spend Tx
+    right = left;
+    right.spendTx.SetHex("4feba033ccba0e98c48359e1974ef3257127cc1794baaa2a66f3773b42a313dd");
+
+    BOOST_CHECK_NE(left, right);
+}
+
+BOOST_AUTO_TEST_CASE(sigma_mint_is_on_chain)
+{
+    SigmaMint mint;
+
+    BOOST_CHECK_EQUAL(mint.IsOnChain(), false);
+
+    mint.chainState.block = 0;
+
+    BOOST_CHECK_EQUAL(mint.IsOnChain(), true);
+
+    mint.chainState.block = 1;
+
+    BOOST_CHECK_EQUAL(mint.IsOnChain(), true);
+}
+
+BOOST_AUTO_TEST_CASE(sigma_mint_is_spent)
+{
+    SigmaMint mint;
+
+    BOOST_CHECK_EQUAL(mint.IsSpent(), false);
+
+    mint.spendTx.SetHex("4feba033ccba0e98c48359e1974ef3257127cc1794baaa2a66f3773b42a313dd");
+
+    BOOST_CHECK_EQUAL(mint.IsSpent(), true);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
 {
     SigmaMint original, deserialized;
 
-    SigmaPrivateKey priv;
-    priv.Generate();
-    SigmaPublicKey pub(priv, DefaultSigmaParams);
-
     original.property = 1;
     original.denomination = 1;
-    original.seedId = Hash160({0x00});
-    original.serialId = Hash160({0x00});
-    original.spendTx = uint256S("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
+    original.seedId.SetHex("d301a80ac8e079cfed60c361004caadc049052dd");
+    original.serialId.SetHex("7b05ea12b56e60b28e2d20db6d77a95f56ae13bb");
+    original.createdTx.SetHex("ddf5fb2d1124bcff2f2068334de61f6cc8849d7751a64a74900dbbec106ba884");
     original.chainState = SigmaMintChainState(500, 1, 50);
+    original.spendTx.SetHex("e84390b1e9af85fed8ef3f95d6f94550e53a8a9214677a4b5cae9e93888537ab");
 
     CDataStream stream(SER_DISK, CLIENT_VERSION);
 
@@ -262,6 +312,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_serialization)
 BOOST_AUTO_TEST_CASE(sigma_mint_hash)
 {
     SigmaMint mint1, mint2;
+
     mint1.denomination = 0;
     mint2.denomination = 1;
 
@@ -295,4 +346,4 @@ BOOST_AUTO_TEST_CASE(sigma_spend_init)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
+} // namespace exodus

@@ -4,14 +4,23 @@
 
 #include "sigmawallet.h"
 
-#include "exodus.h"
+#include "walletmodels.h"
+
+#include "../uint256.h"
 
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
+
 #include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
 
 #include <boost/optional.hpp>
 #include <boost/regex.hpp>
+
+#include <iterator>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace exodus {
 
@@ -179,40 +188,31 @@ SigmaPrivateKey SigmaWallet::GeneratePrivateKey(CKeyID const &seedId)
     return GeneratePrivateKey(seed);
 }
 
-std::pair<SigmaMint, SigmaPrivateKey> SigmaWallet::GenerateMint(
-    uint32_t propertyId,
-    uint8_t denomination,
-    boost::optional<CKeyID> seedId)
+SigmaMintId SigmaWallet::GenerateMint(PropertyId property, SigmaDenomination denom, boost::optional<CKeyID> seedId)
 {
     LOCK(pwalletMain->cs_wallet);
-    if (seedId == boost::none) {
 
+    // If not specify seed to use that mean caller want to generate a new mint.
+    if (!seedId) {
         if (mintPool.empty()) {
-            throw std::runtime_error("unable to generate mint");
+            throw std::runtime_error("Mint pool is empty");
         }
 
         seedId = mintPool.begin()->seedId;
     }
 
-    auto privKey = GeneratePrivateKey(seedId.get());
+    // Generate private & public key.
+    auto priv = GeneratePrivateKey(seedId.get());
+    SigmaPublicKey pub(priv, DefaultSigmaParams);
 
-    SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
+    // Create a new mint.
+    auto serialId = GetSerialId(priv.serial);
+    SigmaMint mint(property, denom, seedId.get(), serialId);
+    SigmaMintId id(mint.property, mint.denomination, pub);
 
-    LogPrintf("%s: publicKey: %s seedId: %s\n",
-        __func__, pubKey.commitment.GetHex(), seedId->GetHex());
+    WriteMint(id, mint);
 
-    auto serialId = GetSerialId(privKey.serial);
-    auto mint = SigmaMint(
-        propertyId,
-        denomination,
-        seedId.get(),
-        serialId
-    );
-
-    WriteMint(SigmaMintId(propertyId, denomination, pubKey), mint);
-
-    LogPrintf("%s: pubcoin: %s\n", __func__, pubKey.commitment.GetHex());
-    return {mint, privKey};
+    return id;
 }
 
 SigmaMint SigmaWallet::UpdateMint(const SigmaMintId &id, const std::function<void(SigmaMint &)> &modifier)
@@ -230,27 +230,23 @@ SigmaMint SigmaWallet::UpdateMint(const SigmaMintId &id, const std::function<voi
 
 void SigmaWallet::ClearMintsChainState()
 {
-    CWalletDB walletdb(walletFile);
-    walletdb.TxnBegin();
+    CWalletDB db(walletFile);
+    std::vector<std::pair<SigmaMintId, SigmaMint>> mints;
 
-    std::vector<SigmaMint> mints;
-    ListMints(std::back_inserter(mints), &walletdb);
+    db.TxnBegin();
+
+    ListMints(std::back_inserter(mints), &db);
 
     for (auto &m : mints) {
-        m.chainState = SigmaMintChainState();
-        m.spendTx = uint256();
+        m.second.chainState = SigmaMintChainState();
+        m.second.spendTx = uint256();
 
-        auto priv = GeneratePrivateKey(m.seedId);
-        SigmaPublicKey pub(priv, DefaultSigmaParams);
-
-        if (!walletdb.WriteExodusMint(
-            SigmaMintId(m.property, m.denomination, pub), m)) {
-
-            throw std::runtime_error("fail to update hdmint");
+        if (!db.WriteExodusMint(m.first, m.second)) {
+            throw std::runtime_error("Failed to write " + walletFile);
         }
     }
 
-    walletdb.TxnCommit();
+    db.TxnCommit();
 }
 
 bool SigmaWallet::TryRecoverMint(
@@ -296,16 +292,23 @@ bool SigmaWallet::TryRecoverMint(
     return TryRecoverMint(id, chainState, uint256());
 }
 
-SigmaMint SigmaWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
+void SigmaWallet::UpdateMintCreatedTx(const SigmaMintId& id, const uint256& tx)
 {
-    return UpdateMint(id, [&state](SigmaMint &m) {
+    UpdateMint(id, [&](SigmaMint& m) {
+        m.createdTx = tx;
+    });
+}
+
+void SigmaWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
+{
+    UpdateMint(id, [&](SigmaMint &m) {
         m.chainState = state;
     });
 }
 
-SigmaMint SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
+void SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
 {
-    return UpdateMint(id, [&tx](SigmaMint &m) {
+    UpdateMint(id, [&](SigmaMint &m) {
         m.spendTx = tx;
     });
 }
@@ -351,24 +354,6 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
     }
 
     return id;
-}
-
-size_t SigmaWallet::ListMints(
-    std::function<void(SigmaMint const&)> const &f, CWalletDB* db) const
-{
-    std::unique_ptr<CWalletDB> localDB;
-    if (!db) {
-        db = new CWalletDB(walletFile);
-        localDB.reset(db);
-    }
-
-    size_t counter = 0;
-    db->ListExodusMints<SigmaMintId, SigmaMint>([&](SigmaMint const &m) {
-        counter++;
-        f(m);
-    });
-
-    return counter;
 }
 
 // MintPool state

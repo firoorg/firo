@@ -78,16 +78,19 @@ class SigmaMint
 public:
     PropertyId property;
     SigmaDenomination denomination;
-
     CKeyID seedId;
     uint160 serialId;
 
+    uint256 createdTx;
     SigmaMintChainState chainState;
     uint256 spendTx;
 
 public:
     SigmaMint();
     SigmaMint(PropertyId property, SigmaDenomination denomination, CKeyID const &seedId, uint160 const &serialId);
+
+    bool operator==(const SigmaMint& other) const;
+    bool operator!=(const SigmaMint& other) const;
 
     bool IsOnChain() const
     {
@@ -99,9 +102,6 @@ public:
         return !spendTx.IsNull();
     }
 
-    bool operator==(const SigmaMint& other) const;
-    bool operator!=(const SigmaMint& other) const;
-
     ADD_SERIALIZE_METHODS;
 
 private:
@@ -112,6 +112,7 @@ private:
         READWRITE(denomination);
         READWRITE(seedId);
         READWRITE(serialId);
+        READWRITE(createdTx);
         READWRITE(chainState);
         READWRITE(spendTx);
     }
@@ -165,11 +166,12 @@ struct hash<SigmaMint>
     size_t operator()(const SigmaMint& mint) const
     {
         return hash<PropertyId>()(mint.property)
-            ^ hash<SigmaDenomination>()(mint.denomination)
-            ^ hash<uint160>()(mint.seedId)
-            ^ hash<uint160>()(mint.serialId)
-            ^ hash<SigmaMintChainState>()(mint.chainState)
-            ^ hash<uint256>()(mint.spendTx);
+             ^ hash<SigmaDenomination>()(mint.denomination)
+             ^ hash<uint160>()(mint.seedId)
+             ^ hash<uint160>()(mint.serialId)
+             ^ hash<uint256>()(mint.createdTx)
+             ^ hash<SigmaMintChainState>()(mint.chainState)
+             ^ hash<uint256>()(mint.spendTx);
     }
 };
 
