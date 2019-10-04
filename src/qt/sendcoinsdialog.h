@@ -72,6 +72,13 @@ private:
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
 
+    /**
+     * @todo sendpaymentcode transaction
+     * 
+     * 
+     * */
+    void processPaymentCodeTransactions();
+
 private Q_SLOTS:
     void on_sendButton_clicked();
 //    void on_buttonChooseFee_clicked();
