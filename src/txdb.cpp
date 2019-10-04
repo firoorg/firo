@@ -553,16 +553,15 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
 {
     size_t no = 0;
     if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
+        for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
     }
 
     if(tx.IsZerocoinRemint()) {
         CAmount remintValue = 0;
-        for (std::vector<CTxOut>::const_iterator iter_out = tx.vout.begin(); iter_out != tx.vout.end(); ++iter_out) {
-            remintValue += iter_out->nValue;
+        for (CTxOut const & out : tx.vout) {
+            remintValue += out.nValue;
         }
         if (tx.vin.size() != 1) {
            error("A Zerocoin to Sigma remint tx shoud have just 1 input");
@@ -576,8 +575,7 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
-    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
-        CTxOut const & out = *iter;
+    for (CTxOut const & out : tx.vout) {
         handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
     }
 }
@@ -597,8 +595,8 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
     if(tx.IsZerocoinRemint()) {
         CAmount remintValue = 0;
-        for (std::vector<CTxOut>::const_iterator iter_out = tx.vout.begin(); iter_out != tx.vout.end(); ++iter_out) {
-            remintValue += iter_out->nValue;
+        for (CTxOut const & out : tx.vout) {
+            remintValue += out.nValue;
         }
         if (tx.vin.size() != 1) {
            error("A Zerocoin to Sigma remint tx shoud have just 1 input");
@@ -610,8 +608,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
     size_t no = 0;
 
     if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
+        for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
 
@@ -634,8 +631,7 @@ void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int h
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
-    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
-        CTxOut const & out = *iter;
+    for (CTxOut const & out : tx.vout) {
         handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
     }
 
