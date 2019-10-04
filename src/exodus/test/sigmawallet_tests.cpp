@@ -360,7 +360,10 @@ BOOST_AUTO_TEST_CASE(clear_chain_state)
         true,
         std::is_permutation(
             generatedMints.begin(), generatedMints.end(),
-            mints.begin(), mints.end()
+            mints.begin(),
+            [](SigmaMint const &a, SigmaMint const &b) -> bool {
+                return a == b;
+            }
         )
     );
 
