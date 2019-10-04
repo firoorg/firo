@@ -96,13 +96,5 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
         # all mints are spend then exodus balance should be the same as before
         assert_equal(balance, self.nodes[0].exodus_getbalance(self.addrs[0], sigma_property)['balance'])
 
-    def compare_mints(self, expected, actual):
-        mint_key_extractor = lambda m : (m['propertyid'], m['denomination'], m['value'])
-        expected.sort(key = mint_key_extractor)
-        actual.sort(key = mint_key_extractor)
-
-        assert_equal(expected, actual)
-
-
 if __name__ == '__main__':
     ExodusSigmaReindexTest().main()

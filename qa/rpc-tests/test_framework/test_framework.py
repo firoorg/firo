@@ -260,3 +260,10 @@ class ExodusTestFramework(BitcoinTestFramework):
         for i in range(len(denoms)):
             assert_equal(prop['denominations'][i]['id'], denoms[i]['id'])
             assert_equal(prop['denominations'][i]['value'], denoms[i]['value'])
+
+    def compare_mints(self, expected, actual):
+        mint_key_extractor = lambda m : (m['propertyid'], m['denomination'], m['value'])
+        expected.sort(key = mint_key_extractor)
+        actual.sort(key = mint_key_extractor)
+
+        assert_equal(expected, actual)
