@@ -13,6 +13,7 @@
 #include "znode-sync.h"
 #include "wallet/wallet.h"
 #include "znode.h"
+#include "znodeconfig.h"
 #include "activeznode.h"
 #include <zmqserver/zmqabstract.h>
 #include "univalue.h"
@@ -144,7 +145,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
+    modules.push_back(Pair("Znode", fZNode && znodeSync.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
@@ -164,6 +165,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
+    obj.push_back(Pair("hasZnodes",     fZNode && znodeConfig.getCount() > 0));
 #ifdef WIN32
     obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
 #else

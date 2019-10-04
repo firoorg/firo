@@ -237,28 +237,28 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
-    // "block" topic is a special case: if synced, always publish, if not, every 100 blocks (for better sync speed).
-    if(topic=="block"){
-        if(znodeSync.GetBlockchainSynced() || pindex->nHeight%100==0){
-            request.replace("data", pindex->ToJSON());
-            Execute(); 
-            return true;
+    // We always publish on an update to wallet tx's
+    if(topic=="address"){
+        CBlock block;
+        if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
         }
+        BOOST_FOREACH(const CTransaction&tx, block.vtx)
+        {
+            const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
+            if(wtx){
+                request.replace("data", pindex->ToJSON());
+                Execute();
+                return true;
+            }
+        }
+        return true;
     }
 
-    // Otherwise, publish on an update to wallet tx's
-    CBlock block;
-    if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
-        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-    }
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
-    {
-        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
-        if(wtx){
-            request.replace("data", pindex->ToJSON());
-            Execute();
-            return true;
-        }
+    // If synced, always publish, if not, every 100 blocks (for better sync speed).
+    if(znodeSync.GetBlockchainSynced() || pindex->nHeight%100==0){
+        request.replace("data", pindex->ToJSON());
+        Execute();
     }
 
     return true;
