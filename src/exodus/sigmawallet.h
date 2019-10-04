@@ -20,7 +20,7 @@ namespace exodus {
 
 class SigmaWallet
 {
-protected:
+public:
 
     struct MintPoolEntry {
         SigmaPublicKey key;

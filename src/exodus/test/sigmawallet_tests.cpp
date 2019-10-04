@@ -360,10 +360,7 @@ BOOST_AUTO_TEST_CASE(clear_chain_state)
         true,
         std::is_permutation(
             generatedMints.begin(), generatedMints.end(),
-            mints.begin(),
-            [](SigmaMint const &a, SigmaMint const &b) -> bool {
-                return a == b;
-            }
+            mints.begin()
         )
     );
 
@@ -395,48 +392,63 @@ BOOST_AUTO_TEST_CASE(fill_mint_pool)
 {
     auto &mintPool = sigmaWallet.GetMintPool();
 
-    std::vector<uint32_t> erasedIdxs = {0, 10, 15};
-    for (auto idx : erasedIdxs) {
-        mintPool.erase(mintPool.find(idx));
-    }
+    auto indexLess = [](
+        SigmaWallet::MintPoolEntry const &a, SigmaWallet::MintPoolEntry const &b) -> bool {
+            return a.index < b.index;
+    };
 
+    // last coin should be 19
+    BOOST_CHECK_EQUAL(
+        19,
+        std::max_element(mintPool.begin(), mintPool.end(), indexLess)->index
+    );
+
+    // erase index 0, 10 and 15
+    mintPool.erase(mintPool.find(0));
+    mintPool.erase(mintPool.find(10));
+    mintPool.erase(mintPool.find(15));
+
+    // filled, 3 coins should be added
     sigmaWallet.FillMintPool();
 
     mintPool = sigmaWallet.GetMintPool();
     BOOST_CHECK_EQUAL(20, mintPool.size());
 
-    for (uint32_t idx = 0; idx < mintPool.size() + erasedIdxs.size(); idx++) {
+    // verify
+    BOOST_CHECK(mintPool.find(0) == mintPool.end());
+    BOOST_CHECK(mintPool.find(10) == mintPool.end());
+    BOOST_CHECK(mintPool.find(15) == mintPool.end());
 
-        auto shouldBeDeleted = std::find(erasedIdxs.begin(), erasedIdxs.end(), idx) != erasedIdxs.end();
-        auto foundInPool = mintPool.find(idx) != mintPool.end();
+    // last coin should be 22
+    BOOST_CHECK_EQUAL(
+        22,
+        std::max_element(mintPool.begin(), mintPool.end(), indexLess)->index
+    );
 
-        BOOST_CHECK_EQUAL(
-            !shouldBeDeleted,
-            foundInPool
-        );
-    }
+    // 20, 21, 22 should be added
+    BOOST_CHECK(mintPool.find(20) != mintPool.end());
+    BOOST_CHECK(mintPool.find(21) != mintPool.end());
+    BOOST_CHECK(mintPool.find(22) != mintPool.end());
 }
 
 BOOST_AUTO_TEST_CASE(remove_from_mintpool)
 {
     auto &mintPool = sigmaWallet.GetMintPool();
 
-    std::vector<uint32_t> removedIdxs = {0, 10, 15};
-    std::vector<uint32_t> expectedSizeAfterRemove = {19, 18, 17};
+    // remove indice 0, 10 and 15 by pubkey
+    sigmaWallet.RemoveFromMintPool(mintPool.find(0)->key);
+    BOOST_CHECK_EQUAL(19, mintPool.size());
 
-    for (size_t i = 0; i < removedIdxs.size(); i++) {
-        auto idx = removedIdxs[i];
-        auto expectedSize = expectedSizeAfterRemove[i];
+    sigmaWallet.RemoveFromMintPool(mintPool.find(10)->key);
+    BOOST_CHECK_EQUAL(18, mintPool.size());
 
-        sigmaWallet.RemoveFromMintPool(mintPool.find(idx)->key);
+    sigmaWallet.RemoveFromMintPool(mintPool.find(15)->key);
+    BOOST_CHECK_EQUAL(17, mintPool.size());
 
-        // verify auto refill
-        BOOST_CHECK_EQUAL(expectedSize, mintPool.size());
-        BOOST_CHECK_EQUAL(
-            true,
-            mintPool.find(idx) == mintPool.end()
-        );
-    }
+    // coins should be deleted
+    BOOST_CHECK(mintPool.find(0) == mintPool.end());
+    BOOST_CHECK(mintPool.find(10) == mintPool.end());
+    BOOST_CHECK(mintPool.find(15) == mintPool.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
