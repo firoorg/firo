@@ -443,7 +443,7 @@ size_t SigmaWallet::FillMintPool()
 {
     LOCK(pwalletMain->cs_wallet);
 
-    size_t generatedCoins;
+    size_t generatedCoins = 0;
     while (mintPool.size() < MINTPOOL_CAPACITY) {
 
         CKeyID seedId;

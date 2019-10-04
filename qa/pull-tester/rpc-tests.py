@@ -105,6 +105,7 @@ testScripts = [
     'exodus_sendmint.py',
     'exodus_sendspend.py',
     'exodus_sigma_reindex.py',
+    'exodus_sigma_reorg.py',
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',
