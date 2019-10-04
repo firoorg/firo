@@ -12,6 +12,7 @@
 #include <boost/function_output_iterator.hpp>
 
 #include <functional>
+#include <utility>
 
 namespace exodus {
 
@@ -58,10 +59,17 @@ void Wallet::ReloadMasterKey()
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
-    SigmaPrivateKey priv;
-    std::tie(std::ignore, priv) = mintWallet.GenerateMint(property, denomination);
+    return mintWallet.GenerateMint(property, denomination);
+}
 
-    return SigmaMintId(property, denomination, SigmaPublicKey(priv, DefaultSigmaParams));
+void Wallet::SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx)
+{
+    mintWallet.UpdateMintCreatedTx(id, tx);
+}
+
+void Wallet::SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& tx)
+{
+    mintWallet.UpdateMintSpendTx(id, tx);
 }
 
 void Wallet::ClearAllChainState()
@@ -124,38 +132,22 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
     return mintWallet.GetMint(id);
 }
 
-boost::optional<SigmaMint>
-    Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     // Get all spendable mints.
     std::vector<SigmaMint> spendables;
 
-    mintWallet.ListMints(boost::make_function_output_iterator(
-        [property, denomination, &spendables] (SigmaMint const &mint) {
-
-            // property is't matched
-            if (property != mint.property) {
-                return;
-            }
-
-            // denomination is't matched
-            if (denomination != mint.denomination) {
-                return;
-            }
-
-            // isn't on chain
-            if (!mint.IsOnChain()) {
-                return;
-            }
-
-            // is spent
-            if (mint.IsSpent()) {
-                return;
-            }
-
-            spendables.push_back(mint);
+    mintWallet.ListMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        if (m.second.property != property || m.second.denomination != denomination) {
+            return;
         }
-    ));
+
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
+        }
+
+        spendables.push_back(m.second);
+    }));
 
     if (spendables.empty()) {
         return boost::none;
@@ -181,11 +173,6 @@ boost::optional<SigmaMint>
 SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
 {
     return mintWallet.GeneratePrivateKey(mint.seedId);
-}
-
-void Wallet::SetSigmaMintUsedTransaction(SigmaMintId const &id, uint256 const &tx)
-{
-    mintWallet.UpdateMintSpendTx(id, tx);
 }
 
 void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)

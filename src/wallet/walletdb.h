@@ -394,7 +394,7 @@ public:
             V value;
             ssValue >> value;
 
-            insertF(value);
+            insertF(key, value);
         }
 
         cursor->close();

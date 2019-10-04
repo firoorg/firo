@@ -1634,39 +1634,45 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
 
     RequireBalance(fromAddress, propertyId, amount);
 
+    // Create mints.
     std::vector<SigmaMintId> ids;
     std::vector<std::pair<SigmaDenomination, SigmaPublicKey>> mints;
-    mints.reserve(denoms.size());
-
-    wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
-        ids.push_back(m);
-        mints.push_back(std::make_pair(m.denomination, m.pubKey));
-    }));
-
-    std::vector<unsigned char> payload = CreatePayload_SimpleMint(propertyId, mints);
-
-    // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
 
-    // check error and return the txid (or raw hex depending on autocommit)
-    if (result != 0) {
-        for (auto const &id : ids) {
-            try {
-                wallet->DeleteUnconfirmedSigmaMint(id);
-            } catch (std::runtime_error const &e) {
-                LogPrintf("%s : Fail to erase sigma mints, %s\n", __func__, e.what());
-            }
+    ids.reserve(denoms.size());
+    mints.reserve(denoms.size());
+
+    try {
+        wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+            ids.push_back(m);
+            mints.push_back(std::make_pair(m.denomination, m.pubKey));
+        }));
+
+        // Create transaction.
+        auto payload = CreatePayload_SimpleMint(propertyId, mints);
+        auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+        if (result != 0) {
+            throw JSONRPCError(result, error_str(result));
         }
-        throw JSONRPCError(result, error_str(result));
+    } catch (...) {
+        for (auto& id : ids) {
+            wallet->DeleteUnconfirmedSigmaMint(id);
+        }
+        throw;
+    }
+
+    // Assign transaction ID.
+    for (auto& id : ids) {
+        wallet->SetSigmaMintCreatedTransaction(id, txid);
+    }
+
+    if (!autoCommit) {
+        return rawHex;
     } else {
-        if (!autoCommit) {
-            return rawHex;
-        } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
-            return txid.GetHex();
-        }
+        PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
+        return txid.GetHex();
     }
 }
 

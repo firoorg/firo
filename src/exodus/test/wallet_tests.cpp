@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -182,18 +183,17 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
     BOOST_CHECK_EQUAL(ids.size(), 4);
 
     // List mints.
-    std::unordered_set<SigmaMint> mints;
+    std::unordered_map<SigmaMintId, SigmaMint> mints;
 
-    wallet->ListSigmaMints(std::inserter(mints, mints.end()));
+    wallet->ListSigmaMints(std::inserter(mints, mints.begin()));
 
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
 
     for (auto& mint : mints) {
-        SigmaPublicKey pub(wallet->GetKey(mint), DefaultSigmaParams);
-        auto it = ids.find(SigmaMintId(mint.property, mint.denomination, pub));
+        auto it = ids.find(mint.first);
 
         BOOST_CHECK(it != ids.end());
-        BOOST_CHECK_EQUAL(mint, wallet->GetSigmaMint(*it));
+        BOOST_CHECK_EQUAL(mint.second, wallet->GetSigmaMint(*it));
 
         ids.erase(it);
     }
