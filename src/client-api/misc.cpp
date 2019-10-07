@@ -14,6 +14,7 @@
 #include "wallet/wallet.h"
 #include "znode.h"
 #include "znodeconfig.h"
+#include "znodeman.h"
 #include "activeznode.h"
 #include <zmqserver/zmqabstract.h>
 #include "univalue.h"
@@ -145,7 +146,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Znode", fZNode && znodeSync.IsSynced()));
+    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
@@ -157,6 +158,11 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         }
     }
 
+    UniValue znode(UniValue::VOBJ);
+    znode.push_back(Pair("localCount", znodeConfig.getCount()));
+    znode.push_back(Pair("totalCount", mnodeman.CountZnodes()));
+    obj.push_back(Pair("Znode", znode));
+
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
@@ -165,7 +171,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
-    obj.push_back(Pair("hasZnodes",     fZNode && znodeConfig.getCount() > 0));
+
 #ifdef WIN32
     obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
 #else

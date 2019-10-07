@@ -835,7 +835,7 @@ int CZnodeMan::GetZnodeRank(const CTxIn& vin, int nBlockHeight, int nMinProtocol
     return -1;
 }
 
-std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, int nMinProtocol, bool nPublish)
+std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, int nMinProtocol)
 {
     std::vector<std::pair<int64_t, CZnode*> > vecZnodeScores;
     std::vector<std::pair<int, CZnode> > vecZnodeRanks;
@@ -861,7 +861,7 @@ std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, 
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores) {
         nRank++;
-        s.second->SetRank(nRank, nPublish);
+        s.second->SetRank(nRank);
         vecZnodeRanks.push_back(std::make_pair(nRank, *s.second));
     }
 

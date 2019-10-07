@@ -403,7 +403,7 @@ void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
     }   
 }
 
-void CZnode::SetRank(int newRank, bool nPublish) {
+void CZnode::SetRank(int newRank) {
      if(nRank!=newRank){
         nRank = newRank;
         if(nRank < 0 || nRank > mnodeman.size()) nRank = 0;

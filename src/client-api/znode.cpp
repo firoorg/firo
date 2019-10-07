@@ -199,25 +199,15 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 return data;
             }
 
-            std::unordered_map<std::string, int> ranks;
-
-            std::vector <std::pair<int, CZnode>> vZnodeRanks = mnodeman.GetZnodeRanks();
-            BOOST_FOREACH(PAIRTYPE(int, CZnode) & s, vZnodeRanks)
-            {
-                std::string payee = CBitcoinAddress(s.second.pubKeyCollateralAddress.GetID()).ToString();
-                ranks[payee] = s.first;
-            }
-
             std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
             BOOST_FOREACH(CZnode & mn, vZnodes) {
-                std::string payee = CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString();
-                mn.SetRank(ranks[payee], false);
-
                 std::string txHash = mn.vin.prevout.hash.ToString().substr(0,64);
                 std::string outputIndex = to_string(mn.vin.prevout.n);
                 std::string key = txHash + outputIndex;
 
-                nodes.replace(key, mn.ToJSON());
+                // only process wallet Znodes - they are already in "nodes", so if we find it, replace with update
+                if(!find_value(nodes, key).isNull())
+                    nodes.replace(key, mn.ToJSON());
             }
 
             data.push_back(Pair("nodes", nodes));

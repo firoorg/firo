@@ -101,48 +101,17 @@ OPTIONAL: not a necessary parameter to pass.
         connections: INT,
         devAuth: BOOL,
         synced: BOOL,
+        reindexing: BOOL,
         safeMode: BOOL,
         pid: INT,
         modules: {
             API: BOOL,
             Znode: BOOL
         },
-        myZnode: (VAR: Wallet has Znode) {
-            STRING: { (payeeAddress)
-            rank: INT,
-            outpoint: {
-                txid: STRING,
-                index: STRING
-            },
-            status: STRING,
-            protocolVersion: INT,
-            payeeAddress: STRING,
-            lastSeen: INT,
-            activeSince: INT,
-            lastPaidTime: INT,
-            lastPaidBlock: INT,
-            authority: {
-                ip: STRING,
-                port: STRING
-            }
-            isMine: BOOL,
-            label: STRING, (VAR: isMine==true)
-            position: INT, (VAR: isMine==true)
-            qualify: {
-                result: BOOL,
-                description: STRING ["Is scheduled"             ||
-                                     "Invalid nProtocolVersion" ||
-                                     "Too new"                  ||
-                                     "collateralAge < znCount"] (VAR: result==false)
-                data: { (VAR: result==false)
-                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
-                    sigTime:          INT, (VAR: description=="Too new"),
-                    qualifiedAfter:   INT, (VAR: description=="Too new"),
-                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
-                    znCount:          INT, (VAR: description=="collateralAge < znCount")
-                }
-            }
-        },
+        Znode: {
+            localCount: INT,
+            totalCount: INT
+        }
     },
     meta:{
        status: 200
