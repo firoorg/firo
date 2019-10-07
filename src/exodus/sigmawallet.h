@@ -5,16 +5,22 @@
 #ifndef ZCOIN_EXODUS_SIGMAWALLET_H
 #define ZCOIN_EXODUS_SIGMAWALLET_H
 
+#include "property.h"
+#include "sigmaprimitives.h"
+#include "walletmodels.h"
+
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/optional.hpp>
 
 #include "../uint256.h"
+
 #include "../wallet/walletdb.h"
 
-#include "sigmadb.h"
-#include "walletmodels.h"
+#include <memory>
+#include <utility>
 
 namespace exodus {
 
@@ -83,10 +89,7 @@ protected:
     // Mint updating
 public:
     SigmaPrivateKey GeneratePrivateKey(CKeyID const &seedId);
-    std::pair<SigmaMint, SigmaPrivateKey> GenerateMint(
-        PropertyId propertyId,
-        SigmaDenomination denom,
-        boost::optional<CKeyID> seedId = boost::none);
+    SigmaMintId GenerateMint(PropertyId property, SigmaDenomination denom, boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
     bool TryRecoverMint(
@@ -102,8 +105,9 @@ private:
     void WriteMint(SigmaMintId const &id, SigmaMint const &entry);
 
 public:
-    SigmaMint UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
-    SigmaMint UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx);
+    void UpdateMintCreatedTx(const SigmaMintId& id, const uint256& tx);
+    void UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state);
+    void UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx);
 
     // Mint querying
 public:
@@ -114,18 +118,22 @@ public:
     SigmaMint GetMint(secp_primitives::Scalar const &serial) const;
     SigmaMintId GetMintId(secp_primitives::Scalar const &serial) const;
 
-    template<
-        class OutIt,
-        typename std::enable_if<is_iterator<OutIt>::value>::type* = nullptr
-    > OutIt ListMints(OutIt it, CWalletDB *db = nullptr) const
+    template<class Output>
+    Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        ListMints([&it](SigmaMint const &m) {
-            *it++ = m;
-        }, db);
+        std::unique_ptr<CWalletDB> local;
 
-        return it;
+        if (!db) {
+            db = new CWalletDB(walletFile);
+            local.reset(db);
+        }
+
+        db->ListExodusMints<SigmaMintId, SigmaMint>([&](const SigmaMintId& id, const SigmaMint &m) {
+            *output++ = std::make_pair(id, m);
+        });
+
+        return output;
     }
-    size_t ListMints(std::function<void(SigmaMint const&)> const &, CWalletDB* db = nullptr) const;
 
     // MintPool state
 public:

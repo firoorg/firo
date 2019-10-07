@@ -7,7 +7,11 @@
 
 #include "../../wallet/test/wallet_test_fixture.h"
 
+#include <boost/function_output_iterator.hpp>
 #include <boost/test/unit_test.hpp>
+
+#include <algorithm>
+#include <utility>
 
 namespace exodus {
 
@@ -209,14 +213,7 @@ BOOST_AUTO_TEST_CASE(tryrecover_mintpool_coin)
 
 BOOST_AUTO_TEST_CASE(tryrecover_already_in_wallet_coin)
 {
-    PropertyId prop = 1;
-    SigmaDenomination denom = 0;
-
-    SigmaPrivateKey priv;
-    std::tie(std::ignore, priv) = sigmaWallet.GenerateMint(prop, denom);
-
-    SigmaMintId id(prop, denom, SigmaPublicKey(priv, DefaultSigmaParams));
-
+    auto id = sigmaWallet.GenerateMint(3, 0);
     auto mintPool = sigmaWallet.GetMintPoolEntry();
 
     // verify state before
@@ -237,55 +234,30 @@ BOOST_AUTO_TEST_CASE(tryrecover_already_in_wallet_coin)
 
 BOOST_AUTO_TEST_CASE(listmints_empty_wallet)
 {
-    std::vector<SigmaMint> mints;
+    std::vector<std::pair<SigmaMintId, SigmaMint>> mints;
     sigmaWallet.ListMints(std::back_inserter(mints));
     BOOST_CHECK_EQUAL(0, mints.size());
 }
 
 BOOST_AUTO_TEST_CASE(listmints_non_empty_wallet)
 {
-    // generate 3 coins which is
-    // 1. unconfirmed
-    // 2. confirmed and unspend
-    // 3. spend
-    PropertyId prop = 10;
-    SigmaDenomination denom = 0;
+    auto unconfirmed = sigmaWallet.GenerateMint(10, 0);
+    auto unspend = sigmaWallet.GenerateMint(10, 0);
+    auto spend = sigmaWallet.GenerateMint(10, 0);
 
-    auto unconfirmed = sigmaWallet.GenerateMint(prop, denom);
-    auto unspend = sigmaWallet.GenerateMint(prop, denom);
-    sigmaWallet.UpdateMintChainstate(
-        SigmaMintId(prop, denom, SigmaPublicKey(unspend.second, DefaultSigmaParams)),
-        SigmaMintChainState(100, 0, 1000));
+    sigmaWallet.UpdateMintChainstate(unspend, SigmaMintChainState(100, 0, 1000));
+    sigmaWallet.UpdateMintChainstate(spend, SigmaMintChainState(100, 0, 1001));
+    sigmaWallet.UpdateMintSpendTx(spend, uint256S("766a4af4a36df1cd40e60f049f14d8a10fc9f9f20f7f88d89cafd415725d9415"));
 
-    auto spend = sigmaWallet.GenerateMint(prop, denom);
-    sigmaWallet.UpdateMintChainstate(
-        SigmaMintId(prop, denom, SigmaPublicKey(spend.second, DefaultSigmaParams)),
-        SigmaMintChainState(100, 0, 1001));
+    std::vector<SigmaMintId> result;
 
-    sigmaWallet.UpdateMintSpendTx(
-        SigmaMintId(prop, denom, SigmaPublicKey(spend.second, DefaultSigmaParams)),
-        uint256S("1"));
+    sigmaWallet.ListMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        result.push_back(m.first);
+    }));
 
-    // prepare testing function
-    auto sigmaMintComparer = [](SigmaMint const &a, SigmaMint const &b) -> bool {
-        return a.property == b.property &&
-            a.denomination == b.denomination &&
-            a.seedId == b.seedId;
-    };
-
-
-
-    std::vector<SigmaMint> mints;
-    sigmaWallet.ListMints(std::back_inserter(mints));
     BOOST_CHECK_EQUAL(
         true,
-        std::is_permutation(
-            mints.begin(), mints.end(),
-            std::vector<SigmaMint>{
-                unconfirmed.first, unspend.first, spend.first
-            }.begin(),
-            sigmaMintComparer
-        )
+        std::is_permutation(result.begin(), result.end(), std::begin({ unconfirmed, unspend, spend }))
     );
 }
 
@@ -308,13 +280,8 @@ BOOST_AUTO_TEST_CASE(delete_out_wallet_mint)
 
 BOOST_AUTO_TEST_CASE(push_mint_back)
 {
-    auto mintPool = sigmaWallet.GetMintPoolEntry();
-
-    SigmaMint mint;
-    SigmaPrivateKey privKey;
-    std::tie(mint, privKey) = sigmaWallet.GenerateMint(1, 0);
-
-    SigmaMintId id(1, 0, SigmaPublicKey(privKey, DefaultSigmaParams));
+    auto id = sigmaWallet.GenerateMint(1, 0);
+    auto mint = sigmaWallet.GetMint(id);
 
     BOOST_CHECK(sigmaWallet.HasMint(id));
     BOOST_CHECK(!sigmaWallet.IsMintInPool(id.pubKey));
@@ -453,4 +420,4 @@ BOOST_AUTO_TEST_CASE(remove_from_mintpool)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
+} // namespace exodus

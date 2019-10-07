@@ -55,6 +55,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <inttypes.h>
 
@@ -1919,20 +1920,20 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     // Get mints that meet criteria.
     std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
-        if (m.IsSpent() || m.chainState.block < 0) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
             return;
         }
 
-        if (property && m.property != property.get()) {
+        if (property && m.second.property != property.get()) {
             return;
         }
 
-        if (denomination && m.denomination != denomination.get()) {
+        if (denomination && m.second.denomination != denomination.get()) {
             return;
         }
 
-        mints.push_back(m);
+        mints.push_back(m.second);
     }));
 
     return SigmaMintsToJson(mints.begin(), mints.end(), verbose);
@@ -1961,12 +1962,12 @@ UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
 
     std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const SigmaMint& m) {
-        if (m.chainState.block >= 0) {
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        if (m.second.IsOnChain()) {
             return;
         }
 
-        mints.push_back(m);
+        mints.push_back(m.second);
     }));
 
     return SigmaMintsToJson(mints.begin(), mints.end());
