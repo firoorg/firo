@@ -300,13 +300,9 @@ BOOST_AUTO_TEST_CASE(clear_chain_state)
     // generate 10 coins and set state
     std::vector<SigmaMint> generatedMints;
     for (size_t i = 0; i < 10; i++) {
-        SigmaMint mint;
-        SigmaPrivateKey privKey;
-        std::tie(mint, privKey) = sigmaWallet.GenerateMint(1, 0);
+        auto id = sigmaWallet.GenerateMint(1, 0);
+        auto mint = sigmaWallet.GetMint(id);
 
-        SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
-
-        SigmaMintId id(1, 0, pubKey);
         SigmaMintChainState state(100, 0, i);
         sigmaWallet.UpdateMintChainstate(id, state);
 
@@ -319,9 +315,12 @@ BOOST_AUTO_TEST_CASE(clear_chain_state)
         generatedMints.push_back(mint);
     }
 
-    // verify created coins is valid
     std::vector<SigmaMint> mints;
-    sigmaWallet.ListMints(std::back_inserter(mints));
+    sigmaWallet.ListMints(boost::make_function_output_iterator(
+        [&mints](std::pair<SigmaMintId, SigmaMint> const &idAndMint){
+            mints.push_back(idAndMint.second);
+        })
+    );
 
     BOOST_CHECK_EQUAL(
         true,
@@ -335,7 +334,11 @@ BOOST_AUTO_TEST_CASE(clear_chain_state)
     sigmaWallet.ClearMintsChainState();
 
     std::vector<SigmaMint> clearedMints;
-    sigmaWallet.ListMints(std::back_inserter(clearedMints));
+    sigmaWallet.ListMints(boost::make_function_output_iterator(
+        [&clearedMints](std::pair<SigmaMintId, SigmaMint> const &idAndMint){
+            clearedMints.push_back(idAndMint.second);
+        })
+    );
 
     BOOST_CHECK_EQUAL(10, clearedMints.size());
     BOOST_CHECK_EQUAL(
