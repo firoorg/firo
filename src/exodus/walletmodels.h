@@ -180,7 +180,7 @@ struct hash<SigmaMint>
 template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const SigmaMintId& id)
 {
-    return os << "{property: " << id.property << ", denomination: " << id.denomination << ", pubKey: " << id.pubKey << '}';
+    return os << "{property: " << id.property << ", denomination: " << static_cast<unsigned>(id.denomination) << ", pubKey: " << id.pubKey << '}';
 }
 
 template<class Char, class Traits>
