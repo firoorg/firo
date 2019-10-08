@@ -184,8 +184,8 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 45;
     }
 
-    assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
     sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block, tx.getHash());
+    assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
 
     return 0;
 }
