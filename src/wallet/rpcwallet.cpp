@@ -26,6 +26,7 @@
 #include "zerocoin.h"
 #include "walletexcept.h"
 #include "bip47/PaymentCode.h"
+#include "bip47/Bip47Wallet.h"
 
 #include <znode-payments.h>
 
@@ -4067,76 +4068,23 @@ UniValue getnewpcode(const UniValue& params, bool fHelp)
 
 
 
-UniValue getpcodesbyaddress(const UniValue& params, bool fHelp)
+UniValue getMyPaymentCode(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() >= 1)
         throw runtime_error(
-                "getpcodesbyaddress \"address\"\n"
-                "\nDEPRECATED. Returns the list of paymentcodes for the given address.\n"
-                "\nArguments:\n"
-                "1. \"address\"  (string, required) The address to get paymentcodes list.\n"
-                "\nResult:\n"
-                "[                     (json array of string)\n"
-                "  \"paymentcodes\"  (string) a Zcoin paymentcodes associated with the given address\n"
-                "  ,...\n"
-                "]\n"
-                "\nExamples:\n"
-                + HelpExampleCli("getpcodesbyaddress", "\"a66U6468YZZHyozRvS1vDXBCUkXddt7hSP\"")
-                + HelpExampleRpc("getpcodesbyaddress", "\"a66U6468YZZHyozRvS1vDXBCUkXddt7hSP\"")
+                "getMyPaymentCode\n" 
+                "return payment Code"
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
 
-    string strAddress = params[0].get_str();
-    CBitcoinAddress address;
-    if (!address.SetString(strAddress))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
-    CKeyID keyID;
-    if (!address.GetKeyID(keyID))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
-    CPubKey vchPubkey;
-    CKey key;
-    if (!pwalletMain->GetKey(keyID, key))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot get pubkey for address " + strAddress + " is not known");
-
-    if (!pwalletMain->GetPubKey(keyID, vchPubkey))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot get pubkey for address " + strAddress + " is not known");
-
-
-    CExtKey masterKey;
-    CExtKey purposeKey;
-    CExtKey coinTypeKey;
-    CExtKey childKey;
-
-    masterKey.SetMaster(key.begin(), key.size());
-    masterKey.Derive(purposeKey, 0x2F | BIP32_HARDENED_KEY_LIMIT);
-    purposeKey.Derive(coinTypeKey, 0x0 | BIP32_HARDENED_KEY_LIMIT);
-    coinTypeKey.Derive(childKey, BIP32_HARDENED_KEY_LIMIT);
-
-
-
-    CExtPubKey ppubkey = masterKey.Neuter();
-
-    // Find all addresses that have the given account
-    UniValue ret(UniValue::VARR);
-
-
-
-    unsigned char ppkey[33];
-    unsigned char pchain[32];
-
-    memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
-    memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
-
-    PaymentCode paymentCode(ppkey, pchain);
     
-    ret.push_back(paymentCode.toString());
-    return ret;
+    return pbip47WalletMain->getPaymentCode();
 }
 
 UniValue sendtopcode(const UniValue& params, bool fHelp)
@@ -4160,8 +4108,8 @@ UniValue sendtopcode(const UniValue& params, bool fHelp)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    CBitcoinAddress address(params[0].get_str());
-    if (!address.IsValid())
+    PaymentCode paymentCode(params[0].get_str());
+    if (!paymentCode.isValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
 
     // Amount
@@ -4169,22 +4117,25 @@ UniValue sendtopcode(const UniValue& params, bool fHelp)
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
+
+    pbip47WalletMain->makeNotificationTransaction(paymentCode.toString());
     // Wallet comments
-    CWalletTx wtx;
-    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
-        wtx.mapValue["comment"] = params[2].get_str();
-    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
-        wtx.mapValue["to"]      = params[3].get_str();
+    // CWalletTx wtx;
+    // if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
+    //     wtx.mapValue["comment"] = params[2].get_str();
+    // if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+    //     wtx.mapValue["to"]      = params[3].get_str();
 
-    bool fSubtractFeeFromAmount = false;
-    if (params.size() > 4)
-        fSubtractFeeFromAmount = params[4].get_bool();
+    // bool fSubtractFeeFromAmount = false;
+    // if (params.size() > 4)
+    //     fSubtractFeeFromAmount = params[4].get_bool();
 
-    EnsureWalletIsUnlocked();
+    // EnsureWalletIsUnlocked();
 
-    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+    // SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
-    return wtx.GetHash().GetHex();
+    // return wtx.GetHash().GetHex();
+    return "Success";
 }
 
 UniValue listreceivedbypcode(const UniValue& params, bool fHelp)
@@ -4369,7 +4320,7 @@ static const CRPCCommand commands[] =
 
     // new RPC functions for payment code
     { "wallet",             "getnewpcode",            &getnewpcode,            true  },
-    { "wallet",             "getpcodesbyaddress",    &getpcodesbyaddress,    true  },
+    { "wallet",             "getMyPaymentCode",    &getMyPaymentCode,    true  },
     { "wallet",             "sendtopcode",            &sendtopcode,            false },
     { "wallet",             "listreceivedbypcode",    &listreceivedbypcode,    false },
     { "wallet",             "getreceivedbypcode",     &getreceivedbypcode,     false },

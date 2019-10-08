@@ -19,6 +19,7 @@ public:
     static bool initLoadBip47Wallet();
 
     Bip47Wallet(string strWalletFileIn, string coinName, string seedStr);
+    Bip47Wallet(string strWalletFileIn, string coinName, CExtKey masterExtKey);
     
 
 
@@ -40,9 +41,13 @@ public:
     CAmount getValueSentToMe(CTransaction tx);
 
 
+    string getPaymentCode();
+
+
 
 
     void deriveAccount(vector<unsigned char> hd_seed);
+    void deriveAccount(CExtKey masterKey);
 
     
 

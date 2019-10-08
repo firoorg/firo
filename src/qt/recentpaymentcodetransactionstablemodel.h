@@ -48,9 +48,12 @@ public:
         READWRITE(fee);
         READWRITE(srpcode);
 
-        if (ser_action.ForRead())
+        if (ser_action.ForRead()) 
+        {
             date = QDateTime::fromTime_t(nDate);
             rpcode = QString::fromStdString(srpcode);
+        }
+            
     }
 };
 
