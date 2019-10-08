@@ -153,6 +153,7 @@ BITCOIN_CORE_H = \
   client-api/send.h \
   client-api/server.h \
   client-api/settings.h \
+  client-api/sigma.h \
   client-api/wallet.h \
   coincontrol.h \
   coins.h \

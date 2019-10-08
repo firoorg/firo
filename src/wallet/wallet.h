@@ -980,6 +980,14 @@ public:
 
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+    std::string GetSigmaMintFee(
+        const vector<CRecipient>& vecSend,
+        const vector<sigma::PrivateCoin>& privCoins,
+        vector<CHDMint> vDMints,
+        CWalletTx &wtxNew,
+        int64_t& nFeeRequired,
+        const CCoinControl *coinControl = NULL);
+
     std::string MintAndStoreSigma(
         const vector<CRecipient>& vecSend,
         const vector<sigma::PrivateCoin>& privCoins,

@@ -10,6 +10,7 @@
 #include "wallet/rpcwallet.h"
 #include "client-api/server.h"
 #include "client-api/send.h"
+#include "client-api/sigma.h"
 #include "client-api/protocol.h"
 #include "univalue.h"
 #include <fstream>
@@ -649,7 +650,6 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount total = xzcConfirmed + xzcUnconfirmed + sigmaAll + xzcImmature;
     CAmount pending = total - xzcConfirmed - sigmaConfirmed;
     CAmount available = total - xzcLocked - xzcUnconfirmed - sigmaUnconfirmed - xzcImmature;
-
     
     totalObj.push_back(Pair("all", total));
     totalObj.push_back(Pair("pending", pending));
@@ -665,6 +665,8 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     balanceObj.push_back(Pair("total", totalObj));
     balanceObj.push_back(Pair("public", xzcObj));
     balanceObj.push_back(Pair("private", sigmaObj));
+
+    balanceObj.push_back(Pair("unspentMints", GetDenominations()));
 
     return balanceObj;
 }

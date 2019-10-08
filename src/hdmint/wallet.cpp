@@ -449,7 +449,7 @@ int32_t CHDMintWallet::GetCount()
 void CHDMintWallet::ResetCount()
 {
     CWalletDB walletdb(strWalletFile);
-    walletdb.WriteMintCount(nCountNextUse);
+    walletdb.ReadMintCount(nCountNextUse);
 }
 
 void CHDMintWallet::SetCount(int32_t nCount)

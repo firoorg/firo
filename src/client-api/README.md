@@ -158,7 +158,37 @@ OPTIONAL: not a necessary parameter to pass.
         private: {
             confirmed: INT,
             unconfirmed: INT,
-        }
+        },
+        unspentMints: {
+            "0.05": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "0.1": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "0.5": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "1": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "10": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "25": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "100": {
+                confirmed: INT,
+                unconfirmed: INT,
+            }
+        },
     }, 
     meta:{
         status: 200
@@ -167,7 +197,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 
 ### `block`
-`GET`:
+`get`:
 ```
     data: {
         blockHash: STRING
@@ -418,7 +448,8 @@ OPTIONAL: not a necessary parameter to pass.
 `create`:
 ```
     data: {
-        denominations: {
+        value: INT (VAR: denominations.IsNull())
+        denominations: { (VAR: value.IsNull())
             STRING (denomination) : INT (amount),
             STRING (denomination) : INT (amount),
             STRING (denomination) : INT (amount),
@@ -435,6 +466,33 @@ OPTIONAL: not a necessary parameter to pass.
     txids: {
        STRING (txid)
    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+
+### `mintTxFee`
+`none`:
+```
+    data: {
+        value: INT (sats) (VAR: denominations.IsNull())
+        denominations: { (VAR: value.IsNull())
+            STRING (denomination) : INT (amount),
+            STRING (denomination) : INT (amount),
+            STRING (denomination) : INT (amount),
+            ...
+        }
+    },
+    auth: {
+        passphrase: STRING
+    }
+```
+*Returns:*
+```
+{
+    "fee": INT(sats)
     meta:{
        status: 200
     }
@@ -534,6 +592,37 @@ OPTIONAL: not a necessary parameter to pass.
     }
 ```
 
+### `prepareSendPrivate`
+`none`:
+```
+    data: {
+        outputs: [
+            {
+                address: STRING,
+                amount: INT
+            }
+        ],
+        label: STRING,
+        subtractFeeFromAmount: BOOL
+    }
+    auth: {
+        passphrase: STRING
+    }
+```
+
+*Returns:*
+```
+{
+    data: {
+        inputs: INT,
+        fee: INT(sats)
+    },
+    meta:{
+        status: 200
+    }
+}
+```
+
 ### `rebroadcast`
 `create`:
 ```
@@ -607,14 +696,10 @@ OPTIONAL: not a necessary parameter to pass.
             {
                 address: STRING,
                 amount: INT
-            },
-            {
-                address: STRING,
-                amount: INT
-            },
-            ...
+            }
         ],
-        label: STRING
+        label: STRING,
+        subtractFeeFromAmount: BOOL
     }
     auth: {
         passphrase: STRING
@@ -650,7 +735,8 @@ OPTIONAL: not a necessary parameter to pass.
           },
           ...
         },
-        feePerKb(sats): INT
+        feePerKb: INT (sats),
+        subtractFeeFromAmount: BOOL
     },
     auth: {
         passphrase: STRING
@@ -1007,7 +1093,8 @@ OPTIONAL: not a necessary parameter to pass.
               STRING (address): INT (amount),
               ...
           },
-          feePerKb(sats): INT,
+          feePerKb: INT (sats),
+          subtractFeeFromAmount: BOOL
       }
 ``` 
 *Returns:*

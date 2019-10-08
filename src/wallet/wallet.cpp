@@ -2140,6 +2140,8 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
     std::vector<CRecipient> vecSend;
 
+    zwalletMain->ResetCount(); // Before starting to mint, ensure mint count is correct
+
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
         [&vDMints](sigma::PrivateCoin& coin) -> CRecipient {
 
@@ -6640,6 +6642,53 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
                 "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
     } else {
         LogPrintf("CommitTransaction success!\n");
+    }
+
+    return "";
+}
+
+string CWallet::GetSigmaMintFee(const vector<CRecipient>& vecSend,
+                                const vector<sigma::PrivateCoin>& privCoins,
+                                vector<CHDMint> vDMints,
+                                CWalletTx &wtxNew, int64_t& nFeeRequired,
+                                const CCoinControl *coinControl) {
+    string strError;
+
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        strError = _("Error: Wallet locked, unable to create transaction!");
+        LogPrintf("MintZerocoin() : %s", strError);
+        return strError;
+    }
+
+    int totalValue = 0;
+    BOOST_FOREACH(CRecipient recipient, vecSend){
+        // Check amount
+        if (recipient.nAmount <= 0)
+            return _("Invalid amount");
+
+        LogPrintf("MintSigma: value = %s\n", recipient.nAmount);
+        totalValue += recipient.nAmount;
+
+    }
+
+    if ((totalValue + payTxFee.GetFeePerK()) > GetBalance())
+        return _("Insufficient funds");
+
+    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    CReserveKey reservekey(this);
+
+    int nChangePosRet = -1;
+    bool isSigmaMint = true;
+
+    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, coinControl)) {
+        LogPrintf("nFeeRequired=%s\n", nFeeRequired);
+        if (totalValue + nFeeRequired > GetBalance())
+            return strprintf(
+                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
+                    FormatMoney(nFeeRequired).c_str());
+        return strError;
     }
 
     return "";

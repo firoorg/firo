@@ -138,9 +138,11 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
         case Create: {
             UniValue feePerKb;
             UniValue sendTo(UniValue::VOBJ);
+            bool fSubtractFeeFromAmount;
             try{
                 feePerKb = find_value(data,"feePerKb");
                 sendTo = find_value(data,"addresses").get_obj();
+                fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
             }catch (const std::exception& e){
                 throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
             }
@@ -153,8 +155,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             int nMinDepth = 1;
 
             CWalletTx wtx;
-
-            UniValue subtractFeeFromAmount(UniValue::VARR);
 
             set<CBitcoinAddress> setAddress;
             vector<CRecipient> vecSend;
@@ -186,13 +186,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 if (nAmount <= 0)
                     throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
                 totalAmount += nAmount;
-
-                bool fSubtractFeeFromAmount = false;
-                for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
-                    const UniValue& addr = subtractFeeFromAmount[idx];
-                    if (addr.get_str() == name_)
-                        fSubtractFeeFromAmount = true;
-                }
 
                 CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
@@ -261,9 +254,11 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     UniValue ret(UniValue::VOBJ);
     UniValue feePerKb;
     UniValue sendTo(UniValue::VOBJ);
+    bool fSubtractFeeFromAmount;
     try{
         feePerKb = find_value(data, "feePerKb");
         sendTo = find_value(data, "addresses").get_obj();
+        fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
     }catch (const std::exception& e){
         throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
     }
@@ -273,8 +268,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
 
     CWalletTx wtx;
     wtx.strFromAccount = "";
-
-    UniValue subtractFeeFromAmount(UniValue::VARR);
 
     set<CBitcoinAddress> setAddress;
     vector<CRecipient> vecSend;
@@ -305,13 +298,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
         totalAmount += nAmount;
-
-        bool fSubtractFeeFromAmount = false;
-        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
-            const UniValue& addr = subtractFeeFromAmount[idx];
-            if (addr.get_str() == name_)
-                fSubtractFeeFromAmount = true;
-        }
 
         CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
