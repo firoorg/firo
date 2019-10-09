@@ -6,6 +6,7 @@
 class Bip47Account {
     private:
     CBaseChainParams *params ;
+    CExtKey prvkey;
     CExtPubKey key;
     int accountId;
     PaymentCode paymentCode;
@@ -18,6 +19,7 @@ class Bip47Account {
     CBitcoinAddress getNotificationAddress();
 
     CExtPubKey getNotificationKey();
+    CExtKey getNotificationPrivKey();
 
     PaymentCode getPaymentCode();
 

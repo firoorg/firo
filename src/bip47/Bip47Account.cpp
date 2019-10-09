@@ -32,6 +32,12 @@ CExtPubKey Bip47Account::getNotificationKey() {
     return result;
 }
 
+CExtKey Bip47Account::getNotificationPrivKey() {
+    CExtKey result ;
+    prvkey.Derive(result,0);
+    return result;
+}
+
 PaymentCode Bip47Account::getPaymentCode() {
     return paymentCode;
 }

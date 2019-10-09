@@ -27,7 +27,8 @@
 #include <qrencode.h>
 #endif
 
-#include "bip47.h"
+#include "bip47/PaymentCode.h"
+#include "bip47/Bip47Wallet.h"
 
 #define PCODE_QR_IMAGE_SIZE 150
 
@@ -35,6 +36,7 @@ QString getDefaultNotificationAddress(CWallet* wallet) {
     LOCK(wallet->cs_wallet);
     std::map<CTxDestination, CAddressBookData>::iterator firstofAddresBook = wallet->mapAddressBook.begin();
     const CBitcoinAddress address = firstofAddresBook->first;
+    LogPrint("qt paymentcodepage", "firstofAddressBook is : %s\n", address.ToString());
     return QString::fromStdString(address.ToString());  
 }
 
@@ -70,14 +72,14 @@ QString getPaymentCodeOfNotificationAddress(QString noticationAddr) {
 
     CExtPubKey ppubkey = masterKey.Neuter();
 
-    bip47::byte ppkey[33];
-    bip47::byte pchain[32];
+    unsigned char ppkey[33];
+    unsigned char pchain[32];
 
     memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
     memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
 
-    bip47::PaymentCode paymentCode(ppkey, pchain);
-    return QString::fromStdString(paymentCode.ToString());
+    PaymentCode paymentCode(ppkey, pchain);
+    return QString::fromStdString(paymentCode.toString());
 }
 
 PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -93,7 +95,7 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
     ui->notificationAddressLabel->setText(notificationAddr);
     ui->notificationAddressLabel->setVisible(false);
     ui->label->setVisible(false);
-    QString paymentCodeStr = getPaymentCodeOfNotificationAddress(notificationAddr);
+    QString paymentCodeStr = QString::fromStdString(pbip47WalletMain->getPaymentCode());
     ui->paymentcodeLabel->setText(paymentCodeStr);
 
 
