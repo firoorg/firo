@@ -91,12 +91,11 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
 {
     ui->setupUi(this);
     contextMenu = new QMenu();
-    QString notificationAddr = getDefaultNotificationAddress(pwalletMain);
-    ui->notificationAddressLabel->setText(notificationAddr);
-    ui->notificationAddressLabel->setVisible(false);
-    ui->label->setVisible(false);
     QString paymentCodeStr = QString::fromStdString(pbip47WalletMain->getPaymentCode());
     ui->paymentcodeLabel->setText(paymentCodeStr);
+    QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pbip47WalletMain->getNotifiactionAddress());
+    ui->paymentcodeLabel->setToolTip(notificationAddress);
+    
 
 
 #ifdef USE_QRCODE

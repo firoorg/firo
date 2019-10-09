@@ -3,6 +3,7 @@
 #include "SecretPoint.h"
 #include "Bip47Util.h"
 #include "script/ismine.h"
+#include "uint256.h"
 
 /**
  * The default bip47 wallet file name and instance.
@@ -21,7 +22,12 @@ Bip47Wallet::Bip47Wallet(string strWalletFileIn, string p_coinName, CExtKey mast
 
     deriveAccount(masterExtKey);
     CBitcoinAddress notificationAddress = mBip47Accounts[0].getNotificationAddress();
-    LogPrintf("Bip47Wallet notification Address: %s", notificationAddress.ToString());
+    CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+    if (!pwalletMain->HaveWatchOnly(notificationScript))
+    {
+        pwalletMain->AddWatchOnly(notificationScript);
+    }
+    LogPrintf("Bip47Wallet notification Address: %s\n", notificationAddress.ToString());
     
 }
 
@@ -272,7 +278,7 @@ CAmount Bip47Wallet::getValueSentToMe(CTransaction tx)
     return 0;
 }
 
-void Bip47Wallet::makeNotificationTransaction(String paymentCode) 
+std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode) 
 {
     Bip47Account toBip47Account(0, paymentCode);
     CAmount ntValue = CENT;
@@ -286,7 +292,7 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
 
 
     CScript scriptPubKey = GetScriptForDestination(ntAddress.Get());
-        // Create and send the transaction
+    // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
     LogPrintf("Bip47Wallet get reservekey\n");
     CAmount nFeeRequired;
@@ -299,12 +305,12 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
     {
         if(!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
             LogPrintf("Bip47Wallet Error CreateTransaction 1\n");
-            return;
+            return "";
         }
 
         if ( wtx.vin.size() == 0 ) {
             LogPrintf("Bip47Wallet Error CreateTransaction wtx.vin.size = 0\n");
-            return;
+            return "";
         }
 
         CPubKey designatedPubKey;
@@ -334,16 +340,20 @@ void Bip47Wallet::makeNotificationTransaction(String paymentCode)
 
         if(!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
             LogPrintf("Bip47Wallet Error CreateTransaction 2\n");
-            return;
+            return "";
         }
 
         if(!pwalletMain->CommitTransaction(wtx, reservekey)) {
             LogPrintf("Bip47Wallet Error CommitTransaction\n");
+            return "";
         }
+        return wtx.GetHash().GetHex();
+        
     }
     catch(const std::exception& e)
     {
         LogPrintf("Bip47Wallet:error %s\n", e.what());
+        return "";
     }
     
     
@@ -376,6 +386,10 @@ void Bip47Wallet::deriveAccount(vector<unsigned char> hd_seed)
 string Bip47Wallet::getPaymentCode()
 {
     return getAccount(0).getStringPaymentCode();
+}
+std::string  Bip47Wallet::getNotifiactionAddress()
+{
+    return getAccount(0).getNotificationAddress().ToString();
 }
 
 void Bip47Wallet::deriveAccount(CExtKey masterKey) 
