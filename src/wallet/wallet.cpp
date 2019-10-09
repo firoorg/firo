@@ -7393,6 +7393,8 @@ set <set<CTxDestination>> CWallet::GetAddressGroupings() {
             BOOST_FOREACH(CTxIn txin, pcoin->vin)
             {
                 CTxDestination address;
+                if (txin.IsZerocoinSpend() || txin.IsSigmaSpend()) /* Spends have no standard input */
+                    continue;
                 if (!IsMine(txin)) /* If this input isn't mine, ignore it */
                     continue;
                 if (!ExtractDestination(mapWallet[txin.prevout.hash].vout[txin.prevout.n].scriptPubKey, address))
