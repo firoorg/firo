@@ -14,7 +14,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "bip47.h"
+#include "bip47/PaymentCode.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -1217,8 +1217,8 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
 #endif
 
     std::string strPcode = params[0].get_str();
-    bip47::PaymentCode paymentCode(strPcode);
-    CPubKey masterPubkey = paymentCode.getPubkey();
+    PaymentCode paymentCode(strPcode);
+    CPubKey masterPubkey(paymentCode.getPubKey());
     printf("\n master pubkey size %d\n", masterPubkey.size());
 
     if (masterPubkey.IsValid()) {
@@ -1229,38 +1229,12 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
         printf("\nmaster Pubkey is not valid\n");
     }
 
-//    CBitcoinAddress address(params[0].get_str());
-//    bool isValid = address.IsValid();
 
-    bool isValid = paymentCode.valid();
+    bool isValid = paymentCode.isValid();
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
-//    if (isValid)
-//    {
-//        CTxDestination dest = address.Get();
-//        string currentAddress = address.ToString();
-//        ret.push_back(Pair("address", currentAddress));
-//
-//        CScript scriptPubKey = GetScriptForDestination(dest);
-//        ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
-//
-//#ifdef ENABLE_WALLET
-//        isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest) : ISMINE_NO;
-//        ret.push_back(Pair("ismine", (mine & ISMINE_SPENDABLE) ? true : false));
-//        ret.push_back(Pair("iswatchonly", (mine & ISMINE_WATCH_ONLY) ? true: false));
-//        UniValue detail = boost::apply_visitor(DescribeAddressVisitor(), dest);
-//        ret.pushKVs(detail);
-//        if (pwalletMain && pwalletMain->mapAddressBook.count(dest))
-//            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
-//        CKeyID keyID;
-//        if (pwalletMain && address.GetKeyID(keyID) && pwalletMain->mapKeyMetadata.count(keyID) && !pwalletMain->mapKeyMetadata[keyID].hdKeypath.empty())
-//        {
-//            ret.push_back(Pair("hdkeypath", pwalletMain->mapKeyMetadata[keyID].hdKeypath));
-//            ret.push_back(Pair("hdmasterkeyid", pwalletMain->mapKeyMetadata[keyID].hdMasterKeyID.GetHex()));
-//        }
-//#endif
-//    }
+
     return ret;
 }
 
