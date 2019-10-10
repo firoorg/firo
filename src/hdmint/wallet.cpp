@@ -499,6 +499,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         return GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
 
     CWalletDB walletdb(strWalletFile);
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     bool fMintExists = true;
     while(fMintExists){
         if(hashSeedMaster.IsNull())
@@ -510,9 +511,14 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
         GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
 
-        // New HDMint does not exist in the database, continue
-        if(!walletdb.HasHDMint(dMint.GetPubcoinValue()))
+        // New HDMint exists, try new count
+        if(walletdb.HasHDMint(dMint.GetPubcoinValue()) ||
+           sigmaState->HasCoin(coin.getPublicCoin())) {
+            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+        }else{
+            LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));
             fMintExists = false;
+        }
     }
 
     dMint.SetDenomination(denom);
