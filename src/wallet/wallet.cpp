@@ -7388,7 +7388,7 @@ set <set<CTxDestination>> CWallet::GetAddressGroupings() {
         CWalletTx *pcoin = &walletEntry.second;
 
         if (pcoin->vin.size() > 0 &&
-            !(pcoin->IsZerocoinSpend() || pcoin->IsSigmaSpend())) { /* Spends have no standard input */
+            !(pcoin->IsZerocoinSpend() || pcoin->IsSigmaSpend() || pcoin->IsZerocoinRemint())) { /* Spends have no standard input */
             bool any_mine = false;
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->vin)
