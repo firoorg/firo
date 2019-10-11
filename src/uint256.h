@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <array>
 #include "crypto/common.h"
 
 /** Template base class for fixed-sized opaque blobs. */

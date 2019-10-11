@@ -618,7 +618,7 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
     auto& payload = mp_obj.getRaw();
     UniValue payloadObj(UniValue::VOBJ);
     payloadObj.push_back(Pair("payload", HexStr(payload)));
-    payloadObj.push_back(Pair("payloadsize", payload.size()));
+    payloadObj.push_back(Pair("payloadsize", int64_t(payload.size())));
     return payloadObj;
 }
 
@@ -1016,7 +1016,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     UniValue denominations(UniValue::VARR);
     for (size_t i = 0; i < sp.denominations.size(); i++) {
         UniValue denomination(UniValue::VOBJ);
-        denomination.push_back(Pair("id", i));
+        denomination.push_back(Pair("id", int64_t(i)));
         denomination.push_back(Pair("value", FormatMP(propertyId, sp.denominations[i])));
         denominations.push_back(denomination);
     }
