@@ -14,7 +14,6 @@
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "intro.h"
-#include "paymentrequestplus.h"
 #include "guiutil.h"
 
 #include "clientversion.h"
