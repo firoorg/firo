@@ -5,15 +5,14 @@
 
 class Bip47Account {
     private:
-    CBaseChainParams *params ;
     CExtKey prvkey;
     CExtPubKey key;
     int accountId;
     PaymentCode paymentCode;
 
     public:
-    Bip47Account(CBaseChainParams *parameters, CExtKey &coinType, int identity);
-    Bip47Account(CBaseChainParams *parameters, String strPaymentCode);
+    Bip47Account(CExtKey &coinType, int identity);
+    Bip47Account(String strPaymentCode);
     String getStringPaymentCode();
 
     CBitcoinAddress getNotificationAddress();
@@ -26,6 +25,7 @@ class Bip47Account {
     Bip47ChannelAddress addressAt(int idx);
 
     CExtPubKey keyAt(int idx);
+    bool isValid();
 
 };
 

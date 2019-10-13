@@ -15,6 +15,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "bip47/PaymentCode.h"
+#include "bip47/Bip47Account.h"
+#include "bip47/Bip47Wallet.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -1218,22 +1220,14 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
 
     std::string strPcode = params[0].get_str();
     PaymentCode paymentCode(strPcode);
-    CPubKey masterPubkey(paymentCode.getPubKey());
-    printf("\n master pubkey size %d\n", masterPubkey.size());
-
-    if (masterPubkey.IsValid()) {
-        printf("\nmaster Pubkey is valid\n");
-        CBitcoinAddress address(masterPubkey.GetID());
-        std::cout << " Address from masterPubkey " << address.ToString() << std::endl;
-    } else {
-        printf("\nmaster Pubkey is not valid\n");
-    }
-
-
+    Bip47Account bip47Account(strPcode);
     bool isValid = paymentCode.isValid();
+    bool walletBip47AccountValid = pbip47WalletMain->getAccount(0).isValid();
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
+    ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
+    ret.push_back(Pair("Wallet Account isvalid", walletBip47AccountValid));
 
     return ret;
 }

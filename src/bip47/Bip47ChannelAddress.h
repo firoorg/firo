@@ -13,10 +13,10 @@ private:
     
     std::vector<unsigned char> pubKey ;
     std::vector<unsigned char> pubKeyHash ;
-    CBaseChainParams *params ;
+    
 public:
     Bip47ChannelAddress() ;
-    Bip47ChannelAddress(CBaseChainParams *v_params, CExtPubKey &cKey, int child) ;
+    Bip47ChannelAddress(CExtPubKey &cKey, int child) ;
     std::vector<unsigned char>& getPubKey() ;
 
     std::vector<unsigned char>& getPubKeyHash() ;

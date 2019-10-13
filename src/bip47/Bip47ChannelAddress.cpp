@@ -2,8 +2,8 @@
     Bip47ChannelAddress::Bip47ChannelAddress(){
 
     }
-    Bip47ChannelAddress::Bip47ChannelAddress(CBaseChainParams *v_params, CExtPubKey &cKey, int child) {
-        params = v_params;
+    Bip47ChannelAddress::Bip47ChannelAddress(CExtPubKey &cKey, int child) {
+        
         childNum = child;
         CExtPubKey dk ;
         if(!cKey.Derive(dk, childNum)){
@@ -33,7 +33,8 @@
     }
 
     String Bip47ChannelAddress::getAddressString() {
-//        return ecKey.toAddress(params).toString();
+        // return ecKey.pubkey.GetHash().GetHex();
+    //    return ecKey.toAddress(params).toString();
         return String("");
     }
 

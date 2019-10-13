@@ -4106,6 +4106,28 @@ UniValue getMyNotificationAddress(const UniValue& params, bool fHelp)
     return pbip47WalletMain->getNotifiactionAddress();
 }
 
+UniValue getNotificationAddressFromPaymentCode(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "getNotificationAddressFromPaymentCode <Payment Code>\n" 
+                "return notificatioinAddress of Payment Code"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    Bip47Account bip47Account(params[0].get_str());
+
+    return bip47Account.getNotificationAddress().ToString();
+}
+
+
+
 UniValue sendtopcode(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -4341,6 +4363,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getnewpcode",            &getnewpcode,            true  },
     { "wallet",             "getMyPaymentCode",       &getMyPaymentCode,       true  },
     { "wallet",             "getMyNotificationAddress",       &getMyNotificationAddress,       true  },
+    { "wallet",             "getNotificationAddressFromPaymentCode",       &getNotificationAddressFromPaymentCode,       true  },
     { "wallet",             "sendtopcode",            &sendtopcode,            false },
     { "wallet",             "listreceivedbypcode",    &listreceivedbypcode,    false },
     { "wallet",             "getreceivedbypcode",     &getreceivedbypcode,     false },

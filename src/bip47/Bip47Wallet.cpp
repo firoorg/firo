@@ -280,7 +280,7 @@ CAmount Bip47Wallet::getValueSentToMe(CTransaction tx)
 
 std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode) 
 {
-    Bip47Account toBip47Account(0, paymentCode);
+    Bip47Account toBip47Account(paymentCode);
     CAmount ntValue = CENT;
     CBitcoinAddress ntAddress = toBip47Account.getNotificationAddress();
     LogPrintf("Bip47Wallet getNotificationAddress: %s\n", ntAddress.ToString().c_str());
@@ -377,7 +377,7 @@ void Bip47Wallet::deriveAccount(vector<unsigned char> hd_seed)
     masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
     purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     // coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
-    Bip47Account bip47Account(0, coinTypeKey, 0);
+    Bip47Account bip47Account(coinTypeKey, 0);
 
     mBip47Accounts.clear();
     mBip47Accounts.push_back(bip47Account);
@@ -403,7 +403,7 @@ void Bip47Wallet::deriveAccount(CExtKey masterKey)
     masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
     purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     // coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
-    Bip47Account bip47Account(0, coinTypeKey, 0);
+    Bip47Account bip47Account(coinTypeKey, 0);
 
     mBip47Accounts.clear();
     mBip47Accounts.push_back(bip47Account);

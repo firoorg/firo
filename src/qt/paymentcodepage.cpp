@@ -32,56 +32,6 @@
 
 #define PCODE_QR_IMAGE_SIZE 150
 
-QString getDefaultNotificationAddress(CWallet* wallet) {
-    LOCK(wallet->cs_wallet);
-    std::map<CTxDestination, CAddressBookData>::iterator firstofAddresBook = wallet->mapAddressBook.begin();
-    const CBitcoinAddress address = firstofAddresBook->first;
-    LogPrint("qt paymentcodepage", "firstofAddressBook is : %s\n", address.ToString());
-    return QString::fromStdString(address.ToString());  
-}
-
-QString getPaymentCodeOfNotificationAddress(QString noticationAddr) {
-
-    LOCK(pwalletMain->cs_wallet);
-
-    string strAddress = noticationAddr.toStdString().c_str();
-    CBitcoinAddress address;
-    if (!address.SetString(strAddress))
-        return QString::fromStdString("Invalid Zcoin address");
-    CKeyID keyID;
-    if (!address.GetKeyID(keyID))
-        return QString::fromStdString("Address does not refer to a key");
-    CPubKey vchPubkey;
-    CKey key;
-    if (!pwalletMain->GetKey(keyID, key))
-        return QString::fromStdString("Cannot get pubkey for address " + strAddress + " is not known");
-
-    if (!pwalletMain->GetPubKey(keyID, vchPubkey))
-        return QString::fromStdString("Cannot get pubkey for address " + strAddress + " is not known");
-
-
-    CExtKey masterKey;
-    CExtKey purposeKey;
-    CExtKey coinTypeKey;
-    CExtKey childKey;
-
-    masterKey.SetMaster(key.begin(), key.size());
-    masterKey.Derive(purposeKey, 0x2F | BIP32_HARDENED_KEY_LIMIT);
-    purposeKey.Derive(coinTypeKey, 0x0 | BIP32_HARDENED_KEY_LIMIT);
-    coinTypeKey.Derive(childKey, BIP32_HARDENED_KEY_LIMIT);
-
-    CExtPubKey ppubkey = masterKey.Neuter();
-
-    unsigned char ppkey[33];
-    unsigned char pchain[32];
-
-    memcpy(ppkey, vchPubkey.begin(), vchPubkey.size());
-    memcpy(pchain, ppubkey.chaincode.begin(), ppubkey.chaincode.size());
-
-    PaymentCode paymentCode(ppkey, pchain);
-    return QString::fromStdString(paymentCode.toString());
-}
-
 PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::PaymentcodePage),

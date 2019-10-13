@@ -27,9 +27,9 @@ class PaymentCode {
     PaymentCode(unsigned char v_pubkey[33], unsigned char v_chain[32]) ;
     PaymentCode(std::vector<unsigned char> &v_pubkey, std::vector<unsigned char> &v_chain) ;
     PaymentCode(const unsigned char* v_pubkey,  const unsigned char *v_chain) ;
-    Bip47ChannelAddress notificationAddress(CBaseChainParams *networkParameters);
+    Bip47ChannelAddress notificationAddress();
 
-    Bip47ChannelAddress addressAt(CBaseChainParams *networkParameters, int idx) ;
+    Bip47ChannelAddress addressAt(int idx) ;
     std::vector<unsigned char> getPayload() ;
 
     int getType()  ;
@@ -47,7 +47,7 @@ class PaymentCode {
     static std::vector<unsigned char> blind(std::vector<unsigned char> payload, std::vector<unsigned char> mask) ;
 
     private:
-    boolean parse(unsigned char *pub, unsigned char *chain) ;
+    boolean parse() ;
 
     String makeV1() ;
 
