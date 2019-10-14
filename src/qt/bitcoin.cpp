@@ -13,6 +13,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "intro.h"
+#include "recover.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -641,6 +642,10 @@ int main(int argc, char *argv[])
     // zcoin: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
 #endif
+
+    /// 8 Determine if user wants to create new wallet or recover existing one
+    if(!Recover::askRecover())
+        return EXIT_SUCCESS;
 
     /// 9. Main GUI initialization
     // Install global event filter that makes sure that long tooltips can be word-wrapped
