@@ -6,7 +6,7 @@ SecretPoint::SecretPoint() {
 
 SecretPoint::SecretPoint(std::vector<unsigned char> dataPrv, std::vector<unsigned char> dataPub)
 {
-    privKey = loadPrivateKey(dataPrv);
+    loadPrivateKey(dataPrv);
     loadPublicKey(dataPub);
 }
 
@@ -59,6 +59,6 @@ void SecretPoint::loadPublicKey(std::vector<unsigned char> data){
     secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
 }
 
-CKey SecretPoint::loadPrivateKey(std::vector<unsigned char> data) {
+void SecretPoint::loadPrivateKey(std::vector<unsigned char> data) {
     privKey.Set(data.begin(),data.end(),false);
 }

@@ -303,18 +303,23 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
     vecSend.push_back(recipient);
     try
     {
+        LogPrintf("Make general transaction template to notification address\n");
         if(!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
-            LogPrintf("Bip47Wallet Error CreateTransaction 1\n");
-            return "";
+            LogPrintf("Bip47Wallet Error CreateTransaction 1 %s\n", strError);
+            throw std::runtime_error(std::string("Bip47Wallet Error CreateTransaction 1 ") + strError );
         }
 
         if ( wtx.vin.size() == 0 ) {
             LogPrintf("Bip47Wallet Error CreateTransaction wtx.vin.size = 0\n");
-            return "";
+            throw std::runtime_error("Bip47Wallet Error CreateTransaction wtx.vin.size = 0\n");
         }
 
         CPubKey designatedPubKey;
-        reservekey.GetReservedKey(designatedPubKey);
+        if(!reservekey.GetReservedKey(designatedPubKey))
+        {
+            LogPrintf("Bip47Wallet Error while get designated Pubkey from reserved key\n");
+            throw std::runtime_error("Bip47Wallet Error while get designated Pubkey from reserved key\n");
+        }
         CKey privKey;
         pwalletMain->GetKey(designatedPubKey.GetID(), privKey);
         
@@ -325,27 +330,31 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
         Bip47_common::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
         Bip47_common::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
         
+        LogPrintf("Generate Secret Point\n");
         SecretPoint secretPoint(dataPriv, dataPub);
-
-
+       
         vector<unsigned char> outpoint = ParseHex(wtx.vin[0].prevout.ToString());
+
+        LogPrintf("Get Mask from payment code\n");
         vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 
+        LogPrintf("Get op_return bytes via blind\n");
         vector<unsigned char> op_return = PaymentCode::blind(mBip47Accounts[0].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CTxOut txOut(0, op_returnScriptPubKey);
+        LogPrintf("Add txOut to wtx\n");
         wtx.vout.push_back(txOut);
-        // vecSend.push_back(recipient);
+        vecSend.push_back(recipient);
 
         if(!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
             LogPrintf("Bip47Wallet Error CreateTransaction 2\n");
-            return "";
+            throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
 
         if(!pwalletMain->CommitTransaction(wtx, reservekey)) {
             LogPrintf("Bip47Wallet Error CommitTransaction\n");
-            return "";
+            throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
         return wtx.GetHash().GetHex();
         
@@ -353,7 +362,7 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
     catch(const std::exception& e)
     {
         LogPrintf("Bip47Wallet:error %s\n", e.what());
-        return "";
+        throw std::runtime_error(std::string("Bip47Wallet:error ").append(e.what()));
     }
     
     

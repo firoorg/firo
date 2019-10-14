@@ -32,7 +32,7 @@ class SecretPoint {
     boolean equals(SecretPoint &v_secret);
 
     void loadPublicKey(std::vector<unsigned char> data) ;
-    CKey loadPrivateKey(std::vector<unsigned char> data) ;
+    void loadPrivateKey(std::vector<unsigned char> data) ;
 };
 
 

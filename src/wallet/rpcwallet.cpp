@@ -4159,7 +4159,9 @@ UniValue sendtopcode(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
 
-    pbip47WalletMain->makeNotificationTransaction(paymentCode.toString());
+    EnsureWalletIsUnlocked();
+    return pbip47WalletMain->makeNotificationTransaction(paymentCode.toString());
+    
     // Wallet comments
     // CWalletTx wtx;
     // if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
@@ -4176,7 +4178,6 @@ UniValue sendtopcode(const UniValue& params, bool fHelp)
     // SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
     // return wtx.GetHash().GetHex();
-    return "Success";
 }
 
 UniValue listreceivedbypcode(const UniValue& params, bool fHelp)
