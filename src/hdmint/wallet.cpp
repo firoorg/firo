@@ -15,6 +15,7 @@
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
 #include <boost/optional.hpp>
+#include "znode-sync.h"
 
 CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWalletFile)
 {
@@ -495,6 +496,9 @@ bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& de
 
 bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry)
 {
+    if(!znodeSync.IsBlockchainSynced())
+        throw ZerocoinException("Unable to generate mint: Blockchain not yet synced.");
+
     if(mintPoolEntry!=boost::none)
         return GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
 
