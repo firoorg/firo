@@ -80,12 +80,6 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
             qrAddrImage.fill(0xffffff);
             QPainter painter(&qrAddrImage);
             painter.drawImage(0, 0, qrImage.scaled(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE));
-            // QFont font = GUIUtil::fixedPitchFont();
-            // font.setPixelSize(12);
-            // painter.setFont(font);
-            // QRect paddedRect = qrAddrImage.rect();
-            // paddedRect.setHeight(PCODE_QR_IMAGE_SIZE+12);
-            // painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
             painter.end();
 
             ui->paymentcodeQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));

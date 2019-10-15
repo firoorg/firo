@@ -342,10 +342,11 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
         vector<unsigned char> op_return = PaymentCode::blind(mBip47Accounts[0].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
-        CTxOut txOut(0, op_returnScriptPubKey);
-        LogPrintf("Add txOut to wtx\n");
-        wtx.vout.push_back(txOut);
-        vecSend.push_back(recipient);
+        CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
+        // CTxOut txOut(0, op_returnScriptPubKey);
+        LogPrintf("Add Blind Code to vecSend\n");
+        // wtx.vout.push_back(txOut);
+        vecSend.push_back(pcodeBlind);
 
         if(!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
             LogPrintf("Bip47Wallet Error CreateTransaction 2\n");
