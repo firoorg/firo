@@ -16,22 +16,15 @@
 using namespace std;
 using namespace boost::chrono;
 
-UniValue AvgBlockTime(){
-    UniValue ret(UniValue::VOBJ);
-    UniValue avgblocktime;
+uint32_t AvgBlockTime(){
+    uint32_t avgBlockTime;
+    Consensus::Params nParams = Params().GetConsensus();
+    if(chainActive.Tip()->nHeight >= nParams.nMTPFiveMinutesStartBlock)
+        avgBlockTime = nParams.nPowTargetSpacingMTP;
+    else
+        avgBlockTime = nParams.nPowTargetSpacing;
 
-    double difficulty = GetDifficulty();
-    //LogPrintf("difficulty: %lf\n", difficulty);
-
-    double networkHashrateMH = GetNetworkHashPS(120, -1).get_real() / 1000000;
-    //LogPrintf("networkHashrateMH: %lf\n", networkHashrateMH);
-
-    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate(mh/s))) * 60 * 60
-    // see http://www.wolframalpha.com/widgets/gallery/view.jsp?id=76444b3132fda0e2aca778051d776f1c
-
-    avgblocktime = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrateMH)) * 60 * 60);
-
-    return avgblocktime;
+    return avgBlockTime;
 }
 
 UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -63,7 +56,7 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     blockinfoObj.push_back(Pair("type","full"));
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
-    blockinfoObj.push_back(Pair("avgBlockTime", AvgBlockTime()));
+    blockinfoObj.push_back(Pair("avgBlockTime", int64_t(AvgBlockTime())));
 
     if(!znodeSync.GetBlockchainSynced()){
         unsigned long currentTimestamp = floor(
