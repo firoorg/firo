@@ -1,7 +1,3 @@
-//
-// Created by Top1s on 8/22/2019.
-//
-
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #endif

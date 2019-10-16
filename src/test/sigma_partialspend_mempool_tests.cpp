@@ -111,7 +111,8 @@ BOOST_AUTO_TEST_CASE(partialspend)
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
-        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
+        bool fChangeAddedToFee;
+        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges, fChangeAddedToFee);
 
         // Create partial spend transaction
         CWalletTx tx;
@@ -328,7 +329,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
     std::vector<CHDMint> changes;
-    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
+    bool fChangeAddedToFee;
+    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee);
 
     // Expect 2 spends
     BOOST_CHECK_EQUAL(tx.vin.size(), 2);

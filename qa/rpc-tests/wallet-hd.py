@@ -12,6 +12,7 @@ from test_framework.util import (
 )
 import os
 import shutil
+from test_framework.test_helper import get_dumpwallet_otp 
 
 
 class WalletHDTest(BitcoinTestFramework):
@@ -36,7 +37,15 @@ class WalletHDTest(BitcoinTestFramework):
 
         # Import a non-HD private key in the HD wallet
         non_hd_add = self.nodes[0].getnewaddress()
-        self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add))
+
+        key = None
+        try:
+            self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add))
+        except Exception as ex:
+            key = get_dumpwallet_otp (ex.error['message'])
+            self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add, key))
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
+        
 
         # This should be enough to keep the master key and the non-HD key 
         self.nodes[1].backupwallet(tmpdir + "/hd.bak")
@@ -50,7 +59,7 @@ class WalletHDTest(BitcoinTestFramework):
         for i in range(num_hd_adds):
             hd_add = self.nodes[1].getnewaddress()
             hd_info = self.nodes[1].validateaddress(hd_add)
-            assert_equal(hd_info["hdkeypath"], "m/0'/0'/"+str(i+1)+"'")
+            assert_equal(hd_info["hdkeypath"], "m/44'/1'/0'/0/" + str(i+1))
             assert_equal(hd_info["hdmasterkeyid"], masterkeyid)
             self.nodes[0].sendtoaddress(hd_add, 1)
             self.nodes[0].generate(1)
@@ -72,7 +81,7 @@ class WalletHDTest(BitcoinTestFramework):
         for _ in range(num_hd_adds):
             hd_add_2 = self.nodes[1].getnewaddress()
             hd_info_2 = self.nodes[1].validateaddress(hd_add_2)
-            assert_equal(hd_info_2["hdkeypath"], "m/0'/0'/"+str(_+1)+"'")
+            assert_equal(hd_info_2["hdkeypath"], "m/44'/1'/0'/0/" + str(_+1))
             assert_equal(hd_info_2["hdmasterkeyid"], masterkeyid)
         assert_equal(hd_add, hd_add_2)
 

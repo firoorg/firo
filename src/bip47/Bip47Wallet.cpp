@@ -281,6 +281,7 @@ CAmount Bip47Wallet::getValueSentToMe(CTransaction tx)
 std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode) 
 {
     Bip47Account toBip47Account(paymentCode);
+
     CAmount ntValue = CENT;
     CBitcoinAddress ntAddress = toBip47Account.getNotificationAddress();
     LogPrintf("Bip47Wallet getNotificationAddress: %s\n", ntAddress.ToString().c_str());
@@ -320,6 +321,7 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
             LogPrintf("Bip47Wallet Error while get designated Pubkey from reserved key\n");
             throw std::runtime_error("Bip47Wallet Error while get designated Pubkey from reserved key\n");
         }
+
         CKey privKey;
         pwalletMain->GetKey(designatedPubKey.GetID(), privKey);
         
@@ -402,6 +404,7 @@ std::string  Bip47Wallet::getNotifiactionAddress()
     return getAccount(0).getNotificationAddress().ToString();
 }
 
+
 void Bip47Wallet::deriveAccount(CExtKey masterKey) 
 {
     // CExtKey masterKey;             //bip47 master key
@@ -414,6 +417,7 @@ void Bip47Wallet::deriveAccount(CExtKey masterKey)
     purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     // coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     Bip47Account bip47Account(coinTypeKey, 0);
+
 
     mBip47Accounts.clear();
     mBip47Accounts.push_back(bip47Account);
