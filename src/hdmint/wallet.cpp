@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "hdmint/wallet.h"
-#include "main.h"
+#include "validation.h"
 #include "txdb.h"
 #include "init.h"
 #include "hdmint/hdmint.h"
@@ -174,6 +174,16 @@ bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, Gro
     return fFound;
 }
 
+void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex *blockIndex, const CBlock &block) {
+    size_t posInBlock = INT_MAX;
+    uint256 txHash = wtx.tx->GetHash();
+    for (size_t i=0; i<block.vtx.size(); i++)
+        if (block.vtx[i]->GetHash() == txHash)
+            posInBlock = i;
+    assert(posInBlock < INT_MAX);
+    wtx.SetMerkleBranch(blockIndex, (int)posInBlock);
+}
+
 //Catch the counter up with the chain
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
@@ -215,7 +225,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 found = true;
 
                 uint256 hashBlock;
-                CTransaction tx;
+                CTransactionRef tx;
                 if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
                     LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
                     found = false;
@@ -226,7 +236,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 boost::optional<sigma::CoinDenomination> denomination = boost::none;
                 bool fFoundMint = false;
                 GroupElement bnValue;
-                for (const CTxOut& out : tx.vout) {
+                for (const CTxOut& out : tx->vout) {
                     if (!out.scriptPubKey.IsSigmaMint())
                         continue;
 
@@ -248,7 +258,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 }
 
                 if (!fFoundMint || denomination == boost::none) {
-                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx.GetHash().GetHex());
+                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
                     found = false;
                     break;
                 }
@@ -261,11 +271,11 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     CBlock block;
                     CWalletTx wtx(pwalletMain, tx);
                     if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-                        wtx.SetMerkleBranch(block);
+                        SetWalletTransactionBlock(wtx, pindex, block);
 
                     //Fill out wtx so that a transaction record can be created
                     wtx.nTimeReceived = pindex->GetBlockTime();
-                    pwalletMain->AddToWallet(wtx, false, &walletdb);
+                    pwalletMain->AddToWallet(wtx, false);
                     setAddedTx.insert(txHash);
                 }
 
@@ -330,7 +340,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     CWalletDB walletdb(strWalletFile);
     int nHeightTx;
     uint256 txidSpend;
-    CTransaction txSpend;
+    CTransactionRef txSpend;
     if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
         //Find transaction details and make a wallettx and add to wallet
         dMint.SetUsed(true);
@@ -338,10 +348,10 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         CBlockIndex* pindex = chainActive[nHeightTx];
         CBlock block;
         if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-            wtx.SetMerkleBranch(block);
+            SetWalletTransactionBlock(wtx, pindex, block);
 
         wtx.nTimeReceived = pindex->nTime;
-        pwalletMain->AddToWallet(wtx, false, &walletdb);
+        pwalletMain->AddToWallet(wtx, false);
     }
 
     // Add to tracker which also adds to database
@@ -533,7 +543,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
     return true;
 }
 
-bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx)
+bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx)
 {
     txidSpend.SetNull();
     CMintMeta mMeta;

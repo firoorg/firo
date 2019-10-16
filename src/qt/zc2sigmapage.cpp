@@ -21,7 +21,7 @@
 #include "walletmodel.h"
 
 #include "../wallet/wallet.h"
-#include "main.h"
+#include "validation.h"
 
 #include <QIcon>
 #include <QMenu>

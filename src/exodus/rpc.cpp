@@ -33,7 +33,7 @@
 #include "amount.h"
 #include "chainparams.h"
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 #include "rpc/server.h"
@@ -154,9 +154,9 @@ bool BalanceToJSON(const std::string& address, uint32_t property, UniValue& bala
 }
 
 // Obtains details of a fee distribution
-UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
+UniValue exodus_getfeedistribution(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getfeedistribution distributionid\n"
             "\nGet the details for a fee distribution.\n"
@@ -181,7 +181,7 @@ UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getfeedistribution", "1")
         );
 
-    int id = params[0].get_int();
+    int id = request.params[0].get_int();
 
     int block = 0;
     uint32_t propertyId = 0;
@@ -220,9 +220,9 @@ UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
 
 // Obtains all fee distributions for a property
 // TODO : Split off code to populate a fee distribution object into a seperate function
-UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
+UniValue exodus_getfeedistributions(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getfeedistributions propertyid\n"
             "\nGet the details of all fee distributions for a property.\n"
@@ -248,7 +248,7 @@ UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getfeedistributions", "1")
         );
 
-    uint32_t prop = ParsePropertyId(params[0]);
+    uint32_t prop = ParsePropertyId(request.params[0]);
     RequireExistingProperty(prop);
 
     UniValue response(UniValue::VARR);
@@ -295,9 +295,9 @@ UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
 }
 
 // Obtains the trigger value for fee distribution for a/all properties
-UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
+UniValue exodus_getfeetrigger(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 1)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "exodus_getfeetrigger ( propertyid )\n"
             "\nReturns the amount of fees required in the cache to trigger distribution.\n"
@@ -317,8 +317,8 @@ UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
         );
 
     uint32_t propertyId = 0;
-    if (0 < params.size()) {
-        propertyId = ParsePropertyId(params[0]);
+    if (0 < request.params.size()) {
+        propertyId = ParsePropertyId(request.params[0]);
     }
 
     if (propertyId > 0) {
@@ -345,9 +345,9 @@ UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
 }
 
 // Provides the fee share the wallet (or specific address) will receive from fee distributions
-UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
+UniValue exodus_getfeeshare(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 2)
+    if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
             "exodus_getfeeshare ( address ecosystem )\n"
             "\nReturns the percentage share of fees distribution applied to the wallet (default) or address (if supplied).\n"
@@ -369,15 +369,15 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
 
     std::string address;
     uint8_t ecosystem = 1;
-    if (0 < params.size()) {
-        if ("*" != params[0].get_str()) { //ParseAddressOrEmpty doesn't take wildcards
-            address = ParseAddressOrEmpty(params[0]);
+    if (0 < request.params.size()) {
+        if ("*" != request.params[0].get_str()) { //ParseAddressOrEmpty doesn't take wildcards
+            address = ParseAddressOrEmpty(request.params[0]);
         } else {
             address = "*";
         }
     }
-    if (1 < params.size()) {
-        ecosystem = ParseEcosystem(params[1]);
+    if (1 < request.params.size()) {
+        ecosystem = ParseEcosystem(request.params[1]);
     }
 
     UniValue response(UniValue::VARR);
@@ -416,9 +416,9 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
 }
 
 // Provides the current values of the fee cache
-UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
+UniValue exodus_getfeecache(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 1)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "exodus_getfeecache ( propertyid )\n"
             "\nReturns the amount of fees cached for distribution.\n"
@@ -438,8 +438,8 @@ UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
         );
 
     uint32_t propertyId = 0;
-    if (0 < params.size()) {
-        propertyId = ParsePropertyId(params[0]);
+    if (0 < request.params.size()) {
+        propertyId = ParsePropertyId(request.params[0]);
     }
 
     if (propertyId > 0) {
@@ -470,9 +470,9 @@ UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
 }
 
 // generate a list of seed blocks based on the data in LevelDB
-UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
+UniValue exodus_getseedblocks(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_getseedblocks startblock endblock\n"
             "\nReturns a list of blocks containing Exodus transactions for use in seed block filtering.\n"
@@ -490,8 +490,8 @@ UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getseedblocks", "290000, 300000")
         );
 
-    int startHeight = params[0].get_int();
-    int endHeight = params[1].get_int();
+    int startHeight = request.params[0].get_int();
+    int endHeight = request.params[1].get_int();
 
     RequireHeightInChain(startHeight);
     RequireHeightInChain(endHeight);
@@ -510,9 +510,9 @@ UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
 }
 
 // obtain the payload for a transaction
-UniValue exodus_getpayload(const UniValue& params, bool fHelp)
+UniValue exodus_getpayload(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getpayload \"txid\"\n"
             "\nGet the payload for an Exodus transaction.\n"
@@ -528,9 +528,9 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getpayload", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
-    uint256 txid = ParseHashV(params[0], "txid");
+    uint256 txid = ParseHashV(request.params[0], "txid");
 
-    CTransaction tx;
+    CTransactionRef tx;
     uint256 blockHash;
     if (!GetTransaction(txid, tx, Params().GetConsensus(), blockHash, true)) {
         PopulateFailure(MP_TX_NOT_FOUND);
@@ -547,7 +547,7 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
     }
 
     CMPTransaction mp_obj;
-    int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
+    int parseRC = ParseTransaction(*tx, blockHeight, 0, mp_obj, blockTime);
     if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_EXODUS_PROTOCOL);
 
     UniValue payloadObj(UniValue::VOBJ);
@@ -557,9 +557,9 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
 }
 
 // determine whether to automatically commit transactions
-UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
+UniValue exodus_setautocommit(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_setautocommit flag\n"
             "\nSets the global flag that determines whether transactions are automatically committed and broadcast.\n"
@@ -574,17 +574,17 @@ UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
 
     LOCK(cs_tally);
 
-    autoCommit = params[0].get_bool();
+    autoCommit = request.params[0].get_bool();
     return autoCommit;
 }
 
 // display the tally map & the offer/accept list(s)
-UniValue exodusrpc(const UniValue& params, bool fHelp)
+UniValue exodusrpc(const JSONRPCRequest& request)
 {
     int extra = 0;
     int extra2 = 0, extra3 = 0;
 
-    if (fHelp || params.size() > 3)
+    if (request.fHelp || request.params.size() > 3)
         throw runtime_error(
             "exodusrpc\n"
             "\nReturns the number of blocks in the longest block chain.\n"
@@ -595,9 +595,9 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodusrpc", "")
         );
 
-    if (0 < params.size()) extra = atoi(params[0].get_str());
-    if (1 < params.size()) extra2 = atoi(params[1].get_str());
-    if (2 < params.size()) extra3 = atoi(params[2].get_str());
+    if (0 < request.params.size()) extra = atoi(request.params[0].get_str());
+    if (1 < request.params.size()) extra2 = atoi(request.params[1].get_str());
+    if (2 < request.params.size()) extra3 = atoi(request.params[2].get_str());
 
     PrintToLog("%s(extra=%d,extra2=%d,extra3=%d)\n", __FUNCTION__, extra, extra2, extra3);
 
@@ -746,9 +746,9 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
 }
 
 // display an MP balance via RPC
-UniValue exodus_getbalance(const UniValue& params, bool fHelp)
+UniValue exodus_getbalance(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_getbalance \"address\" propertyid\n"
             "\nReturns the token balance for a given address and property.\n"
@@ -765,8 +765,8 @@ UniValue exodus_getbalance(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getbalance", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
         );
 
-    std::string address = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
+    std::string address = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
 
     RequireExistingProperty(propertyId);
 
@@ -776,9 +776,9 @@ UniValue exodus_getbalance(const UniValue& params, bool fHelp)
     return balanceObj;
 }
 
-UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
+UniValue exodus_getallbalancesforid(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getallbalancesforid propertyid\n"
             "\nReturns a list of token balances for a given currency or property identifier.\n"
@@ -798,7 +798,7 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getallbalancesforid", "1")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
 
     RequireExistingProperty(propertyId);
 
@@ -833,9 +833,9 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
+UniValue exodus_getallbalancesforaddress(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getallbalancesforaddress \"address\"\n"
             "\nReturns a list of all token balances for a given address.\n"
@@ -855,7 +855,7 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getallbalancesforaddress", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\"")
         );
 
-    std::string address = ParseAddress(params[0]);
+    std::string address = ParseAddress(request.params[0]);
 
     UniValue response(UniValue::VARR);
 
@@ -883,9 +883,9 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getproperty(const UniValue& params, bool fHelp)
+UniValue exodus_getproperty(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getproperty propertyid\n"
             "\nReturns details for about the tokens or smart property to lookup.\n"
@@ -911,7 +911,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getproperty", "3")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
 
     RequireExistingProperty(propertyId);
 
@@ -943,9 +943,9 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_listproperties(const UniValue& params, bool fHelp)
+UniValue exodus_listproperties(const JSONRPCRequest& request)
 {
-    if (fHelp)
+    if (request.fHelp)
         throw runtime_error(
             "exodus_listproperties\n"
             "\nLists all tokens or smart properties.\n"
@@ -998,9 +998,9 @@ UniValue exodus_listproperties(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
+UniValue exodus_getcrowdsale(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
             "exodus_getcrowdsale propertyid ( verbose )\n"
             "\nReturns information about a crowdsale.\n"
@@ -1041,8 +1041,8 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getcrowdsale", "3, true")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
-    bool showVerbose = (params.size() > 1) ? params[1].get_bool() : false;
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
+    bool showVerbose = (request.params.size() > 1) ? request.params[1].get_bool() : false;
 
     RequireExistingProperty(propertyId);
     RequireCrowdsale(propertyId);
@@ -1057,7 +1057,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
 
     const uint256& creationHash = sp.txid;
 
-    CTransaction tx;
+    CTransactionRef tx;
     uint256 hashBlock;
     if (!GetTransaction(creationHash, tx, Params().GetConsensus(), hashBlock, true)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
@@ -1142,9 +1142,9 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
+UniValue exodus_getactivecrowdsales(const JSONRPCRequest& request)
 {
-    if (fHelp)
+    if (request.fHelp)
         throw runtime_error(
             "exodus_getactivecrowdsales\n"
             "\nLists currently active crowdsales.\n"
@@ -1183,7 +1183,7 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
 
         const uint256& creationHash = sp.txid;
 
-        CTransaction tx;
+        CTransactionRef tx;
         uint256 hashBlock;
         if (!GetTransaction(creationHash, tx, Params().GetConsensus(), hashBlock, true)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
@@ -1210,9 +1210,9 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getgrants(const UniValue& params, bool fHelp)
+UniValue exodus_getgrants(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getgrants propertyid\n"
             "\nReturns information about granted and revoked units of managed tokens.\n"
@@ -1242,7 +1242,7 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getgrants", "31")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
 
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
@@ -1292,9 +1292,9 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
+UniValue exodus_getorderbook(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
             "exodus_getorderbook propertyid ( propertyid )\n"
             "\nList active offers on the distributed token exchange.\n"
@@ -1326,14 +1326,14 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getorderbook", "2")
         );
 
-    bool filterDesired = (params.size() > 1);
-    uint32_t propertyIdForSale = ParsePropertyId(params[0]);
+    bool filterDesired = (request.params.size() > 1);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[0]);
     uint32_t propertyIdDesired = 0;
 
     RequireExistingProperty(propertyIdForSale);
 
     if (filterDesired) {
-        propertyIdDesired = ParsePropertyId(params[1]);
+        propertyIdDesired = ParsePropertyId(request.params[1]);
 
         RequireExistingProperty(propertyIdDesired);
         RequireSameEcosystem(propertyIdForSale, propertyIdDesired);
@@ -1361,9 +1361,9 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
+UniValue exodus_gettradehistoryforaddress(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw runtime_error(
             "exodus_gettradehistoryforaddress \"address\" ( count propertyid )\n"
             "\nRetrieves the history of orders on the distributed exchange for the supplied address.\n"
@@ -1413,12 +1413,12 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_gettradehistoryforaddress", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\"")
         );
 
-    std::string address = ParseAddress(params[0]);
-    uint64_t count = (params.size() > 1) ? params[1].get_int64() : 10;
+    std::string address = ParseAddress(request.params[0]);
+    uint64_t count = (request.params.size() > 1) ? request.params[1].get_int64() : 10;
     uint32_t propertyId = 0;
 
-    if (params.size() > 2) {
-        propertyId = ParsePropertyId(params[2]);
+    if (request.params.size() > 2) {
+        propertyId = ParsePropertyId(request.params[2]);
         RequireExistingProperty(propertyId);
     }
 
@@ -1445,9 +1445,9 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
+UniValue exodus_gettradehistoryforpair(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
             "exodus_gettradehistoryforpair propertyid propertyid ( count )\n"
             "\nRetrieves the history of trades on the distributed token exchange for the specified market.\n"
@@ -1476,9 +1476,9 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
         );
 
     // obtain property identifiers for pair & check valid parameters
-    uint32_t propertyIdSideA = ParsePropertyId(params[0]);
-    uint32_t propertyIdSideB = ParsePropertyId(params[1]);
-    uint64_t count = (params.size() > 2) ? params[2].get_int64() : 10;
+    uint32_t propertyIdSideA = ParsePropertyId(request.params[0]);
+    uint32_t propertyIdSideB = ParsePropertyId(request.params[1]);
+    uint64_t count = (request.params.size() > 2) ? request.params[2].get_int64() : 10;
 
     RequireExistingProperty(propertyIdSideA);
     RequireExistingProperty(propertyIdSideB);
@@ -1492,9 +1492,9 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
+UniValue exodus_getactivedexsells(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 1)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "exodus_getactivedexsells ( address )\n"
             "\nReturns currently active offers on the distributed exchange.\n"
@@ -1532,8 +1532,8 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
 
     std::string addressFilter;
 
-    if (params.size() > 0) {
-        addressFilter = ParseAddressOrEmpty(params[0]);
+    if (request.params.size() > 0) {
+        addressFilter = ParseAddressOrEmpty(request.params[0]);
     }
 
     UniValue response(UniValue::VARR);
@@ -1615,9 +1615,9 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
+UniValue exodus_listblocktransactions(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_listblocktransactions index\n"
             "\nLists all Exodus transactions in a block.\n"
@@ -1634,7 +1634,7 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_listblocktransactions", "279007")
         );
 
-    int blockHeight = params[0].get_int();
+    int blockHeight = request.params[0].get_int();
 
     RequireHeightInChain(blockHeight);
 
@@ -1656,20 +1656,20 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
 
     LOCK(cs_tally);
 
-    BOOST_FOREACH(const CTransaction&tx, block.vtx) {
-        if (p_txlistdb->exists(tx.GetHash())) {
+    BOOST_FOREACH(CTransactionRef tx, block.vtx) {
+        if (p_txlistdb->exists(tx->GetHash())) {
             // later we can add a verbose flag to decode here, but for now callers can send returned txids into gettransaction_MP
             // add the txid into the response as it's an MP transaction
-            response.push_back(tx.GetHash().GetHex());
+            response.push_back(tx->GetHash().GetHex());
         }
     }
 
     return response;
 }
 
-UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
+UniValue exodus_gettransaction(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_gettransaction \"txid\"\n"
             "\nGet detailed information about an Exodus transaction.\n"
@@ -1696,7 +1696,7 @@ UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
-    uint256 hash = ParseHashV(params[0], "txid");
+    uint256 hash = ParseHashV(request.params[0], "txid");
 
     UniValue txobj(UniValue::VOBJ);
     int populateResult = populateRPCTransactionObject(hash, txobj);
@@ -1705,9 +1705,9 @@ UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
+UniValue exodus_listtransactions(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 5)
+    if (request.fHelp || request.params.size() > 5)
         throw runtime_error(
             "exodus_listtransactions ( \"address\" count skip startblock endblock )\n"
             "\nList wallet transactions, optionally filtered by an address and block boundaries.\n"
@@ -1742,20 +1742,20 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
 
     // obtains parameters - default all wallet addresses & last 10 transactions
     std::string addressParam;
-    if (params.size() > 0) {
-        if (("*" != params[0].get_str()) && ("" != params[0].get_str())) addressParam = params[0].get_str();
+    if (request.params.size() > 0) {
+        if (("*" != request.params[0].get_str()) && ("" != request.params[0].get_str())) addressParam = request.params[0].get_str();
     }
     int64_t nCount = 10;
-    if (params.size() > 1) nCount = params[1].get_int64();
+    if (request.params.size() > 1) nCount = request.params[1].get_int64();
     if (nCount < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
     int64_t nFrom = 0;
-    if (params.size() > 2) nFrom = params[2].get_int64();
+    if (request.params.size() > 2) nFrom = request.params[2].get_int64();
     if (nFrom < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
     int64_t nStartBlock = 0;
-    if (params.size() > 3) nStartBlock = params[3].get_int64();
+    if (request.params.size() > 3) nStartBlock = request.params[3].get_int64();
     if (nStartBlock < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative start block");
     int64_t nEndBlock = 999999;
-    if (params.size() > 4) nEndBlock = params[4].get_int64();
+    if (request.params.size() > 4) nEndBlock = request.params[4].get_int64();
     if (nEndBlock < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative end block");
 
     // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending)
@@ -1786,9 +1786,9 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
+UniValue exodus_listpendingtransactions(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 1)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "exodus_listpendingtransactions ( \"address\" )\n"
             "\nReturns a list of unconfirmed Exodus transactions, pending in the memory pool.\n"
@@ -1819,8 +1819,8 @@ UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
         );
 
     std::string filterAddress;
-    if (params.size() > 0) {
-        filterAddress = ParseAddressOrEmpty(params[0]);
+    if (request.params.size() > 0) {
+        filterAddress = ParseAddressOrEmpty(request.params[0]);
     }
 
     std::vector<uint256> vTxid;
@@ -1837,9 +1837,9 @@ UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
     return result;
 }
 
-UniValue exodus_getinfo(const UniValue& params, bool fHelp)
+UniValue exodus_getinfo(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 0)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
             "exodus_getinfo\n"
             "Returns various state information of the client and protocol.\n"
@@ -1919,9 +1919,9 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
     return infoResponse;
 }
 
-UniValue exodus_getactivations(const UniValue& params, bool fHelp)
+UniValue exodus_getactivations(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 0)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
             "exodus_getactivations\n"
             "Returns pending and completed feature activations.\n"
@@ -1983,9 +1983,9 @@ UniValue exodus_getactivations(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getsto(const UniValue& params, bool fHelp)
+UniValue exodus_getsto(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
             "exodus_getsto \"txid\" \"recipientfilter\"\n"
             "\nGet information and recipients of a send-to-owners transaction.\n"
@@ -2021,9 +2021,9 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\", \"*\"")
         );
 
-    uint256 hash = ParseHashV(params[0], "txid");
+    uint256 hash = ParseHashV(request.params[0], "txid");
     std::string filterAddress;
-    if (params.size() > 1) filterAddress = ParseAddressOrWildcard(params[1]);
+    if (request.params.size() > 1) filterAddress = ParseAddressOrWildcard(request.params[1]);
 
     UniValue txobj(UniValue::VOBJ);
     int populateResult = populateRPCTransactionObject(hash, txobj, "", true, filterAddress);
@@ -2032,9 +2032,9 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_gettrade(const UniValue& params, bool fHelp)
+UniValue exodus_gettrade(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_gettrade \"txid\"\n"
             "\nGet detailed information and trade matches for orders on the distributed token exchange.\n"
@@ -2079,7 +2079,7 @@ UniValue exodus_gettrade(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_gettrade", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
-    uint256 hash = ParseHashV(params[0], "txid");
+    uint256 hash = ParseHashV(request.params[0], "txid");
 
     UniValue txobj(UniValue::VOBJ);
     int populateResult = populateRPCTransactionObject(hash, txobj, "", true);
@@ -2088,9 +2088,9 @@ UniValue exodus_gettrade(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_getcurrentconsensushash(const UniValue& params, bool fHelp)
+UniValue exodus_getcurrentconsensushash(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 0)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
             "exodus_getcurrentconsensushash\n"
             "\nReturns the consensus hash for all balances for the current block.\n"
@@ -2123,9 +2123,9 @@ UniValue exodus_getcurrentconsensushash(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
+UniValue exodus_getmetadexhash(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() > 1)
+    if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "exodus_getmetadexhash propertyId\n"
             "\nReturns a hash of the current state of the MetaDEx (default) or orderbook.\n"
@@ -2147,8 +2147,8 @@ UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
     LOCK(cs_main);
 
     uint32_t propertyId = 0;
-    if (params.size() > 0) {
-        propertyId = ParsePropertyId(params[0]);
+    if (request.params.size() > 0) {
+        propertyId = ParsePropertyId(request.params[0]);
         RequireExistingProperty(propertyId);
     }
 
@@ -2167,9 +2167,9 @@ UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getbalanceshash(const UniValue& params, bool fHelp)
+UniValue exodus_getbalanceshash(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "exodus_getbalanceshash propertyid\n"
             "\nReturns a hash of the balances for the property.\n"
@@ -2190,7 +2190,7 @@ UniValue exodus_getbalanceshash(const UniValue& params, bool fHelp)
 
     LOCK(cs_main);
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
 
     int block = GetHeight();

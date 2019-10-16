@@ -107,7 +107,8 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
 };
 
-class CTxLockRequest : public CTransaction
+// TODO: make CTransactionRef member of the class
+class CTxLockRequest : public CMutableTransaction
 {
 private:
     static const int TIMEOUT_SECONDS        = 5 * 60;
@@ -119,11 +120,16 @@ public:
     static const int WARN_MANY_INPUTS       = 100;
 
     CTxLockRequest() :
-        CTransaction(),
+        CMutableTransaction(),
         nTimeCreated(GetTime())
         {}
     CTxLockRequest(const CTransaction& tx) :
-        CTransaction(tx),
+        CMutableTransaction(tx),
+        nTimeCreated(GetTime())
+        {}
+
+    CTxLockRequest(const deserialize_type &deserialize, CDataStream &s) :
+        CMutableTransaction(deserialize, s),
         nTimeCreated(GetTime())
         {}
 
@@ -166,7 +172,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(txHash);
         READWRITE(outpoint);
         READWRITE(outpointZnode);

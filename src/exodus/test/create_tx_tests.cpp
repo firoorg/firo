@@ -3,7 +3,7 @@
 #include "base58.h"
 #include "coins.h"
 #include "core_io.h"
-#include "main.h"
+#include "validation.h"
 #include "primitives/transaction.h"
 #include "script/script.h"
 #include "script/standard.h"

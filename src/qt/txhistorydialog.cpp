@@ -24,7 +24,7 @@
 #include "exodus/wallettxs.h"
 
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "primitives/transaction.h"
 #include "sync.h"
 #include "txdb.h"
@@ -217,7 +217,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             ui->txHistoryTable->setSortingEnabled(true); // re-enable sorting
         }
 
-        CTransaction wtx;
+        CTransactionRef wtx;
         uint256 blockHash;
         if (!GetTransaction(txHash, wtx, Params().GetConsensus(), blockHash, true)) continue;
         if (blockHash.IsNull() || NULL == GetBlockIndex(blockHash)) {
@@ -248,7 +248,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (NULL == pBlockIndex) continue;
         int blockHeight = pBlockIndex->nHeight;
         CMPTransaction mp_obj;
-        int parseRC = ParseTransaction(wtx, blockHeight, 0, mp_obj);
+        int parseRC = ParseTransaction(*wtx, blockHeight, 0, mp_obj);
         HistoryTXObject htxo;
         if (it->first.length() == 16) {
             htxo.blockHeight = atoi(it->first.substr(0,6));

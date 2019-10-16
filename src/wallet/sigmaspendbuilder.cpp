@@ -7,7 +7,7 @@
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
 
-#include "../main.h"
+#include "../validation.h"
 #include "../serialize.h"
 #include "../streams.h"
 #include "../util.h"

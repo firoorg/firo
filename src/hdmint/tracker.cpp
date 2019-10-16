@@ -12,7 +12,7 @@
 #include "wallet/walletdb.h"
 #include "hdmint/wallet.h"
 #include "libzerocoin/Zerocoin.h"
-#include "main.h"
+#include "validation.h"
 #include "sigma.h"
 #include "txmempool.h"
 
@@ -408,7 +408,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
     if ((mint.nHeight==-1) || (mint.nId==-1) || !isMintInChain || isUsed != mint.isUsed) {
-        CTransaction tx;
+        CTransactionRef tx;
         uint256 hashBlock;
 
         // Txid will be marked 0 if there is no knowledge of the final tx hash yet

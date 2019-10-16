@@ -41,9 +41,10 @@ from test_framework.siphash import siphash256
 BIP0031_VERSION = 60000
 MY_VERSION = 90025  # past bip-31 for ping/pong
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
+MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
 MAX_INV_SZ = 50000
-MAX_BLOCK_SIZE = 1000000
+MAX_BLOCK_BASE_SIZE = 1000000
 
 COIN = 100000000 # 1 btc in satoshis
 
@@ -984,6 +985,7 @@ class msg_version(object):
         self.nNonce = random.getrandbits(64)
         self.strSubVer = MY_SUBVERSION
         self.nStartingHeight = -1
+        self.nRelay = MY_RELAY
 
     def deserialize(self, f):
         self.nVersion = struct.unpack("<i", f.read(4))[0]
@@ -993,20 +995,31 @@ class msg_version(object):
         self.nTime = struct.unpack("<q", f.read(8))[0]
         self.addrTo = CAddress()
         self.addrTo.deserialize(f)
+
         if self.nVersion >= 106:
             self.addrFrom = CAddress()
             self.addrFrom.deserialize(f)
             self.nNonce = struct.unpack("<Q", f.read(8))[0]
             self.strSubVer = deser_string(f)
-            if self.nVersion >= 209:
-                self.nStartingHeight = struct.unpack("<i", f.read(4))[0]
-            else:
-                self.nStartingHeight = None
         else:
             self.addrFrom = None
             self.nNonce = None
             self.strSubVer = None
             self.nStartingHeight = None
+
+        if self.nVersion >= 209:
+            self.nStartingHeight = struct.unpack("<i", f.read(4))[0]
+        else:
+            self.nStartingHeight = None
+
+        if self.nVersion >= 70001:
+            # Relay field is optional for version 70001 onwards
+            try:
+                self.nRelay = struct.unpack("<b", f.read(1))[0]
+            except:
+                self.nRelay = 0
+        else:
+            self.nRelay = 0
 
     def serialize(self):
         r = b""
@@ -1018,13 +1031,14 @@ class msg_version(object):
         r += struct.pack("<Q", self.nNonce)
         r += ser_string(self.strSubVer)
         r += struct.pack("<i", self.nStartingHeight)
+        r += struct.pack("<b", self.nRelay)
         return r
 
     def __repr__(self):
-        return 'msg_version(nVersion=%i nServices=%i nTime=%s addrTo=%s addrFrom=%s nNonce=0x%016X strSubVer=%s nStartingHeight=%i)' \
+        return 'msg_version(nVersion=%i nServices=%i nTime=%s addrTo=%s addrFrom=%s nNonce=0x%016X strSubVer=%s nStartingHeight=%i nRelay=%i)' \
             % (self.nVersion, self.nServices, time.ctime(self.nTime),
                repr(self.addrTo), repr(self.addrFrom), self.nNonce,
-               self.strSubVer, self.nStartingHeight)
+               self.strSubVer, self.nStartingHeight, self.nRelay)
 
 
 class msg_verack(object):
@@ -1559,8 +1573,8 @@ class NodeConnCB(object):
     def on_ping(self, conn, message):
         if conn.ver_send > BIP0031_VERSION:
             conn.send_message(msg_pong(message.nonce))
-    def on_reject(self, conn, message):
-        print("Connection rejected with message: ", message)
+    def on_reject(self, conn, message): pass
+    def on_open(self, conn): pass
     def on_close(self, conn): pass
     def on_mempool(self, conn): pass
     def on_notfound(self, message): pass
@@ -1640,7 +1654,7 @@ class NodeConn(asyncore.dispatcher):
         "regtest": b"\xfa\xbf\xb5\xda",   # regtest
     }
 
-    def __init__(self, dstaddr, dstport, rpc, callback, net="regtest", services=NODE_NETWORK):
+    def __init__(self, dstaddr, dstport, rpc, callback, net="regtest", services=NODE_NETWORK, send_version=True):
         asyncore.dispatcher.__init__(self, map=mininode_socket_map)
         self.log = logging.getLogger("NodeConn(%s:%d)" % (dstaddr, dstport))
         self.dstaddr = dstaddr
@@ -1657,14 +1671,16 @@ class NodeConn(asyncore.dispatcher):
         self.disconnect = False
         self.nServices = 0
 
-        # stuff version msg into sendbuf
-        vt = msg_version()
-        vt.nServices = services
-        vt.addrTo.ip = self.dstaddr
-        vt.addrTo.port = self.dstport
-        vt.addrFrom.ip = "127.0.0.1"
-        vt.addrFrom.port = 0
-        self.send_message(vt, True)
+        if send_version:
+            # stuff version msg into sendbuf
+            vt = msg_version()
+            vt.nServices = services
+            vt.addrTo.ip = self.dstaddr
+            vt.addrTo.port = self.dstport
+            vt.addrFrom.ip = "0.0.0.0"
+            vt.addrFrom.port = 0
+            self.send_message(vt, True)
+
         print('MiniNode: Connecting to Bitcoin Node IP # ' + dstaddr + ':' \
             + str(dstport))
 
@@ -1681,9 +1697,10 @@ class NodeConn(asyncore.dispatcher):
         self.log.debug(msg)
 
     def handle_connect(self):
-        print("MiniNode: Connected & Listening: \n")
-        self.show_debug_msg("MiniNode: Connected & Listening: \n")
-        self.state = "connected"
+        if self.state != "connected":
+            self.show_debug_msg("MiniNode: Connected & Listening: \n")
+            self.state = "connected"
+            self.cb.on_open(self)
 
     def handle_close(self):
         print("MiniNode: Closing Connection to %s:%d... "
@@ -1713,11 +1730,20 @@ class NodeConn(asyncore.dispatcher):
 
     def writable(self):
         with mininode_lock:
+            pre_connection = self.state == "connecting"
             length = len(self.sendbuf)
-        return (length > 0)
+        return (length > 0 or pre_connection)
 
     def handle_write(self):
         with mininode_lock:
+            # asyncore does not expose socket connection, only the first read/write
+            # event, thus we must check connection manually here to know when we
+            # actually connect
+            if self.state == "connecting":
+                self.handle_connect()
+            if not self.writable():
+                return
+
             try:
                 sent = self.send(self.sendbuf)
             except:

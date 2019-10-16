@@ -484,11 +484,6 @@ std::string GroupElement::GetHex() const {
     return str.str();
 }
 
-size_t GroupElement::memoryRequired() const  {
-    return serialize_size;
-}
-
-
 unsigned char* GroupElement::serialize() const {
     auto g = reinterpret_cast<secp256k1_gej *>(g_);
     unsigned char* data = new unsigned char[ 2 * sizeof(secp256k1_fe)];

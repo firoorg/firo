@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -46,7 +46,7 @@
 #include <QTableView>
 #include <QVBoxLayout>
 
-WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
+WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     QStackedWidget(parent),
     clientModel(0),
     walletModel(0),
@@ -57,7 +57,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     zc2SigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
-    platformStyle(platformStyle),
+    platformStyle(_platformStyle),
     transactionTabs(0),
     sendCoinsTabs(0)
 {
@@ -126,6 +126,9 @@ void WalletView::setupTransactionPage()
     auto zcoinLayout = new QVBoxLayout();
     zcoinLayout->addWidget(zcoinTransactionList);
     zcoinLayout->addLayout(exportLayout);
+    // TODO: fix this
+    //connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
+    connect(overviewPage, SIGNAL(outOfSyncWarningClicked()), this, SLOT(requestedSyncWarningInfo()));
 
     zcoinTransactionsView = new QWidget();
     zcoinTransactionsView->setLayout(zcoinLayout);
@@ -231,12 +234,15 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
 
         // Pass through transaction notifications
         connect(this, SIGNAL(incomingTransaction(QString,int,CAmount,QString,QString,QString)), gui, SLOT(incomingTransaction(QString,int,CAmount,QString,QString,QString)));
+
+        // Connect HD enabled state signal 
+        connect(this, SIGNAL(hdEnabledStatusChanged(int)), gui, SLOT(setHDStatus(int)));
     }
 }
 
-void WalletView::setClientModel(ClientModel *clientModel)
+void WalletView::setClientModel(ClientModel *_clientModel)
 {
-    this->clientModel = clientModel;
+    this->clientModel = _clientModel;
 
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
@@ -254,54 +260,62 @@ void WalletView::setClientModel(ClientModel *clientModel)
     if (sendExodusView) {
         sendExodusView->setClientModel(clientModel);
     }
+    overviewPage->setClientModel(_clientModel);
+    // TODO: fix this
+    //sendCoinsPage->setClientModel(_clientModel);
 }
 
-void WalletView::setWalletModel(WalletModel *walletModel)
+void WalletView::setWalletModel(WalletModel *_walletModel)
 {
-    this->walletModel = walletModel;
+    this->walletModel = _walletModel;
 
     // Put transaction list in tabs
-    zcoinTransactionList->setModel(walletModel);
-    overviewPage->setWalletModel(walletModel);
-    receiveCoinsPage->setModel(walletModel);
-    zerocoinPage->setModel(walletModel->getAddressTableModel());
+    zcoinTransactionList->setModel(_walletModel);
+    overviewPage->setWalletModel(_walletModel);
+    receiveCoinsPage->setModel(_walletModel);
+    // TODO: fix this
+    //sendCoinsPage->setModel(_walletModel);
+    zerocoinPage->setModel(_walletModel->getAddressTableModel());
     if (pwalletMain->IsHDSeedAvailable()) {
-        sigmaView->setWalletModel(walletModel);
+        sigmaView->setWalletModel(_walletModel);
     }
     zc2SigmaPage->createModel();
-    usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
-    usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
-    znodeListPage->setWalletModel(walletModel);
-    sendZcoinView->setModel(walletModel);
-    exoAssetsPage->setWalletModel(walletModel);
-    zc2SigmaPage->setWalletModel(walletModel);
+    usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
+    usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
+    znodeListPage->setWalletModel(_walletModel);
+    sendZcoinView->setModel(_walletModel);
+    exoAssetsPage->setWalletModel(_walletModel);
+    zc2SigmaPage->setWalletModel(_walletModel);
 
     if (exodusTransactionsView) {
-        exodusTransactionsView->setWalletModel(walletModel);
+        exodusTransactionsView->setWalletModel(_walletModel);
     }
 
     if (sendExodusView) {
-        sendExodusView->setWalletModel(walletModel);
+        sendExodusView->setWalletModel(_walletModel);
     }
 
-    if (walletModel)
+    if (_walletModel)
     {
         // Receive and pass through messages from wallet model
-        connect(walletModel, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+        connect(_walletModel, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
 
         // Handle changes in encryption status
-        connect(walletModel, SIGNAL(encryptionStatusChanged(int)), this, SIGNAL(encryptionStatusChanged(int)));
+        connect(_walletModel, SIGNAL(encryptionStatusChanged(int)), this, SIGNAL(encryptionStatusChanged(int)));
         updateEncryptionStatus();
 
+        // update HD status
+        Q_EMIT hdEnabledStatusChanged(_walletModel->hdEnabled());
+
         // Balloon pop-up for new transaction
-        connect(walletModel->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex,int,int)),
+        connect(_walletModel->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex,int,int)),
                 this, SLOT(processNewTransaction(QModelIndex,int,int)));
 
         // Ask for passphrase if needed
-        connect(walletModel, SIGNAL(requireUnlock()), this, SLOT(unlockWallet()));
+        connect(_walletModel, SIGNAL(requireUnlock()), this, SLOT(unlockWallet()));
 
         // Show progress dialog
-        connect(walletModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
+        connect(_walletModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
     }
 }
 
@@ -552,4 +566,9 @@ void WalletView::showProgress(const QString &title, int nProgress)
     }
     else if (progressDialog)
         progressDialog->setValue(nProgress);
+}
+
+void WalletView::requestedSyncWarningInfo()
+{
+    Q_EMIT outOfSyncWarningClicked();
 }

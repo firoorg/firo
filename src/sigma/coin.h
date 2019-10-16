@@ -52,7 +52,7 @@ public:
     size_t GetSerializeSize(int nType, int nVersion) const;
 
     template<typename Stream>
-    inline void Serialize(Stream& s, int nType, int nVersion) const {
+    inline void Serialize(Stream& s) const {
         int size = value.memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         value.serialize(buffer);
@@ -62,7 +62,7 @@ public:
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s, int nType, int nVersion) {
+    inline void Unserialize(Stream& s) {
         int size = value.memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         char* b = (char*)buffer;
@@ -121,22 +121,17 @@ private:
 
 // Serialization support for CoinDenomination
 
-inline unsigned int GetSerializeSize(CoinDenomination d, int nType, int nVersion)
+template<typename Stream>
+void Serialize(Stream& os, CoinDenomination d)
 {
-    return sizeof(d);
+    Serialize(os, static_cast<std::uint8_t>(d));
 }
 
 template<typename Stream>
-void Serialize(Stream& os, CoinDenomination d, int nType, int nVersion)
-{
-    Serialize(os, static_cast<std::uint8_t>(d), nType, nVersion);
-}
-
-template<typename Stream>
-void Unserialize(Stream& is, CoinDenomination& d, int nType, int nVersion)
+void Unserialize(Stream& is, CoinDenomination& d)
 {
     std::uint8_t v;
-    Unserialize(is, v, nType, nVersion);
+    Unserialize(is, v);
     d = static_cast<CoinDenomination>(v);
 }
 

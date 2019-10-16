@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,7 +14,7 @@
 #include "transactionfilterproxy.h"
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
-#include "main.h"
+#include "validation.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -33,9 +33,9 @@ class TxViewDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
 public:
-    TxViewDelegate(const PlatformStyle *platformStyle, QObject *parent=nullptr):
+    TxViewDelegate(const PlatformStyle *_platformStyle, QObject *parent=nullptr):
         QAbstractItemDelegate(parent), unit(BitcoinUnits::BTC),
-        platformStyle(platformStyle)
+        platformStyle(_platformStyle)
     {
 
     }
@@ -133,7 +133,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     // read config
     bool torEnabled;
-    if(mapArgs.count("-torsetup")){
+    if(IsArgSet("-torsetup")){
         torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     }else{
         torEnabled = settings.value("fTorSetup").toBool();
@@ -162,6 +162,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
+    connect(ui->labelWalletStatus, SIGNAL(clicked()), this, SLOT(handleOutOfSyncWarningClicks()));
+    connect(ui->labelTransactionsStatus, SIGNAL(clicked()), this, SLOT(handleOutOfSyncWarningClicks()));
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -182,6 +184,11 @@ void OverviewPage::handleEnabledTorChanged(){
         msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
 	}
 	msgBox.exec();
+}
+
+void OverviewPage::handleOutOfSyncWarningClicks()
+{
+    Q_EMIT outOfSyncWarningClicked();
 }
 
 OverviewPage::~OverviewPage()

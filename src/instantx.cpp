@@ -3,12 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activeznode.h"
-#include "darksend.h"
 #include "instantx.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "znode-sync.h"
 #include "znodeman.h"
+#include "darksend.h"
 #include "net.h"
 #include "protocol.h"
 #include "spork.h"
@@ -512,13 +512,12 @@ bool CInstantSend::ResolveConflicts(const CTxLockCandidate& txLockCandidate, int
         }
     } // FOREACH
     if(fMempoolConflict) {
-        std::list<CTransaction> removed;
         // remove every tx conflicting with current Transaction Lock Request
-        mempool.removeConflicts(txLockCandidate.txLockRequest, removed);
+        mempool.removeConflicts(txLockCandidate.txLockRequest);
         // and try to accept it in mempool again
         CValidationState state;
         bool fMissingInputs = false;
-        if(!AcceptToMemoryPool(mempool, state, txLockCandidate.txLockRequest, true, true, &fMissingInputs)) {
+        if(!AcceptToMemoryPool(mempool, state, MakeTransactionRef(txLockCandidate.txLockRequest), true, &fMissingInputs)) {
             LogPrintf("CInstantSend::ResolveConflicts -- ERROR: Failed to accept completed Transaction Lock to mempool, txid=%s\n", txHash.ToString());
             return false;
         }
@@ -526,7 +525,7 @@ bool CInstantSend::ResolveConflicts(const CTxLockCandidate& txLockCandidate, int
         return true;
     }
     // No conflicts were found so far, check to see if it was already included in block
-    CTransaction txTmp;
+    CTransactionRef txTmp;
     uint256 hashBlock;
     if(GetTransaction(txHash, txTmp, Params().GetConsensus(), hashBlock, true) && hashBlock != uint256()) {
         LogPrint("instantsend", "CInstantSend::ResolveConflicts -- Done, %s is included in block %s\n", txHash.ToString(), hashBlock.ToString());
@@ -875,15 +874,15 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
             // Normally above sould be enough, but in case we are reprocessing this because of
             // a lot of legit orphan votes we should also check already spent outpoints.
             if(fRequireUnspent) return false;
-            CTransaction txOutpointCreated;
+            CTransactionRef txOutpointCreated;
             uint256 nHashOutpointConfirmed;
             if(!GetTransaction(txin.prevout.hash, txOutpointCreated, Params().GetConsensus(), nHashOutpointConfirmed, true) || nHashOutpointConfirmed == uint256()) {
                 LogPrint("instantsend", "CTxLockRequest::IsValid -- Failed to find outpoint %s\n", txin.prevout.ToStringShort());
                 return false;
             }
-            if(txin.prevout.n >= txOutpointCreated.vout.size()) {
+            if(txin.prevout.n >= txOutpointCreated->vout.size()) {
                 LogPrint("instantsend", "CTxLockRequest::IsValid -- Outpoint %s is out of bounds, size() = %lld\n",
-                        txin.prevout.ToStringShort(), txOutpointCreated.vout.size());
+                        txin.prevout.ToStringShort(), txOutpointCreated->vout.size());
                 return false;
             }
             BlockMap::iterator mi = mapBlockIndex.find(nHashOutpointConfirmed);
@@ -894,7 +893,7 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
                 return false;
             }
             nPrevoutHeight = mi->second->nHeight;
-            nValue = txOutpointCreated.vout[txin.prevout.n].nValue;
+            nValue = txOutpointCreated->vout[txin.prevout.n].nValue;
         } else {
             nPrevoutHeight = coins.nHeight;
             nValue = coins.vout[txin.prevout.n].nValue;
@@ -959,7 +958,7 @@ bool CTxLockVote::IsValid(CNode* pnode) const
         LogPrint("instantsend", "CTxLockVote::IsValid -- Failed to find UTXO %s\n", outpoint.ToStringShort());
         // Validating utxo set is not enough, votes can arrive after outpoint was already spent,
         // if lock request was mined. We should process them too to count them later if they are legit.
-        CTransaction txOutpointCreated;
+        CTransactionRef txOutpointCreated;
         uint256 nHashOutpointConfirmed;
         if(!GetTransaction(outpoint.hash, txOutpointCreated, Params().GetConsensus(), nHashOutpointConfirmed, true) || nHashOutpointConfirmed == uint256()) {
             LogPrint("instantsend", "CTxLockVote::IsValid -- Failed to find outpoint %s\n", outpoint.ToStringShort());
@@ -1152,7 +1151,7 @@ bool CTxLockCandidate::IsExpired(int nHeight) const
 
 void CTxLockCandidate::Relay() const
 {
-    RelayTransaction(txLockRequest);
+    g_connman->RelayTransaction(txLockRequest);
     std::map<COutPoint, COutPointLock>::const_iterator itOutpointLock = mapOutPointLocks.begin();
     while(itOutpointLock != mapOutPointLocks.end()) {
         itOutpointLock->second.Relay();

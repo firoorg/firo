@@ -1,4 +1,4 @@
-#include "main.h"
+#include "validation.h"
 #include "zerocoin.h"
 #include "sigma.h"
 #include "timedata.h"

@@ -6,7 +6,7 @@
 
 #include "chain.h"
 #include "chainparams.h"
-#include "main.h"
+#include "validation.h"
 #include "sync.h"
 
 #include <stdint.h>

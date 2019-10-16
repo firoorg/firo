@@ -101,51 +101,65 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
-    'mempool_doublesend_oneblock.py',
-    'mempool_reorg.py',
-    'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
-    # 'p2p-fullblocktest.py',
-    # 'walletbackup.py',
-    # 'p2p-dandelion.py',
-    # 'bip68-112-113-p2p.py',
-    # 'wallet.py',
     # 'wallet-hd.py',
+    # 'walletbackup.py',
+    # vv Tests less than 5m vv
+    # 'p2p-fullblocktest.py',
+    # 'fundrawtransaction.py',
+    # 'p2p-compactblocks.py',
+    # 'segwit.py',
+    # vv Tests less than 2m vv
+    # 'wallet.py',
+    # 'wallet-accounts.py',
+    # 'p2p-segwit.py',
     # 'wallet-dump.py',
     # 'listtransactions.py',
-     'receivedby.py',
+    # vv Tests less than 60s vv
+    # 'sendheaders.py',
+    'zapwallettxes.py',
+    # 'importmulti.py',
+    # 'mempool_limit.py',
+    # 'merkle_blocks.py',
+    'receivedby.py',
+    # 'abandonconflict.py',
+    # 'bip68-112-113-p2p.py',
+    # 'rawtransactions.py',
+    'reindex.py',
+    # vv Tests less than 30s vv
     # 'mempool_resurrect_test.py',
     # 'txn_doublespend.py --mineblock',
     # 'txn_clone.py',
     # 'getchaintips.py',
-    # 'rawtransactions.py',
-     'rest.py',
-    # 'mempool_limit.py',
-     'httpbasics.py',
-     'reindex.py',
-     'multi_rpc.py',
-     'zapwallettxes.py',
-     'proxy_test.py',
-    # 'merkle_blocks.py',
-    # 'fundrawtransaction.py',
+    'rest.py',
+    'mempool_spendcoinbase.py',
+    'mempool_reorg.py',
+    'httpbasics.py',
+    'multi_rpc.py',
+    'proxy_test.py',
     # 'signrawtransactions.py',
-     'nodehandling.py',
-     'decodescript.py',
+    'nodehandling.py',
+    'decodescript.py',
     # 'blockchain.py',
-     'disablewallet.py',
-    # 'sendheaders.py',
-     'keypool.py',
+    'disablewallet.py',
+    'keypool.py',
+    # 'p2p-mempool.py',
     # 'prioritise_transaction.py',
     # 'invalidblockrequest.py',
     # 'invalidtxrequest.py',
-    # 'abandonconflict.py',
     # 'p2p-versionbits-warning.py',
-    # 'p2p-segwit.py',
-    # 'segwit.py',
-     'importprunedfunds.py',
+    # 'preciousblock.py',
+    'importprunedfunds.py',
     # 'signmessages.py',
-    # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    # 'import-rescan.py',
+    # 'bumpfee.py',
+    # 'rpcnamedargs.py',
+    # 'listsinceblock.py',
+    # 'p2p-leaktests.py',
+
+    # Zcoin-specific tests
+    'mempool_doublesend_oneblock.py',
     'transations_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
@@ -172,27 +186,33 @@ testScripts = [
 #     testScripts.append('zmq_test.py')
 
 testScriptsExt = [
+    # 'pruning.py',
+    # vv Tests less than 20m vv
+    # 'smartfees.py',
+    # vv Tests less than 5m vv
+    # 'maxuploadtarget.py',
+    # 'mempool_packages.py',
+    # vv Tests less than 2m vv
+    # 'bip68-sequence.py',
+    # 'getblocktemplate_longpoll.py',
+    # 'p2p-timeouts.py',
+    # vv Tests less than 60s vv
     # 'bip9-softforks.py',
+    # 'p2p-feefilter.py',
+    # 'rpcbind_test.py',
+    # vv Tests less than 30s vv
     # 'bip65-cltv.py',
     # 'bip65-cltv-p2p.py',
-    # 'bip68-sequence.py',
     # 'bipdersig-p2p.py',
     # 'bipdersig.py',
-    # 'getblocktemplate_longpoll.py',
     # 'getblocktemplate_proposals.py',
     # 'txn_doublespend.py',
     # 'txn_clone.py --mineblock',
     # 'forknotify.py',
-     'invalidateblock.py',
-    # 'rpcbind_test.py',
-    # 'smartfees.py',
+    # 'invalidateblock.py',
     # 'maxblocksinflight.py',
     # 'p2p-acceptblock.py',
-    # 'mempool_packages.py',
-    # 'maxuploadtarget.py',
     # 'replace-by-fee.py',
-    # 'p2p-feefilter.py',
-    # 'pruning.py', # leave pruning last as it takes a REALLY long time
 ]
 
 
@@ -218,6 +238,7 @@ def runtests():
         coverage = RPCCoverage()
         print("Initializing coverage directory at %s\n" % coverage.dir)
     flags = ["--srcdir=%s/src" % BUILDDIR] + passon_args
+    flags.append("--cachedir=%s/qa/cache" % BUILDDIR)
     if coverage:
         flags.append(coverage.flag)
 
@@ -238,8 +259,8 @@ def runtests():
         time_sum += duration
 
         print('\n' + BOLD[1] + name + BOLD[0] + ":")
-        print(stdout)
-        print('stderr:\n' if not stderr == '' else '', stderr)
+        print('' if passed else stdout + '\n', end='')
+        print('' if stderr == '' else 'stderr:\n' + stderr + '\n', end='')
         results += "%s | %s | %s s\n" % (name.ljust(max_len_name), str(passed).ljust(6), duration)
         print("Pass: %s%s%s, Duration: %s s\n" % (BOLD[1], passed, BOLD[0], duration))
     results += BOLD[1] + "\n%s | %s | %s s (accumulated)" % ("ALL".ljust(max_len_name), str(all_passed).ljust(6), time_sum) + BOLD[0]

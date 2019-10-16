@@ -1,4 +1,4 @@
-Zcoin Core 0.13.6.x
+Zcoin Core 0.14.8.x
 =====================
 
 Intro

@@ -27,7 +27,7 @@
 
 #include "amount.h"
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "primitives/transaction.h"
 #include "sync.h"
 #include "txdb.h"
@@ -340,7 +340,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
         }
 
         // tx not in historyMap, retrieve the transaction object
-        CTransaction wtx;
+        CTransactionRef wtx;
         uint256 blockHash;
         if (!GetTransaction(hash, wtx, Params().GetConsensus(), blockHash, true)) continue;
         if (blockHash.IsNull() || NULL == GetBlockIndex(blockHash)) continue;
@@ -364,7 +364,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
         bool valid = false;
 
         // parse the transaction
-        if (0 != ParseTransaction(wtx, blockHeight, 0, mp_obj)) continue;
+        if (0 != ParseTransaction(*wtx, blockHeight, 0, mp_obj)) continue;
         if (mp_obj.interpret_Transaction()) {
             valid = getValidMPTX(hash);
             propertyIdForSale = mp_obj.getProperty();

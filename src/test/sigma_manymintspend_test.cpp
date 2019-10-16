@@ -5,7 +5,7 @@
 
 #include "chainparams.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "pubkey.h"
 #include "txdb.h"
 #include "txmempool.h"

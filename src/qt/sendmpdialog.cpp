@@ -24,7 +24,7 @@
 
 #include "amount.h"
 #include "base58.h"
-#include "main.h"
+#include "validation.h"
 #include "sync.h"
 #include "uint256.h"
 #include "wallet/wallet.h"

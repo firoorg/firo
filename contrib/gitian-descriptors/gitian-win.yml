@@ -1,5 +1,5 @@
 ---
-name: "zcoin-win-0.13.8"
+name: "zcoin-win-0.14.8"
 enable_cache: true
 suites:
 - "trusty"

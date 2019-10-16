@@ -6,7 +6,7 @@
 #include "exodus/utilsbitcoin.h"
 #include "exodus/version.h"
 
-#include "main.h"
+#include "validation.h"
 #include "util.h"
 #include "ui_interface.h"
 
@@ -96,8 +96,8 @@ bool CheckAlertAuthorization(const std::string& sender)
     // use -exodusalertallowsender for testing
 
     // Add manually whitelisted sources
-    if (mapArgs.count("-exodusalertallowsender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusalertallowsender"];
+    if (mapMultiArgs.count("-exodusalertallowsender")) {
+        const std::vector<std::string>& sources = mapMultiArgs.at("-exodusalertallowsender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.insert(*it);
@@ -105,8 +105,8 @@ bool CheckAlertAuthorization(const std::string& sender)
     }
 
     // Remove manually ignored sources
-    if (mapArgs.count("-exodusalertignoresender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusalertignoresender"];
+    if (mapMultiArgs.count("-exodusalertignoresender")) {
+        const std::vector<std::string>& sources = mapMultiArgs.at("-exodusalertignoresender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.erase(*it);

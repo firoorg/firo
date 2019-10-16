@@ -5,12 +5,10 @@
 
 # Test for -rpcbind, as well as -rpcallowip and -rpcconnect
 
-import tempfile
-import traceback
-
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 from test_framework.netutil import *
+
 
 class RPCBindTest(BitcoinTestFramework):
 
@@ -37,26 +35,21 @@ class RPCBindTest(BitcoinTestFramework):
             base_args += ['-rpcallowip=' + x for x in allow_ips]
         binds = ['-rpcbind='+addr for addr in addresses]
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, [base_args + binds], connect_to)
-        try:
-            pid = bitcoind_processes[0].pid
-            assert_equal(set(get_bind_addrs(pid)), set(expected))
-        finally:
-            stop_nodes(self.nodes)
+        pid = bitcoind_processes[0].pid
+        assert_equal(set(get_bind_addrs(pid)), set(expected))
+        stop_nodes(self.nodes)
 
     def run_allowip_test(self, allow_ips, rpchost, rpcport):
         '''
-        Start a node with rpcallow IP, and request getinfo
+        Start a node with rpcallow IP, and request getnetworkinfo
         at a non-localhost IP.
         '''
         base_args = ['-disablewallet', '-nolisten'] + ['-rpcallowip='+x for x in allow_ips]
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, [base_args])
-        try:
-            # connect to node through non-loopback interface
-            node = get_rpc_proxy(rpc_url(0, "%s:%d" % (rpchost, rpcport)), 0)
-            node.getinfo()
-        finally:
-            node = None # make sure connection will be garbage collected and closed
-            stop_nodes(self.nodes)
+        # connect to node through non-loopback interface
+        node = get_rpc_proxy(rpc_url(0, "%s:%d" % (rpchost, rpcport)), 0)
+        node.getnetworkinfo()
+        stop_nodes(self.nodes)
 
     def run_test(self):
         # due to OS-specific network stats queries, this test works only on Linux
@@ -107,4 +100,4 @@ class RPCBindTest(BitcoinTestFramework):
             pass
 
 if __name__ == '__main__':
-    RPCBindTest ().main ()
+    RPCBindTest().main()
