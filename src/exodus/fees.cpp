@@ -181,7 +181,7 @@ void CExodusFeeCache::EvalCache(const uint32_t &propertyId, int block)
 // Performs distribution of fees
 void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     int64_t cachedAmount = GetCachedAmount(propertyId);
 

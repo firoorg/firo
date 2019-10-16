@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
-/** 
+/**
  * secp256k1:
  * const unsigned int PRIVATE_KEY_SIZE = 279;
  * const unsigned int PUBLIC_KEY_SIZE  = 65;
@@ -38,6 +38,9 @@ typedef uint256 ChainCode;
 /** An encapsulated public key. */
 class CPubKey
 {
+public:
+    static constexpr unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+
 private:
 
     /**
@@ -156,7 +159,7 @@ public:
 
     /*
      * Check syntactic correctness.
-     * 
+     *
      * Note that this is consensus critical as CheckSig() calls it!
      */
     bool IsValid() const

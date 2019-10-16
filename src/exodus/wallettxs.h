@@ -5,6 +5,7 @@ class CCoinControl;
 class CPubKey;
 
 #include "script/standard.h"
+#include "exodus.h"
 
 #include <stdint.h>
 #include <string>
@@ -27,7 +28,8 @@ std::string GetAddressLabel(const std::string& address);
 int IsMyAddress(const std::string& address);
 
 /** Selects spendable outputs to create a transaction. */
-int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, int64_t additional = 0);
+int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, int64_t additional = 0,
+    InputMode inputMode = InputMode::NORMAL);
 }
 
 #endif // EXODUS_WALLETTXS_H

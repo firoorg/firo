@@ -178,6 +178,7 @@ BITCOIN_CORE_H = \
   znode-sync.h \
   znodeman.h \
   znodeconfig.h \
+  mbstring.h \
   memusage.h \
   merkleblock.h \
   miner.h \
@@ -462,6 +463,7 @@ libbitcoin_util_a_SOURCES = \
   compat/glibc_sanity.cpp \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
+  mbstring.cpp \
   random.cpp \
   rpc/protocol.cpp \
   support/cleanse.cpp \
@@ -703,6 +705,6 @@ check-local:
 	$(error Please rerun configure with tests enabling flag)
 endif
 
-# Exodus
+if ENABLE_EXODUS
 include Makefile.exodus.include
-#
+endif

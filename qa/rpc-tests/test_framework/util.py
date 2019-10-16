@@ -51,7 +51,7 @@ MOCKTIME = 0
 
 def enable_mocktime():
     #For backwared compatibility of the python scripts
-    #with previous versions of the cache, set MOCKTIME 
+    #with previous versions of the cache, set MOCKTIME
     #to Jan 1, 2014 + (201 * 10 * 60)
     global MOCKTIME
     MOCKTIME = 1414776313 + (201 * 10 * 60)
@@ -311,7 +311,6 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
-        print(binary)
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
     if extra_args is not None: args.extend(extra_args)
     print("Starting a process with: " + " ".join(args))
@@ -676,5 +675,3 @@ def dumpprivkey_otac(node, address):
     if not otac_match:
         raise JSONRPCException(error_text)
     return node.dumpprivkey(address, otac_match.groups()[0])
-
-
