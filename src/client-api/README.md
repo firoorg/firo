@@ -831,12 +831,8 @@ OPTIONAL: not a necessary parameter to pass.
 `create`:
 ```
     data: {
-        STRING (setting): {
-            data: STRING
-        },
-        STRING (setting): {
-            data: STRING
-        },
+        STRING (setting): STRING (data),
+        STRING (setting): STRING (data),
         ...
         }
     }
@@ -856,12 +852,8 @@ OPTIONAL: not a necessary parameter to pass.
 `update`:
 ```
     data: {
-        STRING (setting): {
-            data: STRING
-        },
-        STRING (setting): {
-            data: STRING
-        },
+        STRING (setting): STRING (data),
+        STRING (setting): STRING (data),
         ...
     }
 ```

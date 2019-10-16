@@ -70,3 +70,24 @@ You can then eg. generate blocks using `./zcoin-cli generate 10`, and you should
         `await $daemon.send(null, '{TYPE}', '{METHOD_NAME}', {JSON_ARGS})`
 
    refer to https://github.com/zcoinofficial/zcoin/tree/client-api/src/client-api for data formats.
+
+### Settings
+  As in Qt with `QSettings`, the client adds a level to the settings hierarchy in `zcoind`. The following is the current hierarchy, in descending order of importance:
+  `CLI -> zcoin.conf -> QSettings`
+  Where `CLI` is settings passed via the command line interface to `zcoind`, `zcoin.conf` is settings defined in the `zcoin.conf` file in your datadir, and ` QSettings` is Qt-specific settings. What this means is a setting passed via CLI will always override the same one set in either of the lower tiers.
+
+  In `zcoin-client`, `QSettings` is replaced by the file `persistent/settings.json` in your datadir. Each setting here has the following format:
+  ```
+  "-settingname": {
+      "data": STRING,
+      "changed": BOOL,
+      "disabled": BOOL
+  },
+  ```
+  If a user changes a setting from within the client, the API function `setting` is used to modify it in `settings.json`.
+  The following values are used to notify, on restart, what to do:
+  `changed`: If the client requests to change a setting, this will be set to `True` in that setting. Following restart, The setting will be enabled.
+  `disabled`: if the same setting is defined further up the hierarchy, this is set this to `True`.
+
+  On `zcoind` start, this JSON file is parsed along with the CLI and conf selections, to produce the final list of settings.
+
