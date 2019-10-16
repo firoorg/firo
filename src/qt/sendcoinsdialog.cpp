@@ -182,6 +182,10 @@ void SendCoinsDialog::on_sendButton_clicked()
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry)
         {
+            if(entry->isPaymentCode())
+            {
+                return processPaymentCodeTransactions();
+            }
             if(entry->validate())
             {
                 recipients.append(entry->getValue());

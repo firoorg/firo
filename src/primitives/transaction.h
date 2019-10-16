@@ -482,6 +482,12 @@ public:
 
     bool IsZerocoinRemint() const;
 
+    /**
+     * @todo IsPaymentCode
+     * */
+
+    bool IsPaymentCode() const;
+
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

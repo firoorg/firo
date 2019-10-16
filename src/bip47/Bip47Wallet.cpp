@@ -299,7 +299,7 @@ std::string Bip47Wallet::makeNotificationTransaction(std::string paymentCode)
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, ntValue, true};
+    CRecipient recipient = {scriptPubKey, ntValue, false};
     vecSend.push_back(recipient);
     try
     {

@@ -31,6 +31,7 @@ public:
 
     void setModel(WalletModel *model);
     bool validate();
+    bool isPaymentCode();
     SendCoinsRecipient getValue();
 
     /** Return whether the entry is still empty and unedited */

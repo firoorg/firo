@@ -309,6 +309,11 @@ bool CScript::IsZerocoinRemint() const {
             (*this)[0] == OP_ZEROCOINTOSIGMAREMINT);
 }
 
+bool CScript::IsPaymentCode() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_RETURN);
+}
+
 bool CScript::HasCanonicalPushes() const
 {
     const_iterator pc = begin();

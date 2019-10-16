@@ -194,6 +194,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     sub.type = TransactionRecord::Mint;
                 }
+                /**
+                 * @todo add detect payment code transaction
+                 * */
+                else if(wtx.IsPaymentCode())
+                {
+                    sub.type = TransactionRecord::PCode;
+                }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL

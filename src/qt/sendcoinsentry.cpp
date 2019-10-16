@@ -11,6 +11,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "bip47/PaymentCode.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -155,6 +156,14 @@ bool SendCoinsEntry::validate()
     }
 
     return retval;
+}
+
+bool SendCoinsEntry::isPaymentCode()
+{
+    std::string address = ui->payTo->text().toStdString();
+    PaymentCode pcode(address);
+    return pcode.isValid();
+    
 }
 
 SendCoinsRecipient SendCoinsEntry::getValue()
