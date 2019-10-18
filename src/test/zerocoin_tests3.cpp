@@ -46,7 +46,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     FakeTestnet fakeTestnet;
     
     string denomination;
-    vector<uint256> vtxid;
     std::vector<string> denominations = {"1", "10", "25", "50", "100"};
     for(int i = 0; i < 5; i++)
     {
@@ -66,7 +65,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         return;
 
         int previousHeight = chainActive.Height();
-        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         previousHeight = chainActive.Height();
@@ -76,7 +75,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend succeeded although not confirmed by 6 blocks");
             BOOST_CHECK_MESSAGE(stringError == "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.", stringError + " - Incorrect error message");
 
-            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+            CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
@@ -88,7 +87,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock({}, scriptPubKey);
+        b = CreateAndProcessBlock(scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
 
@@ -98,7 +97,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         {
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend succeeded although not confirmed by 6 blocks");
             BOOST_CHECK_MESSAGE(stringError == "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.", stringError + " - Incorrect error message");
-            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+            CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
@@ -107,9 +106,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
         // Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
-        vtxid.clear();
 
-        b = CreateBlock({}, scriptPubKey);
+        b = CreateBlock(scriptPubKey);
         previousHeight = chainActive.Height();
         mempool.clear();
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
@@ -142,9 +140,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         //This mint is just to create a block with the new hash
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + "Create Mint failed");
 
-        b = CreateAndProcessBlock({}, scriptPubKey);
+        b = CreateAndProcessBlock(scriptPubKey);
 
-        vtxid.clear();
         mempool.clear();
     }
 }

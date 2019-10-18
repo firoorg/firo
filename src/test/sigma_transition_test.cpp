@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     // a sigma mint transaction must be able to be added to the next block.
     int previousHeight = chainActive.Height();
-    CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+    CBlock b = CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Expected empty mempool.");
 
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Sigma spend was not added to mempool");
 
     previousHeight = chainActive.Height();
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Expected empty mempool.");
 

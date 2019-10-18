@@ -15,7 +15,6 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
     CScript scriptPubKey;
 
     CBlock CreateBlock(
-        const vector<uint256>& tx_ids,
         const CScript&);
 
     bool ProcessBlock(CBlock&);
@@ -23,7 +22,6 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(
-        const vector<uint256>& tx_ids,
         const CScript&);
 
     void CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script);
@@ -44,11 +42,9 @@ struct MtpMalformedTestingSetup : public ZerocoinTestingSetupBase {
         MtpMalformedTestingSetup();
 
     CBlock CreateBlock(
-            const vector<uint256>& tx_ids,
             const CScript&, bool);
 
     CBlock CreateAndProcessBlock(
-        const vector<uint256>& tx_ids,
         const CScript&, bool);
 };
 

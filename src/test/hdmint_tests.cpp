@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
             vDMints.push_back(mint);
         }
 
-            b = CreateBlock({}, scriptPubKey);
+            b = CreateBlock(scriptPubKey);
             int previousHeight = chainActive.Height();
             BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
             BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");

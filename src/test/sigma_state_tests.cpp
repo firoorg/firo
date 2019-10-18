@@ -1,7 +1,7 @@
 #include "../sigma/params.h"
 #include "../sigma/coinspend.h"
 #include "../sigma/coin.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../secp256k1/include/Scalar.h"
 #include "../sigma.h"
 #include "./test_bitcoin.h"
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
             strError, {{testDenomStr, mintThisBlock}}, SIGMA), strError + " - Create Mint failed");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
     }
 
@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
         strError, {{testDenomStr, moreMintsToMakeExceedLimit}}, SIGMA), strError + " - Create Mint failed");
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
 
     // New Mints should not be added to first group.

@@ -27,7 +27,7 @@ static bool addToMempool(const CWalletTx& tx) {
     bool fMissingInputs;
     CAmount nMaxRawTxFee = maxTxFee;
     LOCK(cs_main);
-    return AcceptToMemoryPool(mempool, state, tx, true, false, &fMissingInputs, true, false, nMaxRawTxFee);
+    return AcceptToMemoryPool(mempool, state, tx.tx, false, &fMissingInputs, NULL, true, nMaxRawTxFee);
 }
 
 BOOST_FIXTURE_TEST_SUITE(sigma_partialspend_mempool_tests, ZerocoinTestingSetup200)
@@ -48,7 +48,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    std::vector<uint256> vtxid;
     // Can't test denomination 0.1, because we're unable to pay the fees.
     std::vector<std::string> denominations = {"0.5", "1", "10", "25", "100"};
 
@@ -84,7 +83,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
         int previousHeight = chainActive.Height();
-        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         // Verify Mint is mined
@@ -128,7 +127,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // And verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
-        b = CreateBlock({}, scriptPubKey);
+        b = CreateBlock(scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -140,7 +139,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
-        b = CreateBlock({}, scriptPubKey);
+        b = CreateBlock(scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -164,19 +163,14 @@ BOOST_AUTO_TEST_CASE(partialspend)
         sigmaState->containers.usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
-        BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
+        BOOST_CHECK_EXCEPTION(CreateBlock(scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-
-        // Get all tx hashs from mempool
-        vtxid.clear();
-        mempool.queryHashes(vtxid);
 
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
-        vtxid.resize(1);
         tempSerials = sigmaState->containers.usedCoinSerials;
         sigmaState->containers.usedCoinSerials.clear();
-        CreateBlock(vtxid, scriptPubKey);
+        CreateBlock(scriptPubKey);
 
         // Bring serials back
         sigmaState->containers.usedCoinSerials = tempSerials;
@@ -188,7 +182,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // This test confirms that a block containing a double spend is rejected and not added in the chain
         BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though same spend in previous block");
 
-        vtxid.clear();
         mempool.clear();
         sigmaState->Reset();
     }
@@ -233,7 +226,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
     int previousHeight = chainActive.Height();
-    CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+    CBlock b = CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
@@ -259,7 +252,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
     previousHeight = chainActive.Height();
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
@@ -312,7 +305,7 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
         stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
 
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool " + stringError);
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
     // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
@@ -331,21 +324,24 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     // Expect 2 spends
-    BOOST_CHECK_EQUAL(tx.vin.size(), 2);
+    BOOST_CHECK_EQUAL(tx.tx->vin.size(), 2);
 
     // construct double spend transaction
     auto extendedScript = CScript();
-    extendedScript.insert(extendedScript.end(), tx.vin[0].scriptSig.begin(), tx.vin[0].scriptSig.end());
+    extendedScript.insert(extendedScript.end(), tx.tx->vin[0].scriptSig.begin(), tx.tx->vin[0].scriptSig.end());
 
     // append string "test" to make scriptSigs in vin 1 and 2 difference. but still share same serial.
     // vin[1].scriptSig = vin[0].scriptSig + "test"
     const std::string extended = "test";
     extendedScript.insert(extendedScript.end(), extended.begin(), extended.end());
 
-    tx.vin[1].scriptSig = extendedScript;
+    CMutableTransaction txCopy = *tx.tx;
+    txCopy.vin[1].scriptSig = extendedScript;
+    CWalletTx wtxCopy = tx;
+    tx.SetTx(MakeTransactionRef(txCopy));
 
     // Add invalid transaction to mempool,
-    BOOST_CHECK_MESSAGE(!addToMempool(tx), "Double spend transaction have been accepted");
+    BOOST_CHECK_MESSAGE(!addToMempool(wtxCopy), "Double spend transaction have been accepted");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool accept invalid transaction");
 
     sigmaState->Reset();

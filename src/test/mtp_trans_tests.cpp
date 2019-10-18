@@ -59,12 +59,12 @@ struct MtpTransTestingSetup : public TestingSetup {
         //Create 150 height chain
         for (int i = 0; i < 150; i++)
         {
-            b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
-            coinbaseTxns.push_back(b.vtx[0]);
+            b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
+            coinbaseTxns.push_back(*b.vtx[0]);
             LOCK(cs_main);
             {
                 LOCK(pwalletMain->cs_wallet);
-                pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+                pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }
         }
 
@@ -72,12 +72,9 @@ struct MtpTransTestingSetup : public TestingSetup {
         printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-    CBlock CreateBlock(
-            const vector<uint256>& tx_ids,
-            const CScript& scriptPubKeyMtp, bool mtp = false) {
+    CBlock CreateBlock(const CScript& scriptPubKeyMtp, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
-            scriptPubKeyMtp, tx_ids);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtp).get();
         CBlock& block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
@@ -105,17 +102,14 @@ struct MtpTransTestingSetup : public TestingSetup {
 
     bool ProcessBlock(CBlock &block) {
         const CChainParams& chainparams = Params();
-        CValidationState state;
-        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
+        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
     }
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKeyMtp, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(
-            const vector<uint256>& tx_ids,
-            const CScript& scriptPubKeyMtp, bool mtp = false){
+    CBlock CreateAndProcessBlock(const CScript& scriptPubKeyMtp, bool mtp = false){
 
-        CBlock block = CreateBlock(tx_ids, scriptPubKeyMtp, mtp);
+        CBlock block = CreateBlock(scriptPubKeyMtp, mtp);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
         return block;
     }
@@ -136,13 +130,13 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
     int previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
+    b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
-    coinbaseTxns.push_back(b.vtx[0]);
+    coinbaseTxns.push_back(*b.vtx[0]);
     LOCK(cs_main);
     {
         LOCK(pwalletMain->cs_wallet);
-        pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+        pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 
     previousHeight = chainActive.Height();
@@ -163,11 +157,11 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
 
     previousHeight = chainActive.Height();
 
-    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
-    coinbaseTxns.push_back(b.vtx[0]);
+    b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
+    coinbaseTxns.push_back(*b.vtx[0]);
     {
         LOCK(pwalletMain->cs_wallet);
-        pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+        pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
@@ -177,11 +171,11 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
     previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
-    coinbaseTxns.push_back(b.vtx[0]);
+    b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
+    coinbaseTxns.push_back(*b.vtx[0]);
     {
         LOCK(pwalletMain->cs_wallet);
-        pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+        pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);

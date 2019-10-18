@@ -35,7 +35,7 @@
 #include "zerocoin.h"
 #include "sigma.h"
 
-std::unique_ptr<CConnman> g_connman;
+extern std::unique_ptr<CConnman> g_connman;
 FastRandomContext insecure_rand_ctx(true);
 
 extern bool fPrintToConsole;

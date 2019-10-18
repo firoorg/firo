@@ -58,22 +58,20 @@ struct MtpHalvingTestingSetup : public TestingSetup {
         CBlock b;
         for (int i = 0; i < 150; i++)
         {
-            b = CreateAndProcessBlock({}, scriptPubKeyMtpHalving, mtp);
-            coinbaseTxns.push_back(b.vtx[0]);
+            b = CreateAndProcessBlock(scriptPubKeyMtpHalving, mtp);
+            coinbaseTxns.push_back(*b.vtx[0]);
             LOCK(cs_main);
             {
                 LOCK(pwalletMain->cs_wallet);
-                pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+                pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }   
         }
         printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-    CBlock CreateBlock(const vector<uint256>& tx_ids,
-                       const CScript& scriptPubKeyMtpHalving, bool mtp = false) {
+    CBlock CreateBlock(const CScript& scriptPubKeyMtpHalving, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
-            scriptPubKeyMtpHalving, tx_ids);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpHalving).get();
         CBlock& block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
@@ -100,17 +98,15 @@ struct MtpHalvingTestingSetup : public TestingSetup {
 
     bool ProcessBlock(CBlock &block) {
         const CChainParams& chainparams = Params();
-        CValidationState state;
-        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
+        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
     }
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKeyMtpHalving, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(
-            const vector<uint256>& tx_ids,
             const CScript& scriptPubKeyMtpHalving, bool mtp = false){
 
-        CBlock block = CreateBlock(tx_ids, scriptPubKeyMtpHalving, mtp);
+        CBlock block = CreateBlock(scriptPubKeyMtpHalving, mtp);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
         return block;
     }
@@ -129,9 +125,9 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
     BOOST_CHECK_MESSAGE(!b.fChecked, "fChecked must be initialized to false");
     const CChainParams& chainparams = Params();
 
-    b = CreateBlock({}, scriptPubKeyMtpHalving, mtp);
+    b = CreateBlock(scriptPubKeyMtpHalving, mtp);
     CAmount blockReward = 0;
-    for(auto txout : b.vtx[0].vout)
+    for(auto txout : b.vtx[0]->vout)
         blockReward += txout.nValue;
     BOOST_CHECK_MESSAGE(blockReward == 50 * COIN, "Block reward not correct in MTP block");
     CBlock oldBlock = b;
@@ -139,27 +135,29 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
     int previousHeight = chainActive.Height();
     ProcessBlock(b);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
+    CBlockIndex *bBlockIndex = chainActive.Tip();
 
     //Transition to MTP
     mtp = true;
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
-    b = CreateBlock({}, scriptPubKeyMtpHalving, mtp);
+    b = CreateBlock(scriptPubKeyMtpHalving, mtp);
 
     CBlock bMtp = b;
     blockReward = 0;
-    for(int i = 0; i < oldBlock.vtx[0].vout.size(); i++) {
-        BOOST_CHECK_MESSAGE(oldBlock.vtx[0].vout[i].nValue == bMtp.vtx[0].vout[i].nValue * 2, "Block reward not halved");
+    for(int i = 0; i < oldBlock.vtx[0]->vout.size(); i++) {
+        BOOST_CHECK_MESSAGE(oldBlock.vtx[0]->vout[i].nValue == bMtp.vtx[0]->vout[i].nValue * 2, "Block reward not halved");
     }
-    for(auto txout : bMtp.vtx[0].vout)
+    for(auto txout : bMtp.vtx[0]->vout)
         blockReward += txout.nValue;
     BOOST_CHECK_MESSAGE(blockReward == 25 * COIN, "Block reward not correct in MTP block");
 
-    for(int i = 0; i < bMtp.vtx[0].vout.size(); i++)
+    for(int i = 0; i < bMtp.vtx[0]->vout.size(); i++)
     {
         CBlock bModified = bMtp;
-        bModified.vtx[0].vout[i].nValue += COIN;
-        bModified.vtx[0].UpdateHash();
+        CMutableTransaction modifiedTx = *bModified.vtx[0];
+        modifiedTx.vout[i].nValue += COIN;
+        bModified.vtx[0] = MakeTransactionRef(modifiedTx);
         bool mutated;
         bModified.hashMerkleRoot = BlockMerkleRoot(bModified, &mutated);
 
@@ -173,14 +171,15 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
     }
 
 
-    for(int i = 1; i < bMtp.vtx[0].vout.size() - 1; i++)
+    for(int i = 1; i < bMtp.vtx[0]->vout.size() - 1; i++)
     {
         CBlock bModified = bMtp;
         CPubKey modifiedKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(modifiedKey));
         CScript modifiedScript = CScript() <<  ToByteVector(modifiedKey) << OP_CHECKSIG;
-        bModified.vtx[0].vout[i].scriptPubKey = modifiedScript;
-        bModified.vtx[0].UpdateHash();
+        CMutableTransaction modifiedTx = *bModified.vtx[0];
+        modifiedTx.vout[i].scriptPubKey = modifiedScript;
+        bModified.vtx[0] = MakeTransactionRef(modifiedTx);
         bool mutated;
         bModified.hashMerkleRoot = BlockMerkleRoot(bModified, &mutated);
 
@@ -193,17 +192,17 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
         BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Invalid Block connected");
     }
 
-    bMtp = CreateBlock({}, scriptPubKeyMtpHalving, mtp);
+    bMtp = CreateBlock(scriptPubKeyMtpHalving, mtp);
     previousHeight = chainActive.Height();
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
 
 
-    coinbaseTxns.push_back(b.vtx[0]);
+    coinbaseTxns.push_back(*b.vtx[0]);
     LOCK(cs_main);
     {
         LOCK(pwalletMain->cs_wallet);
-        pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
+        pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], bBlockIndex, 0, true);
     }
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
 
