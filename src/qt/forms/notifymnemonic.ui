@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>NotifyMnemonic</class>
+    <widget class="QDialog" name="NotifyMnemonic">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>674</width>
+                <height>363</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>Notification</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout">
+            <item>
+                <widget class="QLabel" name="textLabel">
+                    <property name="text">
+                        <string>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QLabel" name="textLabel4">
+                    <property name="text">
+                        <string>Mnemonic phrase:</string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QGroupBox" name="mnemonicBox">
+                    <layout class="QVBoxLayout" name="horizontalLayout">
+
+                        <item>
+                            <widget class="QLabel" name="mnemonic">
+                                <property name="text">
+                                    <string></string>
+                                </property>
+                                <property name="wordWrap">
+                                    <bool>true</bool>
+                                </property>
+                            </widget>
+                        </item>
+                    </layout>
+                </widget>
+            </item>
+            <item>
+                <widget class="QLabel" name="textLabel2">
+                    <property name="text">
+                        <string>Please write down these words and keep them in a secure location such as a safe.</string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QLabel" name="textLabel3">
+                    <property name="text">
+                        <string>WARNING: Anyone with access to these words can recover your wallet and will have control over your funds!</string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QDialogButtonBox" name="buttonBox">
+                    <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="standardButtons">
+                        <set>QDialogButtonBox::Ok</set>
+                    </property>
+                </widget>
+            </item>
+        </layout>
+    </widget>
+    <resources/>
+    <connections>
+        <connection>
+            <sender>buttonBox</sender>
+            <signal>accepted()</signal>
+            <receiver>NotifyMnemonic</receiver>
+            <slot>accept()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>20</x>
+                    <y>20</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>20</x>
+                    <y>20</y>
+                </hint>
+            </hints>
+        </connection>
+    </connections>
+</ui>

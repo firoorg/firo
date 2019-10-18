@@ -49,7 +49,7 @@ void Recover::on_recoverExisting_clicked()
     ui->use24->setChecked(true);
 }
 
-bool Recover::askRecover()
+bool Recover::askRecover(bool& newWallet)
 {
     namespace fs = boost::filesystem;
     std::string dataDir = GetDataDir(false).string();
@@ -70,6 +70,7 @@ bool Recover::askRecover()
 
     if(!fs::exists(GUIUtil::qstringToBoostPath(QString::fromStdString(dataDir))))
     {
+        newWallet = true;
         Recover recover;
         recover.setWindowIcon(QIcon(":icons/zcoin"));
         while(true)
@@ -80,6 +81,7 @@ bool Recover::askRecover()
                 return false;
             } else {
                 if(recover.ui->recoverExisting->isChecked()) {
+                    newWallet = false;
                     if(recover.ui->use12->isChecked())
                         SoftSetBoolArg("-use12", true);
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();

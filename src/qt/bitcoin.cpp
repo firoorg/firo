@@ -14,6 +14,7 @@
 #include "guiutil.h"
 #include "intro.h"
 #include "recover.h"
+#include "notifymnemonic.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -77,6 +78,8 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #if QT_VERSION < 0x050000
 #include <QTextCodec>
 #endif
+
+static bool newWallet = false;
 
 // Declare meta types used for QMetaObject::invokeMethod
 Q_DECLARE_METATYPE(bool*)
@@ -270,7 +273,12 @@ void BitcoinCore::initialize()
     {
         qDebug() << __func__ << ": Running AppInit2 in thread";
         int rv = AppInit2(threadGroup, scheduler);
+
         Q_EMIT initializeResult(rv);
+#ifdef ENABLE_WALLET
+        if(newWallet && pwalletMain)
+            NotifyMnemonic::notify();
+#endif
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {
@@ -641,12 +649,11 @@ int main(int argc, char *argv[])
     // Start up the payment server early, too, so impatient users that click on
     // zcoin: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
-#endif
 
     /// 8 Determine if user wants to create new wallet or recover existing one
-    if(!Recover::askRecover())
+    if(!Recover::askRecover(newWallet))
         return EXIT_SUCCESS;
-
+#endif
     /// 9. Main GUI initialization
     // Install global event filter that makes sure that long tooltips can be word-wrapped
     app.installEventFilter(new GUIUtil::ToolTipToRichTextFilter(TOOLTIP_WRAP_THRESHOLD, &app));

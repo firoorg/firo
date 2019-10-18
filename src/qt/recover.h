@@ -17,7 +17,7 @@ public:
     explicit Recover(QWidget *parent = 0);
     ~Recover();
 
-    static bool askRecover();
+    static bool askRecover(bool& newWallet);
 
 Q_SIGNALS:
     void stopThread();
