@@ -21,10 +21,12 @@ packages:
 - "zip"
 - "ca-certificates"
 - "python"
+- "sshpass"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
-files: []
+files:
+- "environment.conf"
 script: |
   WRAP_DIR=$HOME/wrapped
   # HOSTS="x86_64-w64-mingw32 i686-w64-mingw32"
@@ -95,12 +97,29 @@ script: |
   done
   }
 
+  function sign_file_remotely {
+    file_path=$1
+    file_name=$(basename "$file_path")
+    user_name="client"
+    cert_pc="$user_name@$CERT_STORE"
+
+    sshpass -p "$CERT_STORE_PASSWORD" scp $file_path $cert_pc:/workdir
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $cert_pc "mv /workdir/$file_name /workdir/in"
+    sleep 1s
+    sshpass -p "$CERT_STORE_PASSWORD" scp $cert_pc:/workdir/out/${file_name}-signed file_path
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $cert_pc "rm /workdir/out/${file_name}-signed"
+  }
+
   # Faketime for depends so intermediate results are comparable
   export PATH_orig=${PATH}
   create_global_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_linker_wrapper "2000-01-01 12:00:00"
   export PATH=${WRAP_DIR}:${PATH}
+
+  ls -lah
+
+  source environment.conf
 
   cd zcoin
   BASEPREFIX=`pwd`/depends
@@ -145,7 +164,20 @@ script: |
     CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
+
+    echo "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    find . -name "*exe"
+    echo "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+
     make deploy
+
+    sign_file_remotely "zcoin-0.13.8-win64-setup.exe"
+
+    echo "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
+    find . -name "*exe"
+    echo "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
+    
+
     make install DESTDIR=${INSTALLPATH}
     cp -f zcoin-*setup*.exe $OUTDIR/
     cd installed
