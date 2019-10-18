@@ -76,26 +76,39 @@ std::string exodus::strTransactionType(uint16_t txType)
     }
 }
 
-/** Helper to convert class number to string. */
-static std::string intToClass(int encodingClass)
+void CMPTransaction::Set(
+    const std::string& s,
+    const std::string& r,
+    uint64_t n,
+    const uint256& t,
+    int b,
+    unsigned int idx,
+    unsigned char *p,
+    unsigned int size,
+    const boost::optional<exodus::PacketClass>& packetClass,
+    uint64_t txf,
+    const boost::optional<CAmount>& referenceAmount)
 {
-    switch (encodingClass) {
-        case EXODUS_CLASS_A:
-            return "A";
-        case EXODUS_CLASS_B:
-            return "B";
-        case EXODUS_CLASS_C:
-            return "C";
-    }
-
-    return "-";
+    sender = s;
+    receiver = r;
+    txid = t;
+    block = b;
+    tx_idx = idx;
+    nValue = n;
+    nNewValue = n;
+    this->packetClass = packetClass;
+    tx_fee_paid = txf;
+    raw.clear();
+    raw.insert(raw.end(), p, p + size);
+    this->referenceAmount = referenceAmount;
 }
 
 /** Checks whether a pointer to the payload is past it's last position. */
-bool CMPTransaction::isOverrun(const char* p)
+bool CMPTransaction::isOverrun(const unsigned char *p)
 {
-    ptrdiff_t pos = (char*) p - (char*) &pkt;
-    return (pos > pkt_size);
+    ptrdiff_t pos = p - raw.data();
+    assert(pos >= 0);
+    return (static_cast<size_t>(pos) > raw.size());
 }
 
 // -------------------- PACKET PARSING -----------------------
@@ -169,6 +182,15 @@ bool CMPTransaction::interpret_Transaction()
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
             return interpret_UnfreezeTokens();
 
+        case EXODUS_TYPE_CREATE_DENOMINATION:
+            return interpret_CreateDenomination();
+
+        case EXODUS_TYPE_SIMPLE_MINT:
+            return interpret_SimpleMint();
+
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            return interpret_SimpleSpend();
+
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
@@ -185,21 +207,21 @@ bool CMPTransaction::interpret_Transaction()
 /** Version and type */
 bool CMPTransaction::interpret_TransactionType()
 {
-    if (pkt_size < 4) {
+    if (raw.size() < 4) {
         return false;
     }
     uint16_t txVersion = 0;
     uint16_t txType = 0;
-    memcpy(&txVersion, &pkt[0], 2);
+    memcpy(&txVersion, &raw[0], 2);
     swapByteOrder16(txVersion);
-    memcpy(&txType, &pkt[2], 2);
+    memcpy(&txType, &raw[2], 2);
     swapByteOrder16(txType);
     version = txVersion;
     type = txType;
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t------------------------------\n");
-        PrintToLog("\t         version: %d, class %s\n", txVersion, intToClass(encodingClass));
+        PrintToLog("\t         version: %d, class %s\n", txVersion, std::to_string(*packetClass));
         PrintToLog("\t            type: %d (%s)\n", txType, strTransactionType(txType));
     }
 
@@ -209,12 +231,12 @@ bool CMPTransaction::interpret_TransactionType()
 /** Tx 1 */
 bool CMPTransaction::interpret_SimpleSend()
 {
-    if (pkt_size < 16) {
+    if (raw.size() < 16) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -229,17 +251,17 @@ bool CMPTransaction::interpret_SimpleSend()
 /** Tx 3 */
 bool CMPTransaction::interpret_SendToOwners()
 {
-    int expectedSize = (version == MP_TX_PKT_V0) ? 16 : 20;
-    if (pkt_size < expectedSize) {
+    unsigned expectedSize = (version == MP_TX_PKT_V0) ? 16 : 20;
+    if (raw.size() < expectedSize) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
     if (version > MP_TX_PKT_V0) {
-        memcpy(&distribution_property, &pkt[16], 4);
+        memcpy(&distribution_property, &raw[16], 4);
         swapByteOrder32(distribution_property);
     }
 
@@ -257,10 +279,10 @@ bool CMPTransaction::interpret_SendToOwners()
 /** Tx 4 */
 bool CMPTransaction::interpret_SendAll()
 {
-    if (pkt_size < 5) {
+    if (raw.size() < 5) {
         return false;
     }
-    memcpy(&ecosystem, &pkt[4], 1);
+    memcpy(&ecosystem, &raw[4], 1);
 
     property = ecosystem; // provide a hint for the UI, TODO: better handling!
 
@@ -274,20 +296,20 @@ bool CMPTransaction::interpret_SendAll()
 /** Tx 20 */
 bool CMPTransaction::interpret_TradeOffer()
 {
-    int expectedSize = (version == MP_TX_PKT_V0) ? 33 : 34;
-    if (pkt_size < expectedSize) {
+    unsigned expectedSize = (version == MP_TX_PKT_V0) ? 33 : 34;
+    if (raw.size() < expectedSize) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
-    memcpy(&amount_desired, &pkt[16], 8);
-    memcpy(&blocktimelimit, &pkt[24], 1);
-    memcpy(&min_fee, &pkt[25], 8);
+    memcpy(&amount_desired, &raw[16], 8);
+    memcpy(&blocktimelimit, &raw[24], 1);
+    memcpy(&min_fee, &raw[25], 8);
     if (version > MP_TX_PKT_V0) {
-        memcpy(&subaction, &pkt[33], 1);
+        memcpy(&subaction, &raw[33], 1);
     }
     swapByteOrder64(amount_desired);
     swapByteOrder64(min_fee);
@@ -309,12 +331,12 @@ bool CMPTransaction::interpret_TradeOffer()
 /** Tx 22 */
 bool CMPTransaction::interpret_AcceptOfferBTC()
 {
-    if (pkt_size < 16) {
+    if (raw.size() < 16) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -329,17 +351,17 @@ bool CMPTransaction::interpret_AcceptOfferBTC()
 /** Tx 25 */
 bool CMPTransaction::interpret_MetaDExTrade()
 {
-    if (pkt_size < 28) {
+    if (raw.size() < 28) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
-    memcpy(&desired_property, &pkt[16], 4);
+    memcpy(&desired_property, &raw[16], 4);
     swapByteOrder32(desired_property);
-    memcpy(&desired_value, &pkt[20], 8);
+    memcpy(&desired_value, &raw[20], 8);
     swapByteOrder64(desired_value);
 
     action = CMPTransaction::ADD; // depreciated
@@ -357,17 +379,17 @@ bool CMPTransaction::interpret_MetaDExTrade()
 /** Tx 26 */
 bool CMPTransaction::interpret_MetaDExCancelPrice()
 {
-    if (pkt_size < 28) {
+    if (raw.size() < 28) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
-    memcpy(&desired_property, &pkt[16], 4);
+    memcpy(&desired_property, &raw[16], 4);
     swapByteOrder32(desired_property);
-    memcpy(&desired_value, &pkt[20], 8);
+    memcpy(&desired_value, &raw[20], 8);
     swapByteOrder64(desired_value);
 
     action = CMPTransaction::CANCEL_AT_PRICE; // depreciated
@@ -385,12 +407,12 @@ bool CMPTransaction::interpret_MetaDExCancelPrice()
 /** Tx 27 */
 bool CMPTransaction::interpret_MetaDExCancelPair()
 {
-    if (pkt_size < 12) {
+    if (raw.size() < 12) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&desired_property, &pkt[8], 4);
+    memcpy(&desired_property, &raw[8], 4);
     swapByteOrder32(desired_property);
 
     nValue = 0; // depreciated
@@ -409,10 +431,10 @@ bool CMPTransaction::interpret_MetaDExCancelPair()
 /** Tx 28 */
 bool CMPTransaction::interpret_MetaDExCancelEcosystem()
 {
-    if (pkt_size < 5) {
+    if (raw.size() < 5) {
         return false;
     }
-    memcpy(&ecosystem, &pkt[4], 1);
+    memcpy(&ecosystem, &raw[4], 1);
 
     property = ecosystem; // depreciated
     desired_property = ecosystem; // depreciated
@@ -431,18 +453,35 @@ bool CMPTransaction::interpret_MetaDExCancelEcosystem()
 /** Tx 50 */
 bool CMPTransaction::interpret_CreatePropertyFixed()
 {
-    if (pkt_size < 25) {
+    switch (version) {
+    case 0:
+        if (raw.size() < 25) {
+            return false;
+        }
+        break;
+    case 1:
+        if (raw.size() < 26) {
+            return false;
+        }
+        break;
+    default:
         return false;
     }
-    const char* p = 11 + (char*) &pkt;
+
+    auto p = raw.data() + 11;
+    auto end = raw.data() + raw.size();
     std::vector<std::string> spstr;
-    memcpy(&ecosystem, &pkt[4], 1);
-    memcpy(&prop_type, &pkt[5], 2);
+    memcpy(&ecosystem, &raw[4], 1);
+    memcpy(&prop_type, &raw[5], 2);
     swapByteOrder16(prop_type);
-    memcpy(&prev_prop_id, &pkt[7], 4);
+    memcpy(&prev_prop_id, &raw[7], 4);
     swapByteOrder32(prev_prop_id);
     for (int i = 0; i < 5; i++) {
-        spstr.push_back(std::string(p));
+        auto last = std::find(p, end, 0);
+        if (last == end) {
+            return false;
+        }
+        spstr.push_back(std::string(p, last));
         p += spstr.back().size() + 1;
     }
     int i = 0;
@@ -456,6 +495,11 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
     p += 8;
     nNewValue = nValue;
 
+    if (version == 1) {
+        memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
@@ -466,6 +510,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t           value: %s\n", FormatByType(nValue, prop_type));
+        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
     }
 
     if (isOverrun(p)) {
@@ -479,18 +524,23 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
 /** Tx 51 */
 bool CMPTransaction::interpret_CreatePropertyVariable()
 {
-    if (pkt_size < 39) {
+    if (raw.size() < 39) {
         return false;
     }
-    const char* p = 11 + (char*) &pkt;
+    auto p = raw.data() + 11;
+    auto end = raw.data() + raw.size();
     std::vector<std::string> spstr;
-    memcpy(&ecosystem, &pkt[4], 1);
-    memcpy(&prop_type, &pkt[5], 2);
+    memcpy(&ecosystem, &raw[4], 1);
+    memcpy(&prop_type, &raw[5], 2);
     swapByteOrder16(prop_type);
-    memcpy(&prev_prop_id, &pkt[7], 4);
+    memcpy(&prev_prop_id, &raw[7], 4);
     swapByteOrder32(prev_prop_id);
     for (int i = 0; i < 5; i++) {
-        spstr.push_back(std::string(p));
+        auto last = std::find(p, end, 0);
+        if (last == end) {
+            return false;
+        }
+        spstr.push_back(std::string(p, last));
         p += spstr.back().size() + 1;
     }
     int i = 0;
@@ -539,10 +589,10 @@ bool CMPTransaction::interpret_CreatePropertyVariable()
 /** Tx 53 */
 bool CMPTransaction::interpret_CloseCrowdsale()
 {
-    if (pkt_size < 8) {
+    if (raw.size() < 8) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -555,18 +605,35 @@ bool CMPTransaction::interpret_CloseCrowdsale()
 /** Tx 54 */
 bool CMPTransaction::interpret_CreatePropertyManaged()
 {
-    if (pkt_size < 17) {
+    switch (version) {
+    case 0:
+        if (raw.size() < 17) {
+            return false;
+        }
+        break;
+    case 1:
+        if (raw.size() < 18) {
+            return false;
+        }
+        break;
+    default:
         return false;
     }
-    const char* p = 11 + (char*) &pkt;
+
+    auto p = raw.data() + 11;
+    auto end = raw.data() + raw.size();
     std::vector<std::string> spstr;
-    memcpy(&ecosystem, &pkt[4], 1);
-    memcpy(&prop_type, &pkt[5], 2);
+    memcpy(&ecosystem, &raw[4], 1);
+    memcpy(&prop_type, &raw[5], 2);
     swapByteOrder16(prop_type);
-    memcpy(&prev_prop_id, &pkt[7], 4);
+    memcpy(&prev_prop_id, &raw[7], 4);
     swapByteOrder32(prev_prop_id);
     for (int i = 0; i < 5; i++) {
-        spstr.push_back(std::string(p));
+        auto last = std::find(p, end, 0);
+        if (last == end) {
+            return false;
+        }
+        spstr.push_back(std::string(p, last));
         p += spstr.back().size() + 1;
     }
     int i = 0;
@@ -575,6 +642,11 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
     memcpy(name, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(name)-1)); i++;
     memcpy(url, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(url)-1)); i++;
     memcpy(data, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(data)-1)); i++;
+
+    if (version == 1) {
+        memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
@@ -585,6 +657,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         PrintToLog("\t            name: %s\n", name);
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
+        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
     }
 
     if (isOverrun(p)) {
@@ -598,12 +671,12 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
 /** Tx 55 */
 bool CMPTransaction::interpret_GrantTokens()
 {
-    if (pkt_size < 16) {
+    if (raw.size() < 16) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -618,12 +691,12 @@ bool CMPTransaction::interpret_GrantTokens()
 /** Tx 56 */
 bool CMPTransaction::interpret_RevokeTokens()
 {
-    if (pkt_size < 16) {
+    if (raw.size() < 16) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -638,10 +711,10 @@ bool CMPTransaction::interpret_RevokeTokens()
 /** Tx 70 */
 bool CMPTransaction::interpret_ChangeIssuer()
 {
-    if (pkt_size < 8) {
+    if (raw.size() < 8) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -654,10 +727,10 @@ bool CMPTransaction::interpret_ChangeIssuer()
 /** Tx 71 */
 bool CMPTransaction::interpret_EnableFreezing()
 {
-    if (pkt_size < 8) {
+    if (raw.size() < 8) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -670,10 +743,10 @@ bool CMPTransaction::interpret_EnableFreezing()
 /** Tx 72 */
 bool CMPTransaction::interpret_DisableFreezing()
 {
-    if (pkt_size < 8) {
+    if (raw.size() < 8) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -686,12 +759,12 @@ bool CMPTransaction::interpret_DisableFreezing()
 /** Tx 185 */
 bool CMPTransaction::interpret_FreezeTokens()
 {
-    if (pkt_size < 37) {
+    if (raw.size() < 37) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -702,8 +775,8 @@ bool CMPTransaction::interpret_FreezeTokens()
     **/
     unsigned char address_version;
     uint160 address_hash160;
-    memcpy(&address_version, &pkt[16], 1);
-    memcpy(&address_hash160, &pkt[17], 20);
+    memcpy(&address_version, &raw[16], 1);
+    memcpy(&address_hash160, &raw[17], 20);
     receiver = HashToAddress(address_version, address_hash160);
     if (receiver.empty()) {
         return false;
@@ -725,12 +798,12 @@ bool CMPTransaction::interpret_FreezeTokens()
 /** Tx 186 */
 bool CMPTransaction::interpret_UnfreezeTokens()
 {
-    if (pkt_size < 37) {
+    if (raw.size() < 37) {
         return false;
     }
-    memcpy(&property, &pkt[4], 4);
+    memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
-    memcpy(&nValue, &pkt[8], 8);
+    memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
@@ -741,8 +814,8 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     **/
     unsigned char address_version;
     uint160 address_hash160;
-    memcpy(&address_version, &pkt[16], 1);
-    memcpy(&address_hash160, &pkt[17], 20);
+    memcpy(&address_version, &raw[16], 1);
+    memcpy(&address_hash160, &raw[17], 20);
     receiver = HashToAddress(address_version, address_hash160);
     if (receiver.empty()) {
         return false;
@@ -761,13 +834,128 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     return true;
 }
 
+/** Tx 1024 */
+bool CMPTransaction::interpret_SimpleSpend()
+{
+    if (raw.size() < 15) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder(property);
+    memcpy(&denomination, &raw[8], 1);
+    memcpy(&group, &raw[9], 4);
+    swapByteOrder(group);
+    memcpy(&groupSize, &raw[13], 2);
+    swapByteOrder(groupSize);
+
+    CDataStream serialized(
+        reinterpret_cast<char*>(&raw[15]),
+        reinterpret_cast<char*>(raw.data() + raw.size()),
+        SER_NETWORK, PROTOCOL_VERSION
+    );
+
+    spend.reset(new SigmaProof(DefaultSigmaParams));
+
+    try {
+        serialized >> *spend;
+    } catch (std::ios_base::failure&) {
+        PrintToLog("\tsize of data is less than spend size");
+        return false;
+    }
+
+    if (!serialized.eof()) {
+        PrintToLog("\tsize of data exceed spend size");
+        return false;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
+    }
+
+    return true;
+}
+
+/** Tx 1025 */
+bool CMPTransaction::interpret_CreateDenomination()
+{
+    if (raw.size() < 16) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder32(property);
+    memcpy(&nValue, &raw[8], 8);
+    swapByteOrder64(nValue);
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
+    }
+
+    return true;
+}
+
+/** Tx 1026 */
+bool CMPTransaction::interpret_SimpleMint()
+{
+    constexpr unsigned exodusMintSize = 35;
+
+    if (raw.size() < 9 + exodusMintSize) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder32(property);
+
+    uint8_t mintAmount;
+    memcpy(&mintAmount, &raw[8], 1);
+
+    if (raw.size() != 9 + exodusMintSize * mintAmount) {
+        return false;
+    }
+
+    mints.resize(mintAmount);
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[9]),
+        reinterpret_cast<char*>(raw.data() + raw.size()),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    for (auto &mint : mints) {
+        deserialized >> mint;
+    }
+
+    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+        std::vector<uint8_t> denominations;
+        denominations.reserve(mints.size());
+        for (auto const& mint : mints) {
+            denominations.push_back(mint.first);
+        }
+        std::sort(denominations.begin(), denominations.end());
+
+        std::stringstream ss;
+        for (auto const &denom : denominations) {
+            ss << denom << ", ";
+        }
+        auto denomsStr = ss.str();
+        denomsStr.resize(denomsStr.size() - 2);
+
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           mints: %s\n", denomsStr);
+    }
+
+    return true;
+}
+
 /** Tx 65533 */
 bool CMPTransaction::interpret_Deactivation()
 {
-    if (pkt_size < 6) {
+    if (raw.size() < 6) {
         return false;
     }
-    memcpy(&feature_id, &pkt[4], 2);
+    memcpy(&feature_id, &raw[4], 2);
     swapByteOrder16(feature_id);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -780,14 +968,14 @@ bool CMPTransaction::interpret_Deactivation()
 /** Tx 65534 */
 bool CMPTransaction::interpret_Activation()
 {
-    if (pkt_size < 14) {
+    if (raw.size() < 14) {
         return false;
     }
-    memcpy(&feature_id, &pkt[4], 2);
+    memcpy(&feature_id, &raw[4], 2);
     swapByteOrder16(feature_id);
-    memcpy(&activation_block, &pkt[6], 4);
+    memcpy(&activation_block, &raw[6], 4);
     swapByteOrder32(activation_block);
-    memcpy(&min_client_version, &pkt[10], 4);
+    memcpy(&min_client_version, &raw[10], 4);
     swapByteOrder32(min_client_version);
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -802,17 +990,22 @@ bool CMPTransaction::interpret_Activation()
 /** Tx 65535 */
 bool CMPTransaction::interpret_Alert()
 {
-    if (pkt_size < 11) {
+    if (raw.size() < 11) {
         return false;
     }
 
-    memcpy(&alert_type, &pkt[4], 2);
+    memcpy(&alert_type, &raw[4], 2);
     swapByteOrder16(alert_type);
-    memcpy(&alert_expiry, &pkt[6], 4);
+    memcpy(&alert_expiry, &raw[6], 4);
     swapByteOrder32(alert_expiry);
 
-    const char* p = 10 + (char*) &pkt;
-    std::string spstr(p);
+    auto p = raw.data() + 10;
+    auto end = raw.data() + raw.size();
+    auto last = std::find(p, end, 0);
+    if (last == end) {
+        return false;
+    }
+    std::string spstr(p, last);
     memcpy(alert_text, spstr.c_str(), std::min(spstr.length(), sizeof(alert_text)-1));
 
     if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
@@ -848,85 +1041,116 @@ int CMPTransaction::interpretPacket()
         return (PKT_ERROR -2);
     }
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (isAddressFrozen(sender, property)) {
         PrintToLog("%s(): REJECTED: address %s is frozen for property %d\n", __func__, sender, property);
         return (PKT_ERROR -3);
     }
 
+    int status;
     switch (type) {
         case EXODUS_TYPE_SIMPLE_SEND:
-            return logicMath_SimpleSend();
+            status = logicMath_SimpleSend();
+            break;
 
         case EXODUS_TYPE_SEND_TO_OWNERS:
-            return logicMath_SendToOwners();
+            status = logicMath_SendToOwners();
+            break;
 
         case EXODUS_TYPE_SEND_ALL:
-            return logicMath_SendAll();
+            status = logicMath_SendAll();
+            break;
 
         case EXODUS_TYPE_TRADE_OFFER:
-            return logicMath_TradeOffer();
+            status = logicMath_TradeOffer();
+            break;
 
         case EXODUS_TYPE_ACCEPT_OFFER_BTC:
-            return logicMath_AcceptOffer_BTC();
+            status = logicMath_AcceptOffer_BTC();
+            break;
 
         case EXODUS_TYPE_METADEX_TRADE:
-            return logicMath_MetaDExTrade();
+            status = logicMath_MetaDExTrade();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_PRICE:
-            return logicMath_MetaDExCancelPrice();
+            status = logicMath_MetaDExCancelPrice();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_PAIR:
-            return logicMath_MetaDExCancelPair();
+            status = logicMath_MetaDExCancelPair();
+            break;
 
         case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            return logicMath_MetaDExCancelEcosystem();
+            status = logicMath_MetaDExCancelEcosystem();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
-            return logicMath_CreatePropertyFixed();
+            status = logicMath_CreatePropertyFixed();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
-            return logicMath_CreatePropertyVariable();
+            status = logicMath_CreatePropertyVariable();
+            break;
 
         case EXODUS_TYPE_CLOSE_CROWDSALE:
-            return logicMath_CloseCrowdsale();
+            status = logicMath_CloseCrowdsale();
+            break;
 
         case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
-            return logicMath_CreatePropertyManaged();
+            status = logicMath_CreatePropertyManaged();
+            break;
 
         case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
-            return logicMath_GrantTokens();
+            status = logicMath_GrantTokens();
+            break;
 
         case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
-            return logicMath_RevokeTokens();
+            status = logicMath_RevokeTokens();
+            break;
 
         case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
-            return logicMath_ChangeIssuer();
+            status = logicMath_ChangeIssuer();
+            break;
 
         case EXODUS_TYPE_ENABLE_FREEZING:
-            return logicMath_EnableFreezing();
+            status = logicMath_EnableFreezing();
+            break;
 
         case EXODUS_TYPE_DISABLE_FREEZING:
-            return logicMath_DisableFreezing();
+            status = logicMath_DisableFreezing();
+            break;
 
         case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
-            return logicMath_FreezeTokens();
+            status = logicMath_FreezeTokens();
+            break;
 
         case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
-            return logicMath_UnfreezeTokens();
+            status = logicMath_UnfreezeTokens();
+            break;
+
+        case EXODUS_TYPE_CREATE_DENOMINATION:
+            status = logicMath_CreateDenomination();
+            break;
 
         case EXODUS_MESSAGE_TYPE_DEACTIVATION:
-            return logicMath_Deactivation();
+            status = logicMath_Deactivation();
+            break;
 
         case EXODUS_MESSAGE_TYPE_ACTIVATION:
-            return logicMath_Activation();
+            status = logicMath_Activation();
+            break;
 
         case EXODUS_MESSAGE_TYPE_ALERT:
-            return logicMath_Alert();
+            status = logicMath_Alert();
+            break;
+
+        default:
+            return (PKT_ERROR -100);
     }
 
-    return (PKT_ERROR -100);
+    return status;
 }
 
 /** Passive effect of crowdsale participation. */
@@ -1574,9 +1798,24 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -37);
     }
 
-    // ------------------------------------------
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
 
     CMPSPInfo::Entry newSP;
+
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
+    }
+
+    // ------------------------------------------
+
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -1670,6 +1909,11 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
     if (NULL != getCrowd(sender)) {
         PrintToLog("%s(): rejected: sender %s has an active crowdsale\n", __func__, sender);
         return (PKT_ERROR_SP -39);
+    }
+
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
     }
 
     // ------------------------------------------
@@ -1808,9 +2052,24 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -37);
     }
 
-    // ------------------------------------------
+    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
+        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
+        return PKT_ERROR_SP - 105;
+    }
 
     CMPSPInfo::Entry newSP;
+
+    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
+        if (!IsSigmaStatusValid(sigmaStatus)) {
+            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.sigmaStatus = sigmaStatus;
+    }
+
+    // ------------------------------------------
+
     newSP.issuer = sender;
     newSP.txid = txid;
     newSP.prop_type = prop_type;
@@ -2287,6 +2546,77 @@ int CMPTransaction::logicMath_UnfreezeTokens()
     return 0;
 }
 
+/** Tx 1025 */
+int CMPTransaction::logicMath_CreateDenomination()
+{
+    uint256 blockHash;
+    {
+        LOCK(cs_main);
+
+        CBlockIndex* pindex = chainActive[block];
+        if (pindex == NULL) {
+            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
+            return (PKT_ERROR_TOKENS -20);
+        }
+        blockHash = pindex->GetBlockHash();
+    }
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+                __func__,
+                type,
+                version,
+                property,
+                block);
+        return PKT_ERROR_TOKENS - 22;
+    }
+
+    if (!nValue || nValue > MAX_INT_8_BYTES) {
+        PrintToLog("%s(): rejected: value out of range or zero: %d", __func__, nValue);
+        return PKT_ERROR_TOKENS - 23;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_TOKENS - 24;
+    }
+
+    CMPSPInfo::Entry sp;
+    assert(_my_sps->getSP(property, sp));
+
+    if (sender != sp.issuer) {
+        PrintToLog("%s(): rejected: sender %s is not issuer of property %d [issuer=%s]\n", __func__, sender, property, sp.issuer);
+        return PKT_ERROR_TOKENS - 43;
+    }
+
+    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
+        PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, property);
+        return PKT_ERROR_TOKENS - 901;
+    }
+
+    if (sp.denominations.size() >= MAX_DENOMINATIONS) {
+        PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
+        return PKT_ERROR_TOKENS - 902;
+    }
+
+    if (std::find(sp.denominations.begin(), sp.denominations.end(), nValue) != sp.denominations.end()) {
+        PrintToLog(
+            "%s(): rejected: denomination with value %s is already exists for property %d\n",
+            __func__,
+            FormatMP(property, nValue),
+            property
+        );
+        return PKT_ERROR_TOKENS - 903;
+    }
+
+    sp.denominations.push_back(nValue);
+    sp.update_block = blockHash;
+
+    assert(_my_sps->updateSP(property, sp));
+
+    return 0;
+}
+
 /** Tx 65533 */
 int CMPTransaction::logicMath_Deactivation()
 {
@@ -2412,4 +2742,15 @@ int CMPTransaction::logicMath_Alert()
     AlertNotify(alert_text);
 
     return 0;
+}
+
+bool CMPTransaction::CheckPropertyCreationFee()
+{
+    if (receiver.empty() || !referenceAmount) {
+        return false;
+    }
+
+    auto& consensus = ConsensusParams();
+
+    return receiver == consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString() && *referenceAmount >= consensus.PROPERTY_CREATION_FEE;
 }

@@ -270,15 +270,15 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
     return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
 }
 
-bool CWalletDB::WriteZerocoinEntry(const CSigmaEntry &zerocoin) {
-    return Write(std::make_pair(std::string("sigma_mint"), zerocoin.value), zerocoin, true);
+bool CWalletDB::WriteSigmaEntry(const CSigmaEntry &sigma) {
+    return Write(std::make_pair(std::string("sigma_mint"), sigma.value), sigma, true);
 }
 
 bool CWalletDB::ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry) {
     return Read(std::make_pair(std::string("zerocoin"), pub), entry);
 }
 
-bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
+bool CWalletDB::ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
     return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
 }
 
@@ -286,12 +286,12 @@ bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
 
-bool CWalletDB::HasZerocoinEntry(const secp_primitives::GroupElement& pub) {
+bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
 
-bool CWalletDB::EraseZerocoinEntry(const CSigmaEntry &zerocoin) {
-    return Erase(std::make_pair(std::string("sigma_mint"), zerocoin.value));
+bool CWalletDB::EraseSigmaEntry(const CSigmaEntry &sigma) {
+    return Erase(std::make_pair(std::string("sigma_mint"), sigma.value));
 }
 
 bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntry &zerocoin) {
@@ -1001,7 +1001,7 @@ DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
     // erase each non HD Mint
     BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
     {
-        if (!EraseZerocoinEntry(sigmaEntry))
+        if (!EraseSigmaEntry(sigmaEntry))
             return DB_CORRUPT;
     }
 
@@ -1297,22 +1297,22 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
-bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
+bool CWalletDB::ReadMintCount(int32_t& nCount)
 {
     return Read(string("dzc"), nCount);
 }
 
-bool CWalletDB::WriteZerocoinCount(const int32_t& nCount)
+bool CWalletDB::WriteMintCount(const int32_t& nCount)
 {
     return Write(string("dzc"), nCount);
 }
 
-bool CWalletDB::ReadZerocoinSeedCount(int32_t& nCount)
+bool CWalletDB::ReadMintSeedCount(int32_t& nCount)
 {
     return Read(string("dzsc"), nCount);
 }
 
-bool CWalletDB::WriteZerocoinSeedCount(const int32_t& nCount)
+bool CWalletDB::WriteMintSeedCount(const int32_t& nCount)
 {
     return Write(string("dzsc"), nCount);
 }
@@ -1543,15 +1543,15 @@ bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint)
     return true;
 }
 
-bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin)
+bool CWalletDB::UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma)
 {
-    if (!Read(make_pair(string("zco"), hashPubcoin), zerocoin))
-        return error("%s: failed to retrieve zerocoinmint from archive", __func__);
+    if (!Read(make_pair(string("zco"), hashPubcoin), sigma))
+        return error("%s: failed to retrieve sigmamint from archive", __func__);
 
-    if (!WriteZerocoinEntry(zerocoin))
-        return error("%s: failed to write zerocoinmint", __func__);
+    if (!WriteSigmaEntry(sigma))
+        return error("%s: failed to write sigmamint", __func__);
 
-    uint256 hash = primitives::GetPubCoinValueHash(zerocoin.value);
+    uint256 hash = primitives::GetPubCoinValueHash(sigma.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

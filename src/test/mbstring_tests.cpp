@@ -1,13 +1,12 @@
-#include "exodus/mbstring.h"
+#include "../mbstring.h"
 
-#include "test/test_bitcoin.h"
+#include "test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <stddef.h>
 #include <string>
 
-namespace exodus {
 namespace mbstring {
 // Forward declarations
 extern int get_mblen(unsigned char c);
@@ -21,11 +20,8 @@ bool check_mb(const std::string& s)
     return check_mb(s.data(), next);
 }
 }
-}
 
-using namespace exodus;
-
-BOOST_FIXTURE_TEST_SUITE(exodus_mbstring_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(mbstring_tests, BasicTestingSetup)
 
 /**
  * Many examples were adopted from the following sources:

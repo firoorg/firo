@@ -579,7 +579,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const {
             }
 
             return data.IsUsed;
-        } else if (script.IsSigmaMint()) {
+        } else if (zwalletMain && script.IsSigmaMint()) {
             auto pub = sigma::ParseSigmaMintScript(script);
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
             CMintMeta meta;
@@ -1447,11 +1447,10 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
 bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
     LOCK(cs_wallet);
     bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if(upgradeChain){ // Upgrade HDChain to latest version
+    if(upgradeChain && !IsLocked()){ // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
-
+        NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
@@ -3032,7 +3031,7 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
     LOCK2(cs_main, cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listOwnCoins = zwalletMain->GetTracker().MintsAsZerocoinEntries();
+    listOwnCoins = zwalletMain->GetTracker().MintsAsSigmaEntries(true, false);
     LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
@@ -7028,7 +7027,7 @@ string CWallet::SpendMultipleSigma(
     BOOST_FOREACH(GroupElement zcSelectedValue, zcSelectedValues){
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, txidSpend);
-        CMintMeta metaCheck; 
+        CMintMeta metaCheck;
         zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
         if (!metaCheck.isUsed) {
             strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
@@ -7168,7 +7167,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
             return error("%s: failed to generate mint", __func__);
 
          return true;
-    } else if (!walletdb.ReadZerocoinEntry(meta.GetPubCoinValue(), zerocoin)) {
+    } else if (!walletdb.ReadSigmaEntry(meta.GetPubCoinValue(), zerocoin)) {
         return error("%s: failed to read zerocoinmint from database", __func__);
     }
 
@@ -7524,7 +7523,8 @@ set <set<CTxDestination>> CWallet::GetAddressGroupings() {
     {
         CWalletTx *pcoin = &walletEntry.second;
 
-        if (pcoin->vin.size() > 0) {
+        if (pcoin->vin.size() > 0 &&
+            !(pcoin->IsZerocoinSpend() || pcoin->IsSigmaSpend() || pcoin->IsZerocoinRemint())) { /* Spends have no standard input */
             bool any_mine = false;
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->vin)

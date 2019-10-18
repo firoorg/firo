@@ -205,9 +205,11 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fF
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
         if(!fFirstUnlock && zwalletMain){
-            uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+            auto &hdChain = pwalletMain->GetHDChain();
+            uint160 hashSeedMaster = hdChain.masterKeyID;
             zwalletMain->SetupWallet(hashSeedMaster, false);
             zwalletMain->SyncWithChain();
+            pwalletMain->SetHDChain(hdChain, false); // Used to upgrade normal keys to BIP44
         }
     }
     NotifyStatusChanged(this);

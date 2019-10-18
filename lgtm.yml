@@ -1,24 +1,34 @@
 path_classifiers:
   docs:
     - "exclude: /"
+    - "contrib"
+    - "share"
     - "ZNODE.md"
   generated:
     - "exclude: /"
+    - "src/obj"
     - "src/qt/moc_*.cpp"
   library:
     - "exclude: /"
+    - "src/leveldb"
+    - "src/libexecstream"
     - "src/tor"
   template:
     - "exclude: /"
     - "qa/pull-tester/run-bitcoind-for-test.sh.in"
+    - "src/qt/forms"
   test:
     - "exclude: /"
-    - "src/test/*_tests.cpp"
+    - "src/**/*_tests.cpp"
+queries:
+  - include: "*"
 extraction:
   cpp:
     prepare:
       packages:
+        - asciidoc-base
         - bsdmainutils
+        - lcov
         - libboost-all-dev
         - libbz2-dev
         - libcap-dev
@@ -26,8 +36,10 @@ extraction:
         - libdb5.3++-dev
         - libevent-dev
         - libminiupnpc-dev
+        - libnacl-dev
         - libprotobuf-dev
         - libqrencode-dev
+        - libseccomp-dev
         - libssl-dev
         - libzmq3-dev
         - protobuf-compiler

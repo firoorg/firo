@@ -10,12 +10,13 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
-#include "hdmint/hdmint.h"
-#include "hdmint/mintpool.h"
 #include "wallet/db.h"
+#include "streams.h"
 #include "key.h"
 #include "hdchain.h"
 
+#include "../hdmint/hdmint.h"
+#include "../hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -183,13 +184,13 @@ public:
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool WriteZerocoinEntry(const CSigmaEntry& zerocoin);
+    bool WriteSigmaEntry(const CSigmaEntry& zerocoin);
     bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
-    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
+    bool ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
     bool HasZerocoinEntry(const Bignum& pub);
-    bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
+    bool HasSigmaEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool EraseZerocoinEntry(const CSigmaEntry& zerocoin);
+    bool EraseSigmaEntry(const CSigmaEntry& sigma);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
@@ -216,15 +217,15 @@ public:
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
-    bool ReadZerocoinCount(int32_t& nCount);
-    bool WriteZerocoinCount(const int32_t& nCount);
+    bool ReadMintCount(int32_t& nCount);
+    bool WriteMintCount(const int32_t& nCount);
 
-    bool ReadZerocoinSeedCount(int32_t& nCount);
-    bool WriteZerocoinSeedCount(const int32_t& nCount);
+    bool ReadMintSeedCount(int32_t& nCount);
+    bool WriteMintSeedCount(const int32_t& nCount);
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
+    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
     bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
 
     bool WriteHDMint(const CHDMint& dMint);
@@ -244,6 +245,121 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+
+#ifdef ENABLE_EXODUS
+
+    template<class MintPool>
+    bool ReadExodusMintPool(MintPool &mintPool)
+    {
+        return Read(std::string("exodus_mint_pool"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteExodusMintPool(MintPool const &mintPool)
+    {
+        return Write(std::string("exodus_mint_pool"), mintPool, true);
+    }
+
+    bool HasExodusMintPool()
+    {
+        return Exists(std::string("exodus_mint_pool"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadExodusMintID(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_id"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteExodusMintID(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_id"), k), id);
+    }
+
+    template<class Key>
+    bool HasExodusMintID(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_id"), k));
+    }
+
+    template<class Key>
+    bool EraseExodusMintID(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_id"), k));
+    }
+
+    template<class K, class V>
+    bool ReadExodusMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_mint"), k), v);
+    }
+
+    template<class K>
+    bool HasExodusMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint"), k));
+    }
+
+    template<class K, class V>
+    bool WriteExodusMint(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("exodus_mint"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseExodusMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListExodusMints(InsertF insertF)
+    {
+        auto cursor = GetCursor();
+        if (!cursor) {
+            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+        }
+
+        unsigned int flags = DB_SET_RANGE;
+        while (true) {
+
+            // Read next record
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            if (flags == DB_SET_RANGE) {
+                ssKey << std::make_pair(string("exodus_mint"), K());
+            }
+
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+
+            flags = DB_NEXT;
+            if (ret == DB_NOTFOUND) {
+                break;
+            } else if (ret != 0) {
+                cursor->close();
+                throw runtime_error(std::string(__func__)+" : error scanning DB");
+            }
+
+            // Unserialize
+            std::string type;
+            ssKey >> type;
+            if (type != "exodus_mint") {
+                break;
+            }
+
+            K key;
+            ssKey >> key;
+
+            V value;
+            ssValue >> value;
+
+            insertF(key, value);
+        }
+
+        cursor->close();
+    }
+#endif
 
 private:
     CWalletDB(const CWalletDB&);
