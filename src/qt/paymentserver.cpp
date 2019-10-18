@@ -266,31 +266,6 @@ bool PaymentServer::eventFilter(QObject *object, QEvent *event)
     return QObject::eventFilter(object, event);
 }
 
-void PaymentServer::initNetManager()
-{
-    if (!optionsModel)
-        return;
-    if (netManager != NULL)
-        delete netManager;
-
-    // netManager is used to fetch paymentrequests given in firo: URIs
-    netManager = new QNetworkAccessManager(this);
-
-    QNetworkProxy proxy;
-
-    // Query active SOCKS5 proxy
-    if (optionsModel->getProxySettings(proxy)) {
-        netManager->setProxy(proxy);
-
-        qDebug() << "PaymentServer::initNetManager: Using SOCKS5 proxy" << proxy.hostName() << ":" << proxy.port();
-    }
-    else
-        qDebug() << "PaymentServer::initNetManager: No active proxy server found.";
-
-    connect(netManager, &QNetworkAccessManager::finished, this, &PaymentServer::netRequestFinished);
-    connect(netManager, &QNetworkAccessManager::sslErrors, this, &PaymentServer::reportSslErrors);
-}
-
 void PaymentServer::uiReady()
 {
     savedPaymentRequests.clear();
