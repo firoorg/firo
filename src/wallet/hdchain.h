@@ -20,7 +20,7 @@ public:
     static const int VERSION_WITH_BIP44 = 10;
     static const int VERSION_WITH_BIP39 = 11;
     static const int CURRENT_VERSION = VERSION_WITH_BIP39;
-    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
+    static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -35,6 +35,7 @@ public:
         READWRITE(masterKeyID);
         if(this->nVersion >= VERSION_WITH_BIP44){
             READWRITE(nExternalChainCounters);
+            nExternalChainCounters.resize(N_CHANGES);
         }
         if(this->nVersion >= VERSION_WITH_BIP39) {
             READWRITE(mnemonic);
