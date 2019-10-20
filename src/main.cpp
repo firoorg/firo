@@ -1418,8 +1418,7 @@ bool AcceptToMemoryPoolWorker(
                         LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
                         return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                     }
-                    if(markZcoinSpendTransactionSerial)
-                        zcMintPubcoinsV3.push_back(pubCoinValue);
+                    zcMintPubcoinsV3.push_back(pubCoinValue);
                 }
             }
         }
@@ -1841,7 +1840,7 @@ bool AcceptToMemoryPoolWorker(
         if(markZcoinSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
-    if(tx.IsSigmaMint())
+    if(tx.IsSigmaMint() && markZcoinSpendTransactionSerial)
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
         if (zwalletMain) {
