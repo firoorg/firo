@@ -2873,16 +2873,18 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     UpdateTip(pindexNew, chainparams);
     
     // ... and about transactions that got confirmed:
-    BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
-        if (fExodus) {
-            LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
-            if (exodus_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
+    if (pblock) {
+        BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
+            if (fExodus) {
+                LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
+                if (exodus_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
+            }
         }
     }
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if (zwalletMain) {
+    if (zwalletMain && pblock && pblock->sigmaTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
         if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
@@ -4062,11 +4064,13 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         CBlockIndex *pindex = NULL;
         if (fNewBlock) *fNewBlock = false;
         CValidationState state;
+
+        // TODO: refactor code so CheckTransaction and CheckBlock don't need cs_main
+        LOCK(cs_main);
+
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
         bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
-
-        LOCK(cs_main);
 
         if (ret) {
             // Store to disk
