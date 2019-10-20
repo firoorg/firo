@@ -25,15 +25,11 @@ fi
 
 AM_PROG_CC_C_O
 
-AC_PROG_CXX
-
 AC_PROG_CC_C89
 if test x"$ac_cv_prog_cc_c89" = x"no"; then
   AC_MSG_ERROR([c89 compiler support required])
 fi
 AM_PROG_AS
-
-AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
 
 case $host_os in
   *darwin*)

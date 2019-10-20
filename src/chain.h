@@ -12,8 +12,8 @@
 #include "tinyformat.h"
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "sigma/Scalar.h"
+#include "sigma/GroupElement.h"
 #include "sigma/coin.h"
 #include "zerocoin_params.h"
 #include "util.h"

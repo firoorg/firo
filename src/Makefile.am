@@ -504,9 +504,15 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
-libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
-libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
+libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror -Wno-unused-function
+libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror -Wno-unused-function
 libsigma_a_SOURCES = \
+  sigma/GroupElement.h \
+  sigma/GroupElement.cpp \
+  sigma/Scalar.h \
+  sigma/Scalar.cpp \
+  sigma/MultiExponent.h \
+  sigma/MultiExponent.cpp \
   sigma/r1_proof.h \
   sigma/r1_proof_generator.h \
   sigma/r1_proof_generator.hpp \

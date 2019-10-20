@@ -2,8 +2,8 @@
 #define SECP_MULTIEXPONENT_H
 
 #include <vector>
-#include "../include/GroupElement.h"
-#include "../include/Scalar.h"
+#include "GroupElement.h"
+#include "Scalar.h"
 
 namespace secp_primitives {
 

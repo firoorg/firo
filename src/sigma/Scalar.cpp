@@ -1,15 +1,15 @@
-#include "include/Scalar.h"
+#include "Scalar.h"
 
-#include "include/secp256k1.h"
+#include "../secp256k1/include/secp256k1.h"
 
 #if defined HAVE_CONFIG_H
 #include "libsecp256k1-config.h"
 #endif
 
-#include "../scalar.h"
-#include "../scalar_impl.h"
-#include "../hash_impl.h"
-#include "../hash.h"
+#include "../secp256k1/src/scalar.h"
+#include "../secp256k1/src/scalar_impl.h"
+#include "../secp256k1/src/hash_impl.h"
+#include "../secp256k1/src/hash.h"
 
 #include <array>
 #include <sstream>

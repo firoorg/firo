@@ -6,7 +6,6 @@
 #include "tally.h"
 #include "tx.h"
 
-#include <GroupElement.h>
 #include "../clientversion.h"
 #include "../tinyformat.h"
 #include "../streams.h"

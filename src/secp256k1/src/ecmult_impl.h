@@ -748,7 +748,6 @@ static int secp256k1_pippenger_bucket_window(size_t n) {
  * Returns the maximum optimal number of points for a bucket_window.
  */
 static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
-    int i;
 #ifdef USE_ENDOMORPHISM
     int size[11]= {1, 4, 20, 57, 136, 235, 1260, 1260, 4420, 7880, 16050};
 #else

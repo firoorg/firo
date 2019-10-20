@@ -9,9 +9,6 @@ JNI_LIB =
 endif
 include_HEADERS =
 include_HEADERS += include/secp256k1.h
-include_HEADERS += include/GroupElement.h
-include_HEADERS += include/Scalar.h
-include_HEADERS += include/MultiExponent.h
 noinst_HEADERS =
 noinst_HEADERS += src/scalar.h
 noinst_HEADERS += src/scalar_4x64.h
@@ -78,9 +75,6 @@ endif
 
 libsecp256k1_la_SOURCES =
 libsecp256k1_la_SOURCES += src/secp256k1.c
-libsecp256k1_la_SOURCES += src/cpp/GroupElement.cpp
-libsecp256k1_la_SOURCES += src/cpp/Scalar.cpp
-libsecp256k1_la_SOURCES += src/cpp/MultiExponent.cpp
 libsecp256k1_la_CPPFLAGS = -DSECP256K1_BUILD -I$(top_srcdir)/include -I$(top_srcdir)/src $(SECP_INCLUDES)
 libsecp256k1_la_LIBADD = $(JNI_LIB) $(SECP_LIBS) $(COMMON_LIB)
 
@@ -107,13 +101,6 @@ tests_CPPFLAGS = -DSECP256K1_BUILD -DVERIFY -I$(top_srcdir)/src -I$(top_srcdir)/
 tests_LDADD = $(SECP_LIBS) $(SECP_TEST_LIBS) $(COMMON_LIB)
 tests_LDFLAGS = -static
 TESTS += tests
-
-noinst_PROGRAMS += tests_cpp
-tests_cpp_SOURCES = src/cpp/tests.cpp
-tests_cpp_CPPFLAGS = -DSECP256K1_BUILD -DVERIFY -I$(top_srcdir)/src -I$(top_srcdir)/include $(SECP_INCLUDES) $(SECP_TEST_INCLUDES)
-tests_cpp_LDADD = libsecp256k1.la $(SECP_LIBS) $(SECP_TEST_LIBS) $(COMMON_LIB)
-tests_cpp_LDFLAGS = -static
-TESTS += tests_cpp
 endif
 
 if USE_EXHAUSTIVE_TESTS
@@ -154,8 +141,6 @@ check-java: libsecp256k1.la $(JAVA_GUAVA) .stamp-java
 
 endif
 endif
-
-CXXFLAGS += $(CRYPTO_CFLAGS)
 
 if USE_ECMULT_STATIC_PRECOMPUTATION
 CPPFLAGS_FOR_BUILD +=-I$(top_srcdir)

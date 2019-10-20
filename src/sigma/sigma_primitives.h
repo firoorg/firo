@@ -1,9 +1,9 @@
 #ifndef ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 #define ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 
-#include "../secp256k1/include/MultiExponent.h"
-#include "../secp256k1/include/GroupElement.h"
-#include "../secp256k1/include/Scalar.h"
+#include "MultiExponent.h"
+#include "GroupElement.h"
+#include "Scalar.h"
 
 #include <algorithm>
 #include <vector>

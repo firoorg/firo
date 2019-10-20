@@ -10,8 +10,8 @@
 #include "../sigma/sigmaplus_prover.h"
 #include "../sigma/sigmaplus_verifier.h"
 
-#include <GroupElement.h>
-#include <Scalar.h>
+#include "../sigma/GroupElement.h"
+#include "../sigma/Scalar.h"
 
 #include <boost/optional.hpp>
 

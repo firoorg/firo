@@ -6,8 +6,8 @@
 #include "sigma/coin.h"
 #include "sigma/coinspend.h"
 #include "consensus/validation.h"
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "sigma/Scalar.h"
+#include "sigma/GroupElement.h"
 #include "sigma/params.h"
 #include <unordered_set>
 #include <unordered_map>

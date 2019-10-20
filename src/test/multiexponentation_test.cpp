@@ -1,4 +1,4 @@
-#include "../secp256k1/include/MultiExponent.h"
+#include "../sigma/MultiExponent.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
