@@ -102,7 +102,6 @@ std::map<CNode*, CNode*> CNode::mDandelionRoutes;
 
 // Destination node to which are stem-ed all local transactions.
 CNode* CNode::localDandelionDestination = nullptr;
-CThreadInterrupt CNode::interruptNet;
 
 // All txn are put in the stempool in stem phase.
 // After getting relayed they are moved to mempool.
@@ -2471,7 +2470,7 @@ void CConnman::ThreadDandelionShuffle() {
     LogPrintf("Started Dandelion shuffle thread.\n");
 
     int64_t nNextDandelionShuffle = 0;
-    while (!CNode::interruptNet) {
+    while (!interruptNet) {
         if (GetTimeMicros() > nNextDandelionShuffle) {
             CNode::DandelionShuffle();
             const Consensus::Params& consensus = Params().GetConsensus();
@@ -2482,7 +2481,7 @@ void CConnman::ThreadDandelionShuffle() {
             // results to not being able to close zcoin.
             int time_to_sleep = (nNextDandelionShuffle - GetTimeMicros()) / 1000;
             while (time_to_sleep > 0) {
-                if (!CNode::interruptNet.sleep_for(
+                if (!interruptNet.sleep_for(
                         std::chrono::milliseconds(std::min(time_to_sleep, 1000)))) {
                     return;
                 }

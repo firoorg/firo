@@ -746,7 +746,6 @@ public:
     static std::vector<CNode*> vDandelionOutbound;
     static std::vector<CNode*> vDandelionDestination;
     static CNode* localDandelionDestination;
-		static CThreadInterrupt interruptNet;
     static std::map<CNode*, CNode*> mDandelionRoutes;
 
     // Dandelion helper functions.
