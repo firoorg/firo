@@ -1096,6 +1096,7 @@ void CSigmaState::Reset() {
     coinGroups.clear();
     latestCoinIds.clear();
     mempoolCoinSerials.clear();
+    mempoolMints.clear();
     containers.Reset();
 }
 

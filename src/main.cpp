@@ -1418,7 +1418,8 @@ bool AcceptToMemoryPoolWorker(
                         LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
                         return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                     }
-                    zcMintPubcoinsV3.push_back(pubCoinValue);
+                    if(markZcoinSpendTransactionSerial)
+                        zcMintPubcoinsV3.push_back(pubCoinValue);
                 }
             }
         }
