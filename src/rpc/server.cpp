@@ -283,6 +283,9 @@ static const CRPCCommand vRPCCommands[] =
     { "zcoin",               "znodelist",             &znodelist,              true  },
     { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
     { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
+        /* Mobile related */
+    { "mobile",             "getanonimityset",        &getanonimityset,        true  },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
 };
 
 CRPCTable::CRPCTable()

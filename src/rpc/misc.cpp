@@ -884,6 +884,110 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
 }
 
+UniValue getanonimityset(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw runtime_error(
+                "getanonimityset\n"
+                        "\nReturns the anonimity set and latest block hash.\n"
+                        "\nArguments:\n"
+                        "{\n"
+                        "  \"denomination\"\n"
+                        "    [\n"
+                        "      \"denomination\"  (int64_t) int denomination\n"
+                        "    ]\n"
+                        "  \"coinGroupId\"\n"
+                        "    [\n"
+                        "      \"coinGroupId\"  (int)\n"
+                        "    ]\n"
+                        "}\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"blockHash\"   (string) Latest block hash for anonimity ste\n"
+                        "  \"anonimityset\"(std::string[]) array of Serialized GroupElements\n"
+                        "}\n"
+        );
+
+
+    int64_t intDenom = params[0].get_int64();
+    sigma::CoinDenomination denomination;
+    sigma::IntegerToDenomination(intDenom, denomination);
+
+    int coinGroupId = params[1].get_int();
+
+    uint256 blockHash;
+    std::vector<sigma::PublicCoin> coins;
+
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    if(sigmaState->GetCoinSetForSpend(
+            &chainActive,
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+            denomination,
+            coinGroupId,
+            blockHash,
+            coins) <= 1)
+        return false;
+
+    std::string serializedCoins[coins.size()];
+    for(unsigned int i = 0; i < coins.size(); ++i) {
+        std::vector<unsigned char> vch = coins[i].getValue().getvch();
+        serializedCoins[i] = HexStr(vch.begin(), vch.end());
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("blockHash", blockHash.GetHex()));
+    ret.push_back(Pair("serializedCoins", serializedCoins));
+
+    return ret;
+}
+
+UniValue getmintmetadata(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "getmintmetadata\n"
+                        "\nReturns the anonimity set id and nHaight of mint.\n"
+                        "\nArguments:\n"
+                        "{\n"
+                        "  \"size of pubcoins\"\n"
+                        "    [\n"
+                        "      \"size of pubcoins\"  (int) Size of array\n"
+                        "    ]\n"
+                        "  \"pubcoins\"\n"
+                        "    [\n"
+                        "      \"pubcoins\"  (string) Array of GroupElements \n"
+                        "    ]\n"
+                        "}\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"metadata\"   (Pair<string,int>) nHaight and id for each pubcoin\n"
+                        "}\n"
+        );
+
+    std::vector<UniValue> denoms = params[0].getValues();
+    std::vector<UniValue> serializedCoins = params[1].getValues();
+    if(serializedCoins.size() != denoms.size())
+        return false;
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    UniValue ret(UniValue::VOBJ);
+    for(unsigned int i = 0; i < serializedCoins.size(); ++i){
+        std::string serializedCoin = serializedCoins[i].get_str();
+        std::vector<unsigned char> serialized(serializedCoin.begin(), serializedCoin.end());
+        secp_primitives::GroupElement pubCoin;
+        if (serialized.size() < pubCoin.memoryRequired())
+            return false;
+        pubCoin.deserialize(serialized.data());
+
+        int64_t intDenom = denoms[i].get_int64();
+        sigma::CoinDenomination denomination;
+        sigma::IntegerToDenomination(intDenom, denomination);
+
+        std::pair<int, int> coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
+        ret.push_back(Pair(to_string(coinHeightAndId.first), coinHeightAndId.second));
+    }
+    return ret;
+}
+
 UniValue getaddresstxids(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -1196,12 +1300,16 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
-    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true  },
     { "hidden",             "getzerocoinsupply",      &getzerocoinsupply,      false },
     { "hidden",             "getinfoex",              &getinfoex,              false },
+    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
+
+        /* Mobile related */
+    { "mobile",             "getanonimityset",        &getanonimityset,        true  },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
 
 };
 
