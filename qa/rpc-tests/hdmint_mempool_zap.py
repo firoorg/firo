@@ -63,6 +63,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
         bitcoind_processes[0].wait()
 
         self.nodes[0] = start_node(0,self.options.tmpdir, configuration)
+        self.nodes[0].generate(1)
 
         # 8. check listunspentmints - should be as on step 5 (cause ["-zapwallettxes"] clean mempool)
         sigma_mints2 = self.nodes[0].listunspentsigmamints()
@@ -86,6 +87,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
         assert len(sigma_mints3) == len(sigma_mints1), \
             'The amount of mints should be same as before unconfirmed spend after restart with ["-zapwallettxes"].'
 
+        self.nodes[0].generate(1)
         # 12. mint
         # Minting after restart with '-["-zapwallettxes"]'
         self.nodes[0].mint(sigma_denoms[0])

@@ -55,7 +55,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         encr_key = 'testtesttesttest'
 
         self.nodes[0].encryptwallet(encr_key)
-        time.sleep(10)
+        bitcoind_processes[0].wait()
         self.nodes[0] = start_nodes(1, self.options.tmpdir)[0]
 
         # try to remint without unlocking
@@ -64,6 +64,9 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         # unlock for 10 secs
         self.nodes[0].walletpassphrase(encr_key, 10)
         time.sleep(5)
+        
+        self.nodes[0].generate(1)
+        #self.sync_all()
 
         # remint should work
         self.nodes[0].remintzerocointosigma(zcoin_denoms[0])

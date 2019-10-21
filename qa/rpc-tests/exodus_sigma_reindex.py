@@ -59,6 +59,7 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
         connect_nodes(self.nodes[0], 1)
 
         sync_blocks(self.nodes)
+        self.nodes[0].generate(1)
 
         reindexed_confirmed_mints = self.nodes[0].exodus_listmints()
         self.compare_mints(confirmed_mints, reindexed_confirmed_mints)
