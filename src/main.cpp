@@ -1409,17 +1409,21 @@ bool AcceptToMemoryPoolWorker(
                 }
             }
         }
-        if(tx.IsSigmaMint()) {
-            BOOST_FOREACH(const CTxOut &txout, tx.vout)
-            {
-                if (txout.scriptPubKey.IsSigmaMint()) {
-                    GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                    if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
-                        LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
-                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                    }
-                    zcMintPubcoinsV3.push_back(pubCoinValue);
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
                 }
+                if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
+                    LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcMintPubcoinsV3.push_back(pubCoinValue);
             }
         }
     }
@@ -1840,8 +1844,6 @@ bool AcceptToMemoryPoolWorker(
         if(markZcoinSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
-    if(tx.IsSigmaMint() && markZcoinSpendTransactionSerial)
-        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
         if (zwalletMain) {
             LogPrintf("Updating spend state from Mempool..");
@@ -1849,6 +1851,8 @@ bool AcceptToMemoryPoolWorker(
         }
 #endif
     }
+    if(markZcoinSpendTransactionSerial)
+        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint()){
         if (zwalletMain) {

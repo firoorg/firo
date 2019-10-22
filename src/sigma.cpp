@@ -1068,7 +1068,7 @@ void CSigmaState::RemoveSpendFromMempool(const Scalar& coinSerial) {
 }
 
 void CSigmaState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
-    BOOST_FOREACH(GroupElement pubCoin, pubCoins){
+    BOOST_FOREACH(const GroupElement& pubCoin, pubCoins){
         mempoolMints.insert(pubCoin);
     }
 }
