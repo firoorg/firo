@@ -3187,7 +3187,12 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
             if (txout.scriptPubKey.IsSigmaMint()) {
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
                 sigmaState->RemoveMintFromMempool(pubCoinValue);
             }
         }
