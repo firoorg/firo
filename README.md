@@ -3,10 +3,12 @@ Zcoin
 
 [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/commits/master)
-[![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/zcoinofficial/zcoin/releases)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/context:cpp)
 
 What is Zcoin?
 --------------
