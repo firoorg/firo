@@ -15,6 +15,22 @@
 
 using namespace std;
 
+bool GetZnodePayeeAddress(const std::string& txHash, const std::string& n, CBitcoinAddress& address){
+
+    const CWalletTx* wtx = pwalletMain->GetWalletTx(uint256S(txHash));
+    if(wtx==NULL)
+        return false;
+
+    CTxDestination destination;
+    const CTxOut &txout = wtx->vout[stoi(n)];
+    if (!ExtractDestination(txout.scriptPubKey, destination))
+        return false;
+
+    address.Set(destination);
+
+    return true;
+}
+
 UniValue znodekey(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     switch(type){
@@ -175,6 +191,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
                 const std::string& txHash = mne.getTxHash();
                 const std::string& outputIndex = mne.getOutputIndex();
+                CBitcoinAddress address;
                 std::string key = txHash + outputIndex;
                 CZnode* mn = mnodeman.Find(txHash, outputIndex);
 
@@ -182,6 +199,8 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 if(mn==NULL){
                     node = mne.ToJSON();
                     node.push_back(Pair("position", fIndex++));
+                    if(GetZnodePayeeAddress(txHash, outputIndex, address))
+                        node.push_back(Pair("payeeAddress", address.ToString()));
                 }else{
                     node = mn->ToJSON();
                 }
