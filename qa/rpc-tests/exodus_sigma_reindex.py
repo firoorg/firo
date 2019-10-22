@@ -67,6 +67,9 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
         reindexed_unconfirmed_mints = self.nodes[0].exodus_listpendingmints()
         self.compare_mints(unconfirmed_mints, reindexed_unconfirmed_mints)
 
+        sync_blocks(self.nodes)
+        self.nodes[0].generate(1)
+
         # spend remaining mints
         self.nodes[0].exodus_sendspend(self.addrs[0], sigma_property, 0)
         self.nodes[0].exodus_sendspend(self.addrs[0], sigma_property, 1)
