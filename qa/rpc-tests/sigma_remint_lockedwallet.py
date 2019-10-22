@@ -66,7 +66,6 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         time.sleep(5)
         
         self.nodes[0].generate(1)
-        #self.sync_all()
 
         # remint should work
         self.nodes[0].remintzerocointosigma(zcoin_denoms[0])

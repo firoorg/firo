@@ -192,9 +192,8 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
         }
 
         std::vector<sigma::CoinDenomination> mints;
-        if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
-        }
+
+        BOOST_CHECK(CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) == nAmount);
 
         std::vector<sigma::PrivateCoin> privCoins;
 
@@ -209,8 +208,7 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
         CWalletTx wtx;
         std::string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 
-        if (strError != "")
-            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+        BOOST_CHECK(strError == "");
     }
 
     zwalletMain->SetCount(0); // reset count
@@ -229,9 +227,7 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
     }
 
     std::vector<sigma::CoinDenomination> mints;
-    if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
-    }
+    BOOST_CHECK(CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) == nAmount);
 
     std::vector<sigma::PrivateCoin> privCoins;
 

@@ -478,7 +478,7 @@ void CHDMintWallet::UpdateCount()
     UpdateCountDB();
 }
 
-bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry mintPoolEntry){
+bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
     CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry), false);
 
@@ -504,8 +504,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
     CWalletDB walletdb(strWalletFile);
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    bool fMintExists = true;
-    while(fMintExists){
+    while(true){
         if(hashSeedMaster.IsNull())
             throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
         CKeyID seedId = GetMintSeedID(nCountNextUse);
@@ -513,7 +512,8 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
         UpdateCountLocal();
 
-        GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
+        if(!GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get()))
+            return false;
 
         // New HDMint exists, try new count
         if(walletdb.HasHDMint(dMint.GetPubcoinValue()) ||
@@ -521,7 +521,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
             LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
         }else{
             LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));
-            fMintExists = false;
+            break;
         }
     }
 
