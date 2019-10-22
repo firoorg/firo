@@ -3184,13 +3184,11 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                 sigmaState->RemoveSpendFromMempool(zcSpendSerial);
             }
        }
-        if(tx.IsSigmaMint()){
-            BOOST_FOREACH(const CTxOut &txout, tx.vout)
-            {
-                if (txout.scriptPubKey.IsSigmaMint()) {
-                    GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                    sigmaState->RemoveMintFromMempool(pubCoinValue);
-                }
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                sigmaState->RemoveMintFromMempool(pubCoinValue);
             }
         }
     }
