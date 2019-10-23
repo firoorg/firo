@@ -191,33 +191,6 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             return settingsData;
             break;   
         }
-        case Create: {
-            vector<string> names = data.getKeys();
-            BOOST_FOREACH(std::string& name, names)
-            {
-                try {
-                    settingData = find_value(data, name).get_str();
-                }catch (const std::exception& e){
-                    throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-                }
-
-                if(!(name.at(0)==('-')))
-                    name.insert(0, "-");
-
-                // fail out if the setting already exists
-                if(SettingExists(settingsData, name)){
-                   throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-                }
-
-                setting.push_back(Pair("data", settingData));
-                setting.push_back(Pair("disabled", false));
-                setting.push_back(Pair("changed", true));
-                WriteAPISetting(settingsData, name, setting);
-            }
-
-            writeBack = true;
-            break;             
-        }
         case Update: {
             vector<string> names = data.getKeys();
             BOOST_FOREACH(std::string& name, names)
@@ -231,12 +204,12 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
                 if(!(name.at(0)==('-')))
                     name.insert(0, "-");
 
-                // fail out if setting not found
-                if(!SettingExists(settingsData, name)){
-                   throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                bool disabled = false;
+                // if setting found, set "disabled" flag to whatever it is
+                if(SettingExists(settingsData, name)){
+                   disabled = find_value(find_value(settingsData, name), "disabled").get_bool();
                 }
 
-                bool disabled = find_value(find_value(settingsData, name), "disabled").get_bool();
                 setting.push_back(Pair("data", settingData));
                 setting.push_back(Pair("changed", true));
                 setting.push_back(Pair("disabled", disabled));
