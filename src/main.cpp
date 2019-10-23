@@ -1335,6 +1335,7 @@ bool AcceptToMemoryPoolWorker(
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     vector<Scalar> zcSpendSerialsV3;
+    vector<GroupElement> zcMintPubcoinsV3;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         if (tx.IsZerocoinSpend()) {
@@ -1406,6 +1407,23 @@ bool AcceptToMemoryPoolWorker(
                         setConflicts.insert(ptxConflicting->GetHash());
                     }
                 }
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
+                if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
+                    LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcMintPubcoinsV3.push_back(pubCoinValue);
             }
         }
     }
@@ -1833,16 +1851,10 @@ bool AcceptToMemoryPoolWorker(
         }
 #endif
     }
+    if(markZcoinSpendTransactionSerial)
+        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    vector<GroupElement> zcMintPubcoinsV3;
     if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if(txout.scriptPubKey.IsSigmaMint()){
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-        }
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
             zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
@@ -3172,6 +3184,18 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                 sigmaState->RemoveSpendFromMempool(zcSpendSerial);
             }
        }
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
+                sigmaState->RemoveMintFromMempool(pubCoinValue);
+            }
+        }
     }
 
     int64_t nTime6 = GetTimeMicros();
