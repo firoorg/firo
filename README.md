@@ -1,5 +1,4 @@
 <img src="https://zcoin.io/storage/2017/12/ci_logo_monochrome.svg" width="500">
-===============
 
 [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
