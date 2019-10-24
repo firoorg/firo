@@ -102,12 +102,27 @@ script: |
     file_name=$(basename "$file_path")
     user_name="client"
     cert_pc="$user_name@$CERT_STORE"
+    ssh_options="-oStrictHostKeyChecking=no"
+    file_path_tmp=${file_path}_2252c28b-cb8b-4a8b-9bfc-4a3bd47389f2
 
-    sshpass -p "$CERT_STORE_PASSWORD" scp $file_path $cert_pc:/workdir
-    sshpass -p "$CERT_STORE_PASSWORD" ssh $cert_pc "mv /workdir/$file_name /workdir/in"
-    sleep 1s
-    sshpass -p "$CERT_STORE_PASSWORD" scp $cert_pc:/workdir/out/${file_name}-signed file_path
-    sshpass -p "$CERT_STORE_PASSWORD" ssh $cert_pc "rm /workdir/out/${file_name}-signed"
+    md5sum $file_path
+    ls -lah $file_path
+    sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $file_path $cert_pc:/workdir
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "mv /workdir/$file_name /workdir/in"
+
+    rm -f $file_path_tmp
+    for delay in 1s 2s 2s 5s 10s 10s; do
+        if sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $cert_pc:/workdir/out/${file_name}-signed $file_path_tmp; then
+            break
+        fi
+        sleep $delay
+    done
+
+    mv $file_path_tmp $file_path
+
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "rm /workdir/out/${file_name}-signed"
+    md5sum $file_path
+    ls -lah $file_path
   }
 
   # Faketime for depends so intermediate results are comparable
@@ -116,8 +131,6 @@ script: |
   create_per-host_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_linker_wrapper "2000-01-01 12:00:00"
   export PATH=${WRAP_DIR}:${PATH}
-
-  ls -lah
 
   source environment.conf
 
@@ -169,9 +182,16 @@ script: |
     find . -name "*exe"
     echo "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
 
-    make deploy
+    make deploy_strip
 
-    sign_file_remotely "zcoin-0.13.8-win64-setup.exe"
+
+    echo "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+    find . -name "*exe"
+    echo "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+
+    make deploy_installer
+
+    sign_file_remotely.sh "zcoin-0.13.8-win64-setup.exe"
 
     echo "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
     find . -name "*exe"
