@@ -28,7 +28,7 @@ private:
 public:
     int static const COUNT_DEFAULT = 0;
 
-    CHDMintWallet(const std::string& strWalletFile);
+    CHDMintWallet(const std::string& strWalletFile, bool resetCount=false);
 
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);

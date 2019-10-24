@@ -26,6 +26,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
+#include "zerocoin_params.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"
@@ -259,8 +260,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
@@ -270,9 +269,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 
     vector<CHDMint> vDMints;
     vector<CHDMint> vDMintsBuilder;
-    vector<CHDMint> vDMintsRegenerated;
-
-    int mempoolCount = 0;
 
     for(int i = 0; i < denominations.size() - 1; i++)
     {
@@ -298,13 +294,19 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
             stringError, denominationPairs, vDMintsBuilder, SIGMA), stringError + " - Create Mint failed");
 
         // Verify mint tx get added in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == ++mempoolCount, "Mint tx was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         // Verify correct mint count
         BOOST_CHECK(mintCount == zwalletMain->GetCount());
 
         for(auto& mint : vDMintsBuilder){
             vDMints.push_back(mint);
+        }
+
+        for(int i = 0; i < ZC_MINT_CONFIRMATIONS; i++){
+            int previousHeight = chainActive.Height();
+            b = CreateAndProcessBlock({}, scriptPubKey);
+            BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         }
     }
 
@@ -313,7 +315,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     // Clear HDMints in db and sigma state (to allow regeneration of the same mints)
     // erase mint pool/ serialHash->pubcoin pairs
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    zwalletMain->SetCount(0);
     pwalletMain->ZapSigmaMints();
 
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
@@ -327,11 +328,31 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
         walletdb.ErasePubcoin(hashSerial);
     }
 
+    // Start zwalletMain from scratch
+    zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile, true);
+
     // sync mints with chain (will regenerate mintpool + sync with chain)
     zwalletMain->SyncWithChain();
 
     // Pull mints from the wallet
-    std::list<CHDMint> vDMintsRegenerated = ListHDMints();
+    std::list<CHDMint> vDMintsRegeneratedList = walletdb.ListHDMints();
+    vector<CHDMint> vDMintsRegenerated(vDMintsRegeneratedList.begin(), vDMintsRegeneratedList.end());
+
+    BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());
+
+    for(int i=0; i<vDMints.size();i++){
+        bool found = false;
+        for(int j=0; (j<vDMintsRegenerated.size())||!found;j++){
+            if(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount()){
+                BOOST_CHECK(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount());
+                BOOST_CHECK(vDMints[i].GetSeedId() == vDMintsRegenerated[j].GetSeedId());
+                BOOST_CHECK(vDMints[i].GetSerialHash() == vDMintsRegenerated[j].GetSerialHash());
+                BOOST_CHECK(vDMints[i].GetPubCoinHash() == vDMintsRegenerated[j].GetPubCoinHash());
+                found=true;
+            }
+        }
+        BOOST_CHECK_MESSAGE(found, "Same mint not regenerated.");
+    }
 
 }
 

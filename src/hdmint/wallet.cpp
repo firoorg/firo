@@ -17,7 +17,7 @@
 #include <boost/optional.hpp>
 #include "znode-sync.h"
 
-CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWalletFile)
+CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : tracker(strWalletFile)
 {
     this->strWalletFile = strWalletFile;
     CWalletDB walletdb(strWalletFile);
@@ -32,7 +32,7 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWall
     uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
     LogPrintf("hashSeedMaster: %d\n", hashSeedMaster.GetHex());
 
-    if (!SetupWallet(hashSeedMaster)) {
+    if (!SetupWallet(hashSeedMaster, resetCount)) {
         LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
         return;
     }

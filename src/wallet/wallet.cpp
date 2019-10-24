@@ -143,7 +143,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
 
     // Fail if not using HD wallet (no keypaths)
-    if (!hdChain.masterKeyID.IsNull())
+    if (hdChain.masterKeyID.IsNull())
         throw std::runtime_error(std::string(__func__) + ": Non-HD wallet detected");
 
     // use BIP44 keypath: m / purpose' / coin_type' / account' / change / address_index
