@@ -135,6 +135,56 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     return &(it->second);
 }
 
+CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
+    AssertLockHeld(cs_wallet); // mapKeyMetadata
+
+    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
+    , testNet = GetOptBoolArg("-testnet");
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+
+    // Fail if not using HD wallet (no keypaths)
+    if (!hdChain.masterKeyID.IsNull())
+        throw std::runtime_error(std::string(__func__) + ": Non-HD wallet detected");
+
+    // use BIP44 keypath: m / purpose' / coin_type' / account' / change / address_index
+    CKey key;                      //master key seed (256bit)
+    CExtKey masterKey;             //hd master key
+    CExtKey purposeKey;            //key at m/44'
+    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+    CExtKey accountKey;            //key at m/44'/<1/136>'/0'
+    CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
+    CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
+
+    // try to get the master key
+    if (!GetKey(hdChain.masterKeyID, key))
+        throw std::runtime_error(std::string(__func__) + ": Master key not found");
+
+    masterKey.SetMaster(key.begin(), key.size());
+
+    // derive m/44'
+    // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
+    masterKey.Derive(purposeKey, BIP44_INDEX | BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'
+    purposeKey.Derive(coinTypeKey, nIndex | BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'/0'
+    coinTypeKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'/0'/<c>
+    accountKey.Derive(externalChainChildKey, nChange);
+
+    // derive m/44'/136'/0'/<c>/<n>
+    externalChainChildKey.Derive(childKey, nChild);
+
+    CKey secret = childKey.key;
+
+    CPubKey pubkey = secret.GetPubKey();
+    assert(secret.VerifyPubKey(pubkey));
+
+    return pubkey;
+}
+
 CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     bool fCompressed = CanSupportFeature(

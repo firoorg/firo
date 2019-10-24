@@ -77,7 +77,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
         throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
 
     uint512 mintSeed;
-    if(!CreateMintSeed(mintSeed, nCount, seedId, false))
+    if(!CreateMintSeed(mintSeed, nCount, seedId))
         throw ZerocoinException("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
@@ -298,7 +298,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     if(!pwalletMain->IsLocked()){
         LogPrint("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
-        CreateMintSeed(mintSeed, mintCount, seedId, false);
+        CreateMintSeed(mintSeed, mintCount, seedId);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
         if(!SeedToMint(mintSeed, bnValue, coin))
             return false;
@@ -404,22 +404,26 @@ CKeyID CHDMintWallet::GetMintSeedID(int32_t nCount){
     return get<1>(mintPoolEntryPair.second);
 }
 
-bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId, bool checkIndex)
+bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId)
 {
     LOCK(pwalletMain->cs_wallet);
     CKey key;
-    // Ensures value of child index is valid for seed being generated
-    if(checkIndex){
-        if(n < pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX]){
-            // The only scenario where this can occur is if the counter in wallet did not correctly catch up with the chain during a resync.
-            return false;
-        }
-    }
 
-    // if passed seedId, we assume generation of seed has occured.
-    // Otherwise get new key to be used as seed
     if(seedId.IsNull()){
-        CPubKey pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
+        CPubKey pubKey;
+        int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX];
+        if(n==chainIndex){
+            // If chainIndex is the same as n (ie. we are generating next available key), generate a new key.
+            pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
+        }
+        else if(n<chainIndex){
+            // if it's less than the current chain index, we are regenerating the mintpool. get the key at n
+            pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, n);
+        }
+        else{
+            throw ZerocoinException("Unable to retrieve mint seed ID (internal index greater than HDChain index). \n"
+                                    "We recommend restarting with -zapwalletmints.");
+        }
         seedId = pubKey.GetID();
     }
 
@@ -480,7 +484,7 @@ void CHDMintWallet::UpdateCount()
 
 bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
-    CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry), false);
+    CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
 
     GroupElement commitmentValue;
     if(!SeedToMint(mintSeed, commitmentValue, coin)){

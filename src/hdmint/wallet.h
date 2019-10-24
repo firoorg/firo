@@ -54,7 +54,7 @@ public:
 
 private:
     CKeyID GetMintSeedID(int32_t nCount);
-    bool CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId, bool checkIndex=true);
+    bool CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H

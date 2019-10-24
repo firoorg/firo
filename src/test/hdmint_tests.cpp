@@ -64,8 +64,8 @@ BOOST_AUTO_TEST_CASE(deterministic)
     vector<pair<std::string, int>> denominationPairs;
 
     vector<CHDMint> vDMints;
-    vector<CHDMint> vDMintsRegenerated;
     vector<CHDMint> vDMintsBuilder;
+    vector<CHDMint> vDMintsRegenerated;
 
     int mempoolCount = 0;
 
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 HDMint wallet count test
 - test that if passed a used count, the wallet will generate the next available count.
 */
-BOOST_AUTO_TEST_CASE(wallet_count_tests)
+BOOST_AUTO_TEST_CASE(wallet_count)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
@@ -187,9 +187,7 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
         CAmount smallestDenom;
         DenominationToInteger(denominations.back(), smallestDenom);
 
-        if (nAmount % smallestDenom != 0) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
-        }
+        BOOST_CHECK_MESSAGE(nAmount % smallestDenom == 0, "Amount to mint is invalid.\n");
 
         std::vector<sigma::CoinDenomination> mints;
 
@@ -222,9 +220,7 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
     CAmount smallestDenom;
     DenominationToInteger(denominations.back(), smallestDenom);
 
-    if (nAmount % smallestDenom != 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
-    }
+    BOOST_CHECK_MESSAGE(nAmount % smallestDenom == 0, "Amount to mint is invalid.\n");
 
     std::vector<sigma::CoinDenomination> mints;
     BOOST_CHECK(CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) == nAmount);
@@ -241,6 +237,101 @@ BOOST_AUTO_TEST_CASE(wallet_count_tests)
 
     BOOST_CHECK(vDMints[0].GetCount() == TOTAL_MINTS);
     BOOST_CHECK(zwalletMain->GetCount() == (TOTAL_MINTS+1));
+
+}
+
+/*
+HDMint wallet blockchain restore test
+- Create and add mints to chain, save mints
+- Clear wallet count and HDMint db entries
+- SyncWithChain - Verify mints restored are the same
+*/
+BOOST_AUTO_TEST_CASE(blockchain_restore)
+{
+    vector<string> denominationsForTx;
+    vector<uint256> vtxid;
+    string thirdPartyAddress;
+    int previousHeight;
+    CBlock b;
+    CWalletTx wtx;
+
+    int mintCount = 0;
+
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
+
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+
+    pwalletMain->SetBroadcastTransactions(true);
+
+    vector<pair<std::string, int>> denominationPairs;
+
+    vector<CHDMint> vDMints;
+    vector<CHDMint> vDMintsBuilder;
+    vector<CHDMint> vDMintsRegenerated;
+
+    int mempoolCount = 0;
+
+    for(int i = 0; i < denominations.size() - 1; i++)
+    {
+        vDMintsBuilder.clear();
+        thirdPartyAddress = "";
+        denominationsForTx.clear();
+        denominationsForTx.push_back(denominations[i]);
+        denominationsForTx.push_back(denominations[i+1]);
+        printf("Testing denominations %s and %s\n",
+               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
+        string stringError;
+        //Make sure that transactions get to mempool
+        pwalletMain->SetBroadcastTransactions(true);
+        denominationPairs.clear();
+        //Verify Mint is successful
+        for(int i = 0; i < 2; ++i) {
+             std::pair<std::string, int> denominationPair(denominationsForTx[i], 1);
+             denominationPairs.push_back(denominationPair);
+             mintCount++;
+        }
+
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+            stringError, denominationPairs, vDMintsBuilder, SIGMA), stringError + " - Create Mint failed");
+
+        // Verify mint tx get added in the mempool
+        BOOST_CHECK_MESSAGE(mempool.size() == ++mempoolCount, "Mint tx was not added to mempool");
+
+        // Verify correct mint count
+        BOOST_CHECK(mintCount == zwalletMain->GetCount());
+
+        for(auto& mint : vDMintsBuilder){
+            vDMints.push_back(mint);
+        }
+    }
+
+    // We now have 10 mints, each stored in vDMints.
+    // reset the count
+    // Clear HDMints in db and sigma state (to allow regeneration of the same mints)
+    // erase mint pool/ serialHash->pubcoin pairs
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    zwalletMain->SetCount(0);
+    pwalletMain->ZapSigmaMints();
+
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
+    std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+    uint256 hashSerial;
+    uint256 hashPubcoin;
+    for (auto& mintPoolPair : listMintPool){
+        hashPubcoin = mintPoolPair.first;
+        zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, hashPubcoin, hashSerial);
+        walletdb.EraseMintPoolPair(hashPubcoin);
+        walletdb.ErasePubcoin(hashSerial);
+    }
+
+    // sync mints with chain (will regenerate mintpool + sync with chain)
+    zwalletMain->SyncWithChain();
+
+    // Pull mints from the wallet
+    std::list<CHDMint> vDMintsRegenerated = ListHDMints();
 
 }
 
