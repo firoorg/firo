@@ -3,7 +3,6 @@
 
 
 #include <QDialog>
-#include <QMutex>
 #include <QThread>
 
 namespace Ui {
@@ -12,13 +11,12 @@ namespace Ui {
 
 class NotifyMnemonic : public QDialog
 {
-
+    Q_OBJECT
 public:
     explicit NotifyMnemonic(QWidget *parent = 0);
     ~NotifyMnemonic();
 
     static void notify();
-
 private:
     Ui::NotifyMnemonic *ui;
 };

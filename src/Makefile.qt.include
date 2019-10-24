@@ -151,6 +151,7 @@ QT_MOC_CPP = \
   qt/moc_guiutil.cpp \
   qt/moc_intro.cpp \
   qt/moc_recover.cpp \
+  qt/moc_notifymnemonic.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_znodelist.cpp \

@@ -2,7 +2,6 @@
 #define ZCOIN_RECOVER_H
 
 #include <QDialog>
-#include <QMutex>
 #include <QThread>
 
 namespace Ui {

@@ -273,12 +273,7 @@ void BitcoinCore::initialize()
     {
         qDebug() << __func__ << ": Running AppInit2 in thread";
         int rv = AppInit2(threadGroup, scheduler);
-
         Q_EMIT initializeResult(rv);
-#ifdef ENABLE_WALLET
-        if(newWallet && pwalletMain)
-            NotifyMnemonic::notify();
-#endif
     } catch (const std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {
@@ -470,6 +465,9 @@ void BitcoinApplication::initializeResult(int retval)
 
             connect(walletModel, SIGNAL(coinsSent(CWallet*,SendCoinsRecipient,QByteArray)),
                              paymentServer, SLOT(fetchPaymentACK(CWallet*,const SendCoinsRecipient&,QByteArray)));
+
+        if(newWallet)
+            NotifyMnemonic::notify();
         }
 #endif
 

@@ -9,8 +9,6 @@
 #include "walletmodel.h"
 #endif
 
-#include <boost/filesystem.hpp>
-
 #include <QFileDialog>
 #include <QSettings>
 #include <QMessageBox>
@@ -29,11 +27,13 @@ NotifyMnemonic::~NotifyMnemonic()
 
 void NotifyMnemonic::notify()
 {
+#ifdef ENABLE_WALLET
     NotifyMnemonic notify;
+    notify.setWindowIcon(QIcon(":icons/zcoin"));
     SecureString mnemonic;
     SecureString passphrase;
     pwalletMain->GetHDChain().GetMnemonic(mnemonic, passphrase);
     notify.ui->mnemonic->setText(mnemonic.c_str());
-    if(notify.exec())
-        return;
+    notify.exec();
+#endif
 }
