@@ -644,10 +644,6 @@ AX_BOOST_PROGRAM_OPTIONS
 AX_BOOST_THREAD
 AX_BOOST_CHRONO
 
-if test x$enable_exodus != xno; then
-  AX_BOOST_REGEX
-fi
-
 if test x$use_reduce_exports = xyes; then
   AC_MSG_CHECKING([for working boost reduced exports])
   TEMP_CPPFLAGS="$CPPFLAGS"

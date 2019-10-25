@@ -15,7 +15,6 @@
 #include "../wallet/walletdb.h"
 
 #include <boost/optional.hpp>
-#include <boost/regex.hpp>
 
 #include <iterator>
 #include <stdexcept>
@@ -107,18 +106,11 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512& seed)
 
 namespace {
 
-std::uint32_t GetBIP44AddressIndex(std::string const &path)
+uint32_t GetBIP44AddressIndex(std::string const &path)
 {
-    static const boost::regex re(R"delim(^m/44'/\d+'/\d+'/\d+/(\d+)$)delim");
-
-    boost::smatch match;
-    if (!boost::regex_match(path, match, re)) {
+    uint32_t index;
+    if (sscanf(path.data(), "m/44'/%*u'/%*u'/%*u/%u", &index) != 1) {
         throw std::runtime_error("Fail to match BIP44 path");
-    }
-
-    auto index = std::stol(match.str(1));
-    if (index > std::numeric_limits<uint32_t>::max()) {
-        throw std::runtime_error("Address index is exceed limit");
     }
 
     return index;
