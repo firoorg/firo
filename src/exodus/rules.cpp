@@ -1,31 +1,25 @@
-/**
- * @file rules.cpp
- *
- * This file contains consensus rules and restrictions.
- */
+#include "rules.h"
 
-#include "exodus/rules.h"
+#include "activation.h"
+#include "consensushash.h"
+#include "log.h"
+#include "exodus.h"
+#include "notifications.h"
+#include "tx.h"
+#include "utilsbitcoin.h"
+#include "version.h"
 
-#include "exodus/activation.h"
-#include "exodus/consensushash.h"
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/notifications.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/version.h"
+#include "../chainparams.h"
+#include "../main.h"
+#include "../script/standard.h"
+#include "../uint256.h"
+#include "../ui_interface.h"
 
-#include "chainparams.h"
-#include "main.h"
-#include "script/standard.h"
-#include "uint256.h"
-#include "ui_interface.h"
-
-#include <openssl/sha.h>
-
-#include <stdint.h>
 #include <limits>
 #include <string>
 #include <vector>
+
+#include <inttypes.h>
 
 namespace exodus
 {
@@ -48,11 +42,13 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { EXODUS_TYPE_ACCEPT_OFFER_BTC,          MP_TX_PKT_V0,  false,   EXODUS_DEX_BLOCK      },
 
         { EXODUS_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
+        { EXODUS_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
         { EXODUS_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
         { EXODUS_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V1,  false,   EXODUS_SP_BLOCK       },
         { EXODUS_TYPE_CLOSE_CROWDSALE,           MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
 
         { EXODUS_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
+        { EXODUS_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
         { EXODUS_TYPE_GRANT_PROPERTY_TOKENS,     MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
         { EXODUS_TYPE_REVOKE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
         { EXODUS_TYPE_CHANGE_ISSUER_ADDRESS,     MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
@@ -72,6 +68,10 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { EXODUS_TYPE_SEND_ALL,                  MP_TX_PKT_V0,  false,   EXODUS_SEND_ALL_BLOCK },
 
         { EXODUS_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   EXODUS_BET_BLOCK      },
+
+        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
+        { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
+        { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);
@@ -95,16 +95,20 @@ std::vector<ConsensusCheckpoint> CConsensusParams::GetCheckpoints() const
 CMainConsensusParams::CMainConsensusParams()
 {
     GENESIS_BLOCK = 108888;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 2048;  // ~2 weeks
     MAX_ACTIVATION_BLOCKS = 12288; // ~12 weeks
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 4096; // ~4 weeks
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -116,6 +120,7 @@ CMainConsensusParams::CMainConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -123,6 +128,14 @@ CMainConsensusParams::CMainConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
+    // Sigma releated
+    SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 212000;
+    PROPERTY_CREATION_FEE = 10 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3");
 }
 
 /**
@@ -131,16 +144,20 @@ CMainConsensusParams::CMainConsensusParams()
 CTestNetConsensusParams::CTestNetConsensusParams()
 {
     GENESIS_BLOCK = 87000;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 0;
     MAX_ACTIVATION_BLOCKS = 999999;
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 0;
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -152,6 +169,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -159,6 +177,14 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
+    // sigma related
+    SIGMA_FEATURE_BLOCK = 100000;
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 100000;
+    PROPERTY_CREATION_FEE = 10 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 
 /**
@@ -167,16 +193,20 @@ CTestNetConsensusParams::CTestNetConsensusParams()
 CRegTestConsensusParams::CRegTestConsensusParams()
 {
     GENESIS_BLOCK = 101;
+
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 5;
     MAX_ACTIVATION_BLOCKS = 10;
+
     // Waiting period for enabling freezing
     EXODUS_FREEZE_WAIT_PERIOD = 10;
+
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
+
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
     EXODUS_SEND_BLOCK = 0;
@@ -188,6 +218,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
+
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
@@ -195,6 +226,14 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+
+    // sigma related
+    SIGMA_FEATURE_BLOCK = 500;
+
+    // Property creation fee
+    PROPERTY_CREATION_FEE_BLOCK = 500;
+    PROPERTY_CREATION_FEE = 10 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
 }
 
 //! Consensus parameters for mainnet
@@ -360,6 +399,9 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = activationBlock;
         break;
+        case FEATURE_SIGMA:
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = activationBlock;
+        break;
         default:
             supported = false;
         break;
@@ -431,6 +473,9 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = 999999;
         break;
+        case FEATURE_SIGMA:
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = 999999;
+        break;
         default:
             return false;
         break;
@@ -462,6 +507,7 @@ std::string GetFeatureName(uint16_t featureId)
         case FEATURE_FEES: return "Fee system (inc 0.05% fee from trades of non-Omni pairs)";
         case FEATURE_STOV1: return "Cross-property Send To Owners";
         case FEATURE_FREEZENOTICE: return "Activate the waiting period for enabling freezing";
+        case FEATURE_SIGMA: return "Activate Sigma transactions";
 
         default: return "Unknown feature";
     }
@@ -508,7 +554,10 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             break;
         case FEATURE_FREEZENOTICE:
             activationBlock = params.FREEZENOTICE_FEATURE_BLOCK;
-        break;
+            break;
+        case FEATURE_SIGMA:
+            activationBlock = params.SIGMA_FEATURE_BLOCK;
+            break;
         default:
             return false;
     }

@@ -1,22 +1,63 @@
-#ifndef EXODUS_TX_H
-#define EXODUS_TX_H
+#ifndef ZCOIN_EXODUS_TX_H
+#define ZCOIN_EXODUS_TX_H
 
 class CMPMetaDEx;
 class CMPOffer;
 class CTransaction;
 
-#include "exodus/exodus.h"
+#include "exodus.h"
+#include "packetencoder.h"
+#include "sp.h"
 
-#include "uint256.h"
-#include "utilstrencodings.h"
+#include <boost/optional.hpp>
 
-#include <stdint.h>
-#include <string.h>
+#include "../uint256.h"
+#include "../utilstrencodings.h"
 
-#include <string.h>
+#include <memory>
 #include <string>
+#include <vector>
+
+#include <inttypes.h>
 
 using exodus::strTransactionType;
+
+enum TransactionType {
+    EXODUS_TYPE_SIMPLE_SEND                 =  0,
+    EXODUS_TYPE_RESTRICTED_SEND             =  2,
+    EXODUS_TYPE_SEND_TO_OWNERS              =  3,
+    EXODUS_TYPE_SEND_ALL                    =  4,
+    EXODUS_TYPE_SAVINGS_MARK                = 10,
+    EXODUS_TYPE_SAVINGS_COMPROMISED         = 11,
+    EXODUS_TYPE_RATELIMITED_MARK            = 12,
+    EXODUS_TYPE_AUTOMATIC_DISPENSARY        = 15,
+    EXODUS_TYPE_TRADE_OFFER                 = 20,
+    EXODUS_TYPE_ACCEPT_OFFER_BTC            = 22,
+    EXODUS_TYPE_METADEX_TRADE               = 25,
+    EXODUS_TYPE_METADEX_CANCEL_PRICE        = 26,
+    EXODUS_TYPE_METADEX_CANCEL_PAIR         = 27,
+    EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM    = 28,
+    EXODUS_TYPE_NOTIFICATION                = 31,
+    EXODUS_TYPE_OFFER_ACCEPT_A_BET          = 40,
+    EXODUS_TYPE_CREATE_PROPERTY_FIXED       = 50,
+    EXODUS_TYPE_CREATE_PROPERTY_VARIABLE    = 51,
+    EXODUS_TYPE_PROMOTE_PROPERTY            = 52,
+    EXODUS_TYPE_CLOSE_CROWDSALE             = 53,
+    EXODUS_TYPE_CREATE_PROPERTY_MANUAL      = 54,
+    EXODUS_TYPE_GRANT_PROPERTY_TOKENS       = 55,
+    EXODUS_TYPE_REVOKE_PROPERTY_TOKENS      = 56,
+    EXODUS_TYPE_CHANGE_ISSUER_ADDRESS       = 70,
+    EXODUS_TYPE_ENABLE_FREEZING             = 71,
+    EXODUS_TYPE_DISABLE_FREEZING            = 72,
+    EXODUS_TYPE_FREEZE_PROPERTY_TOKENS      = 185,
+    EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS    = 186,
+    EXODUS_TYPE_SIMPLE_SPEND                = 1024,
+    EXODUS_TYPE_CREATE_DENOMINATION         = 1025,
+    EXODUS_TYPE_SIMPLE_MINT                 = 1026,
+    EXODUS_MESSAGE_TYPE_DEACTIVATION        = 65533,
+    EXODUS_MESSAGE_TYPE_ACTIVATION          = 65534,
+    EXODUS_MESSAGE_TYPE_ALERT               = 65535
+};
 
 /** The class is responsible for transaction interpreting/parsing.
  *
@@ -34,12 +75,11 @@ private:
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;
 
-    int pkt_size;
-    unsigned char pkt[1 + MAX_PACKETS * PACKET_SIZE];
-    int encodingClass;  // No Marker = 0, Class A = 1, Class B = 2, Class C = 3
+    boost::optional<exodus::PacketClass> packetClass;
 
     std::string sender;
     std::string receiver;
+    boost::optional<CAmount> referenceAmount;
 
     unsigned int type;
     unsigned short version; // = MP_TX_PKT_V0;
@@ -93,11 +133,19 @@ private:
     uint32_t activation_block;
     uint32_t min_client_version;
 
+    // Sigma
+    SigmaStatus sigmaStatus;
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    uint8_t denomination;
+    uint32_t group;
+    uint16_t groupSize;
+    std::unique_ptr<exodus::SigmaProof> spend;
+
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
 
     /** Checks whether a pointer to the payload is past it's last position. */
-    bool isOverrun(const char* p);
+    bool isOverrun(const unsigned char *p);
 
     /**
      * Payload parsing
@@ -123,6 +171,9 @@ private:
     bool interpret_DisableFreezing();
     bool interpret_FreezeTokens();
     bool interpret_UnfreezeTokens();
+    bool interpret_CreateDenomination();
+    bool interpret_SimpleMint();
+    bool interpret_SimpleSpend();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -150,6 +201,7 @@ private:
     int logicMath_DisableFreezing();
     int logicMath_FreezeTokens();
     int logicMath_UnfreezeTokens();
+    int logicMath_CreateDenomination();
     int logicMath_Activation();
     int logicMath_Deactivation();
     int logicMath_Alert();
@@ -178,15 +230,16 @@ public:
     };
 
     uint256 getHash() const { return txid; }
+    int getBlock() const { return block; }
+    const std::vector<unsigned char>& getRaw() const { return raw; }
     unsigned int getType() const { return type; }
     std::string getTypeString() const { return strTransactionType(getType()); }
     unsigned int getProperty() const { return property; }
     unsigned short getVersion() const { return version; }
     unsigned short getPropertyType() const { return prop_type; }
     uint64_t getFeePaid() const { return tx_fee_paid; }
-    std::string getSender() const { return sender; }
-    std::string getReceiver() const { return receiver; }
-    std::string getPayload() const { return HexStr(pkt, pkt + pkt_size); }
+    const std::string& getSender() const { return sender; }
+    const std::string& getReceiver() const { return receiver; }
     uint64_t getAmount() const { return nValue; }
     uint64_t getNewAmount() const { return nNewValue; }
     uint8_t getEcosystem() const { return ecosystem; }
@@ -200,16 +253,22 @@ public:
     uint8_t getEarlyBirdBonus() const { return early_bird; }
     uint8_t getIssuerBonus() const { return percentage; }
     bool isRpcOnly() const { return rpcOnly; }
-    int getEncodingClass() const { return encodingClass; }
+    const boost::optional<exodus::PacketClass>& getPacketClass() const { return packetClass; }
     uint16_t getAlertType() const { return alert_type; }
     uint32_t getAlertExpiry() const { return alert_expiry; }
     std::string getAlertMessage() const { return alert_text; }
-    int getPayloadSize() const { return pkt_size; }
     uint16_t getFeatureId() const { return feature_id; }
     uint32_t getActivationBlock() const { return activation_block; }
     uint32_t getMinClientVersion() const { return min_client_version; }
     unsigned int getIndexInBlock() const { return tx_idx; }
     uint32_t getDistributionProperty() const { return distribution_property; }
+
+    /** Sigma */
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
+    uint8_t getDenomination() const { return denomination; }
+    uint32_t getGroup() const { return group; }
+    uint16_t getGroupSize() const { return groupSize; }
+    const exodus::SigmaProof *getSpend() const { return spend.get(); }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
@@ -223,13 +282,13 @@ public:
         txid.SetNull();
         block = -1;
         blockTime = 0;
+        raw.clear();
         tx_idx = 0;
         tx_fee_paid = 0;
-        pkt_size = 0;
-        memset(&pkt, 0, sizeof(pkt));
-        encodingClass = 0;
+        packetClass = boost::none;
         sender.clear();
         receiver.clear();
+        referenceAmount = boost::none;
         type = 0;
         version = 0;
         nValue = 0;
@@ -261,6 +320,7 @@ public:
         activation_block = 0;
         min_client_version = 0;
         distribution_property = 0;
+        sigmaStatus = SigmaStatus::SoftDisabled;
     }
 
     /** Sets the given values. */
@@ -273,21 +333,18 @@ public:
     }
 
     /** Sets the given values. */
-    void Set(const std::string& s, const std::string& r, uint64_t n, const uint256& t,
-        int b, unsigned int idx, unsigned char *p, unsigned int size, int encodingClassIn, uint64_t txf)
-    {
-        sender = s;
-        receiver = r;
-        txid = t;
-        block = b;
-        tx_idx = idx;
-        pkt_size = size < sizeof (pkt) ? size : sizeof (pkt);
-        nValue = n;
-        nNewValue = n;
-        encodingClass = encodingClassIn;
-        tx_fee_paid = txf;
-        memcpy(&pkt, p, pkt_size);
-    }
+    void Set(
+        const std::string& s,
+        const std::string& r,
+        uint64_t n,
+        const uint256& t,
+        int b,
+        unsigned int idx,
+        unsigned char *p,
+        unsigned int size,
+        const boost::optional<exodus::PacketClass>& packetClass,
+        uint64_t txf,
+        const boost::optional<CAmount>& referenceAmount);
 
     /** Parses the packet or payload. */
     bool interpret_Transaction();
@@ -304,10 +361,15 @@ public:
         if (block != other.block) return block > other.block;
         return tx_idx > other.tx_idx;
     }
+
+private:
+    bool CheckPropertyCreationFee();
+
+private:
+    std::vector<unsigned char> raw;
 };
 
 /** Parses a transaction and populates the CMPTransaction object. */
 int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTransaction& mptx, unsigned int nTime=0);
 
-
-#endif // EXODUS_TX_H
+#endif // ZCOIN_EXODUS_TX_H

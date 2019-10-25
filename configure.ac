@@ -94,6 +94,11 @@ AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 # Enable wallet
 enable_wallet=yes
 
+AC_ARG_ENABLE([exodus],
+  [AS_HELP_STRING([--enable-exodus],[enable exodus (disabled by default)])],
+  [enable_exodus=$enableval],
+  [enable_exodus=no])
+
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
   [enable UPNP (default is yes if libminiupnpc is found)])],
@@ -142,12 +147,6 @@ AC_ARG_WITH([qrencode],
   [use_qr=$withval],
   [use_qr=auto])
 
-AC_ARG_ENABLE([hardening],
-  [AS_HELP_STRING([--disable-hardening],
-  [do not attempt to harden the resulting executables (default is to harden)])],
-  [use_hardening=$enableval],
-  [use_hardening=yes])
-
 AC_ARG_ENABLE([reduce-exports],
   [AS_HELP_STRING([--enable-reduce-exports],
   [attempt to reduce exported symbols in the resulting executables (default is no)])],
@@ -187,6 +186,18 @@ AC_ARG_ENABLE([debug],
                     [use debug compiler flags and macros (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+
+if test "x$enable_debug" = xyes; then
+	default_use_hardening=no
+else
+	default_use_hardening=yes
+fi
+
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--disable-hardening],
+  [do not attempt to harden the resulting executables (default is to harden)])],
+  [use_hardening=$enableval],
+  [use_hardening=$default_use_hardening])
 
 AC_ARG_ENABLE(seccomp,
     AS_HELP_STRING(--disable-seccomp, [do not attempt to use libseccomp]))
@@ -438,6 +449,8 @@ if test x$use_lcov = xyes; then
     AC_MSG_ERROR("lcov testing requested but comparison tool was not specified")
   fi
   LCOV="$LCOV --gcov-tool=$GCOV"
+  AX_CHECK_LINK_FLAG([[--coverage]], [LDFLAGS="$LDFLAGS --coverage"],
+    [AC_MSG_ERROR("lcov testing requested but --coverage linker flag does not work")])
   AX_CHECK_COMPILE_FLAG([--coverage],[CXXFLAGS="$CXXFLAGS --coverage"],
     [AC_MSG_ERROR("lcov testing requested but --coverage flag does not work")])
 fi
@@ -626,6 +639,9 @@ AX_BOOST_PROGRAM_OPTIONS
 AX_BOOST_THREAD
 AX_BOOST_CHRONO
 
+if test x$enable_exodus != xno; then
+  AX_BOOST_REGEX
+fi
 
 if test x$use_reduce_exports = xyes; then
   AC_MSG_CHECKING([for working boost reduced exports])
@@ -942,6 +958,15 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable exodus
+AC_MSG_CHECKING([if exodus should be enabled])
+if test x$enable_exodus != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE_UNQUOTED([ENABLE_EXODUS],[1],[Define if exodus should be compiled in])
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable upnp support
 AC_MSG_CHECKING([whether to build with support for UPnP])
 if test x$have_miniupnpc = xno; then
@@ -1037,6 +1062,7 @@ AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
+AM_CONDITIONAL([ENABLE_EXODUS],[test x$enable_exodus = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])

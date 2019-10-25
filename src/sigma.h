@@ -164,6 +164,8 @@ public:
     // Check if there is a conflicting tx in the blockchain or mempool
     bool CanAddSpendToMempool(const Scalar& coinSerial);
 
+    bool CanAddMintToMempool(const GroupElement& pubCoin);
+
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const Scalar &coinSerial, uint256 txHash);
@@ -172,11 +174,17 @@ public:
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash);
 
+    void AddMintsToMempool(const vector<GroupElement>& pubCoins);
+
+    void RemoveMintFromMempool(const GroupElement& pubCoin);
+
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const Scalar& coinSerial);
+
+
 
     static CSigmaState* GetState();
 
@@ -201,6 +209,8 @@ private:
 
     // serials of spends currently in the mempool mapped to tx hashes
     std::unordered_map<Scalar, uint256, CScalarHash> mempoolCoinSerials;
+
+    std::unordered_set<GroupElement> mempoolMints;
 
     std::atomic<bool> surgeCondition;
 

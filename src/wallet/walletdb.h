@@ -10,11 +10,12 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
-#include "hdmint/hdmint.h"
-#include "hdmint/mintpool.h"
 #include "wallet/db.h"
+#include "streams.h"
 #include "key.h"
 
+#include "../hdmint/hdmint.h"
+#include "../hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -72,7 +73,7 @@ public:
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
     static const int CURRENT_VERSION = VERSION_WITH_BIP44;
-    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
+    static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -87,6 +88,7 @@ public:
         READWRITE(masterKeyID);
         if(this->nVersion >= VERSION_WITH_BIP44){
             READWRITE(nExternalChainCounters);
+            nExternalChainCounters.resize(N_CHANGES);
         }
     }
 
@@ -283,6 +285,121 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+
+#ifdef ENABLE_EXODUS
+
+    template<class MintPool>
+    bool ReadExodusMintPool(MintPool &mintPool)
+    {
+        return Read(std::string("exodus_mint_pool"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteExodusMintPool(MintPool const &mintPool)
+    {
+        return Write(std::string("exodus_mint_pool"), mintPool, true);
+    }
+
+    bool HasExodusMintPool()
+    {
+        return Exists(std::string("exodus_mint_pool"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadExodusMintID(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_id"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteExodusMintID(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_id"), k), id);
+    }
+
+    template<class Key>
+    bool HasExodusMintID(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_id"), k));
+    }
+
+    template<class Key>
+    bool EraseExodusMintID(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_id"), k));
+    }
+
+    template<class K, class V>
+    bool ReadExodusMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_mint"), k), v);
+    }
+
+    template<class K>
+    bool HasExodusMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint"), k));
+    }
+
+    template<class K, class V>
+    bool WriteExodusMint(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("exodus_mint"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseExodusMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListExodusMints(InsertF insertF)
+    {
+        auto cursor = GetCursor();
+        if (!cursor) {
+            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+        }
+
+        unsigned int flags = DB_SET_RANGE;
+        while (true) {
+
+            // Read next record
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            if (flags == DB_SET_RANGE) {
+                ssKey << std::make_pair(string("exodus_mint"), K());
+            }
+
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+
+            flags = DB_NEXT;
+            if (ret == DB_NOTFOUND) {
+                break;
+            } else if (ret != 0) {
+                cursor->close();
+                throw runtime_error(std::string(__func__)+" : error scanning DB");
+            }
+
+            // Unserialize
+            std::string type;
+            ssKey >> type;
+            if (type != "exodus_mint") {
+                break;
+            }
+
+            K key;
+            ssKey >> key;
+
+            V value;
+            ssValue >> value;
+
+            insertF(key, value);
+        }
+
+        cursor->close();
+    }
+#endif
 
 private:
     CWalletDB(const CWalletDB&);

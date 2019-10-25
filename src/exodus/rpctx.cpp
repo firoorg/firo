@@ -1,34 +1,34 @@
-/**
- * @file rpctx.cpp
- *
- * This file contains RPC calls for creating and sending Exodus transactions.
- */
+#include "rpctx.h"
 
-#include "exodus/rpctx.h"
+#include "createpayload.h"
+#include "dex.h"
+#include "errors.h"
+#include "exodus.h"
+#include "pending.h"
+#include "rpcrequirements.h"
+#include "rpcvalues.h"
+#include "rules.h"
+#include "sp.h"
+#include "tx.h"
+#include "utilsbitcoin.h"
+#include "wallet.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/dex.h"
-#include "exodus/errors.h"
-#include "exodus/exodus.h"
-#include "exodus/pending.h"
-#include "exodus/rpcrequirements.h"
-#include "exodus/rpcvalues.h"
-#include "exodus/sp.h"
-#include "exodus/tx.h"
-
-#include "init.h"
-#include "main.h"
-#include "rpc/server.h"
-#include "sync.h"
-#ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
-#endif
+#include "../init.h"
+#include "../main.h"
+#include "../rpc/server.h"
+#include "../sync.h"
+#include "../wallet/wallet.h"
+#include "../wallet/walletexcept.h"
 
 #include <univalue.h>
 
-#include <stdint.h>
+#include <boost/function_output_iterator.hpp>
+#include <boost/optional.hpp>
+
 #include <stdexcept>
 #include <string>
+
+#include <inttypes.h>
 
 using std::runtime_error;
 using namespace exodus;
@@ -315,11 +315,11 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
         RequireSaneDExPaymentWindow(toAddress, propertyId);
     }
 
-#ifdef ENABLE_WALLET
+
     // use new 0.10 custom fee to set the accept minimum fee appropriately
     int64_t nMinimumAcceptFee = 0;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         const CMPOffer* sellOffer = DEx_getOffer(toAddress, propertyId);
         if (sellOffer == NULL) throw JSONRPCError(RPC_TYPE_ERROR, "Unable to load sell offer from the distributed exchange");
         nMinimumAcceptFee = sellOffer->getMinFee();
@@ -331,7 +331,6 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     CFeeRate payTxFeeOriginal = payTxFee;
     payTxFee = CFeeRate(nMinimumAcceptFee, 225); // TODO: refine!
     // fPayAtLeastCustomFee = true;
-#endif
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_DExAccept(propertyId, amount);
@@ -341,10 +340,8 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     std::string rawHex;
     int result = WalletTxBuilder(fromAddress, toAddress, "", 0, payload, txid, rawHex, autoCommit);
 
-#ifdef ENABLE_WALLET
     // set the custom fee back to original
     payTxFee = payTxFeeOriginal;
-#endif
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -433,9 +430,9 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
 
 UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 10)
+    if (fHelp || params.size() < 10 || params.size() > 11)
         throw runtime_error(
-            "exodus_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\"\n"
+            "exodus_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
 
             "\nCreate new tokens with fixed supply.\n"
 
@@ -450,6 +447,7 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
             "8. url                  (string, required) an URL for further information about the new tokens (can be \"\")\n"
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
             "10. amount              (string, required) the number of tokens to create\n"
+            "11. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -470,17 +468,46 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
     std::string url = ParseText(params[7]);
     std::string data = ParseText(params[8]);
     int64_t amount = ParseAmount(params[9], type);
+    boost::optional<SigmaStatus> sigma;
+
+    if (params.size() > 10) {
+        sigma = static_cast<SigmaStatus>(params[10].get_int());
+    }
 
     // perform checks
     RequirePropertyName(name);
 
+    if (sigma) {
+        RequireSigmaStatus(sigma.get());
+    }
+
     // create a payload for the transaction
-    std::vector<unsigned char> payload = CreatePayload_IssuanceFixed(ecosystem, type, previousId, category, subcategory, name, url, data, amount);
+    std::vector<unsigned char> payload = CreatePayload_IssuanceFixed(
+        ecosystem,
+        type,
+        previousId,
+        category,
+        subcategory,
+        name,
+        url,
+        data,
+        amount,
+        sigma
+    );
 
     // request the wallet build the transaction (and if needed commit it)
+    auto& consensus = ConsensusParams();
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    std::string receiver;
+    CAmount fee = 0;
+
+    if (IsRequireCreationFee(ecosystem)) {
+        receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
+        fee = consensus.PROPERTY_CREATION_FEE;
+    }
+
+    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -496,9 +523,9 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
 
 UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 9)
+    if (fHelp || params.size() < 9 || params.size() > 10)
         throw runtime_error(
-            "exodus_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\"\n"
+            "exodus_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
 
             "\nCreate new tokens with manageable supply.\n"
 
@@ -512,6 +539,7 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
             "7. name                 (string, required) the name of the new tokens to create\n"
             "8. url                  (string, required) an URL for further information about the new tokens (can be \"\")\n"
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
+            "10. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -531,17 +559,45 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
     std::string name = ParseText(params[6]);
     std::string url = ParseText(params[7]);
     std::string data = ParseText(params[8]);
+    boost::optional<SigmaStatus> sigma;
+
+    if (params.size() > 9) {
+        sigma = static_cast<SigmaStatus>(params[9].get_int());
+    }
 
     // perform checks
     RequirePropertyName(name);
 
+    if (sigma) {
+        RequireSigmaStatus(sigma.get());
+    }
+
     // create a payload for the transaction
-    std::vector<unsigned char> payload = CreatePayload_IssuanceManaged(ecosystem, type, previousId, category, subcategory, name, url, data);
+    std::vector<unsigned char> payload = CreatePayload_IssuanceManaged(
+        ecosystem,
+        type,
+        previousId,
+        category,
+        subcategory,
+        name,
+        url,
+        data,
+        sigma
+    );
 
     // request the wallet build the transaction (and if needed commit it)
+    auto& consensus = ConsensusParams();
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    std::string receiver;
+    CAmount fee = 0;
+
+    if (IsRequireCreationFee(ecosystem)) {
+        receiver = consensus.PROPERTY_CREATION_FEE_RECEIVER.ToString();
+        fee = consensus.PROPERTY_CREATION_FEE;
+    }
+
+    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -1438,10 +1494,280 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
     }
 }
 
+UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3) {
+        throw std::runtime_error(
+            "exodus_sendcreatedenomination \"fromaddress\" propertyid \"value\"\n"
+            "\nCreate a new denomination for the given property.\n"
+            "\nArguments:\n"
+            "1. fromaddress          (string, required) the address to send from\n"
+            "2. propertyid           (number, required) the property to create a new denomination\n"
+            "3. value                (string, required) the value of denomination to create\n"
+            "\nResult:\n"
+            "\"hash\"                  (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"100.0\"")
+            + HelpExampleRpc("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"100.0\"")
+        );
+    }
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(params[0]);
+    uint32_t propertyId = ParsePropertyId(params[1]);
+    int64_t value = ParseAmount(params[2], isPropertyDivisible(propertyId));
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireTokenIssuer(fromAddress, propertyId);
+    RequireSigma(propertyId);
+
+    {
+        LOCK(cs_main);
+
+        CMPSPInfo::Entry info;
+        assert(_my_sps->getSP(propertyId, info));
+
+        if (info.denominations.size() >= MAX_DENOMINATIONS) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "No more room for new denomination");
+        }
+
+        if (std::find(info.denominations.begin(), info.denominations.end(), value) != info.denominations.end()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination with value " + FormatMP(propertyId, value) + " already exists");
+        }
+    }
+
+    // create a payload for the transaction
+    std::vector<unsigned char> payload = CreatePayload_CreateDenomination(propertyId, value);
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            return txid.GetHex();
+        }
+    }
+}
+
+UniValue exodus_sendmint(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 4) {
+        throw std::runtime_error(
+            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
+            "\nCreate mints.\n"
+            "\nArguments:\n"
+            "1. fromaddress                  (string, required) the address to send from\n"
+            "2. propertyid                   (number, required) the property to create mints\n"
+            "3. denominations                (string, required) A json object with denomination and amount\n"
+            "    {\n"
+            "      denomination:amount       (number) The denomination id, the amount of mints\n"
+            "      ,...\n"
+            "    }\n"
+            "4. denomminconf                 (number, optional, default=6) Allow only denominations with at least this many confirmations\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\":1, \"1\":2}\"")
+            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
+        );
+    }
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(params[0]);
+    uint32_t propertyId = ParsePropertyId(params[1]);
+    UniValue denominations = params[2].get_obj();
+    int minConfirms = 6;
+    if (params.size() > 3) {
+        minConfirms = params[3].get_int();
+    }
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireSigma(propertyId);
+    auto keys = denominations.getKeys();
+
+    // collect all mints need to be created
+    std::vector<SigmaDenomination> denoms;
+    for (const auto& denom : keys) {
+        auto denomId = std::stoul(denom);
+        if (denomId > UINT8_MAX) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid denomination");
+        }
+
+        auto amount = denominations[denom].get_int();
+        if (amount < 0 || amount > UINT8_MAX) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid amount of mints");
+        }
+
+        denoms.insert(denoms.end(), static_cast<unsigned>(amount), static_cast<SigmaDenomination>(denomId));
+
+        int remainingConfirms;
+        try {
+            LOCK(cs_main);
+            remainingConfirms = _my_sps->getDenominationRemainingConfirmation(propertyId, denomId, minConfirms);
+        } catch (std::invalid_argument const &e) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+        }
+
+        if (remainingConfirms) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                "confirmations of the denomination is less than required");
+        }
+    }
+
+    int64_t amount;
+    try {
+        amount = SumDenominationsValue(propertyId, denoms.begin(), denoms.end());
+    } catch (std::invalid_argument const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    } catch (std::overflow_error const &e) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, e.what());
+    }
+
+    RequireBalance(fromAddress, propertyId, amount);
+
+    // Create mints.
+    std::vector<SigmaMintId> ids;
+    std::vector<std::pair<SigmaDenomination, SigmaPublicKey>> mints;
+    uint256 txid;
+    std::string rawHex;
+
+    ids.reserve(denoms.size());
+    mints.reserve(denoms.size());
+
+    try {
+        wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+            ids.push_back(m);
+            mints.push_back(std::make_pair(m.denomination, m.pubKey));
+        }));
+
+        // Create transaction.
+        auto payload = CreatePayload_SimpleMint(propertyId, mints);
+        auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+        if (result != 0) {
+            throw JSONRPCError(result, error_str(result));
+        }
+    } catch (...) {
+        for (auto& id : ids) {
+            wallet->DeleteUnconfirmedSigmaMint(id);
+        }
+        throw;
+    }
+
+    // Assign transaction ID.
+    for (auto& id : ids) {
+        wallet->SetSigmaMintCreatedTransaction(id, txid);
+    }
+
+    if (!autoCommit) {
+        return rawHex;
+    } else {
+        PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
+        return txid.GetHex();
+    }
+}
+
+UniValue exodus_sendspend(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 4) {
+        throw std::runtime_error(
+            "exodus_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
+            "\nCreate spend.\n"
+            "\nArguments:\n"
+            "1. toaddress                    (string, required) the address to spend to\n"
+            "2. propertyid                   (number, required) the property to spend\n"
+            "3. denomination                 (number, required) the id of the denomination need to spend\n"
+            "4. referenceamount              (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
+        );
+    }
+
+    // obtain parameters & info
+    auto toAddress = ParseAddress(params[0]);
+    auto propertyId = ParsePropertyId(params[1]);
+    auto denomination = ParseSigmaDenomination(params[2]);
+    auto referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireExistingDenomination(propertyId, denomination);
+    RequireSaneReferenceAmount(referenceAmount);
+
+    // create spend
+    SigmaMintId mint;
+    std::vector<unsigned char> payload;
+
+    try {
+        auto spend = wallet->CreateSigmaSpend(propertyId, denomination);
+        mint = spend.mint;
+
+        payload = CreatePayload_SimpleSpend(
+            mint.property,
+            mint.denomination,
+            spend.group,
+            spend.groupSize,
+            spend.proof
+        );
+    } catch (InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (WalletError &e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(
+        "",
+        toAddress,
+        "",
+        referenceAmount,
+        payload,
+        txid,
+        rawHex,
+        autoCommit,
+        InputMode::SIGMA
+    );
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        // mark the coin as used
+        wallet->SetSigmaMintUsedTransaction(mint, txid);
+
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            PendingAdd(
+                txid,
+                "Spend",
+                EXODUS_TYPE_SIMPLE_SPEND,
+                propertyId,
+                GetDenominationValue(mint.property, mint.denomination),
+                false
+            );
+            return txid.GetHex();
+        }
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
-#ifdef ENABLE_WALLET
     { "exodus (transaction creation)",  "exodus_sendrawtx",                 &exodus_sendrawtx,                  false },
     { "exodus (transaction creation)",  "exodus_send",                      &exodus_send,                       false },
     { "hidden",                         "exodus_senddexsell",               &exodus_senddexsell,                false },
@@ -1466,13 +1792,15 @@ static const CRPCCommand commands[] =
     { "hidden",                         "exodus_senddeactivation",          &exodus_senddeactivation,           true  },
     { "hidden",                         "exodus_sendactivation",            &exodus_sendactivation,             false },
     { "hidden",                         "exodus_sendalert",                 &exodus_sendalert,                  true  },
+    { "exodus (transaction creation)",  "exodus_sendcreatedenomination",    &exodus_sendcreatedenomination,     false },
+    { "exodus (transaction creation)",  "exodus_sendmint",                  &exodus_sendmint,                   false },
+    { "exodus (transaction creation)",  "exodus_sendspend",                 &exodus_sendspend,                  false },
 
     /* depreciated: */
     { "hidden",                         "sendrawtx_MP",                     &exodus_sendrawtx,                  false },
     { "hidden",                         "send_MP",                          &exodus_send,                       false },
     { "hidden",                         "sendtoowners_MP",                  &exodus_sendsto,                    false },
     { "hidden",                         "trade_MP",                         &trade_MP,                          false },
-#endif
 };
 
 void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC)

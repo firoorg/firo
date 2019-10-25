@@ -153,7 +153,7 @@ bool CHDMintWallet::LoadMintPoolFromDB()
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
 
     for (auto& mintPoolPair : listMintPool){
-        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n", 
+        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
             mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
         mintPool.Add(mintPoolPair);
     }
@@ -466,7 +466,7 @@ void CHDMintWallet::UpdateCountLocal()
 
 void CHDMintWallet::UpdateCountDB()
 {
-    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);	
+    LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteMintCount(nCountNextUse);
     GenerateMintPool();
@@ -512,6 +512,9 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
         UpdateCountLocal();
+
+        LogPrintf("GenerateMint: hashSeedMaster: %s seedId: %s nCount: %d\n",
+                  get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
 
         GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
 

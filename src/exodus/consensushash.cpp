@@ -153,7 +153,7 @@ uint256 GetConsensusHash()
     SHA256_CTX shaCtx;
     SHA256_Init(&shaCtx);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     if (exodus_debug_consensus_hash) PrintToLog("Beginning generation of current consensus hash...\n");
 
@@ -282,7 +282,7 @@ uint256 GetMetaDExHash(const uint32_t propertyId)
     SHA256_CTX shaCtx;
     SHA256_Init(&shaCtx);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     std::vector<std::pair<arith_uint256, std::string> > vecMetaDExTrades;
     for (md_PropertiesMap::const_iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
@@ -316,7 +316,7 @@ uint256 GetBalancesHash(const uint32_t hashPropertyId)
     SHA256_CTX shaCtx;
     SHA256_Init(&shaCtx);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     std::map<std::string, CMPTally> tallyMapSorted;
     for (std::unordered_map<string, CMPTally>::iterator uoit = mp_tally_map.begin(); uoit != mp_tally_map.end(); ++uoit) {

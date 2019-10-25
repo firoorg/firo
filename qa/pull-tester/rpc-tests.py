@@ -97,6 +97,12 @@ if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
         raise
 
 testScripts = [
+    'exodus_create_denomination.py',
+    'exodus_property_creation_fee.py',
+    'exodus_sendmint.py',
+    'exodus_sendspend.py',
+    'exodus_sigma_reindex.py',
+    'exodus_sigma_reorg.py',
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',

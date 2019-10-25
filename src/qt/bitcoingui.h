@@ -93,10 +93,12 @@ private:
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
+#ifdef ENABLE_EXODUS
     QAction *exoAssetsAction;
+    QAction *toolboxAction;
+#endif
     QAction *historyAction;
     QAction *quitAction;
-    QAction *toolboxAction;
     QAction *sendCoinsAction;
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
@@ -194,16 +196,18 @@ private Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+#ifdef ENABLE_EXODUS
     /** Switch to ExoAssets page */
     void gotoExoAssetsPage();
-    /** Switch to history (transactions) page */
-    void gotoHistoryPage();
-    /** Switch directly to Exodus history tab */
-    void gotoExodusHistoryTab();
-    /** Switch directly to Zcoin history tab */
-    void gotoBitcoinHistoryTab();
     /** Switch to utility page */
     void gotoToolboxPage();
+    /** Switch directly to Exodus history tab */
+    void gotoExodusHistoryTab();
+#endif
+    /** Switch to history (transactions) page */
+    void gotoHistoryPage();
+    /** Switch directly to Zcoin history tab */
+    void gotoBitcoinHistoryTab();
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */

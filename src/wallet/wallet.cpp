@@ -574,7 +574,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const {
             }
 
             return data.IsUsed;
-        } else if (script.IsSigmaMint()) {
+        } else if (zwalletMain && script.IsSigmaMint()) {
             auto pub = sigma::ParseSigmaMintScript(script);
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
             CMintMeta meta;
@@ -7117,7 +7117,7 @@ string CWallet::SpendMultipleSigma(
     BOOST_FOREACH(GroupElement zcSelectedValue, zcSelectedValues){
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, txidSpend);
-        CMintMeta metaCheck; 
+        CMintMeta metaCheck;
         zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
         if (!metaCheck.isUsed) {
             strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
@@ -7613,7 +7613,8 @@ set <set<CTxDestination>> CWallet::GetAddressGroupings() {
     {
         CWalletTx *pcoin = &walletEntry.second;
 
-        if (pcoin->vin.size() > 0) {
+        if (pcoin->vin.size() > 0 &&
+            !(pcoin->IsZerocoinSpend() || pcoin->IsSigmaSpend() || pcoin->IsZerocoinRemint())) { /* Spends have no standard input */
             bool any_mine = false;
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->vin)

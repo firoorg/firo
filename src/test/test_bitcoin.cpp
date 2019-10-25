@@ -4,6 +4,10 @@
 
 #define BOOST_TEST_MODULE Zcoin Test Suite
 
+#if defined(HAVE_CONFIG_H)
+#include "../config/bitcoin-config.h"
+#endif
+
 #include "test_bitcoin.h"
 
 #include "util.h"
@@ -28,6 +32,10 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 
+#ifdef ENABLE_EXODUS
+#include "../exodus/exodus.h"
+#endif
+
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
@@ -36,7 +44,6 @@
 
 extern bool fPrintToConsole;
 extern void noui_connect();
-extern int exodus_shutdown();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
@@ -113,16 +120,18 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 
 TestingSetup::~TestingSetup()
 {
-        UnregisterNodeSignals(GetNodeSignals());
-        exodus_shutdown();
-        threadGroup.interrupt_all();
-        threadGroup.join_all();
-        UnloadBlockIndex();
-        delete pwalletMain;
-        pwalletMain = NULL;
-        delete pcoinsTip;
-        delete pcoinsdbview;
-        delete pblocktree;
+    UnregisterNodeSignals(GetNodeSignals());
+#ifdef ENABLE_EXODUS
+    exodus_shutdown();
+#endif
+    threadGroup.interrupt_all();
+    threadGroup.join_all();
+    UnloadBlockIndex();
+    delete pwalletMain;
+    pwalletMain = NULL;
+    delete pcoinsTip;
+    delete pcoinsdbview;
+    delete pblocktree;
 	try {
 		boost::filesystem::remove_all(pathTemp);
 	}
@@ -135,11 +144,11 @@ TestingSetup::~TestingSetup()
 
 		}
 	}
-        bitdb.RemoveDb("wallet_test.dat");
-        bitdb.Reset();
+    bitdb.RemoveDb("wallet_test.dat");
+    bitdb.Reset();
 
-        InterruptAPI();
-        StopAPI();
+    InterruptAPI();
+    StopAPI();
 }
 
 TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)

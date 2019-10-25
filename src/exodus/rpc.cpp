@@ -4,56 +4,121 @@
  * This file contains RPC calls for data retrieval.
  */
 
-#include "exodus/rpc.h"
+#include "rpc.h"
 
-#include "exodus/activation.h"
-#include "exodus/consensushash.h"
-#include "exodus/convert.h"
-#include "exodus/dex.h"
-#include "exodus/errors.h"
-#include "exodus/fees.h"
-#include "exodus/fetchwallettx.h"
-#include "exodus/log.h"
-#include "exodus/mdex.h"
-#include "exodus/notifications.h"
-#include "exodus/exodus.h"
-#include "exodus/rpcrequirements.h"
-#include "exodus/rpctx.h"
-#include "exodus/rpctxobject.h"
-#include "exodus/rpcvalues.h"
-#include "exodus/rules.h"
-#include "exodus/sp.h"
-#include "exodus/sto.h"
-#include "exodus/tally.h"
-#include "exodus/tx.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/version.h"
-#include "exodus/wallettxs.h"
+#include "activation.h"
+#include "consensushash.h"
+#include "convert.h"
+#include "dex.h"
+#include "errors.h"
+#include "fees.h"
+#include "fetchwallettx.h"
+#include "log.h"
+#include "mdex.h"
+#include "notifications.h"
+#include "exodus.h"
+#include "rpcrequirements.h"
+#include "rpctx.h"
+#include "rpctxobject.h"
+#include "rpcvalues.h"
+#include "rules.h"
+#include "sp.h"
+#include "sto.h"
+#include "tally.h"
+#include "tx.h"
+#include "utilsbitcoin.h"
+#include "version.h"
+#include "wallettxs.h"
 
-#include "amount.h"
-#include "chainparams.h"
-#include "init.h"
-#include "main.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "rpc/server.h"
-#include "tinyformat.h"
-#include "txmempool.h"
-#include "uint256.h"
-#include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
+#include "wallet.h"
+#include "walletmodels.h"
+#endif
+
+#include "../amount.h"
+#include "../chainparams.h"
+#include "../init.h"
+#include "../main.h"
+#include "../primitives/block.h"
+#include "../primitives/transaction.h"
+#include "../rpc/server.h"
+#include "../tinyformat.h"
+#include "../txmempool.h"
+#include "../uint256.h"
+#include "../utilstrencodings.h"
+#ifdef ENABLE_WALLET
+#include "../wallet/wallet.h"
 #endif
 
 #include <univalue.h>
 
-#include <stdint.h>
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
+
+#include <inttypes.h>
 
 using std::runtime_error;
 using namespace exodus;
+
+namespace {
+
+#ifdef ENABLE_WALLET
+UniValue SigmaMintToJson(const SigmaMint& mint, bool verbose)
+{
+    // Load property info.
+    CMPSPInfo::Entry info;
+
+    {
+        LOCK(cs_main);
+
+        if (!_my_sps->getSP(mint.property, info)) {
+            throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
+        }
+    }
+
+    if (mint.denomination >= info.denominations.size()) {
+        throw std::invalid_argument("denomination " + std::to_string(mint.denomination) + " is not valid");
+    }
+
+    auto value = info.denominations[mint.denomination];
+
+    // Construct JSON.
+    UniValue json(UniValue::VOBJ);
+
+    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.property)));
+    json.push_back(Pair("denomination", mint.denomination));
+
+    if (info.isDivisible()) {
+        json.push_back(Pair("value", FormatDivisibleMP(value)));
+    } else {
+        json.push_back(Pair("value", FormatIndivisibleMP(value)));
+    }
+
+    if (verbose && mint.chainState.block >= 0) {
+        json.push_back(Pair("block", mint.chainState.block));
+        json.push_back(Pair("group", static_cast<uint64_t>(mint.chainState.group)));
+        json.push_back(Pair("index", mint.chainState.index));
+    }
+
+    return json;
+}
+
+template<class It>
+UniValue SigmaMintsToJson(It begin, It end, bool verbose = false)
+{
+    UniValue json(UniValue::VARR);
+
+    for (auto it = begin; it != end; it++) {
+        json.push_back(SigmaMintToJson(*it, verbose));
+    }
+
+    return json;
+}
+#endif
+
+}
 
 /**
  * Throws a JSONRPCError, depending on error code.
@@ -499,7 +564,7 @@ UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
     UniValue response(UniValue::VARR);
 
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         std::set<int> setSeedBlocks = p_txlistdb->GetSeedBlocks(startHeight, endHeight);
         for (std::set<int>::const_iterator it = setSeedBlocks.begin(); it != setSeedBlocks.end(); ++it) {
             response.push_back(*it);
@@ -550,9 +615,10 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
     int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
     if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_EXODUS_PROTOCOL);
 
+    auto& payload = mp_obj.getRaw();
     UniValue payloadObj(UniValue::VOBJ);
-    payloadObj.push_back(Pair("payload", mp_obj.getPayload()));
-    payloadObj.push_back(Pair("payloadsize", mp_obj.getPayloadSize()));
+    payloadObj.push_back(Pair("payload", HexStr(payload)));
+    payloadObj.push_back(Pair("payloadsize", int64_t(payload.size())));
     return payloadObj;
 }
 
@@ -572,7 +638,7 @@ UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_setautocommit", "false")
         );
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     autoCommit = params[0].get_bool();
     return autoCommit;
@@ -607,7 +673,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
     switch (extra) {
         case 0:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             int64_t total = 0;
             // display all balances
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
@@ -619,7 +685,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 1:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the whole CMPTxList (leveldb)
             p_txlistdb->printAll();
             p_txlistdb->printStats();
@@ -627,14 +693,14 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 2:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display smart properties
             _my_sps->printAll();
             break;
         }
         case 3:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             uint32_t id = 0;
             // for each address display all currencies it holds
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
@@ -650,7 +716,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 4:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
                 (it->second).print(it->first);
             }
@@ -658,19 +724,19 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 5:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             PrintToLog("isMPinBlockRange(%d,%d)=%s\n", extra2, extra3, isMPinBlockRange(extra2, extra3, false) ? "YES" : "NO");
             break;
         }
         case 6:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             MetaDEx_debug_print(true, true);
             break;
         }
         case 7:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the whole CMPTradeList (leveldb)
             t_tradelistdb->printAll();
             t_tradelistdb->printStats();
@@ -678,18 +744,10 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 8:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             // display the STO receive list
             s_stolistdb->printAll();
             s_stolistdb->printStats();
-            break;
-        }
-        case 9:
-        {
-            PrintToLog("Locking cs_tally for %d milliseconds..\n", extra2);
-            LOCK(cs_tally);
-            MilliSleep(extra2);
-            PrintToLog("Unlocking cs_tally now\n");
             break;
         }
         case 10:
@@ -712,7 +770,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
 #endif
         case 14:
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             p_feecache->printAll();
             p_feecache->printStats();
 
@@ -805,7 +863,7 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
     UniValue response(UniValue::VARR);
     bool isDivisible = isPropertyDivisible(propertyId); // we want to check this BEFORE the loop
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (std::unordered_map<std::string, CMPTally>::iterator it = mp_tally_map.begin(); it != mp_tally_map.end(); ++it) {
         uint32_t id = 0;
@@ -859,7 +917,7 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     CMPTally* addressTally = getTally(address);
 
@@ -903,8 +961,16 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
             "  \"issuer\" : \"address\",            (string) the Zcoin address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",         (string) the hex-encoded creation transaction hash\n"
             "  \"fixedissuance\" : true|false,    (boolean) whether the token supply is fixed\n"
-            "  \"managedissuance\" : true|false,    (boolean) whether the token supply is managed\n"
-            "  \"totaltokens\" : \"n.nnnnnnnn\"     (string) the total number of tokens in existence\n"
+            "  \"managedissuance\" : true|false,  (boolean) whether the token supply is managed\n"
+            "  \"totaltokens\" : \"n.nnnnnnnn\",    (string) the total number of tokens in existence\n"
+            "  \"sigmastatus\" : \"status\",        (string) the sigma status of the tokens\n"
+            "  \"denominations\": [               (array of JSON objects) a list of sigma denominations\n"
+            "    {\n"
+            "      \"id\" : n                     (number) the identifier of the denomination\n"
+            "      \"value\" : \"n.nnnnnnnn\"       (string) the value of the denomination\n"
+            "    },\n"
+            "    ...\n"
+            "  ]\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("exodus_getproperty", "3")
@@ -917,7 +983,7 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (!_my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -935,10 +1001,27 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     response.push_back(Pair("managedissuance", sp.manual));
     if (sp.manual) {
         int currentBlock = GetHeight();
-        LOCK(cs_tally);
+        LOCK(cs_main);
         response.push_back(Pair("freezingenabled", isFreezingEnabled(propertyId, currentBlock)));
     }
     response.push_back(Pair("totaltokens", strTotalTokens));
+
+    try {
+        response.push_back(Pair("sigmastatus", std::to_string(sp.sigmaStatus)));
+    } catch (const std::invalid_argument& e) {
+        // status is invalid
+        throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
+    }
+
+    UniValue denominations(UniValue::VARR);
+    for (size_t i = 0; i < sp.denominations.size(); i++) {
+        UniValue denomination(UniValue::VOBJ);
+        denomination.push_back(Pair("id", int64_t(i)));
+        denomination.push_back(Pair("value", FormatMP(propertyId, sp.denominations[i])));
+        denominations.push_back(denomination);
+    }
+
+    response.push_back(Pair("denominations", denominations));
 
     return response;
 }
@@ -969,7 +1052,7 @@ UniValue exodus_listproperties(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     uint32_t nextSPID = _my_sps->peekNextSPID(1);
     for (uint32_t propertyId = 1; propertyId < nextSPID; propertyId++) {
@@ -1049,7 +1132,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (!_my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -1070,7 +1153,7 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
     if (active) {
         bool crowdFound = false;
 
-        LOCK(cs_tally);
+        LOCK(cs_main);
 
         for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
             const CMPCrowd& crowd = it->second;
@@ -1170,7 +1253,7 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
 
     UniValue response(UniValue::VARR);
 
-    LOCK2(cs_main, cs_tally);
+    LOCK(cs_main);
 
     for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
         const CMPCrowd& crowd = it->second;
@@ -1249,7 +1332,7 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
 
     CMPSPInfo::Entry sp;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         if (false == _my_sps->getSP(propertyId, sp)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier does not exist");
         }
@@ -1342,7 +1425,7 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
 
     std::vector<CMPMetaDEx> vecMetaDexObjects;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         for (md_PropertiesMap::const_iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
             const md_PricesMap& prices = my_it->second;
             for (md_PricesMap::const_iterator it = prices.begin(); it != prices.end(); ++it) {
@@ -1425,7 +1508,7 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
     // Obtain a sorted vector of txids for the address trade history
     std::vector<uint256> vecTransactions;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         t_tradelistdb->getTradesForAddress(address, vecTransactions, propertyId);
     }
 
@@ -1487,7 +1570,7 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
 
     // request pair trade history from trade db
     UniValue response(UniValue::VARR);
-    LOCK(cs_tally);
+    LOCK(cs_main);
     t_tradelistdb->getTradesForPair(propertyIdSideA, propertyIdSideB, response, count);
     return response;
 }
@@ -1540,7 +1623,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
 
     int curBlock = GetHeight();
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (OfferMap::iterator it = my_offers.begin(); it != my_offers.end(); ++it) {
         const CMPOffer& selloffer = it->second;
@@ -1654,7 +1737,7 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
     // now we want to loop through each of the transactions in the block and run against CMPTxList::exists
     // those that return positive add to our response array
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     BOOST_FOREACH(const CTransaction&tx, block.vtx) {
         if (p_txlistdb->exists(tx.GetHash())) {
@@ -1786,6 +1869,111 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
     return response;
 }
 
+#ifdef ENABLE_WALLET
+UniValue exodus_listmints(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 3) {
+        throw std::runtime_error(
+            "exodus_listmints ( propertyid denomination verbose )\n"
+            "\nList all non-pending unused sigma mints in the wallet, optionally filtered by property and denomination.\n"
+            "\nArguments:\n"
+            "1. propertyid           (number, optional) show only mints that belonged to this property\n"
+            "2. denomination         (number, optional) show only mints with this denomination\n"
+            "3. verbose              (boolean, optional) show additional information (default: false)\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"denomination\" : n,      (number) denomination identifier of the mint\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "    \"block\" : n              (number) the block number that mint got mined (if verbose enabled)\n"
+            "    \"group\" : n              (number) group identifier that mint belonged to (if verbose enabled)\n"
+            "    \"index\" : n              (number) index of the mint in the group (if verbose enabled)\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_listmints", "")
+            + HelpExampleRpc("exodus_listmints", "")
+        );
+    }
+
+    // Get parameters.
+    boost::optional<PropertyId> property;
+    boost::optional<SigmaDenomination> denomination;
+    bool verbose = false;
+
+    if (params.size() > 0) {
+        property = ParsePropertyId(params[0]);
+        RequireExistingProperty(property.get());
+    }
+
+    if (params.size() > 1) {
+        denomination = ParseSigmaDenomination(params[1]);
+        RequireExistingDenomination(property.get(), denomination.get());
+    }
+
+    if (params.size() > 2) {
+        verbose = params[2].get_bool();
+    }
+
+    // Get mints that meet criteria.
+    std::vector<SigmaMint> mints;
+
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
+        }
+
+        if (property && m.second.property != property.get()) {
+            return;
+        }
+
+        if (denomination && m.second.denomination != denomination.get()) {
+            return;
+        }
+
+        mints.push_back(m.second);
+    }));
+
+    return SigmaMintsToJson(mints.begin(), mints.end(), verbose);
+}
+
+UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0) {
+        throw std::runtime_error(
+            "exodus_listpendingmints\n"
+            "\nList all pending sigma mints in the wallet.\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"denomination\" : n,      (number) denomination identifier of the mint\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_listpendingmints", "")
+            + HelpExampleRpc("exodus_listpendingmints", "")
+        );
+    }
+
+    std::vector<SigmaMint> mints;
+
+    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+        if (m.second.IsOnChain()) {
+            return;
+        }
+
+        mints.push_back(m.second);
+    }));
+
+    return SigmaMintsToJson(mints.begin(), mints.end());
+}
+#endif
+
 UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -1878,7 +2066,7 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
     int block = GetHeight();
     int64_t blockTime = GetLatestBlockTime();
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     int blockMPTransactions = p_txlistdb->getMPTransactionCountBlock(block);
     int totalMPTransactions = p_txlistdb->getMPTransactionCountTotal();
@@ -2241,6 +2429,8 @@ static const CRPCCommand commands[] =
     { "exodus (data retrieval)", "exodus_getbalanceshash",           &exodus_getbalanceshash,            false },
 #ifdef ENABLE_WALLET
     { "exodus (data retrieval)", "exodus_listtransactions",          &exodus_listtransactions,           false },
+    { "exodus (data retrieval)", "exodus_listmints",                 &exodus_listmints,                  false },
+    { "exodus (data retrieval)", "exodus_listpendingmints",          &exodus_listpendingmints,           false },
     { "exodus (data retrieval)", "exodus_getfeeshare",               &exodus_getfeeshare,                false },
     { "exodus (configuration)",  "exodus_setautocommit",             &exodus_setautocommit,              true  },
 #endif
