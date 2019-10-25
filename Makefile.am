@@ -144,11 +144,8 @@ appbundle: $(OSX_APP_BUILT)
 deploy: $(OSX_DMG)
 endif
 if TARGET_WINDOWS
-deploy:
-	deploy_strip
-	$(BITCOIN_WIN_INSTALLER)
-deploy_installer:
-	$(BITCOIN_WIN_INSTALLER)
+deploy: deploy_strip $(BITCOIN_WIN_INSTALLER)
+deploy_installer: $(BITCOIN_WIN_INSTALLER)
 endif
 
 $(BITCOIN_QT_BIN): FORCE
