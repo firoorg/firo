@@ -105,11 +105,8 @@ script: |
     ssh_options="-oStrictHostKeyChecking=no"
     file_path_tmp=${file_path}_2252c28b-cb8b-4a8b-9bfc-4a3bd47389f2
 
-    md5sum $file_path
-    ls -lah $file_path
     sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $file_path $cert_pc:/workdir
     sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "mv /workdir/$file_name /workdir/in"
-
     rm -f $file_path_tmp
     for delay in 1s 2s 2s 5s 10s 10s; do
         if sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $cert_pc:/workdir/out/${file_name}-signed $file_path_tmp; then
@@ -117,12 +114,8 @@ script: |
         fi
         sleep $delay
     done
-
     mv $file_path_tmp $file_path
-
     sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "rm /workdir/out/${file_name}-signed"
-    md5sum $file_path
-    ls -lah $file_path
   }
 
   # Faketime for depends so intermediate results are comparable
@@ -178,25 +171,15 @@ script: |
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
 
-    echo "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-    find . -name "*exe"
-    echo "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-
     make deploy_strip
 
-
-    echo "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
-    find . -name "*exe"
-    echo "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+    sign_file_remotely "./release/zcoin-cli.exe"
+    sign_file_remotely "./release/zcoin-qt.exe"
+    sign_file_remotely "./release/zcoind.exe"
 
     make deploy_installer
 
-    sign_file_remotely.sh "zcoin-0.13.8-win64-setup.exe"
-
-    echo "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
-    find . -name "*exe"
-    echo "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
-    
+    sign_file_remotely "zcoin-0.13.8-win64-setup.exe"
 
     make install DESTDIR=${INSTALLPATH}
     cp -f zcoin-*setup*.exe $OUTDIR/
@@ -207,6 +190,11 @@ script: |
     rm -rf ${DISTNAME}/lib/pkgconfig
     find ${DISTNAME}/bin -type f -executable -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
     find ${DISTNAME}/lib -type f -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
+
+    sign_file_remotely ${DISTNAME}/bin/zcoin-cli.exe
+    sign_file_remotely ${DISTNAME}/bin/zcoin-qt.exe
+    sign_file_remotely ${DISTNAME}/bin/zcoind.exe
+
     find ${DISTNAME} -not -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}.zip
     find ${DISTNAME} -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}-debug.zip
     cd ../../
