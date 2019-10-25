@@ -254,7 +254,7 @@ SigmaDatabase::SigmaDatabase(const boost::filesystem::path& path, bool wipe, uin
 {
     auto status = Open(path, wipe);
     if (!status.ok()) {
-        throw std::runtime_error("Failed to create " + path.native() + ": " + status.ToString());
+        throw std::runtime_error("Failed to create " + path.string() + ": " + status.ToString());
     }
 
     this->groupSize = InitGroupSize(groupSize);
