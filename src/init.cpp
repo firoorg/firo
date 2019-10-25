@@ -1623,7 +1623,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("Step 7: load block chain ************************************\n");
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
-    pzmqPublisherInterface->StartWorker();
+    if(fApi)
+        pzmqPublisherInterface->StartWorker();
 
     // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
     boost::filesystem::path blocksDir = GetDataDir() / "blocks";
