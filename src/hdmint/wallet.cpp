@@ -482,7 +482,7 @@ void CHDMintWallet::UpdateCount()
     UpdateCountDB();
 }
 
-bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
+bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
     CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
 

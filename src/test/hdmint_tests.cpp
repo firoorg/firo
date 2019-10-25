@@ -281,7 +281,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
                denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
-        pwalletMain->SetBroadcastTransactions(true);
         denominationPairs.clear();
         //Verify Mint is successful
         for(int i = 0; i < 2; ++i) {
