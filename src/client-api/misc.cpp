@@ -161,6 +161,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue znode(UniValue::VOBJ);
     znode.push_back(Pair("localCount", znodeConfig.getCount()));
     znode.push_back(Pair("totalCount", mnodeman.CountZnodes()));
+    znode.push_back(Pair("enabledCount", mnodeman.CountEnabled()));
     obj.push_back(Pair("Znode", znode));
 
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));

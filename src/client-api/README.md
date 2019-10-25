@@ -110,7 +110,8 @@ OPTIONAL: not a necessary parameter to pass.
         },
         Znode: {
             localCount: INT,
-            totalCount: INT
+            totalCount: INT,
+            enabledCount: INT
         }
     },
     meta:{
