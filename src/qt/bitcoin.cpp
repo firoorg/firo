@@ -615,6 +615,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 #ifdef ENABLE_WALLET
+    ///Determine if user wants to create new wallet or recover existing one
+    if(!Recover::askRecover(newWallet))
+        return EXIT_SUCCESS;
+
     // Parse URIs on command line -- this can affect Params()
     PaymentServer::ipcParseCommandLine(argc, argv);
 #endif
@@ -647,10 +651,6 @@ int main(int argc, char *argv[])
     // Start up the payment server early, too, so impatient users that click on
     // zcoin: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
-
-    /// 8 Determine if user wants to create new wallet or recover existing one
-    if(!Recover::askRecover(newWallet))
-        return EXIT_SUCCESS;
 #endif
     /// 9. Main GUI initialization
     // Install global event filter that makes sure that long tooltips can be word-wrapped

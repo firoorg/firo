@@ -24,6 +24,9 @@
      </property>
     </widget>
    </item>
+<item>
+ <widget class="QGroupBox" name="createorrecover">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QRadioButton" name="createNew">
      <property name="text">
@@ -38,6 +41,9 @@
      </property>
     </widget>
    </item>
+  </layout>
+ </widget>
+</item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="spacing">
@@ -63,8 +69,8 @@
       </spacer>
      </item>
      <item>
-     <widget class="QGroupBox" name="mnemonicBox">
-     <layout class="QVBoxLayout" name="horizontalLayout">
+     <widget class="QGroupBox" name="numberofwords">
+     <layout class="QHBoxLayout" name="horizontalLayout1">
      <item>
       <widget class="QRadioButton" name="use12">
        <property name="text">
@@ -79,14 +85,40 @@
        </property>
       </widget>
      </item>
-      <item>
-       <widget class="QLineEdit" name="mnemonicWords"/>
-      </item>
      </layout>
     </widget>
      </item>
     </layout>
    </item>
+ <item>
+ <widget class="QGroupBox" name="mnemonicBox">
+  <layout class="QHBoxLayout" name="horizontalLayout2">
+   <item>
+    <widget class="QLabel" name="textLabel2">
+     <property name="text">
+      <string>Input words here:</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+    <item>
+     <widget class="QLineEdit" name="mnemonicWords"/>
+    </item>
+  </layout>
+ </widget>
+ </item>
+    <item>
+     <widget class="QLabel" name="errorMessage">
+      <property name="text">
+       <string></string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
    <item>
     <spacer name="verticalSpacer">
      <property name="orientation">

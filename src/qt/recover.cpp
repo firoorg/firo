@@ -5,6 +5,9 @@
 
 #include "util.h"
 
+#include "../wallet/bip39.h"
+#include "support/allocators/secure.h"
+
 #include <boost/filesystem.hpp>
 
 #include <QFileDialog>
@@ -80,13 +83,49 @@ bool Recover::askRecover(bool& newWallet)
                 /* Cancel clicked */
                 return false;
             } else {
+                bool use12 = false;
+
+                if(recover.ui->use12->isChecked()) {
+                    use12 = true;
+                }
+
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
-                    if(recover.ui->use12->isChecked())
-                        SoftSetBoolArg("-use12", true);
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
+                    const char* str = mnemonic.c_str();
+                    bool space = true;
+                    int n = 0;
+
+                    while (*str != '\0')
+                    {
+                        if (std::isspace(*str))
+                        {
+                            space = true;
+                        }
+                        else if (space)
+                        {
+                            n++;
+                            space = false;
+                        }
+                        ++str;
+                    }
+
+                    if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
+                        recover.ui->errorMessage->setText("<font color='red'>Wrong number of words. Please try again.</font>");
+                        continue;
+                    }
+
+                    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
+                    if(!Mnemonic::mnemonic_check(secmnemonic)){
+                        recover.ui->errorMessage->setText("<font color='red'>Something went wrong. Please try again.</font>");
+                        continue;
+                    }
+
                     SoftSetArg("-mnemonic", mnemonic);
                 }
+
+                if(use12)
+                    SoftSetBoolArg("-use12", true);
                 break;
             }
         }
