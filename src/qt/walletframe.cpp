@@ -115,12 +115,14 @@ void WalletFrame::gotoOverviewPage()
         i.value()->gotoOverviewPage();
 }
 
+#ifdef ENABLE_EXODUS
 void WalletFrame::gotoExoAssetsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoExoAssetsPage();
 }
+#endif
 
 void WalletFrame::gotoHistoryPage()
 {
@@ -129,12 +131,14 @@ void WalletFrame::gotoHistoryPage()
         i.value()->gotoHistoryPage();
 }
 
+#ifdef ENABLE_EXODUS
 void WalletFrame::gotoExodusHistoryTab()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoExodusHistoryTab();
 }
+#endif
 
 void WalletFrame::gotoBitcoinHistoryTab()
 {
@@ -143,12 +147,14 @@ void WalletFrame::gotoBitcoinHistoryTab()
         i.value()->gotoBitcoinHistoryTab();
 }
 
+#ifdef ENABLE_EXODUS
 void WalletFrame::gotoToolboxPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoToolboxPage();
 }
+#endif
 
 void WalletFrame::gotoZnodePage()
 {

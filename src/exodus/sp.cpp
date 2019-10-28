@@ -1,27 +1,27 @@
-// Smart Properties & Crowd Sales
+#include "sp.h"
 
-#include "exodus/sp.h"
+#include "log.h"
+#include "exodus.h"
+#include "packetencoder.h"
+#include "uint256_extensions.h"
+#include "utilsbitcoin.h"
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/uint256_extensions.h"
-
-#include "arith_uint256.h"
-#include "base58.h"
-#include "clientversion.h"
-#include "validation.h"
-#include "serialize.h"
-#include "streams.h"
-#include "tinyformat.h"
-#include "uint256.h"
-#include "utiltime.h"
+#include "../arith_uint256.h"
+#include "../base58.h"
+#include "../clientversion.h"
+#include "../validation.h"
+#include "../serialize.h"
+#include "../streams.h"
+#include "../tinyformat.h"
+#include "../uint256.h"
+#include "../utiltime.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "leveldb/db.h"
-#include "leveldb/write_batch.h"
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 
 #include <stdint.h>
 
@@ -36,7 +36,7 @@ CMPSPInfo::Entry::Entry()
   : prop_type(0), prev_prop_id(0), num_tokens(0), property_desired(0),
     deadline(0), early_bird(0), percentage(0),
     close_early(false), max_tokens(false), missedTokens(0), timeclosed(0),
-    fixed(false), manual(false) {}
+    fixed(false), manual(false), sigmaStatus(SigmaStatus::SoftDisabled) {}
 
 bool CMPSPInfo::Entry::isDivisible() const
 {
@@ -66,7 +66,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     PrintToLog("Loading smart property database: %s\n", status.ToString());
 
     // special cases for constant SPs EXODUS and TEXODUS
-    implied_exodus.issuer = ExodusAddress().ToString();
+    implied_exodus.issuer = GetSystemAddress().ToString();
     implied_exodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
     implied_exodus.num_tokens = 700000;
     implied_exodus.category = "N/A";
@@ -74,7 +74,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_exodus.name = "Exodus";
     implied_exodus.url = "https://www.zcoin.io";
     implied_exodus.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
-    implied_texodus.issuer = ExodusAddress().ToString();
+    implied_texodus.issuer = GetSystemAddress().ToString();
     implied_texodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
     implied_texodus.num_tokens = 700000;
     implied_texodus.category = "N/A";
@@ -434,6 +434,65 @@ bool CMPSPInfo::getWatermark(uint256& watermark) const
     return true;
 }
 
+bool CMPSPInfo::getPrevVersion(uint32_t propertyId, Entry &info) const
+{
+    CDataStream prevKeyData(SER_DISK, CLIENT_VERSION);
+    prevKeyData << 'b';
+    prevKeyData << info.update_block;
+    prevKeyData << propertyId;
+    leveldb::Slice prevKey(&prevKeyData[0], prevKeyData.size());
+
+    std::string prevValueData;
+    auto status = pdb->Get(readoptions, prevKey, &prevValueData);
+    if (!status.ok()) {
+        if (status.IsNotFound()) {
+            return false;
+        }
+        LogPrintf("%s() : fail to get previous version of property %d\n", __func__, propertyId);
+        throw std::runtime_error("fail to get previous version of sp");
+    }
+
+    CDataStream prevValue(
+        prevValueData.data(),
+        prevValueData.data() + prevValueData.size(),
+        SER_DISK, CLIENT_VERSION
+    );
+    prevValue >> info;
+
+    return true;
+}
+
+int CMPSPInfo::getDenominationRemainingConfirmation(
+    uint32_t propertyId, uint8_t denomination, int target)
+{
+    LOCK(cs_main);
+    Entry info;
+    if (!getSP(propertyId, info)) {
+        throw std::invalid_argument("property notfound");
+    }
+
+    // no denomination in lastest version then imply it's unconfirmed.
+    if (denomination >= info.denominations.size()) {
+        return target;
+    }
+
+    int targetBlock =
+        std::max(chainActive.Height() - target + 1, 0);
+    CBlockIndex *lastBlockHasDenomination = nullptr;
+
+    while (
+        denomination < info.denominations.size() &&
+        (lastBlockHasDenomination =
+            GetBlockIndex(info.update_block))->nHeight > targetBlock) {
+        if (!getPrevVersion(propertyId, info)) {
+            break;
+        }
+    }
+
+    return lastBlockHasDenomination->nHeight <= targetBlock ? 0 :
+        lastBlockHasDenomination->nHeight - targetBlock;
+}
+
 void CMPSPInfo::printAll() const
 {
     // print off the hard coded MSC and TMSC entries
@@ -576,6 +635,73 @@ bool exodus::IsPropertyIdValid(uint32_t propertyId)
     }
 
     return false;
+}
+
+bool exodus::IsSigmaStatusValid(SigmaStatus status)
+{
+    return status == SigmaStatus::SoftDisabled ||
+           status == SigmaStatus::SoftEnabled ||
+           status == SigmaStatus::HardDisabled ||
+           status == SigmaStatus::HardEnabled;
+}
+
+bool exodus::IsSigmaEnabled(PropertyId property)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return IsEnabledFlag(info.sigmaStatus);
+}
+
+bool exodus::IsDenominationValid(PropertyId property, SigmaDenomination denomination)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return denomination < info.denominations.size();
+}
+
+int64_t exodus::GetDenominationValue(PropertyId property, SigmaDenomination denomination)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    if (denomination >= info.denominations.size()) {
+        throw std::invalid_argument("denomination identifier is not valid");
+    }
+
+    return info.denominations[denomination];
+}
+
+std::string std::to_string(SigmaStatus status)
+{
+    switch (status) {
+    case SigmaStatus::SoftDisabled:
+        return "SoftDisabled";
+    case SigmaStatus::SoftEnabled:
+        return "SoftEnabled";
+    case SigmaStatus::HardDisabled:
+        return "HardDisabled";
+    case SigmaStatus::HardEnabled:
+        return "HardEnabled";
+    default:
+        throw std::invalid_argument("sigma status is invalid");
+    }
 }
 
 bool exodus::isPropertyDivisible(uint32_t propertyId)

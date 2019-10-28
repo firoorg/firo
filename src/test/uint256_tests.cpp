@@ -266,4 +266,16 @@ BOOST_AUTO_TEST_CASE( conversion )
     BOOST_CHECK(R2L.GetHex() == UintToArith256(R2L).GetHex());
 }
 
+BOOST_AUTO_TEST_CASE( hash )
+{
+    std::hash<uint256> h;
+    size_t r;
+
+    r = h(R1L);
+
+    BOOST_CHECK_NE(r, 0);
+    BOOST_CHECK_EQUAL(r, std::hash<uint256>()(R1L));
+    BOOST_CHECK_NE(r, std::hash<uint256>()(R2L));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

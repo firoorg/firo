@@ -20,6 +20,7 @@
 #ifdef ENABLE_WALLET
 #include "script/ismine.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 #endif
 
 #include <stdint.h>
@@ -150,8 +151,8 @@ int IsMyAddress(const std::string& address)
 {
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
-        // TODO: resolve deadlock caused cs_tally, cs_wallet
-        // LOCK(pwalletMain->cs_wallet);
+        LOCK(pwalletMain->cs_wallet);
+
         CBitcoinAddress parsedAddress(address);
         isminetype isMine = IsMine(*pwalletMain, parsedAddress.Get());
 
@@ -203,7 +204,7 @@ static int64_t GetEconomicThreshold(const CTxOut& txOut)
 /**
  * Selects spendable outputs to create a transaction.
  */
-int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, int64_t additional)
+int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, int64_t additional, InputMode inputMode)
 {
     // total output funds collected
     int64_t nTotal = 0;
@@ -222,55 +223,78 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
     int nHeight = GetHeight();
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    // iterate over the wallet
-    for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it) {
-        const uint256& txid = it->first;
-        const CWalletTx& wtx = it->second;
+    switch (inputMode) {
+    case InputMode::NORMAL:
+        // iterate over the wallet
+        for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it) {
+            const uint256& txid = it->first;
+            const CWalletTx& wtx = it->second;
 
-        if (!wtx.IsTrusted()) {
-            continue;
-        }
-        if (!wtx.GetAvailableCredit()) {
-            continue;
-        }
-
-        for (unsigned int n = 0; n < wtx.tx->vout.size(); n++) {
-            const CTxOut& txOut = wtx.tx->vout[n];
-
-            CTxDestination dest;
-            if (!CheckInput(txOut, nHeight, dest)) {
+            if (!wtx.IsTrusted()) {
                 continue;
             }
-            if (!IsMine(*pwalletMain, dest)) {
+            if (!wtx.GetAvailableCredit()) {
                 continue;
             }
-            if (pwalletMain->IsSpent(txid, n)) {
-                continue;
-            }
-            if (txOut.nValue < GetEconomicThreshold(txOut)) {
+
+            for (unsigned int n = 0; n < wtx.tx->vout.size(); n++) {
+                const CTxOut& txOut = wtx.tx->vout[n];
+
+                CTxDestination dest;
+                if (!CheckInput(txOut, nHeight, dest)) {
+                    continue;
+                }
+
+                if (!IsMine(*pwalletMain, dest)) {
+                    continue;
+                }
+
+                if (pwalletMain->IsSpent(txid, n)) {
+                    continue;
+                }
+                if (txOut.nValue < GetEconomicThreshold(txOut)) {
+                    if (exodus_debug_tokens)
+                        PrintToLog("%s: output value below economic threshold: %s:%d, value: %d\n",
+                                __func__, txid.GetHex(), n, txOut.nValue);
+                    continue;
+                }
+
+                std::string sAddress = CBitcoinAddress(dest).ToString();
                 if (exodus_debug_tokens)
-                    PrintToLog("%s: output value below economic threshold: %s:%d, value: %d\n",
-                            __func__, txid.GetHex(), n, txOut.nValue);
-                continue;
+                    PrintToLog("%s: sender: %s, outpoint: %s:%d, value: %d\n", __func__, sAddress, txid.GetHex(), n, txOut.nValue);
+
+                // only use funds from the sender's address
+                if (fromAddress == sAddress) {
+                    COutPoint outpoint(txid, n);
+                    coinControl.Select(outpoint);
+
+                    nTotal += txOut.nValue;
+
+                    if (nMax <= nTotal) break;
+                }
             }
 
-            std::string sAddress = CBitcoinAddress(dest).ToString();
-            if (exodus_debug_tokens)
-                PrintToLog("%s: sender: %s, outpoint: %s:%d, value: %d\n", __func__, sAddress, txid.GetHex(), n, txOut.nValue);
-
-            // only use funds from the sender's address
-            if (fromAddress == sAddress) {
-                COutPoint outpoint(txid, n);
-                coinControl.Select(outpoint);
-
-                nTotal += txOut.nValue;
-
-                if (nMax <= nTotal) break;
+            if (nMax <= nTotal) break;
+        }
+        break;
+    case InputMode::SIGMA:
+        std::vector<CSigmaEntry> coinsToSpend;
+        std::vector<sigma::CoinDenomination> remints;
+        try {
+            pwalletMain->GetCoinsToSpend(nMax, coinsToSpend, remints);
+        } catch (std::exception const &err) {
+            LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
+            return nTotal;
+        }
+        for (auto const &mint : coinsToSpend) {
+            COutPoint coin;
+            if (sigma::GetOutPoint(coin, mint.value)) {
+                nTotal += mint.get_denomination_value();
+                coinControl.Select(coin);
             }
         }
-
-        if (nMax <= nTotal) break;
-    }
+        break;
+    };
 #endif
 
     return nTotal;

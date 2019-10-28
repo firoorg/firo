@@ -7,6 +7,7 @@
 #include "base58.h"
 #include "chainparams.h"
 #include "httpserver.h"
+#include "mbstring.h"
 #include "rpc/protocol.h"
 #include "rpc/server.h"
 #include "random.h"
@@ -17,8 +18,6 @@
 #include "crypto/hmac_sha256.h"
 #include <stdio.h>
 #include "utilstrencodings.h"
-
-#include "exodus/mbstring.h" // SanitizeInvalidUTF8
 
 #include <boost/algorithm/string.hpp> // boost::trim
 #include <boost/foreach.hpp> //BOOST_FOREACH
@@ -91,7 +90,7 @@ static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const Uni
 //This function checks username and password against -rpcauth
 //entries from config file.
 static bool multiUserAuthorized(std::string strUserPass)
-{    
+{
     if (strUserPass.find(":") == std::string::npos) {
         return false;
     }
@@ -200,7 +199,7 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
             // Send reply
             strReply = JSONRPCReply(result, NullUniValue, jreq.id);
             if (fSanitizeResponse) {
-                strReply = exodus::SanitizeInvalidUTF8(strReply);
+                strReply = SanitizeInvalidUTF8(strReply);
             }
 
         // array of requests

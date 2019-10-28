@@ -132,7 +132,7 @@ void MetaDExDialog::setWalletModel(WalletModel *model)
 void MetaDExDialog::PopulateAddresses()
 {
     { // restrict scope of lock to address updates only (don't hold for balance update too)
-        LOCK(cs_tally);
+        LOCK(cs_main);
 
         uint32_t propertyId = GetPropForSale();
         QString currentSetAddress = ui->comboAddress->currentText();
@@ -341,7 +341,7 @@ void MetaDExDialog::UpdateOffers()
 {
     ui->sellList->setRowCount(0);
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     // Obtain divisibility outside the loop to avoid repeatedly loading properties
     bool divisSale = isPropertyDivisible(GetPropForSale());
@@ -437,7 +437,7 @@ void MetaDExDialog::ShowDetails()
 void MetaDExDialog::ShowHistory()
 {
     UniValue history(UniValue::VARR);
-    LOCK(cs_tally);
+    LOCK(cs_main);
     t_tradelistdb->getTradesForPair(GetPropForSale(), GetPropDesired(), history, 50);
     std::string strHistory = history.write(true);
 
@@ -559,6 +559,3 @@ void MetaDExDialog::sendTrade()
         }
     }
 }
-
-
-

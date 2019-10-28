@@ -12,28 +12,22 @@
 
 #include "platformstyle.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/errors.h"
-#include "exodus/exodus.h"
-#include "exodus/parse_string.h"
-#include "exodus/pending.h"
-#include "exodus/sp.h"
-#include "exodus/tally.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/wallettxs.h"
+#include "../exodus/createpayload.h"
+#include "../exodus/errors.h"
+#include "../exodus/parse_string.h"
+#include "../exodus/pending.h"
+#include "../exodus/sp.h"
+#include "../exodus/tally.h"
+#include "../exodus/tx.h"
+#include "../exodus/utilsbitcoin.h"
+#include "../exodus/wallettxs.h"
 
-#include "amount.h"
-#include "base58.h"
-#include "validation.h"
-#include "sync.h"
-#include "uint256.h"
-#include "wallet/wallet.h"
-
-#include <stdint.h>
-#include <map>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "../amount.h"
+#include "../base58.h"
+#include "../validation.h"
+#include "../sync.h"
+#include "../uint256.h"
+#include "../wallet/wallet.h"
 
 #include <QDateTime>
 #include <QDialog>
@@ -41,6 +35,13 @@
 #include <QMessageBox>
 #include <QString>
 #include <QWidget>
+
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <inttypes.h>
 
 using std::ostringstream;
 using std::string;
@@ -106,7 +107,7 @@ void SendMPDialog::setWalletModel(WalletModel *model)
 
 void SendMPDialog::updatePropSelector()
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     uint32_t nextPropIdMainEco = GetNextPropertyId(true);  // these allow us to end the for loop at the highest existing
     uint32_t nextPropIdTestEco = GetNextPropertyId(false); // property ID rather than a fixed value like 100000 (optimization)
@@ -185,7 +186,7 @@ void SendMPDialog::updateProperty()
     // populate from address selector
     QString spId = ui->propertyComboBox->itemData(ui->propertyComboBox->currentIndex()).toString();
     uint32_t propertyId = spId.toUInt();
-    LOCK(cs_tally);
+    LOCK(cs_main);
     for (std::unordered_map<string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
         string address = (my_it->first).c_str();
         uint32_t id = 0;

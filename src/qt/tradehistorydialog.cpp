@@ -259,7 +259,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
 
     // ### START PENDING TRANSACTIONS PROCESSING ###
     {
-        LOCK(cs_pending);
+        LOCK(cs_main);
 
         for (PendingMap::iterator it = my_pending.begin(); it != my_pending.end(); ++it) {
             uint256 txid = it->first;
@@ -309,7 +309,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
         // use levelDB to perform a fast check on whether it's a Zcoin or Exodus tx and whether it's a trade
         std::string tempStrValue;
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             if (!p_txlistdb->getTX(hash, tempStrValue)) continue;
         }
         std::vector<std::string> vstr;
@@ -375,7 +375,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
             divisibleDesired = isPropertyDivisible(propertyIdDesired);
             amountDesired = temp_metadexoffer.getAmountDesired();
             {
-                LOCK(cs_tally);
+                LOCK(cs_main);
                 t_tradelistdb->getMatchingTrades(hash, propertyIdForSale, tradeArray, totalSold, totalReceived);
                 orderOpen = MetaDEx_isOpen(hash, propertyIdForSale);
             }
@@ -461,7 +461,7 @@ void TradeHistoryDialog::UpdateData()
         int64_t totalSold = 0;
         bool orderOpen = false;
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             t_tradelistdb->getMatchingTrades(txid, propertyIdForSale, tradeArray, totalSold, totalReceived);
             orderOpen = MetaDEx_isOpen(txid, propertyIdForSale);
         }

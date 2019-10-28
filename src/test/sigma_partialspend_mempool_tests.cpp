@@ -110,7 +110,8 @@ BOOST_AUTO_TEST_CASE(partialspend)
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
-        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
+        bool fChangeAddedToFee;
+        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges, fChangeAddedToFee);
 
         // Create partial spend transaction
         CWalletTx tx;
@@ -321,7 +322,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
     std::vector<CHDMint> changes;
-    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
+    bool fChangeAddedToFee;
+    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee);
 
     // Expect 2 spends
     BOOST_CHECK_EQUAL(tx.tx->vin.size(), 2);
@@ -345,6 +347,42 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool accept invalid transaction");
 
     sigmaState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(double_mint_into_mempool) {
+        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+        string denomination;
+        std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
+        const auto& sigmaParams = sigma::Params::get_default();
+        // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+        CreateAndProcessEmptyBlocks(201, scriptPubKey);
+        // foreach denom from denominations
+        for(auto denomination : denominations)
+        {
+            printf("Testing denomination %s\n", denomination.c_str());
+            // Make sure that transactions get to mempool
+            pwalletMain->SetBroadcastTransactions(true);
+            sigma::CoinDenomination denom;
+            sigma:: StringToDenomination(denomination, denom);
+            std::vector<sigma::PrivateCoin> privCoins;
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+
+            vector<CHDMint> vDMints;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+
+            CWalletTx wtx;
+            string stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+            BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+
+            BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint not added into mempool");
+            //Try mint with the same coin
+            pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+            //Second mint should not be added into mempool
+            BOOST_CHECK_MESSAGE(mempool.size() == 1, "Double mint added into mempool");
+
+            mempool.clear();
+            sigmaState->Reset();
+        }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

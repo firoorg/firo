@@ -1,25 +1,17 @@
-/**
- * @file walletcache.cpp
- *
- * Provides a cache of wallet balances and functionality for determining whether
- * Exodus state changes affected anything in the wallet.
- */
+#include "walletcache.h"
 
-#include "exodus/walletcache.h"
+#include "log.h"
+#include "tally.h"
+#include "wallettxs.h"
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/tally.h"
-#include "exodus/wallettxs.h"
-
-#include "init.h"
-#include "sync.h"
-#include "uint256.h"
+#include "../init.h"
+#include "../validation.h"
+#include "../sync.h"
+#include "../uint256.h"
 #ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
+#include "../wallet/wallet.h"
 #endif
 
-#include <stdint.h>
 #include <algorithm>
 #include <list>
 #include <map>
@@ -28,8 +20,10 @@
 #include <utility>
 #include <vector>
 
-namespace exodus
-{
+#include <inttypes.h>
+
+namespace exodus {
+
 //! Global vector of Exodus transactions in the wallet
 std::vector<uint256> walletTXIDCache;
 
@@ -56,7 +50,7 @@ void WalletTXIDCacheInit()
 {
     if (exodus_debug_walletcache) PrintToLog("WALLETTXIDCACHE: WalletTXIDCacheInit requested\n");
 #ifdef ENABLE_WALLET
-    LOCK2(cs_tally, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     std::list<CAccountingEntry> acentries;
     CWallet::TxItems txOrdered = pwalletMain->wtxOrdered;
@@ -87,7 +81,7 @@ int WalletCacheUpdate()
     int numChanges = 0;
     std::set<std::string> changedAddresses;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     for (std::unordered_map<string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
         const std::string& address = my_it->first;

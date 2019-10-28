@@ -506,7 +506,7 @@ unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     return buffer + memoryRequired();
 }
 
-unsigned char* GroupElement::deserialize(unsigned char* buffer) {
+const unsigned char* GroupElement::deserialize(const unsigned char* buffer) {
     secp256k1_fe x;
     secp256k1_fe_set_b32(&x, buffer);
     unsigned char oddness = buffer[32];
@@ -545,8 +545,9 @@ const void* GroupElement::get_value() const {
     return g_;
 }
 
-void GroupElement::set_base_g() {
+GroupElement& GroupElement::set_base_g() {
     secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &secp256k1_ge_const_g);
+    return *this;
 }
 
 } // namespace secp_primitives

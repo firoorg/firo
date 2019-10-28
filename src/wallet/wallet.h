@@ -91,6 +91,9 @@ const uint32_t BIP44_INDEX = 0x2C;
 const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_MINT_INDEX = 0x2;
+#ifdef ENABLE_EXODUS
+const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
+#endif
 
 class CBlockIndex;
 class CCoinControl;
@@ -822,6 +825,7 @@ public:
     /// Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);
 
+    CPubKey GetKeyFromKeypath(uint32_t nChange, uint32_t nChild);
     /**
      * keystore implementation
      * Generate a new key
@@ -974,6 +978,7 @@ public:
         CAmount& fee,
         std::vector<CSigmaEntry>& selected,
         std::vector<CHDMint>& changes,
+        bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,

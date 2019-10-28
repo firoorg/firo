@@ -5,31 +5,34 @@ EXODUS_H = \
   exodus/createpayload.h \
   exodus/createtx.h \
   exodus/dex.h \
-  exodus/encoding.h \
   exodus/errors.h \
   exodus/fees.h \
   exodus/fetchwallettx.h \
   exodus/log.h \
-  exodus/mbstring.h \
   exodus/mdex.h \
   exodus/notifications.h \
   exodus/exodus.h \
+  exodus/packetencoder.h \
   exodus/parse_string.h \
   exodus/pending.h \
   exodus/persistence.h \
+  exodus/property.h \
   exodus/rpc.h \
   exodus/rpcpayload.h \
   exodus/rpcrawtx.h \
   exodus/rpcrequirements.h \
-  exodus/rpctx.h \
   exodus/rpctxobject.h \
   exodus/rpcvalues.h \
   exodus/rules.h \
   exodus/script.h \
+  exodus/sigma.h \
+  exodus/sigmaprimitives.h \
+  exodus/sigmadb.h \
   exodus/sp.h \
   exodus/sto.h \
   exodus/tally.h \
   exodus/tx.h \
+  exodus/txprocessor.h \
   exodus/uint256_extensions.h \
   exodus/utils.h \
   exodus/utilsbitcoin.h \
@@ -44,35 +47,52 @@ EXODUS_CPP = \
   exodus/createpayload.cpp \
   exodus/createtx.cpp \
   exodus/dex.cpp \
-  exodus/encoding.cpp \
   exodus/fees.cpp \
   exodus/fetchwallettx.cpp \
   exodus/log.cpp \
-  exodus/mbstring.cpp \
   exodus/mdex.cpp \
   exodus/notifications.cpp \
   exodus/exodus.cpp \
+  exodus/packetencoder.cpp \
   exodus/parse_string.cpp \
   exodus/pending.cpp \
   exodus/persistence.cpp \
+  exodus/property.cpp \
   exodus/rpc.cpp \
   exodus/rpcpayload.cpp \
   exodus/rpcrawtx.cpp \
   exodus/rpcrequirements.cpp \
-  exodus/rpctx.cpp \
   exodus/rpctxobject.cpp \
   exodus/rpcvalues.cpp \
   exodus/rules.cpp \
   exodus/script.cpp \
+  exodus/sigma.cpp \
+  exodus/sigmaprimitives.cpp \
+  exodus/sigmadb.cpp \
   exodus/sp.cpp \
   exodus/sto.cpp \
   exodus/tally.cpp \
   exodus/tx.cpp \
+  exodus/txprocessor.cpp \
   exodus/utils.cpp \
   exodus/utilsbitcoin.cpp \
   exodus/version.cpp \
   exodus/walletcache.cpp \
   exodus/wallettxs.cpp
+
+if ENABLE_WALLET
+EXODUS_H += \
+  exodus/rpctx.h \
+  exodus/sigmawallet.h \
+  exodus/wallet.h \
+  exodus/walletmodels.h
+
+EXODUS_CPP += \
+  exodus/rpctx.cpp \
+  exodus/sigmawallet.cpp \
+  exodus/wallet.cpp \
+  exodus/walletmodels.cpp
+endif
 
 libbitcoin_server_a_SOURCES += \
   $(EXODUS_CPP) \

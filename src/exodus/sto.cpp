@@ -1,22 +1,23 @@
-#include "exodus/sto.h"
+#include "sto.h"
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/tally.h"
-#include "exodus/uint256_extensions.h"
+#include "exodus.h"
+#include "log.h"
+#include "tally.h"
+#include "uint256_extensions.h"
 
-#include "arith_uint256.h"
-#include "sync.h"
+#include "../arith_uint256.h"
+#include "../validation.h"
+#include "../sync.h"
 
-#include <assert.h>
-#include <stdint.h>
 #include <map>
 #include <set>
 #include <string>
 #include <utility>
 
-namespace exodus
-{
+#include <assert.h>
+#include <inttypes.h>
+
+namespace exodus {
 
 /**
  * Compares two owner/receiver entries, based on amount.
@@ -39,7 +40,7 @@ OwnerAddrType STO_GetReceivers(const std::string& sender, uint32_t property, int
     OwnerAddrType ownerAddrSet;
 
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         std::unordered_map<std::string, CMPTally>::iterator it;
 
         for (it = mp_tally_map.begin(); it != mp_tally_map.end(); ++it) {
@@ -112,4 +113,3 @@ OwnerAddrType STO_GetReceivers(const std::string& sender, uint32_t property, int
 }
 
 } // namespace exodus
-

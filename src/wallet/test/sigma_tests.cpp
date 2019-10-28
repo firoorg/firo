@@ -56,7 +56,7 @@ static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomi
 
     std::copy_n(coin.getEcdsaSeckey(), 32, zerocoinTx.ecdsaSecretKey.begin());
 
-    if (!CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx)) {
+    if (!CWalletDB(pwalletMain->strWalletFile).WriteSigmaEntry(zerocoinTx)) {
         throw std::runtime_error("Failed to add zerocoin to wallet");
     }
 }
@@ -450,8 +450,9 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
         .fSubtractFeeFromAmount = false
     });
 
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
     sigmaState->Reset();
@@ -484,8 +485,9 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
         .fSubtractFeeFromAmount = false
     });
 
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
     sigmaState->Reset();
@@ -507,8 +509,9 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
         .fSubtractFeeFromAmount = false
     });
 
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee),
         std::runtime_error,
         [](const std::runtime_error& e) {return e.what() == std::string("Insufficient funds");});
     sigmaState->Reset();
@@ -536,7 +539,8 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         .fSubtractFeeFromAmount = false
     });
 
-    CWalletTx tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
+    bool fChangeAddedToFee;
+    CWalletTx tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee);
 
     BOOST_CHECK(tx.tx->vin.size() == 2);
 

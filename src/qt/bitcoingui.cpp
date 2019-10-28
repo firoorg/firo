@@ -41,7 +41,9 @@
 #include "exodus_qtutils.h"
 #include "zc2sigmapage.h"
 
-#include <exodus/exodus.h>
+#ifdef ENABLE_EXODUS
+#include "../exodus/exodus.h"
+#endif
 
 #include <iostream>
 
@@ -105,10 +107,12 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     progressDialog(0),
     appMenuBar(0),
     overviewAction(0),
+#ifdef ENABLE_EXODUS
     exoAssetsAction(0),
+    toolboxAction(0),
+#endif
     historyAction(0),
     quitAction(0),
-    toolboxAction(0),
     sendCoinsAction(0),
     sendCoinsMenuAction(0),
     usedSendingAddressesAction(0),
@@ -309,7 +313,6 @@ void BitcoinGUI::createActions()
 {
     size_t key = Qt::Key_1;
 	QActionGroup *tabGroup = new QActionGroup(this);
-    bool exodusEnabled = isExodusEnabled();
 
 	overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
 	overviewAction->setStatusTip(tr("Show general overview of wallet"));
@@ -319,7 +322,7 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(overviewAction);
 
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
-	sendCoinsAction->setStatusTip(tr(exodusEnabled ? "Send Exodus and Zcoin transactions" : "Send coins to a Zcoin address"));
+	sendCoinsAction->setStatusTip(tr("Send coins to a Zcoin address"));
 	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
 	sendCoinsAction->setCheckable(true);
 	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
@@ -378,6 +381,9 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(znodeAction);
 #endif
 
+#ifdef ENABLE_EXODUS
+    bool exodusEnabled = isExodusEnabled();
+
     if (exodusEnabled) {
         exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&xoAssets"), this);
         exoAssetsAction->setStatusTip(tr("Show Exodus balances"));
@@ -393,6 +399,7 @@ void BitcoinGUI::createActions()
         toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
         tabGroup->addAction(toolboxAction);
     }
+#endif
 
 #ifdef ENABLE_WALLET
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -412,12 +419,14 @@ void BitcoinGUI::createActions()
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
         connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
+#ifdef ENABLE_EXODUS
     if (exodusEnabled) {
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(gotoExoAssetsPage()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
     }
+#endif
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
@@ -555,10 +564,12 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
 
+#ifdef ENABLE_EXODUS
         if (isExodusEnabled()) {
             toolbar->addAction(exoAssetsAction);
             toolbar->addAction(toolboxAction);
         }
+#endif
 
         overviewAction->setChecked(true);
     }
@@ -676,10 +687,12 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
 
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         exoAssetsAction->setEnabled(enabled);
         toolboxAction->setEnabled(enabled);
     }
+#endif
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -796,11 +809,13 @@ void BitcoinGUI::gotoOverviewPage()
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
+#ifdef ENABLE_EXODUS
 void BitcoinGUI::gotoExoAssetsPage()
 {
     exoAssetsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoExoAssetsPage();
 }
+#endif
 
 void BitcoinGUI::gotoHistoryPage()
 {
@@ -808,11 +823,13 @@ void BitcoinGUI::gotoHistoryPage()
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
 
+#ifdef ENABLE_EXODUS
 void BitcoinGUI::gotoExodusHistoryTab()
 {
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoExodusHistoryTab();
 }
+#endif
 
 void BitcoinGUI::gotoBitcoinHistoryTab()
 {
@@ -820,11 +837,13 @@ void BitcoinGUI::gotoBitcoinHistoryTab()
     if (walletFrame) walletFrame->gotoBitcoinHistoryTab();
 }
 
+#ifdef ENABLE_EXODUS
 void BitcoinGUI::gotoToolboxPage()
 {
     toolboxAction->setChecked(true);
     if (walletFrame) walletFrame->gotoToolboxPage();
 }
+#endif
 
 void BitcoinGUI::gotoZnodePage()
 {

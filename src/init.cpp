@@ -16,7 +16,6 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
-#include "exodus/exodus.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -47,6 +46,11 @@
 #include "wallet/wallet.h"
 #endif
 #include "warnings.h"
+
+#ifdef ENABLE_EXODUS
+#include "exodus/exodus.h"
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <memory>
@@ -293,9 +297,11 @@ void Shutdown()
         pblocktree = NULL;
     }
 
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         exodus_shutdown();
     }
+#endif
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -565,6 +571,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
 
+#ifdef ENABLE_EXODUS
     strUsage += HelpMessageGroup("Exodus options:");
     strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
     strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
@@ -579,6 +586,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
     strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
     strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
+#endif
 
     return strUsage;
 }
@@ -1802,8 +1810,21 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
-    // ********************************************************* Step 7.5: load exodus
 
+    // ********************************************************* Step 8: load wallet
+
+#ifdef ENABLE_WALLET
+    LogPrintf("Step 8: load wallet ************************************\n");
+    CWallet::InitLoadWallet();
+    if (!pwalletMain)
+        return false;
+#else // ENABLE_WALLET
+    LogPrintf("No wallet support compiled in!\n");
+#endif // !ENABLE_WALLET
+
+    // ********************************************************* Step 8.5: load exodus
+
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them
@@ -1842,23 +1863,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         uiInterface.InitMessage(_("Parsing Exodus transactions..."));
         exodus_init();
-    }
 
-    // ********************************************************* Step 8: load wallet
-
-#ifdef ENABLE_WALLET
-    LogPrintf("Step 8: load wallet ************************************\n");
-    CWallet::InitLoadWallet();
-    if (!pwalletMain)
-        return false;
-#else // ENABLE_WALLET
-    LogPrintf("No wallet support compiled in!\n");
-#endif
-
-    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
-    if (isExodusEnabled()) {
+        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();
     }
+#endif
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");

@@ -102,8 +102,8 @@ if ENABLE_ZMQ:
 
 testScripts = [
     # longest test should go first, to favor running tests in parallel
-    # 'wallet-hd.py',
-    # 'walletbackup.py',
+    'wallet-hd.py',
+    'walletbackup.py',
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',
     # 'fundrawtransaction.py',
@@ -113,7 +113,7 @@ testScripts = [
     # 'wallet.py',
     # 'wallet-accounts.py',
     # 'p2p-segwit.py',
-    # 'wallet-dump.py',
+    'wallet-dump.py',
     # 'listtransactions.py',
     # vv Tests less than 60s vv
     # 'sendheaders.py',
@@ -134,6 +134,7 @@ testScripts = [
     'rest.py',
     'mempool_spendcoinbase.py',
     'mempool_reorg.py',
+    'mempool_doublesend_oneblock.py',
     'httpbasics.py',
     'multi_rpc.py',
     'proxy_test.py',
@@ -160,6 +161,8 @@ testScripts = [
 
     # Zcoin-specific tests
     'mempool_doublesend_oneblock.py',
+    'wallet_dumpsigma.py',
+    'wallet_dumpzerocoin.py',
     'transations_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
@@ -181,6 +184,13 @@ testScripts = [
     'sigma_blocklimit.py',
     'hdmint_mempool_zap.py',
     'sigma_zapwalletmints_unconf_trans.py'
+
+    'exodus_create_denomination.py',
+    'exodus_property_creation_fee.py',
+    'exodus_sendmint.py',
+    'exodus_sendspend.py',
+    'exodus_sigma_reindex.py',
+    'exodus_sigma_reorg.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

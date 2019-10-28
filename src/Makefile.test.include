@@ -122,6 +122,7 @@ BITCOIN_TESTS =\
   test/dbwrapper_tests.cpp \
   test/txdb_tests.cpp \
   test/main_tests.cpp \
+  test/mbstring_tests.cpp \
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \
   test/miner_tests.cpp \
@@ -184,6 +185,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/core/libtor-app.a \
     tor/src/lib/libtor-evloop.a \
     tor/src/lib/libtor-thread.a \
     tor/src/lib/libtor-compress.a \
+    @LIBZSTD@ \
     tor/src/lib/libtor-net.a \
     tor/src/lib/libtor-buf.a \
     tor/src/lib/libtor-time.a \

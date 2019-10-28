@@ -118,6 +118,56 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     return &(it->second);
 }
 
+CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
+    AssertLockHeld(cs_wallet); // mapKeyMetadata
+
+    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
+    , testNet = GetOptBoolArg("-testnet");
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+
+    // Fail if not using HD wallet (no keypaths)
+    if (hdChain.masterKeyID.IsNull())
+        throw std::runtime_error(std::string(__func__) + ": Non-HD wallet detected");
+
+    // use BIP44 keypath: m / purpose' / coin_type' / account' / change / address_index
+    CKey key;                      //master key seed (256bit)
+    CExtKey masterKey;             //hd master key
+    CExtKey purposeKey;            //key at m/44'
+    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+    CExtKey accountKey;            //key at m/44'/<1/136>'/0'
+    CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
+    CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
+
+    // try to get the master key
+    if (!GetKey(hdChain.masterKeyID, key))
+        throw std::runtime_error(std::string(__func__) + ": Master key not found");
+
+    masterKey.SetMaster(key.begin(), key.size());
+
+    // derive m/44'
+    // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
+    masterKey.Derive(purposeKey, BIP44_INDEX | BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'
+    purposeKey.Derive(coinTypeKey, nIndex | BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'/0'
+    coinTypeKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
+
+    // derive m/44'/136'/0'/<c>
+    accountKey.Derive(externalChainChildKey, nChange);
+
+    // derive m/44'/136'/0'/<c>/<n>
+    externalChainChildKey.Derive(childKey, nChild);
+
+    CKey secret = childKey.key;
+
+    CPubKey pubkey = secret.GetPubKey();
+    assert(secret.VerifyPubKey(pubkey));
+
+    return pubkey;
+}
+
 CPubKey CWallet::GenerateNewKey(uint32_t nChange)
 {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
@@ -643,7 +693,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             }
 
             return data.IsUsed;
-        } else if (script.IsSigmaMint()) {
+        } else if (zwalletMain && script.IsSigmaMint()) {
             auto pub = sigma::ParseSigmaMintScript(script);
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
             CMintMeta meta;
@@ -1638,11 +1688,10 @@ bool CWallet::SetHDChain(const CHDChain& chain, bool memonly)
 {
     LOCK(cs_wallet);
     bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if (upgradeChain) { // Upgrade HDChain to latest version
+    if (upgradeChain && !IsLocked()) { // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
-
+        NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
@@ -2734,10 +2783,10 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 bool found = false;
                 if(nCoinType == ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
-                    found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint());
+                    found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()) || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint();
                 } else if(nCoinType == ONLY_MINTS){
                     // Do not consider anything other than mints
-                    found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint());
+                    found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
                     found = !(fZNode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
                 } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
@@ -2883,7 +2932,7 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
     LOCK2(cs_main, cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listOwnCoins = zwalletMain->GetTracker().MintsAsZerocoinEntries();
+    listOwnCoins = zwalletMain->GetTracker().MintsAsSigmaEntries(true, false);
     LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
@@ -5394,6 +5443,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     CAmount& fee,
     std::vector<CSigmaEntry>& selected,
     std::vector<CHDMint>& changes,
+    bool& fChangeAddedToFee,
     const CCoinControl *coinControl)
 {
     // sanity check
@@ -5406,7 +5456,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this, *zwalletMain, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee);
     selected = builder.selected;
     changes = builder.changes;
 
@@ -6689,7 +6739,7 @@ string CWallet::SpendMultipleSigma(
     BOOST_FOREACH(GroupElement zcSelectedValue, zcSelectedValues){
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         zwalletMain->GetTracker().SetPubcoinUsed(hashPubcoin, txidSpend);
-        CMintMeta metaCheck; 
+        CMintMeta metaCheck;
         zwalletMain->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
         if (!metaCheck.isUsed) {
             strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
@@ -6716,8 +6766,8 @@ std::vector<CSigmaEntry> CWallet::SpendSigma(
     // create transaction
     std::vector<CSigmaEntry> coins;
     std::vector<CHDMint> changes;
-
-    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes);
+    bool fChangeAddedToFee;
+    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
 
     CommitSigmaTransaction(result, coins, changes);
 
@@ -6831,7 +6881,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
             return error("%s: failed to generate mint", __func__);
 
          return true;
-    } else if (!walletdb.ReadZerocoinEntry(meta.GetPubCoinValue(), zerocoin)) {
+    } else if (!walletdb.ReadSigmaEntry(meta.GetPubCoinValue(), zerocoin)) {
         return error("%s: failed to read zerocoinmint from database", __func__);
     }
 
@@ -7235,8 +7285,8 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
     {
         CWalletTx *pcoin = &walletEntry.second;
 
-        if (pcoin->tx->vin.size() > 0)
-        {
+        if (pcoin->tx->vin.size() > 0 &&
+            !(pcoin->tx->IsZerocoinSpend() || pcoin->tx->IsSigmaSpend() || pcoin->tx->IsZerocoinRemint())) { /* Spends have no standard input */
             bool any_mine = false;
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->tx->vin)

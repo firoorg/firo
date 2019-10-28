@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
     string stringError;
     CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     std::list<CZerocoinEntry> zcEntries;
     decltype(zerocoinState->usedCoinSerials) tempSerials;
@@ -85,6 +85,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Remint transaction accepted into mempool when shouldn't");
     // Clear mempool serials and retry
     zerocoinState->mempoolCoinSerials.clear();
+    sigmaState->Reset();
     pwalletMain->CommitTransaction(dupSerialTx, commitTxHelper[0].key, g_connman.get(), commitTxHelper[0].state);
     // Mempool should contain two remint transactions both having the same serial
     BOOST_CHECK(mempool.size() == 2);
@@ -197,7 +198,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
             walletdb.WriteZerocoinEntry(zcEntry);
         }
     }
-    
+
     tempSerials = zerocoinState->usedCoinSerials;
     zerocoinState->usedCoinSerials.clear();
 

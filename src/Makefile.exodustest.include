@@ -3,6 +3,7 @@ EXODUS_TEST_H = \
 
 EXODUS_TEST_CPP = \
   exodus/test/alert_tests.cpp \
+  exodus/test/build_tx_tests.cpp \
   exodus/test/checkpoint_tests.cpp \
   exodus/test/create_payload_tests.cpp \
   exodus/test/create_tx_tests.cpp \
@@ -10,25 +11,37 @@ EXODUS_TEST_CPP = \
   exodus/test/dex_purchase_tests.cpp \
   exodus/test/encoding_b_tests.cpp \
   exodus/test/encoding_c_tests.cpp \
+  exodus/test/exodus_handler_tx.cpp \
   exodus/test/exodus_tests.cpp \
   exodus/test/lock_tests.cpp \
   exodus/test/marker_tests.cpp \
-  exodus/test/mbstring_tests.cpp \
-  exodus/test/obfuscation_tests.cpp \
   exodus/test/output_restriction_tests.cpp \
+  exodus/test/packetencoder_tests.cpp \
   exodus/test/parsing_b_tests.cpp \
   exodus/test/parsing_c_tests.cpp \
+  exodus/test/property_tests.cpp \
   exodus/test/rounduint64_tests.cpp \
   exodus/test/rules_txs_tests.cpp \
   exodus/test/script_extraction_tests.cpp \
   exodus/test/script_solver_tests.cpp \
   exodus/test/sender_bycontribution_tests.cpp \
   exodus/test/sender_firstin_tests.cpp \
+  exodus/test/sigma_tests.cpp \
+  exodus/test/sigmadb_tests.cpp \
+  exodus/test/sigmaprimitives_tests.cpp \
+  exodus/test/sp_tests.cpp \
   exodus/test/strtoint64_tests.cpp \
   exodus/test/swapbyteorder_tests.cpp \
   exodus/test/tally_tests.cpp \
   exodus/test/uint256_extensions_tests.cpp \
   exodus/test/utils_tx.cpp
+
+if ENABLE_WALLET
+EXODUS_TEST_CPP += \
+  exodus/test/sigmawallet_tests.cpp \
+  exodus/test/wallet_tests.cpp \
+  exodus/test/walletmodels_tests.cpp
+endif
 
 BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \

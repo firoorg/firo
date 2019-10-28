@@ -70,7 +70,7 @@ public:
   static constexpr size_t memoryRequired() { return serialize_size; }
   unsigned char* serialize() const;
   unsigned char* serialize(unsigned char* buffer) const;
-  unsigned char* deserialize(unsigned char* buffer);
+  unsigned const char* deserialize(unsigned const char* buffer);
 
   // These functions are for READWRITE() in serialize.h
   template<typename Stream>
@@ -96,7 +96,7 @@ public:
 
   std::size_t hash() const;
 
-  void set_base_g();
+  GroupElement& set_base_g();
 
   friend class MultiExponent;
 private:

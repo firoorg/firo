@@ -15,10 +15,7 @@
 
 #include <string>
 
-namespace exodus
-{
-//! Guards my_pending
-CCriticalSection cs_pending;
+namespace exodus {
 
 //! Global map of pending transaction objects
 PendingMap my_pending;
@@ -45,7 +42,7 @@ void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t
     pending.prop = propertyId;
     pending.type = type;
     {
-        LOCK(cs_pending);
+        LOCK(cs_main);
         my_pending.insert(std::make_pair(txid, pending));
     }
     // after adding a transaction to pending the available balance may now be reduced, refresh wallet totals
@@ -60,7 +57,7 @@ void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t
  */
 void PendingDelete(const uint256& txid)
 {
-    LOCK(cs_pending);
+    LOCK(cs_main);
 
     PendingMap::iterator it = my_pending.find(txid);
     if (it != my_pending.end()) {
@@ -83,7 +80,7 @@ void PendingDelete(const uint256& txid)
  */
 void PendingCheck()
 {
-    LOCK(cs_pending);
+    LOCK(cs_main);
 
     std::vector<uint256> vecMemPoolTxids;
     mempool.queryHashes(vecMemPoolTxids);

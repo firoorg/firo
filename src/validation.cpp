@@ -3,8 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "zerocoin.h"
 #include "validation.h"
+
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
+#include "zerocoin.h"
 
 #include "arith_uint256.h"
 #include "chainparams.h"
@@ -13,7 +18,6 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
-#include "exodus/exodus.h"
 #include "hash.h"
 #include "init.h"
 #include "base58.h"
@@ -55,6 +59,10 @@
 #include "sigma/coinspend.h"
 #include "sigma/remint.h"
 #include "warnings.h"
+
+#ifdef ENABLE_EXODUS
+#include "exodus/exodus.h"
+#endif
 
 #include <atomic>
 #include <sstream>
@@ -692,6 +700,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     vector<Scalar> zcSpendSerialsV3;
+    vector<GroupElement> zcMintPubcoinsV3;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
     if (tx.IsZerocoinSpend()) {
@@ -777,6 +786,24 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
     }
+
+    BOOST_FOREACH(const CTxOut &txout, tx.vout)
+    {
+        if (txout.scriptPubKey.IsSigmaMint()) {
+            GroupElement pubCoinValue;
+            try {
+                pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+            } catch (std::invalid_argument&) {
+                return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+            }
+            if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
+                LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            }
+            zcMintPubcoinsV3.push_back(pubCoinValue);
+        }
+    }
+
     }
 
     {
@@ -1202,8 +1229,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
 #endif
     }
+    if(markZcoinSpendTransactionSerial)
+        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    vector<GroupElement> zcMintPubcoinsV3;
     if(tx.IsSigmaMint()){
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
@@ -2446,8 +2474,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 // In any case we need to remove serial from mempool set
                 zcState->RemoveSpendFromMempool(zcSpendSerial);
             }
-       }
-       else if (tx->IsSigmaSpend()) {
+        }
+        else if (tx->IsSigmaSpend()) {
             BOOST_FOREACH(const CTxIn &txin, tx->vin)
             {
                 Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(*tx, txin);
@@ -2459,13 +2487,25 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     if (pTx)
                         mempool.removeRecursive(*pTx);
                     LogPrintf("ConnectBlock: removed conflicting zerocoin sigma spend tx %s from the mempool\n",
-                              conflictingTxHash.ToString());
+                                conflictingTxHash.ToString());
                 }
 
                 // In any case we need to remove serial from mempool set
                 sigmaState->RemoveSpendFromMempool(zcSpendSerial);
             }
-       }
+        }
+        BOOST_FOREACH(const CTxOut &txout, tx->vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
+                sigmaState->RemoveMintFromMempool(pubCoinValue);
+            }
+        }
     }
 
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
@@ -2765,6 +2805,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
 #endif
 
+#ifdef ENABLE_EXODUS
     //! Exodus: begin block disconnect notification
     auto fExodus = isExodusEnabled();
 
@@ -2772,6 +2813,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         LogPrint("handler", "Exodus handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
         exodus_handler_disc_begin(GetHeight(), pindexDelete);
     }
+#endif
 
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
@@ -2779,11 +2821,13 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         GetMainSignals().SyncTransaction(*tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
     }
 
+#ifdef ENABLE_EXODUS
     //! Exodus: end of block disconnect notification
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
         exodus_handler_disc_end(GetHeight(), pindexDelete);
     }
+#endif
 
     return true;
 }
@@ -2851,6 +2895,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     int64_t nTime5 = GetTimeMicros(); nTimeChainState += nTime5 - nTime4;
     LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001, nTimeChainState * 0.000001);
 
+#ifdef ENABLE_EXODUS
     bool fExodus = isExodusEnabled();
 
     //! Exodus: transaction position within the block
@@ -2863,6 +2908,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         LogPrint("handler", "Exodus handler: block connect begin [height: %d]\n", GetHeight());
         exodus_handler_block_begin(GetHeight(), pindexNew);
     }
+#endif
 
     // Remove conflicting transactions from the mempool.;
     mempool.removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
@@ -2871,16 +2917,16 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
     // Update chainActive & related variables.
     UpdateTip(pindexNew, chainparams);
-    
-    // ... and about transactions that got confirmed:
-    if (pblock) {
-        BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
-            if (fExodus) {
-                LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
-                if (exodus_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
-            }
+
+#ifdef ENABLE_EXODUS
+    BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
+        //! Exodus: new confirmed transaction notification
+        if (fExodus) {
+            LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
+            if (exodus_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
     }
+#endif
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
@@ -2898,11 +2944,13 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     }
 #endif
 
+#ifdef ENABLE_EXODUS
     //! Exodus: end of block connect notification
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
         exodus_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
     }
+#endif
 
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
     LogPrint("bench", "  - Connect postprocess: %.2fms [%.2fs]\n", (nTime6 - nTime5) * 0.001, nTimePostConnect * 0.000001);

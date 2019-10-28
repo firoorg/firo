@@ -38,6 +38,9 @@ typedef uint256 ChainCode;
 /** An encapsulated public key. */
 class CPubKey
 {
+public:
+    static constexpr unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+
 private:
 
     /**

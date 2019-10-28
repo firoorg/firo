@@ -74,13 +74,13 @@ BOOST_AUTO_TEST_CASE(proof_serialize)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof(n, m);
 
     prover.proof(commits, index, r, initial_proof);
 
     unsigned char buffer [initial_proof.memoryRequired()];
     initial_proof.serialize(buffer);
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(n, m);
     resulted_proof.deserialize(buffer);
 
     BOOST_CHECK(initial_proof.B_ == resulted_proof.B_);

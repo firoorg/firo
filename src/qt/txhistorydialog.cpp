@@ -199,7 +199,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             HistoryTXObject *temphtxo = &(hIter->second);
             if (temphtxo->blockHeight != 0) continue;
             {
-                LOCK(cs_pending);
+                LOCK(cs_main);
                 PendingMap::iterator pending_it = my_pending.find(txHash);
                 if (pending_it != my_pending.end()) continue; // transaction is still pending, do nothing
             }
@@ -222,7 +222,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!GetTransaction(txHash, wtx, Params().GetConsensus(), blockHash, true)) continue;
         if (blockHash.IsNull() || NULL == GetBlockIndex(blockHash)) {
             // this transaction is unconfirmed, should be one of our pending transactions
-            LOCK(cs_pending);
+            LOCK(cs_main);
             PendingMap::iterator pending_it = my_pending.find(txHash);
             if (pending_it == my_pending.end()) continue;
             const CMPPending& pending = pending_it->second;
@@ -266,14 +266,14 @@ int TXHistoryDialog::PopulateHistoryMap()
             bool bIsBuy = false;
             int numberOfPurchases = 0;
             {
-                LOCK(cs_tally);
+                LOCK(cs_main);
                 p_txlistdb->getPurchaseDetails(txHash, 1, &tmpBuyer, &tmpSeller, &tmpVout, &tmpPropertyId, &tmpNValue);
             }
             bIsBuy = IsMyAddress(tmpBuyer);
             numberOfPurchases = p_txlistdb->getNumberOfSubRecords(txHash);
             if (0 >= numberOfPurchases) continue;
             for (int purchaseNumber = 1; purchaseNumber <= numberOfPurchases; purchaseNumber++) {
-                LOCK(cs_tally);
+                LOCK(cs_main);
                 p_txlistdb->getPurchaseDetails(txHash, purchaseNumber, &tmpBuyer, &tmpSeller, &tmpVout, &tmpPropertyId, &tmpNValue);
                 total += tmpNValue;
             }
@@ -326,7 +326,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (type == EXODUS_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
             UniValue receiveArray(UniValue::VARR);
             uint64_t tmpAmount = 0, stoFee = 0;
-            LOCK(cs_tally);
+            LOCK(cs_main);
             s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
         }
@@ -526,5 +526,3 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
     }
     return displayType;
 }
-
-

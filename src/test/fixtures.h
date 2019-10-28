@@ -13,6 +13,7 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
     ~ZerocoinTestingSetupBase();
 
     CScript scriptPubKey;
+    CPubKey pubkey;
 
     CBlock CreateBlock(
         const CScript&);

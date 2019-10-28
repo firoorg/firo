@@ -1,13 +1,17 @@
-#include "exodus/createpayload.h"
+#include "../createpayload.h"
+#include "../exodus.h"
 
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../test/test_bitcoin.h"
+#include "../../utilstrencodings.h"
 
 #include <boost/test/unit_test.hpp>
 
-#include <stdint.h>
 #include <vector>
 #include <string>
+
+#include <inttypes.h>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_create_payload_tests, BasicTestingSetup)
 
@@ -478,4 +482,98 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_minclient)
     BOOST_CHECK_EQUAL(HexStr(vch), "ffffffff0003000dbc047465737400");
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_denomination)
+{
+    // Simple send [type 1025, version 0]
+    std::vector<unsigned char> vch = CreatePayload_CreateDenomination(
+        static_cast<uint32_t>(1),          // property: MSC
+        static_cast<int64_t>(100000000));  // value of denomination: 1.0 MSC (in willets)
+
+    BOOST_CHECK_EQUAL(HexStr(vch), "00000401000000010000000005f5e100");
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint)
+{
+    std::string data = "40a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100";
+    std::string data2 = "7cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000";
+
+    exodus::SigmaPublicKey publicKey, publicKey2;
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> publicKey;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> publicKey2;
+
+    // Simple mint [type 1026, version 0]
+    std::vector<unsigned char> vch = CreatePayload_SimpleMint(
+        static_cast<uint32_t>(1),          // property: MSC
+        {
+            std::make_pair(0, publicKey),
+            std::make_pair(1, publicKey2)
+        }
+    );
+
+    BOOST_CHECK_EQUAL(HexStr(vch),
+        "0000040200000001020040a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100" \
+        "017cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000"
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint_no_mints)
+{
+    // Simple mint [type 1026, version 0]
+    BOOST_CHECK_EXCEPTION(
+        CreatePayload_SimpleMint(
+            static_cast<uint32_t>(1),
+            {}
+        ),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) {
+            return std::string("no mints provided") == e.what();
+        }
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_mint_exceed_limit)
+{
+    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> pubs;
+    pubs.resize(EXODUS_MAX_SIMPLE_MINTS + 1);
+
+    // Simple mint [type 1026, version 0]
+    BOOST_CHECK_EXCEPTION(
+        CreatePayload_SimpleMint(
+            static_cast<uint32_t>(1),
+            pubs
+        ),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) {
+            return std::string("amount of mints exceeded limit") == e.what();
+        }
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
+{
+    auto& params = DefaultSigmaParams;
+    SigmaPrivateKey key1, key2;
+    std::vector<SigmaPublicKey> anonimitySet;
+    SigmaProof spend(params);
+    CDataStream buffer(SER_DISK, CLIENT_VERSION);
+
+    key1.Generate();
+    key2.Generate();
+    anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
+    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end());
+    buffer << spend;
+
+    std::vector<unsigned char> payload;
+    BOOST_CHECK_NO_THROW(
+        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend)
+    );
+
+    BOOST_CHECK_EQUAL(
+        HexStr(payload),
+        "000004000000000102000000030002" + HexStr(buffer.vch)
+    );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

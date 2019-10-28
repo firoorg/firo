@@ -1066,6 +1066,16 @@ void CSigmaState::RemoveSpendFromMempool(const Scalar& coinSerial) {
     mempoolCoinSerials.erase(coinSerial);
 }
 
+void CSigmaState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
+    BOOST_FOREACH(const GroupElement& pubCoin, pubCoins){
+        mempoolMints.insert(pubCoin);
+    }
+}
+
+void CSigmaState::RemoveMintFromMempool(const GroupElement& pubCoin){
+    mempoolMints.erase(pubCoin);
+}
+
 uint256 CSigmaState::GetMempoolConflictingTxHash(const Scalar& coinSerial) {
     if (mempoolCoinSerials.count(coinSerial) == 0)
         return uint256();
@@ -1077,10 +1087,15 @@ bool CSigmaState::CanAddSpendToMempool(const Scalar& coinSerial) {
     return !IsUsedCoinSerial(coinSerial) && mempoolCoinSerials.count(coinSerial) == 0;
 }
 
+bool CSigmaState::CanAddMintToMempool(const GroupElement& pubCoin){
+    return mempoolMints.count(pubCoin) == 0;
+}
+
 void CSigmaState::Reset() {
     coinGroups.clear();
     latestCoinIds.clear();
     mempoolCoinSerials.clear();
+    mempoolMints.clear();
     containers.Reset();
 }
 

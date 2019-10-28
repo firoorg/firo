@@ -1,99 +1,53 @@
-#ifndef EXODUS_H
-#define EXODUS_H
+#ifndef ZCOIN_EXODUS_EXODUS_H
+#define ZCOIN_EXODUS_EXODUS_H
 
-class CBitcoinAddress;
 class CBlockIndex;
 class CCoinsView;
 class CCoinsViewCache;
 class CTransaction;
 
-#include "exodus/log.h"
-#include "exodus/persistence.h"
-#include "exodus/tally.h"
+#include "log.h"
+#include "persistence.h"
+#include "tally.h"
+#include "sigma.h"
+#include "sigmadb.h"
 
-#include "sync.h"
-#include "uint256.h"
-#include "util.h"
+#include "../base58.h"
+#include "../sync.h"
+#include "../uint256.h"
+#include "../util.h"
 
 #include <univalue.h>
 
 #include <boost/filesystem/path.hpp>
 
-#include "leveldb/status.h"
-
-#include <stdint.h>
+#include <leveldb/status.h>
 
 #include <map>
-#include <string>
-#include <vector>
 #include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
+#include <inttypes.h>
 
 using std::string;
 
 int const MAX_STATE_HISTORY = 50;
 
-#define TEST_ECO_PROPERTY_1 (0x80000003UL)
+constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
 // increment this value to force a refresh of the state (similar to --startclean)
 #define DB_VERSION 6
 
-// could probably also use: int64_t maxInt64 = std::numeric_limits<int64_t>::max();
-// maximum numeric values from the spec:
-#define MAX_INT_8_BYTES (9223372036854775807UL)
-
 // maximum size of string fields
 #define SP_STRING_FIELD_LEN 256
-
-// Exodus Transaction Class
-#define NO_MARKER    0
-#define EXODUS_CLASS_A 1
-#define EXODUS_CLASS_B 2
-#define EXODUS_CLASS_C 3
 
 // Exodus Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
 
 #define MIN_PAYLOAD_SIZE     5
-#define PACKET_SIZE_CLASS_A 19
-#define PACKET_SIZE         31
-#define MAX_PACKETS        255
-
-// Transaction types, from the spec
-enum TransactionType {
-  EXODUS_TYPE_SIMPLE_SEND                =  0,
-  EXODUS_TYPE_RESTRICTED_SEND            =  2,
-  EXODUS_TYPE_SEND_TO_OWNERS             =  3,
-  EXODUS_TYPE_SEND_ALL                   =  4,
-  EXODUS_TYPE_SAVINGS_MARK               = 10,
-  EXODUS_TYPE_SAVINGS_COMPROMISED        = 11,
-  EXODUS_TYPE_RATELIMITED_MARK           = 12,
-  EXODUS_TYPE_AUTOMATIC_DISPENSARY       = 15,
-  EXODUS_TYPE_TRADE_OFFER                = 20,
-  EXODUS_TYPE_ACCEPT_OFFER_BTC           = 22,
-  EXODUS_TYPE_METADEX_TRADE              = 25,
-  EXODUS_TYPE_METADEX_CANCEL_PRICE       = 26,
-  EXODUS_TYPE_METADEX_CANCEL_PAIR        = 27,
-  EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM   = 28,
-  EXODUS_TYPE_NOTIFICATION               = 31,
-  EXODUS_TYPE_OFFER_ACCEPT_A_BET         = 40,
-  EXODUS_TYPE_CREATE_PROPERTY_FIXED      = 50,
-  EXODUS_TYPE_CREATE_PROPERTY_VARIABLE   = 51,
-  EXODUS_TYPE_PROMOTE_PROPERTY           = 52,
-  EXODUS_TYPE_CLOSE_CROWDSALE            = 53,
-  EXODUS_TYPE_CREATE_PROPERTY_MANUAL     = 54,
-  EXODUS_TYPE_GRANT_PROPERTY_TOKENS      = 55,
-  EXODUS_TYPE_REVOKE_PROPERTY_TOKENS     = 56,
-  EXODUS_TYPE_CHANGE_ISSUER_ADDRESS      = 70,
-  EXODUS_TYPE_ENABLE_FREEZING            = 71,
-  EXODUS_TYPE_DISABLE_FREEZING           = 72,
-  EXODUS_TYPE_FREEZE_PROPERTY_TOKENS     = 185,
-  EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS   = 186,
-  EXODUS_MESSAGE_TYPE_DEACTIVATION  = 65533,
-  EXODUS_MESSAGE_TYPE_ACTIVATION    = 65534,
-  EXODUS_MESSAGE_TYPE_ALERT         = 65535
-};
 
 #define EXODUS_PROPERTY_TYPE_INDIVISIBLE             1
 #define EXODUS_PROPERTY_TYPE_DIVISIBLE               2
@@ -129,6 +83,7 @@ enum FILETYPES {
 #define METADEX_ERROR         (-81000)
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
+#define PKT_ERROR_SIGMA       (-84000)
 
 #define EXODUS_PROPERTY_XZC   0
 #define EXODUS_PROPERTY_EXODUS   1
@@ -141,17 +96,8 @@ std::string FormatMP(uint32_t propertyId, int64_t amount, bool fSign = false);
 std::string FormatShortMP(uint32_t propertyId, int64_t amount);
 std::string FormatByType(int64_t amount, uint16_t propertyType);
 
-/** Returns the Exodus address. */
-const CBitcoinAddress ExodusAddress();
-
-/** Returns the marker for class C transactions. */
-const std::vector<unsigned char> GetExMarker();
-
 //! Used to indicate, whether to automatically commit created transactions
 extern bool autoCommit;
-
-//! Global lock for state objects
-extern CCriticalSection cs_tally;
 
 /** LevelDB based storage for storing Exodus transaction data.  This will become the new master database, holding serialized Exodus transactions.
  *  Note, intention is to consolidate and clean up data storage
@@ -340,8 +286,14 @@ bool isMPinBlockRange(int starting_block, int ending_block, bool bDeleteFound);
 
 std::string FormatIndivisibleMP(int64_t n);
 
+enum class InputMode {
+    NORMAL,
+    SIGMA
+};
+
 int WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,
-                 int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit);
+                 int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit,
+                 InputMode inputMode = InputMode::NORMAL);
 
 bool isTestEcosystemProperty(uint32_t propertyId);
 bool isMainEcosystemProperty(uint32_t propertyId);
@@ -352,9 +304,6 @@ CMPTally* getTally(const std::string& address);
 int64_t getTotalTokens(uint32_t propertyId, int64_t* n_owners_total = NULL);
 
 std::string strTransactionType(uint16_t txType);
-
-/** Returns the encoding class, used to embed a payload. */
-int GetEncodingClass(const CTransaction& tx, int nBlock);
 
 /** Determines, whether it is valid to use a Class C transaction for a given payload size. */
 bool UseEncodingClassC(size_t nDataSize);
@@ -388,4 +337,4 @@ void PrintFreezeState();
 
 }
 
-#endif // EXODUS_H
+#endif // ZCOIN_EXODUS_EXODUS_H
