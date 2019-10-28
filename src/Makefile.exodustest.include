@@ -47,8 +47,6 @@ BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \
   $(EXODUS_TEST_H)
 
-test_test_bitcoin_LDADD += $(BOOST_REGEX_LIB)
-
 CLEAN_EXODUS_TEST = exodus/test/*.gcda exodus/test/*.gcno
 
 CLEANFILES += $(CLEAN_EXODUS_TEST)

@@ -790,6 +790,7 @@ public:
     bool HasCollateralInputs(bool fOnlyConfirmed = true) const;
     int  CountInputsWithAmount(CAmount nInputAmount);
 
+    CPubKey GetKeyFromKeypath(uint32_t nChange, uint32_t nChild);
     /**
      * keystore implementation
      * Generate a new key
