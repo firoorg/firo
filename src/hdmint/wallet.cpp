@@ -17,6 +17,15 @@
 #include <boost/optional.hpp>
 #include "znode-sync.h"
 
+/**
+ * Constructor for CHDMintWallet object.
+ *
+ * Sets database values: the wallet file, mintpool, masterseed hash and count values.
+ * Doesn't set encrypted values if the wallet is locked.
+ *
+ * @param strWalletFile wallet file string
+ * @return CHDMintWallet object
+ */
 CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : tracker(strWalletFile)
 {
     this->strWalletFile = strWalletFile;
@@ -37,6 +46,14 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) 
         return;
     }
 }
+
+/**
+ * Constructor helper function.
+ *
+ * @param hashSeedMaster hash master seed
+ * @param fResetCount if true, set DB counts to 0.
+ * @return bool
+ */
 bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 {
     CWalletDB walletdb(strWalletFile);
@@ -65,7 +82,18 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
     return true;
 }
 
-// Regenerate mintPool entry from given values
+/**
+ * Regenerate a MintPoolEntry value from given values.
+ *
+ * Doesn't do anything if the wallet is encrypted+locked.
+ * Attempts to recreate mint seed (512-bit value used for mint generate) from inputs.
+ * Then recreates mint from the seed, and stores walletdb values appropriately.
+ *
+ * @param mintHashSeedMaster hash master seed for this mint
+ * @param seedId seed ID for the key used to generate mint
+ * @param nCount count for this mint in the HD chain
+ * @RETURN pair of <hashPubcoin,hashSerial> for this mint
+ */
 std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount)
 {
     // hashPubcoin, hashSerial
@@ -101,7 +129,16 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
 
 }
 
-// Add up to nIndex + 20 new mints to the mint pool (defaults to adding 20 mints if no param passed)
+/**
+ * Generate the mintpool for the current master seed.
+ *
+ * only runs if the current mintpool is exhausted and we need new mints (ie. the next mint to 
+ * generate is the same as the one last used)
+ * Generates 20 mints at a time.
+ * Makes the appropriate database entries.
+ *
+ * @param nIndex The number of mints to generate. Defaults to 20 if no param passed.
+ */
 void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 {
     CWalletDB walletdb(strWalletFile);
@@ -148,6 +185,10 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 
 }
 
+/**
+ * Load mintpool values from the database into memory.
+ *
+ */
 bool CHDMintWallet::LoadMintPoolFromDB()
 {
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
@@ -161,6 +202,16 @@ bool CHDMintWallet::LoadMintPoolFromDB()
     return true;
 }
 
+/**
+ * Get the mint serial hash for the mint pubcoin hash given.
+ *
+ * We only have a map of serial hashes to pubcoins (from db), so need to traverse the other way in a loop.
+ *
+ * @param serialPubcoinPairs a vector of mint hash serials to pubcoin objects.
+ * @param hashPubcoin mint pubcoin hash
+ * @param hashSerial reference to a mint serial hash. Is set if found
+ * @return success
+ */
 bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial)
 {
     bool fFound = false;
@@ -175,20 +226,29 @@ bool CHDMintWallet::GetSerialForPubcoin(const std::vector<std::pair<uint256, Gro
     return fFound;
 }
 
-//Catch the counter up with the chain
+/**
+ * Catch the mint counter up with the chain.
+ *
+ * Mints are created deterministically so we can completely regenerate all mints and transaction data for them from chain data.
+ * Rather than a single pass of listMints, we wrap each pass in an outer while loop, that continues until no updates are found.
+ * The reason for this is to allow the mint counter in the wallet to update and regenerate more of the mint pool should it need to.
+ * 
+ * @param fGenerateMintPool whether or not to call GenerateMintPool. defaults to true
+ * @param listMints An optional value. If passed, only sync the mints in this list. Else get all mints in the mintpool
+ */
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
     bool found = true;
     CWalletDB walletdb(strWalletFile);
 
     set<uint256> setAddedTx;
+    std::set<uint256> setChecked;
     while (found) {
         found = false;
         if (fGenerateMintPool)
             GenerateMintPool();
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
 
-        std::set<uint256> setChecked;
         if(listMints==boost::none){
             listMints = list<pair<uint256, MintPoolEntry>>();
             mintPool.List(listMints.get());
@@ -284,6 +344,18 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
     }
 }
 
+/**
+ * Add the mint from the chain to the mint tracker.
+ *
+ * Gets the mint from known values and creates a CHDMint object. Stores it in the tracker.
+ * If the wallet is not locked, the mint is regenerated from the known values. If regeneration fails, return false.
+ * If the wallet is locked, we use unencrypted db values to regenerate the object.
+ *
+ * @param mintPoolEntryPair pair of pubcoin hash to MintPoolEntry object
+ * @param nHeight mint txid height
+ * @param txid mint txid height
+ * @param denom mint denomination
+ */
 bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
 {
     // Regenerate the mint
@@ -296,7 +368,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     bool serialInBlockchain = false;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()){
-        LogPrint("%s: Wallet not locked, creating mind seed..\n", __func__);
+        LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(mintSeed, mintCount, seedId);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
@@ -304,7 +376,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
-        LogPrint("%s: Wallet locked, retrieving mind seed..\n", __func__);
+        LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
         // Get serial and pubcoin data from the db
         CWalletDB walletdb(strWalletFile);
         std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
@@ -312,7 +384,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         for(auto serialPubcoinPair : serialPubcoinPairs){
             GroupElement pubcoin = serialPubcoinPair.second;
             if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
-                LogPrint("%s: Found pubcoin and serial hash\n", __func__);
+                LogPrintf("%s: Found pubcoin and serial hash\n", __func__);
                 bnValue = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
@@ -321,12 +393,12 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         }
         // Not found in DB
         if(!fFound){
-            LogPrint("%s: Pubcoin not found in DB. \n", __func__);
+            LogPrintf("%s: Pubcoin not found in DB. \n", __func__);
             return false;
         }
     }
 
-    LogPrint("%s: Creating mint object.. \n", __func__);
+    LogPrintf("%s: Creating mint object.. \n", __func__);
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetDenomination(denom);
@@ -339,7 +411,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     CTransaction txSpend;
     if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
         //Find transaction details and make a wallettx and add to wallet
-        LogPrint("%s: Mint object is spent. Setting used..\n", __func__);
+        LogPrintf("%s: Mint object is spent. Setting used..\n", __func__);
         dMint.SetUsed(true);
         CWalletTx wtx(pwalletMain, txSpend);
         CBlockIndex* pindex = chainActive[nHeightTx];
@@ -351,13 +423,23 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         pwalletMain->AddToWallet(wtx, false, &walletdb);
     }
 
-    LogPrint("%s: Adding mint to tracker.. \n", __func__);
+    LogPrintf("%s: Adding mint to tracker.. \n", __func__);
     // Add to tracker which also adds to database
     tracker.Add(dMint, true);
 
     return true;
 }
 
+/**
+ * Convert a 512-bit mint seed into a mint. 
+ *
+ * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * 
+ * @param mintSeed uint512 object of seed for mint
+ * @param commit reference to public coin. Is set in this function
+ * @param coin reference to private coin. Is set in this function
+ * @return success
+ */
 bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, sigma::PrivateCoin& coin)
 {
     //convert state seed into a seed for the private key
@@ -387,6 +469,15 @@ bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, si
     return true;
 }
 
+/**
+ * Get seed ID for the key used in mint generation.
+ *
+ * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * Looks to the mintpool first - if mint doesn't exist, generates new mints in the mintpool.
+ * 
+ * @param nCount count in the HD Chain of the mint to use.
+ * @return the seed ID
+ */
 CKeyID CHDMintWallet::GetMintSeedID(int32_t nCount){
     // Get CKeyID for n from mintpool
     uint256 hashPubcoin;
@@ -404,7 +495,20 @@ CKeyID CHDMintWallet::GetMintSeedID(int32_t nCount){
     return get<1>(mintPoolEntryPair.second);
 }
 
-bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId)
+/**
+ * Create the mint seed for the count passed.
+ *
+ * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * We check if the key for the count passed exists. if so retrieve it's seed ID. if not, generate a new key.
+ * If seedId is passed, use that seedId and ignore key generation section.
+ * Following that, get the key, and use it to generate the mint seed according to the specification.
+ *
+ * @param mintSeed
+ * @param nCount (optional) count in the HD Chain of the key to use for mint generation.
+ * @param seedId (optional) seedId of the key to use for mint generation.
+ * @return sucess
+ */
+bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& nCount, CKeyID& seedId)
 {
     LOCK(pwalletMain->cs_wallet);
     CKey key;
@@ -412,13 +516,13 @@ bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& 
     if(seedId.IsNull()){
         CPubKey pubKey;
         int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX];
-        if(n==chainIndex){
+        if(nCount==chainIndex){
             // If chainIndex is the same as n (ie. we are generating next available key), generate a new key.
             pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
         }
-        else if(n<chainIndex){
+        else if(nCount<chainIndex){
             // if it's less than the current chain index, we are regenerating the mintpool. get the key at n
-            pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, n);
+            pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, nCount);
         }
         else{
             throw ZerocoinException("Unable to retrieve mint seed ID (internal index greater than HDChain index). \n"
@@ -436,8 +540,8 @@ bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& 
     unsigned char countHash[CSHA256().OUTPUT_SIZE];
     std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
 
-    std::string nCount = to_string(n);
-    CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
+    std::string nCountStr = to_string(nCount);
+    CSHA256().Write(reinterpret_cast<const unsigned char*>(nCountStr.c_str()), nCountStr.size()).Finalize(countHash);
 
     CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(&result[0]);
 
@@ -446,28 +550,56 @@ bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& 
     return true;
 }
 
+/**
+ * Get in-memory count of the next mint to use.
+ *
+ * @return the count
+ */
 int32_t CHDMintWallet::GetCount()
 {
     return nCountNextUse;
 }
 
+/**
+ * Reset in-memory count to that of the database value.
+ * Necessary during transaction creation when fee calcuation causes the creation to reset.
+ *
+ * @return void
+ */
 void CHDMintWallet::ResetCount()
 {
     CWalletDB walletdb(strWalletFile);
     walletdb.ReadMintCount(nCountNextUse);
 }
 
+/**
+ * Set in-memory count to parameter passed
+ *
+ * @param nCount count to be set
+ * @return void
+ */
 void CHDMintWallet::SetCount(int32_t nCount)
 {
     nCountNextUse = nCount;
 }
 
+/**
+ * Increment in-memory count of the next mint to use.
+ *
+ * @return void
+ */
 void CHDMintWallet::UpdateCountLocal()
 {
     nCountNextUse++;
     LogPrintf("CHDMintWallet : Updating count local to %s\n",nCountNextUse);
 }
 
+/**
+ * Increment database count of the next mint to use.
+ * calls GenerateMintPool, which will run if we have exhausted the mintpool.
+ *
+ * @return void
+ */
 void CHDMintWallet::UpdateCountDB()
 {
     LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);
@@ -476,12 +608,26 @@ void CHDMintWallet::UpdateCountDB()
     GenerateMintPool();
 }
 
+/**
+ * Call the previous two functions at once.
+ *
+ * @return void
+ */
 void CHDMintWallet::UpdateCount()
 {
     UpdateCountLocal();
     UpdateCountDB();
 }
 
+/**
+ * Gets a CHDMint object from a mintpool entry.
+ *
+ * @param denom denomination of mint
+ * @param coin reference to private coin object
+ * @param dMint reference to CHDMint object
+ * @param mintPoolEntry mintpool data
+ * @return success
+ */
 bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
     CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
@@ -498,6 +644,23 @@ bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination den
     return true;
 }
 
+/**
+ * Generate a CHDMint object, taking care of surrounding conditions.
+ *
+ * If the chain is not synced, do not proceed, unless fAllowUnsynced is set.
+ * If passed the mintpool entry, we directly call GetHDMintFromMintPoolEntry and return.
+ * If not, we assume that this is a new mint being created.
+ * Following creation, verify the mint does not already exist, in-memory or on-chain. This is to prevent sync issues with the
+ * mint counter between copies of the same wallet. If it does, increment the count and repeat creation. Continue until an available
+ * mint is found.
+ * 
+ * @param denom denomination of mint
+ * @param coin reference to private coin object
+ * @param dMint reference to CHDMint object
+ * @param mintPoolEntry mintpool data
+ * @param fAllowUnsynced allow mint creation if chain is not synced (for tests)
+ * @return success
+ */
 bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
     if(!znodeSync.IsBlockchainSynced() && !fAllowUnsynced)
@@ -538,6 +701,15 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
     return true;
 }
 
+/**
+ * Regenerate a CSigmaEntry (ie. mint object with private data)
+ *
+ * Internally calls GenerateMint with known MintPoolEntry and constructs the CSigmaEntry
+ * 
+ * @param dMint HDMint object
+ * @param sigma reference to full mint object
+ * @return success
+ */
 bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma)
 {
     //Generate the coin
@@ -569,6 +741,15 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma)
     return true;
 }
 
+/**
+ * Checks to see if serial passed is on-chain (ie. a check on whether the mint for the serial is spent)
+ * 
+ * @param hashSerial mint serial hash
+ * @param nHeightTx transaction height on-chain
+ * @param txidSpend transaction hash
+ * @param tx full transaction object
+ * @return success
+ */
 bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx)
 {
     txidSpend.SetNull();
@@ -585,6 +766,14 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     return IsTransactionInChain(txidSpend, nHeightTx, tx);
 }
 
+/**
+ * Constructs a PublicCoin object from a mint-containing transaction output
+ * 
+ * @param txout mint-containing transaction output
+ * @param pubCoin mint public coin
+ * @param state validation state object
+ * @return success
+ */
 bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state)
 {
     // If you wonder why +1, go to file wallet.cpp and read the comments in function
