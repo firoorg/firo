@@ -2919,7 +2919,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     UpdateTip(pindexNew, chainparams);
 
 #ifdef ENABLE_EXODUS
-    BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
+    BOOST_FOREACH(CTransactionRef tx, blockConnecting.vtx) {
         //! Exodus: new confirmed transaction notification
         if (fExodus) {
             LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
@@ -2930,16 +2930,16 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if (zwalletMain && pblock && pblock->sigmaTxInfo) {
+    if (zwalletMain && blockConnecting.sigmaTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
-        if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+        if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
         }
 
-        if (pblock->sigmaTxInfo->mints.size() > 0) {
+        if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
             LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
         }
     }
 #endif
@@ -3841,11 +3841,13 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
     // check for version 2, 3 and 4 upgrades
+    /*
     if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
        (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
        (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
+    */
 
     return true;
 }
@@ -3898,6 +3900,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
 
     // Enforce rule that the coinbase starts with serialized block height
+    /*
     if (nHeight >= consensusParams.BIP34Height)
     {
         CScript expect = CScript() << nHeight;
@@ -3906,6 +3909,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
         }
     }
+    */
 
     // Validation for witness commitments.
     // * We compute the witness hash (which is the hash including witnesses) of all the block's transactions, except the
