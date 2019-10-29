@@ -807,44 +807,6 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
-UniValue dumpmnemonic(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() > 0)
-        throw runtime_error(
-            "dumpmnemonic\n"
-            "\nReturns all mnemonic data: HD seed, Mnemonic words and Mnemonic Passphrase\n"
-            "\nExamples:\n"
-            + HelpExampleCli("dumpmnemonic", "\"test\"")
-            + HelpExampleRpc("dumpmnemonic", "\"test\"")
-        );
-
-    CHDChain chain = pwalletMain->GetHDChain();
-
-    if(!(chain.nVersion >= CHDChain::VERSION_WITH_BIP39))
-        throw runtime_error("Mnemonic is not enabled");
-
-    if(chain.IsCrypted())
-    {
-        if (pwalletMain->IsLocked())
-            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
-                               "Error: Please enter the wallet passphrase with walletpassphrase first.");
-
-        if(!pwalletMain->DecryptHDChain(chain))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
-    }
-
-    SecureString mnemonic;
-    SecureString passphrase;
-    if(!chain.GetMnemonic(mnemonic, passphrase))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot get mnemonic");
-
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("hdseed", HexStr(chain.GetSeed())));
-    obj.push_back(Pair("mnemonic", mnemonic.c_str()));
-    obj.push_back(Pair("mnemonicpassphrase", passphrase.c_str()));
-    return obj;
-}
-
 UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
 {
 #ifndef UNSAFE_DUMPPRIVKEY

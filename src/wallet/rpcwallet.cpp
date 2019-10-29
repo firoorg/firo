@@ -4051,7 +4051,6 @@ extern UniValue importprivkey(const UniValue& params, bool fHelp);
 extern UniValue importaddress(const UniValue& params, bool fHelp);
 extern UniValue importpubkey(const UniValue& params, bool fHelp);
 extern UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp);
-extern UniValue dumpmnemonic(const UniValue& params, bool fHelp);
 extern UniValue importwallet(const UniValue& params, bool fHelp);
 extern UniValue importprunedfunds(const UniValue& params, bool fHelp);
 extern UniValue removeprunedfunds(const UniValue& params, bool fHelp);
@@ -4067,7 +4066,6 @@ static const CRPCCommand commands[] =
     { "wallet",             "backupwallet",             &backupwallet,             true  },
     { "wallet",             "dumpprivkey",              &dumpprivkey_zcoin,        true  },
     { "wallet",             "dumpwallet",               &dumpwallet_zcoin,         true  },
-    { "wallet",             "dumpmnemonic",             &dumpmnemonic,             true  },
     { "wallet",             "encryptwallet",            &encryptwallet,            true  },
     { "wallet",             "getaccountaddress",        &getaccountaddress,        true  },
     { "wallet",             "getaccount",               &getaccount,               true  },
