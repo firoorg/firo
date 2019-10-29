@@ -39,7 +39,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee)
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, bool fDummy)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -165,7 +165,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
 
         // get inputs
         std::vector<std::unique_ptr<InputSigner>> signers;
-        CAmount total = GetInputs(signers, required);
+        CAmount total = GetInputs(signers, required, fDummy);
 
         // add changes
         CAmount change = total - required;
@@ -173,7 +173,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         if (change > 0) {
             // get changes outputs
             std::vector<CTxOut> changes;
-            CAmount addToFee = GetChanges(changes, change);
+            CAmount addToFee = GetChanges(changes, change, fDummy);
             if(addToFee > 0)
                 fChangeAddedToFee = true;
             fee += addToFee;
@@ -218,7 +218,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         uint256 sig = tx.GetHash();
 
         for (size_t i = 0; i < tx.vin.size(); i++) {
-            tx.vin[i].scriptSig = signers[i]->Sign(tx, sig);
+            tx.vin[i].scriptSig = signers[i]->Sign(tx, sig, fDummy);
         }
 
         // check fee
