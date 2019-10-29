@@ -345,15 +345,15 @@ void CWalletDB::ListPubCoin(std::list <CZerocoinEntry> &listPubCoin) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListPubCoin() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     while (true) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << make_pair(string("zerocoin"), CBigNum(0));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0) {
@@ -378,15 +378,15 @@ void CWalletDB::ListSigmaPubCoin(std::list <CSigmaEntry> &listPubCoin) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListSigmaPubCoin() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     while (true) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << std::make_pair(std::string("sigma_mint"), secp_primitives::GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0) {
@@ -411,15 +411,15 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntry> &listCoinSpe
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     while (true) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << make_pair(string("zcserial"), CBigNum(0));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0) {
@@ -446,15 +446,15 @@ void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendS
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     while (true) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << std::make_pair(std::string("sigma_spend"), secp_primitives::GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0) {
@@ -1452,16 +1452,16 @@ std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs(
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     for (;;)
     {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << make_pair(string("pubcoin"), ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0)
@@ -1519,16 +1519,16 @@ std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     for (;;)
     {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << make_pair(string("mintpool"), ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0)
@@ -1576,16 +1576,16 @@ std::list<CHDMint> CWalletDB::ListHDMints()
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
+    bool setRange = true;
     for (;;)
     {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
+        if (setRange)
             ssKey << make_pair(string("hdmint"), ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
         if (ret == DB_NOTFOUND)
             break;
         else if (ret != 0)
