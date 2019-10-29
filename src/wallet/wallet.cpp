@@ -155,10 +155,16 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
-    // try to get the master key
-    if (!GetKey(hdChain.masterKeyID, key))
-        throw std::runtime_error(std::string(__func__) + ": Master key not found");
-
+    if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
+        CHDChain tmpHDChain = hdChain;
+        DecryptHDChain(tmpHDChain);
+        SecureVector seed = tmpHDChain.GetSeed();
+        masterKey.SetMaster(&seed[0], seed.size());
+    } else {
+        // try to get the master key
+        if (!GetKey(hdChain.masterKeyID, key))
+            throw std::runtime_error(std::string(__func__) + ": Master key not found");
+    }
     masterKey.SetMaster(key.begin(), key.size());
 
     // derive m/44'
