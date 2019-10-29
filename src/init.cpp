@@ -1842,6 +1842,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
+    // Set API loaded before wallet sync and immediately notify
+    if(fApi){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+    }
 
     // ********************************************************* Step 8: load wallet
 
@@ -1903,32 +1908,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         exodus_init();
     }
 
-    // Set API loaded before wallet sync and immediately notify
-    if(fApi){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-
-
-    // ********************************************************* Step 8: load wallet
-
-#ifdef ENABLE_WALLET
-    LogPrintf("Step 8: load wallet ************************************\n");
-    if (fDisableWallet) {
-        pwalletMain = NULL;
-        zwalletMain = NULL;
-        LogPrintf("Wallet disabled!\n");
-    } else {
-        CWallet::InitLoadWallet();
-        if (!pwalletMain)
-            return false;
-    }
-#else // ENABLE_WALLET
-    LogPrintf("No wallet support compiled in!\n");
-#endif // !ENABLE_WALLET
-
-        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
-        CheckWalletUpdate();
+    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+    CheckWalletUpdate();
     }
 #endif
 
