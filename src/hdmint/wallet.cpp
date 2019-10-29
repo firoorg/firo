@@ -192,13 +192,13 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
     CWalletDB walletdb(strWalletFile);
 
     set<uint256> setAddedTx;
+    std::set<uint256> setChecked;
     while (found) {
         found = false;
         if (fGenerateMintPool)
             GenerateMintPool();
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
 
-        std::set<uint256> setChecked;
         if(listMints==boost::none){
             listMints = list<pair<uint256, MintPoolEntry>>();
             mintPool.List(listMints.get());
