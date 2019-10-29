@@ -164,8 +164,8 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
             throw std::runtime_error(std::string(__func__) + ": Master key not found");
+        masterKey.SetMaster(key.begin(), key.size());
     }
-    masterKey.SetMaster(key.begin(), key.size());
 
     // derive m/44'
     // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
@@ -760,6 +760,9 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
             pwalletdbEncryption = NULL;
         }
 
+        Lock();
+        Unlock(strWalletPassphrase, true);
+
         // if we are using HD, replace the HD master key (seed) with a new one
         if(!hdChain.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
             assert(EncryptHDChain(_vMasterKey));
@@ -777,11 +780,6 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
             zwalletMain->SetupWallet(hashSeedMaster, true);
             zwalletMain->SyncWithChain();
         }
-
-
-        Lock();
-        Unlock(strWalletPassphrase, true);
-
 
         if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
             TopUpKeyPool();
