@@ -1483,7 +1483,7 @@ void CWallet::GenerateNewMnemonic(){
     if (!SetHDChain(newHdChain, false))
         throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
 
-    if (!SetMnemonicConatiner(mnContainer, true))
+    if (!SetMnemonicConatiner(mnContainer, false))
         throw std::runtime_error(std::string(__func__) + ": SetMnemonicConatiner failed");
 }
 
