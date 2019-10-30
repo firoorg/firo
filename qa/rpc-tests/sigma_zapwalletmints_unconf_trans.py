@@ -69,15 +69,11 @@ class SigmaZapWalletMintsUnconfirmedTest(BitcoinTestFramework):
         while self.nodes[0].getinfo()["blocks"] != last_block_height:
             time.sleep(1)
 
-        self.nodes[0].generate(1)
-
         # 8. check listunspentmints - should be as on step 5 (cause ["-zapwalletmints"] clean mempool)
         sigma_mints2 = self.nodes[0].listunspentsigmamints()
 
         assert len(sigma_mints2) == len(sigma_mints1), \
             'The amount of mints should be same as before unconfirmed mint after restart with ["-zapwalletmints"].'
-
-        self.nodes[0].generate(1)
 
         val = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
         # 9. spend and not confirm
@@ -92,8 +88,6 @@ class SigmaZapWalletMintsUnconfirmedTest(BitcoinTestFramework):
         while self.nodes[0].getinfo()["blocks"] != last_block_height:
             time.sleep(1)        
 
-        self.nodes[0].generate(1)
-
         # 11. check listunspentmints - should be as on step 5 (cause ["-zapwalletmints"] clean mempool)
         sigma_mints3 = self.nodes[0].listunspentsigmamints()
 
@@ -102,7 +96,6 @@ class SigmaZapWalletMintsUnconfirmedTest(BitcoinTestFramework):
 
         # 12. mint
         # Minting after restart with '-["-zapwalletmints"]'
-        self.nodes[0].generate(1)
         self.nodes[0].mint(sigma_denoms[0])
 
         # 13. generate blocks
