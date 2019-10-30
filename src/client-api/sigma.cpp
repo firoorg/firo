@@ -134,7 +134,8 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
                                     CAmount& nFeeRequired,
                                     std::vector<CSigmaEntry>& coins,
                                     std::vector<CHDMint> changes,
-                                    UniValue& txMetadataEntry){
+                                    UniValue& txMetadataEntry,
+                                    bool fDummy){
     // Ensure Sigma is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
@@ -183,12 +184,14 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
         txMetadataEntry.push_back(Pair(strAddr, txMetadataSubEntry));
     }
 
-    EnsureWalletIsUnlocked();
+    if(!fDummy)
+        EnsureWalletIsUnlocked();
+
     bool fChangeAddedToFee;
 
     try {
         // create transaction
-        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee);
+        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, NULL, fDummy);
     }catch (const InsufficientFunds& e) {
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
     }
@@ -279,7 +282,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-UniValue preparesendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     UniValue result(UniValue::VOBJ);
 
     CWalletTx wtx;
@@ -288,7 +291,7 @@ UniValue preparesendprivate(Type type, const UniValue& data, const UniValue& aut
     std::vector<CHDMint> changes;
     UniValue txMetadataEntry(UniValue::VOBJ);
 
-    createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry);
+    createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry, true);
 
     result.push_back(Pair("fee", nFeeRequired));
     result.push_back(Pair("inputs", int64_t(coins.size())));
@@ -320,7 +323,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             UniValue txMetadataEntry(UniValue::VOBJ);
             std::string txidStr;
             try {
-                createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry);
+                createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry, false);
 
                 // Write tx data to filesystem
                 txidStr = wtx.GetHash().GetHex();
@@ -400,7 +403,7 @@ static const CAPICommand commands[] =
   //  --------------------- ------------          ----------------          --------   --------------   --------
     { "sigma",              "mint",               &mint,                    true,      true,            false  },
     { "sigma",              "mintTxFee",          &minttxfee,               true,      true,            false  },
-    { "sigma",              "prepareSendPrivate", &preparesendprivate,      true,      true,            false  },
+    { "sigma",              "privateTxFee",       &privatetxfee,            true,      true,            false  },
     { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
     { "sigma",              "listMints",          &listmints,               true,      true,            false  },
     { "sigma",              "mintStatus",         &mintstatus,              true,      false,           false  }

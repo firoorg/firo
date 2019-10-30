@@ -44,6 +44,7 @@ A function with one or more operations.
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
+| [privateTxFee](#privatetxfee)     | Gets the transaction fee and inputs required for the private spend data passed. | 🔐 | - | – |
 | [rebroadcast](#rebroadcast)       | Rebroadcast a transaction from mempool. | 🔐 | - | - |
 | [rpc](#rpc)                       | Call an RPC command, or return a list of them. | 🔐 | - | - |
 | [sendPrivate](#sendprivate)       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
@@ -593,7 +594,7 @@ OPTIONAL: not a necessary parameter to pass.
     }
 ```
 
-### `prepareSendPrivate`
+### `privateTxFee`
 `none`:
 ```
     data: {
