@@ -24,7 +24,7 @@ public:
     explicit InputSigner(const COutPoint& output, uint32_t seq = CTxIn::SEQUENCE_FINAL);
     virtual ~InputSigner();
 
-    virtual CScript Sign(const CMutableTransaction& tx, const uint256& sig) = 0;
+    virtual CScript Sign(const CMutableTransaction& tx, const uint256& sig, bool fDummy = false) = 0;
 };
 
 class TxBuilder
@@ -37,11 +37,11 @@ public:
     explicit TxBuilder(CWallet& wallet) noexcept;
     virtual ~TxBuilder();
 
-    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee);
+    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, bool fDummy = false);
 
 protected:
-    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) = 0;
-    virtual CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) = 0;
+    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, bool fDummy = false) = 0;
+    virtual CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount, bool fDummy = false) = 0;
     virtual CAmount AdjustFee(CAmount needed, unsigned txSize);
 };
 

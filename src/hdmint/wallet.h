@@ -28,12 +28,12 @@ private:
 public:
     int static const COUNT_DEFAULT = 0;
 
-    CHDMintWallet(const std::string& strWalletFile);
+    CHDMintWallet(const std::string& strWalletFile, bool resetCount=false);
 
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
-    bool GetHDMintFromMintPoolEntry(const sigma::CoinDenomination& denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry mintPoolEntry);
-    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
+    bool GetHDMintFromMintPoolEntry(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
+    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
     bool LoadMintPoolFromDB();
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma);
     bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
@@ -54,7 +54,7 @@ public:
 
 private:
     CKeyID GetMintSeedID(int32_t nCount);
-    bool CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId, bool checkIndex=true);
+    bool CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H
