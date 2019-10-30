@@ -11,9 +11,9 @@
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
 #include "wallet/db.h"
+#include "mnemoniccontainer.h"
 #include "streams.h"
 #include "key.h"
-#include "hdchain.h"
 
 #include "../hdmint/hdmint.h"
 #include "../hdmint/mintpool.h"
@@ -62,6 +62,48 @@ enum DBErrors
 
 // {value, isHardened}
 typedef pair<uint32_t,bool> Component;
+
+/* simple HD chain data model */
+class CHDChain
+{
+public:
+    uint32_t nExternalChainCounter; // VERSION_BASIC
+    vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
+    CKeyID masterKeyID; //!< master key hash160
+
+    static const int VERSION_BASIC = 1;
+    static const int VERSION_WITH_BIP44 = 10;
+    static const int VERSION_WITH_BIP39 = 11;
+    static const int CURRENT_VERSION = VERSION_WITH_BIP39;
+    static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
+    int nVersion;
+
+    CHDChain() { SetNull(); }
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+
+        READWRITE(this->nVersion);
+        nVersion = this->nVersion;
+        READWRITE(nExternalChainCounter);
+        READWRITE(masterKeyID);
+        if(this->nVersion >= VERSION_WITH_BIP44){
+            READWRITE(nExternalChainCounters);
+            nExternalChainCounters.resize(N_CHANGES);
+        }
+    }
+
+    void SetNull()
+    {
+        nVersion = CHDChain::CURRENT_VERSION;
+        masterKeyID.SetNull();
+        nExternalChainCounter = 0;
+        for(int index=0;index<N_CHANGES;index++){
+            nExternalChainCounters.push_back(0);
+        }
+    }
+};
 
 class CKeyMetadata
 {
@@ -245,6 +287,7 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+    bool WriteMnemonic(const MnemonicConatiner& mnConatiner);
 
 #ifdef ENABLE_EXODUS
 

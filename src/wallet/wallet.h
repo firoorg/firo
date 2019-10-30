@@ -18,6 +18,7 @@
 #include "wallet/crypter.h"
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
+#include "wallet/mnemoniccontainer.h"
 #include "../base58.h"
 #include "zerocoin_params.h"
 #include "univalue.h"
@@ -672,6 +673,7 @@ private:
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
+    MnemonicConatiner mnemonicConatiner;
 
 public:
     /*
@@ -1198,12 +1200,15 @@ public:
     bool SetHDChain(const CHDChain& chain, bool memonly);
     const CHDChain& GetHDChain() { return hdChain; }
 
-    bool EncryptHDChain(const CKeyingMaterial& vMasterKeyIn);
-    bool DecryptHDChain(CHDChain& hdChain_out) const;
+    bool SetMnemonicConatiner(const MnemonicConatiner& mnConatiner, bool memonly);
+    const MnemonicConatiner& GetMnemonicConatiner() { return mnemonicConatiner; }
+
+    bool EncryptMnemonicConatiner(const CKeyingMaterial& vMasterKeyIn);
+    bool DecryptMnemonicConatiner(MnemonicConatiner& mnConatiner) const;
 
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();
-    void GenerateNewHDChain();
+    void GenerateNewMnemonic();
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key);

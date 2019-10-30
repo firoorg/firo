@@ -224,7 +224,7 @@ BITCOIN_CORE_H = \
   validation.h \
   validationinterface.h \
   versionbits.h \
-  wallet/hdchain.h \
+  wallet/mnemoniccontainer.h \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
@@ -334,7 +334,7 @@ libbitcoin_wallet_a_SOURCES = \
   sigma.cpp \
   wallet/crypter.cpp \
   wallet/bip39.cpp \
-  wallet/hdchain.cpp \
+  wallet/mnemoniccontainer.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \

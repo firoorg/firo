@@ -702,25 +702,26 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     file << "\n";
 
     // add the base58check encoded extended master if the wallet uses HD
-    CHDChain chain = pwalletMain->GetHDChain();
+    MnemonicConatiner mContainer = pwalletMain->GetMnemonicConatiner();
+    const CHDChain& chain = pwalletMain->GetHDChain();
     CKeyID masterKeyID = chain.masterKeyID;
-    if(!chain.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
+    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
     {
-        if(chain.IsCrypted())
+        if(mContainer.IsCrypted())
         {
-            if(!pwalletMain->DecryptHDChain(chain))
+            if(!pwalletMain->DecryptMnemonicConatiner(mContainer))
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
         }
 
         SecureString mnemonic;
         SecureString passphrase;
-        if(!chain.GetMnemonic(mnemonic, passphrase))
+        if(!mContainer.GetMnemonic(mnemonic, passphrase))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot get mnemonic");
 
         file << "# mnemonic: " << mnemonic << "\n";
         file << "# mnemonic passphrase: " << passphrase << "\n\n";
 
-        SecureVector seed = chain.GetSeed();
+        SecureVector seed = mContainer.GetSeed();
         file << "# HD seed: " << HexStr(seed) << "\n\n";
 
         CExtKey masterKey;
