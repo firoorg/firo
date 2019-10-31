@@ -5806,7 +5806,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // sanity check
     EnsureMintWalletAvailable();
 
-    if (IsLocked()) {
+    if (!fDummy && IsLocked()) {
         throw std::runtime_error(_("Wallet locked"));
     }
 

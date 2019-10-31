@@ -607,9 +607,6 @@ OPTIONAL: not a necessary parameter to pass.
         label: STRING,
         subtractFeeFromAmount: BOOL
     }
-    auth: {
-        passphrase: STRING
-    }
 ```
 
 *Returns:*

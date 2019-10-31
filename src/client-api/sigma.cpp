@@ -403,9 +403,9 @@ static const CAPICommand commands[] =
   //  --------------------- ------------          ----------------          --------   --------------   --------
     { "sigma",              "mint",               &mint,                    true,      true,            false  },
     { "sigma",              "mintTxFee",          &minttxfee,               true,      true,            false  },
-    { "sigma",              "privateTxFee",       &privatetxfee,            true,      true,            false  },
     { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
     { "sigma",              "listMints",          &listmints,               true,      true,            false  },
+    { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  },
     { "sigma",              "mintStatus",         &mintstatus,              true,      false,           false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
