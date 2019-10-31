@@ -1547,19 +1547,15 @@ bool CWallet::EncryptMnemonicConatiner(const CKeyingMaterial& vMasterKeyIn)
         return false;
 
     SecureString mnemonic;
-    SecureString mnemonicPassphrase;
-    if (mnemonicConatiner.GetMnemonic(mnemonic, mnemonicPassphrase)) {
+    if (mnemonicConatiner.GetMnemonic(mnemonic)) {
         std::vector<unsigned char> cryptedMnemonic;
-        std::vector<unsigned char> cryptedPassphrase;
         SecureVector vectorMnemonic(mnemonic.begin(), mnemonic.end());
-        SecureVector vectorPassPhrase(mnemonicPassphrase.begin(), mnemonicPassphrase.end());
 
-        if ((!mnemonic.empty() && !EncryptSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)) ||
-            (!mnemonicPassphrase.empty() && !EncryptSecret(vMasterKeyIn, vectorPassPhrase, id, cryptedPassphrase)))
+        if ((!mnemonic.empty() && !EncryptSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)))
             return false;
 
         SecureString secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
-        SecureString secureCryptedPassphrase(cryptedPassphrase.begin(), cryptedPassphrase.end());
+        SecureString secureCryptedPassphrase;
         if (!mnemonicConatiner.SetMnemonic(secureCryptedMnemonic, secureCryptedPassphrase, false))
             return false;
     }
@@ -1588,23 +1584,18 @@ bool CWallet::DecryptMnemonicConatiner(MnemonicConatiner& mnConatiner) const
     mnConatiner = mnemonicConatiner;
     if (!mnConatiner.SetSeed(seed))
         return false;
-//
-    SecureString cryptedMnemonic;
-    SecureString cryptedPassphrase;
 
-    if (mnemonicConatiner.GetMnemonic(cryptedMnemonic, cryptedPassphrase)) {
+    SecureString cryptedMnemonic;
+
+    if (mnemonicConatiner.GetMnemonic(cryptedMnemonic)) {
         SecureVector vectorMnemonic;
-        SecureVector vectorPassPhrase;
 
         std::vector<unsigned char> CryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
-        std::vector<unsigned char> CryptedPassphrase(cryptedPassphrase.begin(), cryptedPassphrase.end());
-
         if (!CryptedMnemonic.empty() && !DecryptSecret(vMasterKey, CryptedMnemonic, id, vectorMnemonic))
             return false;
-        if (!CryptedPassphrase.empty() && !DecryptSecret(vMasterKey, CryptedPassphrase, id, vectorPassPhrase))
-            return false;
+
         SecureString mnemonic(vectorMnemonic.begin(), vectorMnemonic.end());
-        SecureString passphrase(vectorPassPhrase.begin(), vectorPassPhrase.end());
+        SecureString passphrase;
         if (!mnConatiner.SetMnemonic(mnemonic, passphrase, false))
             return false;
     }

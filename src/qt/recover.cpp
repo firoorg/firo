@@ -38,7 +38,9 @@ Recover::~Recover()
 void Recover::setCreateNew()
 {
     ui->createNew->setChecked(true);
-    ui->mnemonicBox->setEnabled(false);
+    ui->textLabel2->setEnabled(false);
+    ui->mnemonicWords->setEnabled(false);
+    ui->use24->setChecked(true);
 }
 
 void Recover::on_createNew_clicked()
@@ -48,8 +50,8 @@ void Recover::on_createNew_clicked()
 
 void Recover::on_recoverExisting_clicked()
 {
-    ui->mnemonicBox->setEnabled(true);
-    ui->use24->setChecked(true);
+    ui->textLabel2->setEnabled(true);
+    ui->mnemonicWords->setEnabled(true);
 }
 
 bool Recover::askRecover(bool& newWallet)
@@ -123,6 +125,9 @@ bool Recover::askRecover(bool& newWallet)
 
                     SoftSetArg("-mnemonic", mnemonic);
                 }
+
+                std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
+                SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
 
                 if(use12)
                     SoftSetBoolArg("-use12", true);

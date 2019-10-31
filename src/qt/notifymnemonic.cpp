@@ -31,8 +31,7 @@ void NotifyMnemonic::notify()
     NotifyMnemonic notify;
     notify.setWindowIcon(QIcon(":icons/zcoin"));
     SecureString mnemonic;
-    SecureString passphrase;
-    pwalletMain->GetMnemonicConatiner().GetMnemonic(mnemonic, passphrase);
+    pwalletMain->GetMnemonicConatiner().GetMnemonic(mnemonic);
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.exec();
 #endif

@@ -26,7 +26,7 @@
    </item>
 <item>
  <widget class="QGroupBox" name="createorrecover">
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
     <widget class="QRadioButton" name="createNew">
      <property name="text">
@@ -91,7 +91,21 @@
     </layout>
    </item>
  <item>
- <widget class="QGroupBox" name="mnemonicBox">
+  <spacer name="horizontalSpacer">
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="sizeType">
+    <enum>QSizePolicy::Fixed</enum>
+   </property>
+   <property name="sizeHint" stdset="0">
+    <size>
+     <height>15</height>
+    </size>
+   </property>
+  </spacer>
+ </item>
+ <item>
   <layout class="QHBoxLayout" name="horizontalLayout2">
    <item>
     <widget class="QLabel" name="textLabel2">
@@ -107,7 +121,38 @@
      <widget class="QLineEdit" name="mnemonicWords"/>
     </item>
   </layout>
- </widget>
+ </item>
+    <item>
+     <spacer name="horizontalSpacer1">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Fixed</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <height>15</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+ <item>
+   <layout class="QHBoxLayout" name="horizontalLayout3">
+    <item>
+     <widget class="QLabel" name="textLabel3">
+      <property name="text">
+       <string>Input mnemonic passphrase here (Optional):</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLineEdit" name="mnemonicPassPhrase"/>
+    </item>
+   </layout>
  </item>
     <item>
      <widget class="QLabel" name="errorMessage">

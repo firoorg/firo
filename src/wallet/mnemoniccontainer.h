@@ -10,7 +10,6 @@ class MnemonicConatiner
 public:
     SecureVector seed;
     SecureVector mnemonic;
-    SecureVector passPhrase;
     bool fIsCrypted;
     bool f12Words;
 
@@ -21,7 +20,6 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
             READWRITE(mnemonic);
-            READWRITE(passPhrase);
             READWRITE(seed);
             READWRITE(fIsCrypted);
             READWRITE(f12Words);
@@ -37,7 +35,7 @@ public:
 
     bool SetMnemonic(const SecureString& mnemonic, const SecureString& passPhrase, bool newMnemonic);
 
-    bool GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_) const;
+    bool GetMnemonic(SecureString& mnemonic_) const;
 
     bool SetSeed(const SecureVector& seed_);
 

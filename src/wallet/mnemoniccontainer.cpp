@@ -6,7 +6,6 @@ void MnemonicConatiner::SetNull()
 {
     seed.clear();
     mnemonic.clear();
-    passPhrase.clear();
     fIsCrypted = false;
     f12Words = false;
 }
@@ -38,14 +37,12 @@ bool MnemonicConatiner::SetMnemonic(const SecureString& mnemonic_, const SecureS
     }
 
     mnemonic = SecureVector(mnemonicNew.begin(), mnemonicNew.end());
-    passPhrase = SecureVector(passPhrase_.begin(), passPhrase_.end());
     return !IsNull();
 }
 
-bool MnemonicConatiner::GetMnemonic(SecureString& mnemonic_, SecureString& passPhrase_) const
+bool MnemonicConatiner::GetMnemonic(SecureString& mnemonic_) const
 {
     mnemonic_ = SecureString(mnemonic.begin(), mnemonic.end());
-    passPhrase_ = SecureString(passPhrase.begin(), passPhrase.end());
 
     return !mnemonic_.empty();
 }
