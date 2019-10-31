@@ -2090,9 +2090,45 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 
-    //threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
+    // TODO: replace this temporary patch with real DASH evo code
+    threadGroup.create_thread([] {
+        RenameThread("znode-tick");
 
+        if (fLiteMode)
+            return;
 
+        unsigned int nTick = 0;
+
+        while (true) {
+            MilliSleep(1000);
+
+            znodeSync.ProcessTick();
+
+            if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+                nTick++;
+
+                LOCK(cs_main);
+
+                // make sure to check all znodes first
+                mnodeman.Check();
+
+                // check if we should activate or ping every few minutes,
+                // slightly postpone first run to give net thread a chance to connect to some peers
+                if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
+                    activeZnode.ManageState();
+
+                if (nTick % 60 == 0) {
+                    mnodeman.ProcessZnodeConnections();
+                    mnodeman.CheckAndRemove();
+                    mnpayments.CheckAndRemove();
+                    instantsend.CheckAndRemove();
+                }
+                if (fZNode && (nTick % (60 * 5) == 0)) {
+                    mnodeman.DoFullVerificationStep();
+                }
+            }
+        }
+    });
 
     // ********************************************************* Step 12: finished
 
