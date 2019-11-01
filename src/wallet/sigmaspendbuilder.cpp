@@ -38,7 +38,7 @@ public:
 
         spend.setVersion(coin.getVersion());
 
-        if (!spend.Verify(group, meta) && !fDummy) {
+        if (!fDummy && !spend.Verify(group, meta)) {
             throw std::runtime_error(_("The spend coin transaction failed to verify"));
         }
 
