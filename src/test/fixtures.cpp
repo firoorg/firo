@@ -63,44 +63,40 @@ ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
 
 }
 
-    CBlock ZerocoinTestingSetupBase::CreateBlock(
-            const CScript& scriptPubKey) {
-        const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey).get();
-        CBlock& block = pblocktemplate->block;
+CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
+    const CChainParams& chainparams = Params();
+    std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
+    CBlock block = pblocktemplate->block;
 
-        // IncrementExtraNonce creates a valid coinbase and merkleRoot
-        unsigned int extraNonce = 0;
-        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
+    // IncrementExtraNonce creates a valid coinbase and merkleRoot
+    unsigned int extraNonce = 0;
+    IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
 
-        while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-            ++block.nNonce;
-        }
-
-        delete pblocktemplate;
-        return block;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
+        ++block.nNonce;
     }
 
-    bool ZerocoinTestingSetupBase::ProcessBlock(CBlock &block) {
-        const CChainParams& chainparams = Params();
-        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
-    }
+    return block;
+}
 
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKey, and try to add it to the current chain.
-    CBlock ZerocoinTestingSetupBase::CreateAndProcessBlock(
-            const CScript& scriptPubKey) {
+bool ZerocoinTestingSetupBase::ProcessBlock(const CBlock &block) {
+    const CChainParams& chainparams = Params();
+    return ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block), true, NULL);
+}
 
-        CBlock block = CreateBlock(scriptPubKey);
-        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
-        return block;
-    }
+// Create a new block with just given transactions, coinbase paying to
+// scriptPubKey, and try to add it to the current chain.
+CBlock ZerocoinTestingSetupBase::CreateAndProcessBlock(const CScript& scriptPubKey) {
+    CBlock block = CreateBlock(scriptPubKey);
+    BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
+    return block;
+}
 
-    void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script) {
-        while (block_numbers--) {
-            CreateAndProcessBlock(script);
-        }
+void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script) {
+    while (block_numbers--) {
+        CreateAndProcessBlock(script);
     }
+}
 
  ZerocoinTestingSetup200::ZerocoinTestingSetup200()
     {
@@ -186,8 +182,8 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
         CBlock MtpMalformedTestingSetup::CreateBlock(
             const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed).get();
-        CBlock& block = pblocktemplate->block;
+        std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed);
+        CBlock block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;

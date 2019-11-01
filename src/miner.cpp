@@ -174,7 +174,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
-    int nFeeReductionFactor = fMTP ? params.nMTPRewardReduction : 1;
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus()) | (fMTP ? 0x1000 : 0);
@@ -215,7 +214,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
-    FillFoundersReward(coinbaseTx, nFeeReductionFactor);
+    FillFoundersReward(coinbaseTx, fMTP);
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -694,9 +693,9 @@ void BlockAssembler::addPriorityTxs()
     fNeedSizeAccounting = fSizeAccounting;
 }
 
-void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, int feeReductionFactor) {
+void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP) {
     auto &params = chainparams.GetConsensus();
-    CAmount coin = COIN / feeReductionFactor;
+    CAmount coin = COIN / (fMTP ? params.nMTPRewardReduction : 1);
 
     // To founders and investors
     if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
@@ -771,7 +770,7 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, int fee
     // Update coinbase transaction with additional info about znode and governance payments,
     // get some info back to pass to getblocktemplate
     if (nHeight >= params.nZnodePaymentsStartBlock) {
-        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0);
+        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
         coinbaseTx.vout[0].nValue -= znodePayment;
         FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
     }

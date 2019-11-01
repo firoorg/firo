@@ -15,15 +15,13 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
     CScript scriptPubKey;
     CPubKey pubkey;
 
-    CBlock CreateBlock(
-        const CScript&);
+    CBlock CreateBlock(const CScript&);
 
-    bool ProcessBlock(CBlock&);
+    bool ProcessBlock(const CBlock&);
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(
-        const CScript&);
+    CBlock CreateAndProcessBlock(const CScript&);
 
     void CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script);
 

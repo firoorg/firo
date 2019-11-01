@@ -74,8 +74,8 @@ struct MtpTransTestingSetup : public TestingSetup {
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtp, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtp).get();
-        CBlock& block = pblocktemplate->block;
+        std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtp);
+        CBlock block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
@@ -100,9 +100,9 @@ struct MtpTransTestingSetup : public TestingSetup {
         return block;
     }
 
-    bool ProcessBlock(CBlock &block) {
+    bool ProcessBlock(const CBlock &block) {
         const CChainParams& chainparams = Params();
-        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
+        return ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block), true, NULL);
     }
 
     // Create a new block with just given transactions, coinbase paying to

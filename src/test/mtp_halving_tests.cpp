@@ -71,8 +71,8 @@ struct MtpHalvingTestingSetup : public TestingSetup {
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtpHalving, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpHalving).get();
-        CBlock& block = pblocktemplate->block;
+        std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpHalving);
+        CBlock block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
@@ -96,9 +96,9 @@ struct MtpHalvingTestingSetup : public TestingSetup {
         return block;
     }
 
-    bool ProcessBlock(CBlock &block) {
+    bool ProcessBlock(const CBlock &block) {
         const CChainParams& chainparams = Params();
-        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
+        return ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block), true, NULL);
     }
 
     // Create a new block with just given transactions, coinbase paying to

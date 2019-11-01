@@ -76,8 +76,8 @@ struct ZnodeTestingSetup : public TestingSetup {
     CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
                        const CScript& scriptPubKeyZnode, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyZnode).get();
-        CBlock& block = pblocktemplate->block;
+        std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyZnode);
+        CBlock block = pblocktemplate->block;
 
         // Replace mempool-selected txns with just coinbase plus passed-in txns:
         if(txns.size() > 0) {
@@ -107,9 +107,9 @@ struct ZnodeTestingSetup : public TestingSetup {
         return block;
     }
 
-    bool ProcessBlock(CBlock &block) {
+    bool ProcessBlock(const CBlock &block) {
         const CChainParams& chainparams = Params();
-        return ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(&block), true, NULL);
+        return ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block), true, NULL);
     }
 
     // Create a new block with just given transactions, coinbase paying to
