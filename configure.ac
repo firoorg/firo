@@ -1213,7 +1213,7 @@ if test "x$have_zstd" = "xyes"; then
 fi
 AC_SUBST(LIBZSTD)
 
-AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh]])
+AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh], [--enable-endomorphism]])
 AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-asciidoc], [--disable-libscrypt]])
 
 
