@@ -4116,7 +4116,7 @@ bool CWallet::CreateZerocoinMintModelV2(string &stringError, const string& denom
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
-        LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
+        LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness.GetHex(), zerocoinTx.serialNumber.GetHex());
         NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         if (!CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoinTx))
             return false;
@@ -4847,7 +4847,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
 
                 // Limit size
-                if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
+                if (GetTransactionWeight(*wtxNew.tx) >= MAX_STANDARD_TX_WEIGHT) {
                     strFailReason = _("Transaction too large");
                     return false;
                 }
@@ -4880,7 +4880,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 //                    return false;
 //                }
                 } else{
-                    int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
+                    int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(*wtxNew.tx) / 1000);
                     //                bool fAllowFree = false;                                 // No free TXs in XZC
 
                     int currentConfirmationTarget = nTxConfirmTarget;

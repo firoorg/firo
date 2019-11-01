@@ -299,10 +299,6 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
             }
             nPotentialBlockSize += nTxSize;
         }
-
-        // do not allow zerocoin/sigma txs as a part of package at all
-        if (it->GetTx().IsZerocoinMint() || it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaMint() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint())
-            return false;
     }
     return true;
 }
@@ -383,6 +379,18 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
+    const CTransaction &tx = iter->GetTx();
+    if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
+        // Update sigma stats
+        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
+
+        if (nSigmaSpendAmount += spendAmount >= chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
+            return;
+        
+        if (nSigmaSpendInputs += tx.vin.size() >= chainparams.GetConsensus().nMaxSigmaInputPerBlock)
+            return;
+    }
+    
     pblock->vtx.emplace_back(iter->GetSharedTx());
     pblocktemplate->vTxFees.push_back(iter->GetFee());
     pblocktemplate->vTxSigOpsCost.push_back(iter->GetSigOpCost());
@@ -404,14 +412,6 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
                   dPriority,
                   CFeeRate(iter->GetModifiedFee(), iter->GetTxSize()).ToString(),
                   iter->GetTx().GetHash().ToString());
-    }
-
-    const CTransaction &tx = iter->GetTx();
-    if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
-        // Update sigma stats
-        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
-        nSigmaSpendAmount += spendAmount;
-        nSigmaSpendInputs += tx.vin.size();
     }
 }
 
@@ -673,7 +673,9 @@ void BlockAssembler::addPriorityTxs()
             // If now that this txs is added we've surpassed our desired priority size
             // or have dropped below the AllowFreeThreshold, then we're done adding priority txs
             if (nBlockSize >= nBlockPrioritySize || !AllowFree(actualPriority)) {
-                break;
+                // Make exception for zerocoin->sigma remints
+                if (!iter->GetTx().IsZerocoinRemint())
+                    break;
             }
 
             // This tx was successfully added, so
