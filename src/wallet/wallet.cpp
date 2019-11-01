@@ -3697,9 +3697,11 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 wtxNew.changes.clear();
                 bool fFirst = true;
                 CAmount nValueToSelect = nValue;
-                if (nSubtractFeeFromAmount == 0)
-                    LogPrintf("nSubtractFeeFromAmount is 0\n");
-                    nValueToSelect += nFeeRet;
+                // if fee is added to nValueToSelect, change output is charged twice the fee (line ~3768). Need to look into why this is here
+                // if (nSubtractFeeFromAmount == 0){
+                //     LogPrintf("nSubtractFeeFromAmount is 0\n");
+                //     nValueToSelect += nFeeRet;
+                // }
                 double dPriority = 0;
                 // vouts to the payees
                 BOOST_FOREACH(const CRecipient &recipient, vecSend)
@@ -3925,9 +3927,10 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     return false;
                 }
                 LogPrintf("nFeeRet: %s\n", nFeeRet);   
-                if (nFeeRet >= nFeeNeeded)
-                    LogPrintf("enough fee gotten.nFeeRet: %s\n", nFeeRet);
+                if (nFeeRet >= nFeeNeeded){
+                    LogPrintf("enough fee gotten. nFeeRet: %s\n", nFeeRet);
                     break; // Done, enough fee included.
+                }
 
                 // Include more fee and try again.
                 nFeeRet = nFeeNeeded;

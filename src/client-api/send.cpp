@@ -287,8 +287,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         CScript scriptPubKey = GetScriptForDestination(address.Get());
         CAmount nAmount;
         try{
-            feePerKb = find_value(data, "feePerKb");
-            sendTo = find_value(data, "addresses").get_obj();
             nAmount = sendTo[name_].get_int64();
         }catch (const std::exception& e){
             throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
@@ -309,7 +307,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     string strFailReason;
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, false);
     if (!fCreated)
-        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);  
     
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
