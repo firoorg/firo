@@ -2451,7 +2451,18 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     GetMainSignals().UpdatedTransaction(hashPrevBestCoinBase);
     hashPrevBestCoinBase = block.vtx[0]->GetHash();
 
+    int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
+    LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 
+    return true;
+}
+
+/**
+ * Erase all of zerocoin/sigma transactions conflicting with given block from the mempool
+ */
+void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
+    LOCK(mempool.cs);
+    
     // Erase conflicting zerocoin txs from the mempool
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
@@ -2501,17 +2512,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 try {
                     pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
                 } catch (std::invalid_argument&) {
-                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                    // nothing
                 }
                 sigmaState->RemoveMintFromMempool(pubCoinValue);
             }
         }
     }
-
-    int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
-    LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
-
-    return true;
 }
 
 /**
@@ -2876,6 +2882,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     {
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
+        if (rv)
+            RemoveConflictingPrivacyTransactionsFromMempool(blockConnecting);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             if (state.IsInvalid())
