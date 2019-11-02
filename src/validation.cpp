@@ -563,10 +563,21 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
     if (fCheckDuplicateInputs) {
         std::set<COutPoint> vInOutPoints;
-        for (const auto& txin : tx.vin)
-        {
-            if (!vInOutPoints.insert(txin.prevout).second)
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
+            std::set<CScript> spendScripts;
+            for (const auto& txin: tx.vin)
+            {
+                if (!spendScripts.insert(txin.scriptSig).second)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
+            }
+        }
+        else {
+            std::set<COutPoint> vInOutPoints;
+            for (const auto& txin : tx.vin)
+            {
+                if (!vInOutPoints.insert(txin.prevout).second)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+            }            
         }
     }
 
@@ -771,7 +782,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     {
                         BOOST_FOREACH(const CTxIn &_txin, ptxConflicting->vin)
                         {
-                            if (txin.nSequence < std::numeric_limits<unsigned int>::max()-1)
+                            if (_txin.nSequence < std::numeric_limits<unsigned int>::max()-1)
                             {
                                 fReplacementOptOut = false;
                                 break;
