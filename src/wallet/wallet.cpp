@@ -1475,7 +1475,7 @@ void CWallet::GenerateNewMnemonic(){
         SecureString secureMnemonic(mnemonic.begin(), mnemonic.end());
         SecureString securePassphrase(mnemonicPassphrase.begin(), mnemonicPassphrase.end());
 
-        if (!mnContainer.SetMnemonic(secureMnemonic, securePassphrase, true))
+        if (!mnContainer.SetMnemonic(secureMnemonic, securePassphrase))
             throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
         newHdChain.masterKeyID = CKeyID(Hash160(mnContainer.seed.begin(), mnContainer.seed.end()));
     }
@@ -1555,8 +1555,7 @@ bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
             return false;
 
         SecureString secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
-        SecureString secureCryptedPassphrase;
-        if (!mnemonicContainer.SetMnemonic(secureCryptedMnemonic, secureCryptedPassphrase, false))
+        if (!mnemonicContainer.SetMnemonic(secureCryptedMnemonic))
             return false;
     }
 
@@ -1595,8 +1594,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
             return false;
 
         SecureString mnemonic(vectorMnemonic.begin(), vectorMnemonic.end());
-        SecureString passphrase;
-        if (!mnContainer.SetMnemonic(mnemonic, passphrase, false))
+        if (!mnContainer.SetMnemonic(mnemonic))
             return false;
     }
 

@@ -25,7 +25,7 @@ void MnemonicContainer::SetCrypted(bool crypted)
     fIsCrypted = crypted;
 }
 
-bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureString& passPhrase_, bool newMnemonic)
+bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureString& passPhrase_)
 {
     SecureString mnemonicNew = mnemonic_;
     if(newMnemonic) {
@@ -36,6 +36,12 @@ bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureS
         Mnemonic::mnemonic_to_seed(mnemonicNew, passPhrase_, seed);
     }
 
+    mnemonic = SecureVector(mnemonicNew.begin(), mnemonicNew.end());
+    return !IsNull();
+}
+
+bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_)
+{
     mnemonic = SecureVector(mnemonicNew.begin(), mnemonicNew.end());
     return !IsNull();
 }

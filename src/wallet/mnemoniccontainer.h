@@ -33,7 +33,9 @@ public:
 
     void SetCrypted(bool crypted);
 
-    bool SetMnemonic(const SecureString& mnemonic, const SecureString& passPhrase, bool newMnemonic);
+    bool SetMnemonic(const SecureString& mnemonic, const SecureString& passPhrase);
+
+    bool SetMnemonic(const SecureString& mnemonic);
 
     bool GetMnemonic(SecureString& mnemonic_) const;
 
