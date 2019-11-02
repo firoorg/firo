@@ -28,13 +28,12 @@ void MnemonicContainer::SetCrypted(bool crypted)
 bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureString& passPhrase_)
 {
     SecureString mnemonicNew = mnemonic_;
-    if(newMnemonic) {
-        if(mnemonicNew.empty())
-            mnemonicNew = Mnemonic::mnemonic_generate(f12Words ? 128 : 256);
-        if(!Mnemonic::mnemonic_check(mnemonicNew))
-            throw std::runtime_error(std::string(__func__) + ": mnemonic is invalid");
-        Mnemonic::mnemonic_to_seed(mnemonicNew, passPhrase_, seed);
-    }
+
+    if(mnemonicNew.empty())
+        mnemonicNew = Mnemonic::mnemonic_generate(f12Words ? 128 : 256);
+    if(!Mnemonic::mnemonic_check(mnemonicNew))
+        throw std::runtime_error(std::string(__func__) + ": mnemonic is invalid");
+    Mnemonic::mnemonic_to_seed(mnemonicNew, passPhrase_, seed);
 
     mnemonic = SecureVector(mnemonicNew.begin(), mnemonicNew.end());
     return !IsNull();
