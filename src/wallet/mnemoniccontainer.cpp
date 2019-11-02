@@ -39,9 +39,9 @@ bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureS
     return !IsNull();
 }
 
-bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_)
+bool MnemonicContainer::SetMnemonic(const SecureVector& mnemonic_)
 {
-    mnemonic = SecureVector(mnemonic.begin(), mnemonic.end());
+    mnemonic = mnemonic_;
     return !IsNull();
 }
 

@@ -689,10 +689,10 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
     if (IsCrypted())
         return false;
 
-    CKeyingMaterial _vMasterKey;
+    CKeyingMaterial vMasterKey;
 
-    _vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
-    GetStrongRandBytes(&_vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
+    vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
+    GetStrongRandBytes(&vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
 
     CMasterKey kMasterKey;
 
@@ -718,7 +718,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
     if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations,
                                       kMasterKey.nDerivationMethod))
         return false;
-    if (!crypter.Encrypt(_vMasterKey, kMasterKey.vchCryptedKey))
+    if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
         return false;
 
     {
@@ -735,7 +735,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
             pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
         }
 
-        if (!EncryptKeys(_vMasterKey)) {
+        if (!EncryptKeys(vMasterKey)) {
             if (fFileBacked) {
                 pwalletdbEncryption->TxnAbort();
                 delete pwalletdbEncryption;
@@ -765,7 +765,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
 
         // if we are using HD, replace the HD master key (seed) with a new one
         if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
-            assert(EncryptMnemonicContainer(_vMasterKey));
+            assert(EncryptMnemonicContainer(vMasterKey));
             SetMinVersion(FEATURE_HD);
             assert(SetMnemonicContainer(mnemonicContainer, false));
         } else if (!hdChain.masterKeyID.IsNull()) {
@@ -1554,7 +1554,7 @@ bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
         if ((!mnemonic.empty() && !EncryptSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)))
             return false;
 
-        SecureString secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
+        SecureVector secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
         if (!mnemonicContainer.SetMnemonic(secureCryptedMnemonic))
             return false;
     }
@@ -1593,8 +1593,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
         if (!CryptedMnemonic.empty() && !DecryptSecret(vMasterKey, CryptedMnemonic, id, vectorMnemonic))
             return false;
 
-        SecureString mnemonic(vectorMnemonic.begin(), vectorMnemonic.end());
-        if (!mnContainer.SetMnemonic(mnemonic))
+        if (!mnContainer.SetMnemonic(vectorMnemonic))
             return false;
     }
 

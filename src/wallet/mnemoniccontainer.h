@@ -35,7 +35,7 @@ public:
 
     bool SetMnemonic(const SecureString& mnemonic, const SecureString& passPhrase);
 
-    bool SetMnemonic(const SecureString& mnemonic);
+    bool SetMnemonic(const SecureVector& mnemonic_);
 
     bool GetMnemonic(SecureString& mnemonic_) const;
 
