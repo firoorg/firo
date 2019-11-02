@@ -82,7 +82,7 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
-            zwalletMain->GenerateMint(priv.getPublicCoin().getDenomination(), priv, dMint, boost::none);
+            zwalletMain->GenerateMint(priv.getPublicCoin().getDenomination(), priv, dMint, boost::none, true);
 
             auto& pub = priv.getPublicCoin();
 
