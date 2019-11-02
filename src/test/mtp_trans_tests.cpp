@@ -52,7 +52,6 @@ struct MtpTransTestingSetup : public TestingSetup {
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKeyMtp = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         bool mtp = false;
         CBlock b;
@@ -69,7 +68,6 @@ struct MtpTransTestingSetup : public TestingSetup {
         }
 
 
-        printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtp, bool mtp = false) {

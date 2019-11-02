@@ -111,7 +111,6 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
         //mBlockHeightConstants["ZC_CHECK_BUG_FIXED_AT_BLOCK"] = 140;
         // Since sigma V3 implementation also over consensus.nMintV3SigmaStartBlock = 180;
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(pubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
         for (int i = 0; i < 200; i++)
         {
@@ -124,7 +123,6 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
             }
         }
 
-        printf("Balance after 200 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
 
@@ -137,7 +135,6 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         for (int i = 0; i < 109; i++)
         {
@@ -150,7 +147,6 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
             }
         }
 
-        printf("Balance after 109 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
 MtpMalformedTestingSetup::MtpMalformedTestingSetup()
@@ -162,7 +158,6 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         bool mtp = false;
         CBlock b;
@@ -176,7 +171,6 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
                 pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }
         }
-        printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
         CBlock MtpMalformedTestingSetup::CreateBlock(

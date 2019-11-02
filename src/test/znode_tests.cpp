@@ -55,7 +55,6 @@ struct ZnodeTestingSetup : public TestingSetup {
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKeyZnode = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         bool mtp = false;
         CBlock b;
@@ -70,7 +69,6 @@ struct ZnodeTestingSetup : public TestingSetup {
                 pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }   
         }
-        printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
     CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,

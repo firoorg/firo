@@ -41,7 +41,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
     // foreach denom from denominations
     for(auto denomination : denominations)
     {
-        printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         // Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);

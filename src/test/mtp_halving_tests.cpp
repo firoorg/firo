@@ -52,7 +52,6 @@ struct MtpHalvingTestingSetup : public TestingSetup {
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
         scriptPubKeyMtpHalving = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         bool mtp = false;
         CBlock b;
@@ -66,7 +65,6 @@ struct MtpHalvingTestingSetup : public TestingSetup {
                 pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }   
         }
-        printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtpHalving, bool mtp = false) {

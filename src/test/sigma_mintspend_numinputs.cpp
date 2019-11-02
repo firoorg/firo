@@ -48,7 +48,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than inputs limit.
-    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){

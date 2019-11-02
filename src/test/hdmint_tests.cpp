@@ -77,8 +77,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -121,8 +119,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -277,8 +273,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         denominationPairs.clear();

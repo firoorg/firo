@@ -50,7 +50,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
-        printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);

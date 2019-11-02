@@ -68,7 +68,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
         CAmount denomAmount;
         sigma::StringToDenomination(denomination, denomId);
         sigma::DenominationToInteger(denomId, denomAmount);
-        printf("Testing denomination %s\n", denomination.c_str());
         std::string stringError;
 
         // Make sure that transactions get to mempool
@@ -359,7 +358,6 @@ BOOST_AUTO_TEST_CASE(double_mint_into_mempool) {
         // foreach denom from denominations
         for(auto denomination : denominations)
         {
-            printf("Testing denomination %s\n", denomination.c_str());
             // Make sure that transactions get to mempool
             pwalletMain->SetBroadcastTransactions(true);
             sigma::CoinDenomination denom;

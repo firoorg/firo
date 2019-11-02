@@ -52,7 +52,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
-        printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -193,7 +192,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]); 
-        printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -339,7 +337,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
             b = CreateAndProcessBlock(scriptPubKey);
             wtx.Init(NULL);
         }
-        // printf("%d\n", chainActive.Height());
         BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
         previousHeight = chainActive.Height();
 
@@ -369,7 +366,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i]); 
         string stringError;
-        printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         denominationPairs.clear();
         std::pair<std::string, int> denominationPair(denominations[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);
@@ -388,7 +384,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
             b = CreateAndProcessBlock(scriptPubKey);
             wtx.Init(NULL);
         }
-        // printf("%d\n", chainActive.Height());
         BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
         previousHeight = chainActive.Height();
 
@@ -429,7 +424,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     denominationsForTx.clear();
     denominationsForTx.push_back(denominations[rand() % 5]);
     denominationsForTx.push_back(denominations[rand() % 5]); 
-    printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
     string stringError;
 
     denominationPairs.clear();
@@ -452,7 +446,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
         b = CreateAndProcessBlock(scriptPubKey);
         wtx.Init(NULL);
     }
-    // printf("%d\n", chainActive.Height());
     BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
     previousHeight = chainActive.Height();
 
@@ -508,7 +501,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs){
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than ZC_SPEND_LIMIT inputs.
-    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (int i = 0; i < (ZC_SPEND_LIMIT+1)*2; i++){

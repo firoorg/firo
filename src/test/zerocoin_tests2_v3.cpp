@@ -49,12 +49,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 
     std::vector<string> denominations = {"0.1", "0.5", "1"};
     for(string denomination : denominations) {
-        printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
 
-        printf("Creating 5 mints at height %d\n", chainActive.Height() + 1);
         //Block 201 create 5 mints
         //Verify Mint is successful
         for(int i = 0; i < 5; i++)
@@ -70,7 +68,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        printf("Creating 6 mints at height %d\n", chainActive.Height() + 1);
         //Block 111, put 6 mints
         for(int i = 0; i < 6; i++)
             BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + " - Create Mint failed");
@@ -88,7 +85,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
             CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
 
-        printf("Creating 10 mints and one spend at height %d\n", chainActive.Height() + 1);
         //Block 117, put 10 mints and one spend
         for(int i = 0; i < 10; i++)
             BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + " - Create Mint failed");
@@ -102,7 +98,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        printf("Creating 20 blocks with 1 spend each starting at height %d\n", chainActive.Height() + 1);
         //20 spends in 20 blocks
         for(int i = 0; i < 20; i++) {
 
@@ -114,7 +109,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
             BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
         }
 
-        printf("Creating 19 mints at height %d\n", chainActive.Height() + 1);
         //Put 19 mints
         for(int i = 0; i < 19; i++)
             BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + " - Create Mint failed");
@@ -132,7 +126,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
             CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
 
-        printf("Creating 19 blocks with 1 spend each starting at height %d\n", chainActive.Height() + 1);
         //19 spends in 19 blocks
         for(int i = 0; i < 19; i++) {
             BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
