@@ -428,33 +428,30 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     cachedInnerUsage += entry.DynamicMemoryUsage();
 
     const CTransaction& tx = newit->GetTx();
+    std::set<uint256> setParentTransactions;
     if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsZerocoinRemint()) {
-        std::set<uint256> setParentTransactions;
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             mapNextTx.insert(std::make_pair(&tx.vin[i].prevout, &tx));
             setParentTransactions.insert(tx.vin[i].prevout.hash);
         }
-        // Don't bother worrying about child transactions of this one.
-        // Normal case of a new transaction arriving is that there can't be any
-        // children, because such children would be orphans.
-        // An exception to that is if a transaction enters that used to be in a block.
-        // In that case, our disconnect block logic will call UpdateTransactionsFromBlock
-        // to clean up the mess we're leaving here.
-
-        // Update ancestors with information about this tx
-        BOOST_FOREACH (const uint256 &phash, setParentTransactions) {
-            txiter pit = mapTx.find(phash);
-            if (pit != mapTx.end()) {
-                UpdateParent(newit, pit, true);
-            }
-        }
-        UpdateAncestorsOf(true, newit, setAncestors);
-        UpdateEntryForAncestors(newit, setAncestors);
-        minerPolicyEstimator->processTransaction(entry, validFeeEstimate);
-
-        vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
-        newit->vTxHashesIdx = vTxHashes.size() - 1;
     }
+    // Don't bother worrying about child transactions of this one.
+    // Normal case of a new transaction arriving is that there can't be any
+    // children, because such children would be orphans.
+    // An exception to that is if a transaction enters that used to be in a block.
+    // In that case, our disconnect block logic will call UpdateTransactionsFromBlock
+    // to clean up the mess we're leaving here.
+
+    // Update ancestors with information about this tx
+    BOOST_FOREACH (const uint256 &phash, setParentTransactions) {
+        txiter pit = mapTx.find(phash);
+        if (pit != mapTx.end()) {
+            UpdateParent(newit, pit, true);
+        }
+    }
+
+    UpdateAncestorsOf(true, newit, setAncestors);
+    UpdateEntryForAncestors(newit, setAncestors);
 
     nTransactionsUpdated++;
     totalTxSize += entry.GetTxSize();
