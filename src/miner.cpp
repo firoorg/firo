@@ -383,10 +383,10 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         // Update sigma stats
         CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
 
-        if (nSigmaSpendAmount += spendAmount >= chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
+        if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
             return;
         
-        if (nSigmaSpendInputs += tx.vin.size() >= chainparams.GetConsensus().nMaxSigmaInputPerBlock)
+        if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
             return;
     }
     

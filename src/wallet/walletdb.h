@@ -126,7 +126,7 @@ public:
 
     bool ParseComponents(){
         std::vector<std::string> nComponents;
-        if(hdKeypath=="m")
+        if (hdKeypath.empty() || hdKeypath=="m")
             return false;
         boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
         std::string nChangeStr = nComponents[nComponents.size()-2];

@@ -339,7 +339,7 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     CMutableTransaction txCopy = *tx.tx;
     txCopy.vin[1].scriptSig = extendedScript;
     CWalletTx wtxCopy = tx;
-    tx.SetTx(MakeTransactionRef(txCopy));
+    wtxCopy.SetTx(MakeTransactionRef(txCopy));
 
     // Add invalid transaction to mempool,
     BOOST_CHECK_MESSAGE(!addToMempool(wtxCopy), "Double spend transaction have been accepted");
