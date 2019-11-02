@@ -42,7 +42,7 @@ bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureS
 
 bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_)
 {
-    mnemonic = mnemonic_;
+    mnemonic = SecureVector(mnemonic.begin(), mnemonic.end());
     return !IsNull();
 }
 
