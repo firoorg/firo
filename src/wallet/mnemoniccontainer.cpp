@@ -2,7 +2,7 @@
 #include "bip39.h"
 #include "hash.h"
 
-void MnemonicConatiner::SetNull()
+void MnemonicContainer::SetNull()
 {
     seed.clear();
     mnemonic.clear();
@@ -10,22 +10,22 @@ void MnemonicConatiner::SetNull()
     f12Words = false;
 }
 
-bool MnemonicConatiner::IsNull() const
+bool MnemonicContainer::IsNull() const
 {
     return seed.empty();
 }
 
-bool MnemonicConatiner::IsCrypted() const
+bool MnemonicContainer::IsCrypted() const
 {
     return fIsCrypted;
 }
 
-void MnemonicConatiner::SetCrypted(bool crypted)
+void MnemonicContainer::SetCrypted(bool crypted)
 {
     fIsCrypted = crypted;
 }
 
-bool MnemonicConatiner::SetMnemonic(const SecureString& mnemonic_, const SecureString& passPhrase_, bool newMnemonic)
+bool MnemonicContainer::SetMnemonic(const SecureString& mnemonic_, const SecureString& passPhrase_, bool newMnemonic)
 {
     SecureString mnemonicNew = mnemonic_;
     if(newMnemonic) {
@@ -40,26 +40,26 @@ bool MnemonicConatiner::SetMnemonic(const SecureString& mnemonic_, const SecureS
     return !IsNull();
 }
 
-bool MnemonicConatiner::GetMnemonic(SecureString& mnemonic_) const
+bool MnemonicContainer::GetMnemonic(SecureString& mnemonic_) const
 {
     mnemonic_ = SecureString(mnemonic.begin(), mnemonic.end());
 
     return !mnemonic_.empty();
 }
 
-bool MnemonicConatiner::SetSeed(const SecureVector& seed_)
+bool MnemonicContainer::SetSeed(const SecureVector& seed_)
 {
     seed = seed_;
 
     return !IsNull();
 }
 
-SecureVector MnemonicConatiner::GetSeed() const
+SecureVector MnemonicContainer::GetSeed() const
 {
     return seed;
 }
 
-void MnemonicConatiner::Set12Words(bool Use12Words)
+void MnemonicContainer::Set12Words(bool Use12Words)
 {
     f12Words = Use12Words;
 }

@@ -702,14 +702,14 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     file << "\n";
 
     // add the base58check encoded extended master if the wallet uses HD
-    MnemonicConatiner mContainer = pwalletMain->GetMnemonicConatiner();
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
     const CHDChain& chain = pwalletMain->GetHDChain();
     CKeyID masterKeyID = chain.masterKeyID;
     if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
     {
         if(mContainer.IsCrypted())
         {
-            if(!pwalletMain->DecryptMnemonicConatiner(mContainer))
+            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
         }
 

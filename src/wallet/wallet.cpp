@@ -156,8 +156,8 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
     if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
-        MnemonicConatiner mContainer = mnemonicConatiner;
-        DecryptMnemonicConatiner(mContainer);
+        MnemonicContainer mContainer = mnemonicContainer;
+        DecryptMnemonicContainer(mContainer);
         SecureVector seed = mContainer.GetSeed();
         masterKey.SetMaster(&seed[0], seed.size());
     } else {
@@ -220,8 +220,8 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
         if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
-            MnemonicConatiner mContainer = mnemonicConatiner;
-            DecryptMnemonicConatiner(mContainer);
+            MnemonicContainer mContainer = mnemonicContainer;
+            DecryptMnemonicContainer(mContainer);
             SecureVector seed = mContainer.GetSeed();
             masterKey.SetMaster(&seed[0], seed.size());
         } else {
@@ -764,10 +764,10 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         Unlock(strWalletPassphrase, true);
 
         // if we are using HD, replace the HD master key (seed) with a new one
-        if(!mnemonicConatiner.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
-            assert(EncryptMnemonicConatiner(_vMasterKey));
+        if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
+            assert(EncryptMnemonicContainer(_vMasterKey));
             SetMinVersion(FEATURE_HD);
-            assert(SetMnemonicConatiner(mnemonicConatiner, false));
+            assert(SetMnemonicContainer(mnemonicContainer, false));
         } else if (!hdChain.masterKeyID.IsNull()) {
             CKey key;
             CPubKey masterPubKey = GenerateNewHDMasterKey();
@@ -1451,7 +1451,7 @@ CPubKey CWallet::GenerateNewHDMasterKey() {
 
 void CWallet::GenerateNewMnemonic(){
     CHDChain newHdChain;
-    MnemonicConatiner mnContainer;
+    MnemonicContainer mnContainer;
 
     std::string strSeed = GetArg("-hdseed", "not hex");
 
@@ -1464,7 +1464,7 @@ void CWallet::GenerateNewMnemonic(){
         newHdChain.masterKeyID = CKeyID(Hash160(seed.begin(), seed.end()));
     }
     else {
-        LogPrintf("CWallet::GenerateNewHDChain -- Generating new MnemonicConatiner\n");
+        LogPrintf("CWallet::GenerateNewHDChain -- Generating new MnemonicContainer\n");
 
         std::string mnemonic = GetArg("-mnemonic", "");
         std::string mnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
@@ -1483,8 +1483,8 @@ void CWallet::GenerateNewMnemonic(){
     if (!SetHDChain(newHdChain, false))
         throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
 
-    if (!SetMnemonicConatiner(mnContainer, false))
-        throw std::runtime_error(std::string(__func__) + ": SetMnemonicConatiner failed");
+    if (!SetMnemonicContainer(mnContainer, false))
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonicContainer failed");
 }
 
 bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
@@ -1522,32 +1522,32 @@ bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
     return true;
 }
 
-bool CWallet::SetMnemonicConatiner(const MnemonicConatiner& mnConatiner, bool memonly) {
-    if (!memonly && !CWalletDB(strWalletFile).WriteMnemonic(mnConatiner))
+bool CWallet::SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly) {
+    if (!memonly && !CWalletDB(strWalletFile).WriteMnemonic(mnContainer))
         throw runtime_error(std::string(__func__) + ": writing chain failed");
-    mnemonicConatiner = mnConatiner;
+    mnemonicContainer = mnContainer;
     return true;
 }
 
-bool CWallet::EncryptMnemonicConatiner(const CKeyingMaterial& vMasterKeyIn)
+bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
 {
     if (!IsCrypted())
         return false;
 
-    if (mnemonicConatiner.IsCrypted())
+    if (mnemonicContainer.IsCrypted())
         return true;
 
     uint256 id = uint256S(hdChain.masterKeyID.GetHex());
 
     std::vector<unsigned char> cryptedSeed;
-    if (!EncryptSecret(vMasterKeyIn, mnemonicConatiner.GetSeed(), id, cryptedSeed))
+    if (!EncryptSecret(vMasterKeyIn, mnemonicContainer.GetSeed(), id, cryptedSeed))
         return false;
     SecureVector secureCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
-    if (!mnemonicConatiner.SetSeed(secureCryptedSeed))
+    if (!mnemonicContainer.SetSeed(secureCryptedSeed))
         return false;
 
     SecureString mnemonic;
-    if (mnemonicConatiner.GetMnemonic(mnemonic)) {
+    if (mnemonicContainer.GetMnemonic(mnemonic)) {
         std::vector<unsigned char> cryptedMnemonic;
         SecureVector vectorMnemonic(mnemonic.begin(), mnemonic.end());
 
@@ -1556,38 +1556,38 @@ bool CWallet::EncryptMnemonicConatiner(const CKeyingMaterial& vMasterKeyIn)
 
         SecureString secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
         SecureString secureCryptedPassphrase;
-        if (!mnemonicConatiner.SetMnemonic(secureCryptedMnemonic, secureCryptedPassphrase, false))
+        if (!mnemonicContainer.SetMnemonic(secureCryptedMnemonic, secureCryptedPassphrase, false))
             return false;
     }
 
-    mnemonicConatiner.SetCrypted(true);
+    mnemonicContainer.SetCrypted(true);
 
     return true;
 }
 
-bool CWallet::DecryptMnemonicConatiner(MnemonicConatiner& mnConatiner) const
+bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
 {
     if (!IsCrypted())
         return true;
 
-    if (!mnemonicConatiner.IsCrypted())
+    if (!mnemonicContainer.IsCrypted())
         return false;
 
     uint256 id = uint256S(hdChain.masterKeyID.GetHex());
 
     SecureVector seed;
-    SecureVector cryptedSeed = mnemonicConatiner.GetSeed();
+    SecureVector cryptedSeed = mnemonicContainer.GetSeed();
     std::vector<unsigned char> vCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
     if (!DecryptSecret(vMasterKey, vCryptedSeed, id, seed))
         return false;
 
-    mnConatiner = mnemonicConatiner;
-    if (!mnConatiner.SetSeed(seed))
+    mnContainer = mnemonicContainer;
+    if (!mnContainer.SetSeed(seed))
         return false;
 
     SecureString cryptedMnemonic;
 
-    if (mnemonicConatiner.GetMnemonic(cryptedMnemonic)) {
+    if (mnemonicContainer.GetMnemonic(cryptedMnemonic)) {
         SecureVector vectorMnemonic;
 
         std::vector<unsigned char> CryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
@@ -1596,11 +1596,11 @@ bool CWallet::DecryptMnemonicConatiner(MnemonicConatiner& mnConatiner) const
 
         SecureString mnemonic(vectorMnemonic.begin(), vectorMnemonic.end());
         SecureString passphrase;
-        if (!mnConatiner.SetMnemonic(mnemonic, passphrase, false))
+        if (!mnContainer.SetMnemonic(mnemonic, passphrase, false))
             return false;
     }
 
-    mnConatiner.SetCrypted(false);
+    mnContainer.SetCrypted(false);
 
     return true;
 }

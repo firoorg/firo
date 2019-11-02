@@ -287,7 +287,7 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
-    bool WriteMnemonic(const MnemonicConatiner& mnConatiner);
+    bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
 #ifdef ENABLE_EXODUS
 

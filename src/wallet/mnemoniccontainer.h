@@ -5,7 +5,7 @@
 #include "uint256.h"
 #include "serialize.h"
 
-class MnemonicConatiner
+class MnemonicContainer
 {
 public:
     SecureVector seed;
@@ -13,7 +13,7 @@ public:
     bool fIsCrypted;
     bool f12Words;
 
-    MnemonicConatiner() { SetNull(); }
+    MnemonicContainer() { SetNull(); }
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>

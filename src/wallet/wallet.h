@@ -673,7 +673,7 @@ private:
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
-    MnemonicConatiner mnemonicConatiner;
+    MnemonicContainer mnemonicContainer;
 
 public:
     /*
@@ -1200,11 +1200,11 @@ public:
     bool SetHDChain(const CHDChain& chain, bool memonly);
     const CHDChain& GetHDChain() { return hdChain; }
 
-    bool SetMnemonicConatiner(const MnemonicConatiner& mnConatiner, bool memonly);
-    const MnemonicConatiner& GetMnemonicConatiner() { return mnemonicConatiner; }
+    bool SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly);
+    const MnemonicContainer& GetMnemonicContainer() { return mnemonicContainer; }
 
-    bool EncryptMnemonicConatiner(const CKeyingMaterial& vMasterKeyIn);
-    bool DecryptMnemonicConatiner(MnemonicConatiner& mnConatiner) const;
+    bool EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn);
+    bool DecryptMnemonicContainer(MnemonicContainer& mnContainer) const;
 
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();
