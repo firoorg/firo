@@ -53,7 +53,7 @@ public:
 
     template<typename Stream>
     inline void Serialize(Stream& s) const {
-        int size = value.memoryRequired();
+        constexpr int size = GroupElement::memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         value.serialize(buffer);
         std::memcpy(buffer + size, &denomination, sizeof(denomination));
@@ -63,7 +63,7 @@ public:
 
     template<typename Stream>
     inline void Unserialize(Stream& s) {
-        int size = value.memoryRequired();
+        constexpr int size = GroupElement::memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         char* b = (char*)buffer;
         s.read(b, size + sizeof(int32_t));
