@@ -53,8 +53,6 @@ class SigmaZapWalletMintsTest(BitcoinTestFramework):
         assert len(sigma_mints2) == len(sigma_mints1), \
             'The amount of mints should be same after restart with zapwalletmints.'
 
-        self.nodes[0].generate(1)
-        self.sync_all()
         # Minting after restart with '-zapwalletmints'
         self.nodes[0].mint(sigma_denoms[0])
 
