@@ -726,8 +726,10 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         std::string strTime = EncodeDumpTime(it->first);
         std::string strAddr = CBitcoinAddress(keyid).ToString();
         CKey key;
-        if(!masterKeyID.IsNull())
-            pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+        if(!masterKeyID.IsNull()){
+            if(!pwalletMain->mapKeyMetadata[keyid].ParseComponents())
+                continue;
+        }
         if (pwalletMain->GetKey(keyid, key)) {
             file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
             if (pwalletMain->mapAddressBook.count(keyid)) {
@@ -760,24 +762,26 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     }
 
     // Begin dump Zerocoins
-    list <CZerocoinEntry> listZerocoinEntries;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoin(listZerocoinEntries);
+    if (!pwalletMain->strWalletFile.empty()) {
+        list <CZerocoinEntry> listZerocoinEntries;
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        walletdb.ListPubCoin(listZerocoinEntries);
 
-    for (auto& zerocoinEntry : listZerocoinEntries) {
-        file << "zerocoin=1 ";
-        file << strprintf("%s ", zerocoinEntry.value.GetHex()); // value
-        file << strprintf("%d ", zerocoinEntry.denomination); // denomination
-        file << strprintf("%s ", zerocoinEntry.randomness.GetHex()); // randomness
-        file << strprintf("%s ", zerocoinEntry.serialNumber.GetHex()); // serialNumber
-        file << strprintf("%d ", zerocoinEntry.IsUsed); // IsUsed
-        file << strprintf("%d ", zerocoinEntry.nHeight); // nHeight
-        file << strprintf("%d ", zerocoinEntry.id); // id
-        if(!zerocoinEntry.ecdsaSecretKey.empty()){
-            file << strprintf("%s ", HexStr(zerocoinEntry.ecdsaSecretKey)); // ecdsaSecretKey
-            file << strprintf("%d ", zerocoinEntry.IsUsedForRemint); // IsUsedForRemint
+        for (auto& zerocoinEntry : listZerocoinEntries) {
+            file << "zerocoin=1 ";
+            file << strprintf("%s ", zerocoinEntry.value.GetHex()); // value
+            file << strprintf("%d ", zerocoinEntry.denomination); // denomination
+            file << strprintf("%s ", zerocoinEntry.randomness.GetHex()); // randomness
+            file << strprintf("%s ", zerocoinEntry.serialNumber.GetHex()); // serialNumber
+            file << strprintf("%d ", zerocoinEntry.IsUsed); // IsUsed
+            file << strprintf("%d ", zerocoinEntry.nHeight); // nHeight
+            file << strprintf("%d ", zerocoinEntry.id); // id
+            if(!zerocoinEntry.ecdsaSecretKey.empty()){
+                file << strprintf("%s ", HexStr(zerocoinEntry.ecdsaSecretKey)); // ecdsaSecretKey
+                file << strprintf("%d ", zerocoinEntry.IsUsedForRemint); // IsUsedForRemint
+            }
+            file << "#\n"; // --
         }
-        file << "#\n"; // --
     }
 
     file << "\n";
