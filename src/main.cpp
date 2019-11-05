@@ -1335,6 +1335,7 @@ bool AcceptToMemoryPoolWorker(
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     vector<Scalar> zcSpendSerialsV3;
+    vector<GroupElement> zcMintPubcoinsV3;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         if (tx.IsZerocoinSpend()) {
@@ -1406,6 +1407,23 @@ bool AcceptToMemoryPoolWorker(
                         setConflicts.insert(ptxConflicting->GetHash());
                     }
                 }
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
+                if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
+                    LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcMintPubcoinsV3.push_back(pubCoinValue);
             }
         }
     }
@@ -1833,16 +1851,10 @@ bool AcceptToMemoryPoolWorker(
         }
 #endif
     }
+    if(markZcoinSpendTransactionSerial)
+        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    vector<GroupElement> zcMintPubcoinsV3;
     if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if(txout.scriptPubKey.IsSigmaMint()){
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-        }
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
             zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
@@ -3172,6 +3184,18 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                 sigmaState->RemoveSpendFromMempool(zcSpendSerial);
             }
        }
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                }
+                sigmaState->RemoveMintFromMempool(pubCoinValue);
+            }
+        }
     }
 
     int64_t nTime6 = GetTimeMicros();
@@ -6387,12 +6411,17 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
-            if (nHeight > chainparams.GetConsensus().nOldSigmaBanBlock && pfrom->cleanSubVer == "/Satoshi:0.13.8.1/") {
-                pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network");
-                pfrom->fDisconnect = 1;
-                LOCK(cs_main);
-                Misbehaving(pfrom->GetId(), 100);
-                return false;
+            int parsedVersion[4];
+            if (sscanf(pfrom->cleanSubVer.c_str(), "/Satoshi:%2d.%2d.%2d.%2d/",
+                    &parsedVersion[0], &parsedVersion[1], &parsedVersion[2], &parsedVersion[3]) == 4) {
+                int peerClientVersion = parsedVersion[0]*1000000 + parsedVersion[1]*10000 + parsedVersion[2]*100 + parsedVersion[3];
+                if (peerClientVersion < MIN_ZCOIN_CLIENT_VERSION) {
+                    pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network");
+                    pfrom->fDisconnect = 1;
+                    LOCK(cs_main);
+                    Misbehaving(pfrom->GetId(), 100);
+                    return false;
+                }
             }
         }
         if (!vRecv.empty()) {
