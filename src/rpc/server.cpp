@@ -284,7 +284,7 @@ static const CRPCCommand vRPCCommands[] =
     { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
     { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
         /* Mobile related */
-    { "mobile",             "getanonimityset",        &getanonimityset,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
 };
 

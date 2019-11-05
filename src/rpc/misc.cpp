@@ -884,54 +884,55 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
 }
 
-UniValue getanonimityset(const UniValue& params, bool fHelp)
+UniValue getanonymityset(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-                "getanonimityset\n"
-                        "\nReturns the anonimity set and latest block hash.\n"
+                "getanonymityset\n"
+                        "\nReturns the anonymity set and latest block hash.\n"
                         "\nArguments:\n"
                         "{\n"
-                        "  \"denomination\"\n"
-                        "    [\n"
                         "      \"denomination\"  (int64_t) int denomination\n"
-                        "    ]\n"
-                        "  \"coinGroupId\"\n"
-                        "    [\n"
                         "      \"coinGroupId\"  (int)\n"
-                        "    ]\n"
                         "}\n"
                         "\nResult:\n"
                         "{\n"
-                        "  \"blockHash\"   (string) Latest block hash for anonimity ste\n"
+                        "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
                         "  \"anonimityset\"(std::string[]) array of Serialized GroupElements\n"
                         "}\n"
+                + HelpExampleCli("getanonymityset", "100000000 1")
+                + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")
         );
 
 
-    int64_t intDenom = params[0].get_int64();
+    int64_t intDenom;
+    int coinGroupId;
+    try {
+        intDenom = std::stol(params[0].get_str());
+        coinGroupId = std::stol(params[1].get_str());
+    } catch (std::logic_error const & e) {
+        throw runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
     sigma::CoinDenomination denomination;
     sigma::IntegerToDenomination(intDenom, denomination);
-
-    int coinGroupId = params[1].get_int();
 
     uint256 blockHash;
     std::vector<sigma::PublicCoin> coins;
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    if(sigmaState->GetCoinSetForSpend(
+    sigmaState->GetCoinSetForSpend(
             &chainActive,
             chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
             denomination,
             coinGroupId,
             blockHash,
-            coins) <= 1)
-        return false;
+            coins);
 
-    std::string serializedCoins[coins.size()];
-    for(unsigned int i = 0; i < coins.size(); ++i) {
-        std::vector<unsigned char> vch = coins[i].getValue().getvch();
-        serializedCoins[i] = HexStr(vch.begin(), vch.end());
+    UniValue serializedCoins(UniValue::VARR);
+    for(sigma::PublicCoin const & coin : coins) {
+        std::vector<unsigned char> vch = coin.getValue().getvch();
+        serializedCoins.push_back(HexStr(vch.begin(), vch.end()));
     }
 
     UniValue ret(UniValue::VOBJ);
@@ -946,44 +947,44 @@ UniValue getmintmetadata(const UniValue& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw runtime_error(
                 "getmintmetadata\n"
-                        "\nReturns the anonimity set id and nHaight of mint.\n"
+                        "\nReturns the anonymity set id and nHeight of mint.\n"
                         "\nArguments:\n"
-                        "{\n"
-                        "  \"size of pubcoins\"\n"
+                        "  \"mints\"\n"
                         "    [\n"
-                        "      \"size of pubcoins\"  (int) Size of array\n"
+                        "      {\n"
+                        "        \"denom\"   (int) The mint denomination\n"
+                        "        \"pubcoin\" (string) The PubCoin value\n"
+                        "      }\n"
+                        "      ,...\n"
                         "    ]\n"
-                        "  \"pubcoins\"\n"
-                        "    [\n"
-                        "      \"pubcoins\"  (string) Array of GroupElements \n"
-                        "    ]\n"
-                        "}\n"
                         "\nResult:\n"
                         "{\n"
-                        "  \"metadata\"   (Pair<string,int>) nHaight and id for each pubcoin\n"
+                        "  \"metadata\"   (Pair<string,int>) nHeight and id for each pubcoin\n"
                         "}\n"
+                + HelpExampleCli("getmintmetadata", "'{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}'")
+                + HelpExampleRpc("getmintmetadata", "{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}")
         );
 
-    std::vector<UniValue> denoms = params[0].getValues();
-    std::vector<UniValue> serializedCoins = params[1].getValues();
-    if(serializedCoins.size() != denoms.size())
-        return false;
+    UniValue mintValues = find_value(params[0].get_obj(), "mints");
+    if (!mintValues.isArray()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
+    }
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    UniValue ret(UniValue::VOBJ);
-    for(unsigned int i = 0; i < serializedCoins.size(); ++i){
-        std::string serializedCoin = serializedCoins[i].get_str();
-        std::vector<unsigned char> serialized(serializedCoin.begin(), serializedCoin.end());
-        secp_primitives::GroupElement pubCoin;
-        if (serialized.size() < pubCoin.memoryRequired())
-            return false;
-        pubCoin.deserialize(serialized.data());
+    UniValue ret(UniValue::VARR);
+    for(UniValue const & mintData : mintValues.getValues()){
+        vector<unsigned char> serializedCoin = ParseHex(find_value(mintData, "pubcoin").get_str().c_str());
 
-        int64_t intDenom = denoms[i].get_int64();
+        secp_primitives::GroupElement pubCoin;
+        pubCoin.deserialize(serializedCoin.data());
+
+        int64_t intDenom = find_value(mintData, "denom").get_int64();
         sigma::CoinDenomination denomination;
         sigma::IntegerToDenomination(intDenom, denomination);
 
         std::pair<int, int> coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
-        ret.push_back(Pair(to_string(coinHeightAndId.first), coinHeightAndId.second));
+        UniValue metaData(UniValue::VOBJ);
+        metaData.pushKV(to_string(coinHeightAndId.first), coinHeightAndId.second);
+        ret.push_back(metaData);
     }
     return ret;
 }
@@ -1308,7 +1309,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
         /* Mobile related */
-    { "mobile",             "getanonimityset",        &getanonimityset,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
 
 };

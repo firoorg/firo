@@ -196,7 +196,7 @@ extern UniValue getaddressdeltas(const UniValue& params, bool fHelp);
 extern UniValue getaddresstxids(const UniValue& params, bool fHelp);
 extern UniValue getaddressbalance(const UniValue& params, bool fHelp);
 
-extern UniValue getanonimityset(const UniValue& params, bool fHelp);
+extern UniValue getanonymityset(const UniValue& params, bool fHelp);
 extern UniValue getmintmetadata(const UniValue& params, bool fHelp);
 
 extern UniValue getpoolinfo(const UniValue& params, bool fHelp);
