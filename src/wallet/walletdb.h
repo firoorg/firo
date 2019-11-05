@@ -136,7 +136,7 @@ public:
             return true;
 
         boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
-        if(nComponents.size()!=ORIGINAL_KEYPATH_SIZE ||
+        if(nComponents.size()!=ORIGINAL_KEYPATH_SIZE &&
            nComponents.size()!=BIP44_KEYPATH_SIZE)
             return false;
 
