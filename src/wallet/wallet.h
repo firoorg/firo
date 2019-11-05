@@ -1204,7 +1204,7 @@ public:
     const MnemonicContainer& GetMnemonicContainer() { return mnemonicContainer; }
 
     bool EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn);
-    bool DecryptMnemonicContainer(MnemonicContainer& mnContainer) const;
+    bool DecryptMnemonicContainer(MnemonicContainer& mnContainer);
 
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();

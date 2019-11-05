@@ -1540,7 +1540,7 @@ bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
     uint256 id = uint256S(hdChain.masterKeyID.GetHex());
 
     std::vector<unsigned char> cryptedSeed;
-    if (!EncryptSecret(vMasterKeyIn, mnemonicContainer.GetSeed(), id, cryptedSeed))
+    if (!EncryptMnemonicSecret(vMasterKeyIn, mnemonicContainer.GetSeed(), id, cryptedSeed))
         return false;
     SecureVector secureCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
     if (!mnemonicContainer.SetSeed(secureCryptedSeed))
@@ -1551,7 +1551,7 @@ bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
         std::vector<unsigned char> cryptedMnemonic;
         SecureVector vectorMnemonic(mnemonic.begin(), mnemonic.end());
 
-        if ((!mnemonic.empty() && !EncryptSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)))
+        if ((!mnemonic.empty() && !EncryptMnemonicSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)))
             return false;
 
         SecureVector secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
@@ -1564,7 +1564,7 @@ bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
     return true;
 }
 
-bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
+bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer)
 {
     if (!IsCrypted())
         return true;
@@ -1577,7 +1577,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
     SecureVector seed;
     SecureVector cryptedSeed = mnemonicContainer.GetSeed();
     std::vector<unsigned char> vCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
-    if (!DecryptSecret(vMasterKey, vCryptedSeed, id, seed))
+    if (!DecryptMnemonicSecret(vCryptedSeed, id, seed))
         return false;
 
     mnContainer = mnemonicContainer;
@@ -1590,7 +1590,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer) const
         SecureVector vectorMnemonic;
 
         std::vector<unsigned char> CryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
-        if (!CryptedMnemonic.empty() && !DecryptSecret(vMasterKey, CryptedMnemonic, id, vectorMnemonic))
+        if (!CryptedMnemonic.empty() && !DecryptMnemonicSecret(CryptedMnemonic, id, vectorMnemonic))
             return false;
 
         if (!mnContainer.SetMnemonic(vectorMnemonic))
