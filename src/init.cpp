@@ -1842,12 +1842,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
-    // Set API loaded before wallet sync and immediately notify
-    if(fApi){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-
     // ********************************************************* Step 8: load wallet
 
 #ifdef ENABLE_WALLET

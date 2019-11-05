@@ -10,6 +10,7 @@
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
+#include "client-api/server.h"
 #include "coincontrol.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
@@ -188,6 +189,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
 
 CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
+    CWalletDB walletdb(strWalletFile);
     bool fCompressed = CanSupportFeature(
             FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
 
@@ -245,7 +247,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         secret = childKey.key;
 
         // update the chain model in the database
-        if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
+        if (!walletdb.WriteHDChain(hdChain))
             throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
     } else {
         secret.MakeNewKey(fCompressed);
@@ -8215,6 +8217,12 @@ bool CWallet::InitLoadWallet() {
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+    }
+    
+    // Set API loaded before wallet sync and immediately notify
+    if(GetBoolArg("-clientapi", false)){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
     }
 
     RegisterValidationInterface(walletInstance);
