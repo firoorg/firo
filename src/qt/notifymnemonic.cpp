@@ -28,10 +28,10 @@ NotifyMnemonic::~NotifyMnemonic()
 void NotifyMnemonic::notify()
 {
 #ifdef ENABLE_WALLET
-    NotifyMnemonic notify;
-    notify.setWindowIcon(QIcon(":icons/zcoin"));
     SecureString mnemonic;
     pwalletMain->GetMnemonicContainer().GetMnemonic(mnemonic);
+    NotifyMnemonic notify;
+    notify.setWindowIcon(QIcon(":icons/zcoin"));
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.exec();
 #endif

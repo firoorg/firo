@@ -218,7 +218,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         CExtKey accountKey;            //key at m/44'/<1/136>'/0'
         CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
-
+        //For bip39 we use it's original way for generating keys to make it compatible with hardware and software wallets
         if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
             MnemonicContainer mContainer = mnemonicContainer;
             DecryptMnemonicContainer(mContainer);
