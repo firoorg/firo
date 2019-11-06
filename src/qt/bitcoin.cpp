@@ -466,9 +466,6 @@ void BitcoinApplication::initializeResult(int retval)
             connect(walletModel, SIGNAL(coinsSent(CWallet*,SendCoinsRecipient,QByteArray)),
                              paymentServer, SLOT(fetchPaymentACK(CWallet*,const SendCoinsRecipient&,QByteArray)));
 
-        if(newWallet)
-            NotifyMnemonic::notify();
-        }
 #endif
 
         // If -min option passed, start window minimized.
@@ -483,6 +480,10 @@ void BitcoinApplication::initializeResult(int retval)
         Q_EMIT splashFinished(window);
 
 #ifdef ENABLE_WALLET
+        if(newWallet)
+            NotifyMnemonic::notify();
+        }
+        
         // Now that initialization/startup is done, process any command-line
         // zcoin: URIs or payment requests:
         connect(paymentServer, SIGNAL(receivedPaymentRequest(SendCoinsRecipient)),

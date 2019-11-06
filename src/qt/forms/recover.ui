@@ -25,7 +25,15 @@
     </widget>
    </item>
 <item>
- <widget class="QGroupBox" name="createorrecover">
+ <widget class="QFrame" name="createorrecover">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>30</height>
+   </rect>
+  </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
     <widget class="QRadioButton" name="createNew">
@@ -69,7 +77,7 @@
       </spacer>
      </item>
      <item>
-     <widget class="QGroupBox" name="numberofwords">
+     <widget class="QFrame" name="numberofwords">
      <layout class="QHBoxLayout" name="horizontalLayout1">
      <item>
       <widget class="QRadioButton" name="use12">
@@ -158,6 +166,27 @@
     </item>
    </layout>
  </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout4">
+      <item>
+       <widget class="QLabel" name="textLabel4">
+        <property name="text">
+         <string>Input mnemonic passphrase again:</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="mnemonicPassPhrase2">
+        <property name="echoMode">
+         <enum>QLineEdit::Password</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
     <item>
      <widget class="QLabel" name="errorMessage">
       <property name="text">

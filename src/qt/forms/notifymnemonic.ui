@@ -35,9 +35,11 @@
                 </widget>
             </item>
             <item>
-                <widget class="QGroupBox" name="mnemonicBox">
+                <widget class="QFrame" name="mnemonicBox">
+                    <property name="frameShape">
+                        <enum>QFrame::Box</enum>
+                    </property>
                     <layout class="QVBoxLayout" name="horizontalLayout">
-
                         <item>
                             <widget class="QLabel" name="mnemonic">
                                 <property name="text">
