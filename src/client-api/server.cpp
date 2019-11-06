@@ -163,7 +163,9 @@ void APIJSONRequest::parse(const UniValue& valRequest)
 
 UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
-    LogPrintf("executing method %s\n",  request.collection);
+    if(request.collection!="apiStatus")
+        LogPrintf("executing method %s\n",  request.collection);
+    
     const CAPICommand *pcmd = tableAPI[request.collection];
     if (!pcmd){
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method \"" + request.collection + "\" not found");
