@@ -45,7 +45,7 @@
                     <property name="minimumSize">
                         <size>
                             <width>600</width>
-                            <height>80</height>
+                            <height>90</height>
                         </size>
                     </property>
                     <property name="frameShape">
@@ -57,7 +57,7 @@
                                 <property name="minimumSize">
                                     <size>
                                         <width>500</width>
-                                        <height>60</height>
+                                        <height>70</height>
                                     </size>
                                 </property>
                                 <property name="text">
