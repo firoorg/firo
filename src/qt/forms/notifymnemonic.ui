@@ -54,6 +54,9 @@
                     <layout class="QVBoxLayout" name="horizontalLayout">
                         <item>
                             <widget class="QLabel" name="mnemonic">
+                                <property name="alignment">
+                                    <enum>Qt::AlignCenter</enum>
+                                </property>
                                 <property name="minimumSize">
                                     <size>
                                         <width>500</width>
