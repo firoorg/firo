@@ -127,7 +127,7 @@ bool Recover::askRecover(bool& newWallet)
                 }
 
                 std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
-                std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase->text().toStdString();
+                std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
 
                 if(mnemonicPassPhrase != mnemonicPassPhrase2) {
                     recover.ui->errorMessage->setText("<font color='red'>Passphrases don't match.</font>");
