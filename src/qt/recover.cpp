@@ -69,7 +69,7 @@ bool Recover::askRecover(bool& newWallet)
     if (regTest && *regTest)
         dataDir += "/regtest";
     if (testNet && *testNet)
-        dataDir += "/testnet";
+        dataDir += "/testnet3";
 
     dataDir += "/wallet.dat";
 
