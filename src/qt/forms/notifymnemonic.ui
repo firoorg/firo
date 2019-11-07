@@ -16,6 +16,12 @@
         <layout class="QVBoxLayout" name="verticalLayout">
             <item>
                 <widget class="QLabel" name="textLabel">
+                    <property name="minimumSize">
+                        <size>
+                            <width>500</width>
+                            <height>60</height>
+                        </size>
+                    </property>
                     <property name="text">
                         <string>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</string>
                     </property>
@@ -39,7 +45,7 @@
                     <property name="minimumSize">
                         <size>
                             <width>600</width>
-                            <height>60</height>
+                            <height>80</height>
                         </size>
                     </property>
                     <property name="frameShape">
@@ -50,8 +56,8 @@
                             <widget class="QLabel" name="mnemonic">
                                 <property name="minimumSize">
                                     <size>
-                                        <width>400</width>
-                                        <height>40</height>
+                                        <width>500</width>
+                                        <height>60</height>
                                     </size>
                                 </property>
                                 <property name="text">
