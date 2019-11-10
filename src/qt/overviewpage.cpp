@@ -14,6 +14,7 @@
 #include "transactionfilterproxy.h"
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
+#include "main.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -131,14 +132,17 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->setupUi(this);
 
     // read config
-    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
-    std::pair<bool,std::string> torEnabled = ReadBinaryFileTor(pathTorSetting.string().c_str());
-    if(torEnabled.first){
-		if(torEnabled.second == "1"){
-			ui->checkboxEnabledTor->setChecked(true);
-		}else{
-			ui->checkboxEnabledTor->setChecked(false);
-		}
+    bool torEnabled;
+    if(mapArgs.count("-torsetup")){
+        torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    }else{
+        torEnabled = settings.value("fTorSetup").toBool();
+    }
+
+    if(torEnabled){
+        ui->checkboxEnabledTor->setChecked(true);
+    }else{
+        ui->checkboxEnabledTor->setChecked(false);
     }
 
     // use a SingleColorIcon for the "out of sync warning" icon
@@ -169,20 +173,13 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 void OverviewPage::handleEnabledTorChanged(){
 
 	QMessageBox msgBox;
-	boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
 
 	if(ui->checkboxEnabledTor->isChecked()){
-		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "1")) {
-			msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR.");
-		} else {
-			msgBox.setText("Anonymous communication cannot be enabled");
-		}
+        settings.setValue("fTorSetup", true);
+        msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
 	}else{
-		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "0")) {
-			msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address.");
-		} else {
-			msgBox.setText("Anonymous communication cannot be disabled");
-		}
+        settings.setValue("fTorSetup", false);
+        msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
 	}
 	msgBox.exec();
 }

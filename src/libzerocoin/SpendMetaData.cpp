@@ -14,6 +14,9 @@
 
 namespace libzerocoin {
 
-SpendMetaData::SpendMetaData(arith_uint256 accumulatorId, uint256 txHash): accumulatorId(accumulatorId), txHash(txHash) {}
+SpendMetaData::SpendMetaData(arith_uint256 accumulatorId, uint256 txHash)
+    : accumulatorId(accumulatorId)
+    , txHash(txHash) {
+}
 
 } /* namespace libzerocoin */

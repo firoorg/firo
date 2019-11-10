@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -9,24 +9,32 @@
 #define ROUTERLIST_PRIVATE
 #define CONFIG_PRIVATE
 #define CONNECTION_PRIVATE
-#define MAIN_PRIVATE
+#define MAINLOOP_PRIVATE
 
 #include "orconfig.h"
-#include "or.h"
+#include "core/or/or.h"
 
-#include "buffers.h"
-#include "config.h"
-#include "confparse.h"
-#include "connection.h"
-#include "crypto_rand.h"
-#include "main.h"
-#include "nodelist.h"
-#include "relay.h"
-#include "routerlist.h"
+#include "lib/buf/buffers.h"
+#include "app/config/config.h"
+#include "app/config/confparse.h"
+#include "core/mainloop/connection.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/nodelist.h"
+#include "core/or/relay.h"
+#include "feature/nodelist/routerlist.h"
+#include "lib/encoding/confline.h"
+#include "lib/net/resolve.h"
 
-#include "test.h"
-#include "test_helpers.h"
-#include "test_connection.h"
+#include "core/or/cell_st.h"
+#include "core/or/connection_st.h"
+#include "feature/nodelist/node_st.h"
+#include "core/or/origin_circuit_st.h"
+#include "feature/nodelist/routerlist_st.h"
+
+#include "test/test.h"
+#include "test/test_helpers.h"
+#include "test/test_connection.h"
 
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
 DISABLE_GCC_WARNING(overlength-strings)
@@ -34,7 +42,7 @@ DISABLE_GCC_WARNING(overlength-strings)
  * at large. */
 #endif
 #include "test_descriptors.inc"
-#include "circuitlist.h"
+#include "core/or/circuitlist.h"
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
 ENABLE_GCC_WARNING(overlength-strings)
 #endif
@@ -115,6 +123,25 @@ connection_write_to_buf_mock(const char *string, size_t len,
   tor_assert(conn);
 
   buf_add(conn->outbuf, string, len);
+}
+
+char *
+buf_get_contents(buf_t *buf, size_t *sz_out)
+{
+  tor_assert(buf);
+  tor_assert(sz_out);
+
+  char *out;
+  *sz_out = buf_datalen(buf);
+  if (*sz_out >= ULONG_MAX)
+    return NULL; /* C'mon, really? */
+  out = tor_malloc(*sz_out + 1);
+  if (buf_get_bytes(buf, out, (unsigned long)*sz_out) != 0) {
+    tor_free(out);
+    return NULL;
+  }
+  out[*sz_out] = '\0'; /* Hopefully gratuitous. */
+  return out;
 }
 
 /* Set up a fake origin circuit with the specified number of cells,
@@ -209,7 +236,7 @@ test_conn_get_connection(uint8_t state, uint8_t type, uint8_t purpose)
        mock_connection_connect_sockaddr);
   MOCK(tor_close_socket, fake_close_socket);
 
-  init_connection_lists();
+  tor_init_connection_lists();
 
   conn = connection_new(type, TEST_CONN_FAMILY);
   tt_assert(conn);
@@ -276,4 +303,3 @@ helper_parse_options(const char *conf)
   }
   return opt;
 }
-

@@ -143,7 +143,7 @@ void ExoAssetsDialog::setWalletModel(WalletModel *model)
 
 void ExoAssetsDialog::UpdatePropSelector()
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
 
     // don't waste time updating if there are no new properties
     if ((uint32_t)ui->propSelectorWidget->count() > global_wallet_property_list.size()) return;
@@ -187,7 +187,7 @@ void ExoAssetsDialog::PopulateBalances(unsigned int propertyId)
 {
     ui->balancesTable->setRowCount(0); // fresh slate (note this will automatically cleanup all existing QWidgetItems in the table)
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
     //are we summary?
     if(propertyId==2147483646) {
         ui->balancesTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Property ID"));

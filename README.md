@@ -1,14 +1,26 @@
-Zcoin v0.13.7.7
+Zcoin
 ===============
 
-[![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
+[![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
+[![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/zcoinofficial/zcoin/releases)
+[![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
+[![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/graphs/code-frequency)
+[![GitHub last-commit](https://img.shields.io/github/last-commit/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/commits/master)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/context:cpp)
 
 What is Zcoin?
 --------------
 
-[Zcoin](https://zcoin.io) is the first full implementation of the Zerocoin Protocol, which allows users to have complete privacy via Zero-Knowledge cryptographic proofs. It is worth noting that Zcoin is unrelated to other cryptocurrencies utilizing the Zerocash Protocol. Although Zerocash is a development from Zerocoin, their respective implementations are not simple forks of each other, but rely on different cryptographic assumptions with various tradeoffs. Both approaches supplement each other quite nicely, and a good way to describe them would be sibling projects.
+[Zcoin](https://zcoin.io) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://zcoin.io/what-is-sigma-and-why-is-it-replacing-zerocoin-in-zcoin/) which has no trusted setup and small proof sizes. Zcoin also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
-The Zerocoin Protocol is being actively researched and improved, such as removing the trustless setup and reducing proof sizes.
+Zcoin developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
+
+How Zcoin’s Privacy Technology Compares to the Competition
+--------------
+![A comparison chart of Zcoin’s solutions with other leading privacy technologies can be found below](https://zcoin.io/wp-content/uploads/2019/04/zcoin_table_coloured5-01.png) 
+read more https://zcoin.io/zcoins-privacy-technology-compares-competition/
 
 Running with Docker
 ===================

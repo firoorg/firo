@@ -132,6 +132,7 @@ public:
     bool ReadFlag(const std::string &name, bool &fValue);
     bool LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex);
     int GetBlockIndexVersion();
+    int GetBlockIndexVersion(uint256 const & blockHash);
     bool AddTotalSupply(CAmount const & supply);
     bool ReadTotalSupply(CAmount & supply);
     bool UpdateAddressBalances(std::map<CAddressIndexBase, CAmount> const & balances);

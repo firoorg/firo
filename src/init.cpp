@@ -17,7 +17,6 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
-#include "exodus/exodus.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -44,6 +43,10 @@
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#endif
+
+#ifdef ENABLE_EXODUS
+#include "exodus/exodus.h"
 #endif
 
 #include <stdint.h>
@@ -88,7 +91,6 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
-
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -122,10 +124,6 @@ static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 extern CTxMemPool stempool;
 
 namespace fs = boost::filesystem;
-
-extern const char tor_git_revision[];
-const char tor_git_revision[] = "";
-
 
 extern "C" {
     int tor_main(int argc, char *argv[]);
@@ -241,6 +239,8 @@ void Shutdown() {
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     StopNode();
@@ -280,13 +280,17 @@ void Shutdown() {
         pblocktree = NULL;
     }
 
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         exodus_shutdown();
     }
+#endif
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
 
 #if ENABLE_ZMQ
@@ -478,6 +482,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-timeout=<n>",
                                strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"),
                                          DEFAULT_CONNECT_TIMEOUT));
+    strUsage += HelpMessageOpt("-torsetup",
+                               strprintf(_("Anonymous communication with TOR - Quickstart (default: %d)"),
+                                         DEFAULT_TOR_SETUP));
     strUsage += HelpMessageOpt("-torcontrol=<ip>:<port>",
                                strprintf(_("Tor control port to use if onion listening enabled (default: %s)"),
                                          DEFAULT_TOR_CONTROL));
@@ -664,6 +671,7 @@ std::string HelpMessage(HelpMessageMode mode) {
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
 
+#ifdef ENABLE_EXODUS
     strUsage += HelpMessageGroup("Exodus options:");
     strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
     strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
@@ -678,6 +686,7 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
     strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
     strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
+#endif
 
     return strUsage;
 }
@@ -783,6 +792,16 @@ void CleanupBlockRevFiles() {
 }
 
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
+        //Load zerocoin mint hashes to memory
+        LogPrintf("Loading mints to wallet..\n");
+        zwalletMain->GetTracker().Init();
+        zwalletMain->LoadMintPoolFromDB();
+    }
+#endif
+
     const CChainParams &chainparams = Params();
     RenameThread("bitcoin-loadblk");
     CImportingNow imp;
@@ -845,6 +864,15 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
+        zwalletMain->SyncWithChain();
+    }
+    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+        zwalletMain->GetTracker().ListMints();
+    }
+#endif
 }
 
 /** Sanity checks
@@ -932,6 +960,14 @@ void InitParameterInteraction() {
         // Rewrite just private keys: rescan to find transactions
         if (SoftSetBoolArg("-rescan", true))
             LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
+    }
+
+    // -zapwalletmints implies a reindex and zapwallettxes=1
+    if (GetBoolArg("-zapwalletmints", false)) {
+        if (SoftSetBoolArg("-reindex", true))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -reindex=1\n", __func__);
+        if (SoftSetArg("-zapwallettxes", std::string("1")))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -zapwallettxes=1\n", __func__);
     }
 
     // -zapwallettx implies a rescan
@@ -1455,9 +1491,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     // start tor
-    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
-    std::pair<bool,std::string> torEnabledArg = ReadBinaryFileTor(pathTorSetting.string().c_str());
-    if(torEnabledArg.second != "" && torEnabledArg.second != "0"){
+    bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
         SetLimited(NET_TOR);
         SetLimited(NET_IPV4);
@@ -1636,15 +1671,15 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
-	            if (!fReindex) {
+                if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
                         LogPrintf("Upgrade to new version of block index required, reindex forced\n");
                         delete pblocktree;
-			            fReindex = fReset = true;
+                        fReindex = fReset = true;
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-		            }
-	            }
+                    }
+                }
 
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
@@ -1662,10 +1697,26 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     break;
                 }
 
+                if (!fReindex) {
+                    CBlockIndex *tip = chainActive.Tip();
+                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
+                        const uint256* phash = tip->phashBlock;
+                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
+                            strLoadError = _(
+                                    "Block index is outdated, reindex required\n");
+                            break;
+                        }
+                    }
+                }
+
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
+                    LogPrintf("Genesis block hash %s not found.\n",
+                        chainparams.GetConsensus().hashGenesisBlock.ToString());
+                    LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
@@ -1763,8 +1814,27 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
-    // ********************************************************* Step 7.5: load exodus
 
+    // ********************************************************* Step 8: load wallet
+
+#ifdef ENABLE_WALLET
+    LogPrintf("Step 8: load wallet ************************************\n");
+    if (fDisableWallet) {
+        pwalletMain = NULL;
+        zwalletMain = NULL;
+        LogPrintf("Wallet disabled!\n");
+    } else {
+        CWallet::InitLoadWallet();
+        if (!pwalletMain)
+            return false;
+    }
+#else // ENABLE_WALLET
+    LogPrintf("No wallet support compiled in!\n");
+#endif // !ENABLE_WALLET
+
+    // ********************************************************* Step 8.5: load exodus
+
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them
@@ -1803,28 +1873,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
         uiInterface.InitMessage(_("Parsing Exodus transactions..."));
         exodus_init();
-    }
 
-    // ********************************************************* Step 8: load wallet
-
-#ifdef ENABLE_WALLET
-    LogPrintf("Step 8: load wallet ************************************\n");
-    if (fDisableWallet) {
-        pwalletMain = NULL;
-        LogPrintf("Wallet disabled!\n");
-    } else {
-        CWallet::InitLoadWallet();
-        if (!pwalletMain)
-            return false;
-    }
-#else // ENABLE_WALLET
-    LogPrintf("No wallet support compiled in!\n");
-#endif // !ENABLE_WALLET
-
-    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
-    if (isExodusEnabled()) {
+        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();
     }
+#endif
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");
@@ -2024,7 +2077,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }
 
-    // ********************************************************* Step 11c: update block tip in Dash modules
+    // ********************************************************* Step 11c: update block tip in Zcoin modules
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.

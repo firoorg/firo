@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -6,11 +6,11 @@
  * \brief Tests for our HTTP protocol parser code
  */
 
-#include "or.h"
-#include "test.h"
-#include "buffers.h"
-#include "proto_http.h"
-#include "log_test_helpers.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "lib/buf/buffers.h"
+#include "core/proto/proto_http.h"
+#include "test/log_test_helpers.h"
 
 #define S(str) str, sizeof(str)-1
 

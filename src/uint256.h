@@ -8,10 +8,12 @@
 
 #include <assert.h>
 #include <cstring>
+#include <functional>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <array>
 #include "crypto/common.h"
 
 /** Template base class for fixed-sized opaque blobs. */
@@ -28,6 +30,7 @@ public:
     }
 
     explicit base_blob(const std::vector<unsigned char>& vch);
+    explicit base_blob(const std::array<unsigned char, WIDTH>& vch);
 
     bool IsNull() const
     {
@@ -52,6 +55,8 @@ public:
     void SetHex(const char* psz);
     void SetHex(const std::string& str);
     std::string ToString() const;
+    base_blob<BITS> uintS(const char *str) const;
+    base_blob<BITS> uintS(const std::string& str) const;
 
     unsigned char* begin()
     {
@@ -162,5 +167,58 @@ inline uint256 uint256S(const std::string& str)
     rv.SetHex(str);
     return rv;
 }
+
+/** 512-bit opaque blob.
+ * @note This type is called uint512 for historical reasons only. It is an
+ * opaque blob of 512 bits and has no integer operations. Use arith_uint512 if
+ * those are required.
+ */
+class uint512 : public base_blob<512> {
+public:
+    uint512() {}
+    uint512(const base_blob<512>& b) : base_blob<512>(b) {}
+    explicit uint512(const std::vector<unsigned char>& vch) : base_blob<512>(vch) {}
+    explicit uint512(const std::array<unsigned char, 64>& vch) : base_blob<512>(vch) {}
+
+     /** A cheap hash function that just returns 64 bits from the result, it can be
+     * used when the contents are considered uniformly random. It is not appropriate
+     * when the value can easily be influenced from outside as e.g. a network adversary could
+     * provide values to trigger worst-case behavior.
+     */
+    uint64_t GetCheapHash() const
+    {
+        return ReadLE64(data);
+    }
+
+     uint256 trim256() const
+    {
+        uint256 ret;
+        memcpy(ret.begin(), (*this).begin(), ret.size());
+        return ret;
+    }
+};
+
+namespace std {
+
+template<unsigned Size>
+struct hash<base_blob<Size>>
+{
+    size_t operator()(const base_blob<Size>& b) const
+    {
+        return hash<string>()(string(b.begin(), b.end()));
+    }
+};
+
+template<>
+struct hash<uint256> : hash<base_blob<256>>
+{
+};
+
+template<>
+struct hash<uint160> : hash<base_blob<160>>
+{
+};
+
+} // namespace std
 
 #endif // BITCOIN_UINT256_H

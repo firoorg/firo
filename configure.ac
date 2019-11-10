@@ -2,10 +2,10 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
-define(_CLIENT_VERSION_REVISION, 7)
-define(_CLIENT_VERSION_BUILD, 7)
+define(_CLIENT_VERSION_REVISION, 8)
+define(_CLIENT_VERSION_BUILD, 5)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2018)
+define(_COPYRIGHT_YEAR, 2019)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Zcoin Core]])
 AC_INIT([Zcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/zcoin/issues],[zcoin],[https://zcoin.io/])
@@ -94,6 +94,11 @@ AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 # Enable wallet
 enable_wallet=yes
 
+AC_ARG_ENABLE([exodus],
+  [AS_HELP_STRING([--enable-exodus],[enable exodus (disabled by default)])],
+  [enable_exodus=$enableval],
+  [enable_exodus=no])
+
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
   [enable UPNP (default is yes if libminiupnpc is found)])],
@@ -106,17 +111,10 @@ AC_ARG_ENABLE([upnp-default],
   [use_upnp_default=$enableval],
   [use_upnp_default=no])
 
-zusetests=no
-case $host in
-  *linux*)
-     zusetests=yes
-  ;;
-esac
-
 AC_ARG_ENABLE(tests,
-    AS_HELP_STRING([--disable-tests],[do not compile tests (default is to compile)]),
+    AS_HELP_STRING([--enable-tests],[compile tests (default is not to compile)]),
     [use_tests=$enableval],
-    [use_tests=$zusetests])
+    [use_tests=no])
 
 AC_ARG_ENABLE(gui-tests,
     AS_HELP_STRING([--disable-gui-tests],[do not compile GUI tests (default is to compile if GUI and tests enabled)]),
@@ -148,12 +146,6 @@ AC_ARG_WITH([qrencode],
   [enable QR code support (default is yes if qt is enabled and libqrencode is found)])],
   [use_qr=$withval],
   [use_qr=auto])
-
-AC_ARG_ENABLE([hardening],
-  [AS_HELP_STRING([--disable-hardening],
-  [do not attempt to harden the resulting executables (default is to harden)])],
-  [use_hardening=$enableval],
-  [use_hardening=yes])
 
 AC_ARG_ENABLE([reduce-exports],
   [AS_HELP_STRING([--enable-reduce-exports],
@@ -199,6 +191,18 @@ AC_ARG_ENABLE([debug],
                     [use debug compiler flags and macros (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+
+if test "x$enable_debug" = xyes; then
+	default_use_hardening=no
+else
+	default_use_hardening=yes
+fi
+
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--disable-hardening],
+  [do not attempt to harden the resulting executables (default is to harden)])],
+  [use_hardening=$enableval],
+  [use_hardening=$default_use_hardening])
 
 AC_ARG_ENABLE(seccomp,
     AS_HELP_STRING(--disable-seccomp, [do not attempt to use libseccomp]))
@@ -254,13 +258,8 @@ AC_ARG_WITH([daemon],
 
 AC_ARG_ENABLE(unsafe-dumpprivkey,
     [],
-    [unsafe_dumpprivkey=x$enableval],
-    [unsafe_dumpprivkey=xno])
-
-
-AS_IF([test "x$enable_unsafe_dumpprivkey" != "xno"], [
-    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
-])
+    [unsafe_dumpprivkey=$enableval],
+    [unsafe_dumpprivkey=no])
 
 use_pkgconfig=yes
 case $host in
@@ -455,6 +454,8 @@ if test x$use_lcov = xyes; then
     AC_MSG_ERROR("lcov testing requested but comparison tool was not specified")
   fi
   LCOV="$LCOV --gcov-tool=$GCOV"
+  AX_CHECK_LINK_FLAG([[--coverage]], [LDFLAGS="$LDFLAGS --coverage"],
+    [AC_MSG_ERROR("lcov testing requested but --coverage linker flag does not work")])
   AX_CHECK_COMPILE_FLAG([--coverage],[CXXFLAGS="$CXXFLAGS --coverage"],
     [AC_MSG_ERROR("lcov testing requested but --coverage flag does not work")])
 fi
@@ -642,7 +643,6 @@ AX_BOOST_FILESYSTEM
 AX_BOOST_PROGRAM_OPTIONS
 AX_BOOST_THREAD
 AX_BOOST_CHRONO
-
 
 if test x$use_reduce_exports = xyes; then
   AC_MSG_CHECKING([for working boost reduced exports])
@@ -974,6 +974,15 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable exodus
+AC_MSG_CHECKING([if exodus should be enabled])
+if test x$enable_exodus != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE_UNQUOTED([ENABLE_EXODUS],[1],[Define if exodus should be compiled in])
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable upnp support
 AC_MSG_CHECKING([whether to build with support for UPnP])
 if test x$have_miniupnpc = xno; then
@@ -1063,10 +1072,15 @@ if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_q
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
 fi
 
+if test "x$unsafe_dumpprivkey" != "xno"; then
+    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
+fi
+
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
+AM_CONDITIONAL([ENABLE_EXODUS],[test x$enable_exodus = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
@@ -1158,8 +1172,30 @@ if test x$need_bundled_univalue = xyes; then
   AC_CONFIG_SUBDIRS([src/univalue])
 fi
 
+PKG_CHECK_MODULES([ZSTD],
+                  [libzstd >= 1.1],
+                  have_zstd=yes,
+                  have_zstd=no)
+
+if test "x$have_zstd" = "xno" ; then
+    AC_MSG_WARN([Unable to find libzstd.])
+fi
+
+if test "x$have_zstd" = "xyes"; then
+    AC_DEFINE(HAVE_ZSTD,1,[Have Zstd])
+    LIBZSTD="${ZSTD_LIBS}"
+
+    dnl now check for zstd functions
+    save_LIBS="$LIBS"
+    LIBS="$LIBS $ZSTD_LIBS"
+    AC_CHECK_FUNCS(ZSTD_estimateCStreamSize \
+                   ZSTD_estimateDCtxSize)
+    LIBS="$save_LIBS"
+fi
+AC_SUBST(LIBZSTD)
+
 AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh]])
-AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-unittests], [--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-zstd], [--disable-asciidoc], [--with-openssl-dir=$($PKG_CONFIG --variable=libdir openssl)], [CFLAGS=$($PKG_CONFIG --cflags openssl) -O2]])
+AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-asciidoc], [--disable-libscrypt]])
 
 
 AC_OUTPUT

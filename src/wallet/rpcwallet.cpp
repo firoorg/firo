@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The zcoin Core developers
+// Copyright (c) 2009-2016 The Zcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,6 +10,8 @@
 #include "init.h"
 #include "main.h"
 #include "zerocoin.h"
+#include "sigma.h"
+#include "../sigma/coinspend.h"
 #include "net.h"
 #include "netbase.h"
 #include "policy/rbf.h"
@@ -19,7 +21,10 @@
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "hdmint/tracker.h"
+#include "znode-sync.h"
 #include "zerocoin.h"
+#include "walletexcept.h"
 
 #include <znode-payments.h>
 
@@ -33,6 +38,23 @@ using namespace std;
 
 int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
+
+static void EnsureZerocoinMintIsAllowed()
+{
+    // We want to make sure the new mint still accept by network when we broadcast.
+    // So we will not allow users to use this RPC anymore 10 blocks before it completely
+    // disabled at consensus level. We don't need this for spend because it does not make sense
+    // since users still lost their mints when it completely disable.
+    auto& consensus = Params().GetConsensus();
+    constexpr int threshold = 10; // 10 blocks should be enough for mints to get mined.
+    int disableHeight = consensus.nSigmaStartBlock + consensus.nZerocoinV2MintMempoolGracefulPeriod - threshold;
+
+    LOCK(cs_main);
+
+    if (chainActive.Height() > disableHeight) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Zerocoin mint is not allowed on network anymore");
+    }
+}
 
 std::string HelpRequiringPassphrase()
 {
@@ -51,6 +73,13 @@ bool EnsureWalletIsAvailable(bool avoidException)
             return false;
     }
     return true;
+}
+
+void EnsureSigmaWalletIsAvailable()
+{
+    if (!zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
+    }
 }
 
 void EnsureWalletIsUnlocked()
@@ -132,13 +161,13 @@ UniValue getnewaddress(const UniValue& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getnewaddress ( \"account\" )\n"
-            "\nReturns a new zcoin address for receiving payments.\n"
+            "\nReturns a new Zcoin address for receiving payments.\n"
             "If 'account' is specified (DEPRECATED), it is added to the address book \n"
             "so payments received with the address will be credited to 'account'.\n"
             "\nArguments:\n"
             "1. \"account\"        (string, optional) DEPRECATED. The account name for the address to be linked to. If not provided, the default account \"\" is used. It can also be set to the empty string \"\" to represent the default account. The account does not need to exist, it will be created if there is no account by the given name.\n"
             "\nResult:\n"
-            "\"zcoinaddress\"    (string) The new zcoin address\n"
+            "\"zcoinaddress\"    (string) The new Zcoin address\n"
             "\nExamples:\n"
             + HelpExampleCli("getnewaddress", "")
             + HelpExampleRpc("getnewaddress", "")
@@ -184,11 +213,11 @@ UniValue getaccountaddress(const UniValue& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "getaccountaddress \"account\"\n"
-            "\nDEPRECATED. Returns the current zcoin address for receiving payments to this account.\n"
+            "\nDEPRECATED. Returns the current Zcoin address for receiving payments to this account.\n"
             "\nArguments:\n"
             "1. \"account\"       (string, required) The account name for the address. It can also be set to the empty string \"\" to represent the default account. The account does not need to exist, it will be created and a new address created  if there is no account by the given name.\n"
             "\nResult:\n"
-            "\"zcoinaddress\"   (string) The account zcoin address\n"
+            "\"zcoinaddress\"   (string) The account Zcoin address\n"
             "\nExamples:\n"
             + HelpExampleCli("getaccountaddress", "")
             + HelpExampleCli("getaccountaddress", "\"\"")
@@ -216,7 +245,7 @@ UniValue getrawchangeaddress(const UniValue& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "getrawchangeaddress\n"
-            "\nReturns a new zcoin address, for receiving change.\n"
+            "\nReturns a new Zcoin address, for receiving change.\n"
             "This is for use with raw transactions, NOT normal use.\n"
             "\nResult:\n"
             "\"address\"    (string) The address\n"
@@ -253,7 +282,7 @@ UniValue setaccount(const UniValue& params, bool fHelp)
             "setaccount \"zcoinaddress\" \"account\"\n"
             "\nDEPRECATED. Sets the account associated with the given address.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The zcoin address to be associated with an account.\n"
+            "1. \"zcoinaddress\"  (string, required) The Zcoin address to be associated with an account.\n"
             "2. \"account\"         (string, required) The account to assign the address to.\n"
             "\nExamples:\n"
             + HelpExampleCli("setaccount", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\" \"tabby\"")
@@ -264,7 +293,7 @@ UniValue setaccount(const UniValue& params, bool fHelp)
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
 
     string strAccount;
     if (params.size() > 1)
@@ -299,7 +328,7 @@ UniValue getaccount(const UniValue& params, bool fHelp)
             "getaccount \"zcoinaddress\"\n"
             "\nDEPRECATED. Returns the account associated with the given address.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The zcoin address for account lookup.\n"
+            "1. \"zcoinaddress\"  (string, required) The Zcoin address for account lookup.\n"
             "\nResult:\n"
             "\"accountname\"        (string) the account address\n"
             "\nExamples:\n"
@@ -311,7 +340,7 @@ UniValue getaccount(const UniValue& params, bool fHelp)
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
 
     string strAccount;
     map<CTxDestination, CAddressBookData>::iterator mi = pwalletMain->mapAddressBook.find(address.Get());
@@ -350,7 +379,7 @@ UniValue getaddressesbyaccount(const UniValue& params, bool fHelp)
             "1. \"account\"  (string, required) The account name.\n"
             "\nResult:\n"
             "[                     (json array of string)\n"
-            "  \"zcoinaddress\"  (string) a zcoin address associated with the given account\n"
+            "  \"zcoinaddress\"  (string) a Zcoin address associated with the given account\n"
             "  ,...\n"
             "]\n"
             "\nExamples:\n"
@@ -416,7 +445,7 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
             "\nSend an amount to a given address.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The zcoin address to send to.\n"
+            "1. \"zcoinaddress\"  (string, required) The Zcoin address to send to.\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -438,7 +467,7 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
 
     // Amount
     CAmount nAmount = AmountFromValue(params[1]);
@@ -478,7 +507,7 @@ UniValue listaddressgroupings(const UniValue& params, bool fHelp)
             "[\n"
             "  [\n"
             "    [\n"
-            "      \"zcoinaddress\",     (string) The zcoin address\n"
+            "      \"zcoinaddress\",     (string) The Zcoin address\n"
             "      amount,                 (numeric) The amount in " + CURRENCY_UNIT + "\n"
             "      \"account\"             (string, optional) The account (DEPRECATED)\n"
             "    ]\n"
@@ -525,7 +554,7 @@ UniValue signmessage(const UniValue& params, bool fHelp)
             "\nSign a message with the private key of an address"
             + HelpRequiringPassphrase() + "\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The zcoin address to use for the private key.\n"
+            "1. \"zcoinaddress\"  (string, required) The Zcoin address to use for the private key.\n"
             "2. \"message\"         (string, required) The message to create a signature of.\n"
             "\nResult:\n"
             "\"signature\"          (string) The signature of the message encoded in base 64\n"
@@ -578,9 +607,9 @@ UniValue getreceivedbyaddress(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "getreceivedbyaddress \"zcoinaddress\" ( minconf )\n"
-            "\nReturns the total amount received by the given bitcoinaddress in transactions with at least minconf confirmations.\n"
+            "\nReturns the total amount received by the given zcoinaddress in transactions with at least minconf confirmations.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The zcoin address for transactions.\n"
+            "1. \"zcoinaddress\"  (string, required) The Zcoin address for transactions.\n"
             "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
             "\nResult:\n"
             "amount   (numeric) The total amount in " + CURRENCY_UNIT + " received at this address.\n"
@@ -597,10 +626,10 @@ UniValue getreceivedbyaddress(const UniValue& params, bool fHelp)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    // zcoin address
+    // Zcoin address
     CBitcoinAddress address = CBitcoinAddress(params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
     CScript scriptPubKey = GetScriptForDestination(address.Get());
     if (!IsMine(*pwalletMain, scriptPubKey))
         return ValueFromAmount(0);
@@ -831,11 +860,11 @@ UniValue sendfrom(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
             "sendfrom \"fromaccount\" \"tozcoinaddress\" amount ( minconf \"comment\" \"comment-to\" )\n"
-            "\nDEPRECATED (use sendtoaddress). Sent an amount from an account to a zcoin address."
+            "\nDEPRECATED (use sendtoaddress). Sent an amount from an account to a Zcoin address."
             + HelpRequiringPassphrase() + "\n"
             "\nArguments:\n"
             "1. \"fromaccount\"       (string, required) The name of the account to send funds from. May be the default account using \"\".\n"
-            "2. \"tozcoinaddress\"  (string, required) The zcoin address to send funds to.\n"
+            "2. \"tozcoinaddress\"  (string, required) The Zcoin address to send funds to.\n"
             "3. amount                (numeric or string, required) The amount in " + CURRENCY_UNIT + " (transaction fee is added on top).\n"
             "4. minconf               (numeric, optional, default=1) Only use funds with at least this many confirmations.\n"
             "5. \"comment\"           (string, optional) A comment used to store what the transaction is for. \n"
@@ -859,7 +888,7 @@ UniValue sendfrom(const UniValue& params, bool fHelp)
     string strAccount = AccountFromValue(params[0]);
     CBitcoinAddress address(params[1].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
     CAmount nAmount = AmountFromValue(params[2]);
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
@@ -901,7 +930,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
             "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "      ,...\n"
             "    }\n"
             "3. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
@@ -954,7 +983,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
     {
         CBitcoinAddress address(name_);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+name_);
 
         if (setAddress.count(address))
             throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
@@ -1010,20 +1039,20 @@ UniValue addmultisigaddress(const UniValue& params, bool fHelp)
     {
         string msg = "addmultisigaddress nrequired [\"key\",...] ( \"account\" )\n"
             "\nAdd a nrequired-to-sign multisignature address to the wallet.\n"
-            "Each key is a zcoin address or hex-encoded public key.\n"
+            "Each key is a Zcoin address or hex-encoded public key.\n"
             "If 'account' is specified (DEPRECATED), assign address to that account.\n"
 
             "\nArguments:\n"
             "1. nrequired        (numeric, required) The number of required signatures out of the n keys or addresses.\n"
-            "2. \"keysobject\"   (string, required) A json array of zcoin addresses or hex-encoded public keys\n"
+            "2. \"keysobject\"   (string, required) A json array of Zcoin addresses or hex-encoded public keys\n"
             "     [\n"
-            "       \"address\"  (string) zcoin address or hex-encoded public key\n"
+            "       \"address\"  (string) Zcoin address or hex-encoded public key\n"
             "       ...,\n"
             "     ]\n"
             "3. \"account\"      (string, optional) DEPRECATED. An account to assign the addresses to.\n"
 
             "\nResult:\n"
-            "\"zcoinaddress\"  (string) A zcoin address associated with the keys.\n"
+            "\"zcoinaddress\"  (string) A Zcoin address associated with the keys.\n"
 
             "\nExamples:\n"
             "\nAdd a multisig address from 2 addresses\n"
@@ -1124,7 +1153,7 @@ UniValue addwitnessaddress(const UniValue& params, bool fHelp)
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
 
     Witnessifier w;
     CTxDestination dest = address.Get();
@@ -1348,7 +1377,7 @@ UniValue listreceivedbyaccount(const UniValue& params, bool fHelp)
 }
 
 static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitcoinAddress &addr)
-{  
+{
     if (addr.Set(dest))
         entry.push_back(Pair("address", addr.ToString()));
 }
@@ -1376,12 +1405,12 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if(wtx.IsZerocoinMint()){
-                    entry.push_back(Pair("category", "mint"));
-                }
-            else if(wtx.IsZerocoinSpend()){
-                    entry.push_back(Pair("category", "spend"));
-                }
+            if (wtx.IsZerocoinSpend() || wtx.IsSigmaSpend() || wtx.IsZerocoinRemint()) {
+                entry.push_back(Pair("category", "spend"));
+            }
+            else if (wtx.IsZerocoinMint() || wtx.IsSigmaMint()) {
+                entry.push_back(Pair("category", "mint"));
+            }
             else {
                 entry.push_back(Pair("category", "send"));
             }
@@ -1418,7 +1447,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     CScript payee;
 
                     mnpayments.GetBlockPayee(txHeight, payee);
-                    //compare address of payee to addr. 
+                    //compare address of payee to addr.
                     CTxDestination payeeDest;
                     ExtractDestination(payee, payeeDest);
                     CBitcoinAddress payeeAddr(payeeDest);
@@ -1431,9 +1460,6 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
-                }
-                else if(wtx.IsZerocoinSpend()){
-                    entry.push_back(Pair("category", "spend"));
                 }
                 else {
                     entry.push_back(Pair("category", "receive"));
@@ -1486,7 +1512,7 @@ UniValue listtransactions(const UniValue& params, bool fHelp)
             "  {\n"
             "    \"account\":\"accountname\",       (string) DEPRECATED. The account name associated with the transaction. \n"
             "                                                It will be \"\" for the default account.\n"
-            "    \"address\":\"zcoinaddress\",    (string) The zcoin address of the transaction. Not present for \n"
+            "    \"address\":\"zcoinaddress\",    (string) The Zcoin address of the transaction. Not present for \n"
             "                                                move transactions (category = move).\n"
             "    \"category\":\"send|receive|move\", (string) The transaction category. 'move' is a local (off blockchain)\n"
             "                                                transaction between accounts, and not associated with an address,\n"
@@ -1690,7 +1716,7 @@ UniValue listsinceblock(const UniValue& params, bool fHelp)
             "{\n"
             "  \"transactions\": [\n"
             "    \"account\":\"accountname\",       (string) DEPRECATED. The account name associated with the transaction. Will be \"\" for the default account.\n"
-            "    \"address\":\"zcoinaddress\",    (string) The zcoin address of the transaction. Not present for move transactions (category = move).\n"
+            "    \"address\":\"zcoinaddress\",    (string) The Zcoin address of the transaction. Not present for move transactions (category = move).\n"
             "    \"category\":\"send|receive\",     (string) The transaction category. 'send' has negative amounts, 'receive' has positive amounts.\n"
             "    \"amount\": x.xxx,          (numeric) The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the 'move' category for moves \n"
             "                                          outbound. It is positive for the 'receive' category, and for the 'move' category for inbound funds.\n"
@@ -1792,7 +1818,7 @@ UniValue gettransaction(const UniValue& params, bool fHelp)
             "  \"details\" : [\n"
             "    {\n"
             "      \"account\" : \"accountname\",  (string) DEPRECATED. The account name involved in the transaction, can be \"\" for the default account.\n"
-            "      \"address\" : \"zcoinaddress\",   (string) The zcoin address involved in the transaction\n"
+            "      \"address\" : \"zcoinaddress\",   (string) The Zcoin address involved in the transaction\n"
             "      \"category\" : \"send|receive\",    (string) The category, either 'send' or 'receive'\n"
             "      \"amount\" : x.xxx,                 (numeric) The amount in " + CURRENCY_UNIT + "\n"
             "      \"label\" : \"label\",              (string) A comment for the address/transaction, if any\n"
@@ -1896,7 +1922,17 @@ UniValue backupwallet(const UniValue& params, bool fHelp)
             + HelpExampleRpc("backupwallet", "\"backup.dat\"")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    // WARNING: don't lock any mutexes here before calling into pwalletMain->BackupWallet() due to it can cause dead
+    // lock. Here is the example scenario that will cause dead lock if we lock cs_wallet before calling into
+    // pwalletMain->BackupWallet():
+    //
+    // 1. Other threads construct CWalletDB without locking cs_wallet. This is safe because CWalletDB is a thread safe.
+    // 2. This RPC get invoked. Then it lock cs_wallet before calling into pwalletMain->BackupWallet().
+    // 3. pwalletMain->BackupWallet() will loop until the CWalletDB in the step 1 closed.
+    // 4. Thread in step 1 try to lock cs_wallet while CWalletDB still open but it will wait forever due to it already
+    //    locked by this RPC.
+    //
+    // We don't need to worry about pwalletMain->BackupWallet() due to it already thread safe.
 
     string strDest = params[0].get_str();
     if (!pwalletMain->BackupWallet(strDest))
@@ -2149,7 +2185,7 @@ UniValue encryptwallet(const UniValue& params, bool fHelp)
     // slack space in .dat files; that is bad if the old data is
     // unencrypted private keys. So:
     StartShutdown();
-    return "wallet encrypted; zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";
+    return "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";
 }
 
 UniValue lockunspent(const UniValue& params, bool fHelp)
@@ -2402,9 +2438,9 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             "\nArguments:\n"
             "1. minconf          (numeric, optional, default=1) The minimum confirmations to filter\n"
             "2. maxconf          (numeric, optional, default=9999999) The maximum confirmations to filter\n"
-            "3. \"addresses\"    (string) A json array of zcoin addresses to filter\n"
+            "3. \"addresses\"    (string) A json array of Zcoin addresses to filter\n"
             "    [\n"
-            "      \"address\"   (string) zcoin address\n"
+            "      \"address\"   (string) Zcoin address\n"
             "      ,...\n"
             "    ]\n"
             "\nResult\n"
@@ -2412,7 +2448,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             "  {\n"
             "    \"txid\" : \"txid\",          (string) the transaction id \n"
             "    \"vout\" : n,               (numeric) the vout value\n"
-            "    \"address\" : \"address\",    (string) the zcoin address\n"
+            "    \"address\" : \"address\",    (string) the Zcoin address\n"
             "    \"account\" : \"account\",    (string) DEPRECATED. The associated account, or \"\" for the default account\n"
             "    \"scriptPubKey\" : \"key\",   (string) the script key\n"
             "    \"amount\" : x.xxx,         (numeric) the transaction amount in " + CURRENCY_UNIT + "\n"
@@ -2447,7 +2483,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             const UniValue& input = inputs[idx];
             CBitcoinAddress address(input.get_str());
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+input.get_str());
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+input.get_str());
             if (setAddress.count(address))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+input.get_str());
            setAddress.insert(address);
@@ -2520,7 +2556,7 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
                             "1. \"hexstring\"           (string, required) The hex string of the raw transaction\n"
                             "2. options               (object, optional)\n"
                             "   {\n"
-                            "     \"changeAddress\"     (string, optional, default pool address) The zcoin address to receive the change\n"
+                            "     \"changeAddress\"     (string, optional, default pool address) The Zcoin address to receive the change\n"
                             "     \"changePosition\"    (numeric, optional, default random) The index of the change output\n"
                             "     \"includeWatching\"   (boolean, optional, default false) Also select inputs which are watch only\n"
                             "     \"lockUnspents\"      (boolean, optional, default false) Lock selected unspent outputs\n"
@@ -2578,7 +2614,7 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
             CBitcoinAddress address(options["changeAddress"].get_str());
 
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "changeAddress must be a valid zcoin address");
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "changeAddress must be a valid Zcoin address");
 
             changeAddress = address.Get();
         }
@@ -2624,6 +2660,64 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     result.push_back(Pair("fee", ValueFromAmount(nFeeOut)));
 
     return result;
+}
+
+UniValue regeneratemintpool(const UniValue &params, bool fHelp) {
+
+        if (fHelp || params.size() > 0)
+	        throw runtime_error(
+       	        	"regeneratemintpool\n"
+       		        "\nIf issues exist with the keys that map to mintpool entries in the DB, this function corrects them.\n"
+                    "\nExamples:\n"
+                    + HelpExampleCli("regeneratemintpool", "")
+                    + HelpExampleRpc("regeneratemintpool", "")
+                );
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    if (!pwalletMain->IsHDSeedAvailable() || !zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Can only regenerate mintpool on a HD-enabled wallet.");
+    }
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
+    std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+
+    // <hashPubcoin, hashSerial>
+    std::pair<uint256,uint256> nIndexes;
+
+    uint256 oldHashSerial;
+    uint256 oldHashPubcoin;
+
+    bool reindexRequired = false;
+
+    for (auto& mintPoolPair : listMintPool){
+        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
+            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
+
+        oldHashPubcoin = mintPoolPair.first;
+        bool hasSerial = zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
+
+        MintPoolEntry entry = mintPoolPair.second;
+        nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
+
+        if(nIndexes.first != oldHashPubcoin){
+            walletdb.EraseMintPoolPair(oldHashPubcoin);
+            reindexRequired = true;
+        }
+
+        if(!hasSerial || nIndexes.second != oldHashSerial){
+            walletdb.ErasePubcoin(oldHashSerial);
+            reindexRequired = true;
+        }
+    }
+
+    if(reindexRequired)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.");
+
+    return true;
 }
 
 //[zcoin]: zerocoin section
@@ -2685,11 +2779,137 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
     return results;
 }
 
-UniValue mintzerocoin(const UniValue& params, bool fHelp)
+UniValue listunspentsigmamints(const UniValue &params, bool fHelp) {
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+                "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
+                        "Returns array of unspent transaction outputs\n"
+                        "with between minconf and maxconf (inclusive) confirmations.\n"
+                        "Results are an array of Objects, each of which has:\n"
+                        "{txid, vout, scriptPubKey, amount, confirmations}");
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    EnsureSigmaWalletIsAvailable();
+
+    RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
+
+    int nMinDepth = 1;
+    if (params.size() > 0)
+        nMinDepth = params[0].get_int();
+
+    int nMaxDepth = 9999999;
+    if (params.size() > 1)
+        nMaxDepth = params[1].get_int();
+
+    UniValue results(UniValue::VARR);
+    vector <COutput> vecOutputs;
+    assert(pwalletMain != NULL);
+    pwalletMain->ListAvailableSigmaMintCoins(vecOutputs, false);
+    LogPrintf("vecOutputs.size()=%s\n", vecOutputs.size());
+    BOOST_FOREACH(const COutput &out, vecOutputs)
+    {
+        if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
+            continue;
+
+        int64_t nValue = out.tx->vout[out.i].nValue;
+        const CScript &pk = out.tx->vout[out.i].scriptPubKey;
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
+        entry.push_back(Pair("vout", out.i));
+        entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
+        if (pk.IsPayToScriptHash()) {
+            CTxDestination address;
+            if (ExtractDestination(pk, address)) {
+                const CScriptID &hash = boost::get<CScriptID>(address);
+                CScript redeemScript;
+                if (pwalletMain->GetCScript(hash, redeemScript))
+                    entry.push_back(Pair("redeemScript", HexStr(redeemScript.begin(), redeemScript.end())));
+            }
+        }
+        entry.push_back(Pair("amount", ValueFromAmount(nValue)));
+        entry.push_back(Pair("confirmations", out.nDepth));
+        results.push_back(entry);
+    }
+
+    return results;
+}
+
+UniValue mint(const UniValue& params, bool fHelp)
 {
+    if (!EnsureWalletIsAvailable(fHelp)) {
+        return NullUniValue;
+    }
 
     if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "mint amount\n"
+            "\nAutomatically choose denominations to mint by amount."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.05\n"
+            "\nResult:\n"
+            "\"transactionid\"  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("mint", "0.15")
+            + HelpExampleCli("mint", "100.9")
+            + HelpExampleRpc("mint", "0.15")
+        );
+
+    EnsureWalletIsUnlocked();
+    EnsureSigmaWalletIsAvailable();
+
+    // Ensure Sigma mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!sigma::IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
+
+    CAmount nAmount = AmountFromValue(params[0]);
+    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
+
+    std::vector<sigma::CoinDenomination> denominations;
+    sigma::GetAllDenoms(denominations);
+
+    CAmount smallestDenom;
+    DenominationToInteger(denominations.back(), smallestDenom);
+
+    if (nAmount % smallestDenom != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
+    }
+
+    std::vector<sigma::CoinDenomination> mints;
+    if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
+    }
+
+    std::vector<sigma::PrivateCoin> privCoins;
+
+    const auto& sigmaParams = sigma::Params::get_default();
+    std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
+        [sigmaParams](const sigma::CoinDenomination& denom) -> sigma::PrivateCoin {
+            return sigma::PrivateCoin(sigmaParams, denom);
+        });
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+
+    CWalletTx wtx;
+    std::string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue mintzerocoin(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+
+    EnsureZerocoinMintIsAllowed();
 
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
@@ -2738,8 +2958,8 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
         // Wallet comments
         CWalletTx wtx;
-
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        bool isSigmaMint = false;
+        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -2784,6 +3004,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
 
+    EnsureZerocoinMintIsAllowed();
+
     UniValue sendTo(UniValue::VOBJ);
 
     for(size_t i=0; i<params.size(); i+=2){
@@ -2824,7 +3046,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 denomination = libzerocoin::ZQ_PEDERSEN;
                 break;
             case 100:
-                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                denomination = libzerocoin::ZQ_WILLIAMSON;
                 break;
             default:
                 throw runtime_error(
@@ -2836,7 +3058,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 
         LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n", denominationStr, amount);
 
-        
+
         if(amount < 0){
                 throw runtime_error(
                     "amounts must be greater than 0.\n");
@@ -2851,9 +3073,9 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
             // of currency inputs totaling the assigned value of one zerocoin.
-            
+
             libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
-            
+
             //Validate
             bool validCoin = pubCoin.validate();
 
@@ -2891,7 +3113,7 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
                 + HelpRequiringPassphrase() +
 				"\nArguments:\n"
 				"1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
-				"2. \"zcoinaddress\"  (string, optional) The zcoin address to send to third party.\n"
+				"2. \"zcoinaddress\"  (string, optional) The Zcoin address to send to third party.\n"
 				"\nExamples:\n"
 				            + HelpExampleCli("spendzerocoin", "10 \"a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U\"")
         );
@@ -2950,6 +3172,27 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
 }
 
+UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() >= 1)
+        throw runtime_error(
+                "spendallzerocoin\n"
+                "\nAutomatically spends all zerocoin mints to self\n" );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool hasUnspendableMints = false;
+
+    string strError;
+    bool result = pwalletMain->SpendOldMints(strError);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    else if(strError == "" && !result)
+        hasUnspendableMints = true;
+
+    return  hasUnspendableMints;
+}
+
 UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 
         if (fHelp || params.size() != 1)
@@ -2979,11 +3222,19 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
+    UniValue addressUni(UniValue::VOBJ);
 
     UniValue inputs = find_value(data, "denominations");
+    if(inputs.isNull()){
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
 
-    string addressStr = find_value(data, "address").get_str();
+    addressUni = find_value(data, "address");
+    if(addressUni.isNull()){
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string addressStr = addressUni.get_str();
 
     for(size_t i=0; i<inputs.size();i++) {
 
@@ -3007,7 +3258,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
                 denomination = libzerocoin::ZQ_PEDERSEN;
                 break;
             case 100:
-                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                denomination = libzerocoin::ZQ_WILLIAMSON;
                 break;
             default:
                 throw runtime_error(
@@ -3043,10 +3294,118 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         LogPrintf("SpendZerocoin() : %s", strError.c_str());
         return strError;
     }
-    
+
     strError = pwalletMain->SpendMultipleZerocoin(thirdPartyAddress, denominations, wtx, coinSerials, txHash, zcSelectedValues, false);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue spendmany(const UniValue& params, bool fHelp) {
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw std::runtime_error(
+                "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+                "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
+                + HelpRequiringPassphrase() + "\n"
+                "\nArguments:\n"
+                "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+                "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+                "    {\n"
+                "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      ,...\n"
+                "    }\n"
+                "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
+                "4. \"comment\"             (string, optional) A comment\n"
+                "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
+                "                           The fee will be equally deducted from the amount of each selected address.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           If no addresses are specified here, the sender pays the fee.\n"
+                "    [\n"
+                "      \"address\"            (string) Subtract fee from this address\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                "                                    the number of addresses.\n"
+                "\nExamples:\n"
+                "\nSend two amounts to two different addresses:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+                "\nSend two amounts to two different addresses and subtract fee from amount:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
+        );
+
+    if (!sigma::IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
+
+    EnsureSigmaWalletIsAvailable();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Only account "" have sigma coins.
+    std::string strAccount = AccountFromValue(params[0]);
+    if (!strAccount.empty())
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
+    UniValue sendTo = params[1].get_obj();
+
+    CWalletTx wtx;
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
+
+    std::unordered_set<std::string> subtractFeeFromAmountSet;
+    UniValue subtractFeeFromAmount(UniValue::VARR);
+    if (params.size() > 4) {
+        subtractFeeFromAmount = params[4].get_array();
+        for (int i = subtractFeeFromAmount.size(); i--;) {
+            subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
+    }
+
+    std::set<CBitcoinAddress> setAddress;
+    std::vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    auto keys = sendTo.getKeys();
+    if (keys.size() <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
+    }
+
+    for (const auto& strAddr : keys) {
+        CBitcoinAddress address(strAddr);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address: " + strAddr);
+
+        if (!setAddress.insert(address).second)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = AmountFromValue(sendTo[strAddr]);
+        if (nAmount <= 0) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        }
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount =
+            subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
+
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+    }
+
+    EnsureWalletIsUnlocked();
+
+    CAmount nFeeRequired = 0;
+
+    try {
+        pwalletMain->SpendSigma(vecSend, wtx, nFeeRequired);
+    }
+    catch (const InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    }
+    catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
 
     return wtx.GetHash().GetHex();
 }
@@ -3073,6 +3432,32 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
             zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
             walletdb.WriteZerocoinEntry(zerocoinTx);
         }
+    }
+
+    return NullUniValue;
+}
+
+UniValue resetsigmamint(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "resetsigmamint"
+                + HelpRequiringPassphrase());
+
+    EnsureSigmaWalletIsAvailable();
+
+    std::vector <CMintMeta> listMints;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listMints = zwalletMain->GetTracker().ListMints(false, false);
+
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
+            continue;
+        }
+        dMint.SetUsed(false);
+        dMint.SetHeight(-1);
+        zwalletMain->GetTracker().Add(dMint, true);
     }
 
     return NullUniValue;
@@ -3114,11 +3499,53 @@ UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
+UniValue listsigmamints(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+                "listsigmamints <all>(false/true)\n"
+                "\nArguments:\n"
+                "1. <all> (boolean, optional) false (default) to return own mintzerocoins. true to return every mintzerocoins.\n"
+                "\nResults are an array of Objects, each of which has:\n"
+                "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    EnsureSigmaWalletIsAvailable();
+
+    bool fAllStatus = false;
+    if (params.size() > 0) {
+        fAllStatus = params[0].get_bool();
+    }
+
+    // Mint secret data encrypted in wallet
+    EnsureWalletIsUnlocked();
+
+    list <CSigmaEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
+        if (fAllStatus || zerocoinItem.IsUsed || (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0))) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", zerocoinItem.id));
+            entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+            entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
+            entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+            entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
+}
+
 
 UniValue listpubcoins(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-                "listpubcoin <all>(1/10/25/50/100)\n"
+                "listpubcoins <all>(1/10/25/50/100)\n"
                         "\nArguments:\n"
                         "1. <all> (int, optional) 1,10,25,50,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
                         "\nResults are an array of Objects, each of which has:\n"
@@ -3152,6 +3579,59 @@ UniValue listpubcoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
+UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
+
+    std::string help_message =
+        "listsigmapubcoins <all>(0.05/0.1/0.5/1/10/25/100)\n"
+            "\nArguments:\n"
+            "1. <all> (string, optional) 0.05, 0.1, 0.5, 1, 10, 25, 100 (default) to return all sigma public coins with given denomination. empty to return all pubcoin.\n"
+            "\nResults are an array of Objects, each of which has:\n"
+            "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}";
+    if (fHelp || params.size() > 1) {
+        throw runtime_error(help_message);
+    }
+
+    EnsureSigmaWalletIsAvailable();
+
+    sigma::CoinDenomination denomination;
+    bool filter_by_denom = false;
+    if (params.size() > 0) {
+        filter_by_denom = true;
+        if (!sigma::StringToDenomination(params[0].get_str(), denomination)) {
+            throw runtime_error(help_message);
+        }
+    }
+
+    // Mint secret data encrypted in wallet
+    EnsureWalletIsUnlocked();
+
+    list<CSigmaEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
+    UniValue results(UniValue::VARR);
+    listPubcoin.sort(CompSigmaHeight);
+
+    auto state = sigma::CSigmaState::GetState();
+    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
+        sigma::PublicCoin coin(sigmaItem.value, sigmaItem.get_denomination());
+        int height, id;
+        std::tie(height, id) = state->GetMintedCoinHeightAndId(coin);
+        if (id > 0 &&
+            (!filter_by_denom || sigmaItem.get_denomination() == denomination)) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", id));
+            entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
+            entry.push_back(Pair("denomination", sigmaItem.get_string_denomination()));
+            entry.push_back(Pair("value", sigmaItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", height));
+            entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
+}
 
 UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
@@ -3215,6 +3695,195 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     }
 
     return results;
+}
+
+UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() != 2)
+        throw runtime_error(
+                "setsigmamintstatus \"coinserial\" <isused>(true/false)\n"
+                "Set mintsigma IsUsed status to True or False\n"
+                "Results are an array of one or no Objects, each of which has:\n"
+                "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    EnsureSigmaWalletIsAvailable();
+
+    Scalar coinSerial;
+    coinSerial.SetHex(params[0].get_str());
+
+    bool fStatus = true;
+    fStatus = params[1].get_bool();
+
+    EnsureWalletIsUnlocked();
+
+    std::vector <CMintMeta> listMints;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listMints = zwalletMain->GetTracker().ListMints(false, false);
+
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CSigmaEntry zerocoinItem;
+        if(!pwalletMain->GetMint(mint.hashSerial, zerocoinItem))
+            continue;
+
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
+            continue;
+        }
+
+        if (zerocoinItem.serialNumber != uint64_t(0)) {
+            LogPrintf("zerocoinItem.serialNumber = %s\n", zerocoinItem.serialNumber.GetHex());
+            if (zerocoinItem.serialNumber == coinSerial) {
+                LogPrintf("setmintzerocoinstatus Found!\n");
+
+                const std::string& isUsedDenomStr =
+                    fStatus
+                    ? "Used (" + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + " mint)"
+                    : "New (" + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + " mint)";
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem.value.GetHex(), isUsedDenomStr, CT_UPDATED);
+
+                if(!mint.isDeterministic){
+                    zerocoinItem.IsUsed = fStatus;
+                    zwalletMain->GetTracker().Add(zerocoinItem, true);
+                }else{
+                    dMint.SetUsed(fStatus);
+                    zwalletMain->GetTracker().Add(dMint, true);
+                }
+
+                if (!fStatus) {
+                    // erase zerocoin spend entry
+                    CSigmaSpendEntry spendEntry;
+                    spendEntry.coinSerial = coinSerial;
+                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
+                }
+
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("id", zerocoinItem.id));
+                entry.push_back(Pair("IsUsed", fStatus));
+                entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
+                entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+                entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+                entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+                entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+                results.push_back(entry);
+                break;
+            }
+        }
+    }
+
+    return results;
+}
+
+UniValue listsigmaspends(const UniValue &params, bool fHelp) {
+
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+                "listsigmaspends\n"
+                "Return up to \"count\" saved sigma spend transactions\n"
+                "\nArguments:\n"
+                "1. count            (numeric) The number of transactions to return, <=0 means no limit\n"
+                "2. onlyunconfirmed  (bool, optional, default=false) If true return only unconfirmed transactions\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
+                "    \"confirmations\": n,             (numeric) The number of confirmations for the transaction\n"
+                "    \"abandoned\": xxx,               (bool) True if the transaction was already abandoned\n"
+                "    \"spends\": \n"
+                "    [\n"
+                "      {\n"
+                "        \"denomination\": d,            (string) Denomination\n"
+                "        \"spendid\": id,                (numeric) Spend group id\n"
+                "        \"serial\": \"s\",              (string) Serial number of the coin\n"
+                "      }\n"
+                "    ]\n"
+                "    \"re-mints\": \n"
+                "    [\n"
+                "      {\n"
+                "        \"denomination\": \"s\",        (string) Denomination\n"
+                "        \"value\": \"s\",               (string) value\n"
+                "      }\n"
+                "    ]\n"
+                "  }\n"
+                "]\n");
+
+    EnsureSigmaWalletIsAvailable();
+
+    int  count = params[0].get_int();
+    bool fOnlyUnconfirmed = params.size()>=2 && params[1].get_bool();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    UniValue ret(UniValue::VARR);
+    const CWallet::TxItems& txOrdered = pwalletMain->wtxOrdered;
+
+    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin();
+         it != txOrdered.rend();
+         ++it) {
+        CWalletTx *const pwtx = (*it).second.first;
+
+        if (!pwtx || !pwtx->IsSigmaSpend())
+            continue;
+
+        UniValue entry(UniValue::VOBJ);
+
+        int confirmations = pwtx->GetDepthInMainChain();
+        if (confirmations > 0 && fOnlyUnconfirmed)
+            continue;
+
+        entry.push_back(Pair("txid", pwtx->GetHash().GetHex()));
+        entry.push_back(Pair("confirmations", confirmations));
+        entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
+
+        UniValue spends(UniValue::VARR);
+        BOOST_FOREACH(const CTxIn &txin, pwtx->vin) {
+            // For sigma public coin group id is prevout.n.
+            int pubcoinId = txin.prevout.n;
+
+            // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+            // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
+            // because the size of serialized spend is also written, probably in 3 bytes.
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::Params* zcParams = sigma::Params::get_default();
+            sigma::CoinSpend spend(zcParams, serializedCoinSpend);
+
+            UniValue spendEntry(UniValue::VOBJ);
+            spendEntry.push_back(Pair("denomination",
+                                 sigma::DenominationToString(spend.getDenomination())));
+            spendEntry.push_back(Pair("spendid", pubcoinId));
+            spendEntry.push_back(Pair("serial", spend.getCoinSerialNumber().GetHex()));
+            spends.push_back(spendEntry);
+        }
+
+        entry.push_back(Pair("spends", spends));
+
+        UniValue remints(UniValue::VARR);
+        BOOST_FOREACH(const CTxOut &txout, pwtx->vout) {
+            if (txout.scriptPubKey.empty() || !txout.scriptPubKey.IsSigmaMint()) {
+                continue;
+            }
+            sigma::CoinDenomination denomination;
+            IntegerToDenomination(txout.nValue, denomination);
+
+            UniValue remintEntry(UniValue::VOBJ);
+            remintEntry.push_back(Pair(
+                "denomination", sigma::DenominationToString(denomination)));
+            remintEntry.push_back(Pair(
+                "value", sigma::ParseSigmaMintScript(txout.scriptPubKey).tostring()));
+            remints.push_back(remintEntry);
+        }
+
+        entry.push_back(Pair("remints", remints));
+        ret.push_back(entry);
+
+        if (count > 0 && (int)ret.size() >= count)
+            break;
+    }
+
+    return ret;
 }
 
 UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
@@ -3289,6 +3958,44 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
     }
 
     return ret;
+}
+
+UniValue remintzerocointosigma(const UniValue &params, bool fHelp) {
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "remintzerocointosigma <denomination>(1,10,25,50,100)\n"
+            +HelpRequiringPassphrase() +
+            "\nConvert zerocoin mint to sigma mint.\n"
+            "\nArguments:\n"
+            "1. \"denomination\"          (integer, required) existing zerocoin mint denomination\n"
+        );
+
+    EnsureSigmaWalletIsAvailable();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    libzerocoin::CoinDenomination denomination;
+    switch (params[0].get_int()) {
+        case 1:
+        case 10:
+        case 25:
+        case 50:
+        case 100:
+            denomination = (libzerocoin::CoinDenomination)params[0].get_int();
+            break;
+
+        default:
+            throw runtime_error("Incorrect denomination\n");
+    }
+
+    EnsureWalletIsUnlocked();
+    std::string stringError;
+    CWalletTx wtx;
+
+    if (!pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, denomination, &wtx))
+        throw JSONRPCError(RPC_WALLET_ERROR, stringError);
+
+    return wtx.GetHash().GetHex();
 }
 
 UniValue removetxmempool(const UniValue &params, bool fHelp) {
@@ -3394,18 +4101,31 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true  },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
-    { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
+    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },
+    { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
+    { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
+    { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
-    { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
+    { "wallet",             "mintmanyzerocoin",         &mintmanyzerocoin,         false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
-    { "wallet",             "spendmanyzerocoin",            &spendmanyzerocoin,            false },
+    { "wallet",             "spendmanyzerocoin",        &spendmanyzerocoin,        false },
+    { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
-    { "wallet",             "setmintzerocoinstatus",        &setmintzerocoinstatus,        false },
+    { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
+    { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
+    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
-    { "wallet",             "listpubcoins",        &listpubcoins,        false },
+    { "wallet",             "listsigmamints",           &listsigmamints,           false },
+    { "wallet",             "listpubcoins",             &listpubcoins,             false },
+    { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
+
+
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
-    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false }
+    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
+    { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
+    { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
+    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)

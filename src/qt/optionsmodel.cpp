@@ -13,7 +13,7 @@
 
 #include "amount.h"
 #include "init.h"
-#include "main.h" // For DEFAULT_SCRIPTCHECK_THREADS
+#include "main.h" // For DEFAULT_SCRIPTCHECK_THREADS && DEFAULT_TOR_SETUP
 #include "net.h"
 #include "txdb.h" // for -dbcache defaults
 #include "intro.h" 
@@ -111,6 +111,11 @@ void OptionsModel::Init(bool resetSettings)
 #endif
 
     // Network
+    if (!settings.contains("fTorSetup"))
+        settings.setValue("fTorSetup", DEFAULT_TOR_SETUP);
+    if (!SoftSetBoolArg("-torsetup", settings.value("fTorSetup").toBool()))
+        addOverriddenOption("-torsetup");
+
     if (!settings.contains("fUseUPnP"))
         settings.setValue("fUseUPnP", DEFAULT_UPNP);
     if (!SoftSetBoolArg("-upnp", settings.value("fUseUPnP").toBool()))
@@ -213,6 +218,9 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             QStringList strlIpPort = settings.value("addrProxy").toString().split(":", QString::SkipEmptyParts);
             return strlIpPort.at(1);
         }
+
+        case TorSetup:
+            return settings.value("fTorSetup", false);
 
         // separate Tor proxy
         case ProxyUseTor:

@@ -1,27 +1,31 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/rules.h"
-#include "exodus/script.h"
-#include "exodus/tx.h"
+#include "../createpayload.h"
+#include "../exodus.h"
+#include "../packetencoder.h"
+#include "../rules.h"
+#include "../script.h"
+#include "../tx.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
-#include "utilstrencodings.h"
+#include "../../base58.h"
+#include "../../coins.h"
+#include "../../utilstrencodings.h"
 
-#include <stdint.h>
-#include <limits>
-#include <vector>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+#include <limits>
+#include <vector>
+
+#include <inttypes.h>
+
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_parsing_c_tests, BasicTestingSetup)
 
@@ -80,7 +84,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
 
         std::vector<CTxOut> txOutputs;
         txOutputs.push_back(OpReturn_SimpleSend());
-        txOutputs.push_back(createTxOut(2700000, ExodusAddress().ToString()));
+        txOutputs.push_back(createTxOut(2700000, GetSystemAddress().ToString()));
 
         CTransaction dummyTx = TxClassC(txInputs, txOutputs);
 
@@ -89,7 +93,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
         BOOST_CHECK(metaTx.getReceiver().empty());
         BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 2300000);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "00000000000000070000000006dac2c0");
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");
     }
     {
         int nBlock = ConsensusParams().NULLDATA_BLOCK + 1000;
@@ -108,7 +112,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
         BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(metaTx.getReceiver(), "a11WeUi6HFkHNdG5puD9LHCXTySddeNcu8");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "00000000000000070000000006dac2c0");
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -127,7 +131,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
         BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 74000);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(metaTx.getReceiver(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "00000000000000070000000006dac2c0");
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -191,7 +195,7 @@ BOOST_AUTO_TEST_CASE(empty_op_return)
 
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-        BOOST_CHECK(metaTx.getPayload().empty());
+        BOOST_CHECK(metaTx.getRaw().empty());
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         // via PayToPubKeyHash_Unrelated:
         BOOST_CHECK_EQUAL(metaTx.getReceiver(), "a6FFPX9EvcDCtKCzootN4EMwMv2K9xnVcV");
@@ -209,8 +213,8 @@ BOOST_AUTO_TEST_CASE(trimmed_op_return)
 
         std::vector<CTxOut> txOutputs;
 
-        std::vector<unsigned char> vchFiller(MAX_PACKETS * PACKET_SIZE, 0x07);
-        std::vector<unsigned char> vchPayload = GetExMarker();
+        std::vector<unsigned char> vchFiller(CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE, 0x07);
+        std::vector<unsigned char> vchPayload(magic.begin(), magic.end());
         vchPayload.insert(vchPayload.end(), vchFiller.begin(), vchFiller.end());
 
         // These will be trimmed:
@@ -229,8 +233,8 @@ BOOST_AUTO_TEST_CASE(trimmed_op_return)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), HexStr(vchFiller.begin(), vchFiller.end()));
-        BOOST_CHECK_EQUAL(metaTx.getPayload().size() / 2, MAX_PACKETS * PACKET_SIZE);
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), HexStr(vchFiller.begin(), vchFiller.end()));
+        BOOST_CHECK_EQUAL(metaTx.getRaw().size(), CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE);
     }
 }
 
@@ -272,7 +276,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_short)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "00001111222233330001000200030004");
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00001111222233330001000200030004");
     }
 }
 
@@ -324,7 +328,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "12222222222222222222222222234555555"
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "12222222222222222222222222234555555"
                 "555555555555555555556788888888889ffff11111111111111111111111111111"
                 "111111111111111111111111111111111111111111111111111111111111111111"
                 "111111111111111111111111111111111111111111111111111111111111111111"
@@ -351,7 +355,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(),
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()),
                 // OpReturn_SimpleSend (without marker):
                 "00000000000000070000000006dac2c0"
                 // OpReturn_MultiSimpleSend (without marker):
@@ -381,7 +385,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-        BOOST_CHECK_EQUAL(metaTx.getPayload(),
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()),
                 "00000000000000010000000006dac2c000000000000000030000000000000d48");
     }
     {
@@ -404,7 +408,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
 
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-        BOOST_CHECK_EQUAL(metaTx.getPayload(), "00000000000000010000000006dac2c0");
+        BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000010000000006dac2c0");
     }
     {
         /**
@@ -434,5 +438,6 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
     }
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus
