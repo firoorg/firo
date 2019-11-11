@@ -190,8 +190,11 @@ enum opcodetype
     // zerocoin params
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
-    OP_ZEROCOINMINTV3 = 0xc3,
-    OP_ZEROCOINSPENDV3 = 0xc4
+    OP_SIGMAMINT = 0xc3,
+    OP_SIGMASPEND = 0xc4,
+
+    // input for reminting zerocoin to sigma (v3)
+    OP_ZEROCOINTOSIGMAREMINT = 0xc8
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -401,7 +404,6 @@ protected:
     }
 public:
     CScript() { }
-    CScript(const CScript& b) : CScriptBase(b.begin(), b.end()) { }
     CScript(const_iterator pbegin, const_iterator pend) : CScriptBase(pbegin, pend) { }
     CScript(std::vector<unsigned char>::const_iterator pbegin, std::vector<unsigned char>::const_iterator pend) : CScriptBase(pbegin, pend) { }
     CScript(const unsigned char* pbegin, const unsigned char* pend) : CScriptBase(pbegin, pend) { }
@@ -564,6 +566,13 @@ public:
         }
 
         opcodeRet = (opcodetype)opcode;
+
+        if (opcodeRet == opcodetype::OP_SIGMASPEND|| opcodeRet == opcodetype::OP_SIGMAMINT) {
+            if (pvchRet) {
+                pvchRet->assign(pc, end());
+            }
+            pc = end();
+        }
         return true;
     }
 
@@ -647,9 +656,11 @@ public:
     bool IsZerocoinSpend() const;
 
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
-    bool IsZerocoinMintV3() const;
-    bool IsZerocoinSpendV3() const;
- 
+    bool IsSigmaMint() const;
+    bool IsSigmaSpend() const;
+
+    bool IsZerocoinRemint() const;
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 

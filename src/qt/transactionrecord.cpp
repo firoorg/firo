@@ -4,6 +4,8 @@
 
 #include "transactionrecord.h"
 
+#include <QApplication>
+
 #include "base58.h"
 #include "consensus/consensus.h"
 #include "main.h"
@@ -42,41 +44,92 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe = wtx.IsZerocoinSpendV3();
+    bool isAllSigmaSpendFromMe;
 
     for (const auto& vin : wtx.vin) {
-        isAllSigmaSpendFromMe = wallet->IsMine(vin) & ISMINE_SPENDABLE;
+        isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
+        CAmount nTxFee = nDebit - wtx.GetValueOut();
+        bool first = true;
+
+        bool isAllToMe = true;
+        std::string addresses = "";
+        bool involvesWatchAddress = false;
+        bool firstAddress = true;
+
         for (const CTxOut& txout : wtx.vout) {
-            if (txout.scriptPubKey.IsZerocoinMintV3()) {
-                continue;
-            }
             isminetype mine = wallet->IsMine(txout);
+            if (!mine) {
+                isAllToMe = false;
+                break;
+            } else if (!txout.scriptPubKey.IsSigmaMint()) {
+                CTxDestination address;
+                ExtractDestination(txout.scriptPubKey, address);
+                if (firstAddress) {
+                    addresses.append(CBitcoinAddress(address).ToString());
+                    firstAddress = false;
+                } else
+                    addresses.append(", " + CBitcoinAddress(address).ToString());
+            }
+            if(mine & ISMINE_WATCH_ONLY)
+                involvesWatchAddress = true;
+        }
 
+        if(isAllToMe){
             TransactionRecord sub(hash, nTime);
-            CTxDestination address;
+            sub.involvesWatchAddress = involvesWatchAddress;
+            sub.type = TransactionRecord::SpendToSelf;
+            sub.address = addresses;
+            sub.idx = parts.size();
+            sub.debit = -nTxFee;
+            parts.append(sub);
+        } else {
+            for (const CTxOut& txout : wtx.vout) {
+                if (wtx.IsChange(txout)) {
+                    continue;
+                }
+                isminetype mine = wallet->IsMine(txout);
 
-            if (mine) {
-                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
-                {
-                    sub.type = TransactionRecord::SpendToSelf;
+                TransactionRecord sub(hash, nTime);
+                CTxDestination address;
+                sub.idx = parts.size();
+                if (mine) {
+                    sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                    if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
+                        sub.type = TransactionRecord::SpendToSelf;
+                        sub.address = CBitcoinAddress(address).ToString();
+                        sub.credit = txout.nValue;
+                        parts.append(sub);
+                    }
+                } else {
+                    ExtractDestination(txout.scriptPubKey, address);
+                    sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                    sub.credit = txout.nValue;
+                    sub.debit = -txout.nValue;
+                    if (first) {
+                        sub.debit -= nTxFee;
+                        first = false;
+                    }
                     parts.append(sub);
                 }
-            } else {
-                ExtractDestination(txout.scriptPubKey, address);
-                sub.type = TransactionRecord::SpendToAddress;
-                sub.address = CBitcoinAddress(address).ToString();
-                sub.debit = -txout.nValue;
-                parts.append(sub);
             }
         }
+    }
+    else if (wtx.IsZerocoinRemint()) {
+        TransactionRecord sub(hash, nTime);
+        sub.type = TransactionRecord::SpendToSelf;
+        CAmount txAmount = 0;
+        for (const CTxOut &txout: wtx.vout)
+            txAmount += txout.nValue;
+        sub.idx = parts.size();
+        sub.debit = -txAmount;
+        sub.credit = txAmount;
+        sub.address = QCoreApplication::translate("zcoin-core", "Zerocoin->Sigma remint").toStdString();
+        parts.append(sub);
     }
     else if (nNet > 0 || wtx.IsCoinBase())
     {
@@ -134,14 +187,23 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             if(fAllToMe > mine) fAllToMe = mine;
         }
 
+        if(wtx.IsSigmaMint() && !wtx.IsSigmaSpend())
+            fAllToMe = ISMINE_SPENDABLE;
+
         if (fAllFromMe && fAllToMe)
         {
-            // Payment to self
             CAmount nChange = wtx.GetChange();
-
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
-                            -(nDebit - nChange), nCredit - nChange));
-            parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
+            if (wtx.IsSigmaMint() || wtx.IsZerocoinMint())
+            {
+                // Mint to self
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::Mint, "",
+                    -(nDebit - nChange), 0));
+            } else {
+                // Payment to self
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
+                    -(nDebit - nChange), nCredit - nChange));
+                parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
+            }
         }
         else if (fAllFromMe)
         {
@@ -171,7 +233,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
                 }
-                else if(wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3())
+                else if(wtx.IsZerocoinMint() || wtx.IsSigmaMint())
                 {
                     sub.type = TransactionRecord::Mint;
                 }

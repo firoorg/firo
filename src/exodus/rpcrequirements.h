@@ -1,5 +1,8 @@
-#ifndef EXODUS_RPCREQUIREMENTS_H
-#define EXODUS_RPCREQUIREMENTS_H
+#ifndef ZCOIN_EXODUS_RPCREQUIREMENTS_H
+#define ZCOIN_EXODUS_RPCREQUIREMENTS_H
+
+#include "property.h"
+#include "sigmaprimitives.h"
 
 #include <stdint.h>
 #include <string>
@@ -20,9 +23,17 @@ void RequireSaneReferenceAmount(int64_t amount);
 void RequireSaneDExPaymentWindow(const std::string& address, uint32_t propertyId);
 void RequireSaneDExFee(const std::string& address, uint32_t propertyId);
 void RequireHeightInChain(int blockHeight);
+void RequireSigmaStatus(SigmaStatus status);
+
+namespace exodus {
+
+void RequireSigma(PropertyId property);
+void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);
+
+}
 
 // TODO:
 // Checks for MetaDEx orders for cancel operations
 
 
-#endif // EXODUS_RPCREQUIREMENTS_H
+#endif // ZCOIN_EXODUS_RPCREQUIREMENTS_H

@@ -3,6 +3,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 DIST_SUBDIRS = secp256k1 univalue tor
+SUBDIRS = tor
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS)
@@ -18,19 +19,46 @@ else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
 
-TOR_LIBS = tor/src/or/libtor.a \
-	tor/src/common/libor.a \
-	tor/src/common/libor-ctime.a \
-	tor/src/common/libor-crypto.a \
-	tor/src/common/libor-event.a \
+TOR_LIBS = tor/src/core/libtor-app.a \
+    tor/src/lib/libtor-meminfo.a \
+    tor/src/lib/libtor-term.a \
+    tor/src/lib/libtor-osinfo.a \
+    tor/src/lib/libtor-geoip.a \
+    tor/src/lib/libtor-math.a \
+    tor/src/lib/libtor-tls.a \
+    tor/src/lib/libtor-process.a \
+    tor/src/lib/libtor-evloop.a \
+    tor/src/lib/libtor-thread.a \
+    tor/src/lib/libtor-compress.a \
+    @LIBZSTD@ \
+    tor/src/lib/libtor-net.a \
+    tor/src/lib/libtor-buf.a \
+    tor/src/lib/libtor-time.a \
+    tor/src/lib/libtor-err.a \
+    tor/src/lib/libtor-log.a \
+    tor/src/lib/libtor-version.a \
+    tor/src/lib/libtor-container.a \
+    tor/src/lib/libtor-crypt-ops.a \
+    tor/src/lib/libtor-fs.a \
+    tor/src/lib/libtor-fdio.a \
+    tor/src/lib/libtor-sandbox.a \
+    tor/src/lib/libtor-memarea.a \
+    tor/src/lib/libtor-intmath.a \
+    tor/src/lib/libtor-encoding.a \
+    tor/src/lib/libtor-smartlist-core.a \
+    tor/src/lib/libtor-lock.a \
+    tor/src/lib/libtor-wallclock.a \
+    tor/src/lib/libtor-string.a \
+    tor/src/lib/libtor-malloc.a \
+	tor/src/lib/libtor-ctime.a \
 	tor/src/trunnel/libor-trunnel.a \
-	tor/src/common/libcurve25519_donna.a \
+	tor/src/lib/libcurve25519_donna.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 
-tor.timestamp: $(wildcard tor/src/or/*.c) $(wildcard tor/src/or/*.h) \
-		$(wildcard tor/src/common/*.c) $(wildcard tor/src/common/*.h) \
+tor.timestamp: $(wildcard tor/src/core/or/*.c) $(wildcard tor/src/core/or/*.h) \
+		$(wildcard tor/src/lib/*.c) $(wildcard tor/src/lib/*.h) \
 		$(wildcard tor/src/trunnel/*.c) $(wildcard tor/src/trunnel/*.h) \
 		$(wildcard tor/src/ext/*.c) $(wildcard tor/src/ext/*.h)
 	@rm -f tor.timestamp.tmp
@@ -150,6 +178,7 @@ BITCOIN_CORE_H = \
   znode-sync.h \
   znodeman.h \
   znodeconfig.h \
+  mbstring.h \
   memusage.h \
   merkleblock.h \
   miner.h \
@@ -160,8 +189,10 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
+  primitives/zerocoin.h \
   fixed.h \
   pow.h \
+  hdmint/hdmint.h \
   protocol.h \
   random.h \
   reverselock.h \
@@ -207,9 +238,12 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
+  hdmint/mintpool.h \
+  hdmint/tracker.h \
+  hdmint/wallet.h \
   zerocoin.h \
-  zerocoin_v3.h \
-  hash_functions.h \
+  sigma.h \
+  coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
   mtpstate.h
@@ -242,6 +276,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
+  primitives/zerocoin.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -262,8 +297,8 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
-  zerocoin_v3.cpp \
-  hash_functions.cpp \
+  sigma.cpp \
+  coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
@@ -284,13 +319,16 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   darksend.cpp \
+  hdmint/hdmint.cpp \
   znode.cpp \
   instantx.cpp \
   znode-payments.cpp \
   znode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
-  zerocoin_v3.cpp \
+  hdmint/mintpool.cpp \
+  hdmint/wallet.cpp \
+  sigma.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
@@ -301,7 +339,9 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
+  hdmint/tracker.cpp \
   policy/rbf.cpp \
+  primitives/zerocoin.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -400,6 +440,7 @@ libbitcoin_common_a_SOURCES = \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
+  hdmint/hdmint.cpp \
   key.cpp \
   keystore.cpp \
   netbase.cpp \
@@ -422,6 +463,7 @@ libbitcoin_util_a_SOURCES = \
   compat/glibc_sanity.cpp \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
+  mbstring.cpp \
   random.cpp \
   rpc/protocol.cpp \
   support/cleanse.cpp \
@@ -483,6 +525,9 @@ libsigma_a_SOURCES = \
   sigma/coinspend.h \
   sigma/spend_metadata.cpp \
   sigma/spend_metadata.h \
+  sigma/remint.h \
+  sigma/remint.cpp \
+  sigma/remint-blacklist.cpp \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h
@@ -655,8 +700,11 @@ endif
 
 if ENABLE_TESTS
 include Makefile.test.include
+else
+check-local:
+	$(error Please rerun configure with tests enabling flag)
 endif
 
-# Exodus
+if ENABLE_EXODUS
 include Makefile.exodus.include
-#
+endif

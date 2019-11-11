@@ -11,9 +11,20 @@
 #include "serialize.h"
 #include "uint256.h"
 
+#include <exception>
+
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 static const int WITNESS_SCALE_FACTOR = 4;
+
+class CBadTxIn : public std::exception
+{
+};
+
+class CBadSequence : public CBadTxIn
+{
+};
+
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -132,7 +143,8 @@ public:
 
     std::string ToString() const;
     bool IsZerocoinSpend() const;
-    bool IsZerocoinSpendV3() const;
+    bool IsSigmaSpend() const;
+    bool IsZerocoinRemint() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input
@@ -465,8 +477,10 @@ public:
     bool IsZerocoinSpend() const;
     bool IsZerocoinMint() const;
 
-    bool IsZerocoinSpendV3() const;
-    bool IsZerocoinMintV3() const;
+    bool IsSigmaSpend() const;
+    bool IsSigmaMint() const;
+
+    bool IsZerocoinRemint() const;
 
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

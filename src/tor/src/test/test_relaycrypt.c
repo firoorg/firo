@@ -1,16 +1,21 @@
 /* Copyright 2001-2004 Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2018, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
-#include "circuitbuild.h"
+#include "core/or/or.h"
+#include "core/or/circuitbuild.h"
 #define CIRCUITLIST_PRIVATE
-#include "circuitlist.h"
-#include "crypto_rand.h"
-#include "relay.h"
-#include "relay_crypto.h"
-#include "test.h"
+#include "core/or/circuitlist.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "core/or/relay.h"
+#include "core/crypto/relay_crypto.h"
+
+#include "core/or/cell_st.h"
+#include "core/or/or_circuit_st.h"
+#include "core/or/origin_circuit_st.h"
+
+#include "test/test.h"
 
 static const char KEY_MATERIAL[3][CPATH_KEY_MATERIAL_LEN] = {
   "    'My public key is in this signed x509 object', said Tom assertively.",

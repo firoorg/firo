@@ -1,27 +1,35 @@
-#ifndef EXODUS_SP_H
-#define EXODUS_SP_H
+#ifndef ZCOIN_EXODUS_SP_H
+#define ZCOIN_EXODUS_SP_H
 
-#include "exodus/log.h"
-#include "exodus/exodus.h"
-#include "exodus/persistence.h"
+#include "log.h"
+#include "persistence.h"
+#include "property.h"
+#include "sigmaprimitives.h"
 
-class CBlockIndex;
-class uint256;
-
-#include "serialize.h"
+#include "../main.h"
+#include "../serialize.h"
 
 #include <boost/filesystem.hpp>
 
 #include <openssl/sha.h>
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <fstream>
+#include <ios>
+#include <limits>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdio.h>
+
+namespace exodus {
+
+constexpr size_t MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
+
+} // namespace exodus
 
 /** LevelDB based storage for currencies, smart properties and tokens.
  *
@@ -85,6 +93,8 @@ public:
         uint256 update_block;
         bool fixed;
         bool manual;
+        exodus::SigmaStatus sigmaStatus;
+        std::vector<int64_t> denominations;
 
         // For crowdsale properties:
         //   txid -> amount invested, crowdsale deadline, user issued tokens, issuer issued tokens
@@ -98,6 +108,8 @@ public:
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+            auto sigmaStatus = static_cast<uint8_t>(this->sigmaStatus);
+
             READWRITE(issuer);
             READWRITE(prop_type);
             READWRITE(prev_prop_id);
@@ -122,6 +134,27 @@ public:
             READWRITE(fixed);
             READWRITE(manual);
             READWRITE(historicalData);
+
+            if (ser_action.ForRead()) {
+                // If it is EOF when trying to read additional field that mean it is data before we introduced it.
+                try {
+                    READWRITE(sigmaStatus);
+                } catch (std::ios_base::failure&) {
+                    // Assume it is EOF due to no other better way to check.
+                    sigmaStatus = static_cast<uint8_t>(exodus::SigmaStatus::SoftDisabled);
+                }
+
+                try {
+                    READWRITE(denominations);
+                } catch (std::ios_base::failure&) {
+                    denominations.clear();
+                }
+            } else {
+                READWRITE(sigmaStatus);
+                READWRITE(denominations);
+            }
+
+            this->sigmaStatus = static_cast<exodus::SigmaStatus>(sigmaStatus);
         }
 
         bool isDivisible() const;
@@ -156,6 +189,10 @@ public:
 
     void setWatermark(const uint256& watermark);
     bool getWatermark(uint256& watermark) const;
+
+    bool getPrevVersion(uint32_t propertyId, Entry &info) const;
+
+    int getDenominationRemainingConfirmation(uint32_t propertyId, uint8_t denomination, int target);
 
     void printAll() const;
 };
@@ -205,8 +242,8 @@ public:
     void saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std::string& addr) const;
 };
 
-namespace exodus
-{
+namespace exodus {
+
 typedef std::map<std::string, CMPCrowd> CrowdMap;
 
 extern CMPSPInfo* _my_sps;
@@ -218,6 +255,10 @@ std::string strEcosystem(uint8_t ecosystem);
 std::string getPropertyName(uint32_t propertyId);
 bool isPropertyDivisible(uint32_t propertyId);
 bool IsPropertyIdValid(uint32_t propertyId);
+bool IsSigmaStatusValid(SigmaStatus status);
+bool IsSigmaEnabled(PropertyId property);
+bool IsDenominationValid(PropertyId property, SigmaDenomination denomination);
+int64_t GetDenominationValue(PropertyId property, SigmaDenomination denomination);
 
 CMPCrowd* getCrowd(const std::string& address);
 
@@ -235,7 +276,43 @@ void calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_t bonusP
 void eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, int block);
 
 unsigned int eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex);
+
+template<class Denomination>
+int64_t SumDenominationsValue(PropertyId property, Denomination begin, Denomination end)
+{
+    CMPSPInfo::Entry sp;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, sp)) {
+        throw std::invalid_argument("the property not found");
+    }
+
+    int64_t amount = 0;
+
+    for (auto it = begin; it != end; it++) {
+        if (*it >= sp.denominations.size()) {
+            throw std::invalid_argument("the denomination not found");
+        }
+
+        if (sp.denominations[*it] > static_cast<int64_t>(MAX_INT_8_BYTES) - amount) {
+            throw std::overflow_error("summation of mints is overflow");
+        }
+
+        amount += sp.denominations[*it];
+    }
+
+    return amount;
 }
 
+} // namespace exodus
 
-#endif // EXODUS_SP_H
+namespace std {
+
+using namespace exodus;
+
+string to_string(SigmaStatus status);
+
+} // namespace std
+
+#endif // ZCOIN_EXODUS_SP_H

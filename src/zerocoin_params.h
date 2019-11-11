@@ -39,8 +39,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
 // Block after which sigma mints are activated.
-#define ZC_SIGMA_STARTING_BLOCK         300000
+#define ZC_SIGMA_STARTING_BLOCK         184200 //Approx July 30th, 2019, 8:00 AM UTC
 #define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
+
+// The block number after which old sigma clients are banned.
+#define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
@@ -74,13 +77,15 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_SPEND_V1_COINSPERID			10
 // Number of coins per id in spend v2.0
 #define ZC_SPEND_V2_COINSPERID			10000
-// Number of coins per id in spend v3.0
-#define ZC_SPEND_V3_COINSPERID          15000
+// limit of coins number per id in spend v3.0
+#define ZC_SPEND_V3_COINSPERID_LIMIT    16000
 
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints
 #define ZC_ADVANCED_WALLETDB_MINT_VERSION	130504
+// Version of the block index entry that introduces Sigma protocol
+#define SIGMA_PROTOCOL_ENABLEMENT_VERSION	130800
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
@@ -94,6 +99,36 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // Number of zerocoin spends allowed per block and per transaction
 #define ZC_SPEND_LIMIT         5
 
+// Value of sigma spends allowed per block
+#define ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK  (600 * COIN)
+
+// Amount of sigma spends allowed per block
+#define ZC_SIGMA_INPUT_LIMIT_PER_BLOCK         50
+
+// Value of sigma spends allowed per transaction
+#define ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION     (500 * COIN)
+
+// Amount of sigma spends allowed per transaction
+#define ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION            35
+
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100
+
+/** Maximum number of outbound peers designated as Dandelion destinations */
+#define DANDELION_MAX_DESTINATIONS 2
+
+/** Expected time between Dandelion routing shuffles (in seconds). */
+#define DANDELION_SHUFFLE_INTERVAL 600
+
+/** The minimum amount of time a Dandelion transaction is embargoed (seconds) */
+#define DANDELION_EMBARGO_MINIMUM 10
+#define DANDELION_TESTNET_EMBARGO_MINIMUM 1
+
+/** The average additional embargo time beyond the minimum amount (seconds) */
+#define DANDELION_EMBARGO_AVG_ADD 20
+#define DANDELION_TESTNET_EMBARGO_AVG_ADD 1
+
+/** Probability (percentage) that a Dandelion transaction enters fluff phase */
+#define DANDELION_FLUFF 10
+
 #endif

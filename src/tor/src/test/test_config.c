@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -8,41 +8,60 @@
 #define CONFIG_PRIVATE
 #define PT_PRIVATE
 #define ROUTERSET_PRIVATE
-#include "or.h"
-#include "address.h"
-#include "addressmap.h"
-#include "bridges.h"
-#include "circuitmux_ewma.h"
-#include "circuitbuild.h"
-#include "config.h"
-#include "confparse.h"
-#include "connection.h"
-#include "connection_edge.h"
-#include "test.h"
-#include "util.h"
-#include "connection_or.h"
-#include "control.h"
-#include "cpuworker.h"
-#include "dirserv.h"
-#include "dirauth/dirvote.h"
-#include "dns.h"
-#include "entrynodes.h"
-#include "transports.h"
-#include "ext_orport.h"
-#include "geoip.h"
-#include "hibernate.h"
-#include "main.h"
-#include "networkstatus.h"
-#include "nodelist.h"
-#include "policies.h"
-#include "rendclient.h"
-#include "rendservice.h"
-#include "router.h"
-#include "routerlist.h"
-#include "routerset.h"
-#include "statefile.h"
+#include "core/or/or.h"
+#include "lib/net/address.h"
+#include "lib/net/resolve.h"
+#include "feature/client/addressmap.h"
+#include "feature/client/bridges.h"
+#include "core/or/circuitmux_ewma.h"
+#include "core/or/circuitbuild.h"
+#include "app/config/config.h"
+#include "app/config/confparse.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_edge.h"
+#include "test/test.h"
+#include "core/or/connection_or.h"
+#include "feature/control/control.h"
+#include "core/mainloop/cpuworker.h"
+#include "feature/dircache/dirserv.h"
+#include "feature/dirauth/dirvote.h"
+#include "feature/relay/dns.h"
+#include "feature/client/entrynodes.h"
+#include "feature/client/transports.h"
+#include "feature/relay/ext_orport.h"
+#include "lib/geoip/geoip.h"
+#include "feature/hibernate/hibernate.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/networkstatus.h"
+#include "feature/nodelist/nodelist.h"
+#include "core/or/policies.h"
+#include "feature/rend/rendclient.h"
+#include "feature/rend/rendservice.h"
+#include "feature/relay/router.h"
+#include "feature/relay/routermode.h"
+#include "feature/nodelist/dirlist.h"
+#include "feature/nodelist/routerlist.h"
+#include "feature/nodelist/routerset.h"
+#include "app/config/statefile.h"
 
-#include "test_helpers.h"
+#include "test/test_helpers.h"
+
+#include "feature/dirclient/dir_server_st.h"
+#include "core/or/port_cfg_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+
+#include "lib/fs/conffile.h"
+#include "lib/meminfo/meminfo.h"
+#include "lib/net/gethostname.h"
+#include "lib/encoding/confline.h"
+#include "lib/encoding/kvline.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 static void
 test_config_addressmap(void *arg)
@@ -1618,6 +1637,40 @@ test_config_parsing_trusted_dir_server(void *arg)
 #undef TEST_DIR_AUTH_LINE_START
 #undef TEST_DIR_AUTH_LINE_END
 #undef TEST_DIR_AUTH_IPV6_FLAG
+
+#define TEST_DIR_AUTH_LINE_START                                        \
+                    "foobar orport=12345 "                              \
+                    "v3ident=14C131DFC5C6F93646BE72FA1401C02A8DF2E8B4 "
+#define TEST_DIR_AUTH_LINE_END_BAD_IP                                   \
+                    "0.256.3.4:54321 "                                  \
+                    "FDB2 FBD2 AAA5 25FA 2999 E617 5091 5A32 C777 3B17"
+#define TEST_DIR_AUTH_LINE_END_WITH_DNS_ADDR                            \
+                    "torproject.org:54321 "                             \
+                    "FDB2 FBD2 AAA5 25FA 2999 E617 5091 5A32 C777 3B17"
+
+static void
+test_config_parsing_invalid_dir_address(void *arg)
+{
+  (void)arg;
+  int rv;
+
+  rv = parse_dir_authority_line(TEST_DIR_AUTH_LINE_START
+                                TEST_DIR_AUTH_LINE_END_BAD_IP,
+                                V3_DIRINFO, 1);
+  tt_int_op(rv, OP_EQ, -1);
+
+  rv = parse_dir_authority_line(TEST_DIR_AUTH_LINE_START
+                                TEST_DIR_AUTH_LINE_END_WITH_DNS_ADDR,
+                                V3_DIRINFO, 1);
+  tt_int_op(rv, OP_EQ, -1);
+
+  done:
+  return;
+}
+
+#undef TEST_DIR_AUTH_LINE_START
+#undef TEST_DIR_AUTH_LINE_END_BAD_IP
+#undef TEST_DIR_AUTH_LINE_END_WITH_DNS_ADDR
 
 /* No secrets here:
  * id is `echo "syn-propanethial-S-oxide" | shasum | cut -d" " -f1`
@@ -3724,7 +3777,7 @@ static void
 test_config_default_fallback_dirs(void *arg)
 {
   const char *fallback[] = {
-#include "../or/fallback_dirs.inc"
+#include "app/config/fallback_dirs.inc"
     NULL
   };
 
@@ -4578,6 +4631,20 @@ test_config_parse_port_config__ports__ports_given(void *data)
   SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
   smartlist_clear(slout);
   config_port_valid = mock_config_line("DNSPort", "auto");
+  ret = parse_port_config(slout, config_port_valid, "DNS", 0,
+                          "127.0.0.46", 0, 0);
+  tt_int_op(ret, OP_EQ, 0);
+  tt_int_op(smartlist_len(slout), OP_EQ, 1);
+  port_cfg = (port_cfg_t *)smartlist_get(slout, 0);
+  tt_int_op(port_cfg->port, OP_EQ, CFG_AUTO_PORT);
+  tor_addr_parse(&addr, "127.0.0.46");
+  tt_assert(tor_addr_eq(&port_cfg->addr, &addr))
+
+  // Test success with a port of auto in mixed case
+  config_free_lines(config_port_valid); config_port_valid = NULL;
+  SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
+  smartlist_clear(slout);
+  config_port_valid = mock_config_line("DNSPort", "AuTo");
   ret = parse_port_config(slout, config_port_valid, "DNS", 0,
                           "127.0.0.46", 0, 0);
   tt_int_op(ret, OP_EQ, 0);
@@ -5536,6 +5603,12 @@ test_config_include_opened_file_list(void *data)
 
   config_line_t *result = NULL;
   smartlist_t *opened_files = smartlist_new();
+  char *torrcd = NULL;
+  char *subfolder = NULL;
+  char *path = NULL;
+  char *empty = NULL;
+  char *file = NULL;
+  char *dot = NULL;
   char *dir = tor_strdup(get_fname("test_include_opened_file_list"));
   tt_ptr_op(dir, OP_NE, NULL);
 
@@ -5545,8 +5618,7 @@ test_config_include_opened_file_list(void *data)
   tt_int_op(mkdir(dir, 0700), OP_EQ, 0);
 #endif
 
-  char torrcd[PATH_MAX+1];
-  tor_snprintf(torrcd, sizeof(torrcd), "%s"PATH_SEPARATOR"%s", dir, "torrc.d");
+  tor_asprintf(&torrcd, "%s"PATH_SEPARATOR"%s", dir, "torrc.d");
 
 #ifdef _WIN32
   tt_int_op(mkdir(torrcd), OP_EQ, 0);
@@ -5554,9 +5626,7 @@ test_config_include_opened_file_list(void *data)
   tt_int_op(mkdir(torrcd, 0700), OP_EQ, 0);
 #endif
 
-  char subfolder[PATH_MAX+1];
-  tor_snprintf(subfolder, sizeof(subfolder), "%s"PATH_SEPARATOR"%s", torrcd,
-               "subfolder");
+  tor_asprintf(&subfolder, "%s"PATH_SEPARATOR"%s", torrcd, "subfolder");
 
 #ifdef _WIN32
   tt_int_op(mkdir(subfolder), OP_EQ, 0);
@@ -5564,21 +5634,17 @@ test_config_include_opened_file_list(void *data)
   tt_int_op(mkdir(subfolder, 0700), OP_EQ, 0);
 #endif
 
-  char path[PATH_MAX+1];
-  tor_snprintf(path, sizeof(path), "%s"PATH_SEPARATOR"%s", subfolder,
+  tor_asprintf(&path, "%s"PATH_SEPARATOR"%s", subfolder,
                "01_file_in_subfolder");
   tt_int_op(write_str_to_file(path, "Test 1\n", 0), OP_EQ, 0);
 
-  char empty[PATH_MAX+1];
-  tor_snprintf(empty, sizeof(empty), "%s"PATH_SEPARATOR"%s", torrcd, "empty");
+  tor_asprintf(&empty, "%s"PATH_SEPARATOR"%s", torrcd, "empty");
   tt_int_op(write_str_to_file(empty, "", 0), OP_EQ, 0);
 
-  char file[PATH_MAX+1];
-  tor_snprintf(file, sizeof(file), "%s"PATH_SEPARATOR"%s", torrcd, "file");
+  tor_asprintf(&file, "%s"PATH_SEPARATOR"%s", torrcd, "file");
   tt_int_op(write_str_to_file(file, "Test 2\n", 0), OP_EQ, 0);
 
-  char dot[PATH_MAX+1];
-  tor_snprintf(dot, sizeof(dot), "%s"PATH_SEPARATOR"%s", torrcd, ".dot");
+  tor_asprintf(&dot, "%s"PATH_SEPARATOR"%s", torrcd, ".dot");
   tt_int_op(write_str_to_file(dot, "Test 3\n", 0), OP_EQ, 0);
 
   char torrc_contents[1000];
@@ -5605,14 +5671,20 @@ test_config_include_opened_file_list(void *data)
   SMARTLIST_FOREACH(opened_files, char *, f, tor_free(f));
   smartlist_free(opened_files);
   config_free_lines(result);
+  tor_free(torrcd);
+  tor_free(subfolder);
+  tor_free(path);
+  tor_free(empty);
+  tor_free(file);
+  tor_free(dot);
   tor_free(dir);
 }
 
 static void
 test_config_compute_max_mem_in_queues(void *data)
 {
-#define GIGABYTE(x) (U64_LITERAL(x) << 30)
-#define MEGABYTE(x) (U64_LITERAL(x) << 20)
+#define GIGABYTE(x) (UINT64_C(x) << 30)
+#define MEGABYTE(x) (UINT64_C(x) << 20)
   (void)data;
   MOCK(get_total_system_memory, get_total_system_memory_mock);
 
@@ -5676,6 +5748,150 @@ test_config_compute_max_mem_in_queues(void *data)
 #undef MEGABYTE
 }
 
+static void
+test_config_extended_fmt(void *arg)
+{
+  (void)arg;
+  config_line_t *lines = NULL, *lp;
+  const char string1[] =
+    "thing1 is here\n"
+    "+thing2 is over here\n"
+    "/thing3\n"
+    "/thing4 is back here\n";
+
+  /* Try with the "extended" flag disabled. */
+  int r = config_get_lines(string1, &lines, 0);
+  tt_int_op(r, OP_EQ, 0);
+  lp = lines;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "thing1");
+  tt_str_op(lp->value, OP_EQ, "is here");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_NORMAL);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "+thing2");
+  tt_str_op(lp->value, OP_EQ, "is over here");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_NORMAL);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "/thing3");
+  tt_str_op(lp->value, OP_EQ, "");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_NORMAL);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "/thing4");
+  tt_str_op(lp->value, OP_EQ, "is back here");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_NORMAL);
+  lp = lp->next;
+  tt_assert(!lp);
+  config_free_lines(lines);
+
+  /* Try with the "extended" flag enabled. */
+  r = config_get_lines(string1, &lines, 1);
+  tt_int_op(r, OP_EQ, 0);
+  lp = lines;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "thing1");
+  tt_str_op(lp->value, OP_EQ, "is here");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_NORMAL);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "thing2");
+  tt_str_op(lp->value, OP_EQ, "is over here");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_APPEND);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "thing3");
+  tt_str_op(lp->value, OP_EQ, "");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_CLEAR);
+  lp = lp->next;
+  tt_ptr_op(lp, OP_NE, NULL);
+  tt_str_op(lp->key, OP_EQ, "thing4");
+  tt_str_op(lp->value, OP_EQ, "");
+  tt_int_op(lp->command, OP_EQ, CONFIG_LINE_CLEAR);
+  lp = lp->next;
+  tt_assert(!lp);
+
+ done:
+  config_free_lines(lines);
+}
+
+static void
+test_config_kvline_parse(void *arg)
+{
+  (void)arg;
+
+  config_line_t *lines = NULL;
+  char *enc = NULL;
+
+  lines = kvline_parse("A=B CD=EF", 0);
+  tt_assert(lines);
+  tt_str_op(lines->key, OP_EQ, "A");
+  tt_str_op(lines->value, OP_EQ, "B");
+  tt_str_op(lines->next->key, OP_EQ, "CD");
+  tt_str_op(lines->next->value, OP_EQ, "EF");
+  enc = kvline_encode(lines, 0);
+  tt_str_op(enc, OP_EQ, "A=B CD=EF");
+  tor_free(enc);
+  enc = kvline_encode(lines, KV_QUOTED|KV_OMIT_KEYS);
+  tt_str_op(enc, OP_EQ, "A=B CD=EF");
+  tor_free(enc);
+  config_free_lines(lines);
+
+  lines = kvline_parse("AB CDE=F", 0);
+  tt_assert(! lines);
+
+  lines = kvline_parse("AB CDE=F", KV_OMIT_KEYS);
+  tt_assert(lines);
+  tt_str_op(lines->key, OP_EQ, "");
+  tt_str_op(lines->value, OP_EQ, "AB");
+  tt_str_op(lines->next->key, OP_EQ, "CDE");
+  tt_str_op(lines->next->value, OP_EQ, "F");
+  tt_assert(lines);
+  enc = kvline_encode(lines, 0);
+  tt_assert(!enc);
+  enc = kvline_encode(lines, KV_QUOTED|KV_OMIT_KEYS);
+  tt_str_op(enc, OP_EQ, "AB CDE=F");
+  tor_free(enc);
+  config_free_lines(lines);
+
+  lines = kvline_parse("AB=C CDE=\"F G\"", 0);
+  tt_assert(!lines);
+
+  lines = kvline_parse("AB=C CDE=\"F G\" \"GHI\" ", KV_QUOTED|KV_OMIT_KEYS);
+  tt_assert(lines);
+  tt_str_op(lines->key, OP_EQ, "AB");
+  tt_str_op(lines->value, OP_EQ, "C");
+  tt_str_op(lines->next->key, OP_EQ, "CDE");
+  tt_str_op(lines->next->value, OP_EQ, "F G");
+  tt_str_op(lines->next->next->key, OP_EQ, "");
+  tt_str_op(lines->next->next->value, OP_EQ, "GHI");
+  enc = kvline_encode(lines, 0);
+  tt_assert(!enc);
+  enc = kvline_encode(lines, KV_QUOTED|KV_OMIT_KEYS);
+  tt_str_op(enc, OP_EQ, "AB=C CDE=\"F G\" GHI");
+  tor_free(enc);
+  config_free_lines(lines);
+
+  lines = kvline_parse("A\"B=C CDE=\"F\" \"GHI\" ", KV_QUOTED|KV_OMIT_KEYS);
+  tt_assert(! lines);
+
+  lines = kvline_parse("AB=", KV_QUOTED);
+  tt_assert(lines);
+  tt_str_op(lines->key, OP_EQ, "AB");
+  tt_str_op(lines->value, OP_EQ, "");
+  config_free_lines(lines);
+
+  lines = kvline_parse("AB=", 0);
+  tt_assert(lines);
+  tt_str_op(lines->key, OP_EQ, "AB");
+  tt_str_op(lines->value, OP_EQ, "");
+
+ done:
+  config_free_lines(lines);
+  tor_free(enc);
+}
+
 #define CONFIG_TEST(name, flags)                          \
   { #name, test_config_ ## name, flags, NULL, NULL }
 
@@ -5683,6 +5899,7 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(adding_trusted_dir_server, TT_FORK),
   CONFIG_TEST(adding_fallback_dir_server, TT_FORK),
   CONFIG_TEST(parsing_trusted_dir_server, 0),
+  CONFIG_TEST(parsing_invalid_dir_address, 0),
   CONFIG_TEST(parsing_fallback_dir_server, 0),
   CONFIG_TEST(adding_default_trusted_dir_servers, TT_FORK),
   CONFIG_TEST(adding_dir_servers, TT_FORK),
@@ -5725,6 +5942,7 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(check_bridge_distribution_setting_unrecognised, 0),
   CONFIG_TEST(include_opened_file_list, 0),
   CONFIG_TEST(compute_max_mem_in_queues, 0),
+  CONFIG_TEST(extended_fmt, 0),
+  CONFIG_TEST(kvline_parse, 0),
   END_OF_TESTCASES
 };
-

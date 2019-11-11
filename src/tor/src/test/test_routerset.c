@@ -1,15 +1,22 @@
-/* Copyright (c) 2014-2017, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define ROUTERSET_PRIVATE
 
-#include "or.h"
-#include "geoip.h"
-#include "routerset.h"
-#include "routerparse.h"
-#include "policies.h"
-#include "nodelist.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "core/or/policies.h"
+#include "feature/dirparse/policy_parse.h"
+#include "feature/nodelist/nodelist.h"
+#include "feature/nodelist/routerset.h"
+#include "lib/geoip/geoip.h"
+
+#include "core/or/addr_policy_st.h"
+#include "core/or/extend_info_st.h"
+#include "feature/nodelist/node_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "feature/nodelist/routerstatus_st.h"
+
+#include "test/test.h"
 
 #define NS_MODULE routerset
 
@@ -1489,6 +1496,7 @@ NS(test_main)(void *arg)
   int r;
   (void)arg;
 
+  memset(&NS(mock_node), 0, sizeof(NS(mock_node)));
   NS(mock_node).ri = NULL;
   NS(mock_node).rs = NULL;
 
@@ -1522,6 +1530,7 @@ NS(test_main)(void *arg)
 
   strncpy(rs.nickname, nickname, sizeof(rs.nickname) - 1);
   rs.nickname[sizeof(rs.nickname) - 1] = '\0';
+  memset(&NS(mock_node), 0, sizeof(NS(mock_node)));
   NS(mock_node).ri = NULL;
   NS(mock_node).rs = &rs;
 
@@ -1553,6 +1562,7 @@ NS(test_main)(void *arg)
   strmap_set_lc(set->names, nickname, (void *)1);
 
   ri.nickname = (char *)nickname;
+  memset(&mock_node, 0, sizeof(mock_node));
   mock_node.ri = &ri;
   mock_node.rs = NULL;
 
@@ -2221,4 +2231,3 @@ struct testcase_t routerset_tests[] = {
   TEST_CASE(routerset_free),
   END_OF_TESTCASES
 };
-

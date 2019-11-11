@@ -1,17 +1,19 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/exodus.h"
-#include "exodus/rules.h"
-#include "exodus/script.h"
+#include "../exodus.h"
+#include "../packetencoder.h"
+#include "../rules.h"
+#include "../script.h"
 
-#include "primitives/transaction.h"
-#include "test/test_bitcoin.h"
+#include "../../primitives/transaction.h"
+#include "../../test/test_bitcoin.h"
 
+#include <boost/optional/optional_io.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <limits>
 
-using namespace exodus;
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_marker_tests, BasicTestingSetup)
 
@@ -23,7 +25,7 @@ BOOST_AUTO_TEST_CASE(class_no_marker)
         CMutableTransaction mutableTx;
         CTransaction tx(mutableTx);
 
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), NO_MARKER);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), boost::none);
     }
     {
         int nBlock = 0;
@@ -38,7 +40,7 @@ BOOST_AUTO_TEST_CASE(class_no_marker)
         mutableTx.vout.push_back(PayToScriptHash_Unrelated());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), NO_MARKER);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), boost::none);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -53,7 +55,7 @@ BOOST_AUTO_TEST_CASE(class_no_marker)
         mutableTx.vout.push_back(NonStandardOutput());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), NO_MARKER);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), boost::none);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -70,7 +72,7 @@ BOOST_AUTO_TEST_CASE(class_no_marker)
         mutableTx.vout.push_back(PayToBareMultisig_1of3());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), NO_MARKER);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), boost::none);
     }
 }
 
@@ -84,7 +86,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(PayToBareMultisig_1of3());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_B);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
     }
     {
         int nBlock = ConsensusParams().NULLDATA_BLOCK;
@@ -97,7 +99,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(PayToPubKey_Unrelated());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_B);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
     }
     {
         int nBlock = 0;
@@ -115,7 +117,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_B);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -132,7 +134,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(OpReturn_Unrelated());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_B);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
     }
 }
 
@@ -145,7 +147,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(OpReturn_PlainMarker());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -156,7 +158,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(PayToScriptHash_Unrelated());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -172,7 +174,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(OpReturn_UnrelatedShort());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
     {
         int nBlock = ConsensusParams().NULLDATA_BLOCK;
@@ -190,7 +192,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(PayToBareMultisig_3of5());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
     {
         int nBlock = std::numeric_limits<int>::max();
@@ -206,7 +208,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(OpReturn_PlainMarker());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
     {
         int nBlock = ConsensusParams().NULLDATA_BLOCK;
@@ -224,9 +226,10 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
 
         CTransaction tx(mutableTx);
-        BOOST_CHECK_EQUAL(GetEncodingClass(tx, nBlock), EXODUS_CLASS_C);
+        BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);
     }
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

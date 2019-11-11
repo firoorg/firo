@@ -7,6 +7,7 @@
 #include "base58.h"
 #include "chainparams.h"
 #include "httpserver.h"
+#include "mbstring.h"
 #include "rpc/protocol.h"
 #include "rpc/server.h"
 #include "random.h"
@@ -17,8 +18,6 @@
 #include "crypto/hmac_sha256.h"
 #include <stdio.h>
 #include "utilstrencodings.h"
-
-#include "exodus/mbstring.h" // SanitizeInvalidUTF8
 
 #include <boost/algorithm/string.hpp> // boost::trim
 #include <boost/foreach.hpp> //BOOST_FOREACH
@@ -91,7 +90,7 @@ static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const Uni
 //This function checks username and password against -rpcauth
 //entries from config file.
 static bool multiUserAuthorized(std::string strUserPass)
-{    
+{
     if (strUserPass.find(":") == std::string::npos) {
         return false;
     }
@@ -117,9 +116,9 @@ static bool multiUserAuthorized(std::string strUserPass)
             std::string strSalt = vFields[1];
             std::string strHash = vFields[2];
 
-            unsigned int KEY_SIZE = 32;
-            unsigned char *out = new unsigned char[KEY_SIZE]; 
-            
+            static const unsigned int KEY_SIZE = 32;
+            unsigned char out[KEY_SIZE];
+
             CHMAC_SHA256(reinterpret_cast<const unsigned char*>(strSalt.c_str()), strSalt.size()).Write(reinterpret_cast<const unsigned char*>(strPass.c_str()), strPass.size()).Finalize(out);
             std::vector<unsigned char> hexvec(out, out+KEY_SIZE);
             std::string strHashFromPass = HexStr(hexvec);
@@ -141,7 +140,7 @@ static bool RPCAuthorized(const std::string& strAuth)
     std::string strUserPass64 = strAuth.substr(6);
     boost::trim(strUserPass64);
     std::string strUserPass = DecodeBase64(strUserPass64);
-    
+
     //Check if authorized under single-user field
     if (TimingResistantEqual(strUserPass, strRPCUserColonPass)) {
         return true;
@@ -194,7 +193,7 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
             // Send reply
             strReply = JSONRPCReply(result, NullUniValue, jreq.id);
             if (fSanitizeResponse) {
-                strReply = exodus::SanitizeInvalidUTF8(strReply);
+                strReply = SanitizeInvalidUTF8(strReply);
             }
 
         // array of requests

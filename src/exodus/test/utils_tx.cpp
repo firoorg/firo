@@ -1,21 +1,23 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/exodus.h"
-#include "exodus/script.h"
+#include "../exodus.h"
+#include "../packetencoder.h"
+#include "../script.h"
 
-#include "base58.h"
-#include "primitives/transaction.h"
-#include "pubkey.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "utilstrencodings.h"
+#include "../../base58.h"
+#include "../../pubkey.h"
+#include "../../utilstrencodings.h"
 
-#include <stdint.h>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include <inttypes.h>
 
 CTxOut PayToPubKeyHash_Exodus()
 {
-    CBitcoinAddress address = ExodusAddress();
-    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    CScript scriptPubKey = GetScriptForDestination(exodus::GetSystemAddress().Get());
     int64_t amount = GetDustThreshold(scriptPubKey);
 
     return CTxOut(amount, scriptPubKey);

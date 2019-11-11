@@ -70,7 +70,7 @@ public:
   size_t memoryRequired() const;
   unsigned char* serialize() const;
   unsigned char* serialize(unsigned char* buffer) const;
-  unsigned char* deserialize(unsigned char* buffer);
+  unsigned const char* deserialize(unsigned const char* buffer);
 
   // These functions are for READWRITE() in serialize.h
   unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
@@ -100,6 +100,8 @@ public:
   std::vector<unsigned char> getvch() const;
 
   std::size_t hash() const;
+
+  GroupElement& set_base_g();
 
   friend class MultiExponent;
 private:

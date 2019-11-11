@@ -1983,7 +1983,7 @@
         <translation>total por lo menos</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
         <translation>Pagando solamente la cuota mínima es correcto, siempre y cuando haya menos volumen de transacciones que el espacio en los bloques. Pero tenga en cuenta que esto puede terminar en una transacción nunca confirmada, una vez que haya más demanda para transacciones Zcoin que la red pueda procesar.</translation>
     </message>
     <message>
@@ -2227,7 +2227,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Un mensaje que se adjuntó a la zcoin: URL que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Zcoin.</translation>
+        <translation>Un mensaje que se adjuntó a la zcoin: URI que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>

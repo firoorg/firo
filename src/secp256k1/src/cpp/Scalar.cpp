@@ -10,6 +10,8 @@
 #include "../scalar_impl.h"
 #include "../hash_impl.h"
 #include "../hash.h"
+
+#include <array>
 #include <sstream>
 #include <iostream>
 #include <openssl/rand.h>
@@ -18,6 +20,7 @@ namespace secp_primitives {
 
 Scalar::Scalar()
    : value_(new secp256k1_scalar()) {
+    secp256k1_scalar_clear(reinterpret_cast<secp256k1_scalar *>(value_));
 }
 
 Scalar::Scalar(uint64_t value)
@@ -178,6 +181,19 @@ bool Scalar::isMember() const {
     return *this == temp;
 }
 
+Scalar& Scalar::memberFromSeed(unsigned char* seed){
+    // buffer -> object
+    deserialize(seed);
+    do {
+        // object -> buffer
+        serialize(seed);
+        // Hash from buffer, stores result in object
+        *this = hash(seed, 32);
+    }while (!(this->isMember()));
+
+    return *this;
+}
+
 Scalar& Scalar::randomize() {
     unsigned char temp[32] = { 0 };
 
@@ -255,7 +271,7 @@ unsigned char* Scalar::serialize(unsigned char* buffer) const {
     return buffer + 32;
 }
 
-unsigned char* Scalar::deserialize(unsigned char* buffer) {
+unsigned const char* Scalar::deserialize(unsigned const char* buffer) {
     int overflow = 0;
 
     secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
@@ -268,28 +284,39 @@ unsigned char* Scalar::deserialize(unsigned char* buffer) {
 }
 
 std::string Scalar::GetHex() const {
-    unsigned char buffer[32];
+    std::array<unsigned char, 32> buffer;
+    secp256k1_scalar_get_b32(buffer.data(), reinterpret_cast<const secp256k1_scalar *>(value_));
+
     std::stringstream ss;
-
-    serialize(buffer);
-
-    for (int i = 0; i < 32; ++i) {
-        ss << buffer[i] / 16;
-        ss << buffer[i] % 16;
+    ss << std::hex;
+    for (const auto b : buffer) {
+        ss << (b >> 4);
+        ss << (b & 0xF);
     }
 
     return ss.str();
 }
 
-void Scalar::SetHex(const std::string& str) const {
-    unsigned char buffer[32];
+void Scalar::SetHex(const std::string& str) {
+    if (str.size() != 64) {
+        throw "Scalar: decoding invalid length";
+    }
 
-    for (int i = 0; i < 32; i+=2)
-        buffer[i] =  str[i] * 16 + str[i + 1];
+    std::array<unsigned char, 32> buffer;
+
+    for (std::size_t i = 0; i < buffer.size(); i++) {
+        auto hexs = str.substr(2 * i, 2);
+
+        if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
+            buffer[i] = strtol(hexs.c_str(), NULL, 16);
+        } else {
+            throw "Scalar: decoding invalid hex";
+        }
+    }
 
     int overflow = 0;
 
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer.data(), &overflow);
 
     if (overflow) {
         throw "Scalar: decoding overflowed";

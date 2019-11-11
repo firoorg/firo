@@ -1,22 +1,20 @@
-#include "exodus/rpcvalues.h"
+#include "rpcvalues.h"
 
-#include "exodus/createtx.h"
-#include "exodus/parse_string.h"
-#include "exodus/wallettxs.h"
+#include "createtx.h"
+#include "parse_string.h"
+#include "sp.h"
+#include "wallettxs.h"
 
-#include "base58.h"
-#include "core_io.h"
-#include "primitives/transaction.h"
-#include "pubkey.h"
-#include "rpc/protocol.h"
-#include "rpc/server.h"
-#include "script/script.h"
-#include "uint256.h"
+#include "../base58.h"
+#include "../core_io.h"
+#include "../primitives/transaction.h"
+#include "../pubkey.h"
+#include "../rpc/protocol.h"
+#include "../rpc/server.h"
+#include "../script/script.h"
+#include "../uint256.h"
 
 #include <univalue.h>
-
-#include <boost/assign/list_of.hpp>
-#include <boost/foreach.hpp>
 
 #include <string>
 #include <vector>
@@ -214,7 +212,7 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
 
     std::vector<PrevTxsEntry> prevTxsParsed;
     prevTxsParsed.reserve(prevTxs.size());
-    
+
     for (size_t i = 0; i < prevTxs.size(); ++i) {
         const UniValue& p = prevTxs[i];
         if (p.type() != UniValue::VOBJ) {
@@ -236,4 +234,19 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
     }
 
     return prevTxsParsed;
+}
+
+namespace exodus {
+
+SigmaDenomination ParseSigmaDenomination(const UniValue& value)
+{
+    auto v = value.get_int();
+
+    if (v < 0 || static_cast<unsigned>(v) >= MAX_DENOMINATIONS) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid denomination");
+    }
+
+    return v;
+}
+
 }

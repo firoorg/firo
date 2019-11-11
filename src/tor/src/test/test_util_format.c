@@ -1,14 +1,14 @@
-/* Copyright (c) 2010-2017, The Tor Project, Inc. */
+/* Copyright (c) 2010-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
-#include "or.h"
+#include "core/or/or.h"
 
-#include "test.h"
+#include "test/test.h"
 
-#include "crypto_rand.h"
+#include "lib/crypt_ops/crypto_rand.h"
 #define UTIL_FORMAT_PRIVATE
-#include "util_format.h"
+#include "lib/encoding/binascii.h"
 
 #define NS_MODULE util_format
 
@@ -19,7 +19,7 @@ test_util_format_unaligned_accessors(void *ignored)
   char buf[9] = "onionsoup"; // 6f6e696f6e736f7570
 
   tt_u64_op(get_uint64(buf+1), OP_EQ,
-      tor_htonll(U64_LITERAL(0x6e696f6e736f7570)));
+      tor_htonll(UINT64_C(0x6e696f6e736f7570)));
   tt_uint_op(get_uint32(buf+1), OP_EQ, htonl(0x6e696f6e));
   tt_uint_op(get_uint16(buf+1), OP_EQ, htons(0x6e69));
   tt_uint_op(get_uint8(buf+1), OP_EQ, 0x6e);
@@ -33,7 +33,7 @@ test_util_format_unaligned_accessors(void *ignored)
   set_uint32(buf+1, htonl(0x78696465));
   tt_mem_op(buf, OP_EQ, "oxidestop", 9);
 
-  set_uint64(buf+1, tor_htonll(U64_LITERAL(0x6266757363617465)));
+  set_uint64(buf+1, tor_htonll(UINT64_C(0x6266757363617465)));
   tt_mem_op(buf, OP_EQ, "obfuscate", 9);
  done:
   ;
@@ -392,10 +392,13 @@ test_util_format_encoded_size(void *arg)
 
     base64_encode(outbuf, sizeof(outbuf), (char *)inbuf, i, 0);
     tt_int_op(strlen(outbuf), OP_EQ, base64_encode_size(i, 0));
+    tt_int_op(i, OP_LE, base64_decode_maxsize(strlen(outbuf)));
+
     base64_encode(outbuf, sizeof(outbuf), (char *)inbuf, i,
                   BASE64_ENCODE_MULTILINE);
     tt_int_op(strlen(outbuf), OP_EQ,
               base64_encode_size(i, BASE64_ENCODE_MULTILINE));
+    tt_int_op(i, OP_LE, base64_decode_maxsize(strlen(outbuf)));
   }
 
  done:
@@ -417,4 +420,3 @@ struct testcase_t util_format_tests[] = {
   { "encoded_size", test_util_format_encoded_size, 0, NULL, NULL },
   END_OF_TESTCASES
 };
-

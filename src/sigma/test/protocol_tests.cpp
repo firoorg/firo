@@ -4,11 +4,13 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(sigma_protocol_tests)
+#include "../../test/fixtures.h"
+
+BOOST_FIXTURE_TEST_SUITE(sigma_protocol_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(one_out_of_n)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -39,7 +41,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_n)
             commits[i].randomize();
         }
     }
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(n, m);
 
     prover.proof(commits, index, r, proof);
 
@@ -50,7 +52,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_n)
 
 BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -82,7 +84,7 @@ BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(n, m);
 
     prover.proof(commits, index, r, proof);
 
@@ -99,7 +101,7 @@ BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 
 BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -121,7 +123,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
         commits[i].randomize();
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(n, m);
 
     prover.proof(commits, commits.size(), r, proof);
 
@@ -131,7 +133,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 
 BOOST_AUTO_TEST_CASE(prove_coin_not_in_set)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -153,7 +155,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_not_in_set)
         commits[i].randomize();
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(n, m);
 
     prover.proof(commits, index, r, proof);
 

@@ -1,6 +1,8 @@
 #ifndef SCALAR_H__
 #define SCALAR_H__
 
+#include <array>
+#include <functional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -59,6 +61,8 @@ public:
 
     Scalar& randomize();
 
+    Scalar& memberFromSeed(unsigned char* seed);
+
     Scalar& generate(unsigned char* buff);
 
     Scalar& mod_p();
@@ -80,10 +84,10 @@ public:
     size_t memoryRequired() const;
 
     unsigned char* serialize(unsigned char* buffer) const;
-    unsigned char* deserialize(unsigned char* buffer);
+    unsigned const char* deserialize(unsigned const char* buffer);
 
     std::string GetHex() const;
-    void SetHex(const std::string& str) const;
+    void SetHex(const std::string& str);
 
     // These functions are for READWRITE() in serialize.h
 
@@ -122,5 +126,20 @@ private:
 };
 
 } // namespace secp_primitives
+
+namespace std {
+
+using namespace secp_primitives;
+
+template<>
+struct hash<Scalar> {
+    size_t operator()(const Scalar& s) const {
+        array<unsigned char, 32> d;
+        s.serialize(d.data());
+        return hash<string>()(string(d.begin(), d.end()));
+    }
+};
+
+} // namespace std
 
 #endif // SCALAR_H__
