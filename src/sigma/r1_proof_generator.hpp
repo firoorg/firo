@@ -49,7 +49,7 @@ void R1ProofGenerator<Exponent,GroupElement>::proof(
 
     //compute A
     GroupElement A;
-    while(!A.isMember() || A.isInfinity) {
+    while(!A.isMember() || A.isInfinity()) {
         rA_.randomize();
         SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, a_out, rA_, A);
     }
@@ -62,7 +62,7 @@ void R1ProofGenerator<Exponent,GroupElement>::proof(
         c[i] = (a_out[i] * (Exponent(uint64_t(1)) - (Exponent(uint64_t(2)) * b_[i])));
     }
     GroupElement C;
-    while(!C.isMember() || C.isInfinity) {
+    while(!C.isMember() || C.isInfinity()) {
         rC_.randomize();
         SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, c, rC_, C);
     }
@@ -75,7 +75,7 @@ void R1ProofGenerator<Exponent,GroupElement>::proof(
         d[i] = ((a_out[i].square()).negate());
     }
     GroupElement D;
-    while(!D.isMember() || D.isInfinity) {
+    while(!D.isMember() || D.isInfinity()) {
         rD_.randomize();
         SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, d, rD_, D);
     }
