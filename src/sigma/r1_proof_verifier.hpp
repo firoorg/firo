@@ -29,18 +29,24 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify(
         bool skip_final_response_verification) const{
 
     if(!(proof.A_.isMember() &&
-         B_Commit.isMember()  &&
+         B_Commit.isMember() &&
          proof.C_.isMember() &&
-         proof.D_.isMember()))
+         proof.D_.isMember()) ||
+        (proof.A_.isInfinity() ||
+         B_Commit.isInfinity() ||
+         proof.C_.isInfinity() ||
+         proof.D_.isInfinity()))
         return false;
     const std::vector<Exponent>& f = proof.f_;
     for (std::size_t i = 0; i < f.size(); i++) {
-        if(!f[i].isMember())
+        if(!f[i].isMember() || f[i].isZero())
             return false;
     }
 
     if(!(proof.ZA_.isMember() &&
-         proof.ZC_.isMember()))
+         proof.ZC_.isMember()) ||
+        (proof.ZA_.isZero() ||
+         proof.ZC_.isZero()))
         return false;
 
     if (!skip_final_response_verification) {
