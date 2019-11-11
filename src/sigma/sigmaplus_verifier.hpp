@@ -24,14 +24,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         return false;
     }
 
-    if (!(proof.B_).isMember()) {
+    if (!proof.B_.isMember() || proof.B_.isInfinity()) {
         LogPrintf("Sigma spend failed due to value of B outside of group.");
         return false;
     }
 
     const std::vector <GroupElement>& Gk = proof.Gk_;
     for (int k = 0; k < m; ++k) {
-        if (!Gk[k].isMember()) {
+        if (!Gk[k].isMember() || Gk[k].isInfinity()) {
             LogPrintf("Sigma spend failed due to value of GK[i] outside of group.");
             return false;
         }
@@ -51,7 +51,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         return false;
     }
 
-    if(!proof.z_.isMember()) {
+    if(!proof.z_.isMember() || proof.z_.isZero()) {
         LogPrintf("Sigma spend failed due to value of Z outside of group.");
         return false;
     }

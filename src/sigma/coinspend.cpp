@@ -161,7 +161,7 @@ int64_t CoinSpend::getIntDenomination() const {
 }
 
 bool CoinSpend::HasValidSerial() const {
-    return coinSerialNumber.isMember();
+    return coinSerialNumber.isMember() && !coinSerialNumber.isZero();
 }
 
 } //namespace sigma
