@@ -11,7 +11,7 @@
 
 #include <stdarg.h>
 #include <string>
-#if ENABLE_CLIENTAPI
+#ifdef ENABLE_CLIENTAPI
 #define ZMQ_STATIC
 #include <zmq.h>
 #endif

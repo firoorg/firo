@@ -188,7 +188,6 @@ extern std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKe
 extern CAmount AmountFromValue(const UniValue& value);
 extern UniValue ValueFromAmount(const CAmount& amount);
 extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
-extern UniValue GetNetworkHashPS(int lookup, int height);
 extern std::string HelpRequiringPassphrase();
 extern UniValue JSONRPCExecOne(const UniValue& req);
 extern std::string HelpExampleCli(const std::string& methodname, const std::string& args);

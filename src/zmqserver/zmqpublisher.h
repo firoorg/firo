@@ -11,6 +11,7 @@
 #include "client-api/server.h"
 #include <boost/thread/thread.hpp>
 #include <boost/chrono.hpp>
+#include "validationinterface.h"
 
 class CBlockIndex;
 

@@ -122,10 +122,11 @@ bool AppInit(int argc, char* argv[])
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
-        
+    bool fApi = false;
 #ifdef ENABLE_CLIENTAPI
+        fApi = GetBoolArg("-clientapi", false);
         int port = GetArg("-rpcport", BaseParams().RPCPort());
-        if(IsZMQPort(port)){
+        if(fApi && IsZMQPort(port)){
             fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
             exit(EXIT_FAILURE);
         }
@@ -179,7 +180,7 @@ bool AppInit(int argc, char* argv[])
         InitLogging();
         InitParameterInteraction();
 #ifdef ENABLE_CLIENTAPI
-        if(GetBoolArg("-clientapi", false))
+        if(fApi)
             ReadAPISettingsFile();
 #endif
         fRet = AppInit2(threadGroup, scheduler);

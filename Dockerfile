@@ -50,6 +50,7 @@ RUN apt-get remove -y \
     libevent-dev \
     libssl-dev \
     libtool \
+    libzmq3-dev \
     make
 
 # Start Zcoin Daemon
