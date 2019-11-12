@@ -156,8 +156,7 @@ public:
         ZNODE_UPDATE_REQUIRED,
         ZNODE_WATCHDOG_EXPIRED,
         ZNODE_NEW_START_REQUIRED,
-        ZNODE_POSE_BAN,
-        ZNODE_REMOVED
+        ZNODE_POSE_BAN
     };
 
     CTxIn vin;
@@ -206,7 +205,6 @@ public:
         READWRITE(nTimeLastPaid);
         READWRITE(nTimeLastWatchdogVote);
         READWRITE(nActiveState);
-        READWRITE(nRank);
         READWRITE(nCacheCollateralBlock);
         READWRITE(nBlockLastPaid);
         READWRITE(nProtocolVersion);
@@ -308,7 +306,6 @@ public:
     void SetTimeLastPaid(int64_t newTimeLastPaid);
     void SetBlockLastPaid(int newBlockLastPaid);
     void SetRank(int newRank);
-    void SetRemoved();
 
     int GetCollateralAge();
 

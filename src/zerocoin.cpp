@@ -369,6 +369,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
+
         pair<int,int> denominationAndId = make_pair(targetDenominations[vinIndex], pubcoinId);
 
         bool spendHasBlockHash = false;
@@ -829,6 +830,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
                     pindexNew->spentSerials.insert(serial.first);
                     zerocoinState.AddSpend(serial.first);
                 }
+
             }
         }
 

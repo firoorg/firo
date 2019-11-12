@@ -208,8 +208,6 @@ void CZnodeMan::CheckAndRemove()
 
                 // and finally remove it from the list
 //                it->FlagGovernanceItemsAsDirty();
-                // update status to REMOVED, notify via signals, and erase from global list
-                (*it).SetRemoved();
                 it = vZnodes.erase(it);
                 fZnodesRemoved = true;
             } else {
@@ -1527,6 +1525,7 @@ std::string CZnodeMan::ToString() const
 void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
 {
     try {
+        LogPrintf("CZnodeMan::UpdateZnodeList\n");
         LOCK2(cs_main, cs);
         mapSeenZnodePing.insert(std::make_pair(mnb.lastPing.GetHash(), mnb.lastPing));
         mapSeenZnodeBroadcast.insert(std::make_pair(mnb.GetHash(), std::make_pair(GetTime(), mnb)));
@@ -1653,7 +1652,7 @@ void CZnodeMan::UpdateLastPaid()
     LOCK(cs);
     if(fLiteMode) return;
     if(!pCurrentBlockIndex) {
-        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
         return;
     }
 
@@ -1790,6 +1789,7 @@ void CZnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
     LogPrint("znode", "CZnodeMan::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
 
     CheckSameAddr();
+    
     if(fZNode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
         UpdateLastPaid();

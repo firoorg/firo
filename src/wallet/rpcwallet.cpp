@@ -24,8 +24,6 @@
 #include "hdmint/tracker.h"
 #include "znode-sync.h"
 #include "zerocoin.h"
-#include "znode-payments.h"
-#include "wallet/rpcwallet.h"
 #include "walletexcept.h"
 
 #include <znode-payments.h>
@@ -39,6 +37,7 @@
 using namespace std;
 
 int64_t nWalletUnlockTime;
+static CCriticalSection cs_nWalletUnlockTime;
 
 static void EnsureZerocoinMintIsAllowed()
 {
@@ -204,6 +203,20 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew)
     }
 
     return CBitcoinAddress(pubKey.GetID());
+}
+
+vector<string> GetMyAccountNames()
+{    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    isminefilter includeWatchonly = ISMINE_SPENDABLE;
+
+    vector<string> accounts;
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
+        if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
+            accounts.push_back(entry.second.name);
+    }
+    return accounts;
 }
 
 UniValue getaccountaddress(const UniValue& params, bool fHelp)
@@ -916,19 +929,6 @@ UniValue sendfrom(const UniValue& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-vector<string> GetMyAccountNames()
-{    
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    isminefilter includeWatchonly = ISMINE_SPENDABLE;
-
-    vector<string> accounts;
-    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
-        if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
-            accounts.push_back(entry.second.name);
-    }
-    return accounts;
-}
 
 UniValue sendmany(const UniValue& params, bool fHelp)
 {
@@ -1474,9 +1474,6 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
-                }
-                else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
-                    entry.push_back(Pair("category", "spend"));
                 }
                 else {
                     entry.push_back(Pair("category", "receive"));
@@ -2343,58 +2340,6 @@ UniValue listlockunspent(const UniValue& params, bool fHelp)
     return ret;
 }
 
-UniValue listlockunspentamount(const UniValue& params, bool fHelp)
-{
-    if (!EnsureWalletIsAvailable(fHelp))
-        return NullUniValue;
-
-    if (fHelp || params.size() > 0)
-        throw runtime_error(
-            "listlockunspent\n"
-            "\nReturns list of temporarily unspendable outputs.\n"
-            "See the lockunspent call to lock and unlock transactions for spending.\n"
-            "\nResult:\n"
-            "[\n"
-            "  {\n"
-            "    \"txid\" : \"transactionid\",     (string) The transaction id locked\n"
-            "    \"vout\" : n                      (numeric) The vout value\n"
-            "  }\n"
-            "  ,...\n"
-            "]\n"
-            "\nExamples:\n"
-            "\nList the unspent transactions\n"
-            + HelpExampleCli("listunspent", "") +
-            "\nLock an unspent transaction\n"
-            + HelpExampleCli("lockunspent", "false \"[{\\\"txid\\\":\\\"a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\\\",\\\"vout\\\":1}]\"") +
-            "\nList the locked transactions\n"
-            + HelpExampleCli("listlockunspent", "") +
-            "\nUnlock the transaction again\n"
-            + HelpExampleCli("lockunspent", "true \"[{\\\"txid\\\":\\\"a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\\\",\\\"vout\\\":1}]\"") +
-            "\nAs a json rpc call\n"
-            + HelpExampleRpc("listlockunspent", "")
-        );
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    CTransaction tx;
-    uint256 hashBlock;
-    uint256 hash;
-    vector<COutPoint> vOutpts;
-    CAmount total = 0;
-
-    pwalletMain->ListLockedCoins(vOutpts);
-
-    BOOST_FOREACH(COutPoint &outpt, vOutpts) {
-        uint256 hash = outpt.hash;
-        if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
-
-        total += tx.vout[outpt.n].nValue;
-    }
-
-    return total;
-}
-
 UniValue settxfee(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -2405,19 +2350,18 @@ UniValue settxfee(const UniValue& params, bool fHelp)
             "settxfee amount\n"
             "\nSet the transaction fee per kB. Overwrites the paytxfee parameter.\n"
             "\nArguments:\n"
-            "1. amount         (numeric or string, required) The transaction fee in satoshi's/kB\n"
+            "1. amount         (numeric or string, required) The transaction fee in " + CURRENCY_UNIT + "/kB\n"
             "\nResult\n"
             "true|false        (boolean) Returns true if successful\n"
             "\nExamples:\n"
-            + HelpExampleCli("settxfee", "1000")
-            + HelpExampleRpc("settxfee", "1000")
+            + HelpExampleCli("settxfee", "0.00000001 XZC")
+            + HelpExampleRpc("settxfee", "0.00000001 XZC")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // Amount
-    CAmount nAmount = params[0].get_int64();
-    LogPrintf("nAmount settxfee: %s\n", nAmount);
+    CAmount nAmount = AmountFromValue(params[0]);
 
     payTxFee = CFeeRate(nAmount, 1000);
     return true;
@@ -2802,8 +2746,6 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
                         "Results are an array of Objects, each of which has:\n"
                         "{txid, vout, scriptPubKey, amount, confirmations}");
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -2848,8 +2790,6 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
         results.push_back(entry);
     }
 
-    results.push_back(Pair("size", to_string(vecOutputs.size())));
-
     return results;
 }
 
@@ -2861,8 +2801,6 @@ UniValue listunspentsigmamints(const UniValue &params, bool fHelp) {
                         "with between minconf and maxconf (inclusive) confirmations.\n"
                         "Results are an array of Objects, each of which has:\n"
                         "{txid, vout, scriptPubKey, amount, confirmations}");
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
@@ -3129,6 +3067,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     "denomination must be one of (1,10,25,50,100)\n");
         }
 
+
         int64_t amount = sendTo[denominationStr].get_int();
 
         LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n", denominationStr, amount);
@@ -3290,8 +3229,6 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
                     + HelpExampleCli("spendmanyzerocoin", "\"{\\\"address\\\":\\\"\\\", \\\"denominations\\\": [{\\\"value\\\":1, \\\"amount\\\":2}]}\"")
         );
 
-    EnsureWalletIsUnlocked();
-
     UniValue data = params[0].get_obj();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -3354,6 +3291,8 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         thirdPartyAddress = addressStr;
     }
 
+    EnsureWalletIsUnlocked();
+
     // Wallet comments
     CWalletTx wtx;
     vector<CBigNum> coinSerials;
@@ -3381,7 +3320,7 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() < 2 || params.size() > 5)
         throw std::runtime_error(
                 "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
-                "\nSpend multiple zerocoins and remint any change in a single transaction by specifying addresses and an amount for each address."
+                "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
                 + HelpRequiringPassphrase() + "\n"
                 "\nArguments:\n"
                 "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
@@ -4158,7 +4097,6 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "listaccounts",             &listaccounts,             false },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false },
     { "wallet",             "listlockunspent",          &listlockunspent,          false },
-    { "wallet",             "listlockunspentamount",    &listlockunspentamount,    false },
     { "wallet",             "listreceivedbyaccount",    &listreceivedbyaccount,    false },
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false },
     { "wallet",             "listsinceblock",           &listsinceblock,           false },
@@ -4191,10 +4129,11 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
     { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
-    { "wallet",             "listpubcoins",             &listpubcoins,             false },
     { "wallet",             "listsigmamints",           &listsigmamints,           false },
     { "wallet",             "listpubcoins",             &listpubcoins,             false },
     { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
+
+
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },

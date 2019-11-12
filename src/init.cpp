@@ -1863,6 +1863,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
+
     // ********************************************************* Step 8: load wallet
 
 #ifdef ENABLE_WALLET
@@ -1921,10 +1922,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
         uiInterface.InitMessage(_("Parsing Exodus transactions..."));
         exodus_init();
-    }
 
-    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
-    CheckWalletUpdate();
+        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+        CheckWalletUpdate();
     }
 #endif
 
@@ -2148,7 +2148,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 12: finished
 
     SetRPCWarmupFinished();
-
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET

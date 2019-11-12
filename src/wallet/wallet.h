@@ -925,7 +925,6 @@ public:
     /**
      * Add zerocoin Mint and Spend function
      */
-    bool MintExists(CTxOut pcoin);
     bool IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
 
@@ -964,7 +963,7 @@ public:
         bool fDummy = false);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
-                                        CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, UniValue& mintUpdates, bool forceUsed = false);
+                                        CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleSigmaSpendTransaction(
         std::string& thirdPartyaddress,
         const std::vector<sigma::CoinDenomination>& denominations,
@@ -974,8 +973,7 @@ public:
         vector<Scalar>& coinSerials,
         uint256& txHash,
         vector<GroupElement>& zcSelectedValues,
-        std::string& strFailReason,
-        UniValue& mintUpdates,
+        std::string& strFailReason,       
         bool forceUsed = false,
         const CCoinControl *coinControl = NULL);
 

@@ -11,8 +11,10 @@
 
 #include <stdarg.h>
 #include <string>
+#if ENABLE_CLIENTAPI
 #define ZMQ_STATIC
 #include <zmq.h>
+#endif
 
 #include "primitives/block.h"
 #include "primitives/transaction.h"

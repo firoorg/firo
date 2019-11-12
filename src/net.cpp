@@ -23,6 +23,7 @@
 #include "consensus/validation.h"
 #include "txmempool.h"
 #include "./consensus/validation.h"
+#include "validationinterface.h"
 
 
 #ifdef WIN32

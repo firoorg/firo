@@ -355,8 +355,6 @@ std::string CZnode::StateToString(int nStateIn) {
             return "NEW_START_REQUIRED";
         case ZNODE_POSE_BAN:
             return "POSE_BAN";
-        case ZNODE_REMOVED:
-            return "REMOVED";
         default:
             return "UNKNOWN";
     }
@@ -410,12 +408,6 @@ void CZnode::SetRank(int newRank) {
         if(IsMyZnode())
             GetMainSignals().UpdatedZnode(*this);
     }   
-}
-
-void CZnode::SetRemoved(){
-    SetStatus(ZNODE_REMOVED);
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
 }
 
 std::string CZnode::ToString() const {

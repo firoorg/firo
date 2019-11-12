@@ -8,7 +8,7 @@
 #include "base58.h"
 
 extern int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
+//static CCriticalSection cs_nWalletUnlockTime;
 
 class CRPCTable;
 

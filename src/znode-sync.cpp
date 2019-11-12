@@ -78,7 +78,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
             fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
-            return fBlockchainSynced;
+            return false;
         }
     } else {
         // Dont skip on REGTEST to make the tests run faster.
@@ -100,7 +100,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     nSkipped = 0;
 
     if (fBlockchainSynced){
-        return fBlockchainSynced;
+        return true;
     }
 
     if (fCheckpointsEnabled && 
@@ -135,7 +135,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     // wait for at least one new block to be accepted
     if (!fFirstBlockAccepted){ 
         fBlockchainSynced = false;
-        return fBlockchainSynced;
+        return false;
     }
 
     // same as !IsInitialBlockDownload() but no cs_main needed here
@@ -440,7 +440,6 @@ void CZnodeSync::ProcessTick() {
     }
     // looped through all nodes, release them
     ReleaseNodeVector(vNodesCopy);
-
 }
 
 void CZnodeSync::UpdatedBlockTip(const CBlockIndex *pindex) {
