@@ -863,8 +863,8 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime) {
     BOOST_FOREACH(
     const CTxIn &txin, tx.vin) {
         if (txin.nSequence != CTxIn::SEQUENCE_FINAL) {
-            //LogPrintf("txin=%s\n", txin.ToString());
-            //LogPrintf("IsFinalTx tx=%s --> FAILED\n", tx.GetHash().ToString());
+            LogPrintf("txin=%s\n", txin.ToString());
+            LogPrintf("IsFinalTx tx=%s --> FAILED\n", tx.GetHash().ToString());
             return false;
         }
     }

@@ -119,12 +119,14 @@ std::string ChainNameFromCommandLine()
     return CBaseChainParams::MAIN;
 }
 
+#ifdef ENABLE_CLIENTAPI
 bool IsZMQPort(int64_t port){
     return (port == pCurrentBaseParams->APIAuthREPPort() ||
             port == pCurrentBaseParams->APIOpenREPPort() ||
             port == pCurrentBaseParams->APIAuthPUBPort() ||
             port == pCurrentBaseParams->APIOpenPUBPort());
 }
+#endif
 
 bool AreBaseParamsConfigured()
 {

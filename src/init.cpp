@@ -39,10 +39,17 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
-#include "client-api/register.h"
-#include "client-api/server.h"
-#include "client-api/settings.h"
 #include "mtpstate.h"
+
+#ifdef ENABLE_CLIENTAPI
+#include "zmqserver/zmqabstract.h"
+#include "zmqserver/zmqinterface.h"
+#include "client-api/server.h"
+#include "client-api/register.h"
+#include "client-api/settings.h"
+static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
+static CZMQReplierInterface* pzmqReplierInterface = NULL;
+#endif
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -90,15 +97,8 @@
 #include "instantx.h"
 #include "spork.h"
 
-#include "zmqserver/zmqabstract.h"
-#include "zmqserver/zmqinterface.h"
-#include "client-api/server.h"
-#include "client-api/register.h"
 
 bool fFeeEstimatesInitialized = false;
-
-static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
-static CZMQReplierInterface* pzmqReplierInterface = NULL;
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -209,7 +209,9 @@ void Interrupt(boost::thread_group &threadGroup) {
     InterruptHTTPServer();
     InterruptHTTPRPC();
     InterruptRPC();
+#ifdef ENABLE_CLIENTAPI
     InterruptAPI();
+#endif
     InterruptREST();
     InterruptTorControl();
     threadGroup.interrupt_all();
@@ -234,8 +236,10 @@ void Shutdown() {
     StopHTTPRPC();
     StopREST();
     StopRPC();
-    StopAPI();
     StopHTTPServer();
+#ifdef ENABLE_CLIENTAPI
+    StopAPI();
+#endif
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -294,6 +298,7 @@ void Shutdown() {
     zwalletMain = NULL;
 #endif
 
+#ifdef ENABLE_CLIENTAPI
     if (pzmqPublisherInterface) {
         UnregisterValidationInterface(pzmqPublisherInterface);
         delete pzmqPublisherInterface;
@@ -303,6 +308,7 @@ void Shutdown() {
     if (pzmqReplierInterface) {
         pzmqReplierInterface->Shutdown();
     }
+#endif
 
     try {
         boost::filesystem::remove(GetPidFile());
@@ -474,9 +480,11 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-proxyrandomize", strprintf(
             _("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"),
             DEFAULT_PROXYRANDOMIZE));
+#ifdef ENABLE_CLIENTAPI
     strUsage += HelpMessageOpt("-resetapicerts", strprintf(
             _("Reset ZMQ authentication key files on startup. (default: %u)"),
             DEFAULT_RESETAPICERTS));
+#endif
     strUsage += HelpMessageOpt("-rpcserialversion", strprintf(
             _("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
             DEFAULT_RPC_SERIALIZE_VERSION));
@@ -1271,7 +1279,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     RegisterAllCoreRPCCommands(tableRPC);
+
+#ifdef ENABLE_CLIENTAPI
     RegisterAllCoreAPICommands(tableAPI);
+#endif
+
 #ifdef ENABLE_WALLET
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
     if (!fDisableWallet)
@@ -1434,12 +1446,15 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
      */
     if (fServer) {
         uiInterface.InitMessage.connect(SetRPCWarmupStatus);
+#ifdef ENABLE_CLIENTAPI
         uiInterface.InitMessage.connect(SetAPIWarmupStatus);
+#endif
         if (!AppInitServers(threadGroup))
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-    bool fApi = GetBoolArg("-clientapi", false);
+#ifdef ENABLE_CLIENTAPI
+    fApi = GetBoolArg("-clientapi", false);
 
     if(fApi){
         if (!StartAPI())
@@ -1453,6 +1468,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
         CZMQAbstract::CreateCerts(resetapicerts);
     }
+#endif
 
     int64_t nStart;
 
@@ -1608,6 +1624,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     const std::string &strDest, mapMultiArgs["-seednode"])
     AddOneShot(strDest);
 
+#ifdef ENABLE_CLIENTAPI
     if(fApi){
         pzmqPublisherInterface = pzmqPublisherInterface->Create();
         pzmqReplierInterface = pzmqReplierInterface->Create();
@@ -1621,6 +1638,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         // ZMQ API
         RegisterAllCoreAPICommands(tableAPI);
     }
+#endif
     
     if (mapArgs.count("-maxuploadtarget")) {
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET) * 1024 * 1024);
@@ -1630,8 +1648,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("Step 7: load block chain ************************************\n");
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
+
+#ifdef ENABLE_CLIENTAPI
     if(fApi)
         pzmqPublisherInterface->StartWorker();
+#endif
 
     // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
     boost::filesystem::path blocksDir = GetDataDir() / "blocks";

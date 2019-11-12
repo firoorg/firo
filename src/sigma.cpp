@@ -716,6 +716,7 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
 }
 
 // CZerocoinTxInfoV3
+
 void CSigmaTxInfo::Complete() {
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
     // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well

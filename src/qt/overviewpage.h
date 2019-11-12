@@ -62,7 +62,7 @@ private:
     CAmount currentWatchOnlyBalance;
     CAmount currentWatchUnconfBalance;
     CAmount currentWatchImmatureBalance;
-    
+
     QSettings settings;
 
     TxViewDelegate *txdelegate;

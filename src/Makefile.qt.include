@@ -490,7 +490,9 @@ qt_zcoin_qt_LDADD = qt/libzcoinqt.a $(LIBBITCOIN_SERVER)
 if ENABLE_WALLET
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
 endif
+if ENABLE_CLIENTAPI
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
 
 qt_zcoin_qt_LDADD += tor/src/core/libtor-app.a \
     tor/src/lib/libtor-meminfo.a \
@@ -535,7 +537,11 @@ qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) $(QT_LIBS) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
   $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(ZLIB_LIBS) \
-  $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIZIP_LIBS)
+  $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
+
+if ENABLE_CLIENTAPI
+qt_zcoin_qt_LDADD += $(MINIZIP_LIBS)
+endif
 
 qt_zcoin_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 qt_zcoin_qt_LIBTOOLFLAGS = --tag CXX

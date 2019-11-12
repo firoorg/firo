@@ -2527,17 +2527,10 @@ void ThreadCheckDarkSendPool() {
                 mnpayments.CheckAndRemove();
                 instantsend.CheckAndRemove();
                 GetMainSignals().NotifyZnodeList();
-                //mnodeman.GetZnodeRanks(-1, 0);
-                //mnodeman.UpdateLastPaid();
             }
             if (fZNode && (nTick % (60 * 5) == 0)) {
                 mnodeman.DoFullVerificationStep();
             }
-
-            // if(znodeSync.IsSynced() && nTick % 10 == 0){
-            //     mnodeman.GetZnodeRanks();
-            //     mnodeman.UpdateLastPaid();
-            // }
 
 //            if(nTick % (60 * 5) == 0) {
 //                governance.DoMaintenance();

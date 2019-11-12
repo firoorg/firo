@@ -63,9 +63,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendmany", 1 },
     { "sendmany", 2 },
     { "sendmany", 4 },
-    { "sendmanyfromany", 0 },
-    { "sendmanyfromany", 1 },
-    { "sendmanyfromany", 3 },
     { "addmultisigaddress", 0 },
     { "addmultisigaddress", 1 },
     { "createmultisig", 0 },
@@ -122,6 +119,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddressdeltas", 0},
     { "getaddressutxos", 0},
     { "getaddressmempool", 0},
+        //[zcoin]
     { "setmininput", 0 },
     { "mint", 0 },
     { "mintzerocoin", 0 },

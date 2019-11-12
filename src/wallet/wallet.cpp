@@ -10,7 +10,6 @@
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
-#include "client-api/server.h"
 #include "coincontrol.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
@@ -52,6 +51,10 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/server.h"
+#endif
 
 using namespace std;
 
@@ -1672,14 +1675,6 @@ void CWallet::ReacceptWalletTransactions() {
     // If transactions aren't being broadcasted, don't let them into local mempool either
     if (!fBroadcastTransactions)
         return;
-
-    // // If we've already reaccepted wallet transactions, stop
-    // if(fWalletTxesReaccepted)
-    //     return;
-
-    // // if not synced, return (but only if API is on)
-    // if(!znodeSync.IsBlockchainSynced() && fApi)
-    //     return;
 
     LogPrintf("CWallet::ReacceptWalletTransactions()\n");
     LOCK2(cs_main, cs_wallet);
@@ -8218,12 +8213,14 @@ bool CWallet::InitLoadWallet() {
     if (pwalletMain->IsHDSeedAvailable()) {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
-    
+
+#ifdef ENABLE_CLIENTAPI    
     // Set API loaded before wallet sync and immediately notify
-    if(GetBoolArg("-clientapi", false)){
+    if(fApi){
         SetAPIWarmupFinished();
         GetMainSignals().NotifyAPIStatus();
     }
+#endif
 
     RegisterValidationInterface(walletInstance);
 

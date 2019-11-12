@@ -28,7 +28,7 @@ Each topic has a topic ID, which is simply a string identifying the topic. In or
 
 ## Examples
 
-For playing with the project I recommend running in regtest mode.
+For playing with the project It's recommended you run in regtest mode.
 Your `zcoin.conf` file should be, at the least:
 ```
 clientapi=1
@@ -58,7 +58,7 @@ You can then eg. generate blocks using `./zcoin-cli generate 10`, and you should
    You will need to rebuild `zcoind` without ZMQ authentication, as this is currently not implemented in the Node examples.
    - Open `zmqserver/zmqabstract.h` and change `ZMQ_AUTH` to `false`.
     
-   in zcoin-client: `cd examples/api`
+   in `zcoin-client`: `cd examples/api`
      Then run an example, eg. `node apiStatus.js`
 
 #### Using the GUI itself

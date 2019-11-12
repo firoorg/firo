@@ -16,10 +16,12 @@
 #include "utilstrencodings.h"
 #include "utiltime.h"
 #include "univalue.h"
+
+#ifdef ENABLE_CLIENTAPI
+#include "minizip/zip.h"
 #include <zlib.h>
 #include <fstream>
-
-#include "minizip/zip.h"
+#endif
 
 #include <stdarg.h>
 
@@ -117,6 +119,7 @@ bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
 bool fDaemon = false;
 bool fServer = false;
+bool fApi = false;
 string strMiscWarning;
 bool fLogTimestamps = DEFAULT_LOGTIMESTAMPS;
 bool fLogTimeMicros = DEFAULT_LOGTIMEMICROS;
@@ -760,6 +763,7 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
     }
 }
 
+#ifdef ENABLE_CLIENTAPI
 /*
  * Creates a ZIP file -
     after specifying an absolute path to a "root" directory, all filepaths derived from this path are stored in the ZIP file,
@@ -835,6 +839,7 @@ bool CreateZipFile (std::string rootPath, std::vector<string> folderPaths, vecto
 
     return true;
 }
+#endif
 
 bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest)
 {

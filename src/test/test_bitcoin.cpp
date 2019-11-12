@@ -12,8 +12,6 @@
 
 #include "util.h"
 #include "chainparams.h"
-#include "client-api/register.h"
-#include "client-api/server.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
@@ -31,6 +29,11 @@
 
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/register.h"
+#include "client-api/server.h"
+#endif
 
 #ifdef ENABLE_EXODUS
 #include "../exodus/exodus.h"
@@ -74,7 +77,9 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         CZerocoinState::GetZerocoinState()->Reset();
         CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
+#ifdef ENABLE_CLIENTAPI
         RegisterAllCoreAPICommands(tableAPI);
+#endif
         ClearDatadirCache();
         pathTemp = GetTempPath() / strprintf("test_zcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
         boost::filesystem::create_directories(pathTemp);
@@ -96,8 +101,9 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
-
+#ifdef ENABLE_CLIENTAPI
         StartAPI();
+#endif
         // Init HD mint
 
         // Create new keyUser and set as default key
@@ -147,8 +153,10 @@ TestingSetup::~TestingSetup()
     bitdb.RemoveDb("wallet_test.dat");
     bitdb.Reset();
 
+#ifdef ENABLE_CLIENTAPI
     InterruptAPI();
     StopAPI();
+#endif
 }
 
 TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)

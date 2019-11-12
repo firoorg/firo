@@ -38,7 +38,9 @@ qt_test_test_bitcoin_qt_LDADD = $(LIBBITCOINQT) $(LIBBITCOIN_SERVER)
 if ENABLE_WALLET
 qt_test_test_bitcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
 endif
+if ENABLE_CLIENTAPI
 qt_test_test_bitcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
 
 qt_test_test_bitcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) $(LIBZEROCOIN) $(LIBBITCOIN_CONSENSUS) \

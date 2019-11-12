@@ -49,6 +49,7 @@ Optional dependencies:
  libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
  libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
+ libminizip  | Backup zip       | Allows for creation of zip files (specificially for creating backups in the Client API)
 
 For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
 

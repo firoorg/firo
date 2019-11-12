@@ -47,6 +47,8 @@ if 'ENABLE_BITCOIND' not in vars():
     ENABLE_BITCOIND=0
 if 'ENABLE_UTILS' not in vars():
     ENABLE_UTILS=0
+if 'ENABLE_CLIENTAPI' not in vars():
+    ENABLE_CLIENTAPI=0
 
 ENABLE_COVERAGE=0
 
@@ -89,11 +91,13 @@ if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
     sys.exit(0)
 
 # python3-zmq may not be installed. Handle this gracefully and with some helpful info
+if ENABLE_CLIENTAPI:
     try:
         import zmq
     except ImportError:
-        print("ERROR: \"import zmq\" failed. "
+        print("ERROR: \"import zmq\" failed. Set ENABLE_CLIENTAPI=0 or "
               "to run zmq tests, see dependency info in /qa/README.md.")
+        # ENABLE_CLIENTAPI=0
         raise
 
 testScripts = [
@@ -172,7 +176,8 @@ testScripts = [
     'hdmint_mempool_zap.py',
     'sigma_zapwalletmints_unconf_trans.py'
 ]
-# testScripts.append('zmq_test.py')
+# if ENABLE_CLIENTAPI:
+#     testScripts.append('zmq_test.py')
 
 testScriptsExt = [
     # 'bip9-softforks.py',

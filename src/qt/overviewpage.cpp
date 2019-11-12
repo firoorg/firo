@@ -140,10 +140,10 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     }
 
     if(torEnabled){
-		ui->checkboxEnabledTor->setChecked(true);
-	}else{
-		ui->checkboxEnabledTor->setChecked(false);
-	}
+        ui->checkboxEnabledTor->setChecked(true);
+    }else{
+        ui->checkboxEnabledTor->setChecked(false);
+    }
 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = platformStyle->SingleColorIcon(":/icons/warning");

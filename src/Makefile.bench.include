@@ -30,7 +30,9 @@ bench_bench_bitcoin_LDADD = \
   $(LIBSECP256K1) \
   $(LIBUNIVALUE)
 
+if ENABLE_CLIENTAPI
 bench_bench_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
 
 if ENABLE_WALLET
 bench_bench_bitcoin_LDADD += $(LIBBITCOIN_WALLET)

@@ -66,7 +66,9 @@ std::string ChainNameFromCommandLine();
 /**
  * Checks if the port parameter is the same as any ZMQ port for base params.
  */
+#ifdef ENABLE_CLIENTAPI
 bool IsZMQPort(int64_t port);
+#endif
 
 /**
  * Return true if SelectBaseParamsFromCommandLine() has been called to select

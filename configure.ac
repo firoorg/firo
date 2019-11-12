@@ -94,6 +94,11 @@ AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 # Enable wallet
 enable_wallet=yes
 
+AC_ARG_ENABLE([clientapi],
+  [AS_HELP_STRING([--enable-clientapi],[enable clientapi (disabled by default)])],
+  [enable_clientapi=$enableval],
+  [enable_clientapi=no])
+
 AC_ARG_ENABLE([exodus],
   [AS_HELP_STRING([--enable-exodus],[enable exodus (disabled by default)])],
   [enable_exodus=$enableval],
@@ -798,8 +803,6 @@ if test x$use_pkgconfig = xyes; then
       PKG_CHECK_MODULES([SSL], [libssl],, [AC_MSG_ERROR(openssl  not found.)])
       PKG_CHECK_MODULES([CRYPTO], [libcrypto],,[AC_MSG_ERROR(libcrypto  not found.)])
       PKG_CHECK_MODULES([ZLIB], [zlib], [], [AC_MSG_ERROR([zlib not found])])
-      PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
-      PKG_CHECK_MODULES([ZMQ],[libzmq >= 4],,[AC_MSG_ERROR(libzmq version 4.x or greater not found)])
       BITCOIN_QT_CHECK([PKG_CHECK_MODULES([PROTOBUF], [protobuf], [have_protobuf=yes], [BITCOIN_QT_FAIL(libprotobuf not found)])])
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
@@ -810,6 +813,11 @@ if test x$use_pkgconfig = xyes; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
         fi
       fi
+
+      if test "x$enable_clientapi" = "xyes"; then
+        PKG_CHECK_MODULES([ZMQ],[libzmq >= 4], [], [AC_MSG_ERROR([libzmq version 4.x or greater not found])])
+        PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
+      fi
     ]
   )
 else
@@ -819,13 +827,6 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
-  AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
-  AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
-
-  AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
-  AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
-
-
   if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
@@ -833,6 +834,14 @@ else
       AC_CHECK_LIB([event_pthreads],[main],EVENT_PTHREADS_LIBS=-levent_pthreads,AC_MSG_ERROR(libevent_pthreads missing))
     fi
   fi
+
+  if test "x$enable_clientapi" = "xyes"; then
+    AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
+    AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
+
+    AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
+    AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
+  fi 
 
   BITCOIN_QT_CHECK(AC_CHECK_LIB([protobuf] ,[main],[PROTOBUF_LIBS=-lprotobuf], BITCOIN_QT_FAIL(libprotobuf not found)))
   if test x$use_qr != xno; then
@@ -954,6 +963,15 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable clientapi
+AC_MSG_CHECKING([if clientapi should be enabled])
+if test x$enable_clientapi != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE_UNQUOTED([ENABLE_CLIENTAPI],[1],[Define if clientapi should be compiled in])
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable exodus
 AC_MSG_CHECKING([if exodus should be enabled])
 if test x$enable_exodus != xno; then
@@ -1030,6 +1048,8 @@ if test x$bitcoin_enable_qt != xno; then
   fi
 fi
 
+AM_CONDITIONAL([ENABLE_CLIENTAPI], [test "x$enable_clientapi" = "xyes"])
+
 AC_MSG_CHECKING([whether to build test_bitcoin])
 if test x$use_tests = xyes; then
   AC_MSG_RESULT([yes])
@@ -1059,6 +1079,7 @@ AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
 AM_CONDITIONAL([ENABLE_EXODUS],[test x$enable_exodus = xyes])
+AM_CONDITIONAL([ENABLE_CLIENTAPI],[test x$enable_clientapi = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
