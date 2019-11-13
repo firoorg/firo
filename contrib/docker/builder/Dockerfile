@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     autoconf automake bsdmainutils ccache cmake curl g++ g++-mingw-w64-x86-64 gcc gcc-mingw-w64-x86-64 git \
     libboost-all-dev libbz2-dev libcap-dev libdb4.8-dev libdb4.8++-dev libevent-dev libminiupnpc-dev libprotobuf-dev \
     libqrencode-dev libssl-dev libtool libzmq3-dev make pkg-config protobuf-compiler python-pip qtbase5-dev \
-    qttools5-dev-tools python3-zmq
+    qttools5-dev-tools python3-zmq minizip
 
 RUN pip install ez_setup
 
