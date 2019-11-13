@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y \
     make \
     openjdk-8-jdk \
     pkg-config \
-    zlib1g-dev
+    zlib1g-dev \
+    libminizip-dev
 
 # Install Berkeley DB 4.8
 RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
