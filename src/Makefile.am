@@ -596,7 +596,7 @@ zcoin_cli_LDADD = \
 
 zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 if ENABLE_CLIENTAPI
-zcoind_LDADD += $(MINIZIP_LIBS)
+zcoin_cli_LDADD += $(MINIZIP_LIBS)
 endif
 
 # bitcoin-tx binary #
@@ -619,7 +619,7 @@ zcoin_tx_LDADD = \
 
 zcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 if ENABLE_CLIENTAPI
-zcoind_LDADD += $(MINIZIP_LIBS)
+zcoin_tx_LDADD += $(MINIZIP_LIBS)
 endif
 
 # bitcoinconsensus library #
