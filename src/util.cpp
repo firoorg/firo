@@ -787,9 +787,13 @@ bool CreateZipFile (std::string rootPath, std::vector<string> folderPaths, vecto
         return false;
 
     BOOST_FOREACH(std::string folderPath, folderPaths){
+        boost::filesystem::directory_iterator end_iter;
         std::string fullFolderPath = rootPath + folderPath;
-        for (const auto & entry : boost::filesystem::directory_iterator(fullFolderPath)){
-            std::string fullFolderFilePath = entry.path().string();
+        for (boost::filesystem::directory_iterator dir_iter(fullFolderPath);
+        dir_iter != end_iter;
+        ++dir_iter)
+        {
+            std::string fullFolderFilePath = dir_iter->path().string();
             std::string folderFilePath = fullFolderFilePath.substr(rootPath.length());
             filePaths.push_back(folderFilePath);
         }
