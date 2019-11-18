@@ -58,31 +58,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         return false;
     }
 
-    std::vector<GroupElement> anonymityset = commits;
-    if(fPadding)
-        anonymityset.pop_back();
-
-    std::size_t N = anonymityset.size();
-
-    std::vector<Exponent> f_i_;
-    f_i_.reserve(commits.size());
-    for(std::size_t i = 0; i < N; ++i) {
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
-        for(int j = 0; j < m; ++j){
-            f_i *= f[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
-
-    secp_primitives::MultiExponent mult(anonymityset, f_i_);
-    GroupElement t1 = mult.get_multiple();
-
+    std::size_t N = commits.size();
+    Exponent pow(uint64_t(1));
     if(fPadding) {
         // get power for lastIndex position
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N, n, m);
+        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
         vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
-        Exponent pow(uint64_t(1));
         for (int j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
             pow *= f[j * n + I[j]];
@@ -96,9 +77,31 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= challenge_x;
         }
-
-        t1 += commits[N] * pow;
     }
+
+    std::vector<Exponent> f_i_;
+    f_i_.reserve(N);
+
+    std::size_t N_ = N;
+    if(fPadding) {
+        N_ = N - 1;
+    }
+
+    for(std::size_t i = 0; i < N_; ++i) {
+        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+        Exponent f_i(uint64_t(1));
+        for(int j = 0; j < m; ++j){
+            f_i *= f[j*n + I[j]];
+        }
+        f_i_.emplace_back(f_i);
+    }
+
+    if(fPadding) {
+        f_i_.emplace_back(pow);
+    }
+
+    secp_primitives::MultiExponent mult(commits, f_i_);
+    GroupElement t1 = mult.get_multiple();
 
     GroupElement t2;
     Exponent x_k(uint64_t(1));
