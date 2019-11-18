@@ -274,8 +274,11 @@ bool CheckSigmaSpendTransaction(
                 break;
             index = index->pprev;
         }
+        bool fPadding = true;
+        if(nHeight < ::Params().GetConsensus().nSigmaPaddingBlock)
+            fPadding = false;
 
-        passVerify = spend->Verify(anonymity_set, newMetaData);
+        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
         if (passVerify) {
             Scalar serial = spend->getCoinSerialNumber();
             // do not check for duplicates in case we've seen exact copy of this tx in this block before

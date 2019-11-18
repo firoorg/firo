@@ -5535,12 +5535,16 @@ bool CWallet::CreateSigmaSpendTransaction(
             privateCoin.setSerialNumber(coinToUse.serialNumber);
             privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            sigma::CoinSpend spend(sigmaParams, privateCoin, anonimity_set, metaData);
+            bool fPadding = true;
+            if(chainActive.Height() < ::Params().GetConsensus().nSigmaPaddingBlock)
+                fPadding = false;
+
+            sigma::CoinSpend spend(sigmaParams, privateCoin, anonimity_set, metaData, fPadding);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
-            if (!spend.Verify(anonimity_set, metaData)) {
+            if (!spend.Verify(anonimity_set, metaData,fPadding)) {
                 strFailReason = _("the spend coin transaction did not verify");
                 return false;
             }
@@ -6213,6 +6217,11 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
 
             uint256 txHashForMetadata = txTemp.GetHash();
             LogPrintf("txNew.GetHash: %s\n", txHashForMetadata.ToString());
+
+            bool fPadding = true;
+            if(chainActive.Height() < ::Params().GetConsensus().nSigmaPaddingBlock)
+                fPadding = false;
+
             std::vector<sigma::CoinSpend> spends;
             // Iterator of std::vector<std::pair<int64_t, sigma::CoinDenomination>>::const_iterator
             for (auto it = denominations.begin(); it != denominations.end(); it++)
@@ -6233,11 +6242,12 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 sigma::CoinSpend spend(sigmaParams,
                                        tempStorage.privateCoin,
                                        tempStorage.anonimity_set,
-                                       metaData);
+                                       metaData,
+                                       fPadding);
                 spend.setVersion(tempStorage.txVersion);
                 spends.push_back(spend);
                 // Verify the coinSpend
-                if (!spend.Verify(tempStorage.anonimity_set, metaData)) {
+                if (!spend.Verify(tempStorage.anonimity_set, metaData,fPadding)) {
                     strFailReason = _("the spend coin transaction did not verify");
                     return false;
                 }

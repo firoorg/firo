@@ -1,3 +1,4 @@
+#include <math.h>
 namespace sigma{
 template<class Exponent, class GroupElement>
 SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
@@ -14,7 +15,8 @@ SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
 template<class Exponent, class GroupElement>
 bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         const std::vector<GroupElement>& commits,
-        const SigmaPlusProof<Exponent, GroupElement>& proof) const {
+        const SigmaPlusProof<Exponent, GroupElement>& proof,
+        bool fPadding) const {
 
     R1ProofVerifier<Exponent, GroupElement> r1ProofVerifier(g_, h_, proof.B_, n, m);
     std::vector<Exponent> f;
@@ -56,10 +58,15 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         return false;
     }
 
-    int N = commits.size();
+    std::vector<GroupElement> anonymityset = commits;
+    if(fPadding)
+        anonymityset.pop_back();
+
+    std::size_t N = anonymityset.size();
+
     std::vector<Exponent> f_i_;
-    f_i_.reserve(N);
-    for(int i = 0; i < N; ++i) {
+    f_i_.reserve(commits.size());
+    for(std::size_t i = 0; i < N; ++i) {
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
         Exponent f_i(uint64_t(1));
         for(int j = 0; j < m; ++j){
@@ -68,8 +75,31 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         f_i_.emplace_back(f_i);
     }
 
-    secp_primitives::MultiExponent mult(commits, f_i_);
+    secp_primitives::MultiExponent mult(anonymityset, f_i_);
     GroupElement t1 = mult.get_multiple();
+
+    if(fPadding) {
+        // get power for lastIndex position
+        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N, n, m);
+        vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
+        Exponent pow(uint64_t(1));
+        for (int j = m - 1; j >= 0; j--) {
+            f_part_product.push_back(pow);
+            pow *= f[j * n + I[j]];
+        }
+
+        Exponent xj(uint64_t(1));;    // x^j
+        for (int j = 0; j < m; j++) {
+            Exponent fi_sum(uint64_t(0));
+            for (int i = I[j] + 1; i < n; i++)
+                fi_sum += f[j*n + i];
+            pow += fi_sum * xj * f_part_product[m - j - 1];
+            xj *= challenge_x;
+        }
+
+        t1 += commits[N] * pow;
+    }
+
     GroupElement t2;
     Exponent x_k(uint64_t(1));
     for(int k = 0; k < m; ++k){

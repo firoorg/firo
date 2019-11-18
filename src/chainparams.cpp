@@ -253,6 +253,7 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
+        consensus.nSigmaPaddingBlock = ZC_SIGMA_PADDING_BLOCK;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
@@ -441,6 +442,7 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = ZC_SIGMA_TESTNET_STARTING_BLOCK;
+        consensus.nSigmaPaddingBlock = ZC_SIGMA_TESTNET_PADDING_BLOCK;
         consensus.nOldSigmaBanBlock = 70416;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
@@ -595,6 +597,7 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = 400;
+        consensus.nSigmaPaddingBlock = 500;
         consensus.nOldSigmaBanBlock = 450;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;

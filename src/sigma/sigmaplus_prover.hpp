@@ -1,3 +1,4 @@
+#include <math.h>
 namespace sigma {
 
 template<class Exponent, class GroupElement>
@@ -17,10 +18,20 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         const std::vector<GroupElement>& commits,
         std::size_t l,
         const Exponent& r,
+        bool fPadding,
         SigmaPlusProof<Exponent, GroupElement>& proof_out) {
-    std::size_t N = commits.size();
+    std::size_t setSize = commits.size();
+    std::size_t N = setSize;
     Exponent rB;
     rB.randomize();
+
+    std::vector<GroupElement> anonymityset = commits;
+    if(fPadding) {
+        N = pow(n_, m_);
+        //do padding of anonymity set
+        for (unsigned i = setSize; i < N; i++)
+            anonymityset.push_back(anonymityset[i - 1]);
+    }
 
     // Create table sigma of nxm bits.
     std::vector<Exponent> sigma;
@@ -60,7 +71,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         for (size_t i = 0; i < N; ++i) {
             P_i.emplace_back(P_i_k[i][k]);
         }
-        secp_primitives::MultiExponent mult(commits, P_i);
+        secp_primitives::MultiExponent mult(anonymityset, P_i);
         GroupElement c_k = mult.get_multiple();
         c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k]);
         Gk.emplace_back(c_k);
