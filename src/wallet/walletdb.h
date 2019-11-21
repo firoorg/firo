@@ -359,19 +359,19 @@ public:
             throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
         }
 
-        unsigned int flags = DB_SET_RANGE;
+        bool setRange = true;
         while (true) {
 
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (flags == DB_SET_RANGE) {
+            if (setRange) {
                 ssKey << std::make_pair(string("exodus_mint"), K());
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, setRange);
 
-            flags = DB_NEXT;
+            setRange = false;
             if (ret == DB_NOTFOUND) {
                 break;
             } else if (ret != 0) {
