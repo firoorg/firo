@@ -46,6 +46,9 @@ CoinSpend::CoinSpend(
     if(!indexFound)
         throw ZerocoinException("No such coin in this anonymity set");
 
+    if(fPadding)
+        version = 1;
+
     sigmaProver.proof(C_, coinIndex, coin.getRandomness(), fPadding, sigmaProof);
 
     updateMetaData(coin, m);

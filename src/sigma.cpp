@@ -275,7 +275,8 @@ bool CheckSigmaSpendTransaction(
             index = index->pprev;
         }
         bool fPadding = true;
-        if(chainActive.Height() < ::Params().GetConsensus().nSigmaPaddingBlock)
+        int height = (nHeight == INT_MAX) ? chainActive.Height() : nHeight;
+        if(height < ::Params().GetConsensus().nSigmaPaddingBlock || (spend->getVersion() == 0 && isVerifyDB))
             fPadding = false;
 
         passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);

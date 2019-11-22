@@ -27,7 +27,8 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
     std::vector<GroupElement> anonymityset = commits;
     if(fPadding) {
-        N = pow(n_, m_);
+        double n = 1.0 * n_;
+        N = (int)pow(n, m_);
         //do padding of anonymity set
         for (unsigned i = setSize; i < N; i++)
             anonymityset.push_back(anonymityset[i - 1]);
