@@ -70,7 +70,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
          * \sum_{i=s+1}^{N-1}p_i(x) = 
          *   \sum_{j=0}^{m-1}
          *     \left[
-         *       \left( \sum_{t=s_j+1}^{n-1}(\delta_{l_j,i_j}x+a_{j,t}) \right)
+         *       \left( \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i}x+a_{j,i}) \right)
          *       \left( \prod_{k=j}^{m-1}(\delta_{l_k,s_k}x+a_{k,s_k}) \right)
          *       x^j
          *     \right]
@@ -90,13 +90,13 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         }
 
         for (int j = 0; j < m_; j++) {
-            // \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i_j}x+a_{j,i})
+            // \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i}x+a_{j,i})
             Exponent a_sum(uint64_t(0));
             for (int i = I[j] + 1; i < n_; i++)
                 a_sum += a[j * n_ + i];
             Exponent x_sum(uint64_t(lj[j] >= I[j]+1 ? 1 : 0));
 
-            // Multiply by \prod_{k=j}^{m-1}(\delta_{l_k,s_k}x+a_{k,s})
+            // Multiply by \prod_{k=j}^{m-1}(\delta_{l_k,s_k}x+a_{k,s_k})
             std::vector<Exponent> &polynomial = partial_p_s[m_ - j - 1];
             SigmaPrimitives<Exponent, GroupElement>::new_factor(x_sum, a_sum, polynomial);
 

@@ -87,7 +87,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
          * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} = 
          *   \sum_{j=0}^{m-1}
          *     \left[ 
-         *       \left( \sum_{t=s_j+1}^{n-1}f_{j,t} \right)
+         *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
          *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
          *       x^j
          *     \right]
