@@ -2009,7 +2009,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             nInvType = MSG_TXLOCK_REQUEST;
         }
 
-        vRecv >> ptx;
         const CTransaction& tx = *ptx;
 
         CInv inv(MSG_TX, tx.GetHash());
