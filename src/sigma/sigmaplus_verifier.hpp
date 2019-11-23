@@ -58,10 +58,42 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         return false;
     }
 
+    if (commits.empty()) {
+        LogPrintf("No mints in the anonymity set");
+        return false;
+    }
+
     std::size_t N = commits.size();
-    Exponent pow(uint64_t(1));
-    if(fPadding) {
-        // get power for lastIndex position
+    std::vector<Exponent> f_i_;
+    f_i_.reserve(N);
+
+    // if fPadding is true last index is special
+    for (std::size_t i = 0; i < (fPadding ? N-1 : N); ++i) {
+        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+        Exponent f_i(uint64_t(1));
+        for(int j = 0; j < m; ++j){
+            f_i *= f[j*n + I[j]];
+        }
+        f_i_.emplace_back(f_i);
+    }
+
+    if (fPadding) {
+        /*
+         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
+         * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
+         * 
+         * Math (in TeX notation):
+         * 
+         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} = 
+         *   \sum_{j=0}^{m-1}
+         *     \left[ 
+         *       \left( \sum_{t=s_j+1}^{n-1}f_{j,t} \right)
+         *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
+         *       x^j
+         *     \right]
+         */
+
+        Exponent pow(uint64_t(1));
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
         vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
         for (int j = m - 1; j >= 0; j--) {
@@ -77,26 +109,6 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= challenge_x;
         }
-    }
-
-    std::vector<Exponent> f_i_;
-    f_i_.reserve(N);
-
-    std::size_t N_ = N;
-    if(fPadding) {
-        N_ = N - 1;
-    }
-
-    for(std::size_t i = 0; i < N_; ++i) {
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
-        for(int j = 0; j < m; ++j){
-            f_i *= f[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
-
-    if(fPadding) {
         f_i_.emplace_back(pow);
     }
 
