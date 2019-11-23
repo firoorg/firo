@@ -76,7 +76,7 @@ public:
 
 private:
     const Params* params;
-    unsigned int version = 0;//0 or 1,  is when we started padding and 0 before it
+    unsigned int version = 0;
     CoinDenomination denomination;
     uint256 accumulatorBlockHash;
     Scalar coinSerialNumber;

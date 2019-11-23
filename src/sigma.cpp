@@ -213,7 +213,7 @@ bool CheckSigmaSpendTransaction(
                 "CheckSigmaSpendTransaction: invalid spend transaction");
         }
 
-        if (spend->getVersion() != ZEROCOIN_TX_VERSION_3) {
+        if (spend->getVersion() != ZEROCOIN_TX_VERSION_3 && spend->getVersion() != ZEROCOIN_TX_VERSION_3_1) {
             return state.DoS(100,
                              false,
                              NSEQUENCE_INCORRECT,
@@ -274,10 +274,15 @@ bool CheckSigmaSpendTransaction(
                 break;
             index = index->pprev;
         }
-        bool fPadding = true;
-        int height = (nHeight == INT_MAX) ? chainActive.Height() : nHeight;
-        if(height < ::Params().GetConsensus().nSigmaPaddingBlock || (spend->getVersion() == 0 && isVerifyDB))
-            fPadding = false;
+
+        bool fPadding = spend->getVersion() >= ZEROCOIN_TX_VERSION_3_1;
+        if (!isVerifyDB) {
+            auto params = ::Params().GetConsensus();
+            bool fShouldPad = (nHeight != INT_MAX && nHeight >= params.nSigmaPaddingBlock) ||
+                        (nHeight == INT_MAX && chainActive.Height() >= params.nSigmaPaddingBlock);
+            if (fPadding != fShouldPad)
+                return state.DoS(1, error("Incorrect sigma spend transaction version"));
+        }
 
         passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
         if (passVerify) {
