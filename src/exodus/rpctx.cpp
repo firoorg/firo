@@ -1656,6 +1656,12 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (result != 0) {
             throw JSONRPCError(result, error_str(result));
         }
+    } catch (WalletLocked e) {
+        for (auto& id : ids) {
+            wallet->DeleteUnconfirmedSigmaMint(id);
+        }
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+
     } catch (...) {
         for (auto& id : ids) {
             wallet->DeleteUnconfirmedSigmaMint(id);
