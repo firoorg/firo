@@ -248,7 +248,7 @@ def initialize_chain(test_dir, num_nodes, cachedir):
 
         # Create cache directories, run bitcoinds:
         for i in range(MAX_NODES):
-            datadir=initialize_datadir("cache", i)
+            datadir=initialize_datadir(cachedir, i)
             args = [ os.getenv("ZCOIND", "zcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
@@ -289,15 +289,19 @@ def initialize_chain(test_dir, num_nodes, cachedir):
         stop_nodes(rpcs)
         disable_mocktime()
         for i in range(MAX_NODES):
-            os.remove(log_filename(cachedir, i, "debug.log"))
-            os.remove(log_filename(cachedir, i, "db.log"))
-            os.remove(log_filename(cachedir, i, "peers.dat"))
-            os.remove(log_filename(cachedir, i, "fee_estimates.dat"))
+            try:
+                os.remove(log_filename(cachedir, i, "debug.log"))
+                os.remove(log_filename(cachedir, i, "db.log"))
+                os.remove(log_filename(cachedir, i, "peers.dat"))
+                os.remove(log_filename(cachedir, i, "fee_estimates.dat"))
+            except OSError:
+                pass
 
     for i in range(num_nodes):
         from_dir = os.path.join(cachedir, "node"+str(i))
         to_dir = os.path.join(test_dir,  "node"+str(i))
-        shutil.copytree(from_dir, to_dir)
+        if from_dir != to_dir:
+            shutil.copytree(from_dir, to_dir)
         initialize_datadir(test_dir, i) # Overwrite port/rpcport in bitcoin.conf
 
 def initialize_chain_clean(test_dir, num_nodes):

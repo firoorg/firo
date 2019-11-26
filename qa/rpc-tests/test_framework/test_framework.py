@@ -117,7 +117,7 @@ class BitcoinTestFramework(object):
                           help="Don't stop bitcoinds after the test execution")
         parser.add_option("--srcdir", dest="srcdir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__))+"/../../../src"),
                           help="Source directory containing bitcoind/bitcoin-cli (default: %default)")
-        parser.add_option("--cachedir", dest="cachedir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__))+"/../../cache"),
+        parser.add_option("--cachedir", dest="cachedir", default="",
                           help="Directory for caching pregenerated datadirs")
         parser.add_option("--tmpdir", dest="tmpdir", default=tempfile.mkdtemp(prefix="test"),
                           help="Root directory for datadirs")
@@ -132,6 +132,9 @@ class BitcoinTestFramework(object):
 
         # backup dir variable for removal at cleanup
         self.options.root, self.options.tmpdir = self.options.tmpdir, self.options.tmpdir + '/' + str(self.options.port_seed)
+
+        if self.options.cachedir == "":
+            self.options.cachedir = self.options.tmpdir
 
         if self.options.trace_rpc:
             logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)

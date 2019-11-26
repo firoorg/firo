@@ -101,19 +101,32 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'exodus_create_denomination.py',
+    'exodus_property_creation_fee.py',
+    'exodus_sendmint.py',
+    'exodus_sendspend.py',
+    'exodus_sigma_reindex.py',
+    'exodus_sigma_reorg.py',
+    'mempool_doublesend_oneblock.py',
+    'mempool_reorg.py',
+    'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
     'wallet-hd.py',
     'walletbackup.py',
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',
+    # 'p2p-dandelion.py',
+    # 'bip68-112-113-p2p.py',
     # 'fundrawtransaction.py',
     # 'p2p-compactblocks.py',
     # 'segwit.py',
     # vv Tests less than 2m vv
     # 'wallet.py',
+     'wallet-hd.py',
+     'wallet-dump.py',
+     'walletbackup.py',
     # 'wallet-accounts.py',
     # 'p2p-segwit.py',
-    'wallet-dump.py',
     # 'listtransactions.py',
     # vv Tests less than 60s vv
     # 'sendheaders.py',
@@ -132,11 +145,10 @@ testScripts = [
     # 'txn_clone.py',
     # 'getchaintips.py',
     'rest.py',
-    'mempool_spendcoinbase.py',
-    'mempool_reorg.py',
-    'mempool_doublesend_oneblock.py',
     'httpbasics.py',
+    'reindex.py',
     'multi_rpc.py',
+    'zapwallettxes.py',
     'proxy_test.py',
     # 'signrawtransactions.py',
     'nodehandling.py',
@@ -160,7 +172,6 @@ testScripts = [
     # 'p2p-leaktests.py',
 
     # Zcoin-specific tests
-    'mempool_doublesend_oneblock.py',
     'wallet_dumpsigma.py',
     'wallet_dumpzerocoin.py',
     'transations_verification_after_restart.py',
@@ -184,13 +195,6 @@ testScripts = [
     'sigma_blocklimit.py',
     'hdmint_mempool_zap.py',
     'sigma_zapwalletmints_unconf_trans.py'
-
-    'exodus_create_denomination.py',
-    'exodus_property_creation_fee.py',
-    'exodus_sendmint.py',
-    'exodus_sendspend.py',
-    'exodus_sigma_reindex.py',
-    'exodus_sigma_reorg.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
@@ -248,7 +252,6 @@ def runtests():
         coverage = RPCCoverage()
         print("Initializing coverage directory at %s\n" % coverage.dir)
     flags = ["--srcdir=%s/src" % BUILDDIR] + passon_args
-    flags.append("--cachedir=%s/qa/cache" % BUILDDIR)
     if coverage:
         flags.append(coverage.flag)
 
