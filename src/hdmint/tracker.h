@@ -30,15 +30,11 @@ public:
     bool Archive(CMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
-    bool HasMintTx(const uint256& txid);
     bool IsEmpty() const { return mapSerialHashes.empty(); }
     void Init();
     bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
     bool GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta);
-    CAmount GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const;
     std::vector<uint256> GetSerialHashes();
-    std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
-    CAmount GetUnconfirmedBalance() const;
     void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
@@ -46,7 +42,6 @@ public:
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
     list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
-    void RemovePending(const uint256& txid);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
     void SetPubcoinNotUsed(const uint256& hashPubcoin);
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
