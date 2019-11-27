@@ -421,6 +421,9 @@ bool CheckSigmaTransaction(
         realHeight = chainActive.Height();
     }
 
+    if(realHeight >= consensus.nDisableSigmaBlock && realHeight < consensus.nSigmaPaddingBlock)
+        return state.DoS(100, error("Sigma is bisabled at this period."));
+
     bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
     if (allowSigma && sigmaState.IsSurgeConditionDetected()) {

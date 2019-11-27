@@ -130,6 +130,8 @@ struct Params {
 
     int nSigmaPaddingBlock;
 
+    int nDisableSigmaBlock;
+
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;
 

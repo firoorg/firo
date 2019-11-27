@@ -43,8 +43,12 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
 
 // Block after which anonymity sets are being padded.
-#define ZC_SIGMA_PADDING_BLOCK         216250 //Approx November 19th, 2019, 8:00 AM UTC
-#define ZC_SIGMA_TESTNET_PADDING_BLOCK 104070
+#define ZC_SIGMA_PADDING_BLOCK         219200 //Approx November 29th, 2019, 8:00 AM UTC
+#define ZC_SIGMA_TESTNET_PADDING_BLOCK 107160
+
+//Block after whinch we are disabling sigma to enable after starting padding
+#define ZC_SIGMA_DISABLE_BLOCK         218642 //Approx November 27th, 2019, 8:00 AM UTC
+#define ZC_SIGMA_TESTNET_DISABLE_BLOCK 106815
 
 // The block number after which old sigma clients are banned.
 #define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC

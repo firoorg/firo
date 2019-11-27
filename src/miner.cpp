@@ -414,6 +414,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
                 continue;
 
+            if(tx.IsSigmaSpend() && nHeight > chainparams.GetConsensus().nDisableSigmaBlock && nHeight < chainparams.GetConsensus().nSigmaPaddingBlock)
+                continue;
+
             if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
                 // Sigma spend and zerocoin->sigma remint are subject to the same limits
                 CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
