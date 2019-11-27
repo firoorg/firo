@@ -414,7 +414,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
                 continue;
 
-            if(tx.IsSigmaSpend() && nHeight > chainparams.GetConsensus().nDisableSigmaBlock && nHeight < chainparams.GetConsensus().nSigmaPaddingBlock)
+            if(tx.IsSigmaSpend() && nHeight >= chainparams.GetConsensus().nDisableUnpaddedSigmaBlock && nHeight < chainparams.GetConsensus().nSigmaPaddingBlock)
                 continue;
 
             if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
