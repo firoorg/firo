@@ -763,29 +763,11 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         Lock();
         Unlock(strWalletPassphrase, true);
 
-        // if we are using HD, replace the HD master key (seed) with a new one
         if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
             assert(EncryptMnemonicContainer(vMasterKey));
             SetMinVersion(FEATURE_HD);
             assert(SetMnemonicContainer(mnemonicContainer, false));
-        } else if (!hdChain.masterKeyID.IsNull()) {
-            CKey key;
-            CPubKey masterPubKey = GenerateNewHDMasterKey();
-            if (!SetHDMasterKey(masterPubKey))
-                return false;
-
-            uint160 hashSeedMaster = hdChain.masterKeyID;
-
-            // Setup HDMint wallet following encryption
-            zwalletMain->SetupWallet(hashSeedMaster, true);
-            zwalletMain->SyncWithChain();
-        }
-
-        if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
             TopUpKeyPool();
-        }
-        else {
-            NewKeyPool();
         }
 
         Lock();
@@ -1464,7 +1446,7 @@ void CWallet::GenerateNewMnemonic(){
         newHdChain.masterKeyID = CKeyID(Hash160(seed.begin(), seed.end()));
     }
     else {
-        LogPrintf("CWallet::GenerateNewHDChain -- Generating new MnemonicContainer\n");
+        LogPrintf("CWallet::GenerateNewMnemonic -- Generating new MnemonicContainer\n");
 
         std::string mnemonic = GetArg("-mnemonic", "");
         std::string mnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
@@ -1487,7 +1469,7 @@ void CWallet::GenerateNewMnemonic(){
         throw std::runtime_error(std::string(__func__) + ": SetMnemonicContainer failed");
 }
 
-bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
+bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     LOCK(cs_wallet);
 
     // ensure this wallet.dat can only be opened by clients supporting HD
@@ -1497,6 +1479,7 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
     // the child index counter in the database
     // as a hdchain object
     CHDChain newHdChain;
+    newHdChain.nVersion = cHDChainVersion;
     newHdChain.masterKeyID = pubkey.GetID();
     SetHDChain(newHdChain, false);
 
@@ -7957,6 +7940,9 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     strUsage += HelpMessageOpt("-usehd",
                                _("Use hierarchical deterministic key generation (HD) after BIP32. Only has effect during wallet creation/first start") +
                                " " + strprintf(_("(default: %u)"), DEFAULT_USE_HD_WALLET));
+    strUsage += HelpMessageOpt("-usemnemonic",
+                               _("Use Mnemonic code for generating deterministic keys. Only has effect during wallet creation/first start") +
+                               " " + strprintf(_("(default: %u)"), DEFAULT_USE_MNEMONIC));
     strUsage += HelpMessageOpt("-mnemonic=<text>", _("User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)"));
     strUsage += HelpMessageOpt("-mnemonicpassphrase=<text>", _("User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)"));
     strUsage += HelpMessageOpt("-hdseed=<hex>", _("User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)"));
@@ -8071,13 +8057,19 @@ bool CWallet::InitLoadWallet() {
     if (fFirstRun) {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && walletInstance->hdChain.masterKeyID.IsNull()) {
-            if (GetArg("-mnemonicpassphrase", "").size() > 256) {
-                InitError(_("Mnemonic passphrase is too long, must be at most 256 characters"));
-                return NULL;
+            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) { 
+                if (GetArg("-mnemonicpassphrase", "").size() > 256) {
+                    throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
+                }
+                // generate a new HD chian
+                walletInstance->GenerateNewMnemonic();
+                walletInstance->SetMinVersion(FEATURE_HD);
+            }else{
+            // generate a new master key
+            CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
+            if (!walletInstance->SetHDMasterKey(masterPubKey, CHDChain().VERSION_WITH_BIP44))
+                throw std::runtime_error(std::string(__func__) + ": Storing master key failed");
             }
-            // generate a new HD chian
-            walletInstance->GenerateNewMnemonic();
-            walletInstance->SetMinVersion(FEATURE_HD);
         }
         CPubKey newDefaultKey;
         if (walletInstance->GetKeyFromPool(newDefaultKey)) {

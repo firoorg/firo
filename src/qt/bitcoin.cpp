@@ -617,8 +617,10 @@ int main(int argc, char *argv[])
     }
 #ifdef ENABLE_WALLET
     ///Determine if user wants to create new wallet or recover existing one
-    if(!Recover::askRecover(newWallet))
-        return EXIT_SUCCESS;
+    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)){
+        if(!Recover::askRecover(newWallet))
+            return EXIT_SUCCESS;
+    }
 
     // Parse URIs on command line -- this can affect Params()
     PaymentServer::ipcParseCommandLine(argc, argv);

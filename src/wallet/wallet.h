@@ -75,6 +75,9 @@ static const bool DEFAULT_WALLETBROADCAST = true;
 //! if set, all keys will be derived by using BIP32
 static const bool DEFAULT_USE_HD_WALLET = true;
 
+//! if set, all keys will be derived by using BIP39
+static const bool DEFAULT_USE_MNEMONIC = true;
+
 extern const char * DEFAULT_WALLET_DAT;
 
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
@@ -1211,7 +1214,7 @@ public:
     void GenerateNewMnemonic();
 
     /* Set the current HD master key (will reset the chain child index counters) */
-    bool SetHDMasterKey(const CPubKey& key);
+    bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 };
 
 /** A key allocated from the key pool. */
