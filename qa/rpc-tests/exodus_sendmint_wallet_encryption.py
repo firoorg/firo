@@ -2,7 +2,7 @@
 from time import sleep
 from test_framework.authproxy import JSONRPCException
 from test_framework.test_framework import ExodusTestFramework
-from test_framework.util import (assert_equal, assert_raises_message, start_node, assert_equal, bitcoind_processes)
+from test_framework.util import (assert_raises_message, start_node, bitcoind_processes)
 
 class ExodusSendMintWalletEncrytionTest(ExodusTestFramework):
     def run_test(self):
