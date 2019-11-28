@@ -2186,10 +2186,7 @@ UniValue encryptwallet(const UniValue& params, bool fHelp)
     // unencrypted private keys. So:
     StartShutdown();
 
-    std::string warning = "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet.";
-    if(pwalletMain->GetHDChain().nVersion < CHDChain::VERSION_WITH_BIP39)
-        warning += "The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";
-    return warning;
+    return "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet.";
 }
 
 UniValue lockunspent(const UniValue& params, bool fHelp)
