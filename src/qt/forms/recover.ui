@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>674</width>
-    <height>380</height>
+    <height>620</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,14 @@
    <item>
     <widget class="QLabel" name="textLabel">
      <property name="text">
-      <string>You can create a new wallet or recover an existing one by inputing mnemonic words.</string>
+      <string>Let's create your wallet! Some info: A backup of the wallet will be created in the form of a list of words called a mnemonic. This list must never be given to anyone as it defines all of your keys, and thus any funds you have in this wallet.
+
+The mnemonic scheme used is called BIP39. You can either create a new BIP39 wallet here, or recover an existing one by entering a valid BIP39 word list.
+
+If you're not sure, click OK, and a secure wallet will be generated for you. You will be shown a word list on the next screen, please note down these words in a safe location.
+
+(Advanced: if you'd rather not generate a wallet with the mnemonic feature, you can restart Zcoin-Qt now with the usemnemonic=0 option, either in your zcoin.conf file, or passed as an argument to the Zcoin-Qt program).
+      </string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -70,8 +77,8 @@
        </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>60</width>
-         <height>20</height>
+         <width>0</width>
+         <height>0</height>
         </size>
        </property>
       </spacer>
@@ -89,7 +96,7 @@
      <item>
       <widget class="QRadioButton" name="use24">
        <property name="text">
-        <string>24 words</string>
+        <string>24 Words</string>
        </property>
       </widget>
      </item>
@@ -145,12 +152,25 @@
       </property>
      </spacer>
     </item>
+   <item>
+   <widget class="QFrame" name="togglepassphrase">
+    <layout class="QHBoxLayout" name="horizontalLayout5">
+     <item>
+      <widget class="QCheckBox" name="usePassphrase">
+       <property name="text">
+        <string>Use passphrase (Your mnemonic can be encrypted with an addional passphrase)</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </item>
  <item>
    <layout class="QHBoxLayout" name="horizontalLayout3">
     <item>
      <widget class="QLabel" name="textLabel3">
       <property name="text">
-       <string>Input mnemonic passphrase here (Optional):</string>
+       <string>Input mnemonic passphrase here:</string>
       </property>
       <property name="wordWrap">
        <bool>true</bool>

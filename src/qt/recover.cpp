@@ -40,7 +40,13 @@ void Recover::setCreateNew()
     ui->createNew->setChecked(true);
     ui->textLabel2->setEnabled(false);
     ui->mnemonicWords->setEnabled(false);
+    ui->mnemonicWords->clear();
     ui->use24->setChecked(true);
+    ui->usePassphrase->setChecked(false);
+    ui->textLabel3->setEnabled(false);
+    ui->textLabel4->setEnabled(false);
+    ui->mnemonicPassPhrase->setEnabled(false);
+    ui->mnemonicPassPhrase2->setEnabled(false);
 }
 
 void Recover::on_createNew_clicked()
@@ -52,6 +58,19 @@ void Recover::on_recoverExisting_clicked()
 {
     ui->textLabel2->setEnabled(true);
     ui->mnemonicWords->setEnabled(true);
+}
+
+void Recover::on_usePassphrase_clicked()
+{
+    bool isChecked = ui->usePassphrase->isChecked();
+
+    ui->textLabel3->setEnabled(isChecked);
+    ui->textLabel4->setEnabled(isChecked);
+    ui->mnemonicPassPhrase->setEnabled(isChecked);
+    ui->mnemonicPassPhrase2->setEnabled(isChecked);
+
+    ui->mnemonicPassPhrase->clear();
+    ui->mnemonicPassPhrase2->clear();
 }
 
 bool Recover::askRecover(bool& newWallet)
@@ -126,15 +145,22 @@ bool Recover::askRecover(bool& newWallet)
                     SoftSetArg("-mnemonic", mnemonic);
                 }
 
-                std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
-                std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
+                if(recover.ui->usePassphrase->isChecked()) {
+                    std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
+                    std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
 
-                if(mnemonicPassPhrase != mnemonicPassPhrase2) {
-                    recover.ui->errorMessage->setText("<font color='red'>Passphrases don't match.</font>");
-                    continue;
+                    if(mnemonicPassPhrase != mnemonicPassPhrase2) {
+                        recover.ui->errorMessage->setText("<font color='red'>Passphrases don't match.</font>");
+                        continue;
+                    }
+
+                    if(mnemonicPassPhrase.empty()) {
+                        recover.ui->errorMessage->setText("<font color='red'>Passphrase can't be empty.</font>");
+                        continue;
+                    }
+
+                    SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
                 }
-
-                SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
 
                 if(use12)
                     SoftSetBoolArg("-use12", true);

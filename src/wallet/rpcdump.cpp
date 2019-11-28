@@ -105,6 +105,13 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    if(chain.nVersion == chain.VERSION_WITH_BIP39){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets and private keys is disabled for mnemonic-enabled wallets."
+                                             "To import your dump file, create a non-mnemonic wallet by setting \"usemnemonic=0\" in your zcoin.conf file, after backing up and removing your existing wallet.");
+    }
+
+
     string strSecret = params[0].get_str();
     string strLabel = "";
     if (params.size() > 1)
@@ -434,6 +441,13 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
+
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    if(chain.nVersion == chain.VERSION_WITH_BIP39){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets and private keys is disabled for mnemonic-enabled wallets."
+                                             "To import your dump file, create a non-mnemonic wallet by setting \"usemnemonic=0\" in your zcoin.conf file, after backing up and removing your existing wallet.");
+    }
+
 
     ifstream file;
     file.open(params[0].get_str().c_str(), std::ios::in | std::ios::ate);

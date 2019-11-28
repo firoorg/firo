@@ -24,6 +24,7 @@ Q_SIGNALS:
 private Q_SLOTS:
     void on_createNew_clicked();
     void on_recoverExisting_clicked();
+    void on_usePassphrase_clicked();
 
 private:
     void setCreateNew();
