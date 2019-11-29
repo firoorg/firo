@@ -16,6 +16,8 @@ public:
     GroupElement get_multiple();
 
 private:
+    GroupElement get_multiple_single_thread(int start_point, int point_count);
+
     void  *sc_; // secp256k1_scalar[]
     void  *pt_; // secp256k1_gej[]
     int n_points;
