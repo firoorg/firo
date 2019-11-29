@@ -7,7 +7,7 @@
                 <x>0</x>
                 <y>0</y>
                 <width>674</width>
-                <height>363</height>
+                <height>383</height>
             </rect>
         </property>
         <property name="windowTitle">
@@ -16,11 +16,11 @@
         <layout class="QVBoxLayout" name="verticalLayout">
             <item>
                 <widget class="QLabel" name="textLabel">
-                    <property name="minimumSize">
-                        <size>
-                            <width>500</width>
-                            <height>60</height>
-                        </size>
+                    <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                        </sizepolicy>
                     </property>
                     <property name="text">
                         <string>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</string>
@@ -42,11 +42,11 @@
             </item>
             <item>
                 <widget class="QFrame" name="mnemonicBox">
-                    <property name="minimumSize">
-                        <size>
-                            <width>600</width>
-                            <height>100</height>
-                        </size>
+                    <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                        </sizepolicy>
                     </property>
                     <property name="frameShape">
                         <enum>QFrame::Box</enum>
@@ -57,11 +57,11 @@
                                 <property name="alignment">
                                     <enum>Qt::AlignCenter</enum>
                                 </property>
-                                <property name="minimumSize">
-                                    <size>
-                                        <width>500</width>
-                                        <height>80</height>
-                                    </size>
+                                <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                                        <horstretch>0</horstretch>
+                                        <verstretch>0</verstretch>
+                                    </sizepolicy>
                                 </property>
                                 <property name="text">
                                     <string></string>
@@ -85,7 +85,7 @@
                     <property name="sizeHint" stdset="0">
                         <size>
                             <width>60</width>
-                            <height>30</height>
+                            <height>35</height>
                         </size>
                     </property>
                 </spacer>
