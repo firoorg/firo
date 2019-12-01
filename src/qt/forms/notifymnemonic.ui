@@ -111,6 +111,29 @@
                 </widget>
             </item>
             <item>
+                <widget class="QLabel" name="textLabel3">
+                    <property name="text">
+                        <string>Input mnemonic words below, to be sure that you got it right.</string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QLineEdit" name="words"/>
+            </item>
+            <item>
+                <widget class="QLabel" name="errorMessage">
+                    <property name="text">
+                        <string></string>
+                    </property>
+                    <property name="wordWrap">
+                        <bool>true</bool>
+                    </property>
+                </widget>
+            </item>
+            <item>
                 <widget class="QDialogButtonBox" name="buttonBox">
                     <property name="orientation">
                         <enum>Qt::Horizontal</enum>

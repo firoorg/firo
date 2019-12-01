@@ -136,6 +136,11 @@ bool Recover::askRecover(bool& newWallet)
                         continue;
                     }
 
+                    if(mnemonic.empty()) {
+                        recover.ui->errorMessage->setText("<font color='red'>Mnemonic can't be empty.</font>");
+                        continue;
+                    }
+
                     SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
                     if(!Mnemonic::mnemonic_check(secmnemonic)){
                         recover.ui->errorMessage->setText("<font color='red'>Something went wrong. Please try again.</font>");

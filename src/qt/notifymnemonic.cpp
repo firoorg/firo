@@ -33,6 +33,18 @@ void NotifyMnemonic::notify()
     NotifyMnemonic notify;
     notify.setWindowIcon(QIcon(":icons/zcoin"));
     notify.ui->mnemonic->setText(mnemonic.c_str());
-    notify.exec();
+    while(true)
+    {
+        if(notify.exec())
+        {
+            std::string inputMnememonic = notify.ui->words->text().toStdString();
+            std::string strMnemonic(mnemonic.begin(), mnemonic.end());
+            if(inputMnememonic != strMnemonic) {
+                notify.ui->errorMessage->setText("<font color='red'>Mnemonics don't match.</font>");
+                continue;
+            }
+            break;
+        }
+    }
 #endif
 }
