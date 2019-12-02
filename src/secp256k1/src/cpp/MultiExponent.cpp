@@ -111,6 +111,10 @@ public:
         return std::move(ret);
     }
 
+    int GetNumberOfThreads() {
+        return number_of_threads;
+    }
+
 };
 
 } // namespace {
@@ -192,7 +196,7 @@ GroupElement MultiExponent::get_multiple() {
     static ParallelOpThreadPool<GroupElement> parallel_op_thread_pool;
 
     constexpr int min_points_per_thread = ECMULT_PIPPENGER_THRESHOLD * 3 / 2;
-    int points_per_thread = std::max((int)(n_points / std::thread::hardware_concurrency()), min_points_per_thread);
+    int points_per_thread = std::max(n_points / parallel_op_thread_pool.GetNumberOfThreads(), min_points_per_thread);
     int n_threads = n_points / points_per_thread;
 
     if (n_threads <= 1)
