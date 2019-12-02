@@ -14,6 +14,7 @@ public:
     ~MultiExponent();
 
     GroupElement get_multiple();
+    GroupElement get_multiple_single_thread();
 
 private:
     GroupElement get_multiple_single_thread(int start_point, int point_count);

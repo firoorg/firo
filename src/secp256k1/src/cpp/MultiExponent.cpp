@@ -184,6 +184,10 @@ GroupElement MultiExponent::get_multiple_single_thread(int start_point, int poin
     return  reinterpret_cast<secp256k1_scalar *>(&r);
 }
 
+GroupElement MultiExponent::get_multiple_single_thread() {
+    return get_multiple_single_thread(0, n_points);
+}
+
 GroupElement MultiExponent::get_multiple() {
     static ParallelOpThreadPool<GroupElement> parallel_op_thread_pool;
 
