@@ -40,7 +40,7 @@ void NotifyMnemonic::notify()
             std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
             std::string strMnemonic(mnemonic.begin(), mnemonic.end());
             if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText("<font color='red'>Your input is not right, you can  go back and correct it.</font>");
+                notify.ui->errorMessage->setText("<font color='red'>Your entered phrase does not match, please press back to re-check your mnemonic phrase.</font>");
                 continue;
             }
             break;

@@ -19,6 +19,9 @@
         <property name="windowTitle">
             <string>Notification</string>
         </property>
+        <property name="wizardStyle">
+            <enum>QWizard::NStyles</enum>
+        </property>
         <property name="options">
             <set>QWizard::NoCancelButton</set>
         </property>
@@ -139,7 +142,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel3">
                         <property name="text">
-                            <string>Input mnemonic words below from your notes, to be sure that you got it right.</string>
+                            <string>Please re-enter the mnemonic phrase to ensure that you have written it down correctly.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
