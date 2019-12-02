@@ -15,9 +15,7 @@ RUN apt-get update && apt-get install -y \
     make \
     openjdk-8-jdk \
     pkg-config \
-    libzmq3-dev \
-    zlib1g-dev \
-    libminizip-dev
+    zlib1g-dev
 
 # Install Berkeley DB 4.8
 RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
@@ -25,6 +23,20 @@ RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C
     ../dist/configure --enable-cxx --includedir=/usr/include/bdb4.8 --libdir=/usr/lib && \
     make -j$(nproc) && make install && \
     cd / && rm -rf /tmp/db-4.8.30
+
+# Install minizip from source (unavailable from apt on Ubuntu 14.04)
+RUN curl -L https://www.zlib.net/zlib-1.2.11.tar.gz | tar -xz -C /tmp && \
+    cd /tmp/zlib-1.2.11/contrib/minizip && \
+    autoreconf -fi && \
+    ./configure --enable-shared=no --with-pic && \
+    make -j$(nproc) install && \
+    cd / && rm -rf /tmp/zlib-1.2.11
+
+# Install zmq from source (outdated version from apt on Ubuntu 14.04)
+RUN curl -L https://github.com/zeromq/libzmq/releases/download/v4.3.1/zeromq-4.3.1.tar.gz | tar -xz -C /tmp && \
+    cd /tmp/zeromq-4.3.1/ && ./configure --without-libsodium && \
+    make -j$(nproc) install && \
+    cd / && rm -rf /tmp/zeromq-4.3.1/
 
 # Create user to run daemon
 RUN useradd -m -U zcoind
