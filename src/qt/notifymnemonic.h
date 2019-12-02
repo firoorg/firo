@@ -2,14 +2,13 @@
 #define ZCOIN_NOTIFYMNEMONIC_H
 
 
-#include <QDialog>
-#include <QThread>
+#include <QWizard>
 
 namespace Ui {
     class NotifyMnemonic;
 }
 
-class NotifyMnemonic : public QDialog
+class NotifyMnemonic : public QWizard
 {
     Q_OBJECT
 public:

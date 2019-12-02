@@ -14,7 +14,7 @@
 #include <QMessageBox>
 
 NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
-        QDialog(parent),
+        QWizard(parent),
         ui(new Ui::NotifyMnemonic)
 {
     ui->setupUi(this);
@@ -37,14 +37,15 @@ void NotifyMnemonic::notify()
     {
         if(notify.exec())
         {
-            std::string inputMnememonic = notify.ui->words->text().toStdString();
+            std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
             std::string strMnemonic(mnemonic.begin(), mnemonic.end());
             if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText("<font color='red'>Mnemonics don't match.</font>");
+                notify.ui->errorMessage->setText("<font color='red'>Your input is not right, you can  go back and correct it.</font>");
                 continue;
             }
             break;
-        }
+        } else
+            break;
     }
 #endif
 }
