@@ -1,38 +1,209 @@
 ---
-name: "zcoin-win-signer"
+name: "zcoin-win-0.13.8"
+enable_cache: true
 suites:
 - "trusty"
 architectures:
 - "amd64"
 packages:
-- "libssl-dev"
+- "curl"
+- "g++"
+- "git-core"
+- "pkg-config"
 - "autoconf"
+- "libtool"
+- "automake"
+- "faketime"
+- "bsdmainutils"
+- "mingw-w64"
+- "g++-mingw-w64"
+- "nsis"
+- "zip"
+- "ca-certificates"
+- "python"
+- "sshpass"
 remotes:
-- "url": "https://github.com/bitcoin-core/bitcoin-detached-sigs.git"
-  "dir": "signature"
+- "url": "https://github.com/zcoinofficial/zcoin"
+  "dir": "zcoin"
 files:
-- "osslsigncode-1.7.1.tar.gz"
-- "osslsigncode-Backports-to-1.7.1.patch"
-- "zcoin-win-unsigned.tar.gz"
+- "environment.conf"
 script: |
-  BUILD_DIR=`pwd`
-  SIGDIR=${BUILD_DIR}/signature/win
-  UNSIGNED_DIR=${BUILD_DIR}/unsigned
+  WRAP_DIR=$HOME/wrapped
+  # HOSTS="x86_64-w64-mingw32 i686-w64-mingw32"
+  HOSTS="x86_64-w64-mingw32"
+  CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests"
+  FAKETIME_HOST_PROGS="g++ ar ranlib nm windres strip objcopy"
+  FAKETIME_PROGS="date makensis zip"
+  HOST_CFLAGS="-O2 -g"
+  HOST_CXXFLAGS="-O2 -g"
 
-  echo "f9a8cdb38b9c309326764ebc937cba1523a3a751a7ab05df3ecc99d18ae466c9  osslsigncode-1.7.1.tar.gz" | sha256sum -c
-  echo "a8c4e9cafba922f89de0df1f2152e7be286aba73f78505169bc351a7938dd911  osslsigncode-Backports-to-1.7.1.patch" | sha256sum -c
+  export QT_RCC_TEST=1
+  export GZIP="-9n"
+  export TAR_OPTIONS="--mtime="$REFERENCE_DATE\\\ $REFERENCE_TIME""
+  export TZ="UTC"
+  export BUILD_DIR=`pwd`
+  mkdir -p ${WRAP_DIR}
+  if test -n "$GBUILD_CACHE_ENABLED"; then
+    export SOURCES_PATH=${GBUILD_COMMON_CACHE}
+    export BASE_CACHE=${GBUILD_PACKAGE_CACHE}
+    mkdir -p ${BASE_CACHE} ${SOURCES_PATH}
+  fi
 
-  mkdir -p ${UNSIGNED_DIR}
-  tar -C ${UNSIGNED_DIR} -xf zcoin-win-unsigned.tar.gz
-
-  tar xf osslsigncode-1.7.1.tar.gz
-  cd osslsigncode-1.7.1
-  patch -p1 < ${BUILD_DIR}/osslsigncode-Backports-to-1.7.1.patch
-
-  ./configure --without-gsf --without-curl --disable-dependency-tracking
-  make
-  find ${UNSIGNED_DIR} -name "*-unsigned.exe" | while read i; do
-    INFILE="`basename "${i}"`"
-    OUTFILE="`echo "${INFILE}" | sed s/-unsigned//`"
-    ./osslsigncode attach-signature -in "${i}" -out "${OUTDIR}/${OUTFILE}" -sigin "${SIGDIR}/${INFILE}.pem"
+  function create_global_faketime_wrappers {
+  for prog in ${FAKETIME_PROGS}; do
+    echo '#!/bin/bash' > ${WRAP_DIR}/${prog}
+    echo "REAL=\`which -a ${prog} | grep -v ${WRAP_DIR}/${prog} | head -1\`" >> ${WRAP_DIR}/${prog}
+    echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${prog}
+    echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${prog}
+    echo "\$REAL \$@" >> $WRAP_DIR/${prog}
+    chmod +x ${WRAP_DIR}/${prog}
   done
+  }
+
+  function create_per-host_faketime_wrappers {
+  for i in $HOSTS; do
+    for prog in ${FAKETIME_HOST_PROGS}; do
+        echo '#!/bin/bash' > ${WRAP_DIR}/${i}-${prog}
+        echo "REAL=\`which -a ${i}-${prog} | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
+        echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${i}-${prog}
+        echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${i}-${prog}
+        echo "\$REAL \$@" >> $WRAP_DIR/${i}-${prog}
+        chmod +x ${WRAP_DIR}/${i}-${prog}
+    done
+  done
+  }
+
+  function create_per-host_linker_wrapper {
+  # This is only needed for trusty, as the mingw linker leaks a few bytes of
+  # heap, causing non-determinism. See discussion in https://github.com/bitcoin/bitcoin/pull/6900
+  for i in $HOSTS; do
+    mkdir -p ${WRAP_DIR}/${i}
+    for prog in collect2; do
+        echo '#!/bin/bash' > ${WRAP_DIR}/${i}/${prog}
+        REAL=$(${i}-gcc -print-prog-name=${prog})
+        echo "export MALLOC_PERTURB_=255" >> ${WRAP_DIR}/${i}/${prog}
+        echo "${REAL} \$@" >> $WRAP_DIR/${i}/${prog}
+        chmod +x ${WRAP_DIR}/${i}/${prog}
+    done
+    for prog in gcc g++; do
+        echo '#!/bin/bash' > ${WRAP_DIR}/${i}-${prog}
+        echo "REAL=\`which -a ${i}-${prog} | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
+        echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${i}-${prog}
+        echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${i}-${prog}
+        echo "export COMPILER_PATH=${WRAP_DIR}/${i}" >> ${WRAP_DIR}/${i}-${prog}
+        echo "\$REAL \$@" >> $WRAP_DIR/${i}-${prog}
+        chmod +x ${WRAP_DIR}/${i}-${prog}
+    done
+  done
+  }
+
+  function sign_file_remotely {
+    file_path=$1
+    file_name=$(basename "$file_path")
+    user_name="client"
+    cert_pc="$user_name@$CERT_STORE"
+    ssh_options="-oStrictHostKeyChecking=no"
+    file_path_tmp=${file_path}_2252c28b-cb8b-4a8b-9bfc-4a3bd47389f2
+
+    sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $file_path $cert_pc:/workdir
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "mv /workdir/$file_name /workdir/in"
+    rm -f $file_path_tmp
+    for delay in 1s 2s 2s 5s 10s 10s; do
+        if sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $cert_pc:/workdir/out/${file_name}-signed $file_path_tmp; then
+            break
+        fi
+        sleep $delay
+    done
+    mv $file_path_tmp $file_path
+    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "rm /workdir/out/${file_name}-signed"
+  }
+
+  # Faketime for depends so intermediate results are comparable
+  export PATH_orig=${PATH}
+  create_global_faketime_wrappers "2000-01-01 12:00:00"
+  create_per-host_faketime_wrappers "2000-01-01 12:00:00"
+  create_per-host_linker_wrapper "2000-01-01 12:00:00"
+  export PATH=${WRAP_DIR}:${PATH}
+
+  source environment.conf
+
+  cd zcoin
+  BASEPREFIX=`pwd`/depends
+  # Build dependencies for each host
+  for i in $HOSTS; do
+    make ${MAKEOPTS} -C ${BASEPREFIX} HOST="${i}"
+  done
+
+  # Faketime for binaries
+  export PATH=${PATH_orig}
+  create_global_faketime_wrappers "${REFERENCE_DATETIME}"
+  create_per-host_faketime_wrappers "${REFERENCE_DATETIME}"
+  create_per-host_linker_wrapper "${REFERENCE_DATETIME}"
+  export PATH=${WRAP_DIR}:${PATH}
+
+  # Create the release tarball using (arbitrarily) the first host
+  ./autogen.sh
+  CONFIG_SITE=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`/share/config.site ./configure --prefix=/
+  make dist
+  SOURCEDIST=`echo zcoin-*.tar.gz`
+  DISTNAME=`echo ${SOURCEDIST} | sed 's/.tar.*//'`
+
+  # Correct tar file order
+  mkdir -p temp
+  pushd temp
+  tar xf ../$SOURCEDIST
+  find zcoin-* | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ../$SOURCEDIST
+  mkdir -p $OUTDIR/src
+  cp ../$SOURCEDIST $OUTDIR/src
+  popd
+
+  ORIGPATH="$PATH"
+  # Extract the release tarball into a dir for each host and build
+  for i in ${HOSTS}; do
+    export PATH=${BASEPREFIX}/${i}/native/bin:${ORIGPATH}
+    mkdir -p distsrc-${i}
+    cd distsrc-${i}
+    INSTALLPATH=`pwd`/installed/${DISTNAME}
+    mkdir -p ${INSTALLPATH}
+    tar --strip-components=1 -xf ../$SOURCEDIST
+
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
+    make ${MAKEOPTS}
+    make ${MAKEOPTS} -C src check-security
+
+    make deploy_strip
+
+    sign_file_remotely "./release/zcoin-cli.exe"
+    sign_file_remotely "./release/zcoin-qt.exe"
+    sign_file_remotely "./release/zcoind.exe"
+
+    make deploy_installer
+
+    SETUP_FILE=$(find . -name "*-setup.exe")
+    sign_file_remotely "${SETUP_FILE}"
+
+    make install DESTDIR=${INSTALLPATH}
+    cp -f zcoin-*setup*.exe $OUTDIR/
+    cd installed
+    mv ${DISTNAME}/bin/*.dll ${DISTNAME}/lib/
+    find . -name "lib*.la" -delete
+    find . -name "lib*.a" -delete
+    rm -rf ${DISTNAME}/lib/pkgconfig
+    find ${DISTNAME}/bin -type f -executable -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
+    find ${DISTNAME}/lib -type f -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
+
+    sign_file_remotely ${DISTNAME}/bin/zcoin-cli.exe
+    sign_file_remotely ${DISTNAME}/bin/zcoin-qt.exe
+    sign_file_remotely ${DISTNAME}/bin/zcoind.exe
+
+    find ${DISTNAME} -not -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}.zip
+    find ${DISTNAME} -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}-debug.zip
+    cd ../../
+    rm -rf distsrc-${i}
+  done
+  cd $OUTDIR
+  find . -name "*-setup.exe" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ${OUTDIR}/${DISTNAME}-win.tar.gz
+  mv ${OUTDIR}/${DISTNAME}-x86_64-*-debug.zip ${OUTDIR}/${DISTNAME}-win64-debug.zip
+  # mv ${OUTDIR}/${DISTNAME}-i686-*-debug.zip ${OUTDIR}/${DISTNAME}-win32-debug.zip
+  mv ${OUTDIR}/${DISTNAME}-x86_64-*.zip ${OUTDIR}/${DISTNAME}-win64.zip
+  # mv ${OUTDIR}/${DISTNAME}-i686-*.zip ${OUTDIR}/${DISTNAME}-win32.zip
