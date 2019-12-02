@@ -64,6 +64,12 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify_final_response(
             const Exponent& challenge_x,
             std::vector<Exponent>& f_out) const {
     const std::vector<Exponent>& f = proof.f_;
+
+    for(unsigned int j = 0; j < f.size(); ++j) {
+        if(f[j] == challenge_x)
+            return false;
+    }
+
     f_out.clear();
     f_out.reserve(n_ * m_);
     for(int j = 0; j < m_; ++j) {

@@ -128,6 +128,10 @@ struct Params {
     // The block number after which sigma are accepted.
     int nSigmaStartBlock;
 
+    int nSigmaPaddingBlock;
+
+    int nDisableUnpaddedSigmaBlock;
+
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;
 
