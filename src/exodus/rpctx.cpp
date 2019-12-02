@@ -1644,10 +1644,14 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     mints.reserve(denoms.size());
 
     try {
-        wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
-            ids.push_back(m);
-            mints.push_back(std::make_pair(m.denomination, m.pubKey));
-        }));
+        try {
+            wallet->CreateSigmaMints(propertyId, denoms.begin(), denoms.end(), boost::make_function_output_iterator([&] (const SigmaMintId& m) {
+                ids.push_back(m);
+                mints.push_back(std::make_pair(m.denomination, m.pubKey));
+            }));
+        } catch (WalletLocked const &e) {
+            throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+        }
 
         // Create transaction.
         auto payload = CreatePayload_SimpleMint(propertyId, mints);
@@ -1656,12 +1660,6 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
         if (result != 0) {
             throw JSONRPCError(result, error_str(result));
         }
-    } catch (WalletLocked e) {
-        for (auto& id : ids) {
-            wallet->DeleteUnconfirmedSigmaMint(id);
-        }
-        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
-
     } catch (...) {
         for (auto& id : ids) {
             wallet->DeleteUnconfirmedSigmaMint(id);
