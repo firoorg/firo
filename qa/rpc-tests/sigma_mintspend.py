@@ -19,7 +19,7 @@ class SigmaMintSpendTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(400)
+        self.nodes[0].generate(551)
         self.sync_all()
 
         # old denomination
@@ -27,7 +27,6 @@ class SigmaMintSpendTest(BitcoinTestFramework):
         denoms = [0.1, 0.5, 1, 10, 100]
 
         start_bal = self.nodes[0].getbalance()
-        assert start_bal == 14918.000, 'Unexpected start balance: {}'.format(start_bal)
 
         mint_trans = list()
         for denom in denoms:

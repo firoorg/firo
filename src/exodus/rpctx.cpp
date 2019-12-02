@@ -1711,7 +1711,10 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     std::vector<unsigned char> payload;
 
     try {
-        auto spend = wallet->CreateSigmaSpend(propertyId, denomination);
+
+        bool fPadding = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock;
+
+        auto spend = wallet->CreateSigmaSpend(propertyId, denomination, fPadding);
         mint = spend.mint;
 
         payload = CreatePayload_SimpleSpend(

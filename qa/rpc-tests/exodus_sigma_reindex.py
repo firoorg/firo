@@ -6,7 +6,7 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 500
+        sigma_start_block = 550
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())
 
         # generate mints to spend

@@ -213,7 +213,7 @@ bool CheckSigmaSpendTransaction(
                 "CheckSigmaSpendTransaction: invalid spend transaction");
         }
 
-        if (spend->getVersion() != ZEROCOIN_TX_VERSION_3) {
+        if (spend->getVersion() != ZEROCOIN_TX_VERSION_3 && spend->getVersion() != ZEROCOIN_TX_VERSION_3_1) {
             return state.DoS(100,
                              false,
                              NSEQUENCE_INCORRECT,
@@ -275,7 +275,19 @@ bool CheckSigmaSpendTransaction(
             index = index->pprev;
         }
 
-        passVerify = spend->Verify(anonymity_set, newMetaData);
+        bool fPadding = spend->getVersion() >= ZEROCOIN_TX_VERSION_3_1;
+        if (!isVerifyDB) {
+            auto params = ::Params().GetConsensus();
+            bool fShouldPad = (nHeight != INT_MAX && nHeight >= params.nSigmaPaddingBlock) ||
+                        (nHeight == INT_MAX && chainActive.Height() >= params.nSigmaPaddingBlock);
+            //Accept both padded and not padded spends at HF block
+            if(nHeight == params.nSigmaPaddingBlock)
+                fShouldPad = fPadding;
+            if (fPadding != fShouldPad)
+                return state.DoS(1, error("Incorrect sigma spend transaction version"));
+        }
+
+        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
         if (passVerify) {
             Scalar serial = spend->getCoinSerialNumber();
             // do not check for duplicates in case we've seen exact copy of this tx in this block before
@@ -408,6 +420,9 @@ bool CheckSigmaTransaction(
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
+
+    if(tx.IsSigmaSpend() && realHeight >= consensus.nDisableUnpaddedSigmaBlock && realHeight < consensus.nSigmaPaddingBlock)
+        return state.DoS(100, error("Sigma is bisabled at this period."));
 
     bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
