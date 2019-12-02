@@ -21,12 +21,10 @@ packages:
 - "zip"
 - "ca-certificates"
 - "python"
-- "sshpass"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
-files:
-- "environment.conf"
+files: []
 script: |
   WRAP_DIR=$HOME/wrapped
   # HOSTS="x86_64-w64-mingw32 i686-w64-mingw32"
@@ -97,35 +95,12 @@ script: |
   done
   }
 
-  function sign_file_remotely {
-    file_path=$1
-    file_name=$(basename "$file_path")
-    user_name="client"
-    cert_pc="$user_name@$CERT_STORE"
-    ssh_options="-oStrictHostKeyChecking=no"
-    file_path_tmp=${file_path}_2252c28b-cb8b-4a8b-9bfc-4a3bd47389f2
-
-    sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $file_path $cert_pc:/workdir
-    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "mv /workdir/$file_name /workdir/in"
-    rm -f $file_path_tmp
-    for delay in 1s 2s 2s 5s 10s 10s; do
-        if sshpass -p "$CERT_STORE_PASSWORD" scp $ssh_options -q $cert_pc:/workdir/out/${file_name}-signed $file_path_tmp; then
-            break
-        fi
-        sleep $delay
-    done
-    mv $file_path_tmp $file_path
-    sshpass -p "$CERT_STORE_PASSWORD" ssh $ssh_options $cert_pc "rm /workdir/out/${file_name}-signed"
-  }
-
   # Faketime for depends so intermediate results are comparable
   export PATH_orig=${PATH}
   create_global_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_linker_wrapper "2000-01-01 12:00:00"
   export PATH=${WRAP_DIR}:${PATH}
-
-  source environment.conf
 
   cd zcoin
   BASEPREFIX=`pwd`/depends
@@ -167,20 +142,10 @@ script: |
     mkdir -p ${INSTALLPATH}
     tar --strip-components=1 -xf ../$SOURCEDIST
 
-    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-exodus --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
-
-    make deploy_strip
-
-    sign_file_remotely "./release/zcoin-cli.exe"
-    sign_file_remotely "./release/zcoin-qt.exe"
-    sign_file_remotely "./release/zcoind.exe"
-
-    make deploy_installer
-
-    sign_file_remotely "zcoin-0.13.8-win64-setup.exe"
-
+    make deploy
     make install DESTDIR=${INSTALLPATH}
     cp -f zcoin-*setup*.exe $OUTDIR/
     cd installed
@@ -190,18 +155,14 @@ script: |
     rm -rf ${DISTNAME}/lib/pkgconfig
     find ${DISTNAME}/bin -type f -executable -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
     find ${DISTNAME}/lib -type f -exec ${i}-objcopy --only-keep-debug {} {}.dbg \; -exec ${i}-strip -s {} \; -exec ${i}-objcopy --add-gnu-debuglink={}.dbg {} \;
-
-    sign_file_remotely ${DISTNAME}/bin/zcoin-cli.exe
-    sign_file_remotely ${DISTNAME}/bin/zcoin-qt.exe
-    sign_file_remotely ${DISTNAME}/bin/zcoind.exe
-
     find ${DISTNAME} -not -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}.zip
     find ${DISTNAME} -name "*.dbg"  -type f | sort | zip -X@ ${OUTDIR}/${DISTNAME}-${i}-debug.zip
     cd ../../
     rm -rf distsrc-${i}
   done
   cd $OUTDIR
-  find . -name "*-setup.exe" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ${OUTDIR}/${DISTNAME}-win.tar.gz
+  rename 's/-setup\.exe$/-setup-unsigned.exe/' *-setup.exe
+  find . -name "*-setup-unsigned.exe" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ${OUTDIR}/${DISTNAME}-win-unsigned.tar.gz
   mv ${OUTDIR}/${DISTNAME}-x86_64-*-debug.zip ${OUTDIR}/${DISTNAME}-win64-debug.zip
   # mv ${OUTDIR}/${DISTNAME}-i686-*-debug.zip ${OUTDIR}/${DISTNAME}-win32-debug.zip
   mv ${OUTDIR}/${DISTNAME}-x86_64-*.zip ${OUTDIR}/${DISTNAME}-win64.zip
