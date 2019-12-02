@@ -21,6 +21,9 @@
 #include <queue>
 #include <algorithm>
 
+// our code currently relies on boost disable_interruption. This will go away with core upgrade
+#include <boost/thread.hpp>
+
 // Simple implementation of thread pool
 
 namespace {
@@ -204,6 +207,7 @@ GroupElement MultiExponent::get_multiple() {
 
     points_per_thread = n_points / n_threads;
 
+    boost::this_thread::disable_interruption dnd;
     std::vector<std::shared_future<GroupElement>> parallel_tasks;
 
     parallel_tasks.reserve(n_threads);
