@@ -5659,7 +5659,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
 {
     int nHeight = chainActive.Height();
     if(nHeight >= ::Params().GetConsensus().nDisableUnpaddedSigmaBlock && nHeight < ::Params().GetConsensus().nSigmaPaddingBlock)
-        throw std::runtime_error(_("Sigma is disabled at this period"));
+        throw std::runtime_error(_("Sigma is disabled at this period."));
     // sanity check
     EnsureMintWalletAvailable();
 

@@ -115,6 +115,7 @@ public:
         AmountExceedsBalance,
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
+        SigmaDisabled,
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
