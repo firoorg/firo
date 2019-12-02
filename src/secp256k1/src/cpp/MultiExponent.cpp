@@ -39,7 +39,7 @@ private:
     std::condition_variable                   task_queue_condition;
 
     bool                                      shutdown;
-    size_t                                    number_of_threads;
+    size_t const                              number_of_threads;
 
     void ThreadProc() {
         for (;;) {
@@ -111,7 +111,7 @@ public:
         return std::move(ret);
     }
 
-    int GetNumberOfThreads() {
+    int GetNumberOfThreads() const {
         return number_of_threads;
     }
 
