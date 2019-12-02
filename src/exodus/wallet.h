@@ -46,7 +46,7 @@ public:
 
     void ClearAllChainState();
 
-    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination);
+    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding);
     void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 
 public:

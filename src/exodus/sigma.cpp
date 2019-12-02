@@ -16,7 +16,8 @@ bool VerifySigmaSpend(
     SigmaDenomination denomination,
     SigmaMintGroup group,
     size_t groupSize,
-    const SigmaProof& proof)
+    const SigmaProof& proof,
+    bool fPadding)
 {
     std::vector<SigmaPublicKey> anonimitySet; // Don't preallocate the vector due to it will allow attacker to crash all client.
 
@@ -30,7 +31,7 @@ bool VerifySigmaSpend(
         return false;
     }
 
-    return proof.Verify(anonimitySet.begin(), anonimitySet.end());
+    return proof.Verify(anonimitySet.begin(), anonimitySet.end(), fPadding);
 }
 
 } // namespace exodus

@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(sigma_spend_init)
     SigmaMint mint(3, 0, Hash160({0x00}), Hash160({0x01}));
 
     std::vector<SigmaPublicKey> anonimitySet = { pub1, pub2 };
-    SigmaProof proof(params, key1, anonimitySet.begin(), anonimitySet.end());
+    SigmaProof proof(params, key1, anonimitySet.begin(), anonimitySet.end(), false);
     SigmaSpend spend(id, 1, 100, proof);
 
     BOOST_CHECK_EQUAL(spend.mint, id);
