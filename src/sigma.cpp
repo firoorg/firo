@@ -720,7 +720,6 @@ bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
 }
 
 bool BuildSigmaStateFromIndex(CChain *chain) {
-    sigmaState.Reset();
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
         sigmaState.AddBlock(blockIndex);
