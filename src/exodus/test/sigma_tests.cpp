@@ -65,7 +65,7 @@ BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
         anonimitySet.push_back(mint);
     }
 
-    proof.Generate(key, anonimitySet.begin(), anonimitySet.end());
+    proof.Generate(key, anonimitySet.begin(), anonimitySet.end(), false);
 
     // Generate spendable group.
     for (unsigned i = 0; i < sigmaDb->groupSize; i++) {
@@ -91,13 +91,13 @@ BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
         sigmaDb->RecordMint(3, 0, mint, block);
     }
 
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size(), proof), true);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() - 1, proof), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() + 1, proof), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, sigmaDb->groupSize + 1, proof), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 1, 0, sigmaDb->groupSize, proof), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(4, 0, 0, sigmaDb->groupSize, proof), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 1, sigmaDb->groupSize, proof), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size(), proof, false), true);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() - 1, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() + 1, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, sigmaDb->groupSize + 1, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 1, 0, sigmaDb->groupSize, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(4, 0, 0, sigmaDb->groupSize, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 1, sigmaDb->groupSize, proof, false), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

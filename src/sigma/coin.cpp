@@ -194,7 +194,7 @@ bool PublicCoin::operator!=(const PublicCoin& other) const{
 }
 
 bool PublicCoin::validate() const{
-    return this->value.isMember();
+    return this->value.isMember() && !this->value.isInfinity();
 }
 
 size_t PublicCoin::GetSerializeSize(int nType, int nVersion) const{

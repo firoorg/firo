@@ -321,8 +321,10 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 if (!setAddedTx.count(txHash)) {
                     CBlock block;
                     CWalletTx wtx(pwalletMain, tx);
-                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+                        LOCK(cs_main);
                         wtx.SetMerkleBranch(block);
+                    }
 
                     //Fill out wtx so that a transaction record can be created
                     wtx.nTimeReceived = pindex->GetBlockTime();
@@ -416,8 +418,10 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         CWalletTx wtx(pwalletMain, txSpend);
         CBlockIndex* pindex = chainActive[nHeightTx];
         CBlock block;
-        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+            LOCK(cs_main);
             wtx.SetMerkleBranch(block);
+        }
 
         wtx.nTimeReceived = pindex->nTime;
         pwalletMain->AddToWallet(wtx, false, &walletdb);

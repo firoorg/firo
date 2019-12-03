@@ -52,6 +52,8 @@ public:
 
   bool isMember() const;
 
+  bool isInfinity() const;
+
   GroupElement& generate(unsigned char* seed);
 
   void sha256(unsigned char* result) const;
