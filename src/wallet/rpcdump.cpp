@@ -728,10 +728,9 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         }
 
         SecureString mnemonic;
-        if(!mContainer.GetMnemonic(mnemonic))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot get mnemonic");
-
-        file << "# mnemonic: " << mnemonic << "\n";
+        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+        if(mContainer.GetMnemonic(mnemonic))
+            file << "# mnemonic: " << mnemonic << "\n";
 
         SecureVector seed = mContainer.GetSeed();
         file << "# HD seed: " << HexStr(seed) << "\n\n";
