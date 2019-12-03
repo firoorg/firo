@@ -994,14 +994,14 @@ void InitParameterInteraction() {
 
     // Forcing all mnemonic settings off if -usehd is off.
     if (!GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET)) {
-        if (SoftSetBoolArg("-usemnemonic", false) && SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", ""))
-            LogPrintf("%s: Potential  parameter interaction: -usehd=0 -> setting -usemnemonic=0, -mnemonic=\"\", -mnemonicpassphrase=\"\"\n", __func__);
+        if (SoftSetBoolArg("-usemnemonic", false) && SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
+            LogPrintf("%s: Potential  parameter interaction: -usehd=0 -> setting -usemnemonic=0, -mnemonic=\"\", -mnemonicpassphrase=\"\", -hdseed=\"not hex\"\n", __func__);
     }
 
     // Forcing all remaining mnemonic settings off if -usemnemonic is off.
     if (!GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) {
-        if (SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", ""))
-            LogPrintf("%s: Potential parameter interaction: -usemnemonic=0 -> setting -mnemonic=\"\", -mnemonicpassphrase=\"\"\n", __func__);
+        if (SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
+            LogPrintf("%s: Potential parameter interaction: -usemnemonic=0 -> setting -mnemonic=\"\", -mnemonicpassphrase=\"\"\n, -hdseed=\"not hex\"\n", __func__);
     }
 }
 
