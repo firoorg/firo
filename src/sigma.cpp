@@ -178,16 +178,25 @@ bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
 
 // Will return false for V1, V1.5 and V2 spends.
 // Mixing V2 and sigma spends into the same transaction will fail.
+// Called only when isVerifyDb == false
 bool CheckSigmaSpendTransaction(
         const CTransaction &tx,
         const vector<sigma::CoinDenomination>& targetDenominations,
         CValidationState &state,
         uint256 hashTx,
-        bool isVerifyDB,
         int nHeight,
+        int nRealHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSigmaTxInfo *sigmaTxInfo) {
+
+    Consensus::Params const & params = ::Params().GetConsensus();
+
+    if(!isCheckWallet) {
+        if(nRealHeight >= params.nDisableUnpaddedSigmaBlock && nRealHeight < params.nSigmaPaddingBlock)
+            return state.DoS(100, error("Sigma is disabled at this period."));
+    }
+
     bool hasSigmaSpendInputs = false, hasNonSigmaInputs = false;
     int vinIndex = -1;
     std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
@@ -276,16 +285,14 @@ bool CheckSigmaSpendTransaction(
         }
 
         bool fPadding = spend->getVersion() >= ZEROCOIN_TX_VERSION_3_1;
-        if (!isVerifyDB) {
-            auto params = ::Params().GetConsensus();
-            bool fShouldPad = (nHeight != INT_MAX && nHeight >= params.nSigmaPaddingBlock) ||
-                        (nHeight == INT_MAX && chainActive.Height() >= params.nSigmaPaddingBlock);
-            //Accept both padded and not padded spends at HF block
-            if(nHeight == params.nSigmaPaddingBlock)
-                fShouldPad = fPadding;
-            if (fPadding != fShouldPad)
-                return state.DoS(1, error("Incorrect sigma spend transaction version"));
-        }
+
+        bool fShouldPad = (nHeight != INT_MAX && nHeight >= params.nSigmaPaddingBlock) ||
+                    (nHeight == INT_MAX && chainActive.Height() >= params.nSigmaPaddingBlock);
+        //Accept both padded and not padded spends at HF block
+        if(nHeight == params.nSigmaPaddingBlock)
+            fShouldPad = fPadding;
+        if (fPadding != fShouldPad)
+            return state.DoS(1, error("Incorrect sigma spend transaction version"));
 
         passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
         if (passVerify) {
@@ -305,7 +312,7 @@ bool CheckSigmaSpendTransaction(
                     error("CheckSigmaSpendTransaction: two or more spends with same serial in the same transaction"));
             }
 
-            if(!isVerifyDB && !isCheckWallet) {
+            if(!isCheckWallet) {
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     // add spend information to the index
                     sigmaTxInfo->spentSerials.insert(std::make_pair(
@@ -319,7 +326,7 @@ bool CheckSigmaSpendTransaction(
         }
     }
 
-    if(!isVerifyDB && !isCheckWallet) {
+    if(!isCheckWallet) {
         if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete && hasSigmaSpendInputs) {
             sigmaTxInfo->zcTransactions.insert(hashTx);
         }
@@ -411,7 +418,7 @@ bool CheckSigmaTransaction(
         bool fStatefulSigmaCheck,
         CSigmaTxInfo *sigmaTxInfo)
 {
-    auto& consensus = ::Params().GetConsensus();
+    Consensus::Params const & consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight = nHeight;
@@ -421,15 +428,14 @@ bool CheckSigmaTransaction(
         realHeight = chainActive.Height();
     }
 
-    if(tx.IsSigmaSpend() && realHeight >= consensus.nDisableUnpaddedSigmaBlock && realHeight < consensus.nSigmaPaddingBlock)
-        return state.DoS(100, error("Sigma is bisabled at this period."));
+    bool const allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
-    bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
-
-    if (allowSigma && sigmaState.IsSurgeConditionDetected()) {
-        return state.DoS(100, false,
-            REJECT_INVALID,
-            "Sigma surge protection is ON.");
+    if(!isVerifyDB && !isCheckWallet) {
+        if (allowSigma && sigmaState.IsSurgeConditionDetected()) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "Sigma surge protection is ON.");
+        }
     }
 
     // Check Mint Sigma Transaction
@@ -488,7 +494,7 @@ bool CheckSigmaTransaction(
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
             if (!CheckSigmaSpendTransaction(
-                tx, denominations, state, hashTx, isVerifyDB, nHeight,
+                tx, denominations, state, hashTx, nHeight, realHeight,
                 isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
                     return false;
             }
