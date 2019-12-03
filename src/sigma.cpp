@@ -418,7 +418,7 @@ bool CheckSigmaTransaction(
         bool fStatefulSigmaCheck,
         CSigmaTxInfo *sigmaTxInfo)
 {
-    Consensus::Params & consensus = ::Params().GetConsensus();
+    Consensus::Params const & consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight = nHeight;
@@ -494,7 +494,7 @@ bool CheckSigmaTransaction(
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
             if (!CheckSigmaSpendTransaction(
-                tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight
+                tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight,
                 isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
                     return false;
             }
