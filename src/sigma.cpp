@@ -494,7 +494,7 @@ bool CheckSigmaTransaction(
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
             if (!CheckSigmaSpendTransaction(
-                tx, denominations, state, hashTx, isVerifyDB, nHeight,
+                tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight
                 isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
                     return false;
             }
