@@ -1668,7 +1668,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 delete pcoinsdbview;
                 delete pcoinscatcher;
                 delete pblocktree;
-                sigma::CSigmaState::GetState()->Reset();
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 

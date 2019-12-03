@@ -5446,6 +5446,7 @@ bool RewindBlockIndex(const CChainParams &params) {
 }
 
 void UnloadBlockIndex() {
+    sigma::CSigmaState::GetState()->Reset();
     LOCK(cs_main);
     setBlockIndexCandidates.clear();
     chainActive.SetTip(NULL);
