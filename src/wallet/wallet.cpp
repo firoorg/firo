@@ -8061,9 +8061,13 @@ bool CWallet::InitLoadWallet() {
                 if (GetArg("-mnemonicpassphrase", "").size() > 256) {
                     throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
                 }
-                // generate a new HD chian
+                // generate a new HD chain
                 walletInstance->GenerateNewMnemonic();
                 walletInstance->SetMinVersion(FEATURE_HD);
+                /* set rescan to true.
+                 * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
+                 */
+                SoftSetBoolArg("-rescan", true);
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();

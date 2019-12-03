@@ -869,7 +869,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
     }
-    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+    // Need this to restore Sigma spend state
+    if (GetBoolArg("-rescan", false) && zwalletMain) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
