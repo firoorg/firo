@@ -287,9 +287,6 @@ bool CheckSigmaSpendTransaction(
         if (!isVerifyDB) {
             bool fShouldPad = (nHeight != INT_MAX && nHeight >= params.nSigmaPaddingBlock) ||
                         (nHeight == INT_MAX && chainActive.Height() >= params.nSigmaPaddingBlock);
-            //Accept both padded and not padded spends at HF block
-            if(nHeight == params.nSigmaPaddingBlock)
-                fShouldPad = fPadding;
             if (fPadding != fShouldPad)
                 return state.DoS(1, error("Incorrect sigma spend transaction version"));
         }

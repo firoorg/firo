@@ -4039,7 +4039,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
     }
 
     //clear all old sigma spend transaction from mempool, to stat padding
-    if (chainActive.Height() == ::Params().GetConsensus().nSigmaPaddingBlock) {
+    if ((chainActive.Height() + 1) == ::Params().GetConsensus().nSigmaPaddingBlock) {
         LOCK2(cs_main, mempool.cs);
         for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
              mi != mempool.mapTx.end(); ++mi)
