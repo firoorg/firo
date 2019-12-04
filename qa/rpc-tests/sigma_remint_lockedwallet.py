@@ -65,8 +65,6 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         self.nodes[0].walletpassphrase(encr_key, 10)
         time.sleep(5)
         
-        self.nodes[0].generate(1)
-
         # remint should work
         self.nodes[0].remintzerocointosigma(zcoin_denoms[0])
 

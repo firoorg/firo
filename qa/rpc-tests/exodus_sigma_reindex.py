@@ -6,7 +6,7 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 500
+        sigma_start_block = 550
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())
 
         # generate mints to spend
@@ -59,16 +59,12 @@ class ExodusSigmaReindexTest(ExodusTestFramework):
         connect_nodes(self.nodes[0], 1)
 
         sync_blocks(self.nodes)
-        self.nodes[0].generate(1)
 
         reindexed_confirmed_mints = self.nodes[0].exodus_listmints()
         self.compare_mints(confirmed_mints, reindexed_confirmed_mints)
 
         reindexed_unconfirmed_mints = self.nodes[0].exodus_listpendingmints()
         self.compare_mints(unconfirmed_mints, reindexed_unconfirmed_mints)
-
-        sync_blocks(self.nodes)
-        self.nodes[0].generate(1)
 
         # spend remaining mints
         self.nodes[0].exodus_sendspend(self.addrs[0], sigma_property, 0)

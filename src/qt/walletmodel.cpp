@@ -875,6 +875,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     } catch (const std::runtime_error& err) {
         if (_("Can not choose coins within limit.") == err.what())
             return ExceedLimit;
+        if (_("Sigma is disabled at this period.") == err.what())
+            return SigmaDisabled;
         throw err;
     } catch (const std::invalid_argument& err) {
         return ExceedLimit;
