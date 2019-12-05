@@ -1815,9 +1815,15 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
 #ifdef ENABLE_WALLET
     LogPrintf("Step 8: load wallet ************************************\n");
+    if (GetBoolArg("-disablewallet", false)) {
+        pwalletMain = NULL;
+        zwalletMain = NULL;
+        LogPrintf("Wallet disabled!\n");
+    } else {
     CWallet::InitLoadWallet();
     if (!pwalletMain)
         return false;
+    }
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
