@@ -281,6 +281,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 }
             }
         }
+        // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
+        if(found)
+            listMints = boost::none;
     }
 }
 
