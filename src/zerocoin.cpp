@@ -110,9 +110,10 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
         txHeight = nHeight == INT_MAX ? chainActive.Height() : nHeight;
     }
 
-    if (txHeight < params.nSigmaStartBlock || txHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
-        // we allow transactions of remint type only during specific window
-        return false;
+    if(!isVerifyDB)
+        if (txHeight < params.nSigmaStartBlock || txHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
+            // we allow transactions of remint type only during specific window
+            return false;
     
     // There should only one remint input
     if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() == 0 || tx.vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)
