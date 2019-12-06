@@ -2,6 +2,12 @@
 <ui version="4.0">
  <class>Recover</class>
  <widget class="QDialog" name="Recover">
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,54 +17,65 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Create or Recover</string>
+   <string>Create or Recover Wallet</string>
   </property>
-   <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QLabel" name="textLabel">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="text">
-      <string>Let's create your wallet! Some info: A backup of the wallet will be created in the form of a list of words called a mnemonic. This list must never be given to anyone as it defines all of your keys, and thus any funds you have in this wallet.
+      <string>Let's create your Zcoin wallet!
 
-The mnemonic scheme used is called BIP39. You can either create a new BIP39 wallet here, or recover an existing one by entering a valid BIP39 word list.
+Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
 
-If you're not sure, click OK, and a secure wallet will be generated for you. You will be shown a word list on the next screen, please note down these words in a safe location.
+By default we create a 24 word seed but you may choose a 12 word seed should you require it for compatibility reasons.
 
-(Advanced: if you'd rather not generate a wallet with the mnemonic feature, you can restart Zcoin-Qt now with the usemnemonic=0 option, either in your zcoin.conf file, or passed as an argument to the Zcoin-Qt program).
+You can also choose to further encrypt your seed with a passphrase for added security.
+
+Warning:
+* Never disclose your seed
+* Never type it on a website
+* Do not store it electronically.
+* If you encrypt your seed with an additional passphrase, please also record this.
+
+If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
+
+Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in zcoin.conf.
       </string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>
-    </widget>
-   </item>
-<item>
- <widget class="QFrame" name="createorrecover">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>500</width>
-    <height>30</height>
-   </rect>
-  </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
-   <item>
-    <widget class="QRadioButton" name="createNew">
-     <property name="text">
-      <string>Create new wallet</string>
+     <property name="margin">
+      <number>10</number>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QRadioButton" name="recoverExisting">
-     <property name="text">
-      <string>Recover existing wallet</string>
-     </property>
+    <widget class="QFrame" name="createorrecover">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QRadioButton" name="createNew">
+        <property name="text">
+         <string>Create new wallet</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="recoverExisting">
+        <property name="text">
+         <string>Recover existing wallet</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
-  </layout>
- </widget>
-</item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="spacing">
@@ -84,139 +101,152 @@ If you're not sure, click OK, and a secure wallet will be generated for you. You
       </spacer>
      </item>
      <item>
-     <widget class="QFrame" name="numberofwords">
-     <layout class="QHBoxLayout" name="horizontalLayout1">
-     <item>
-      <widget class="QRadioButton" name="use12">
-       <property name="text">
-        <string>12 Words</string>
-       </property>
+      <widget class="QFrame" name="numberofwords">
+       <layout class="QHBoxLayout" name="horizontalLayout1">
+        <item>
+         <widget class="QRadioButton" name="use12">
+          <property name="text">
+           <string>12 Words</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="use24">
+          <property name="text">
+           <string>24 Words</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
-     </item>
-     <item>
-      <widget class="QRadioButton" name="use24">
-       <property name="text">
-        <string>24 Words</string>
-       </property>
-      </widget>
-     </item>
-     </layout>
-    </widget>
      </item>
     </layout>
    </item>
- <item>
-  <spacer name="horizontalSpacer">
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="sizeType">
-    <enum>QSizePolicy::Fixed</enum>
-   </property>
-   <property name="sizeHint" stdset="0">
-    <size>
-     <height>15</height>
-    </size>
-   </property>
-  </spacer>
- </item>
- <item>
-  <layout class="QHBoxLayout" name="horizontalLayout2">
    <item>
-    <widget class="QLabel" name="textLabel2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Fixed</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>15</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout2">
+     <item>
+      <widget class="QLabel" name="textLabel2">
+       <property name="text">
+        <string>Input words here:</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="mnemonicWords"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="horizontalSpacer1">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Fixed</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>15</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QFrame" name="togglepassphrase">
+     <layout class="QHBoxLayout" name="horizontalLayout5">
+      <item>
+       <widget class="QCheckBox" name="usePassphrase">
+        <property name="text">
+         <string>Use seed passphrase (optional):</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout"/>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="textLabel4">
+       <property name="text">
+        <string>Input mnemonic passphrase here:</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="mnemonicPassPhrase">
+       <property name="echoMode">
+        <enum>QLineEdit::Password</enum>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+       <property name="dragEnabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="textLabel3">
+       <property name="text">
+        <string>Input mnemonic passphrase again:</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="mnemonicPassPhrase2">
+       <property name="echoMode">
+        <enum>QLineEdit::Password</enum>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+       <property name="dragEnabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="errorMessage">
      <property name="text">
-      <string>Input words here:</string>
+      <string/>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>
     </widget>
    </item>
-    <item>
-     <widget class="QLineEdit" name="mnemonicWords"/>
-    </item>
-  </layout>
- </item>
-    <item>
-     <spacer name="horizontalSpacer1">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="sizeType">
-       <enum>QSizePolicy::Fixed</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <height>15</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-   <item>
-   <widget class="QFrame" name="togglepassphrase">
-    <layout class="QHBoxLayout" name="horizontalLayout5">
-     <item>
-      <widget class="QCheckBox" name="usePassphrase">
-       <property name="text">
-        <string>Use passphrase (Your mnemonic can be encrypted with an addional passphrase)</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </widget>
-  </item>
- <item>
-   <layout class="QHBoxLayout" name="horizontalLayout3">
-    <item>
-     <widget class="QLabel" name="textLabel3">
-      <property name="text">
-       <string>Input mnemonic passphrase here:</string>
-      </property>
-      <property name="wordWrap">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLineEdit" name="mnemonicPassPhrase">
-     <property name="echoMode">
-      <enum>QLineEdit::Password</enum>
-     </property>
-     </widget>
-    </item>
-   </layout>
- </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout4">
-      <item>
-       <widget class="QLabel" name="textLabel4">
-        <property name="text">
-         <string>Input mnemonic passphrase again:</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="mnemonicPassPhrase2">
-        <property name="echoMode">
-         <enum>QLineEdit::Password</enum>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="QLabel" name="errorMessage">
-      <property name="text">
-       <string></string>
-      </property>
-      <property name="wordWrap">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
    <item>
     <spacer name="verticalSpacer">
      <property name="orientation">

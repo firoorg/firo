@@ -16,6 +16,8 @@ public:
     ~NotifyMnemonic();
 
     static void notify();
+private Q_SLOTS:
+    void cancelEvent();
 private:
     Ui::NotifyMnemonic *ui;
 };

@@ -12,17 +12,28 @@
 #include <QFileDialog>
 #include <QSettings>
 #include <QMessageBox>
+#include <QAbstractButton>
 
 NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
         QWizard(parent),
         ui(new Ui::NotifyMnemonic)
 {
     ui->setupUi(this);
+    disconnect(QWizard::button(QWizard::CancelButton), SIGNAL(clicked()), this, SLOT(reject()));
+    connect(QWizard::button(QWizard::CancelButton), SIGNAL(clicked()), this, SLOT( cancelEvent()));
 }
 
 NotifyMnemonic::~NotifyMnemonic()
 {
     delete ui;
+}
+
+void NotifyMnemonic::cancelEvent()
+{
+    if( QMessageBox::question( this, trUtf8( "Warning" ), trUtf8( "Are you sure to close the setup without confirming that you have got words right." ), QMessageBox::Yes, QMessageBox::No ) == QMessageBox::Yes ) {
+        // allow cancel
+        reject();
+    }
 }
 
 void NotifyMnemonic::notify()
@@ -40,7 +51,7 @@ void NotifyMnemonic::notify()
             std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
             std::string strMnemonic(mnemonic.begin(), mnemonic.end());
             if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText("<font color='red'>Your entered phrase does not match, please press back to re-check your mnemonic phrase.</font>");
+                notify.ui->errorMessage->setText("<font color='red'>Your entered words do not match, please press back to re-check your mnemonic.</font>");
                 continue;
             }
             break;
