@@ -5679,12 +5679,18 @@ bool CWallet::CreateSigmaSpendTransaction(
             privateCoin.setSerialNumber(coinToUse.serialNumber);
             privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            sigma::CoinSpend spend(sigmaParams, privateCoin, anonimity_set, metaData);
+            bool fPadding = false;
+            if(chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock) {
+                txVersion = ZEROCOIN_TX_VERSION_3_1;
+                fPadding = true;
+            }
+
+            sigma::CoinSpend spend(sigmaParams, privateCoin, anonimity_set, metaData, fPadding);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
-            if (!spend.Verify(anonimity_set, metaData)) {
+            if (!spend.Verify(anonimity_set, metaData,fPadding)) {
                 strFailReason = _("the spend coin transaction did not verify");
                 return false;
             }
@@ -5796,6 +5802,9 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     const CCoinControl *coinControl,
     bool fDummy)
 {
+    int nHeight = chainActive.Height();
+    if(nHeight >= ::Params().GetConsensus().nDisableUnpaddedSigmaBlock && nHeight < ::Params().GetConsensus().nSigmaPaddingBlock)
+        throw std::runtime_error(_("Sigma is disabled at this period."));
     // sanity check
     EnsureMintWalletAvailable();
 
@@ -6315,7 +6324,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 // Construct the CoinSpend object. This acts like a signature on the
                 // transaction.
                 sigma::PrivateCoin privateCoin(sigmaParams, denomination);
-                int txVersion = ZEROCOIN_TX_VERSION_3;
+                int txVersion = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock ? ZEROCOIN_TX_VERSION_3_1 : ZEROCOIN_TX_VERSION_3;
 
                 LogPrintf("CreateZerocoinSpendTransaction: tx version=%d, tx metadata hash=%s\n", txVersion, txNew.GetHash().ToString());
 
@@ -6363,6 +6372,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
 
             uint256 txHashForMetadata = txTemp.GetHash();
             LogPrintf("txNew.GetHash: %s\n", txHashForMetadata.ToString());
+
             std::vector<sigma::CoinSpend> spends;
             // Iterator of std::vector<std::pair<int64_t, sigma::CoinDenomination>>::const_iterator
             for (auto it = denominations.begin(); it != denominations.end(); it++)
@@ -6379,15 +6389,18 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 TempStorage tempStorage = tempStorages.at(index);
                 CSigmaEntry coinToUse = tempStorage.coinToUse;
 
+                bool fPadding = tempStorage.txVersion >= ZEROCOIN_TX_VERSION_3_1;
+
                 // Recreate CoinSpend object
                 sigma::CoinSpend spend(sigmaParams,
                                        tempStorage.privateCoin,
                                        tempStorage.anonimity_set,
-                                       metaData);
+                                       metaData,
+                                       fPadding);
                 spend.setVersion(tempStorage.txVersion);
                 spends.push_back(spend);
                 // Verify the coinSpend
-                if (!spend.Verify(tempStorage.anonimity_set, metaData)) {
+                if (!spend.Verify(tempStorage.anonimity_set, metaData, fPadding)) {
                     strFailReason = _("the spend coin transaction did not verify");
                     return false;
                 }

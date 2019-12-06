@@ -17,6 +17,7 @@ public:
     void proof(const std::vector<GroupElement>& commits,
                std::size_t l,
                const Exponent& r,
+               bool fPadding,
                SigmaPlusProof<Exponent, GroupElement>& proof_out);
 
 private:

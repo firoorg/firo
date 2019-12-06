@@ -24,21 +24,23 @@ public:
     const sigma::PrivateCoin coin;
     std::vector<sigma::PublicCoin> group;
     uint256 lastBlockOfGroup;
+    bool fPadding;
 
 public:
     SigmaSpendSigner(const sigma::PrivateCoin& coin) : coin(coin)
     {
+        fPadding = true;
     }
 
     CScript Sign(const CMutableTransaction& tx, const uint256& sig, bool fDummy) override
     {
         // construct spend
         sigma::SpendMetaData meta(output.n, lastBlockOfGroup, sig);
-        sigma::CoinSpend spend(coin.getParams(), coin, group, meta);
+        sigma::CoinSpend spend(coin.getParams(), coin, group, meta, fPadding);
 
         spend.setVersion(coin.getVersion());
 
-        if (!fDummy && !spend.Verify(group, meta)) {
+        if (!fDummy && !spend.Verify(group, meta, fPadding)) {
             throw std::runtime_error(_("The spend coin transaction failed to verify"));
         }
 
@@ -68,8 +70,14 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
         throw std::runtime_error(_("One of the minted coin is invalid"));
     }
 
+    int version;
+    {
+        LOCK(cs_main);
+        version = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock ? ZEROCOIN_TX_VERSION_3_1
+                                                                                       : ZEROCOIN_TX_VERSION_3;
+    }
     // construct private part of the mint
-    sigma::PrivateCoin priv(params, denom, ZEROCOIN_TX_VERSION_3);
+    sigma::PrivateCoin priv(params, denom, version);
 
     priv.setSerialNumber(coin.serialNumber);
     priv.setRandomness(coin.randomness);
@@ -99,6 +107,9 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
         signer->group) < 2) {
         throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
     }
+
+    if(version < ZEROCOIN_TX_VERSION_3_1)
+        signer->fPadding = false;
 
     return signer;
 }

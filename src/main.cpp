@@ -4038,6 +4038,20 @@ bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
         return false;
     }
 
+    //clear all old sigma spend transaction from mempool, to stat padding
+    if ((chainActive.Height() + 1) == ::Params().GetConsensus().nSigmaPaddingBlock) {
+        LOCK2(cs_main, mempool.cs);
+        for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
+             mi != mempool.mapTx.end(); ++mi)
+        {
+            auto tx = mi->GetTx();
+            if(tx.IsSigmaSpend()) {
+                std::list<CTransaction> removed;
+                mempool.removeRecursive(tx, removed);
+            }
+        }
+    }
+
     return true;
 }
 
@@ -5432,6 +5446,7 @@ bool RewindBlockIndex(const CChainParams &params) {
 }
 
 void UnloadBlockIndex() {
+    sigma::CSigmaState::GetState()->Reset();
     LOCK(cs_main);
     setBlockIndexCandidates.clear();
     chainActive.SetTip(NULL);
