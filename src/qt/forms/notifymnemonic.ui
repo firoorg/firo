@@ -8,11 +8,19 @@
                 <verstretch>0</verstretch>
             </sizepolicy>
         </property>
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>514</width>
+                <height>370</height>
+            </rect>
+        </property>
         <property name="windowTitle">
             <string>Notification</string>
         </property>
         <property name="wizardStyle">
-            <enum>QWizard::NStyles</enum>
+            <enum>QWizard::ClassicStyle</enum>
         </property>
         <property name="options">
             <set>QWizard::NoBackButtonOnStartPage</set>
@@ -28,7 +36,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel">
                         <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                                 <horstretch>0</horstretch>
                                 <verstretch>0</verstretch>
                             </sizepolicy>
@@ -125,7 +133,7 @@
         </widget>
         <widget class="QWizardPage" name="wizardPage2">
             <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                     <horstretch>0</horstretch>
                     <verstretch>0</verstretch>
                 </sizepolicy>
@@ -144,7 +152,7 @@
                 <item>
                     <widget class="QTextEdit" name="words">
                         <property name="sizePolicy">
-                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                                 <horstretch>0</horstretch>
                                 <verstretch>0</verstretch>
                             </sizepolicy>
