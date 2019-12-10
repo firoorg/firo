@@ -146,6 +146,18 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
     raise AssertionError("Block sync to height {} timed out:{}".format(
                          maxheight, "".join("\n  {!r}".format(tip) for tip in tips)))
 
+def sync_znodes(rpc_connections, *, timeout=60):
+    """
+    Waits until every node has their znsync status is synced.
+    """
+    start_time = cur_time = time.time()
+    while cur_time <= start_time + timeout:
+        statuses = [r.znsync("status") for r in rpc_connections]
+        if all(stat["IsSynced"] == True for stat in statuses):
+            return
+        cur_time = time.time()
+    raise AssertionError("Znode sync failed.")
+
 def sync_chain(rpc_connections, *, wait=1, timeout=60):
     """
     Wait until everybody has the same best block

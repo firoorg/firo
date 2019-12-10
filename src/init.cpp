@@ -770,6 +770,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         StartShutdown();
     }
 
+    LoadMempool();
+
 #ifdef ENABLE_WALLET
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
@@ -779,7 +781,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
 #endif
     } // End scope of CImportingNow
-    LoadMempool();
     fDumpMempoolLater = !fRequestShutdown;
 }
 

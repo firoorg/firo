@@ -29,7 +29,7 @@ from test_framework.util import *
 class HDMintMempoolZapTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
-        self.num_nodes = 4
+        self.num_nodes = 1
         self.setup_clean_chain = False
 
     def setup_nodes(self):
@@ -98,7 +98,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
 
         # Mints count should pass even after restart with '-["-zapwallettxes"]'
         assert len(sigma_mints4) == len(sigma_mints1) + 1, \
-            'After restart with ["-zapwallettxes=1"] mint does not work.'
+            'After restart with ["-zapwallettxes"] mint does not work.'
 
         val = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
 

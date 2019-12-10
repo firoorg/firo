@@ -21,6 +21,7 @@ from .util import (
     connect_nodes_bi,
     sync_blocks,
     sync_mempools,
+    sync_znodes,
     stop_nodes,
     stop_node,
     enable_coverage,
@@ -72,13 +73,15 @@ class BitcoinTestFramework(object):
 
         # If we joined network halves, connect the nodes from the joint
         # on outward.  This ensures that chains are properly reorganised.
-        if not split:
-            connect_nodes_bi(self.nodes, 1, 2)
-            sync_blocks(self.nodes[1:3])
-            sync_mempools(self.nodes[1:3])
 
-        connect_nodes_bi(self.nodes, 0, 1)
-        connect_nodes_bi(self.nodes, 2, 3)
+        if self.num_nodes > 1:
+            if not split:
+                connect_nodes_bi(self.nodes, 1, 2)
+                sync_blocks(self.nodes[1:3])
+                sync_mempools(self.nodes[1:3])
+
+            connect_nodes_bi(self.nodes, 0, 1)
+            connect_nodes_bi(self.nodes, 2, 3)
         self.is_network_split = split
         self.sync_all()
 
@@ -99,6 +102,13 @@ class BitcoinTestFramework(object):
         else:
             sync_blocks(self.nodes)
             sync_mempools(self.nodes)
+
+    def znsync_all(self):
+        if self.is_network_split:
+            sync_znodes(self.nodes[:2])
+            sync_znodes(self.nodes[2:])
+        else:
+            sync_znodes(self.nodes)
 
     def join_network(self):
         """
