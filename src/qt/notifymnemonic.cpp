@@ -30,7 +30,7 @@ NotifyMnemonic::~NotifyMnemonic()
 
 void NotifyMnemonic::cancelEvent()
 {
-    if( QMessageBox::question( this, trUtf8( "Warning" ), trUtf8( "Are you sure to close the setup without confirming that you have got words right." ), QMessageBox::Yes, QMessageBox::No ) == QMessageBox::Yes ) {
+    if( QMessageBox::question( this, trUtf8( "Warning" ), trUtf8( "Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?" ), QMessageBox::Yes, QMessageBox::No ) == QMessageBox::Yes ) {
         // allow cancel
         reject();
     }
