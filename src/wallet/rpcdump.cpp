@@ -105,6 +105,13 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    if(chain.nVersion == chain.VERSION_WITH_BIP39){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets and private keys is disabled for mnemonic-enabled wallets."
+                                             "To import your dump file, create a non-mnemonic wallet by setting \"usemnemonic=0\" in your zcoin.conf file, after backing up and removing your existing wallet.");
+    }
+
+
     string strSecret = params[0].get_str();
     string strLabel = "";
     if (params.size() > 1)
@@ -435,6 +442,13 @@ UniValue importwallet(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    if(chain.nVersion == chain.VERSION_WITH_BIP39){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets and private keys is disabled for mnemonic-enabled wallets."
+                                             "To import your dump file, create a non-mnemonic wallet by setting \"usemnemonic=0\" in your zcoin.conf file, after backing up and removing your existing wallet.");
+    }
+
+
     ifstream file;
     file.open(params[0].get_str().c_str(), std::ios::in | std::ios::ate);
     if (!file.is_open())
@@ -706,8 +720,34 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     file << "\n";
 
     // add the base58check encoded extended master if the wallet uses HD
-    CKeyID masterKeyID = pwalletMain->GetHDChain().masterKeyID;
-    if (!masterKeyID.IsNull())
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    CKeyID masterKeyID = chain.masterKeyID;
+    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
+    {
+        if(mContainer.IsCrypted())
+        {
+            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
+        }
+
+        SecureString mnemonic;
+        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+        if(mContainer.GetMnemonic(mnemonic))
+            file << "# mnemonic: " << mnemonic << "\n";
+
+        SecureVector seed = mContainer.GetSeed();
+        file << "# HD seed: " << HexStr(seed) << "\n\n";
+
+        CExtKey masterKey;
+        masterKey.SetMaster(&seed[0], seed.size());
+
+        CBitcoinExtKey b58extkey;
+        b58extkey.SetKey(masterKey);
+
+        file << "# extended private masterkey: " << b58extkey.ToString() << "\n";
+    }
+    else if (!masterKeyID.IsNull())
     {
         CKey key;
         if (pwalletMain->GetKey(masterKeyID, key))
