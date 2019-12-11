@@ -104,7 +104,7 @@ testScripts = [
     'exodus_create_denomination.py',
     'exodus_property_creation_fee.py',
     'exodus_sendmint.py',
-    'exodus_sendmint_wallet_encryption',
+    'exodus_sendmint_wallet_encryption.py',
     'exodus_sendspend.py',
     'exodus_sigma_reindex.py',
     'exodus_sigma_reorg.py',
