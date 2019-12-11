@@ -331,6 +331,11 @@ bool GroupElement::isMember() const
     return secp256k1_ge_is_valid_var(&v1);
 }
 
+bool GroupElement::isInfinity() const
+{
+    return secp256k1_gej_is_infinity(reinterpret_cast<const secp256k1_gej *>(g_));
+}
+
 void GroupElement::randomize() {
     unsigned char temp[32] = { 0 };
 

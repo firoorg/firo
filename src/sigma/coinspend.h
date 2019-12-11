@@ -25,7 +25,8 @@ public:
     CoinSpend(const Params* p,
               const PrivateCoin& coin,
               const std::vector<sigma::PublicCoin>& anonymity_set,
-              const SpendMetaData& m);
+              const SpendMetaData& m,
+              bool fPadding);
 
     void updateMetaData(const PrivateCoin& coin, const SpendMetaData& m);
 
@@ -49,7 +50,7 @@ public:
 
     bool HasValidSerial() const;
 
-    bool Verify(const std::vector<sigma::PublicCoin>& anonymity_set, const SpendMetaData &m) const;
+    bool Verify(const std::vector<sigma::PublicCoin>& anonymity_set, const SpendMetaData &m, bool fPadding) const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>

@@ -8,7 +8,14 @@
 #include "primitives/zerocoin.h"
 #include "sigma.h"
 
-//struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
+/**
+ * CHDMint object
+ * 
+ * struct that is safe to store essential mint data, without holding any information that allows for actual spending 
+ * (ie. serial, randomness, private key)
+ *
+ * @return CHDMint object
+ */
 class CHDMint
 {
 private:

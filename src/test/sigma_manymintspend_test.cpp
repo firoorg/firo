@@ -36,8 +36,8 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
+    CreateAndProcessEmptyBlocks(350, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 

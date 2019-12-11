@@ -107,10 +107,10 @@ BOOST_AUTO_TEST_CASE(proof)
         SigmaPublicKey(key3, params)
     });
 
-    proof.Generate(key2, pubs.begin(), pubs.end());
+    proof.Generate(key2, pubs.begin(), pubs.end(), false);
 
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end()), true);
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1), false);
+    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end(), false), true);
+    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1, false), false);
 }
 
 BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
@@ -129,11 +129,11 @@ BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
     }
 
     SigmaProof validProof(params), invalidProof(params);
-    validProof.Generate(key, pubs.begin() + 1, pubs.end()); // prove with 2 ^ 14 coins
-    invalidProof.Generate(key, pubs.begin(), pubs.end()); // prove with 2 ^ 14 + 1 coins
+    validProof.Generate(key, pubs.begin() + 1, pubs.end(), false); // prove with 2 ^ 14 coins
+    invalidProof.Generate(key, pubs.begin(), pubs.end(), false); // prove with 2 ^ 14 + 1 coins
 
-    BOOST_CHECK_EQUAL(validProof.Verify(pubs.begin() + 1, pubs.end()), true);
-    BOOST_CHECK_EQUAL(invalidProof.Verify(pubs.begin(), pubs.end()), false);
+    BOOST_CHECK_EQUAL(validProof.Verify(pubs.begin() + 1, pubs.end(), false), true);
+    BOOST_CHECK_EQUAL(invalidProof.Verify(pubs.begin(), pubs.end(), false), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

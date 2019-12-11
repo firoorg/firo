@@ -39,6 +39,7 @@
 #define ZEROCOIN_TX_VERSION_2               2
 #define ZEROCOIN_TX_VERSION_1_5             15
 #define ZEROCOIN_TX_VERSION_3               30
+#define ZEROCOIN_TX_VERSION_3_1             31
 
 // Activate multithreaded mode for proof verification
 #define ZEROCOIN_THREADING 1

@@ -42,10 +42,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    //200 blocks already mined, create another 200.
+    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+    CreateAndProcessEmptyBlocks(350, scriptPubKey);
 
     std::vector<string> denominations = {"0.1", "0.5", "1"};
     for(string denomination : denominations) {

@@ -451,6 +451,7 @@ UniValue importwallet(const JSONRPCRequest& request)
     file.seekg(0, file.beg);
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
+    CKeyID masterKeyID = pwalletMain->GetHDChain().masterKeyID;
 
     pwalletMain->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI
     while (file.good()) {
@@ -479,6 +480,7 @@ UniValue importwallet(const JSONRPCRequest& request)
                 zerocoinEntry.ecdsaSecretKey = ParseHex(vstr[8]);
                 zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
             }
+            pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinEntry.value.GetHex(), "New (" + std::to_string(zerocoinEntry.denomination) + " mint)", CT_NEW);
             walletdb.WriteZerocoinEntry(zerocoinEntry);
         }
         else {
@@ -505,7 +507,7 @@ UniValue importwallet(const JSONRPCRequest& request)
                     break;
                 if (vstr[nStr] == "change=1")
                     fLabel = false;
-                if (vstr[nStr] == "sigma=1")
+                if (!masterKeyID.IsNull() && vstr[nStr] == "sigma=1")
                     fLabel = false;
                 if (vstr[nStr] == "reserve=1")
                     fLabel = false;
@@ -513,22 +515,24 @@ UniValue importwallet(const JSONRPCRequest& request)
                     strLabel = DecodeDumpString(vstr[nStr].substr(6));
                     fLabel = true;
                 }
-                if(boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
+                if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
                     hdKeypath = vstr[nStr].substr(10);
                     fHd = true;
                 }
-                if(boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
+                if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
                     hdMasterKeyID.SetHex(vstr[nStr].substr(14));
                 }
             }
             LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
 
             // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
-            pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
-            if(fHd){
-                pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
-                pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
-                pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+            if(!masterKeyID.IsNull()){
+                pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+                if(fHd){
+                    pwalletMain->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
+                    pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
+                    pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+                }
             }
 
             if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
@@ -536,7 +540,7 @@ UniValue importwallet(const JSONRPCRequest& request)
                 continue;
             }
 
-            if(fHd){
+            if(!masterKeyID.IsNull() && fHd){
                 // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
                 if(pwalletMain->mapKeyMetadata[keyid].nChange.first==2){
                     zwalletMain->RegenerateMintPoolEntry(hdMasterKeyID, keyid, pwalletMain->mapKeyMetadata[keyid].nChild.first);
@@ -720,7 +724,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
         std::string strTime = EncodeDumpTime(it->first);
         std::string strAddr = CBitcoinAddress(keyid).ToString();
         CKey key;
-        pwalletMain->mapKeyMetadata[keyid].ParseComponents();
+        if(!masterKeyID.IsNull()){
+            if(!pwalletMain->mapKeyMetadata[keyid].ParseComponents())
+                continue;
+        }
         if (pwalletMain->GetKey(keyid, key)) {
             file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
             if (pwalletMain->mapAddressBook.count(keyid)) {
@@ -729,21 +736,23 @@ UniValue dumpwallet(const JSONRPCRequest& request)
                 file << "hdmaster=1";
             } else if (setKeyPool.count(keyid)) {
                 file << "reserve=1";
-            } else if (pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
+            } else if (!masterKeyID.IsNull() && pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
                 file << "inactivehdmaster=1";
-            } else if (pwalletMain->mapKeyMetadata[keyid].nChange.first == 2) {
+            } else if (!masterKeyID.IsNull() && pwalletMain->mapKeyMetadata[keyid].nChange.first == 2) {
                 file << "sigma=1";
             } else {
                 file << "change=1";
             }
-            if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
-                if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
-                    string hdKeypath = pwalletMain->mapKeyMetadata[keyid].hdKeypath;
-                    uint160 hdMasterKeyID = pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID;
-                    if(hdKeypath != "")
-                        file << strprintf(" hdKeypath=%s", hdKeypath);
-                    if(!hdMasterKeyID.IsNull())
-                        file << strprintf(" hdMasterKeyID=%s", hdMasterKeyID.ToString());
+            if(!masterKeyID.IsNull()){
+                if(pwalletMain->mapKeyMetadata.find(keyid) != pwalletMain->mapKeyMetadata.end()){
+                    if(pwalletMain->mapKeyMetadata[keyid].nVersion >= CKeyMetadata::VERSION_WITH_HDDATA){
+                        string hdKeypath = pwalletMain->mapKeyMetadata[keyid].hdKeypath;
+                        uint160 hdMasterKeyID = pwalletMain->mapKeyMetadata[keyid].hdMasterKeyID;
+                        if(hdKeypath != "")
+                            file << strprintf(" hdKeypath=%s", hdKeypath);
+                        if(!hdMasterKeyID.IsNull())
+                            file << strprintf(" hdMasterKeyID=%s", hdMasterKeyID.ToString());
+                    }
                 }
             }
             file << strprintf(" # addr=%s\n", strAddr);

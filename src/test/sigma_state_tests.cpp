@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspend)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
     auto initSize = sigmaState->GetSpends().count(coinSerial);
@@ -292,7 +292,7 @@ BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_in)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -322,7 +322,7 @@ BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_not_in)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -347,7 +347,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspend_to_mempool_coin_used)
 
     std::vector<sigma::PublicCoin> anonymity_set;
     anonymity_set.push_back(pubcoin);
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -378,7 +378,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspendtomempool)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspendtomempool_coinin)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -436,7 +436,7 @@ BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_inmempool)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -467,7 +467,7 @@ BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_used)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -507,7 +507,7 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+    sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -646,7 +646,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coinSpend(params,privcoin1,anonymity_set, metaData);
+    sigma::CoinSpend coinSpend(params,privcoin1,anonymity_set, metaData, true);
 
 	auto spendSerial = coinSpend.getCoinSerialNumber();
 
@@ -702,7 +702,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData);
+    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData, true);
 
     index2.sigmaSpentSerials.clear();
     index2.sigmaSpentSerials.insert(std::make_pair(coinSpend.getCoinSerialNumber(), sigma::CSpendCoinInfo::make(coinSpend.getDenomination(), 0)));
@@ -784,7 +784,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData);
+    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData, true);
 
     CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
     serializedCoinSpend << coinSpend;
@@ -817,7 +817,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
       "Expect serial number, got 0");
 
     // add more spend vin
-    sigma::CoinSpend coinSpend2(params, coins[1], pubCoins, metaData);
+    sigma::CoinSpend coinSpend2(params, coins[1], pubCoins, metaData, true);
 
     CDataStream serializedCoinSpend2(SER_NETWORK, PROTOCOL_VERSION);
     serializedCoinSpend2 << coinSpend2;
@@ -868,7 +868,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData);
+    sigma::CoinSpend coinSpend(params, coins[0], pubCoins, metaData, true);
 
     CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
     serializedCoinSpend << coinSpend;
@@ -1123,7 +1123,7 @@ namespace {
         // Doesn't really matter what metadata we give here, it must pass.
         sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
 
-        sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+        sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData, true);
 
         return coin.getCoinSerialNumber();
     }

@@ -31,6 +31,8 @@
 #include <boost/lexical_cast.hpp>
 
 static const bool DEFAULT_FLUSHWALLET = true;
+static const uint32_t ORIGINAL_KEYPATH_SIZE = 0x4; // m/0'/0'/<n> is the original keypath
+static const uint32_t BIP44_KEYPATH_SIZE = 0x6;    // m/44'/<1/136>'/0'/<c>/<n> is the BIP44 keypath
 
 class CAccount;
 class CAccountingEntry;
@@ -126,9 +128,16 @@ public:
 
     bool ParseComponents(){
         std::vector<std::string> nComponents;
-        if (hdKeypath.empty() || hdKeypath=="m")
+        if(hdKeypath.empty())
             return false;
+        if(hdKeypath=="m")
+            return true;
+
         boost::split(nComponents, hdKeypath, boost::is_any_of("/"), boost::token_compress_on);
+        if(nComponents.size()!=ORIGINAL_KEYPATH_SIZE &&
+           nComponents.size()!=BIP44_KEYPATH_SIZE)
+            return false;
+
         std::string nChangeStr = nComponents[nComponents.size()-2];
         std::string nChildStr  = nComponents[nComponents.size()-1];
 
