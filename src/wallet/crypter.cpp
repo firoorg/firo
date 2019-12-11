@@ -227,9 +227,9 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fF
         if(!fFirstUnlock && zwalletMain){
             auto &hdChain = pwalletMain->GetHDChain();
             uint160 hashSeedMaster = hdChain.masterKeyID;
+            pwalletMain->SetHDChain(hdChain, false); // Used to upgrade normal keys to BIP44
             zwalletMain->SetupWallet(hashSeedMaster, false);
             zwalletMain->SyncWithChain();
-            pwalletMain->SetHDChain(hdChain, false); // Used to upgrade normal keys to BIP44
         }
     }
     NotifyStatusChanged(this);
