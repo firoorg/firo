@@ -21,7 +21,7 @@ RUN curl -L https://www.zlib.net/zlib-1.2.11.tar.gz | tar -xz -C /tmp && \
 
 # Install zmq from source (outdated version on apt)
 RUN curl -L https://github.com/zeromq/libzmq/releases/download/v4.3.1/zeromq-4.3.1.tar.gz | tar -xz -C /tmp && \
-    cd /tmp/zeromq-4.3.1/ && ./configure --without-libsodium && \
+    cd /tmp/zeromq-4.3.1/ && ./configure --disable-shared --without-libsodium && \
     make -j$(nproc) install && \
     cd / && rm -rf /tmp/zeromq-4.3.1/
 
