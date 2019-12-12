@@ -37,92 +37,80 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
         enable_mocktime()
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
+    def list_unspent_sigma_mints(self):
+        mints = self.nodes[0].listunspentsigmamints()
+        for mint in mints:
+            mint.pop('confirmations', None)
+        return sorted(mints,  key=lambda k: k['txid'] + str(k['vout']))
+
     def hdmint_zap(self, configuration):
 
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
 
-        # 2. mine blocks to activate sigma
         self.nodes[0].generate(401)
 
-        # 3. mint some coins
-        self.nodes[0].mint(2 * sum(sigma_denoms))
+        for denom in sigma_denoms:
+            self.nodes[0].mint(denom)
+            self.nodes[0].mint(denom)
 
-        # 4. generate blocks
         self.nodes[0].generate(10)
 
-        # 5. get listunspent transactions
-        sigma_mints1 = self.nodes[0].listunspentsigmamints()
+        sigma_mints1 = self.list_unspent_sigma_mints()
         assert len(sigma_mints1) > 1, 'Should be some sigma mints after mint, but was: {}' \
             .format(len(sigma_mints1))
 
-        # 6. mint one more unconfirmed
         self.nodes[0].mint(1)
 
-        # 7. restart with `["-zapwallettxes"]`
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
 
         self.nodes[0] = start_node(0,self.options.tmpdir, configuration)
 
-        # 8. check listunspentmints - should be as on step 5 (cause ["-zapwallettxes"] clean mempool)
-        sigma_mints2 = self.nodes[0].listunspentsigmamints()
+        sigma_mints2 = self.list_unspent_sigma_mints()
 
-        assert len(sigma_mints2) == len(sigma_mints1), \
-            'The amount of mints should be same as before unconfirmed mint after restart with ["-zapwallettxes"].'
+        assert sigma_mints2 == sigma_mints1, \
+            'Unconfirmed mints should pass away with ' + str(configuration)
 
         val = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
-        # 9. spend and not confirm
         self.nodes[0].spendmany('', val)
 
-        # 10. restart with `["-zapwallettxes"]`
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
 
         self.nodes[0] = start_node(0, self.options.tmpdir, configuration)
 
-        # 11. check listunspentmints - should be as on step 5 (cause ["-zapwallettxes"] clean mempool)
-        sigma_mints3 = self.nodes[0].listunspentsigmamints()
+        sigma_mints3 = self.list_unspent_sigma_mints()
 
-        assert len(sigma_mints3) == len(sigma_mints1), \
-            'The amount of mints should be same as before unconfirmed spend after restart with ["-zapwallettxes"].'
+        assert sigma_mints3 == sigma_mints1, \
+            'Unconfirmed spends should pass away with ' + str(configuration)
 
-        # 12. mint
-        # Minting after restart with '-["-zapwallettxes"]'
-        self.nodes[0].mint(sigma_denoms[0])
+        mint_txid = self.nodes[0].mint(sigma_denoms[0])
 
-        # 13. generate blocks
-        self.nodes[0].generate(50)
-
-        # 14. check listunspentmints, it should increased on mint
-        sigma_mints4 = self.nodes[0].listunspentsigmamints()
-
-        # Mints count should pass even after restart with '-["-zapwallettxes"]'
-        assert len(sigma_mints4) == len(sigma_mints1) + 1, \
-            'After restart with ["-zapwallettxes"] mint does not work.'
-
-        val = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
-
-        # 15. spend
-        self.nodes[0].spendmany('', val)
-
-        # Check that we can generate blocks after
         self.nodes[0].generate(1)
 
-        # 16. generate block
-        sigma_mints5 = self.nodes[0].listunspentsigmamints()
+        sigma_mints4 = self.list_unspent_sigma_mints()
 
-        # 17. check listunspentmints it should decreased
-        # Mints count should pass even after restart with '-["-zapwallettxes"]'
+        assert len(sigma_mints4) == len(sigma_mints1) + 1, \
+            'Mints are not generated after restarting with ' + str(configuration)
+
+        sigma_mints4_set = set(str(mint) for mint in sigma_mints4)
+        sigma_mints1_set = set(str(mint) for mint in sigma_mints1)
+
+        assert sigma_mints4_set & sigma_mints1_set == sigma_mints1_set, \
+            'Initial mint set should not change. Params: ' + str(configuration)
+
+        diff_set = sigma_mints4_set - sigma_mints1_set
+
+        assert len(diff_set) == 1 and mint_txid in diff_set.pop(), \
+            'The new mint should be in the set diff. Params: ' + str(configuration)
 
     def run_test(self):
         getcontext().prec = 6
         self.sync_all()
 
         zapwal1 = ["-zapwallettxes=1"]
-        print('HD mint test with -zapwallettxes=1')
         self.hdmint_zap(zapwal1)
 
-        print('HD mint test with -zapwallettxes=2')
         zapwal2 = ["-zapwallettxes=2"]
         self.hdmint_zap(zapwal2)
 

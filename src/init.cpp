@@ -770,7 +770,9 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         StartShutdown();
     }
 
-    LoadMempool();
+    if (!GetBoolArg("-zapwallettxes", false)) {
+        LoadMempool();
+    }
 
 #ifdef ENABLE_WALLET
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
