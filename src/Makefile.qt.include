@@ -108,6 +108,8 @@ QT_FORMS_UI = \
   qt/forms/znodelist.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
+  qt/forms/recover.ui \
+  qt/forms/notifymnemonic.ui \
   qt/forms/openuridialog.ui \
   qt/forms/optionsdialog.ui \
   qt/forms/overviewpage.ui \
@@ -149,6 +151,8 @@ QT_MOC_CPP = \
   qt/moc_editaddressdialog.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_intro.cpp \
+  qt/moc_recover.cpp \
+  qt/moc_notifymnemonic.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_znodelist.cpp \
@@ -233,6 +237,8 @@ BITCOIN_QT_H = \
   qt/guiconstants.h \
   qt/guiutil.h \
   qt/intro.h \
+  qt/recover.h \
+  qt/notifymnemonic.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
   qt/znodelist.h \
@@ -374,6 +380,8 @@ BITCOIN_QT_BASE_CPP = \
   qt/guiutil.cpp \
   qt/intro.cpp \
   qt/modaloverlay.cpp \
+  qt/recover.cpp \
+  qt/notifymnemonic.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \
   qt/optionsdialog.cpp \

@@ -228,6 +228,7 @@ BITCOIN_CORE_H = \
   validationinterface.h \
   versionbits.h \
   wallet/coincontrol.h \
+  wallet/mnemoniccontainer.h \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
@@ -237,6 +238,8 @@ BITCOIN_CORE_H = \
   wallet/walletexcept.h \
   wallet/walletdb.h \
   wallet/authhelper.h \
+  wallet/bip39.h \
+  wallet/bip39_english.h \
   definition.h \
   warnings.h \
   zmq/zmqabstractnotifier.h \
@@ -336,6 +339,8 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/wallet.cpp \
   sigma.cpp \
   wallet/crypter.cpp \
+  wallet/bip39.cpp \
+  wallet/mnemoniccontainer.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \

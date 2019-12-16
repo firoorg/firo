@@ -134,6 +134,10 @@ protected:
 
     bool Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fFirstUnlock = false );
 
+    bool EncryptMnemonicSecret(const CKeyingMaterial& vMasterKey, const CKeyingMaterial &vchPlaintext, const uint256& nIV, std::vector<unsigned char> &vchCiphertext);
+    bool DecryptMnemonicSecret(const std::vector<unsigned char>& vchCiphertext, const uint256& nIV, CKeyingMaterial& vchPlaintext);
+
+
 public:
     CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false)
     {

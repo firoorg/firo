@@ -171,6 +171,7 @@ BITCOIN_TESTS += \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
   wallet/test/sigma_tests.cpp \
+  wallet/test/mnemonic_tests.cpp \
   wallet/test/txbuilder_tests.cpp
 endif
 

@@ -13,6 +13,8 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "intro.h"
+#include "recover.h"
+#include "notifymnemonic.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -78,6 +80,8 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #if QT_VERSION < 0x050000
 #include <QTextCodec>
 #endif
+
+static bool newWallet = false;
 
 // Declare meta types used for QMetaObject::invokeMethod
 Q_DECLARE_METATYPE(bool*)
@@ -478,7 +482,7 @@ void BitcoinApplication::initializeResult(int retval)
 
             connect(walletModel, SIGNAL(coinsSent(CWallet*,SendCoinsRecipient,QByteArray)),
                              paymentServer, SLOT(fetchPaymentACK(CWallet*,const SendCoinsRecipient&,QByteArray)));
-        }
+
 #endif
 
         // If -min option passed, start window minimized.
@@ -493,6 +497,10 @@ void BitcoinApplication::initializeResult(int retval)
         Q_EMIT splashFinished(window);
 
 #ifdef ENABLE_WALLET
+        if(newWallet)
+            NotifyMnemonic::notify();
+        }
+        
         // Now that initialization/startup is done, process any command-line
         // zcoin: URIs or payment requests:
         connect(paymentServer, SIGNAL(receivedPaymentRequest(SendCoinsRecipient)),
@@ -625,6 +633,19 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 #ifdef ENABLE_WALLET
+    // Determine if user wants to create new wallet or recover existing one.
+    // Only show if:
+    // - Using mnemonic (-usemnemonic on (default)) and
+    // - mnemonic not set (default, not setting mnemonic from conf file instead) and
+    // - hdseed not set (default, not setting hd seed from conf file instead)
+
+    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
+       GetArg("-mnemonic", "").empty() &&
+       GetArg("-hdseed", "not hex")=="not hex"){
+        if(!Recover::askRecover(newWallet))
+            return EXIT_SUCCESS;
+    }
+
     // Parse URIs on command line -- this can affect Params()
     PaymentServer::ipcParseCommandLine(argc, argv);
 #endif
@@ -658,7 +679,6 @@ int main(int argc, char *argv[])
     // zcoin: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
 #endif
-
     /// 9. Main GUI initialization
     // Install global event filter that makes sure that long tooltips can be word-wrapped
     app.installEventFilter(new GUIUtil::ToolTipToRichTextFilter(TOOLTIP_WRAP_THRESHOLD, &app));

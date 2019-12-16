@@ -10,6 +10,7 @@
 #include "support/cleanse.h"
 
 #include <string>
+#include <vector>
 
 //
 // Allocator that locks its contents from being paged
@@ -54,5 +55,7 @@ struct secure_allocator : public std::allocator<T> {
 
 // This is exactly like std::string, but with a custom allocator.
 typedef std::basic_string<char, std::char_traits<char>, secure_allocator<char> > SecureString;
+// This is exactly like std::vector, but with a custom allocator.
+typedef std::vector<unsigned char, secure_allocator<unsigned char>> SecureVector;
 
 #endif // BITCOIN_SUPPORT_ALLOCATORS_SECURE_H
