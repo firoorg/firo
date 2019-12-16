@@ -23,14 +23,14 @@ pipeline {
         stage('Test') {
             steps {
                 dir('dist') {
-                    sh 'exit 0; make check'
+                    sh 'make check'
                 }
             }
         }
         stage('RPC Tests') {
             steps {
                 dir('dist') {
-                    sh 'exit 0; TIMEOUT=600 qa/pull-tester/run-bitcoind-for-test.sh qa/pull-tester/rpc-tests.py -extended'
+                    sh 'TIMEOUT=600 qa/pull-tester/run-bitcoind-for-test.sh qa/pull-tester/rpc-tests.py -extended'
                 }
             }
         }
