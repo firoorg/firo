@@ -9,6 +9,7 @@
 #include "guiutil.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
+#include "recentpaymentcodetransactionstablemodel.h"
 #include "transactiontablemodel.h"
 
 #include "base58.h"
@@ -24,6 +25,11 @@
 #include "sigma.h"
 #include "sigma/coin.h"
 
+#include "bip47/PaymentCode.h"
+#include "bip47/Bip47Account.h"
+#include "bip47/SecretPoint.h"
+#include "bip47/Bip47Util.h"
+
 #include <stdint.h>
 
 #include <QDebug>
@@ -36,6 +42,8 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
+    recentPCodeTransactionsTableModel(0),
+    paymentCodeTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
@@ -46,6 +54,8 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
     addressTableModel = new AddressTableModel(wallet, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    recentPCodeTransactionsTableModel = new RecentPCodeTransactionsTableModel(wallet, this);
+    paymentCodeTableModel = new PaymentCodeTableModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -267,10 +277,65 @@ void WalletModel::updateWatchOnlyFlag(bool fHaveWatchonly)
     Q_EMIT notifyWatchonlyChanged(fHaveWatchonly);
 }
 
+bool WalletModel::tryEnablePaymentCode()
+{
+    if(wallet->pcodeEnabled && wallet->m_Bip47PendingKeys.empty())
+        return true;
+    if(wallet->IsLocked())
+    {
+        QMessageBox::information(0, tr("Unlock Wallet"), tr("To Receive PaymentCode Transaction You need to Unlock Wallet"));
+        WalletModel::UnlockContext ctx(requestUnlock());
+        if(!ctx.isValid())
+        {
+            // Unlock wallet was cancelled
+            return false;
+        }
+        if(wallet->pcodeEnabled)
+        {
+            wallet->importBip47PendingKeys();
+            return true;
+        }
+        CExtKey masterKey;
+        vector<unsigned char> seedmaster;
+        if(wallet->generateBip47SeedMaster(seedmaster))
+        {
+            masterKey.SetMaster(&seedmaster[0], seedmaster.size());
+        
+            if(wallet->saveBip47SeedMaster(seedmaster))
+            {
+                wallet->loadBip47Wallet(masterKey);
+                wallet->pcodeEnabled = true;
+                return true;
+            }
+            
+            else
+                throw std::runtime_error(std::string(__func__) + ": Cannot Save Bip47 SeedMaster");
+        }
+        else
+        {
+            LogPrintf("Pcode disabled\n");
+            wallet->pcodeEnabled = false;
+            return false;
+        }
+    }
+    return true;
+}
+
 bool WalletModel::validateAddress(const QString &address)
 {
     CBitcoinAddress addressParsed(address.toStdString());
     return addressParsed.IsValid();
+}
+
+bool WalletModel::validatePaymentCode(const QString &pCode)
+{
+    PaymentCode paymentCode(pCode.toStdString());
+    return paymentCode.isValid();
+}
+
+bool WalletModel::isNotificationTransactionSent(const QString &pCode)
+{
+    return wallet->isNotificationTransactionSent(pCode.toStdString());
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
@@ -454,6 +519,278 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
+WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
+{
+    CAmount total = 0;
+    bool fSubtractFeeFromAmount = false;
+    bool isNotificationTx = true;
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    std::vector<CRecipient> vecSend;
+
+    if(recipients.empty())
+    {
+        return OK;
+    }
+
+    QSet<QString> setAddress; // Used to detect duplicates
+    int nAddresses = 0;
+
+
+
+    Bip47Account toBip47Account;
+
+    // Pre-check input data for validity
+    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+    {
+        if (rcp.fSubtractFeeFromAmount)
+            fSubtractFeeFromAmount = true;
+
+        // User-entered Zcoin address / amount:
+        if(!validatePaymentCode(rcp.address))
+        {
+            return InvalidAddress;
+        }
+        if(rcp.amount <= 0)
+        {
+            return InvalidAmount;
+        }
+
+        // Get Or Create Payment Channel from payment code;
+        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+
+        // If channel already sent notifcation transaction.
+        if (channel->isNotificationTransactionSent()) {
+            LogPrintf("Payment Notification Transaction Already Sent\n");
+            isNotificationTx = false;
+            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
+
+            setAddress.insert(rcp.address);
+            ++nAddresses;
+            CBitcoinAddress pcAddress(addressTo);
+
+            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+            vecSend.push_back(recipient);
+
+
+            total += rcp.amount;
+        }
+        else
+        {
+            LogPrintf("Payment Notification Transaction Still Not Sent\n");
+            isNotificationTx = true;
+
+            toBip47Account.SetPaymentCodeString(rcp.address.toStdString());
+
+            CBitcoinAddress ntAddress = toBip47Account.getNotificationAddress();
+
+
+
+            setAddress.insert(rcp.address);
+            ++nAddresses;
+
+            CScript scriptPubKey = GetScriptForDestination(ntAddress.Get());
+            CRecipient recipient = {scriptPubKey, CENT / 2, rcp.fSubtractFeeFromAmount};
+            vecSend.push_back(recipient);
+
+
+            total +=  CENT / 2;
+        }
+
+
+
+
+    }
+    if(setAddress.size() != nAddresses)
+    {
+        return DuplicateAddress;
+    }
+
+    CAmount nBalance = getBalance(coinControl);
+
+    if(total > nBalance)
+    {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        transaction.newPossibleKeyChange(wallet);
+
+        CAmount nFeeRequired = 0;
+        int nChangePosRet = -1;
+        std::string strFailReason;
+
+        CWalletTx *newTx = transaction.getTransaction();
+        
+        CReserveKey *keyChange = transaction.getPossibleKeyChange();
+        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
+
+        // Notification Transaction setup here.
+        if(isNotificationTx) {
+            CPubKey designatedPubKey;
+
+            CKey privKey;
+
+            vector<unsigned char> pubKeyBytes;
+
+            if (!BIP47Util::getScriptSigPubkey(newTx->vin[0], pubKeyBytes))
+            {
+                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
+            }
+            else
+            {
+
+                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
+                LogPrintf("ScriptSigPubKey Hash %s\n", designatedPubKey.GetHash().GetHex());
+
+            }
+
+
+
+            wallet->GetKey(designatedPubKey.GetID(), privKey);
+            CPubKey pubkey = toBip47Account.getNotificationKey().pubkey;
+            vector<unsigned char> dataPriv(privKey.size());
+            vector<unsigned char> dataPub(pubkey.size());
+
+            Bip47_common::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
+            Bip47_common::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
+
+            LogPrintf("Generate Secret Point\n");
+            SecretPoint secretPoint(dataPriv, dataPub);
+            LogPrintf("Generating Secret Point with \n privekey: %s\n pubkey: %s\n", HexStr(dataPriv), HexStr(dataPub));
+
+            vector<unsigned char> outpoint(newTx->vin[0].prevout.hash.begin(), newTx->vin[0].prevout.hash.end());
+
+            LogPrintf("output: %s\n", newTx->vin[0].prevout.hash.GetHex());
+            uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
+            LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
+
+            LogPrintf("Get Mask from payment code\n");
+            vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+
+            LogPrintf("Get op_return bytes via blind\n");
+            vector<unsigned char> op_return = PaymentCode::blind(pwalletMain->getBip47Account(0).getPaymentCode().getPayload(), mask);
+
+            CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
+            CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
+            // CTxOut txOut(0, op_returnScriptPubKey);
+            LogPrintf("Add Blind Code to vecSend\n");
+            // wtx.vout.push_back(txOut);
+            vecSend.push_back(pcodeBlind);
+
+            fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
+
+            if (!BIP47Util::getScriptSigPubkey(newTx->vin[0], pubKeyBytes))
+            {
+                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
+            }
+            else
+            {
+
+                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
+                LogPrintf("ScriptSigPubKey Hash %s\n", designatedPubKey.GetHash().GetHex());
+                if(!privKey.VerifyPubKey(designatedPubKey))
+                {
+                    throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig designatedPubKey cannot be verified \n");
+                }
+
+            }
+        }
+
+
+        transaction.setTransactionFee(nFeeRequired);
+        if (fSubtractFeeFromAmount && fCreated)
+            transaction.reassignAmounts(nChangePosRet);
+
+        if(!fCreated)
+        {
+            if(!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance)
+            {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            if(strFailReason.compare("Insufficient funds.") == 0)
+            {
+               strFailReason = "You don't have enough of a confirmed balance to send the next transaction, please wait a few confirmations, then attempt to send the transaction again";
+            }
+            Q_EMIT message(tr("Send Coins"), QString::fromStdString(strFailReason),
+                           CClientUIInterface::MSG_ERROR);
+            return TransactionCreationFailed;
+        }
+
+        // reject absurdly high fee. (This can never happen because the
+        // wallet caps the fee at maxTxFee. This merely serves as a
+        // belt-and-suspenders check)
+        if (nFeeRequired > maxTxFee)
+            return AbsurdFee;
+    }
+
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction &transaction, bool &needMainTx)
+{
+    
+    needMainTx = false;
+    QByteArray transaction_array; /* store serialized transaction */
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CWalletTx *newTx = transaction.getTransaction();
+
+        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        {
+            if (!rcp.message.isEmpty())
+                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+        }
+
+        CReserveKey *keyChange = transaction.getPossibleKeyChange();
+        if(!wallet->CommitTransaction(*newTx, *keyChange))
+            return TransactionCommitFailed;
+
+        CTransaction* t = (CTransaction*)newTx;
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << *t;
+        transaction_array.append(&(ssTx[0]), ssTx.size());
+    }
+
+    // Add addresses / update labels that we've sent to to the address book,
+    // and emit coinsSent signal for each recipient
+    Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+    {
+        std::string pcodestr = rcp.address.toStdString();
+        std::string strLabel = rcp.label.toStdString();
+        Bip47PaymentChannel pchannel(pcodestr, strLabel);
+
+        // Add to payment channel return true or false;
+        wallet->addToBip47PaymentChannel(pchannel);
+        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+        channel->setLabel(strLabel);
+        if(!channel->isNotificationTransactionSent())
+        {
+            channel->setStatusSent();
+            needMainTx = true;
+        }
+        else 
+        {
+            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
+            channel->addAddressToOutgoingAddresses(pcoutaddress);
+            channel->incrementOutgoingIndex();
+            
+        }
+        wallet->saveBip47PaymentChannelData(pcodestr);
+        paymentCodeTableModel->refreshModel();
+
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+    }
+    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+
+    return SendCoinsReturn(OK);
+}
+
+
+
 OptionsModel *WalletModel::getOptionsModel()
 {
     return optionsModel;
@@ -464,6 +801,11 @@ AddressTableModel *WalletModel::getAddressTableModel()
     return addressTableModel;
 }
 
+PaymentCodeTableModel *WalletModel::getPaymentCodeTableModel()
+{
+    return paymentCodeTableModel;
+}
+
 TransactionTableModel *WalletModel::getTransactionTableModel()
 {
     return transactionTableModel;
@@ -472,6 +814,11 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+RecentPCodeTransactionsTableModel *WalletModel::getRecentPCodeTransactionsTableModel()
+{
+    return recentPCodeTransactionsTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
@@ -534,6 +881,11 @@ bool WalletModel::backupWallet(const QString &filename)
     return wallet->BackupWallet(filename.toLocal8Bit().data());
 }
 
+bool WalletModel::backupBip47Wallet(const QString &filename)
+{
+    return wallet->BackupBip47Wallet(filename.toLocal8Bit().data());
+}
+
 // Handlers for core signals
 static void NotifyKeyStoreStatusChanged(WalletModel *walletmodel, CCryptoKeyStore *wallet)
 {
@@ -584,6 +936,14 @@ static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, 
     QMetaObject::invokeMethod(walletmodel, "updateTransaction", Qt::QueuedConnection);
 }
 
+static void NotifyPaymentCodeTx(WalletModel *walletmodel)
+{
+    LogPrintf("Get NotifyPaymentCodeTx\n");
+    QMetaObject::invokeMethod(walletmodel, "tryEnablePaymentCode", Qt::QueuedConnection);
+}
+
+
+
 static void ShowProgress(WalletModel *walletmodel, const std::string &title, int nProgress)
 {
     // emits signal "showProgress"
@@ -602,6 +962,7 @@ void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
+    wallet->NotifyPaymentCodeTx.connect(boost::bind(&NotifyPaymentCodeTx, this));
     wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
@@ -613,6 +974,7 @@ void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
+    wallet->NotifyPaymentCodeTx.disconnect(boost::bind(&NotifyPaymentCodeTx, this));
     wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
@@ -764,6 +1126,13 @@ void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests
                 vReceiveRequests.push_back(item2.second);
 }
 
+void WalletModel::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
+{
+    LOCK(wallet->cs_wallet);
+    wallet->loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
+    
+}
+
 bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest)
 {
     CTxDestination dest = CBitcoinAddress(sAddress).Get();
@@ -777,6 +1146,22 @@ bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t 
         return wallet->EraseDestData(dest, key);
     else
         return wallet->AddDestData(dest, key, sRequest);
+    
+}
+
+bool WalletModel::savePCodeNotificationTransaction(const std::string &rpcodestr, const int64_t nId, const std::string &sNotificationSent)
+{
+
+    std::stringstream ss;
+    ss << nId;
+    std::string key = "pnts" + ss.str(); // "pnts" prefix = "paymentcode Notification transaction sent" in destdata
+
+    LOCK(wallet->cs_wallet);
+    if (sNotificationSent.empty())
+        return wallet->ErasePCodeNotificationData(rpcodestr, key);
+    else
+        return wallet->AddPCodeNotificationData(rpcodestr, key, sNotificationSent);
+    return true;
 }
 
 bool WalletModel::transactionCanBeAbandoned(uint256 hash) const
@@ -875,8 +1260,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     } catch (const std::runtime_error& err) {
         if (_("Can not choose coins within limit.") == err.what())
             return ExceedLimit;
-        if (_("Sigma is disabled at this period.") == err.what())
-            return SigmaDisabled;
         throw err;
     } catch (const std::invalid_argument& err) {
         return ExceedLimit;
@@ -886,6 +1269,82 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 
     return SendCoinsReturn(OK);
 }
+
+WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendPCodeTransaction(
+    WalletModelTransaction &transaction,
+    std::vector<CSigmaEntry> &selectedCoins,
+    std::vector<CHDMint> &changes,
+    bool& fChangeAddedToFee,
+    const CCoinControl *coinControl)
+{
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    std::vector<CRecipient> sendRecipients;
+
+    if (recipients.empty()) {
+        return OK;
+    }
+
+    QSet<QString> addresses; // Used to detect duplicates
+
+    for (const auto& rcp : recipients) {
+        if(!validatePaymentCode(rcp.address))
+        {
+            return InvalidAddress;
+        }
+        if(rcp.amount <= 0)
+        {
+            return InvalidAmount;
+        }
+        
+        
+        
+        // Get Or Create Payment Channel from payment code;
+        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+        
+        // If channel already sent notifcation transaction.
+        if (channel->isNotificationTransactionSent())
+        {
+            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
+            addresses.insert(rcp.address);
+            CBitcoinAddress pcAddress(addressTo);
+            
+            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+            sendRecipients.push_back(recipient);
+            
+        }
+        else
+        {
+            return preparePCodeTransaction(transaction, coinControl);
+        }
+    }
+
+    if (addresses.size() != recipients.size()) {
+        return DuplicateAddress;
+    }
+
+    // create transaction
+    CAmount fee;
+
+    CWalletTx *newTx = transaction.getTransaction();
+    try {
+        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes, fChangeAddedToFee, coinControl);
+    } catch (const InsufficientFunds& err) {
+        return AmountExceedsBalance;
+    } catch (const std::runtime_error& err) {
+        if (_("Can not choose coins within limit.") == err.what())
+            return ExceedLimit;
+        throw err;
+    } catch (const std::invalid_argument& err) {
+        return ExceedLimit;
+    }
+
+    transaction.setTransactionFee(fee);
+
+    return SendCoinsReturn(OK);
+}
+
+
 
 WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
     std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes)
@@ -949,6 +1408,66 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
                 }
             }
         }
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+    }
+    checkBalanceChanged();
+
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction &transaction,
+    std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes)
+{
+    QByteArray transaction_array; /* store serialized transaction */
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CWalletTx *newTx = transaction.getTransaction();
+
+        for (const auto& rcp : transaction.getRecipients()) {
+            if (!rcp.message.isEmpty()) {
+                // Message from normal zcoin:URI (zcoin:123...?message=example)
+                newTx->vOrderForm.push_back(std::make_pair("Message", rcp.message.toStdString()));
+            }
+        }
+
+        try {
+            wallet->CommitSigmaTransaction(*newTx, coins, changes);
+        } catch (...) {
+            return TransactionCommitFailed;
+        }
+
+        CTransaction* t = newTx;
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << *t;
+        transaction_array.append(&(ssTx[0]), ssTx.size());
+    }
+
+    // Add addresses / update labels that we've sent to to the address book,
+    // and emit coinsSent signal for each recipient
+    for (const auto& rcp : transaction.getRecipients()) {
+        // Don't touch the address book when we have a payment request
+        std::string pcodestr = rcp.address.toStdString();
+        std::string strLabel = rcp.label.toStdString();
+        Bip47PaymentChannel pchannel(pcodestr, strLabel);
+
+        // Add to payment channel return true or false;
+        wallet->addToBip47PaymentChannel(pchannel);
+        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+        channel->setLabel(strLabel);
+        if(!channel->isNotificationTransactionSent())
+        {
+            channel->setStatusSent();
+        }
+        else 
+        {
+            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
+            channel->addAddressToOutgoingAddresses(pcoutaddress);
+            channel->incrementOutgoingIndex();
+            
+        }
+        wallet->saveBip47PaymentChannelData(pcodestr);
+        paymentCodeTableModel->refreshModel();
         Q_EMIT coinsSent(wallet, rcp, transaction_array);
     }
     checkBalanceChanged();

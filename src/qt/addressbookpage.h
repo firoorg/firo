@@ -8,6 +8,7 @@
 #include <QDialog>
 
 class AddressTableModel;
+class PaymentCodeTableModel;
 class OptionsModel;
 class PlatformStyle;
 
@@ -44,6 +45,7 @@ public:
     ~AddressBookPage();
 
     void setModel(AddressTableModel *model);
+    void setModel(PaymentCodeTableModel *pcodeModel);
     const QString &getReturnValue() const { return returnValue; }
 
 public Q_SLOTS:
@@ -52,15 +54,21 @@ public Q_SLOTS:
 private:
     Ui::AddressBookPage *ui;
     AddressTableModel *model;
+    PaymentCodeTableModel *pcodeModel;
     Mode mode;
     Tabs tab;
+    int pageMode;
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
+    QSortFilterProxyModel *pcodeProxyModel;
     QMenu *contextMenu;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
 
 private Q_SLOTS:
+    /** TabWidget Changed **/
+    void on_tabWidget_currentChanged(int index);
+    
     /** Delete currently selected address entry */
     void on_deleteAddress_clicked();
     /** Create a new address for receiving coins and / or add a new address book entry */
@@ -80,6 +88,11 @@ private Q_SLOTS:
     void contextualMenu(const QPoint &point);
     /** New entry/entries were added to address table */
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
+    
+    /** @bip47 */
+    void pcodeSelectionChanged();
+    void selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/);
+    
 
 Q_SIGNALS:
     void sendCoins(QString addr);

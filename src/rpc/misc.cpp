@@ -1181,6 +1181,7 @@ UniValue getinfoex(const UniValue& params, bool fHelp)
 }
 
 
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------

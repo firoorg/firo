@@ -31,6 +31,7 @@ public:
 
     void setModel(WalletModel *model);
     bool validate();
+    bool isPaymentCode();
     SendCoinsRecipient getValue();
 
     /** Return whether the entry is still empty and unedited */
@@ -69,6 +70,7 @@ private:
     const PlatformStyle *platformStyle;
 
     bool updateLabel(const QString &address);
+    bool isSigmaDlg;
 };
 
 #endif // BITCOIN_QT_SENDCOINSENTRY_H

@@ -19,9 +19,11 @@
 #include <QObject>
 
 class AddressTableModel;
+class PaymentCodeTableModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
+class RecentPCodeTransactionsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
 
@@ -115,7 +117,6 @@ public:
         AmountExceedsBalance,
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
-        SigmaDisabled,
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
@@ -133,8 +134,10 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
+    PaymentCodeTableModel *getPaymentCodeTableModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
+    RecentPCodeTransactionsTableModel *getRecentPCodeTransactionsTableModel();
 
     CAmount getBalance(const CCoinControl *coinControl = NULL) const;
     CAmount getUnconfirmedBalance() const;
@@ -144,9 +147,15 @@ public:
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
     EncryptionStatus getEncryptionStatus() const;
+    
+    
 
     // Check address for validity
     bool validateAddress(const QString &address);
+
+    // @bip47 validatePaymentCode
+    bool validatePaymentCode(const QString &pCode);
+    bool isNotificationTransactionSent(const QString &pCode);
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
@@ -158,9 +167,11 @@ public:
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
+    SendCoinsReturn preparePCodeTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
+    SendCoinsReturn sendPCodeCoins(WalletModelTransaction &transaction, bool &needMainTx);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
@@ -169,6 +180,7 @@ public:
     bool changePassphrase(const SecureString &oldPass, const SecureString &newPass);
     // Wallet backup
     bool backupWallet(const QString &filename);
+    bool backupBip47Wallet(const QString &filename);
 
     // RAI object for unlocking wallet, returned by requestUnlock()
     class UnlockContext
@@ -204,22 +216,32 @@ public:
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
     void loadReceiveRequests(std::vector<std::string>& vReceiveRequests);
+    void loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     bool saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest);
+    bool savePCodeNotificationTransaction(const std::string &rpcodestr, const int64_t nId, const std::string &sNotificationSent);
 
     bool transactionCanBeAbandoned(uint256 hash) const;
     bool abandonTransaction(uint256 hash) const;
 
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash);
+    
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
         std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
         bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
+    
+    SendCoinsReturn prepareSigmaSpendPCodeTransaction(WalletModelTransaction &transaction,
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
+        bool& fChangeAddedToFee,
+        const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
+    SendCoinsReturn sendSigmaPCode(WalletModelTransaction &transaction,
         std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Mint sigma
@@ -238,8 +260,10 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    PaymentCodeTableModel *paymentCodeTableModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
+    RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
@@ -306,6 +330,8 @@ public Q_SLOTS:
     void pollBalanceChanged();
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
+    
+    bool tryEnablePaymentCode();
 
 };
 

@@ -386,6 +386,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
            return tr("Spend to yourself");
     case TransactionRecord::Mint:
            return tr("Mint");
+    case TransactionRecord::PCode:
+           return QString("PaymentCode");
     default:
         return QString();
     }

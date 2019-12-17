@@ -6,6 +6,7 @@
 
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
+#include "paymentcodepage.h"
 #include "sigmadialog.h"
 #include "zc2sigmapage.h"
 #include "askpassphrasedialog.h"
@@ -61,6 +62,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sendCoinsTabs(0),
 #endif
     sigmaView(0),
+    paymentcodePage(0),
     blankSigmaView(0),
     zc2SigmaPage(0),
     zcoinTransactionsView(0),
@@ -78,6 +80,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sigmaPage = new QWidget(this);
     zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
+    paymentcodePage = new PaymentcodePage(platformStyle);
 #ifdef ENABLE_EXODUS
     toolboxPage = new QWidget(this);
 #endif
@@ -97,6 +100,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
+    addWidget(paymentcodePage);
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
     addWidget(zc2SigmaPage);
@@ -263,6 +267,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
 
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
+    paymentcodePage->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
 #ifdef ENABLE_EXODUS
     exoAssetsPage->setClientModel(clientModel);
@@ -291,6 +296,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     zcoinTransactionList->setModel(walletModel);
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
+    paymentcodePage->setWalletModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setWalletModel(walletModel);
@@ -422,6 +428,12 @@ void WalletView::gotoReceiveCoinsPage()
     setCurrentWidget(receiveCoinsPage);
 }
 
+void WalletView::gotoPaymentcodePage()
+{
+    setCurrentWidget(paymentcodePage);
+    paymentcodePage->tryEnablePaymentCode();
+}
+
 void WalletView::gotoZerocoinPage()
 {
     setCurrentWidget(zerocoinPage);
@@ -528,6 +540,22 @@ void WalletView::backupWallet()
         }
     else {
         Q_EMIT message(tr("Backup Successful"), tr("The wallet data was successfully saved to %1.").arg(filename),
+            CClientUIInterface::MSG_INFORMATION);
+    }
+    
+    filename = GUIUtil::getSaveFileName(this,
+        tr("Backup Bip47 Wallet"), QString(),
+        tr("Bip47 Data (*.bip47)"), NULL);
+
+    if (filename.isEmpty())
+        return;
+
+    if (!walletModel->backupBip47Wallet(filename)) {
+        Q_EMIT message(tr("Backup Failed"), tr("There was an error trying to save the bip47 data to %1.").arg(filename),
+            CClientUIInterface::MSG_ERROR);
+        }
+    else {
+        Q_EMIT message(tr("Backup Successful"), tr("The bip47 data was successfully saved to %1.").arg(filename),
             CClientUIInterface::MSG_INFORMATION);
     }
 }
