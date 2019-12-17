@@ -49,6 +49,6 @@ static const int SHORT_IDS_BLOCKS_VERSION = 90013;
 static const int INVALID_CB_NO_BAN_VERSION = 90013;
 
 //! minimum version of official client to connect to
-static const int MIN_ZCOIN_CLIENT_VERSION = 130805; // 0.13.8.5
+static const int MIN_ZCOIN_CLIENT_VERSION = 130808; // 0.13.8.8
 
 #endif // BITCOIN_VERSION_H
