@@ -489,7 +489,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             zerocoinEntry.IsUsed = stoi(vstr[5]);
             zerocoinEntry.nHeight = stoi(vstr[6]);
             zerocoinEntry.id = stoi(vstr[7]);
-            if(vstr.size()>8){
+            if(vstr.size()==11){ // Including the last "#"
                 zerocoinEntry.ecdsaSecretKey = ParseHex(vstr[8]);
                 zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
             }
