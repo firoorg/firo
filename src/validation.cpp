@@ -4884,12 +4884,12 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 }
 
                 // Activate the genesis block so normal node progress can continue
-                if (hash == chainparams.GetConsensus().hashGenesisBlock) {
+// We should call it for every block as our tx verification algos rely on the real block heights.
+//                if (hash == chainparams.GetConsensus().hashGenesisBlock) {
                     CValidationState state;
                     if (!ActivateBestChain(state, chainparams)) {
                         break;
                     }
-                }
 
                 NotifyHeaderTip();
 

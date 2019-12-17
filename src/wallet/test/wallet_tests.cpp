@@ -455,6 +455,10 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     // Import key into wallet and call dumpwallet to create backup file.
     {
         CWallet wallet;
+        CHDChain chain = wallet.GetHDChain();
+        chain.nVersion = CHDChain::VERSION_WITH_BIP44;
+        wallet.SetHDChain(chain, true);
+
         LOCK(wallet.cs_wallet);
         wallet.mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
         wallet.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
@@ -470,6 +474,9 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     // were scanned, and no prior blocks were scanned.
     {
         CWallet wallet;
+        CHDChain chain = wallet.GetHDChain();
+        chain.nVersion = CHDChain::VERSION_WITH_BIP44;
+        wallet.SetHDChain(chain, true);
 
         JSONRPCRequest request;
         request.params.setArray();
