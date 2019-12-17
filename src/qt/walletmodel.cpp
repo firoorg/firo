@@ -60,7 +60,7 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
-CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
+CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLocked) const
 {
     if (coinControl)
     {
@@ -74,7 +74,7 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
         return nBalance;
     }
 
-    return wallet->GetBalance();
+    return wallet->GetBalance(fExcludeLocked);
 }
 
 CAmount WalletModel::getUnconfirmedBalance() const
