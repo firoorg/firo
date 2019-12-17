@@ -165,7 +165,7 @@ if __name__ == '__main__':
             for sym,version,arch in read_symbols(filename, False):
             if sym in IGNORE_EXPORTS:
                 continue
-                print('%s: export of symbol %s not allowed' % (filename, cppfilt(sym)))
+            print('%s: export of symbol %s not allowed' % (filename, cppfilt(sym)))
             retval = 1
         # Check dependency libraries
         for library_name in read_libraries(filename):
