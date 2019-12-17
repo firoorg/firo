@@ -23,8 +23,8 @@ packages:
 - "libcap-dev"
 - "libz-dev"
 - "libbz2-dev"
-- "python"
-- "python-dev"
+- "python3"
+- "python3-dev"
 - "python-setuptools"
 - "fonts-tuffy"
 remotes:
