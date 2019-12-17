@@ -202,7 +202,7 @@ if __name__ == '__main__':
                     if name in NONFATAL:
                         warning.append(name)
                     else:
-                    failed.append(name)
+                        failed.append(name)
             if failed:
                 print('%s: failed %s' % (filename, ' '.join(failed)))
                 retval = 1
