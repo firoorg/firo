@@ -45,6 +45,7 @@ public:
 public Q_SLOTS:
     void clear();
     void accept();
+    void reject();
     SendCoinsEntry* addEntry();
     void coinControlFeatureChanged(bool);
     void updateTabsAndLabels();
