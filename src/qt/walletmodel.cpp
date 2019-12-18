@@ -668,7 +668,7 @@ bool WalletModel::havePrivKey(const CKeyID &address) const
 }
 
 // returns a list of COutputs from COutPoints
-void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs)
+void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs, boost::optional<bool> fMintTabSelected)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     BOOST_FOREACH(const COutPoint& outpoint, vOutpoints)
@@ -676,6 +676,15 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
+        if(fMintTabSelected!=boost::none){
+            if(wallet->mapWallet[outpoint.hash].vout[outpoint.n].scriptPubKey.IsSigmaMint()){
+                if(fMintTabSelected.get()) // only allow mint outputs on the "Spend" tab
+                    continue;
+            }else{
+                if(!fMintTabSelected.get())
+                    continue; // only allow normal outputs on the "Mint" tab
+            }
+        }
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true, true);
         vOutputs.push_back(out);
     }
