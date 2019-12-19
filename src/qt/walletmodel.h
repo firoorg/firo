@@ -268,6 +268,8 @@ Q_SIGNALS:
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                         const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
 
+    void updateMintable();
+
     // Encryption status of wallet changed
     void encryptionStatusChanged(int status);
 

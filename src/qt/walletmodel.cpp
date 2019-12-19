@@ -750,12 +750,14 @@ void WalletModel::lockCoin(COutPoint& output)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     wallet->LockCoin(output);
+    Q_EMIT updateMintable();
 }
 
 void WalletModel::unlockCoin(COutPoint& output)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     wallet->UnlockCoin(output);
+    Q_EMIT updateMintable();
 }
 
 void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
