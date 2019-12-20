@@ -245,6 +245,8 @@ void OverviewPage::setSigmaBalance()
 
     ui->labelSigmaBalance->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaBalance, false, BitcoinUnits::separatorAlways));
     ui->labelSigmaPending->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance + currentImmatureBalance + currentSigmaBalance + currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
+
 }
 
 // show/hide watch-only labels
