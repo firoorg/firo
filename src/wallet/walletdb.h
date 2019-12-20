@@ -11,6 +11,7 @@
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
 #include "wallet/db.h"
+#include "mnemoniccontainer.h"
 #include "streams.h"
 #include "key.h"
 
@@ -76,7 +77,8 @@ public:
 
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
-    static const int CURRENT_VERSION = VERSION_WITH_BIP44;
+    static const int VERSION_WITH_BIP39 = 11;
+    static const int CURRENT_VERSION = VERSION_WITH_BIP39;
     static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
     int nVersion;
 
@@ -341,6 +343,7 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+    bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     //! write the bip47hdchain model (external chain child index counter)
     bool WriteCBip47HDChain(const CBip47HDChain& bip47chain);

@@ -13,7 +13,6 @@
 #include "platformstyle.h"
 #include "transactionfilterproxy.h"
 #include "transactiontablemodel.h"
-#include "walletmodel.h"
 #include "main.h"
 
 #ifdef WIN32
@@ -201,7 +200,7 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
     ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentSigmaBalance + currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchImmature->setText(BitcoinUnits::formatWithUnit(unit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
@@ -216,6 +215,38 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelWatchImmature->setVisible(showWatchOnlyImmature); // show watch-only immature balance
+}
+
+void OverviewPage::updateCoins(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending)
+{
+    CAmount sum(0);
+    int64_t denom;
+    for (const auto& c : spendable) {
+        DenominationToInteger(c.denom, denom);
+        sum += denom;
+    }
+
+    CAmount pendingSum(0);
+    for (const auto& c : pending) {
+        DenominationToInteger(c.denom, denom);
+        pendingSum += denom;
+    }
+
+
+
+    currentSigmaBalance = sum;
+    currentSigmaUnconfirmedBalance = pendingSum;
+    setSigmaBalance();
+}
+
+void OverviewPage::setSigmaBalance()
+{
+    int unit = walletModel->getOptionsModel()->getDisplayUnit();
+
+    setBalance(walletModel->getBalance(), walletModel->getUnconfirmedBalance(), walletModel->getImmatureBalance(),
+               walletModel->getWatchBalance(), walletModel->getWatchUnconfirmedBalance(), walletModel->getWatchImmatureBalance());
+    ui->labelSigmaBalance->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelSigmaPending->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
 }
 
 // show/hide watch-only labels
@@ -264,6 +295,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         setBalance(model->getBalance(), model->getUnconfirmedBalance(), model->getImmatureBalance(),
                    model->getWatchBalance(), model->getWatchUnconfirmedBalance(), model->getWatchImmatureBalance());
         connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
+        this, SLOT(updateCoins(const std::vector<CMintMeta>, const std::vector<CMintMeta>)));
 
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
@@ -282,6 +315,7 @@ void OverviewPage::updateDisplayUnit()
         if(currentBalance != -1)
             setBalance(currentBalance, currentUnconfirmedBalance, currentImmatureBalance,
                        currentWatchOnlyBalance, currentWatchUnconfBalance, currentWatchImmatureBalance);
+        setSigmaBalance();
 
         // Update txdelegate->unit with the current unit
         txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();

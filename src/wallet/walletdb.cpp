@@ -766,6 +766,13 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
                 strErr = "Error reading wallet database: SetHDChain failed";
                 return false;
             }
+        } else if (strType == "mnemonic") {
+            MnemonicContainer mnContainer;
+            ssValue >> mnContainer;
+            if (!pwallet->SetMnemonicContainer(mnContainer, true)) {
+                strErr = "Error reading wallet database: SetMnemonicContainer failed";
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -1297,10 +1304,6 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
-bool CWalletDB::WriteCBip47HDChain(const CBip47HDChain& bip47chain) {
-    nWalletDBUpdated++;
-    return Write(std::string("bip47hdchain"), bip47chain);
-}
 
 bool CWalletDB::WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId)
 {
@@ -1410,6 +1413,9 @@ bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCo
     }
     pcursor->close();
     return true;
+bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
+    nWalletDBUpdated++;
+    return Write(std::string("mnemonic"), mnContainer);
 }
 
 bool CWalletDB::ReadMintCount(int32_t& nCount)

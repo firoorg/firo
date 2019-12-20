@@ -18,6 +18,7 @@
 #include "wallet/crypter.h"
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
+#include "wallet/mnemoniccontainer.h"
 #include "../base58.h"
 #include "zerocoin_params.h"
 #include "univalue.h"
@@ -76,6 +77,9 @@ static const bool DEFAULT_WALLETBROADCAST = true;
 
 //! if set, all keys will be derived by using BIP32
 static const bool DEFAULT_USE_HD_WALLET = true;
+
+//! if set, all keys will be derived by using BIP39
+static const bool DEFAULT_USE_MNEMONIC = true;
 
 extern const char * DEFAULT_WALLET_DAT;
 
@@ -678,7 +682,7 @@ private:
 
     /* the HD chain data model (external chain counters) */
     CHDChain hdChain;
-    CBip47HDChain bip47hdChain;
+    MnemonicContainer mnemonicContainer;
 
 public:
     /*
@@ -1211,8 +1215,15 @@ public:
     bool SetHDChain(const CHDChain& chain, bool memonly);
     const CHDChain& GetHDChain() { return hdChain; }
 
+    bool SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly);
+    const MnemonicContainer& GetMnemonicContainer() { return mnemonicContainer; }
+
+    bool EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn);
+    bool DecryptMnemonicContainer(MnemonicContainer& mnContainer);
+
     /* Generates a new HD master key (will not be activated) */
     CPubKey GenerateNewHDMasterKey();
+    void GenerateNewMnemonic();
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key);
@@ -1281,6 +1292,8 @@ public:
     CBitcoinAddress getAddressOfKey(CPubKey pkey);
 
     
+    bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
+
 };
 
 /** A key allocated from the key pool. */

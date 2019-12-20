@@ -109,6 +109,7 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     ui->amountToMint->setLocale(QLocale::c());
+    connect(ui->amountToMint, SIGNAL(valueChanged(double)), this, SLOT(coinControlUpdateLabels()));
 
     //check if user clicked at a tab
     connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabSelected()));
@@ -167,6 +168,9 @@ void SigmaDialog::tabSelected(){
         if(coinControlSelected)
             ui->coinControlChange->hide();
     }
+    // reset the coin control window on a tab change (preserves the backend so the state is the same when returning)
+    if(coinControlSelected)
+        coinControlUpdateLabels();
 }
 
 SigmaDialog::~SigmaDialog()
@@ -715,11 +719,15 @@ void SigmaDialog::accept()
     clear();
 }
 
+void SigmaDialog::reject(){}
+
 SendCoinsEntry *SigmaDialog::addEntry() {
     SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(walletModel);
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
+    connect(entry, SIGNAL(payAmountChanged()), this, SLOT(coinControlUpdateLabels()));
+    connect(entry, SIGNAL(subtractFeeFromAmountChanged()), this, SLOT(coinControlUpdateLabels()));
 
     // Focus the field, so that entry can start immediately
     entry->clear();
@@ -816,17 +824,22 @@ void SigmaDialog::coinControlUpdateLabels()
     // set pay amounts
     SigmaCoinControlDialog::payAmounts.clear();
     SigmaCoinControlDialog::fSubtractFeeFromAmount = false;
-    for(int i = 0; i < ui->entries->count(); ++i)
-    {
-        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-        if(entry && !entry->isHidden())
+    if(SigmaCoinControlDialog::fMintTabSelected){
+        SigmaCoinControlDialog::payAmounts.append(ui->amountToMint->value() * COIN);
+    }else{
+        for(int i = 0; i < ui->entries->count(); ++i)
         {
-            SendCoinsRecipient rcp = entry->getValue();
-            SigmaCoinControlDialog::payAmounts.append(rcp.amount);
-            if (rcp.fSubtractFeeFromAmount)
-                SigmaCoinControlDialog::fSubtractFeeFromAmount = true;
+            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            if(entry && !entry->isHidden())
+            {
+                SendCoinsRecipient rcp = entry->getValue();
+                SigmaCoinControlDialog::payAmounts.append(rcp.amount);
+                if (rcp.fSubtractFeeFromAmount)
+                    SigmaCoinControlDialog::fSubtractFeeFromAmount = true;
+            }
         }
     }
+
 
     if (SigmaCoinControlDialog::coinControl->HasSelected())
     {

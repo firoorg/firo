@@ -2191,7 +2191,8 @@ UniValue encryptwallet(const UniValue& params, bool fHelp)
     // slack space in .dat files; that is bad if the old data is
     // unencrypted private keys. So:
     StartShutdown();
-    return "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";
+
+    return "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet.";
 }
 
 UniValue lockunspent(const UniValue& params, bool fHelp)
