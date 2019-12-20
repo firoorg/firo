@@ -1413,6 +1413,8 @@ bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCo
     }
     pcursor->close();
     return true;
+}
+
 bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
     nWalletDBUpdated++;
     return Write(std::string("mnemonic"), mnContainer);
