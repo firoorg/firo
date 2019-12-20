@@ -713,6 +713,17 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true, true);
+
+        if(nCoinType == ALL_COINS){
+            // We are now taking ALL_COINS to mean everything sans mints
+            if(out.tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->vout[out.i].scriptPubKey.IsZerocoinRemint())
+                continue;
+        } else if(nCoinType == ONLY_MINTS){
+            // Do not consider anything other than mints
+            if(!(out.tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->vout[out.i].scriptPubKey.IsZerocoinRemint()))
+                continue;
+        }
+
         if (outpoint.n < out.tx->vout.size() && wallet->IsMine(out.tx->vout[outpoint.n]) == ISMINE_SPENDABLE)
             vCoins.push_back(out);
     }
