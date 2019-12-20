@@ -1226,7 +1226,7 @@ public:
     void GenerateNewMnemonic();
 
     /* Set the current HD master key (will reset the chain child index counters) */
-    bool SetHDMasterKey(const CPubKey& key);
+    bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 
     /** @Todo
      *  We will need merge bip47 wallet to wallet instead of inherit.
@@ -1292,7 +1292,6 @@ public:
     CBitcoinAddress getAddressOfKey(CPubKey pkey);
 
     
-    bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 
 };
 
