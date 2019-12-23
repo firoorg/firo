@@ -29,7 +29,7 @@
 namespace {
 
 // Number of seconds before thread shuts down if idle
-constexpr static int secondsBeforeThreadShutdown = 10;
+constexpr static int secondsBeforeThreadShutdown = 60;
 
 // Simple thread pool class for using multiple cores effeciently
 
@@ -198,7 +198,7 @@ GroupElement MultiExponent::get_multiple_single_thread() {
 GroupElement MultiExponent::get_multiple() {
     static ParallelOpThreadPool<GroupElement> parallel_op_thread_pool;
 
-    constexpr int min_points_per_thread = ECMULT_PIPPENGER_THRESHOLD * 3 / 2;
+    constexpr int min_points_per_thread = 50;
     int points_per_thread = std::max(n_points / parallel_op_thread_pool.GetNumberOfThreads(), min_points_per_thread);
     int n_threads = n_points / points_per_thread;
 
