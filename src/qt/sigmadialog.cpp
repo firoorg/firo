@@ -134,8 +134,9 @@ void SigmaDialog::setWalletModel(WalletModel *model)
 
     if (model && model->getOptionsModel()) {
         connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
-            this, SLOT(updateAvailableToMintBalance(CAmount)));
-        updateAvailableToMintBalance(model->getBalance());
+            this, SLOT(updateMintableBalance()));
+        connect(model, SIGNAL(updateMintable()), this, SLOT(updateMintableBalance()));
+        updateMintableBalance();
         connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
             this, SLOT(updateCoins(const std::vector<CMintMeta>, const std::vector<CMintMeta>)));
         model->checkSigmaAmount(true);
@@ -217,7 +218,7 @@ void SigmaDialog::on_mintButton_clicked()
         amount -= amount % smallestDenominationValue;
         auto reply = QMessageBox::question(
             this, tr("Unable to mint."),
-            tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to spend %1 XZC?"
+            tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to mint %1 XZC?"
             ).arg(formatAmount(amount)));
 
         if (reply == QMessageBox::No) {
@@ -514,6 +515,11 @@ void SigmaDialog::updateAvailableToMintBalance(const CAmount& balance)
 {
     QString formattedBalance = BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), balance);
     ui->availableAmount->setText(formattedBalance);
+}
+
+void SigmaDialog::updateMintableBalance()
+{
+    updateAvailableToMintBalance(this->walletModel->getBalance(NULL, true));
 }
 
 // Coin Control: copy label "Quantity" to clipboard

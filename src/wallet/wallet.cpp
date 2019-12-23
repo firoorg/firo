@@ -2189,8 +2189,7 @@ CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const
     return 0;
 }
 
-CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
-{
+CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const {
     if (pwallet == 0)
         return 0;
 
@@ -2199,7 +2198,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint())
+    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -2210,7 +2209,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
         {
             const CTxOut &txout = tx->vout[i];
             bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint();
-            nCredit += isPrivate ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            bool condition = isPrivate;
+            if (fExcludeLocked)
+                condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));
+            nCredit += condition ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -2218,6 +2220,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
 
     nAvailableCreditCached = nCredit;
     fAvailableCreditCached = true;
+
+    if (fExcludeLocked)
+        fAvailableCreditCached = false;
+
     return nCredit;
 }
 
@@ -2433,7 +2439,7 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman
  */
 
 
-CAmount CWallet::GetBalance() const
+CAmount CWallet::GetBalance(bool fExcludeLocked) const
 {
     CAmount nTotal = 0;
     {
@@ -2442,7 +2448,7 @@ CAmount CWallet::GetBalance() const
         {
             const CWalletTx* pcoin = &(*it).second;
             if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(true, fExcludeLocked);
         }
     }
 
