@@ -770,7 +770,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         StartShutdown();
     }
 
-    if (!GetBoolArg("-zapwallettxes", false)) {
+    if (!(GetBoolArg("-zapwallettxes", false) || GetBoolArg("-reindex", false))) {
         LoadMempool();
     }
 
