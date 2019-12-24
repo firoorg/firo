@@ -1711,7 +1711,7 @@ void CWalletTx::GetAccountAmounts(const string &strAccount, CAmount &nReceived,
  * from or to us. If fUpdate is true, found transactions that already
  * exist in the wallet will be updated.
  */
-int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
+int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic) {
     int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams &chainParams = Params();
@@ -1722,8 +1722,12 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        if (fRecoverMnemonic)
+            pindex = chainActive[222400];
+        else
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
 
         ShowProgress(_("Rescanning..."),
                      0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
@@ -8152,7 +8156,10 @@ bool CWallet::InitLoadWallet() {
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight,
                   pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        walletInstance->ScanForWalletTransactions(pindexRescan, true);
+        bool fRecoverMnemonic = false;
+        if (GetBoolArg("-fRecoverMnemonic", false))
+            fRecoverMnemonic = true;
+        walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
         nWalletDBUpdated++;
