@@ -95,7 +95,7 @@ bool Recover::askRecover(bool& newWallet)
     if(!fs::exists(GUIUtil::qstringToBoostPath(QString::fromStdString(dataDir))))
     {
         newWallet = true;
-        SoftSetBoolArg("-fRecoverMnemonic", true);
+        SoftSetBoolArg("-rescanmnemonic", true);
         Recover recover;
         recover.setWindowIcon(QIcon(":icons/zcoin"));
         while(true)

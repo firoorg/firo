@@ -1724,7 +1724,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, b
         // our wallet birthday (as adjusted for block time variability)
         // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
         if (fRecoverMnemonic)
-            pindex = chainActive[222400];
+            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
         else
             while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                 pindex = chainActive.Next(pindex);
@@ -8157,7 +8157,7 @@ bool CWallet::InitLoadWallet() {
                   pindexRescan->nHeight);
         nStart = GetTimeMillis();
         bool fRecoverMnemonic = false;
-        if (GetBoolArg("-fRecoverMnemonic", false))
+        if (GetBoolArg("-rescanmnemonic", false))
             fRecoverMnemonic = true;
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
