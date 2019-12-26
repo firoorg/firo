@@ -860,8 +860,6 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
     if (result != DB_LOAD_OK)
         return result;
 
-
-
     LogPrintf("nFileVersion = %d\n", wss.nFileVersion);
 
     LogPrintf("Keys: %u plaintext, %u encrypted, %u w/ metadata, %u total\n",
@@ -893,7 +891,7 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
     }
 
     // unencrypted wallets upgrading the wallet version get a new keypool here
-    if(wss.fUpgradeHDChain && !pwallet->IsLocked())
+    if (wss.fUpgradeHDChain && !pwallet->IsLocked())
         pwallet->NewKeyPool();
 
     return result;
