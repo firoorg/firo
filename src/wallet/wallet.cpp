@@ -8041,6 +8041,7 @@ bool CWallet::InitLoadWallet() {
     uiInterface.InitMessage(_("Loading wallet..."));
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
+    bool fRecoverMnemonic = false;
     CWallet *walletInstance = new CWallet(walletFile);
     pwalletMain = walletInstance;
 
@@ -8092,6 +8093,7 @@ bool CWallet::InitLoadWallet() {
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
                 SoftSetBoolArg("-rescan", true);
+                fRecoverMnemonic = true;
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
@@ -8156,9 +8158,6 @@ bool CWallet::InitLoadWallet() {
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight,
                   pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        bool fRecoverMnemonic = false;
-        if (GetBoolArg("-rescanmnemonic", false))
-            fRecoverMnemonic = true;
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
