@@ -656,7 +656,7 @@ public:
     bool exists(uint256 hash) const
     {
         LOCK(cs);
-        return (mapTx.count(hash) != 0);
+        return mapTx.find(hash) != mapTx.end();
     }
 
     CTransactionRef get(const uint256& hash) const;
@@ -755,6 +755,30 @@ struct TxCoinAgePriorityCompare
             return CompareTxMemPoolEntryByScore()(*(b.second), *(a.second)); //Reverse order to make sort less than
         return a.first < b.first;
     }
+};
+
+/**
+ * Aggregates mempool and stem pool to avoid code duplication.
+ * Delegates all the calls to the mempool and the stem pool global instances
+ */
+class CTxPoolAggregate {
+public:
+    CTxPoolAggregate(const CFeeRate& minReasonableRelayFee);
+    CTxMemPool & getStemTxPool();
+public:
+    void UpdateTransactionsFromBlock(const std::vector <uint256> &vHashesToUpdate);
+    void AddTransactionsUpdated(unsigned int n);
+    void PrioritiseTransaction(const uint256 hash, const string strHash, double dPriorityDelta, const CAmount &nFeeDelta);
+    void setSanityCheck(double dFrequency = 1.0);
+    void getTransactions(std::set<uint256>& setTxid);
+    void check(const CCoinsViewCache *pcoins) const;
+    CTransactionRef get(const uint256& hash) const;
+    void clear();
+    void removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMemPoolHeight, int flags);
+    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight);
+    void removeRecursive(const CTransaction &tx, MemPoolRemovalReason reason = MemPoolRemovalReason::UNKNOWN);
+private:
+    CTxMemPool stemTxPool;
 };
 
 #endif // BITCOIN_TXMEMPOOL_H

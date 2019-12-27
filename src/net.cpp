@@ -105,7 +105,7 @@ CNode* CNode::localDandelionDestination = nullptr;
 
 // All txn are put in the stempool in stem phase.
 // After getting relayed they are moved to mempool.
-extern CTxMemPool stempool;
+extern CTxPoolAggregate txpools;
 
 /** Services this node implementation cares about */
 ServiceFlags nRelevantServices = NODE_NETWORK;
@@ -2805,7 +2805,7 @@ CNode* CNode::getDandelionDestination(CNode* pfrom) {
 
 void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
 {
-    if (!stempool.exists(tx.GetHash())) {
+    if (!txpools.getStemTxPool().exists(tx.GetHash())) {
         LogPrintf("ERROR: Trying to relay dandelion transaction %s which is not in the stempool.\n",
                   tx.GetHash().ToString());
         return;
@@ -2817,7 +2817,7 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
 
         // LogPrint("dandelion", "Dandelion fluff: %s\n", tx.GetHash().ToString());
         CValidationState state;
-        std::shared_ptr<const CTransaction> ptx = stempool.get(tx.GetHash());
+        std::shared_ptr<const CTransaction> ptx = txpools.getStemTxPool().get(tx.GetHash());
         bool fMissingInputs = false;
         std::list<CTransactionRef> lRemovedTxn;
         AcceptToMemoryPool(
@@ -2860,7 +2860,7 @@ void CNode::CheckDandelionEmbargoes()
             // Embargo time is over, we did not "see" the transaction back in fluff phase,
             // so start fluffing/relaying it.
             CValidationState state;
-            shared_ptr<const CTransaction> ptx = stempool.get(iter->first);
+            shared_ptr<const CTransaction> ptx = txpools.getStemTxPool().get(iter->first);
             // If txn was not found in Stempool, then something went wrong,
             // Keep it embargoed for now.
             if (!ptx) {

@@ -536,7 +536,7 @@ void DisconnectTipSigma(CBlock& block, CBlockIndex *pindexDelete) {
 
     // Also remove from mempool sigma spends that reference given block hash.
     RemoveSigmaSpendsReferencingBlock(mempool, pindexDelete);
-    RemoveSigmaSpendsReferencingBlock(stempool, pindexDelete);
+    RemoveSigmaSpendsReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {

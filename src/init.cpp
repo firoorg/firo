@@ -126,7 +126,7 @@ enum BindFlags {
 
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 
-extern CTxMemPool stempool;
+extern CTxPoolAggregate txpools;
 
 namespace fs = boost::filesystem;
 
@@ -238,9 +238,7 @@ void Shutdown()
     /// Be sure that anything that writes files or flushes caches only does this if the respective
     /// module was initialized.
     RenameThread("bitcoin-shutoff");
-    mempool.AddTransactionsUpdated(1);
-    // Changes to mempool should also be made to Dandelion stempool
-    stempool.AddTransactionsUpdated(1);
+    txpools.AddTransactionsUpdated(1);
 
     StopHTTPRPC();
     StopREST();

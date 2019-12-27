@@ -35,7 +35,7 @@
 
 using namespace std;
 
-extern CTxMemPool stempool;
+extern CTxPoolAggregate txpools;
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -328,10 +328,7 @@ UniValue prioritisetransaction(const JSONRPCRequest& request)
     uint256 hash = ParseHashStr(request.params[0].get_str(), "txid");
     CAmount nAmount = request.params[2].get_int64();
 
-    mempool.PrioritiseTransaction(hash, request.params[0].get_str(), request.params[1].get_real(), nAmount);
-
-    // Changes to mempool should also be made to Dandelion stempool
-    stempool.PrioritiseTransaction(hash, request.params[0].get_str(), request.params[1].get_real(), nAmount);
+    txpools.PrioritiseTransaction(hash, request.params[0].get_str(), request.params[1].get_real(), nAmount);
 
     return true;
 }

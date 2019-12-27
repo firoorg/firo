@@ -1170,7 +1170,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     int nSendFlags = (
                             inv.type == MSG_DANDELION_TX ?
                             SERIALIZE_TRANSACTION_NO_WITNESS : 0);
-                    auto txinfo = stempool.info(inv.hash);
+                    auto txinfo = txpools.getStemTxPool().info(inv.hash);
                     uint256 dandelionServiceDiscoveryHash;
                     dandelionServiceDiscoveryHash.SetHex(
                             "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -2039,7 +2039,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             // Changes to mempool should also be made to Dandelion stempool.
             AcceptToMemoryPool(
-                stempool,
+                txpools.getStemTxPool(),
                 dummyState,
                 ptx,
                 true, /* fLimitFree */
@@ -2101,7 +2101,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
                         // Changes to mempool should also be made to Dandelion stempool
                         AcceptToMemoryPool(
-                            stempool,
+                            txpools.getStemTxPool(),
                             stateDummyDandelion,
                             porphanTx,
                             true, /* fLimitFree */
@@ -2151,7 +2151,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
-                stempool,
+                txpools.getStemTxPool(),
                 dummyState,
                 ptx,
                 true, /* fLimitFree */
@@ -2166,7 +2166,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
             // Changes to mempool should also be made to Dandelion stempool
-            stempool.check(pcoinsTip);
+            txpools.getStemTxPool().check(pcoinsTip);
 
             RelayTransaction(tx, connman);
         }
@@ -2263,9 +2263,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         CInv inv(MSG_DANDELION_TX, tx.GetHash());
         LOCK(cs_main);
         if (CNode::isDandelionInbound(pfrom)) {
-            if (!stempool.exists(inv.hash)) {
+            if (!txpools.getStemTxPool().exists(inv.hash)) {
                 bool ret = AcceptToMemoryPool(
-                    stempool,
+                    txpools.getStemTxPool(),
                     state,
                     ptx,
                     true, // fLimitFree
@@ -2281,8 +2281,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                              "AcceptToStemPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
                              pfrom->GetId(),
                              tx.GetHash().ToString(),
-                             stempool.size(),
-                             stempool.DynamicMemoryUsage() / 1000);
+                             txpools.getStemTxPool().size(),
+                             txpools.getStemTxPool().DynamicMemoryUsage() / 1000);
                     int64_t nCurrTime = GetTimeMicros();
                     auto& consensus = Params().GetConsensus();
                     int64_t nEmbargo = 1000000 * consensus.nDandelionEmbargoMinimum +
@@ -2311,7 +2311,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // If the transaction already was in the stempool,
             // Or we just successfully added it there, relay it.
             // It will either get relayed to one Dandelion destination, or fluff phase will start.
-            if (stempool.exists(inv.hash)) {
+            if (txpools.getStemTxPool().exists(inv.hash)) {
                 CNode::RelayDandelionTransaction(tx, pfrom);
             }
         }
