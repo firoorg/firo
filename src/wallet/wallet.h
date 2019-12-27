@@ -72,6 +72,8 @@ static const unsigned int DEFAULT_TX_CONFIRM_TARGET = 2;
 static const unsigned int MAX_FREE_TRANSACTION_CREATE_SIZE = 1000;
 static const bool DEFAULT_WALLETBROADCAST = true;
 
+static bool DEFAULT_UPGRADE_CHAIN = false;
+
 //! if set, all keys will be derived by using BIP32
 static const bool DEFAULT_USE_HD_WALLET = true;
 
@@ -1200,7 +1202,7 @@ public:
     bool BackupWallet(const std::string& strDest);
 
     /* Set the HD chain model (chain child index counters) */
-    bool SetHDChain(const CHDChain& chain, bool memonly);
+    bool SetHDChain(const CHDChain& chain, bool memonly, bool& upgradeChain = DEFAULT_UPGRADE_CHAIN, bool genNewKeyPool = true);
     const CHDChain& GetHDChain() { return hdChain; }
 
     bool SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly);
