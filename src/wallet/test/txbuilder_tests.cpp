@@ -79,9 +79,9 @@ BOOST_AUTO_TEST_CASE(build_with_empty_recipients)
 {
     TestTxBuilder builder(*pwalletMain);
     CAmount fee;
-
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build({}, fee),
+        builder.Build({}, fee, fChangeAddedToFee),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("No recipients"); }
     );
@@ -96,9 +96,9 @@ BOOST_AUTO_TEST_CASE(build_with_some_recipients_have_negative_amount)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = -5, .fSubtractFeeFromAmount = false}
     };
-
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build(recipients, fee),
+        builder.Build(recipients, fee, fChangeAddedToFee),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 1 has invalid amount"); }
     );
@@ -114,8 +114,9 @@ BOOST_AUTO_TEST_CASE(build_with_some_recipients_have_amount_exceed_limit)
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 1, .fSubtractFeeFromAmount = false}
     };
 
+    bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build(recipients, fee),
+        builder.Build(recipients, fee, fChangeAddedToFee),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 0 has invalid amount"); }
     );
@@ -130,8 +131,8 @@ BOOST_AUTO_TEST_CASE(build_with_no_subtract_fee)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = false}
     };
-
-    auto tx = builder.Build(recipients, fee);
+    bool fChangeAddedToFee;
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
@@ -154,7 +155,8 @@ BOOST_AUTO_TEST_CASE(build_with_subtract_fee)
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = true}
     };
 
-    auto tx = builder.Build(recipients, fee);
+    bool fChangeAddedToFee;
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
@@ -192,8 +194,8 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = false}
     };
-
-    auto tx = builder.Build(recipients, fee);
+    bool fChangeAddedToFee;
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
@@ -227,3 +229,4 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+

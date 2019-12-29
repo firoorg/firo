@@ -37,9 +37,31 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+#include "zerocoin.h"
+#include "sigma.h"
 
- ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
-    TestingSetup(CBaseChainParams::REGTEST, "1"){};
+
+ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
+    TestingSetup(CBaseChainParams::REGTEST, "1") {
+    // Crean sigma state, just in case someone forgot to do so.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    sigmaState->Reset();
+
+    // Also clean up old zerocoin state.
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    zerocoinState->Reset();
+};
+
+ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
+    // Clean sigma state after us.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    sigmaState->Reset();
+
+    // Also clean up old zerocoin state.
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    zerocoinState->Reset();
+
+}
 
     CBlock ZerocoinTestingSetupBase::CreateBlock(
             const vector<uint256>& tx_ids,
@@ -47,7 +69,7 @@
         const CChainParams& chainparams = Params();
         CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
             scriptPubKey, tx_ids);
-        CBlock& block = pblocktemplate->block;
+        CBlock block = pblocktemplate->block;
 
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
@@ -57,7 +79,7 @@
             ++block.nNonce;
         }
 
-        //delete pblocktemplate;
+        delete pblocktemplate;
         return block;
     }
 
@@ -86,10 +108,9 @@
 
  ZerocoinTestingSetup200::ZerocoinTestingSetup200()
     {
-        CPubKey newKey;
-        BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+        BOOST_CHECK(pwalletMain->GetKeyFromPool(pubkey));
 
-        string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
+        string strAddress = CBitcoinAddress(pubkey.GetID()).ToString();
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
@@ -99,7 +120,7 @@
         // Since sigma V3 implementation also over consensus.nMintV3SigmaStartBlock = 180;
 
         printf("Balance before %ld\n", pwalletMain->GetBalance());
-        scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
+        scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(pubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
         for (int i = 0; i < 200; i++)
         {
             CBlock b = CreateAndProcessBlock({}, scriptPubKey);

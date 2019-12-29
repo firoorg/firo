@@ -115,7 +115,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Пошаљите новац на zcoin адресу</translation>
+        <translation>Пошаљите новац на Zcoin адресу</translation>
     </message>
     <message>
         <source>Change the passphrase used for wallet encryption</source>

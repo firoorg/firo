@@ -4,7 +4,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(sigma_serialize_tests)
+#include "../../test/fixtures.h"
+
+BOOST_FIXTURE_TEST_SUITE(sigma_serialize_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(group_element_serialize)
 {
@@ -40,7 +42,7 @@ BOOST_AUTO_TEST_CASE(scalar_serialize)
 
 BOOST_AUTO_TEST_CASE(proof_serialize)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -72,13 +74,13 @@ BOOST_AUTO_TEST_CASE(proof_serialize)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof(n, m);
 
-    prover.proof(commits, index, r, initial_proof);
+    prover.proof(commits, index, r, true, initial_proof);
 
     unsigned char buffer [initial_proof.memoryRequired()];
     initial_proof.serialize(buffer);
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(params);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(n, m);
     resulted_proof.deserialize(buffer);
 
     BOOST_CHECK(initial_proof.B_ == resulted_proof.B_);

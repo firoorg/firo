@@ -1,13 +1,13 @@
-/* Copyright (c) 2012-2017, The Tor Project, Inc. */
+/* Copyright (c) 2012-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
-#include "crypto.h"
-#include "or.h"
-#include "test.h"
+#include "lib/crypt_ops/crypto_cipher.h"
+#include "core/or/or.h"
+#include "test/test.h"
 
 #define RENDSERVICE_PRIVATE
-#include "rendservice.h"
+#include "feature/rend/rendservice.h"
 
 static uint8_t v0_test_plaintext[] =
     /* 20 bytes of rendezvous point nickname */

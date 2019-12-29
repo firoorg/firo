@@ -1,10 +1,11 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
-#include "config.h"
-#include "conscache.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "feature/dircache/conscache.h"
+#include "lib/encoding/confline.h"
+#include "test/test.h"
 
 #ifdef HAVE_UTIME_H
 #include <utime.h>
@@ -337,4 +338,3 @@ struct testcase_t conscache_tests[] = {
   ENT(filter),
   END_OF_TESTCASES
 };
-

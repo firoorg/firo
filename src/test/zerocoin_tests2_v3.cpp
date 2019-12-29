@@ -24,7 +24,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
-#include "zerocoin_v3.h"
+#include "sigma.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"
@@ -40,12 +40,12 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2_v3, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 {
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
-    vector<uint256> vtxid;
-    //200 blocks already mined, create another 200.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+    vector<uint256> vtxid;
+    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
+
+    CreateAndProcessEmptyBlocks(350, scriptPubKey);
 
     std::vector<string> denominations = {"0.1", "0.5", "1"};
     for(string denomination : denominations) {
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

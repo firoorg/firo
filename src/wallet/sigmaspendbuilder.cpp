@@ -12,7 +12,8 @@
 #include "../streams.h"
 #include "../util.h"
 #include "../version.h"
-#include "../zerocoin_v3.h"
+#include "../sigma.h"
+#include "../hdmint/wallet.h"
 
 #include <stdexcept>
 #include <tuple>
@@ -20,24 +21,26 @@
 class SigmaSpendSigner : public InputSigner
 {
 public:
-    const sigma::PrivateCoinV3 coin;
-    std::vector<sigma::PublicCoinV3> group;
+    const sigma::PrivateCoin coin;
+    std::vector<sigma::PublicCoin> group;
     uint256 lastBlockOfGroup;
+    bool fPadding;
 
 public:
-    SigmaSpendSigner(const sigma::PrivateCoinV3& coin) : coin(coin)
+    SigmaSpendSigner(const sigma::PrivateCoin& coin) : coin(coin)
     {
+        fPadding = true;
     }
 
     CScript Sign(const CMutableTransaction& tx, const uint256& sig) override
     {
         // construct spend
-        sigma::SpendMetaDataV3 meta(output.n, lastBlockOfGroup, sig);
-        sigma::CoinSpendV3 spend(coin.getParams(), coin, group, meta);
+        sigma::SpendMetaData meta(output.n, lastBlockOfGroup, sig);
+        sigma::CoinSpend spend(coin.getParams(), coin, group, meta, fPadding);
 
         spend.setVersion(coin.getVersion());
 
-        if (!spend.Verify(group, meta)) {
+        if (!spend.Verify(group, meta, fPadding)) {
             throw std::runtime_error(_("The spend coin transaction failed to verify"));
         }
 
@@ -47,28 +50,28 @@ public:
 
         CScript script;
 
-        script << OP_ZEROCOINSPENDV3;
+        script << OP_SIGMASPEND;
         script.insert(script.end(), serialized.begin(), serialized.end());
 
         return script;
     }
 };
 
-static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CZerocoinEntryV3& coin)
+static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 {
-    auto state = CZerocoinStateV3::GetZerocoinState();
-    auto params = sigma::ParamsV3::get_default();
+    sigma::CSigmaState* state = sigma::CSigmaState::GetState();
+    auto params = sigma::Params::get_default();
     auto denom = coin.get_denomination();
 
     // construct public part of the mint
-    sigma::PublicCoinV3 pub(coin.value, denom);
+    sigma::PublicCoin pub(coin.value, denom);
 
     if (!pub.validate()) {
         throw std::runtime_error(_("One of the minted coin is invalid"));
     }
 
     // construct private part of the mint
-    sigma::PrivateCoinV3 priv(params, denom, ZEROCOIN_TX_VERSION_3);
+    sigma::PrivateCoin priv(params, denom, ZEROCOIN_TX_VERSION_3);
 
     priv.setSerialNumber(coin.serialNumber);
     priv.setRandomness(coin.randomness);
@@ -99,10 +102,15 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CZerocoinEntryV3& co
         throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
     }
 
+    if(chainActive.Height() < ::Params().GetConsensus().nSigmaPaddingBlock)
+        signer->fPadding = false;
+
     return signer;
 }
 
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
+SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl) :
+    TxBuilder(wallet),
+    mintWallet(mintWallet)
 {
     cs_main.lock();
 
@@ -112,6 +120,8 @@ SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
         cs_main.unlock();
         throw;
     }
+
+    this->coinControl = coinControl;
 }
 
 SigmaSpendBuilder::~SigmaSpendBuilder()
@@ -127,13 +137,15 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     selected.clear();
     denomChanges.clear();
 
-    if (!wallet.GetCoinsToSpend(required, selected, denomChanges)) {
+    auto& consensusParams = Params().GetConsensus();
+
+    if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
+        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction, coinControl)) {
         throw InsufficientFunds();
     }
 
     // construct signers
     CAmount total = 0;
-
     for (auto& coin : selected) {
         total += coin.get_denomination_value();
         signers.push_back(CreateSigner(coin));
@@ -147,38 +159,30 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
     outputs.clear();
     changes.clear();
 
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
 
+    CHDMint hdMint;
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
-        sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        hdMint.SetNull();
+        mintWallet.GenerateMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
-            throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            throw std::runtime_error("Unable to mint a sigma coin.");
         }
 
         // Create script for coin
         CScript scriptSerializedCoin;
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+        scriptSerializedCoin << OP_SIGMAMINT;
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-        // Create zerocoinTx
-        CZerocoinEntryV3 zerocoinTx;
-        zerocoinTx.IsUsed = false;
-        zerocoinTx.set_denomination(newCoin.getPublicCoin().getDenomination());
-        zerocoinTx.value = newCoin.getPublicCoin().getValue();
-
-        zerocoinTx.randomness = newCoin.getRandomness();
-        zerocoinTx.serialNumber = newCoin.getSerialNumber();
-        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
-        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-
         outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
-        changes.push_back(zerocoinTx);
+        changes.push_back(hdMint);
 
         amount -= denominationValue;
     }

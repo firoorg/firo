@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Tor Project, Inc. */
+/* Copyright (c) 2017-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -7,23 +7,20 @@
  **/
 
 #define CONTROL_PRIVATE
-#define CIRCUITBUILD_PRIVATE
-#define RENDCOMMON_PRIVATE
-#define RENDSERVICE_PRIVATE
-#define HS_SERVICE_PRIVATE
 
-#include "or.h"
-#include "test.h"
-#include "control.h"
-#include "config.h"
-#include "hs_common.h"
-#include "hs_control.h"
-#include "nodelist.h"
-//#include "rendcommon.h"
-//#include "rendservice.h"
-//#include "routerset.h"
-//#include "circuitbuild.h"
-#include "test_helpers.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "feature/control/control.h"
+#include "app/config/config.h"
+#include "feature/hs/hs_common.h"
+#include "feature/hs/hs_control.h"
+#include "feature/nodelist/nodelist.h"
+
+#include "feature/nodelist/node_st.h"
+#include "feature/nodelist/routerstatus_st.h"
+#include "lib/crypt_ops/crypto_format.h"
+
+#include "test/test_helpers.h"
 
 /* mock ID digest and longname for node that's in nodelist */
 #define HSDIR_EXIST_ID \
@@ -195,4 +192,3 @@ struct testcase_t hs_control_tests[] = {
 
   END_OF_TESTCASES
 };
-

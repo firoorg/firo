@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Tor Project, Inc. */
+/* Copyright (c) 2016-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define SHARED_RANDOM_PRIVATE
@@ -6,21 +6,35 @@
 #define CONFIG_PRIVATE
 #define DIRVOTE_PRIVATE
 
-#include "or.h"
-#include "test.h"
-#include "config.h"
-#include "crypto_rand.h"
-#include "dirauth/dirvote.h"
-#include "dirauth/shared_random.h"
-#include "dirauth/shared_random_state.h"
-#include "log_test_helpers.h"
-#include "networkstatus.h"
-#include "router.h"
-#include "routerkeys.h"
-#include "routerlist.h"
-#include "routerparse.h"
-#include "shared_random_client.h"
-#include "voting_schedule.h"
+#include "core/or/or.h"
+#include "test/test.h"
+#include "app/config/config.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "feature/dirauth/dirvote.h"
+#include "feature/dirauth/shared_random.h"
+#include "feature/dirauth/shared_random_state.h"
+#include "test/log_test_helpers.h"
+#include "feature/nodelist/networkstatus.h"
+#include "feature/relay/router.h"
+#include "feature/relay/routerkeys.h"
+#include "feature/nodelist/authcert.h"
+#include "feature/nodelist/dirlist.h"
+#include "feature/dirparse/authcert_parse.h"
+#include "feature/hs_common/shared_random_client.h"
+#include "feature/dircommon/voting_schedule.h"
+
+#include "feature/dirclient/dir_server_st.h"
+#include "feature/nodelist/networkstatus_st.h"
+#include "app/config/or_state_st.h"
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
+#ifdef _WIN32
+/* For mkdir */
+#include <direct.h>
+#endif
 
 static authority_cert_t *mock_cert;
 
@@ -44,14 +58,17 @@ trusteddirserver_get_by_v3_auth_digest_m(const char *digest)
 }
 
 /* Setup a minimal dirauth environment by initializing the SR state and
- * making sure the options are set to be an authority directory. */
+ * making sure the options are set to be an authority directory.
+ * You must only call this function once per process. */
 static void
 init_authority_state(void)
 {
   MOCK(get_my_v3_authority_cert, get_my_v3_authority_cert_m);
 
   or_options_t *options = get_options_mutable();
-  mock_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1, NULL);
+  mock_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1,
+                                               strlen(AUTHORITY_CERT_1),
+                                               NULL);
   tt_assert(mock_cert);
   options->AuthoritativeDir = 1;
   tt_int_op(load_ed_keys(options, time(NULL)), OP_GE, 0);
@@ -60,6 +77,9 @@ init_authority_state(void)
    * the phase we are currently in which uses "now" as the starting
    * timestamp. Delete it before we do any testing below. */
   sr_state_delete_commits();
+  /* It's also possible that a current SRV has been generated, if we are at
+   * state transition time. But let's just forget about that SRV. */
+  sr_state_clean_srvs();
 
  done:
   UNMOCK(get_my_v3_authority_cert);
@@ -246,8 +266,7 @@ test_get_start_time_of_current_run(void *arg)
                                 &current_time);
     tt_int_op(retval, OP_EQ, 0);
     voting_schedule_recalculate_timing(get_options(), current_time);
-    run_start_time =
-      sr_state_get_start_time_of_current_protocol_run(current_time);
+    run_start_time = sr_state_get_start_time_of_current_protocol_run();
 
     /* Compare it with the correct result */
     format_iso_time(tbuf, run_start_time);
@@ -259,8 +278,7 @@ test_get_start_time_of_current_run(void *arg)
                                 &current_time);
     tt_int_op(retval, OP_EQ, 0);
     voting_schedule_recalculate_timing(get_options(), current_time);
-    run_start_time =
-      sr_state_get_start_time_of_current_protocol_run(current_time);
+    run_start_time = sr_state_get_start_time_of_current_protocol_run();
 
     /* Compare it with the correct result */
     format_iso_time(tbuf, run_start_time);
@@ -272,12 +290,46 @@ test_get_start_time_of_current_run(void *arg)
                                 &current_time);
     tt_int_op(retval, OP_EQ, 0);
     voting_schedule_recalculate_timing(get_options(), current_time);
-    run_start_time =
-      sr_state_get_start_time_of_current_protocol_run(current_time);
+    run_start_time = sr_state_get_start_time_of_current_protocol_run();
 
     /* Compare it with the correct result */
     format_iso_time(tbuf, run_start_time);
     tt_str_op("2015-04-20 00:00:00", OP_EQ, tbuf);
+  }
+
+  {
+    /* We want the local time to be past midnight, but the current consensus to
+     * have valid-after 23:00 (e.g. this can happen if we fetch a new consensus
+     * at 00:08 before dircaches have a chance to get the midnight consensus).
+     *
+     * Basically, we want to cause a desynch between ns->valid_after (23:00)
+     * and the voting_schedule.interval_starts (01:00), to make sure that
+     * sr_state_get_start_time_of_current_protocol_run() handles it gracefully:
+     * It should actually follow the local consensus time and not the voting
+     * schedule (which is designed for authority voting purposes). */
+    retval = parse_rfc1123_time("Mon, 20 Apr 2015 00:00:00 UTC",
+                                &mock_consensus.fresh_until);
+    tt_int_op(retval, OP_EQ, 0);
+
+    retval = parse_rfc1123_time("Mon, 19 Apr 2015 23:00:00 UTC",
+                                &mock_consensus.valid_after);
+    tt_int_op(retval, OP_EQ, 0);
+
+    retval = parse_rfc1123_time("Mon, 20 Apr 2015 00:08:00 UTC",
+                                &current_time);
+    tt_int_op(retval, OP_EQ, 0);
+    update_approx_time(current_time);
+    voting_schedule_recalculate_timing(get_options(), current_time);
+
+    run_start_time = sr_state_get_start_time_of_current_protocol_run();
+
+    /* Compare it with the correct result */
+    format_iso_time(tbuf, run_start_time);
+    tt_str_op("2015-04-19 00:00:00", OP_EQ, tbuf);
+    /* Check that voting_schedule.interval_starts is at 01:00 (see above) */
+    time_t interval_starts = voting_schedule_get_next_valid_after_time();
+    format_iso_time(tbuf, interval_starts);
+    tt_str_op("2015-04-20 01:00:00", OP_EQ, tbuf);
   }
 
   /* Next test is testing it without a consensus to use the testing voting
@@ -295,8 +347,7 @@ test_get_start_time_of_current_run(void *arg)
                                 &current_time);
     tt_int_op(retval, OP_EQ, 0);
     voting_schedule_recalculate_timing(get_options(), current_time);
-    run_start_time =
-      sr_state_get_start_time_of_current_protocol_run(current_time);
+    run_start_time = sr_state_get_start_time_of_current_protocol_run();
 
     /* Compare it with the correct result */
     format_iso_time(tbuf, run_start_time);
@@ -329,7 +380,7 @@ test_get_start_time_functions(void *arg)
 
   voting_schedule_recalculate_timing(get_options(), now);
   time_t start_time_of_protocol_run =
-    sr_state_get_start_time_of_current_protocol_run(now);
+    sr_state_get_start_time_of_current_protocol_run();
   tt_assert(start_time_of_protocol_run);
 
   /* Check that the round start time of the beginning of the run, is itself */
@@ -377,7 +428,9 @@ test_sr_commit(void *arg)
   {  /* Setup a minimal dirauth environment for this test  */
     or_options_t *options = get_options_mutable();
 
-    auth_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1, NULL);
+    auth_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1,
+                                                 strlen(AUTHORITY_CERT_1),
+                                                 NULL);
     tt_assert(auth_cert);
 
     options->AuthoritativeDir = 1;
@@ -544,12 +597,20 @@ test_encoding(void *arg)
   ;
 }
 
-/** Setup some SRVs in our SR state. If <b>also_current</b> is set, then set
- *  both current and previous SRVs.
- *  Helper of test_vote() and test_sr_compute_srv(). */
+/** Setup some SRVs in our SR state.
+ *  If <b>also_current</b> is set, then set both current and previous SRVs.
+ *  Otherwise, just set the previous SRV. (And clear the current SRV.)
+ *
+ * You must call sr_state_free_all() to free the state at the end of each test
+ * function (on pass or fail). */
 static void
 test_sr_setup_srv(int also_current)
 {
+  /* Clear both SRVs before starting.
+   * In 0.3.5 and earlier, sr_state_set_previous_srv() and
+   * sr_state_set_current_srv() do not free() the old srvs. */
+  sr_state_clean_srvs();
+
   sr_srv_t *srv = tor_malloc_zero(sizeof(sr_srv_t));
   srv->num_reveals = 42;
   memcpy(srv->value,
@@ -689,8 +750,8 @@ test_vote(void *arg)
   }
 
  done:
-  sr_commit_free(our_commit);
   UNMOCK(trusteddirserver_get_by_v3_auth_digest);
+  sr_state_free_all();
 }
 
 static const char *sr_state_str = "Version 1\n"
@@ -780,7 +841,9 @@ test_sr_setup_commits(void)
   {  /* Setup a minimal dirauth environment for this test  */
     or_options_t *options = get_options_mutable();
 
-    auth_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1, NULL);
+    auth_cert = authority_cert_parse_from_string(AUTHORITY_CERT_1,
+                                                 strlen(AUTHORITY_CERT_1),
+                                                 NULL);
     tt_assert(auth_cert);
 
     options->AuthoritativeDir = 1;
@@ -924,6 +987,7 @@ test_sr_compute_srv(void *arg)
 
  done:
   UNMOCK(trusteddirserver_get_by_v3_auth_digest);
+  sr_state_free_all();
 }
 
 /** Return a minimal vote document with a current SRV value set to
@@ -1017,12 +1081,13 @@ test_sr_get_majority_srv_from_votes(void *arg)
   smartlist_free(votes);
 }
 
+/* Test utils that don't depend on authority state */
 static void
-test_utils(void *arg)
+test_utils_general(void *arg)
 {
   (void) arg;
 
-  /* Testing srv_dup(). */
+  /* Testing sr_srv_dup(). */
   {
     sr_srv_t *srv = NULL, *dup_srv = NULL;
     const char *srv_value =
@@ -1030,7 +1095,7 @@ test_utils(void *arg)
     srv = tor_malloc_zero(sizeof(*srv));
     srv->num_reveals = 42;
     memcpy(srv->value, srv_value, sizeof(srv->value));
-    dup_srv = srv_dup(srv);
+    dup_srv = sr_srv_dup(srv);
     tt_assert(dup_srv);
     tt_u64_op(dup_srv->num_reveals, OP_EQ, srv->num_reveals);
     tt_mem_op(dup_srv->value, OP_EQ, srv->value, sizeof(srv->value));
@@ -1081,9 +1146,19 @@ test_utils(void *arg)
     tt_str_op(get_phase_str(SR_PHASE_COMMIT), OP_EQ, "commit");
   }
 
+ done:
+  return;
+}
+
+/* Test utils that depend on authority state */
+static void
+test_utils_auth(void *arg)
+{
+  (void)arg;
+  init_authority_state();
+
   /* Testing phase transition */
   {
-    init_authority_state();
     set_sr_phase(SR_PHASE_COMMIT);
     tt_int_op(is_phase_transition(SR_PHASE_REVEAL), OP_EQ, 1);
     tt_int_op(is_phase_transition(SR_PHASE_COMMIT), OP_EQ, 0);
@@ -1094,8 +1169,193 @@ test_utils(void *arg)
     tt_int_op(is_phase_transition(42), OP_EQ, 1);
   }
 
+  /* Testing get, set, delete, clean SRVs */
+
+  {
+    /* Just set the previous SRV */
+    test_sr_setup_srv(0);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    state_del_previous_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+  }
+
+  {
+    /* Delete the SRVs one at a time */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    state_del_current_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    state_del_previous_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And in the opposite order */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    state_del_previous_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    state_del_current_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And both at once */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_clean_srvs();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And do the gets and sets multiple times */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    state_del_previous_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    state_del_previous_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_clean_srvs();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    state_del_current_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    sr_state_clean_srvs();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    state_del_current_srv();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+  }
+
+  {
+    /* Now set the SRVs to NULL instead */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_set_current_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+    sr_state_set_previous_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And in the opposite order */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_set_previous_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_set_current_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And both at once */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_clean_srvs();
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+
+    /* And do the gets and sets multiple times */
+    test_sr_setup_srv(1);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_set_previous_srv(NULL);
+    sr_state_set_previous_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    sr_state_set_current_srv(NULL);
+    sr_state_set_previous_srv(NULL);
+    sr_state_set_current_srv(NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_EQ, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
+  }
+
+  {
+    /* Now copy the values across */
+    test_sr_setup_srv(1);
+    /* Check that the pointers are non-NULL, and different from each other */
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv());
+    /* Check that the content is different */
+    tt_mem_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv(), sizeof(sr_srv_t));
+    /* Set the current to the previous: the protocol goes the other way */
+    sr_state_set_current_srv(sr_srv_dup(sr_state_get_previous_srv()));
+    /* Check that the pointers are non-NULL, and different from each other */
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv());
+    /* Check that the content is the same */
+    tt_mem_op(sr_state_get_previous_srv(), OP_EQ,
+              sr_state_get_current_srv(), sizeof(sr_srv_t));
+  }
+
+  {
+    /* Now copy a value onto itself */
+    test_sr_setup_srv(1);
+    /* Check that the pointers are non-NULL, and different from each other */
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv());
+    /* Take a copy of the old value */
+    sr_srv_t old_current_srv;
+    memcpy(&old_current_srv, sr_state_get_current_srv(), sizeof(sr_srv_t));
+    /* Check that the content is different */
+    tt_mem_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv(), sizeof(sr_srv_t));
+    /* Set the current to the current: the protocol never replaces an SRV with
+     * the same value */
+    sr_state_set_current_srv(sr_srv_dup(sr_state_get_current_srv()));
+    /* Check that the pointers are non-NULL, and different from each other */
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_current_srv(), OP_NE, NULL);
+    tt_ptr_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv());
+    /* Check that the content is different between current and previous */
+    tt_mem_op(sr_state_get_previous_srv(), OP_NE,
+              sr_state_get_current_srv(), sizeof(sr_srv_t));
+    /* Check that the content is the same as the old content */
+    tt_mem_op(&old_current_srv, OP_EQ,
+              sr_state_get_current_srv(), sizeof(sr_srv_t));
+  }
+
+  /* I don't think we can say "expect a BUG()" in our tests. */
+#if 0
+  {
+    /* Now copy a value onto itself without sr_srv_dup().
+     * This should fail with a BUG() warning. */
+    test_sr_setup_srv(1);
+    sr_state_set_current_srv(sr_state_get_current_srv());
+    sr_state_set_previous_srv(sr_state_get_previous_srv());
+  }
+#endif
+
  done:
-  return;
+  sr_state_free_all();
 }
 
 static void
@@ -1103,6 +1363,7 @@ test_state_transition(void *arg)
 {
   sr_state_t *state = NULL;
   time_t now = time(NULL);
+  sr_srv_t *cur = NULL;
 
   (void) arg;
 
@@ -1141,44 +1402,47 @@ test_state_transition(void *arg)
 
   /* Test SRV rotation in our state. */
   {
-    const sr_srv_t *cur, *prev;
     test_sr_setup_srv(1);
-    cur = sr_state_get_current_srv();
+    tt_assert(sr_state_get_current_srv());
+    /* Take a copy of the data, because the state owns the pointer */
+    cur = sr_srv_dup(sr_state_get_current_srv());
     tt_assert(cur);
-    /* After, current srv should be the previous and then set to NULL. */
+    /* After, the previous SRV should be the same as the old current SRV, and
+     * the current SRV should be set to NULL */
     state_rotate_srv();
-    prev = sr_state_get_previous_srv();
-    tt_assert(prev == cur);
+    tt_mem_op(sr_state_get_previous_srv(), OP_EQ, cur, sizeof(sr_srv_t));
     tt_ptr_op(sr_state_get_current_srv(), OP_EQ, NULL);
     sr_state_clean_srvs();
+    tor_free(cur);
   }
 
   /* New protocol run. */
   {
-    const sr_srv_t *cur;
     /* Setup some new SRVs so we can confirm that a new protocol run
      * actually makes them rotate and compute new ones. */
     test_sr_setup_srv(1);
-    cur = sr_state_get_current_srv();
-    tt_assert(cur);
+    tt_assert(sr_state_get_current_srv());
+    /* Take a copy of the data, because the state owns the pointer */
+    cur = sr_srv_dup(sr_state_get_current_srv());
     set_sr_phase(SR_PHASE_REVEAL);
     MOCK(get_my_v3_authority_cert, get_my_v3_authority_cert_m);
     new_protocol_run(now);
     UNMOCK(get_my_v3_authority_cert);
     /* Rotation happened. */
-    tt_assert(sr_state_get_previous_srv() == cur);
+    tt_mem_op(sr_state_get_previous_srv(), OP_EQ, cur, sizeof(sr_srv_t));
     /* We are going into COMMIT phase so we had to rotate our SRVs. Usually
      * our current SRV would be NULL but a new protocol run should make us
      * compute a new SRV. */
     tt_assert(sr_state_get_current_srv());
     /* Also, make sure we did change the current. */
-    tt_assert(sr_state_get_current_srv() != cur);
+    tt_mem_op(sr_state_get_current_srv(), OP_NE, cur, sizeof(sr_srv_t));
     /* We should have our commitment alone. */
     tt_int_op(digestmap_size(state->commits), OP_EQ, 1);
     tt_int_op(state->n_reveal_rounds, OP_EQ, 0);
     tt_int_op(state->n_commit_rounds, OP_EQ, 0);
     /* 46 here since we were at 45 just before. */
     tt_u64_op(state->n_protocol_runs, OP_EQ, 46);
+    tor_free(cur);
   }
 
   /* Cleanup of SRVs. */
@@ -1189,7 +1453,8 @@ test_state_transition(void *arg)
   }
 
  done:
-  return;
+  tor_free(cur);
+  sr_state_free_all();
 }
 
 static void
@@ -1275,7 +1540,7 @@ test_keep_commit(void *arg)
     expect_log_msg_containing("doesn't match the commit value.");
     expect_log_msg_containing("has an invalid reveal value.");
     assert_log_predicate(mock_saved_log_n_entries() == 2,
-                         "expected 2 log entries");
+                         ("expected 2 log entries"));
     teardown_capture_of_logs();
     memcpy(commit->hashed_reveal, place_holder.hashed_reveal,
            sizeof(commit->hashed_reveal));
@@ -1384,10 +1649,10 @@ struct testcase_t sr_tests[] = {
   { "sr_compute_srv", test_sr_compute_srv, TT_FORK, NULL, NULL },
   { "sr_get_majority_srv_from_votes", test_sr_get_majority_srv_from_votes,
     TT_FORK, NULL, NULL },
-  { "utils", test_utils, TT_FORK, NULL, NULL },
+  { "utils_general", test_utils_general, TT_FORK, NULL, NULL },
+  { "utils_auth", test_utils_auth, TT_FORK, NULL, NULL },
   { "state_transition", test_state_transition, TT_FORK, NULL, NULL },
   { "state_update", test_state_update, TT_FORK,
     NULL, NULL },
   END_OF_TESTCASES
 };
-

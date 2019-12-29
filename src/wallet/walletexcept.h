@@ -20,6 +20,8 @@ class InsufficientFunds : public WalletError
 {
 public:
     InsufficientFunds();
+    explicit InsufficientFunds(const char *what);
+    explicit InsufficientFunds(const std::string& what);
 };
 
 #endif // ZCOIN_WALLET_WALLETEXCEPT_H

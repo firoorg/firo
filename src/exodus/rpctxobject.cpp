@@ -91,7 +91,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
         std::string tmpBuyer, tmpSeller;
         uint64_t tmpVout, tmpNValue, tmpPropertyId;
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             p_txlistdb->getPurchaseDetails(txid, 1, &tmpBuyer, &tmpSeller, &tmpVout, &tmpPropertyId, &tmpNValue);
         }
         UniValue purchases(UniValue::VARR);
@@ -116,7 +116,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     // obtain validity - only confirmed transactions can be valid
     bool valid = false;
     if (confirmations > 0) {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         valid = getValidMPTX(txid);
         positionInBlock = p_ExodusTXDB->FetchTransactionPosition(txid);
     }
@@ -248,7 +248,7 @@ void populateRPCTypeSimpleSend(CMPTransaction& exodusObj, UniValue& txobj)
 {
     uint32_t propertyId = exodusObj.getProperty();
     int64_t crowdPropertyId = 0, crowdTokens = 0, issuerTokens = 0;
-    LOCK(cs_tally);
+    LOCK(cs_main);
     bool crowdPurchase = isCrowdsalePurchase(exodusObj.getHash(), exodusObj.getReceiver(), &crowdPropertyId, &crowdTokens, &issuerTokens);
     if (crowdPurchase) {
         CMPSPInfo::Entry sp;
@@ -313,7 +313,7 @@ void populateRPCTypeTradeOffer(CMPTransaction& exodusObj, UniValue& txobj)
         int tmpblock = 0;
         unsigned int tmptype = 0;
         uint64_t amountNew = 0;
-        LOCK(cs_tally);
+        LOCK(cs_main);
         bool tmpValid = getValidMPTX(exodusObj.getHash(), &tmpblock, &tmptype, &amountNew);
         if (tmpValid && amountNew > 0) {
             amountDesired = calculateDesiredBTC(amountOffered, amountDesired, amountNew);
@@ -398,7 +398,7 @@ void populateRPCTypeAcceptOffer(CMPTransaction& exodusObj, UniValue& txobj)
     uint32_t tmptype = 0;
     uint64_t amountNew = 0;
 
-    LOCK(cs_tally);
+    LOCK(cs_main);
     bool tmpValid = getValidMPTX(exodusObj.getHash(), &tmpblock, &tmptype, &amountNew);
     if (tmpValid && amountNew > 0) amount = amountNew;
 
@@ -409,7 +409,7 @@ void populateRPCTypeAcceptOffer(CMPTransaction& exodusObj, UniValue& txobj)
 
 void populateRPCTypeCreatePropertyFixed(CMPTransaction& exodusObj, UniValue& txobj, int confirmations)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (confirmations > 0) {
         uint32_t propertyId = _my_sps->findSPByTX(exodusObj.getHash());
         if (propertyId > 0) {
@@ -430,7 +430,7 @@ void populateRPCTypeCreatePropertyFixed(CMPTransaction& exodusObj, UniValue& txo
 
 void populateRPCTypeCreatePropertyVariable(CMPTransaction& exodusObj, UniValue& txobj, int confirmations)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (confirmations > 0) {
         uint32_t propertyId = _my_sps->findSPByTX(exodusObj.getHash());
         if (propertyId > 0) {
@@ -457,7 +457,7 @@ void populateRPCTypeCreatePropertyVariable(CMPTransaction& exodusObj, UniValue& 
 
 void populateRPCTypeCreatePropertyManual(CMPTransaction& exodusObj, UniValue& txobj, int confirmations)
 {
-    LOCK(cs_tally);
+    LOCK(cs_main);
     if (confirmations > 0) {
         uint32_t propertyId = _my_sps->findSPByTX(exodusObj.getHash());
         if (propertyId > 0) {
@@ -517,7 +517,7 @@ void populateRPCExtendedTypeSendToOwners(const uint256 txid, std::string extende
 {
     UniValue receiveArray(UniValue::VARR);
     uint64_t tmpAmount = 0, stoFee = 0, numRecipients = 0;
-    LOCK(cs_tally);
+    LOCK(cs_main);
     s_stolistdb->getRecipients(txid, extendedDetailsFilter, &receiveArray, &tmpAmount, &numRecipients);
     if (version == MP_TX_PKT_V0) {
         stoFee = numRecipients * TRANSFER_FEE_PER_OWNER;
@@ -532,7 +532,7 @@ void populateRPCExtendedTypeMetaDExTrade(const uint256& txid, uint32_t propertyI
 {
     UniValue tradeArray(UniValue::VARR);
     int64_t totalReceived = 0, totalSold = 0;
-    LOCK(cs_tally);
+    LOCK(cs_main);
     t_tradelistdb->getMatchingTrades(txid, propertyIdForSale, tradeArray, totalSold, totalReceived);
     int tradeStatus = MetaDEx_getStatus(txid, propertyIdForSale, amountForSale, totalSold);
     if (tradeStatus == TRADE_OPEN || tradeStatus == TRADE_OPEN_PART_FILLED) {
@@ -552,7 +552,7 @@ void populateRPCExtendedTypeMetaDExTrade(const uint256& txid, uint32_t propertyI
 void populateRPCExtendedTypeMetaDExCancel(const uint256& txid, UniValue& txobj)
 {
     UniValue cancelArray(UniValue::VARR);
-    LOCK(cs_tally);
+    LOCK(cs_main);
     int numberOfCancels = p_txlistdb->getNumberOfMetaDExCancels(txid);
     if (0<numberOfCancels) {
         for(int refNumber = 1; refNumber <= numberOfCancels; refNumber++) {
@@ -583,7 +583,7 @@ int populateRPCSendAllSubSends(const uint256& txid, UniValue& subSends)
 {
     int numberOfSubSends = 0;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         numberOfSubSends = p_txlistdb->getNumberOfSubRecords(txid);
     }
     if (numberOfSubSends <= 0) {
@@ -595,7 +595,7 @@ int populateRPCSendAllSubSends(const uint256& txid, UniValue& subSends)
         uint32_t propertyId;
         int64_t amount;
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             p_txlistdb->getSendAllDetails(txid, subSend, propertyId, amount);
         }
         subSendObj.push_back(Pair("propertyid", (uint64_t)propertyId));
@@ -614,7 +614,7 @@ int populateRPCDExPurchases(const CTransaction& wtx, UniValue& purchases, std::s
 {
     int numberOfPurchases = 0;
     {
-        LOCK(cs_tally);
+        LOCK(cs_main);
         numberOfPurchases = p_txlistdb->getNumberOfSubRecords(wtx.GetHash());
     }
     if (numberOfPurchases <= 0) {
@@ -626,7 +626,7 @@ int populateRPCDExPurchases(const CTransaction& wtx, UniValue& purchases, std::s
         std::string buyer, seller;
         uint64_t vout, nValue, propertyId;
         {
-            LOCK(cs_tally);
+            LOCK(cs_main);
             p_txlistdb->getPurchaseDetails(wtx.GetHash(), purchaseNumber, &buyer, &seller, &vout, &propertyId, &nValue);
         }
         if (!filterAddress.empty() && buyer != filterAddress && seller != filterAddress) continue; // filter requested & doesn't match

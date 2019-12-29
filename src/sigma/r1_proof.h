@@ -27,8 +27,8 @@ public:
         current = ZA_.serialize(current);
         return ZC_.serialize(current);
     }
-    inline unsigned char* deserialize(unsigned char* buffer, int n, int m) {
-        unsigned char* current = A_.deserialize(buffer);
+    inline unsigned const char* deserialize(unsigned const char* buffer, int n, int m) {
+        unsigned const char* current = A_.deserialize(buffer);
         current = C_.deserialize(current);
         current = D_.deserialize(current);
         int f_size =  m * (n - 1);

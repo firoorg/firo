@@ -35,6 +35,7 @@ and confirm again balances are correct.
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+from test_framework.test_helper import get_dumpwallet_otp 
 from random import randint
 import logging
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO, stream=sys.stdout)
@@ -125,11 +126,36 @@ class WalletBackupTest(BitcoinTestFramework):
         logging.info("Backing up")
         tmpdir = self.options.tmpdir
         self.nodes[0].backupwallet(tmpdir + "/node0/wallet.bak")
-        self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump")
+        
+        key = None
+        try:
+            self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump")
+        except Exception as ex:
+            key = get_dumpwallet_otp (ex.error['message'])
+            self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump", key)
+        
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
+
         self.nodes[1].backupwallet(tmpdir + "/node1/wallet.bak")
-        self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump")
+        
+        key = None
+        try:
+            self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump")
+        except Exception as ex:
+            key = get_dumpwallet_otp (ex.error['message'])
+            self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump", key)
+
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
+
         self.nodes[2].backupwallet(tmpdir + "/node2/wallet.bak")
-        self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump")
+        
+        key = None
+        try:
+            self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump")
+        except Exception as ex:
+            key = get_dumpwallet_otp (ex.error['message'])
+            self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump", key)
+        assert key, 'Import wallet did not raise exception when was called first time without one-time code.'
 
         logging.info("More transactions")
         for i in range(5):
@@ -146,8 +172,8 @@ class WalletBackupTest(BitcoinTestFramework):
         total = balance0 + balance1 + balance2 + balance3
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
-        # 114 are mature, so the sum of all wallets should be 114 * 50 = 5700.
-        assert_equal(total, 5700)
+        # 114 are mature, so the sum of all wallets should be 114 * 40 = 4560.
+        assert_equal(total, 4560)
 
         ##
         # Test restoring spender wallets from backups

@@ -12,6 +12,7 @@
 #include <boost/format.hpp>
 
 #include <algorithm>
+#include <random>
 #include <stdexcept>
 #include <string>
 
@@ -38,7 +39,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee)
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -102,7 +103,15 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
 
     // Start with no fee and loop until there is enough fee;
+    uint32_t nCountNextUse;
+    if (zwalletMain) {
+        nCountNextUse = zwalletMain->GetCount();
+    }
     for (fee = payTxFee.GetFeePerK();;) {
+        // In case of not enough fee, reset mint seed counter
+        if (zwalletMain) {
+            zwalletMain->SetCount(nCountNextUse);
+        }
         CAmount required = spend;
 
         tx.vin.clear();
@@ -110,6 +119,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         tx.wit.SetNull();
 
         result.fFromMe = true;
+        result.changes.clear();
 
         // If no any recipients to subtract fee then the sender need to pay by themself.
         if (!recipientsToSubtractFee) {
@@ -161,13 +171,42 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         CAmount change = total - required;
 
         if (change > 0) {
+            // get changes outputs
             std::vector<CTxOut> changes;
-            fee += GetChanges(changes, change);
+            CAmount addToFee = GetChanges(changes, change);
+            if(addToFee > 0)
+                fChangeAddedToFee = true;
+            fee += addToFee;
+
+            // shuffle changes to provide some privacy
+            std::vector<std::pair<std::reference_wrapper<CTxOut>, bool>> outputs;
+            outputs.reserve(tx.vout.size() + changes.size());
+
+            for (auto& output : tx.vout) {
+                outputs.push_back(std::make_pair(std::ref(output), false));
+            }
 
             for (auto& output : changes) {
-                auto loc = tx.vout.begin() + GetRand(tx.vout.size() + 1);
-                tx.vout.insert(loc, output);
+                outputs.push_back(std::make_pair(std::ref(output), true));
             }
+
+            std::shuffle(outputs.begin(), outputs.end(), std::random_device());
+
+            // replace outputs with shuffled one
+            std::vector<CTxOut> shuffled;
+            shuffled.reserve(outputs.size());
+
+            for (size_t i = 0; i < outputs.size(); i++) {
+                auto& output = outputs[i];
+
+                shuffled.push_back(output.first);
+
+                if (output.second) {
+                    result.changes.insert(static_cast<uint32_t>(i));
+                }
+            }
+
+            tx.vout = std::move(shuffled);
         }
 
         // fill inputs

@@ -52,9 +52,14 @@ bool CTxIn::IsZerocoinSpend() const
     return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
 }
 
-bool CTxIn::IsZerocoinSpendV3() const
+bool CTxIn::IsSigmaSpend() const
 {
-    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
+    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_SIGMASPEND) );
+}
+
+bool CTxIn::IsZerocoinRemint() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINTOSIGMAREMINT));
 }
 
 std::string CTxIn::ToString() const
@@ -205,7 +210,7 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
 
 bool CTransaction::IsCoinBase() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || vin[0].scriptSig[0] != OP_ZEROCOINSPEND));
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)));
 }
 
 bool CTransaction::IsZerocoinSpend() const
@@ -217,10 +222,10 @@ bool CTransaction::IsZerocoinSpend() const
     return false;
 }
 
-bool CTransaction::IsZerocoinSpendV3() const
+bool CTransaction::IsSigmaSpend() const
 {
     for (const CTxIn &txin: vin) {
-        if (txin.IsZerocoinSpendV3())
+        if (txin.IsSigmaSpend())
             return true;
     }
     return false;
@@ -235,10 +240,13 @@ bool CTransaction::IsZerocoinMint() const
     return false;
 }
 
-bool CTransaction::IsZerocoinMintV3() const
+bool CTransaction::IsSigmaMint() const
 {
+    if (IsZerocoinRemint())
+        return false;
+        
     for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsZerocoinMintV3())
+        if (txout.scriptPubKey.IsSigmaMint())
             return true;
     }
     return false;
@@ -251,7 +259,16 @@ bool CTransaction::IsZerocoinTransaction() const
 
 bool CTransaction::IsZerocoinV3SigmaTransaction() const
 {
-    return IsZerocoinSpendV3() || IsZerocoinMintV3();
+    return IsSigmaSpend() || IsSigmaMint() || IsZerocoinRemint();
+}
+
+bool CTransaction::IsZerocoinRemint() const
+{
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinRemint())
+            return true;
+    }
+    return false;
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

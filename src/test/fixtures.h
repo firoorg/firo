@@ -2,6 +2,7 @@
 #include "test/test_bitcoin.h"
 #include "zerocoin.h"
 #include "test/testutil.h"
+#include "consensus/params.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -9,8 +10,10 @@ inline bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
+    ~ZerocoinTestingSetupBase();
 
     CScript scriptPubKey;
+    CPubKey pubkey;
 
     CBlock CreateBlock(
         const vector<uint256>& tx_ids,
@@ -48,4 +51,19 @@ struct MtpMalformedTestingSetup : public ZerocoinTestingSetupBase {
     CBlock CreateAndProcessBlock(
         const vector<uint256>& tx_ids,
         const CScript&, bool);
+};
+
+// for the duration of the test set network type to testnet
+class FakeTestnet {
+    Consensus::Params &params;
+    Consensus::Params oldParams;
+public:
+    FakeTestnet() : params(const_cast<Consensus::Params &>(Params().GetConsensus())) {
+        oldParams = params;
+        params.chainType = Consensus::chainTestnet;
+    }
+
+    ~FakeTestnet() {
+        params = oldParams;
+    }
 };

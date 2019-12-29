@@ -1,14 +1,17 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-#include "or.h"
-#include "buffers.h"
-#include "config.h"
-#include "proto_socks.h"
-#include "test.h"
-#include "log_test_helpers.h"
+#include "core/or/or.h"
+#include "lib/buf/buffers.h"
+#include "app/config/config.h"
+#include "core/mainloop/connection.h"
+#include "core/proto/proto_socks.h"
+#include "test/test.h"
+#include "test/log_test_helpers.h"
+#include "core/or/socks_request_st.h"
+#include "lib/net/socks5_status.h"
 
 typedef struct socks_test_data_t {
   socks_request_t *req;
@@ -81,7 +84,7 @@ test_socks_4_supported_commands(void *ptr)
 
   tt_int_op(0,OP_EQ, buf_datalen(buf));
 
-  /* SOCKS 4 Send CONNECT [01] to IP address 2.2.2.2:4370 */
+  /* SOCKS 4 Send CONNECT [01] to IP address 2.2.2.3:4370 */
   ADD_DATA(buf, "\x04\x01\x11\x12\x02\x02\x02\x03\x00");
   tt_int_op(fetch_from_buf_socks(buf, socks, get_options()->TestSocks,
                                  get_options()->SafeSocks),
@@ -97,7 +100,7 @@ test_socks_4_supported_commands(void *ptr)
   tt_int_op(0,OP_EQ, buf_datalen(buf));
   socks_request_clear(socks);
 
-  /* SOCKS 4 Send CONNECT [01] to IP address 2.2.2.2:4369 with userid*/
+  /* SOCKS 4 Send CONNECT [01] to IP address 2.2.2.4:4369 with userid*/
   ADD_DATA(buf, "\x04\x01\x11\x12\x02\x02\x02\x04me\x00");
   tt_int_op(fetch_from_buf_socks(buf, socks, 1, 0),
             OP_EQ, 1);
@@ -163,7 +166,7 @@ test_socks_4_bad_arguments(void *ptr)
   tt_int_op(fetch_from_buf_socks(buf, socks, 1, 0),
             OP_EQ, -1);
   buf_clear(buf);
-  expect_log_msg_containing("user name too long; rejecting.");
+  expect_log_msg_containing("socks4: parsing failed - invalid request.");
   mock_clean_saved_logs();
 
   /* Try with 2000-byte hostname */
@@ -191,7 +194,7 @@ test_socks_4_bad_arguments(void *ptr)
   tt_int_op(fetch_from_buf_socks(buf, socks, 1, 0),
             OP_EQ, -1);
   buf_clear(buf);
-  expect_log_msg_containing("Destaddr too long.");
+  expect_log_msg_containing("parsing failed - invalid request.");
   mock_clean_saved_logs();
 
   /* Socks4, bogus hostname */
@@ -476,6 +479,44 @@ test_socks_5_authenticate(void *ptr)
   ;
 }
 
+/** Perform SOCKS 5 authentication with empty username/password fields.
+ * Technically this violates RfC 1929, but some client software will send
+ * this kind of message to Tor.
+ * */
+static void
+test_socks_5_authenticate_empty_user_pass(void *ptr)
+{
+  SOCKS_TEST_INIT();
+
+  /* SOCKS 5 Negotiate username/password authentication */
+  ADD_DATA(buf, "\x05\x01\x02");
+
+  tt_assert(!fetch_from_buf_socks(buf, socks,
+                                   get_options()->TestSocks,
+                                   get_options()->SafeSocks));
+  tt_int_op(2,OP_EQ, socks->replylen);
+  tt_int_op(5,OP_EQ, socks->reply[0]);
+  tt_int_op(SOCKS_USER_PASS,OP_EQ, socks->reply[1]);
+  tt_int_op(5,OP_EQ, socks->socks_version);
+
+  tt_int_op(0,OP_EQ, buf_datalen(buf));
+
+  /* SOCKS 5 Send username/password auth message with empty user/pass fields */
+  ADD_DATA(buf, "\x01\x00\x00");
+  tt_assert(!fetch_from_buf_socks(buf, socks,
+                                   get_options()->TestSocks,
+                                   get_options()->SafeSocks));
+  tt_int_op(5,OP_EQ, socks->socks_version);
+  tt_int_op(2,OP_EQ, socks->replylen);
+  tt_int_op(1,OP_EQ, socks->reply[0]);
+  tt_int_op(0,OP_EQ, socks->reply[1]);
+
+  tt_int_op(0,OP_EQ, socks->usernamelen);
+  tt_int_op(0,OP_EQ, socks->passwordlen);
+
+ done:
+  ;
+}
 /** Perform SOCKS 5 authentication and send data all in one go */
 static void
 test_socks_5_authenticate_with_data(void *ptr)
@@ -645,7 +686,8 @@ test_socks_5_malformed_commands(void *ptr)
   tt_int_op(5,OP_EQ,socks->socks_version);
   tt_int_op(10,OP_EQ,socks->replylen);
   tt_int_op(5,OP_EQ,socks->reply[0]);
-  tt_int_op(SOCKS5_ADDRESS_TYPE_NOT_SUPPORTED,OP_EQ,socks->reply[1]);
+  /* trunnel parsing will fail with -1 */
+  tt_int_op(SOCKS5_GENERAL_ERROR,OP_EQ,socks->reply[1]);
   tt_int_op(1,OP_EQ,socks->reply[3]);
 
  done:
@@ -1031,6 +1073,7 @@ struct testcase_t socks_tests[] = {
   SOCKSENT(5_auth_unsupported_version),
   SOCKSENT(5_auth_before_negotiation),
   SOCKSENT(5_authenticate),
+  SOCKSENT(5_authenticate_empty_user_pass),
   SOCKSENT(5_authenticate_with_data),
   SOCKSENT(5_malformed_commands),
   SOCKSENT(5_bad_arguments),
@@ -1046,4 +1089,3 @@ struct testcase_t socks_tests[] = {
 
   END_OF_TESTCASES
 };
-

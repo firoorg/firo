@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2017, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -9,7 +9,9 @@
  **/
 
 #include "orconfig.h"
-#include "crypto_rand.h"
+#include "lib/crypt_ops/crypto_dh.h"
+#include "lib/crypt_ops/crypto_rand.h"
+#include "app/config/or_state_st.h"
 
 #include <stdio.h>
 #ifdef HAVE_FCNTL_H
@@ -23,44 +25,45 @@
 #include <dirent.h>
 #endif /* defined(_WIN32) */
 
+#include <math.h>
+
 /* These macros pull in declarations for some functions and structures that
  * are typically file-private. */
 #define ROUTER_PRIVATE
 #define CIRCUITSTATS_PRIVATE
 #define CIRCUITLIST_PRIVATE
-#define MAIN_PRIVATE
+#define MAINLOOP_PRIVATE
 #define STATEFILE_PRIVATE
 
-/*
- * Linux doesn't provide lround in math.h by default, but mac os does...
- * It's best just to leave math.h out of the picture entirely.
- */
-//#include <math.h>
-long int lround(double x);
-double fabs(double x);
+#include "core/or/or.h"
+#include "lib/err/backtrace.h"
+#include "lib/buf/buffers.h"
+#include "core/or/circuitlist.h"
+#include "core/or/circuitstats.h"
+#include "lib/compress/compress.h"
+#include "app/config/config.h"
+#include "core/or/connection_edge.h"
+#include "feature/rend/rendcommon.h"
+#include "feature/rend/rendcache.h"
+#include "feature/rend/rendparse.h"
+#include "test/test.h"
+#include "core/mainloop/mainloop.h"
+#include "lib/memarea/memarea.h"
+#include "core/or/onion.h"
+#include "core/crypto/onion_ntor.h"
+#include "core/crypto/onion_fast.h"
+#include "core/crypto/onion_tap.h"
+#include "core/or/policies.h"
+#include "feature/stats/rephist.h"
+#include "app/config/statefile.h"
+#include "lib/crypt_ops/crypto_curve25519.h"
 
-#include "or.h"
-#include "backtrace.h"
-#include "buffers.h"
-#include "circuitlist.h"
-#include "circuitstats.h"
-#include "compress.h"
-#include "config.h"
-#include "connection_edge.h"
-#include "rendcommon.h"
-#include "rendcache.h"
-#include "test.h"
-#include "main.h"
-#include "memarea.h"
-#include "onion.h"
-#include "onion_ntor.h"
-#include "onion_fast.h"
-#include "onion_tap.h"
-#include "policies.h"
-#include "rephist.h"
-#include "routerparse.h"
-#include "statefile.h"
-#include "crypto_curve25519.h"
+#include "core/or/extend_info_st.h"
+#include "core/or/or_circuit_st.h"
+#include "feature/rend/rend_encoded_v2_service_descriptor_st.h"
+#include "feature/rend/rend_intro_point_st.h"
+#include "feature/rend/rend_service_descriptor_st.h"
+#include "feature/relay/onion_queue.h"
 
 /** Run unit tests for the onion handshake code. */
 static void
@@ -142,7 +145,8 @@ test_bad_onion_handshake(void *arg)
   memset(junk_buf, 0, sizeof(junk_buf));
   crypto_pk_obsolete_public_hybrid_encrypt(pk,
                                junk_buf2, TAP_ONIONSKIN_CHALLENGE_LEN,
-                               junk_buf, DH_KEY_LEN, PK_PKCS1_OAEP_PADDING, 1);
+                               junk_buf, DH1024_KEY_LEN,
+                               PK_PKCS1_OAEP_PADDING, 1);
   tt_int_op(-1, OP_EQ,
             onion_skin_TAP_server_handshake(junk_buf2, pk, NULL,
                                             s_buf, s_keys, 40));
@@ -841,10 +845,11 @@ struct testgroup_t testgroups[] = {
   { "channeltls/", channeltls_tests },
   { "checkdir/", checkdir_tests },
   { "circuitbuild/", circuitbuild_tests },
+  { "circuitpadding/", circuitpadding_tests },
   { "circuitlist/", circuitlist_tests },
   { "circuitmux/", circuitmux_tests },
-  { "circuituse/", circuituse_tests },
   { "circuitstats/", circuitstats_tests },
+  { "circuituse/", circuituse_tests },
   { "compat/libevent/", compat_libevent_tests },
   { "config/", config_tests },
   { "connection/", connection_tests },
@@ -853,41 +858,53 @@ struct testgroup_t testgroups[] = {
   { "consdiffmgr/", consdiffmgr_tests },
   { "container/", container_tests },
   { "control/", controller_tests },
+  { "control/btrack/", btrack_tests },
   { "control/event/", controller_event_tests },
   { "crypto/", crypto_tests },
+  { "crypto/ope/", crypto_ope_tests },
+#ifdef ENABLE_OPENSSL
   { "crypto/openssl/", crypto_openssl_tests },
+#endif
+  { "crypto/pem/", pem_tests },
+  { "crypto/rng/", crypto_rng_tests },
   { "dir/", dir_tests },
-  { "dir_handle_get/", dir_handle_get_tests },
   { "dir/md/", microdesc_tests },
-  { "dir/voting-schedule/", voting_schedule_tests },
+  { "dir/voting/flags/", voting_flags_tests },
+  { "dir/voting/schedule/", voting_schedule_tests },
+  { "dir_handle_get/", dir_handle_get_tests },
+  { "dns/", dns_tests },
   { "dos/", dos_tests },
   { "entryconn/", entryconn_tests },
   { "entrynodes/", entrynodes_tests },
-  { "guardfraction/", guardfraction_tests },
   { "extorport/", extorport_tests },
   { "geoip/", geoip_tests },
-  { "legacy_hs/", hs_tests },
+  { "guardfraction/", guardfraction_tests },
   { "hs_cache/", hs_cache },
   { "hs_cell/", hs_cell_tests },
+  { "hs_client/", hs_client_tests },
   { "hs_common/", hs_common_tests },
   { "hs_config/", hs_config_tests },
   { "hs_control/", hs_control_tests },
   { "hs_descriptor/", hs_descriptor },
+  { "hs_intropoint/", hs_intropoint_tests },
   { "hs_ntor/", hs_ntor_tests },
   { "hs_service/", hs_service_tests },
-  { "hs_client/", hs_client_tests },
-  { "hs_intropoint/", hs_intropoint_tests },
   { "introduce/", introduce_tests },
   { "keypin/", keypin_tests },
+  { "legacy_hs/", hs_tests },
   { "link-handshake/", link_handshake_tests },
   { "mainloop/", mainloop_tests },
+  { "netinfo/", netinfo_tests },
   { "nodelist/", nodelist_tests },
   { "oom/", oom_tests },
   { "oos/", oos_tests },
   { "options/", options_tests },
+  { "parsecommon/", parsecommon_tests },
   { "periodic-event/" , periodic_event_tests },
   { "policy/" , policy_tests },
+  { "prob_distr/", prob_distr_tests },
   { "procmon/", procmon_tests },
+  { "process/", process_tests },
   { "proto/http/", proto_http_tests },
   { "proto/misc/", proto_misc_tests },
   { "protover/", protover_tests },
@@ -902,19 +919,20 @@ struct testgroup_t testgroups[] = {
   { "routerlist/", routerlist_tests },
   { "routerset/" , routerset_tests },
   { "scheduler/", scheduler_tests },
-  { "socks/", socks_tests },
   { "shared-random/", sr_tests },
+  { "socks/", socks_tests },
   { "status/" , status_tests },
   { "storagedir/", storagedir_tests },
   { "tortls/", tortls_tests },
+#ifndef ENABLE_NSS
+  { "tortls/openssl/", tortls_openssl_tests },
+#endif
+  { "tortls/x509/", x509_tests },
   { "util/", util_tests },
   { "util/format/", util_format_tests },
+  { "util/handle/", handle_tests },
   { "util/logging/", logging_tests },
   { "util/process/", util_process_tests },
-  { "util/pubsub/", pubsub_tests },
   { "util/thread/", thread_tests },
-  { "util/handle/", handle_tests },
-  { "dns/", dns_tests },
   END_OF_GROUPS
 };
-

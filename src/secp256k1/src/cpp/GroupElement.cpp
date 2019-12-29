@@ -331,9 +331,9 @@ bool GroupElement::isMember() const
     return secp256k1_ge_is_valid_var(&v1);
 }
 
-bool GroupElement::isOne() const
+bool GroupElement::isInfinity() const
 {
-    return reinterpret_cast<secp256k1_gej *>(g_)->infinity == 1;
+    return secp256k1_gej_is_infinity(reinterpret_cast<const secp256k1_gej *>(g_));
 }
 
 void GroupElement::randomize() {
@@ -516,7 +516,7 @@ unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     return buffer + memoryRequired();
 }
 
-unsigned char* GroupElement::deserialize(unsigned char* buffer) {
+const unsigned char* GroupElement::deserialize(const unsigned char* buffer) {
     secp256k1_fe x;
     secp256k1_fe_set_b32(&x, buffer);
     unsigned char oddness = buffer[32];
@@ -554,6 +554,11 @@ std::size_t GroupElement::hash() const
 
 const void* GroupElement::get_value() const {
     return g_;
+}
+
+GroupElement& GroupElement::set_base_g() {
+    secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &secp256k1_ge_const_g);
+    return *this;
 }
 
 } // namespace secp_primitives

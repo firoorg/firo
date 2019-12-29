@@ -354,8 +354,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
                 pindexNew->spentSerials       = diskindex.spentSerials;
 
-                pindexNew->mintedPubCoinsV3   = diskindex.mintedPubCoinsV3;
-                pindexNew->spentSerialsV3     = diskindex.spentSerialsV3;
+                pindexNew->sigmaMintedPubCoins   = diskindex.sigmaMintedPubCoins;
+                pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
 
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, consensusParams))
@@ -375,23 +375,34 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
 int CBlockTreeDB::GetBlockIndexVersion()
 {
-    // Get random block index entry, check its version. The only reason for this function to exist
+    // Get random block index entry, check its version. The only reason for these functions to exist
     // is to check if the index is from previous version and needs to be rebuilt. Comparison of ANY
     // record version to threshold value would be enough to decide if reindex is needed.
 
-	boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
-	pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
-	while (pcursor->Valid()) {
-		boost::this_thread::interruption_point();
-		std::pair<char, uint256> key;
-		if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
-			CDiskBlockIndex diskindex;
-			if (pcursor->GetValue(diskindex))
-                return diskindex.nDiskBlockVersion;
-		}
-	}
-	return -1;
+    return GetBlockIndexVersion(uint256());
 }
+
+int CBlockTreeDB::GetBlockIndexVersion(uint256 const & blockHash)
+{
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(make_pair(DB_BLOCK_INDEX, blockHash));
+    uint256 const zero_hash = uint256();
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        std::pair<char, uint256> key;
+        if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+            if (blockHash != zero_hash && key.second != blockHash) {
+                pcursor->Next();
+                continue;
+            }
+            CDiskBlockIndex diskindex;
+            if (pcursor->GetValue(diskindex))
+                return diskindex.nDiskBlockVersion;
+        }
+    }
+    return -1;
+}
+
 
 bool CBlockTreeDB::AddTotalSupply(CAmount const & supply)
 {
@@ -464,8 +475,6 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
     if(addrType.first == AddressType::unknown) {
-        if(type != TX_ZEROCOINMINT)
-            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
         return;
     }
 
@@ -477,6 +486,22 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
     if (spentIndex)
         spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addrType.first, addrType.second)));
 }
+
+void handleRemint(CTxIn const & input, uint256 const & txHash, int height, int txNumber, CAmount nValue,
+        AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
+{
+    if(!input.IsZerocoinRemint())
+        return;
+
+    if (addressIndex) {
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, 0, true), nValue * -1));
+        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(AddressType::zerocoinRemint, uint160(), input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+    }
+
+    if (spentIndex)
+        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, 0, height, nValue, AddressType::zerocoinRemint, uint160())));
+}
+
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
@@ -501,7 +526,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsZerocoinMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
-    if(out.scriptPubKey.IsZerocoinMintV3())
+    if(out.scriptPubKey.IsSigmaMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;
@@ -515,8 +540,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
     if(addrType.first == AddressType::unknown) {
-        if(type != TX_ZEROCOINMINT)
-            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
         return;
     }
 
@@ -529,19 +552,30 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
+        for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
+    }
 
-    if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
+    if(tx.IsZerocoinRemint()) {
+        CAmount remintValue = 0;
+        for (CTxOut const & out : tx.vout) {
+            remintValue += out.nValue;
+        }
+        if (tx.vin.size() != 1) {
+           error("A Zerocoin to Sigma remint tx shoud have just 1 input");
+           return;
+        }
+        handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
+    }
+
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
-    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
-        CTxOut const & out = *iter;
+    for (CTxOut const & out : tx.vout) {
         handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
     }
 }
@@ -559,10 +593,22 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
     if(spentIndex)
         pSpentBegin = spentIndex->size();
 
+    if(tx.IsZerocoinRemint()) {
+        CAmount remintValue = 0;
+        for (CTxOut const & out : tx.vout) {
+            remintValue += out.nValue;
+        }
+        if (tx.vin.size() != 1) {
+           error("A Zerocoin to Sigma remint tx shoud have just 1 input");
+           return;
+        }
+        handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
+    }
+
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
-        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
-            CTxIn const & input = *iter;
+
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
+        for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
 
@@ -580,13 +626,12 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
-    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
-        CTxOut const & out = *iter;
+    for (CTxOut const & out : tx.vout) {
         handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
     }
 

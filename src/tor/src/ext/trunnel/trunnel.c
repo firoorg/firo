@@ -4,7 +4,7 @@
  */
 /* trunnel.c -- Helper functions to implement trunnel.
  *
- * Copyright 2014-2017, The Tor Project, Inc.
+ * Copyright 2014-2019, The Tor Project, Inc.
  * See license at the end of this file for copying information.
  *
  * See trunnel-impl.h for documentation of these functions.
@@ -13,6 +13,10 @@
 #include "trunnel-impl.h"
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
 
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
 	__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -31,7 +35,7 @@
 #    define IS_LITTLE_ENDIAN
 #  endif
 #else
-# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(OpenBSD)
 #  include <sys/endian.h>
 # else
 #  include <endian.h>

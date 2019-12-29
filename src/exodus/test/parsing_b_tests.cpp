@@ -1,26 +1,29 @@
-#include "exodus/test/utils_tx.h"
+#include "utils_tx.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/encoding.h"
-#include "exodus/exodus.h"
-#include "exodus/script.h"
-#include "exodus/tx.h"
+#include "../createpayload.h"
+#include "../exodus.h"
+#include "../script.h"
+#include "../tx.h"
 
-#include "base58.h"
-#include "coins.h"
-#include "primitives/transaction.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "test/test_bitcoin.h"
+#include "../../base58.h"
+#include "../../coins.h"
 
-#include <stdint.h>
+#include "../../primitives/transaction.h"
+
+#include "../../script/script.h"
+#include "../../script/standard.h"
+
+#include "../../test/test_bitcoin.h"
+
+#include <boost/test/unit_test.hpp>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
 
-#include <boost/test/unit_test.hpp>
+#include <inttypes.h>
 
-using namespace exodus;
+namespace exodus {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_parsing_b_tests, BasicTestingSetup)
 
@@ -69,12 +72,9 @@ static CTxOut createTxOut(int64_t amount, const std::string& dest)
     return CTxOut(amount, GetScriptForDestination(CBitcoinAddress(dest).Get()));
 }
 
-/** Helper to determine hex-encoded payload size. */
 static size_t getPayloadSize(unsigned int nPackets)
 {
-    // multiply by 2 for hex conversion
-    // subtract 1 byte for sequence number
-    return 2 * (PACKET_SIZE - 1) * nPackets;
+    return CLASS_B_CHUNK_PAYLOAD_SIZE * nPackets;
 }
 
 BOOST_AUTO_TEST_CASE(valid_common_class_b)
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(valid_common_class_b)
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
     BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-    BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(10));
+    BOOST_CHECK_EQUAL(metaTx.getRaw().size(), getPayloadSize(10));
 }
 
 BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
@@ -130,8 +130,9 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
     BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
-    BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(MAX_PACKETS));
+    BOOST_CHECK_EQUAL(metaTx.getRaw().size(), getPayloadSize(CLASS_B_MAX_CHUNKS));
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace exodus

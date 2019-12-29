@@ -37,7 +37,7 @@ double GetDifficultyHelper(unsigned int nBits) {
     return dDiff;
 }
 
-// zcoin GetNextWorkRequired
+// Zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
     if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
         return params.nFixedDifficulty;

@@ -2,6 +2,7 @@
 #define ZCOIN_SIGMA_SIGMAPLUS_VERIFIER_H
 
 #include "r1_proof_verifier.h"
+#include "util.h"
 
 namespace sigma {
 template<class Exponent, class GroupElement>
@@ -13,7 +14,8 @@ public:
                       int n, int m_);
 
     bool verify(const std::vector<GroupElement>& commits,
-                const SigmaPlusProof<Exponent, GroupElement>& proof) const;
+                const SigmaPlusProof<Exponent, GroupElement>& proof,
+                bool fPadding) const;
 
 private:
     GroupElement g_;
