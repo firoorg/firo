@@ -1729,14 +1729,17 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     return true;
 }
 
-bool CWallet::SetHDChain(const CHDChain& chain, bool memonly)
+bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain, bool genNewKeyPool)
 {
     LOCK(cs_wallet);
-    bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
+    upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
     if (upgradeChain && !IsLocked()) { // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        NewKeyPool();
+        newChain.nVersion = CHDChain::VERSION_WITH_BIP44; // old versions cannot use mnemonic
+        // whether to generate the keypool now (conditional as leads to DB deadlock if loading DB simultaneously)
+        if (genNewKeyPool)
+            NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;

@@ -582,6 +582,7 @@ public:
     unsigned int nKeyMeta;
     bool fIsEncrypted;
     bool fAnyUnordered;
+    bool fUpgradeHDChain;
     int nFileVersion;
     vector<uint256> vWalletUpgrade;
 
@@ -589,6 +590,7 @@ public:
         nKeys = nCKeys = nWatchKeys = nKeyMeta = 0;
         fIsEncrypted = false;
         fAnyUnordered = false;
+        fUpgradeHDChain = false;
         nFileVersion = 0;
     }
 };
@@ -848,12 +850,13 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             CHDChain chain;
             ssValue >> chain;
-            if (!pwallet->SetHDChain(chain, true))
+            if (!pwallet->SetHDChain(chain, true, wss.fUpgradeHDChain, false))
             {
                 strErr = "Error reading wallet database: SetHDChain failed";
                 return false;
             }
-        } else if (strType == "mnemonic") {
+        }
+        else if (strType == "mnemonic") {
             MnemonicContainer mnContainer;
             ssValue >> mnContainer;
             if (!pwallet->SetMnemonicContainer(mnContainer, true)) {
@@ -977,6 +980,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     BOOST_FOREACH(CAccountingEntry& entry, pwallet->laccentries) {
         pwallet->wtxOrdered.insert(make_pair(entry.nOrderPos, CWallet::TxPair((CWalletTx*)0, &entry)));
     }
+
+    // unencrypted wallets upgrading the wallet version get a new keypool here
+    if (wss.fUpgradeHDChain && !pwallet->IsLocked())
+        pwallet->NewKeyPool();
 
     return result;
 }
