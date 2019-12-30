@@ -764,11 +764,13 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
         } else if (strType == "hdchain") {
             CHDChain chain;
             ssValue >> chain;
-            if (!pwallet->SetHDChain(chain, true, wss.fUpgradeHDChain, false)) {
+            if (!pwallet->SetHDChain(chain, true, wss.fUpgradeHDChain, false))
+            {
                 strErr = "Error reading wallet database: SetHDChain failed";
                 return false;
             }
-        } else if (strType == "mnemonic") {
+        }
+        else if (strType == "mnemonic") {
             MnemonicContainer mnContainer;
             ssValue >> mnContainer;
             if (!pwallet->SetMnemonicContainer(mnContainer, true)) {
