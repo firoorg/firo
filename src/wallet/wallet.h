@@ -1259,7 +1259,7 @@ public:
 
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly, bool& upgradeChain, bool genNewKeyPool = true);
-    bool SetHDChain(const CHDChain& chain, bool memonly) { bool upgradeChain = DEFAULT_UPGRADE_CHAIN; SetHDChain(chain, memonly, upgradeChain); }
+    bool SetHDChain(const CHDChain& chain, bool memonly) { bool upgradeChain = DEFAULT_UPGRADE_CHAIN; return SetHDChain(chain, memonly, upgradeChain); }
     const CHDChain& GetHDChain() { return hdChain; }
 
     bool SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly);
