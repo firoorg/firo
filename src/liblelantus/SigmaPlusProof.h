@@ -43,8 +43,8 @@ public:
         return zR_.serialize(current);
     }
 
-    inline unsigned char* deserialize(unsigned char* buffer, int n, int m) {
-        unsigned char* current = buffer;
+    inline const unsigned char* deserialize(const unsigned char* buffer, int n, int m) {
+        const unsigned char* current = buffer;
         current = A_.deserialize(current);
         current = B_.deserialize(current);
         current = C_.deserialize(current);

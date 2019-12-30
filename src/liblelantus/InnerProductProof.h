@@ -26,8 +26,8 @@ public:
         return current;
     }
 
-    inline unsigned char* deserialize(unsigned char* buffer, int size) {
-        unsigned char* current = a_.deserialize(buffer);
+    inline const unsigned char* deserialize(const unsigned char* buffer, int size) {
+        const unsigned char* current = a_.deserialize(buffer);
         current = b_.deserialize(current);
         current = c_.deserialize(current);
         L_.resize(size);

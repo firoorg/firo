@@ -123,13 +123,11 @@ void LelantusPrimitives<Exponent, GroupElement>::new_factor(
         Exponent x,
         Exponent a,
         std::vector<Exponent>& coefficients) {
-    std::vector<Exponent> temp;
-    temp.resize(coefficients.size() + 1);
-    for (int j = 0; j < coefficients.size(); j++)
-        temp[j] += x * coefficients[j];
-    for (int j = 0; j < coefficients.size(); j++)
-        temp[j + 1] += a * coefficients[j];
-    coefficients = temp;
+    std::size_t degree = coefficients.size();
+    coefficients.push_back(x * coefficients[degree-1]);
+    for (std::size_t d = degree-1; d >= 1; --d)
+        coefficients[d] = a * coefficients[d] + x * coefficients[d-1];
+    coefficients[0] *= a;
 }
 
 template<class Exponent, class GroupElement>

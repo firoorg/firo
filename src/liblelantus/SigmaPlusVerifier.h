@@ -28,7 +28,7 @@ public:
 private:
     //auxiliary functions
     bool membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const;
-    void compute_fs(
+    bool compute_fs(
             const SigmaPlusProof<Exponent, GroupElement>& proof,
             const Exponent& x,
             std::vector<Exponent>& f_) const;

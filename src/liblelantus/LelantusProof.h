@@ -26,8 +26,8 @@ public:
         return schnorrProof.serialize(current);
     }
 
-    inline unsigned char* deserialize(const Params* params, unsigned char* buffer, int size, int b_m) {
-        unsigned char* current = buffer;
+    inline const unsigned char* deserialize(const Params* params, const unsigned char* buffer, int size, int b_m) {
+        const unsigned char* current = buffer;
         sigma_proofs.resize(size);
         for(int i = 0; i < size; ++i)
             current = sigma_proofs[i].deserialize(current, params->get_n(), params->get_m());

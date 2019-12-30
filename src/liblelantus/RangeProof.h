@@ -29,9 +29,9 @@ public:
         return current;
     }
 
-    inline unsigned char* deserialize(unsigned char* buffer, int n) {
+    inline const unsigned char* deserialize(const unsigned char* buffer, int n) {
         int size = (int)(log(n) / log(2));
-        unsigned char* current = A.deserialize(buffer);
+        const unsigned char* current = A.deserialize(buffer);
         current = S.deserialize(current);
         current = T1.deserialize(current);
         current = T2.deserialize(current);

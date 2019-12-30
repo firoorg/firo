@@ -18,8 +18,8 @@ public:
         return T1.serialize(current);
     }
 
-    inline unsigned char* deserialize(unsigned char* buffer) {
-        unsigned char* current = u.deserialize(buffer);
+    inline const unsigned char* deserialize(const unsigned char* buffer) {
+        const unsigned char* current = u.deserialize(buffer);
         current = P1.deserialize(current);
         return T1.deserialize(current);
     }

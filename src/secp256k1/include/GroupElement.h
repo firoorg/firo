@@ -47,13 +47,15 @@ public:
 
   void square();
 
-  bool operator==(const GroupElement&other) const;
-
-  bool operator!=(const GroupElement&other) const;
 
   bool isMember() const;
 
   bool isInfinity() const;
+
+
+  bool operator==(const GroupElement&other) const;
+
+  bool operator!=(const GroupElement&other) const;
 
   GroupElement& generate(unsigned char* seed);
 

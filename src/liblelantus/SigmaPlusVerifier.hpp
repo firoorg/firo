@@ -81,6 +81,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     int M = proofs.size();
     int N = commits.size();
 
+    if (commits.empty())
+        return false;
+
     for(int t = 0; t < M; ++t)
         if(!membership_checks(proofs[t]))
             return false;
@@ -88,10 +91,10 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     f_.resize(M);
     for (int t = 0; t < M; ++t)
     {
-        compute_fs(proofs[t], x, f_[t]);
-        if(!abcd_checks(proofs[t], x, f_[t]))
+        if(!compute_fs(proofs[t], x, f_[t]) || !abcd_checks(proofs[t], x, f_[t]))
             return false;
     }
+
     std::vector<Exponent> y;
     y.resize(M);
     for (int t = 0; t < M; ++t)
@@ -104,7 +107,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     for (int t = 0; t < M; ++t)
     {
         f_i_[t].reserve(N);
-        for (int i = 0; i < N; ++i)
+        for (int i = 0; i < N - 1; ++i)
         {
             std::vector <uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
             Exponent f_i(uint64_t(1));
@@ -115,6 +118,38 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
             f_i_[t].emplace_back(f_i);
         }
 
+        /*
+        * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
+        * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
+        *
+        * Math (in TeX notation):
+        *
+        * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
+        *   \sum_{j=0}^{m-1}
+        *     \left[
+        *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
+        *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
+        *       x^j
+        *     \right]
+        */
+
+        Exponent pow(uint64_t(1));
+        std::vector<uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
+        vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
+        for (int j = m - 1; j >= 0; j--) {
+            f_part_product.push_back(pow);
+            pow *= f_[t][j * n + I[j]];
+        }
+
+        Exponent xj(uint64_t(1));;    // x^j
+        for (int j = 0; j < m; j++) {
+            Exponent fi_sum(uint64_t(0));
+            for (int i = I[j] + 1; i < n; i++)
+                fi_sum += f_[t][j*n + i];
+            pow += fi_sum * xj * f_part_product[m - j - 1];
+            xj *= x;
+        }
+        f_i_[t].emplace_back(pow);
     }
 
     for (int i = 0; i < N; ++i)
@@ -165,14 +200,18 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
 template<class Exponent, class GroupElement>
 bool SigmaPlusVerifier<Exponent, GroupElement>::membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const {
     if(!(proof.A_.isMember() &&
-         proof.B_.isMember()  &&
+         proof.B_.isMember() &&
          proof.C_.isMember() &&
-         proof.D_.isMember()))
+         proof.D_.isMember()) ||
+        (proof.A_.isInfinity() ||
+         proof.B_.isInfinity() ||
+         proof.C_.isInfinity() ||
+         proof.D_.isInfinity()))
         return false;
 
     for (int i = 0; i < proof.f_.size(); i++)
     {
-        if (!proof.f_[i].isMember())
+        if (!proof.f_[i].isMember() || proof.f_[i].isZero())
             return false;
     }
     const std::vector <GroupElement>& Gk = proof.Gk_;
@@ -185,16 +224,25 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::membership_checks(const SigmaPlu
     if(!(proof.ZA_.isMember() &&
          proof.ZC_.isMember() &&
          proof.zV_.isMember() &&
-         proof.zR_.isMember()))
+         proof.zR_.isMember()) ||
+        (proof.ZA_.isZero() ||
+         proof.ZC_.isZero() ||
+         proof.zV_.isZero() ||
+         proof.zR_.isZero()))
         return false;
     return true;
 }
 
 template<class Exponent, class GroupElement>
-void SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
+bool SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
         const SigmaPlusProof<Exponent, GroupElement>& proof,
         const Exponent& x,
         std::vector<Exponent>& f_) const {
+    for(unsigned int j = 0; j < proof.f_.size(); ++j) {
+        if(proof.f_[j] == x)
+            return false;
+    }
+
     f_.reserve(n * m);
     for (int j = 0; j < m; ++j)
     {
@@ -208,6 +256,7 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
         }
         f_[j * n] = x - temp;
     }
+    return true;
 }
 
 template<class Exponent, class GroupElement>
