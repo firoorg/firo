@@ -2,7 +2,8 @@
 This document is to describe the architecture of the Client API project. For API call info, see `src/client-api/README.md`.
 
 ### Running
-to run with API enabled:
+You must first pass the `--enable-clientapi` flag to  `configure` when building.
+Following that, to run with API enabled:
     - start `zcoind` with `clientapi=1` flag, either by passing via CLI or by putting into `zcoin.conf`.
 
 ### Architecture 
