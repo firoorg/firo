@@ -1511,13 +1511,17 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     return true;
 }
 
-bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
+bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain, bool genNewKeyPool)
+{
     LOCK(cs_wallet);
-    bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if(upgradeChain && !IsLocked()){ // Upgrade HDChain to latest version
+    upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
+    if (upgradeChain && !IsLocked()) { // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        NewKeyPool();
+        newChain.nVersion = CHDChain::VERSION_WITH_BIP44; // old versions cannot use mnemonic
+        // whether to generate the keypool now (conditional as leads to DB deadlock if loading DB simultaneously)
+        if (genNewKeyPool)
+            NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
@@ -1746,7 +1750,7 @@ void CWalletTx::GetAccountAmounts(const string &strAccount, CAmount &nReceived,
  * from or to us. If fUpdate is true, found transactions that already
  * exist in the wallet will be updated.
  */
-int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
+int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic) {
     int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams &chainParams = Params();
@@ -1757,8 +1761,14 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        if (fRecoverMnemonic) {
+            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            if (pindex == NULL)
+                pindex = chainActive.Tip();
+        } else
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
 
         ShowProgress(_("Rescanning..."),
                      0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
@@ -1943,7 +1953,7 @@ CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const {
     return 0;
 }
 
-CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
+CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const {
     if (pwallet == 0)
         return 0;
 
@@ -1952,7 +1962,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !IsZerocoinMint() && !IsSigmaMint())
+    if (fUseCache && fAvailableCreditCached && !IsZerocoinMint() && !IsSigmaMint() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -1961,7 +1971,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
         if (!pwallet->IsSpent(hashTx, i)) {
             const CTxOut &txout = vout[i];
             bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint();
-            nCredit += isPrivate ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            bool condition = isPrivate;
+            if (fExcludeLocked)
+                condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));
+            nCredit += condition ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -1969,6 +1982,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
 
     nAvailableCreditCached = nCredit;
     fAvailableCreditCached = true;
+
+    if (fExcludeLocked)
+        fAvailableCreditCached = false;
+
     return nCredit;
 }
 
@@ -2172,14 +2189,14 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime) {
  */
 
 
-CAmount CWallet::GetBalance() const {
+CAmount CWallet::GetBalance(bool fExcludeLocked) const {
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
             if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(true, fExcludeLocked);
         }
     }
 
@@ -8230,6 +8247,7 @@ bool CWallet::InitLoadWallet() {
     uiInterface.InitMessage(_("Loading wallet..."));
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
+    bool fRecoverMnemonic = false;
     CWallet *walletInstance = new CWallet(walletFile);
     pwalletMain = walletInstance;
 
@@ -8281,6 +8299,7 @@ bool CWallet::InitLoadWallet() {
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
                 SoftSetBoolArg("-rescan", true);
+                fRecoverMnemonic = true;
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
@@ -8364,7 +8383,7 @@ bool CWallet::InitLoadWallet() {
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight,
                   pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        walletInstance->ScanForWalletTransactions(pindexRescan, true);
+        walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
         nWalletDBUpdated++;
