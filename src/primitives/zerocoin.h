@@ -181,8 +181,8 @@ public:
     void SetNull()
     {
         IsUsed = false;
-        randomness = Scalar(uint64_t(0));
-        serialNumber = Scalar(uint64_t(0));
+        randomness = Scalar(unsigned(0));
+        serialNumber = Scalar(unsigned(0));
         value = GroupElement();
         denomination = -1;
         nHeight = -1;
@@ -301,7 +301,7 @@ public:
 
     void SetNull()
     {
-        coinSerial = Scalar(uint64_t(0));
+        coinSerial = Scalar(unsigned(0));
 //        hashTx =
         pubCoin = GroupElement();
         denomination = 0;

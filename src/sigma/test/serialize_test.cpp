@@ -10,6 +10,7 @@ BOOST_FIXTURE_TEST_SUITE(sigma_serialize_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(group_element_serialize)
 {
+    sigma::Params::get_default();
     secp_primitives::GroupElement initial;
     initial.randomize();
     unsigned char buffer [initial.memoryRequired()];
@@ -21,6 +22,7 @@ BOOST_AUTO_TEST_CASE(group_element_serialize)
 
 BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
 {
+    sigma::Params::get_default();
     secp_primitives::GroupElement initial;
     unsigned char buffer [initial.memoryRequired()];
     initial.serialize(buffer);
@@ -31,6 +33,7 @@ BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
 
 BOOST_AUTO_TEST_CASE(scalar_serialize)
 {
+    sigma::Params::get_default();
     secp_primitives::Scalar initial;
     initial.randomize();
     unsigned char buffer [initial.memoryRequired()];
@@ -42,7 +45,7 @@ BOOST_AUTO_TEST_CASE(scalar_serialize)
 
 BOOST_AUTO_TEST_CASE(proof_serialize)
 {
-    auto params = sigma::Params::get_default();
+    sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -63,7 +66,7 @@ BOOST_AUTO_TEST_CASE(proof_serialize)
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
-            secp_primitives::Scalar zero(uint64_t(0));
+            secp_primitives::Scalar zero(unsigned(0));
             c = sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, zero, h_gens[0], r);
             commits.push_back(c);
 

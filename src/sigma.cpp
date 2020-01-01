@@ -542,7 +542,7 @@ void DisconnectTipSigma(CBlock& block, CBlockIndex *pindexDelete) {
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
     if (!tx.IsSigmaSpend())
-        return Scalar(uint64_t(0));
+        return Scalar(unsigned(0));
 
     try {
         // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
@@ -556,7 +556,7 @@ Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
         return spend.getCoinSerialNumber();
     }
     catch (const std::ios_base::failure &) {
-        return Scalar(uint64_t(0));
+        return Scalar(unsigned(0));
     }
 }
 

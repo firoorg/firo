@@ -73,7 +73,7 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify_final_response(
     f_out.clear();
     f_out.reserve(n_ * m_);
     for(int j = 0; j < m_; ++j) {
-        f_out.push_back(Exponent(uint64_t(0)));
+        f_out.push_back(Exponent(unsigned(0)));
         Exponent temp;
         int k = n_ - 1;
         for(int i = 0; i < k; ++i) {

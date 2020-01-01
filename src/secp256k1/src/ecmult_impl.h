@@ -1,14 +1,16 @@
-/**********************************************************************
- * Copyright (c) 2013, 2014 Pieter Wuille                             *
- * Distributed under the MIT software license, see the accompanying   *
- * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
- **********************************************************************/
+/*****************************************************************************
+ * Copyright (c) 2013, 2014, 2017 Pieter Wuille, Andrew Poelstra, Jonas Nick *
+ * Distributed under the MIT software license, see the accompanying          *
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.       *
+ *****************************************************************************/
 
-#ifndef _SECP256K1_ECMULT_IMPL_H_
-#define _SECP256K1_ECMULT_IMPL_H_
+#ifndef SECP256K1_ECMULT_IMPL_H
+#define SECP256K1_ECMULT_IMPL_H
 
 #include <string.h>
+#include <stdint.h>
 
+#include "util.h"
 #include "group.h"
 #include "scalar.h"
 #include "ecmult.h"
@@ -29,22 +31,38 @@
 #  endif
 #else
 /* optimal for 128-bit and 256-bit exponents. */
-#define WINDOW_A 5
-/** larger numbers may result in slightly better performance, at the cost of
-    exponentially larger precomputed tables. */
-#ifdef USE_ENDOMORPHISM
-/** Two tables for window size 15: 1.375 MiB. */
-#define WINDOW_G 15
-#else
-/** One table for window size 16: 1.375 MiB. */
-#define WINDOW_G 16
+#  define WINDOW_A 5
+/** Larger values for ECMULT_WINDOW_SIZE result in possibly better
+ *  performance at the cost of an exponentially larger precomputed
+ *  table. The exact table size is
+ *      (1 << (WINDOW_G - 2)) * sizeof(secp256k1_ge_storage)  bytes,
+ *  where sizeof(secp256k1_ge_storage) is typically 64 bytes but can
+ *  be larger due to platform-specific padding and alignment.
+ *  If the endomorphism optimization is enabled (USE_ENDOMORMPHSIM)
+ *  two tables of this size are used instead of only one.
+ */
+#  define WINDOW_G ECMULT_WINDOW_SIZE
 #endif
+
+/* Noone will ever need more than a window size of 24. The code might
+ * be correct for larger values of ECMULT_WINDOW_SIZE but this is not
+ * not tested.
+ *
+ * The following limitations are known, and there are probably more:
+ * If WINDOW_G > 27 and size_t has 32 bits, then the code is incorrect
+ * because the size of the memory object that we allocate (in bytes)
+ * will not fit in a size_t.
+ * If WINDOW_G > 31 and int has 32 bits, then the code is incorrect
+ * because certain expressions will overflow.
+ */
+#if ECMULT_WINDOW_SIZE < 2 || ECMULT_WINDOW_SIZE > 24
+#  error Set ECMULT_WINDOW_SIZE to an integer in range [2..24].
 #endif
 
 #ifdef USE_ENDOMORPHISM
-#define WNAF_BITS 128
+    #define WNAF_BITS 128
 #else
-#define WNAF_BITS 256
+    #define WNAF_BITS 256
 #endif
 #define WNAF_SIZE_BITS(bits, w) (((bits) + (w) - 1) / (w))
 #define WNAF_SIZE(w) WNAF_SIZE_BITS(WNAF_BITS, w)
@@ -60,15 +78,15 @@
 
 /* Minimum number of points for which pippenger_wnaf is faster than strauss wnaf */
 #ifdef USE_ENDOMORPHISM
-#define ECMULT_PIPPENGER_THRESHOLD 88
+    #define ECMULT_PIPPENGER_THRESHOLD 88
 #else
-#define ECMULT_PIPPENGER_THRESHOLD 160
+    #define ECMULT_PIPPENGER_THRESHOLD 160
 #endif
 
 #ifdef USE_ENDOMORPHISM
-#define ECMULT_MAX_POINTS_PER_BATCH 5000000
+    #define ECMULT_MAX_POINTS_PER_BATCH 5000000
 #else
-#define ECMULT_MAX_POINTS_PER_BATCH 10000000
+    #define ECMULT_MAX_POINTS_PER_BATCH 10000000
 #endif
 
 /** Fill a table 'prej' with precomputed odd multiples of a. Prej will contain
@@ -136,24 +154,135 @@ static void secp256k1_ecmult_odd_multiples_table_globalz_windowa(secp256k1_ge *p
     secp256k1_ge_globalz_set_table_gej(ECMULT_TABLE_SIZE(WINDOW_A), pre, globalz, prej, zr);
 }
 
-static void secp256k1_ecmult_odd_multiples_table_storage_var(int n, secp256k1_ge_storage *pre, const secp256k1_gej *a, const secp256k1_callback *cb) {
-    secp256k1_gej *prej = (secp256k1_gej*)checked_malloc(cb, sizeof(secp256k1_gej) * n);
-    secp256k1_ge *prea = (secp256k1_ge*)checked_malloc(cb, sizeof(secp256k1_ge) * n);
-    secp256k1_fe *zr = (secp256k1_fe*)checked_malloc(cb, sizeof(secp256k1_fe) * n);
+static void secp256k1_ecmult_odd_multiples_table_storage_var(const int n, secp256k1_ge_storage *pre, const secp256k1_gej *a) {
+    secp256k1_gej d;
+    secp256k1_ge d_ge, p_ge;
+    secp256k1_gej pj;
+    secp256k1_fe zi;
+    secp256k1_fe zr;
+    secp256k1_fe dx_over_dz_squared;
     int i;
 
-    /* Compute the odd multiples in Jacobian form. */
-    secp256k1_ecmult_odd_multiples_table(n, prej, zr, a);
-    /* Convert them in batch to affine coordinates. */
-    secp256k1_ge_set_table_gej_var(prea, prej, zr, n);
-    /* Convert them to compact storage form. */
-    for (i = 0; i < n; i++) {
-        secp256k1_ge_to_storage(&pre[i], &prea[i]);
+    VERIFY_CHECK(!a->infinity);
+
+    secp256k1_gej_double_var(&d, a, NULL);
+
+    /* First, we perform all the additions in an isomorphic curve obtained by multiplying
+     * all `z` coordinates by 1/`d.z`. In these coordinates `d` is affine so we can use
+     * `secp256k1_gej_add_ge_var` to perform the additions. For each addition, we store
+     * the resulting y-coordinate and the z-ratio, since we only have enough memory to
+     * store two field elements. These are sufficient to efficiently undo the isomorphism
+     * and recompute all the `x`s.
+     */
+    d_ge.x = d.x;
+    d_ge.y = d.y;
+    d_ge.infinity = 0;
+
+    secp256k1_ge_set_gej_zinv(&p_ge, a, &d.z);
+    pj.x = p_ge.x;
+    pj.y = p_ge.y;
+    pj.z = a->z;
+    pj.infinity = 0;
+
+    for (i = 0; i < (n - 1); i++) {
+        secp256k1_fe_normalize_var(&pj.y);
+        secp256k1_fe_to_storage(&pre[i].y, &pj.y);
+        secp256k1_gej_add_ge_var(&pj, &pj, &d_ge, &zr);
+        secp256k1_fe_normalize_var(&zr);
+        secp256k1_fe_to_storage(&pre[i].x, &zr);
     }
 
-    free(prea);
-    free(prej);
-    free(zr);
+    /* Invert d.z in the same batch, preserving pj.z so we can extract 1/d.z */
+    secp256k1_fe_mul(&zi, &pj.z, &d.z);
+    secp256k1_fe_inv_var(&zi, &zi);
+
+    /* Directly set `pre[n - 1]` to `pj`, saving the inverted z-coordinate so
+     * that we can combine it with the saved z-ratios to compute the other zs
+     * without any more inversions. */
+    secp256k1_ge_set_gej_zinv(&p_ge, &pj, &zi);
+    secp256k1_ge_to_storage(&pre[n - 1], &p_ge);
+
+    /* Compute the actual x-coordinate of D, which will be needed below. */
+    secp256k1_fe_mul(&d.z, &zi, &pj.z);  /* d.z = 1/d.z */
+    secp256k1_fe_sqr(&dx_over_dz_squared, &d.z);
+    secp256k1_fe_mul(&dx_over_dz_squared, &dx_over_dz_squared, &d.x);
+
+    /* Going into the second loop, we have set `pre[n-1]` to its final affine
+     * form, but still need to set `pre[i]` for `i` in 0 through `n-2`. We
+     * have `zi = (p.z * d.z)^-1`, where
+     *
+     *     `p.z` is the z-coordinate of the point on the isomorphic curve
+     *           which was ultimately assigned to `pre[n-1]`.
+     *     `d.z` is the multiplier that must be applied to all z-coordinates
+     *           to move from our isomorphic curve back to secp256k1; so the
+     *           product `p.z * d.z` is the z-coordinate of the secp256k1
+     *           point assigned to `pre[n-1]`.
+     *
+     * All subsequent inverse-z-coordinates can be obtained by multiplying this
+     * factor by successive z-ratios, which is much more efficient than directly
+     * computing each one.
+     *
+     * Importantly, these inverse-zs will be coordinates of points on secp256k1,
+     * while our other stored values come from computations on the isomorphic
+     * curve. So in the below loop, we will take care not to actually use `zi`
+     * or any derived values until we're back on secp256k1.
+     */
+    i = n - 1;
+    while (i > 0) {
+        secp256k1_fe zi2, zi3;
+        const secp256k1_fe *rzr;
+        i--;
+
+        secp256k1_ge_from_storage(&p_ge, &pre[i]);
+
+        /* For each remaining point, we extract the z-ratio from the stored
+         * x-coordinate, compute its z^-1 from that, and compute the full
+         * point from that. */
+        rzr = &p_ge.x;
+        secp256k1_fe_mul(&zi, &zi, rzr);
+        secp256k1_fe_sqr(&zi2, &zi);
+        secp256k1_fe_mul(&zi3, &zi2, &zi);
+        /* To compute the actual x-coordinate, we use the stored z ratio and
+         * y-coordinate, which we obtained from `secp256k1_gej_add_ge_var`
+         * in the loop above, as well as the inverse of the square of its
+         * z-coordinate. We store the latter in the `zi2` variable, which is
+         * computed iteratively starting from the overall Z inverse then
+         * multiplying by each z-ratio in turn.
+         *
+         * Denoting the z-ratio as `rzr`, we observe that it is equal to `h`
+         * from the inside of the above `gej_add_ge_var` call. This satisfies
+         *
+         *    rzr = d_x * z^2 - x * d_z^2
+         *
+         * where (`d_x`, `d_z`) are Jacobian coordinates of `D` and `(x, z)`
+         * are Jacobian coordinates of our desired point -- except both are on
+         * the isomorphic curve that we were using when we called `gej_add_ge_var`.
+         * To get back to secp256k1, we must multiply both `z`s by `d_z`, or
+         * equivalently divide both `x`s by `d_z^2`. Our equation then becomes
+         *
+         *    rzr = d_x * z^2 / d_z^2 - x
+         *
+         * (The left-hand-side, being a ratio of z-coordinates, is unaffected
+         * by the isomorphism.)
+         *
+         * Rearranging to solve for `x`, we have
+         *
+         *     x = d_x * z^2 / d_z^2 - rzr
+         *
+         * But what we actually want is the affine coordinate `X = x/z^2`,
+         * which will satisfy
+         *
+         *     X = d_x / d_z^2 - rzr / z^2
+         *       = dx_over_dz_squared - rzr * zi2
+         */
+        secp256k1_fe_mul(&p_ge.x, rzr, &zi2);
+        secp256k1_fe_negate(&p_ge.x, &p_ge.x, 1);
+        secp256k1_fe_add(&p_ge.x, &dx_over_dz_squared);
+        /* y is stored_y/z^3, as we expect */
+        secp256k1_fe_mul(&p_ge.y, &p_ge.y, &zi3);
+        /* Store */
+        secp256k1_ge_to_storage(&pre[i], &p_ge);
+    }
 }
 
 /** The following two macro retrieves a particular odd multiple from a table
@@ -165,7 +294,8 @@ static void secp256k1_ecmult_odd_multiples_table_storage_var(int n, secp256k1_ge
     if ((n) > 0) { \
         *(r) = (pre)[((n)-1)/2]; \
     } else { \
-        secp256k1_ge_neg((r), &(pre)[(-(n)-1)/2]); \
+        *(r) = (pre)[(-(n)-1)/2]; \
+        secp256k1_fe_negate(&((r)->y), &((r)->y), 1); \
     } \
 } while(0)
 
@@ -177,9 +307,16 @@ static void secp256k1_ecmult_odd_multiples_table_storage_var(int n, secp256k1_ge
         secp256k1_ge_from_storage((r), &(pre)[((n)-1)/2]); \
     } else { \
         secp256k1_ge_from_storage((r), &(pre)[(-(n)-1)/2]); \
-        secp256k1_ge_neg((r), (r)); \
+        secp256k1_fe_negate(&((r)->y), &((r)->y), 1); \
     } \
 } while(0)
+
+static const size_t SECP256K1_ECMULT_CONTEXT_PREALLOCATED_SIZE =
+    ROUND_TO_ALIGN(sizeof((*((secp256k1_ecmult_context*) NULL)->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G))
+#ifdef USE_ENDOMORPHISM
+    + ROUND_TO_ALIGN(sizeof((*((secp256k1_ecmult_context*) NULL)->pre_g_128)[0]) * ECMULT_TABLE_SIZE(WINDOW_G))
+#endif
+    ;
 
 static void secp256k1_ecmult_context_init(secp256k1_ecmult_context *ctx) {
     ctx->pre_g = NULL;
@@ -188,8 +325,10 @@ static void secp256k1_ecmult_context_init(secp256k1_ecmult_context *ctx) {
 #endif
 }
 
-static void secp256k1_ecmult_context_build(secp256k1_ecmult_context *ctx, const secp256k1_callback *cb) {
+static void secp256k1_ecmult_context_build(secp256k1_ecmult_context *ctx, void **prealloc) {
     secp256k1_gej gj;
+    void* const base = *prealloc;
+    size_t const prealloc_size = SECP256K1_ECMULT_CONTEXT_PREALLOCATED_SIZE;
 
     if (ctx->pre_g != NULL) {
         return;
@@ -198,44 +337,44 @@ static void secp256k1_ecmult_context_build(secp256k1_ecmult_context *ctx, const 
     /* get the generator */
     secp256k1_gej_set_ge(&gj, &secp256k1_ge_const_g);
 
-    ctx->pre_g = (secp256k1_ge_storage (*)[])checked_malloc(cb, sizeof((*ctx->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G));
+    {
+        size_t size = sizeof((*ctx->pre_g)[0]) * ((size_t)ECMULT_TABLE_SIZE(WINDOW_G));
+        /* check for overflow */
+        VERIFY_CHECK(size / sizeof((*ctx->pre_g)[0]) == ((size_t)ECMULT_TABLE_SIZE(WINDOW_G)));
+        ctx->pre_g = (secp256k1_ge_storage (*)[])manual_alloc(prealloc, sizeof((*ctx->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G), base, prealloc_size);
+    }
 
     /* precompute the tables with odd multiples */
-    secp256k1_ecmult_odd_multiples_table_storage_var(ECMULT_TABLE_SIZE(WINDOW_G), *ctx->pre_g, &gj, cb);
+    secp256k1_ecmult_odd_multiples_table_storage_var(ECMULT_TABLE_SIZE(WINDOW_G), *ctx->pre_g, &gj);
 
 #ifdef USE_ENDOMORPHISM
     {
         secp256k1_gej g_128j;
         int i;
 
-        ctx->pre_g_128 = (secp256k1_ge_storage (*)[])checked_malloc(cb, sizeof((*ctx->pre_g_128)[0]) * ECMULT_TABLE_SIZE(WINDOW_G));
+        size_t size = sizeof((*ctx->pre_g_128)[0]) * ((size_t) ECMULT_TABLE_SIZE(WINDOW_G));
+        /* check for overflow */
+        VERIFY_CHECK(size / sizeof((*ctx->pre_g_128)[0]) == ((size_t)ECMULT_TABLE_SIZE(WINDOW_G)));
+        ctx->pre_g_128 = (secp256k1_ge_storage (*)[])manual_alloc(prealloc, sizeof((*ctx->pre_g_128)[0]) * ECMULT_TABLE_SIZE(WINDOW_G), base, prealloc_size);
 
         /* calculate 2^128*generator */
         g_128j = gj;
         for (i = 0; i < 128; i++) {
             secp256k1_gej_double_var(&g_128j, &g_128j, NULL);
         }
-        secp256k1_ecmult_odd_multiples_table_storage_var(ECMULT_TABLE_SIZE(WINDOW_G), *ctx->pre_g_128, &g_128j, cb);
+        secp256k1_ecmult_odd_multiples_table_storage_var(ECMULT_TABLE_SIZE(WINDOW_G), *ctx->pre_g_128, &g_128j);
     }
 #endif
 }
 
-static void secp256k1_ecmult_context_clone(secp256k1_ecmult_context *dst,
-                                           const secp256k1_ecmult_context *src, const secp256k1_callback *cb) {
-    if (src->pre_g == NULL) {
-        dst->pre_g = NULL;
-    } else {
-        size_t size = sizeof((*dst->pre_g)[0]) * ECMULT_TABLE_SIZE(WINDOW_G);
-        dst->pre_g = (secp256k1_ge_storage (*)[])checked_malloc(cb, size);
-        memcpy(dst->pre_g, src->pre_g, size);
+static void secp256k1_ecmult_context_finalize_memcpy(secp256k1_ecmult_context *dst, const secp256k1_ecmult_context *src) {
+    if (src->pre_g != NULL) {
+        /* We cast to void* first to suppress a -Wcast-align warning. */
+        dst->pre_g = (secp256k1_ge_storage (*)[])(void*)((unsigned char*)dst + ((unsigned char*)(src->pre_g) - (unsigned char*)src));
     }
 #ifdef USE_ENDOMORPHISM
-    if (src->pre_g_128 == NULL) {
-        dst->pre_g_128 = NULL;
-    } else {
-        size_t size = sizeof((*dst->pre_g_128)[0]) * ECMULT_TABLE_SIZE(WINDOW_G);
-        dst->pre_g_128 = (secp256k1_ge_storage (*)[])checked_malloc(cb, size);
-        memcpy(dst->pre_g_128, src->pre_g_128, size);
+    if (src->pre_g_128 != NULL) {
+        dst->pre_g_128 = (secp256k1_ge_storage (*)[])(void*)((unsigned char*)dst + ((unsigned char*)(src->pre_g_128) - (unsigned char*)src));
     }
 #endif
 }
@@ -245,13 +384,8 @@ static int secp256k1_ecmult_context_is_built(const secp256k1_ecmult_context *ctx
 }
 
 static void secp256k1_ecmult_context_clear(secp256k1_ecmult_context *ctx) {
-    free(ctx->pre_g);
-#ifdef USE_ENDOMORPHISM
-    free(ctx->pre_g_128);
-#endif
     secp256k1_ecmult_context_init(ctx);
 }
-
 
 /** Convert a number to WNAF notation. The number becomes represented by sum(2^i * wnaf[i], i=0..bits),
  *  with the following guarantees:
@@ -261,7 +395,7 @@ static void secp256k1_ecmult_context_clear(secp256k1_ecmult_context *ctx) {
  *    than the number of bits in the (absolute value) of the input.
  */
 static int secp256k1_ecmult_wnaf(int *wnaf, int len, const secp256k1_scalar *a, int w) {
-    secp256k1_scalar s = *a;
+    secp256k1_scalar s;
     int last_set_bit = -1;
     int bit = 0;
     int sign = 1;
@@ -274,6 +408,7 @@ static int secp256k1_ecmult_wnaf(int *wnaf, int len, const secp256k1_scalar *a, 
 
     memset(wnaf, 0, len * sizeof(wnaf[0]));
 
+    s = *a;
     if (secp256k1_scalar_get_bits(&s, 255, 1)) {
         secp256k1_scalar_negate(&s, &s);
         sign = -1;
@@ -514,50 +649,55 @@ static size_t secp256k1_strauss_scratch_size(size_t n_points) {
     return n_points*point_size;
 }
 
-static int secp256k1_ecmult_strauss_batch(const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n_points, size_t cb_offset) {
+static int secp256k1_ecmult_strauss_batch(const secp256k1_callback* error_callback, const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n_points, size_t cb_offset) {
     secp256k1_gej* points;
     secp256k1_scalar* scalars;
     struct secp256k1_strauss_state state;
     size_t i;
+    const size_t scratch_checkpoint = secp256k1_scratch_checkpoint(error_callback, scratch);
 
     secp256k1_gej_set_infinity(r);
     if (inp_g_sc == NULL && n_points == 0) {
         return 1;
     }
 
-    if (!secp256k1_scratch_allocate_frame(scratch, secp256k1_strauss_scratch_size(n_points), STRAUSS_SCRATCH_OBJECTS)) {
-        return 0;
-    }
-    points = (secp256k1_gej*)secp256k1_scratch_alloc(scratch, n_points * sizeof(secp256k1_gej));
-    scalars = (secp256k1_scalar*)secp256k1_scratch_alloc(scratch, n_points * sizeof(secp256k1_scalar));
-    state.prej = (secp256k1_gej*)secp256k1_scratch_alloc(scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_gej));
-    state.zr = (secp256k1_fe*)secp256k1_scratch_alloc(scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_fe));
+    points = (secp256k1_gej*)secp256k1_scratch_alloc(error_callback, scratch, n_points * sizeof(secp256k1_gej));
+    scalars = (secp256k1_scalar*)secp256k1_scratch_alloc(error_callback, scratch, n_points * sizeof(secp256k1_scalar));
+    state.prej = (secp256k1_gej*)secp256k1_scratch_alloc(error_callback, scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_gej));
+    state.zr = (secp256k1_fe*)secp256k1_scratch_alloc(error_callback, scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_fe));
 #ifdef USE_ENDOMORPHISM
-    state.pre_a = (secp256k1_ge*)secp256k1_scratch_alloc(scratch, n_points * 2 * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_ge));
+    state.pre_a = (secp256k1_ge*)secp256k1_scratch_alloc(error_callback, scratch, n_points * 2 * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_ge));
     state.pre_a_lam = state.pre_a + n_points * ECMULT_TABLE_SIZE(WINDOW_A);
 #else
-    state.pre_a = (secp256k1_ge*)secp256k1_scratch_alloc(scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_ge));
+    state.pre_a = (secp256k1_ge*)secp256k1_scratch_alloc(error_callback, scratch, n_points * ECMULT_TABLE_SIZE(WINDOW_A) * sizeof(secp256k1_ge));
 #endif
-    state.ps = (struct secp256k1_strauss_point_state*)secp256k1_scratch_alloc(scratch, n_points * sizeof(struct secp256k1_strauss_point_state));
+    state.ps = (struct secp256k1_strauss_point_state*)secp256k1_scratch_alloc(error_callback, scratch, n_points * sizeof(struct secp256k1_strauss_point_state));
+
+    if (points == NULL || scalars == NULL || state.prej == NULL || state.zr == NULL || state.pre_a == NULL) {
+        secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
+        return 0;
+    }
 
     for (i = 0; i < n_points; i++) {
-        if (!cb(&scalars[i], &points[i] , i+cb_offset, cbdata)) {
-            secp256k1_scratch_deallocate_frame(scratch);
+        secp256k1_ge point;
+        if (!cb(&scalars[i], &point, i+cb_offset, cbdata)) {
+            secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
             return 0;
         }
+        secp256k1_gej_set_ge(&points[i], &point);
     }
     secp256k1_ecmult_strauss_wnaf(ctx, &state, r, n_points, points, scalars, inp_g_sc);
-    secp256k1_scratch_deallocate_frame(scratch);
+    secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
     return 1;
 }
 
 /* Wrapper for secp256k1_ecmult_multi_func interface */
-static int secp256k1_ecmult_strauss_batch_single(const secp256k1_ecmult_context *actx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
-    return secp256k1_ecmult_strauss_batch(actx, scratch, r, inp_g_sc, cb, cbdata, n, 0);
+static int secp256k1_ecmult_strauss_batch_single(const secp256k1_callback* error_callback, const secp256k1_ecmult_context *actx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
+    return secp256k1_ecmult_strauss_batch(error_callback, actx, scratch, r, inp_g_sc, cb, cbdata, n, 0);
 }
 
-static size_t secp256k1_strauss_max_points(secp256k1_scratch *scratch) {
-    return secp256k1_scratch_max_allocation(scratch, STRAUSS_SCRATCH_OBJECTS) / secp256k1_strauss_scratch_size(1);
+static size_t secp256k1_strauss_max_points(const secp256k1_callback* error_callback, secp256k1_scratch *scratch) {
+    return secp256k1_scratch_max_allocation(error_callback, scratch, STRAUSS_SCRATCH_OBJECTS) / secp256k1_strauss_scratch_size(1);
 }
 
 /** Convert a number to WNAF notation.
@@ -728,40 +868,95 @@ static int secp256k1_ecmult_pippenger_wnaf(secp256k1_gej *buckets, int bucket_wi
  * set of buckets) for a given number of points.
  */
 static int secp256k1_pippenger_bucket_window(size_t n) {
-    int i;
 #ifdef USE_ENDOMORPHISM
-    unsigned int size[11]= {1, 4, 20, 57, 136, 235, 1260, 1260, 4420, 7880, 16050};
-#else
-    unsigned int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
-#endif
-
-    for (i = 0; i < 11; ++i){
-        if (n <= size[i])
-            return i + 1;
+    if (n <= 1) {
+        return 1;
+    } else if (n <= 4) {
+        return 2;
+    } else if (n <= 20) {
+        return 3;
+    } else if (n <= 57) {
+        return 4;
+    } else if (n <= 136) {
+        return 5;
+    } else if (n <= 235) {
+        return 6;
+    } else if (n <= 1260) {
+        return 7;
+    } else if (n <= 4420) {
+        return 9;
+    } else if (n <= 7880) {
+        return 10;
+    } else if (n <= 16050) {
+        return 11;
+    } else {
+        return PIPPENGER_MAX_BUCKET_WINDOW;
     }
-
-
-    return PIPPENGER_MAX_BUCKET_WINDOW;
+#else
+    if (n <= 1) {
+        return 1;
+    } else if (n <= 11) {
+        return 2;
+    } else if (n <= 45) {
+        return 3;
+    } else if (n <= 100) {
+        return 4;
+    } else if (n <= 275) {
+        return 5;
+    } else if (n <= 625) {
+        return 6;
+    } else if (n <= 1850) {
+        return 7;
+    } else if (n <= 3400) {
+        return 8;
+    } else if (n <= 9630) {
+        return 9;
+    } else if (n <= 17900) {
+        return 10;
+    } else if (n <= 32800) {
+        return 11;
+    } else {
+        return PIPPENGER_MAX_BUCKET_WINDOW;
+    }
+#endif
 }
 
 /**
  * Returns the maximum optimal number of points for a bucket_window.
  */
 static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
-    int i;
+    switch(bucket_window) {
 #ifdef USE_ENDOMORPHISM
-    int size[11]= {1, 4, 20, 57, 136, 235, 1260, 1260, 4420, 7880, 16050};
+        case 1: return 1;
+        case 2: return 4;
+        case 3: return 20;
+        case 4: return 57;
+        case 5: return 136;
+        case 6: return 235;
+        case 7: return 1260;
+        case 8: return 1260;
+        case 9: return 4420;
+        case 10: return 7880;
+        case 11: return 16050;
+        case PIPPENGER_MAX_BUCKET_WINDOW: return SIZE_MAX;
 #else
-    int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
+        case 1: return 1;
+        case 2: return 11;
+        case 3: return 45;
+        case 4: return 100;
+        case 5: return 275;
+        case 6: return 625;
+        case 7: return 1850;
+        case 8: return 3400;
+        case 9: return 9630;
+        case 10: return 17900;
+        case 11: return 32800;
+        case PIPPENGER_MAX_BUCKET_WINDOW: return SIZE_MAX;
 #endif
-
-    if (bucket_window == PIPPENGER_MAX_BUCKET_WINDOW )
-        return SIZE_MAX;
-
-    else if(bucket_window >= 1 && bucket_window <= 11)
-        return size[bucket_window - 1];
+    }
     return 0;
 }
+
 
 #ifdef USE_ENDOMORPHISM
 SECP256K1_INLINE static void secp256k1_ecmult_endo_split(secp256k1_scalar *s1, secp256k1_scalar *s2, secp256k1_ge *p1, secp256k1_ge *p2) {
@@ -791,10 +986,11 @@ static size_t secp256k1_pippenger_scratch_size(size_t n_points, int bucket_windo
     size_t entries = n_points + 1;
 #endif
     size_t entry_size = sizeof(secp256k1_ge) + sizeof(secp256k1_scalar) + sizeof(struct secp256k1_pippenger_point_state) + (WNAF_SIZE(bucket_window+1)+1)*sizeof(int);
-    return ((1<<bucket_window) * sizeof(secp256k1_gej) + sizeof(struct secp256k1_pippenger_state) + entries * entry_size);
+    return (sizeof(secp256k1_gej) << bucket_window) + sizeof(struct secp256k1_pippenger_state) + entries * entry_size;
 }
 
-static int secp256k1_ecmult_pippenger_batch(const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n_points, size_t cb_offset) {
+static int secp256k1_ecmult_pippenger_batch(const secp256k1_callback* error_callback, const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n_points, size_t cb_offset) {
+    const size_t scratch_checkpoint = secp256k1_scratch_checkpoint(error_callback, scratch);
     /* Use 2(n+1) with the endomorphism, n+1 without, when calculating batch
      * sizes. The reason for +1 is that we add the G scalar to the list of
      * other scalars. */
@@ -819,15 +1015,21 @@ static int secp256k1_ecmult_pippenger_batch(const secp256k1_ecmult_context *ctx,
     }
 
     bucket_window = secp256k1_pippenger_bucket_window(n_points);
-    if (!secp256k1_scratch_allocate_frame(scratch, secp256k1_pippenger_scratch_size(n_points, bucket_window), PIPPENGER_SCRATCH_OBJECTS)) {
+    points = (secp256k1_ge *) secp256k1_scratch_alloc(error_callback, scratch, entries * sizeof(*points));
+    scalars = (secp256k1_scalar *) secp256k1_scratch_alloc(error_callback, scratch, entries * sizeof(*scalars));
+    state_space = (struct secp256k1_pippenger_state *) secp256k1_scratch_alloc(error_callback, scratch, sizeof(*state_space));
+    if (points == NULL || scalars == NULL || state_space == NULL) {
+        secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
         return 0;
     }
-    points = (secp256k1_ge *) secp256k1_scratch_alloc(scratch, entries * sizeof(*points));
-    scalars = (secp256k1_scalar *) secp256k1_scratch_alloc(scratch, entries * sizeof(*scalars));
-    state_space = (struct secp256k1_pippenger_state *) secp256k1_scratch_alloc(scratch, sizeof(*state_space));
-    state_space->ps = (struct secp256k1_pippenger_point_state *) secp256k1_scratch_alloc(scratch, entries * sizeof(*state_space->ps));
-    state_space->wnaf_na = (int *) secp256k1_scratch_alloc(scratch, entries*(WNAF_SIZE(bucket_window+1)) * sizeof(int));
-    buckets = (secp256k1_gej *) secp256k1_scratch_alloc(scratch, (1<<bucket_window) * sizeof(*buckets));
+
+    state_space->ps = (struct secp256k1_pippenger_point_state *) secp256k1_scratch_alloc(error_callback, scratch, entries * sizeof(*state_space->ps));
+    state_space->wnaf_na = (int *) secp256k1_scratch_alloc(error_callback, scratch, entries*(WNAF_SIZE(bucket_window+1)) * sizeof(int));
+    buckets = (secp256k1_gej *) secp256k1_scratch_alloc(error_callback, scratch, (1<<bucket_window) * sizeof(*buckets));
+    if (state_space->ps == NULL || state_space->wnaf_na == NULL || buckets == NULL) {
+        secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
+        return 0;
+    }
 
     if (inp_g_sc != NULL) {
         scalars[0] = *inp_g_sc;
@@ -840,12 +1042,10 @@ static int secp256k1_ecmult_pippenger_batch(const secp256k1_ecmult_context *ctx,
     }
 
     while (point_idx < n_points) {
-        secp256k1_gej point;
-        if (!cb(&scalars[idx], &point, point_idx + cb_offset, cbdata)) {
-            secp256k1_scratch_deallocate_frame(scratch);
+        if (!cb(&scalars[idx], &points[idx], point_idx + cb_offset, cbdata)) {
+            secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
             return 0;
         }
-        secp256k1_ge_set_gej(&points[idx], &point);
         idx++;
 #ifdef USE_ENDOMORPHISM
         secp256k1_ecmult_endo_split(&scalars[idx - 1], &scalars[idx], &points[idx - 1], &points[idx]);
@@ -867,14 +1067,13 @@ static int secp256k1_ecmult_pippenger_batch(const secp256k1_ecmult_context *ctx,
     for(i = 0; i < 1<<bucket_window; i++) {
         secp256k1_gej_clear(&buckets[i]);
     }
-    secp256k1_scratch_deallocate_frame(scratch);
+    secp256k1_scratch_apply_checkpoint(error_callback, scratch, scratch_checkpoint);
     return 1;
 }
 
-
 /* Wrapper for secp256k1_ecmult_multi_func interface */
-static int secp256k1_ecmult_pippenger_batch_single(const secp256k1_ecmult_context *actx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
-    return secp256k1_ecmult_pippenger_batch(actx, scratch, r, inp_g_sc, cb, cbdata, n, 0);
+static int secp256k1_ecmult_pippenger_batch_single(const secp256k1_callback* error_callback, const secp256k1_ecmult_context *actx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
+    return secp256k1_ecmult_pippenger_batch(error_callback, actx, scratch, r, inp_g_sc, cb, cbdata, n, 0);
 }
 
 /**
@@ -882,8 +1081,8 @@ static int secp256k1_ecmult_pippenger_batch_single(const secp256k1_ecmult_contex
  * a given scratch space. The function ensures that fewer points may also be
  * used.
  */
-static size_t secp256k1_pippenger_max_points(secp256k1_scratch *scratch) {
-    size_t max_alloc = secp256k1_scratch_max_allocation(scratch, PIPPENGER_SCRATCH_OBJECTS);
+static size_t secp256k1_pippenger_max_points(const secp256k1_callback* error_callback, secp256k1_scratch *scratch) {
+    size_t max_alloc = secp256k1_scratch_max_allocation(error_callback, scratch, PIPPENGER_SCRATCH_OBJECTS);
     int bucket_window;
     size_t res = 0;
 
@@ -897,7 +1096,7 @@ static size_t secp256k1_pippenger_max_points(secp256k1_scratch *scratch) {
 #ifdef USE_ENDOMORPHISM
         entry_size = 2*entry_size;
 #endif
-        space_overhead = ((1<<bucket_window) * sizeof(secp256k1_gej) + entry_size + sizeof(struct secp256k1_pippenger_state));
+        space_overhead = (sizeof(secp256k1_gej) << bucket_window) + entry_size + sizeof(struct secp256k1_pippenger_state);
         if (space_overhead > max_alloc) {
             break;
         }
@@ -918,13 +1117,58 @@ static size_t secp256k1_pippenger_max_points(secp256k1_scratch *scratch) {
     return res;
 }
 
+/* Computes ecmult_multi by simply multiplying and adding each point. Does not
+ * require a scratch space */
+static int secp256k1_ecmult_multi_simple_var(const secp256k1_ecmult_context *ctx, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n_points) {
+    size_t point_idx;
+    secp256k1_scalar szero;
+    secp256k1_gej tmpj;
 
-typedef int (*secp256k1_ecmult_multi_func)(const secp256k1_ecmult_context*, secp256k1_scratch*, secp256k1_gej*, const secp256k1_scalar*, secp256k1_ecmult_multi_callback cb, void*, size_t);
-static int secp256k1_ecmult_multi_var(const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
+    secp256k1_scalar_set_int(&szero, 0);
+    secp256k1_gej_set_infinity(r);
+    secp256k1_gej_set_infinity(&tmpj);
+    /* r = inp_g_sc*G */
+    secp256k1_ecmult(ctx, r, &tmpj, &szero, inp_g_sc);
+    for (point_idx = 0; point_idx < n_points; point_idx++) {
+        secp256k1_ge point;
+        secp256k1_gej pointj;
+        secp256k1_scalar scalar;
+        if (!cb(&scalar, &point, point_idx, cbdata)) {
+            return 0;
+        }
+        /* r += scalar*point */
+        secp256k1_gej_set_ge(&pointj, &point);
+        secp256k1_ecmult(ctx, &tmpj, &pointj, &scalar, NULL);
+        secp256k1_gej_add_var(r, r, &tmpj, NULL);
+    }
+    return 1;
+}
+
+/* Compute the number of batches and the batch size given the maximum batch size and the
+ * total number of points */
+static int secp256k1_ecmult_multi_batch_size_helper(size_t *n_batches, size_t *n_batch_points, size_t max_n_batch_points, size_t n) {
+    if (max_n_batch_points == 0) {
+        return 0;
+    }
+    if (max_n_batch_points > ECMULT_MAX_POINTS_PER_BATCH) {
+        max_n_batch_points = ECMULT_MAX_POINTS_PER_BATCH;
+    }
+    if (n == 0) {
+        *n_batches = 0;
+        *n_batch_points = 0;
+        return 1;
+    }
+    /* Compute ceil(n/max_n_batch_points) and ceil(n/n_batches) */
+    *n_batches = 1 + (n - 1) / max_n_batch_points;
+    *n_batch_points = 1 + (n - 1) / *n_batches;
+    return 1;
+}
+
+typedef int (*secp256k1_ecmult_multi_func)(const secp256k1_callback* error_callback, const secp256k1_ecmult_context*, secp256k1_scratch*, secp256k1_gej*, const secp256k1_scalar*, secp256k1_ecmult_multi_callback cb, void*, size_t);
+static int secp256k1_ecmult_multi_var(const secp256k1_callback* error_callback, const secp256k1_ecmult_context *ctx, secp256k1_scratch *scratch, secp256k1_gej *r, const secp256k1_scalar *inp_g_sc, secp256k1_ecmult_multi_callback cb, void *cbdata, size_t n) {
     size_t i;
 
-    int (*f)(const secp256k1_ecmult_context*, secp256k1_scratch*, secp256k1_gej*, const secp256k1_scalar*, secp256k1_ecmult_multi_callback cb, void*, size_t, size_t);
-    size_t max_points;
+    int (*f)(const secp256k1_callback* error_callback, const secp256k1_ecmult_context*, secp256k1_scratch*, secp256k1_gej*, const secp256k1_scalar*, secp256k1_ecmult_multi_callback cb, void*, size_t, size_t);
     size_t n_batches;
     size_t n_batch_points;
 
@@ -937,32 +1181,30 @@ static int secp256k1_ecmult_multi_var(const secp256k1_ecmult_context *ctx, secp2
         secp256k1_ecmult(ctx, r, r, &szero, inp_g_sc);
         return 1;
     }
-
-    max_points = secp256k1_pippenger_max_points(scratch);
-    if (max_points == 0) {
-        return 0;
-    } else if (max_points > ECMULT_MAX_POINTS_PER_BATCH) {
-        max_points = ECMULT_MAX_POINTS_PER_BATCH;
+    if (scratch == NULL) {
+        return secp256k1_ecmult_multi_simple_var(ctx, r, inp_g_sc, cb, cbdata, n);
     }
-    n_batches = (n+max_points-1)/max_points;
-    n_batch_points = (n+n_batches-1)/n_batches;
 
+    /* Compute the batch sizes for Pippenger's algorithm given a scratch space. If it's greater than
+     * a threshold use Pippenger's algorithm. Otherwise use Strauss' algorithm.
+     * As a first step check if there's enough space for Pippenger's algo (which requires less space
+     * than Strauss' algo) and if not, use the simple algorithm. */
+    if (!secp256k1_ecmult_multi_batch_size_helper(&n_batches, &n_batch_points, secp256k1_pippenger_max_points(error_callback, scratch), n)) {
+        return secp256k1_ecmult_multi_simple_var(ctx, r, inp_g_sc, cb, cbdata, n);
+    }
     if (n_batch_points >= ECMULT_PIPPENGER_THRESHOLD) {
         f = secp256k1_ecmult_pippenger_batch;
     } else {
-        max_points = secp256k1_strauss_max_points(scratch);
-        if (max_points == 0) {
-            return 0;
+        if (!secp256k1_ecmult_multi_batch_size_helper(&n_batches, &n_batch_points, secp256k1_strauss_max_points(error_callback, scratch), n)) {
+            return secp256k1_ecmult_multi_simple_var(ctx, r, inp_g_sc, cb, cbdata, n);
         }
-        n_batches = (n+max_points-1)/max_points;
-        n_batch_points = (n+n_batches-1)/n_batches;
         f = secp256k1_ecmult_strauss_batch;
     }
     for(i = 0; i < n_batches; i++) {
         size_t nbp = n < n_batch_points ? n : n_batch_points;
         size_t offset = n_batch_points*i;
         secp256k1_gej tmp;
-        if (!f(ctx, scratch, &tmp, i == 0 ? inp_g_sc : NULL, cb, cbdata, nbp, offset)) {
+        if (!f(error_callback, ctx, scratch, &tmp, i == 0 ? inp_g_sc : NULL, cb, cbdata, nbp, offset)) {
             return 0;
         }
         secp256k1_gej_add_var(r, r, &tmp, NULL);
@@ -971,4 +1213,4 @@ static int secp256k1_ecmult_multi_var(const secp256k1_ecmult_context *ctx, secp2
     return 1;
 }
 
-#endif
+#endif /* SECP256K1_ECMULT_IMPL_H */

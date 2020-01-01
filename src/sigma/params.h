@@ -1,7 +1,8 @@
 #ifndef ZCOIN_SIGMA_PARAMS_H
 #define ZCOIN_SIGMA_PARAMS_H
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "../secp256k1/include/secp256k1.hpp"
+#include "../secp256k1/include/secp256k1_scalar.hpp"
+#include "../secp256k1/include/secp256k1_group.hpp"
 #include <serialize.h>
 
 using namespace secp_primitives;
@@ -27,6 +28,8 @@ private:
     std::vector<GroupElement> h_;
     int m_;
     int n_;
+
+    secp256k1_context *ctx;
 };
 
 }//namespace sigma

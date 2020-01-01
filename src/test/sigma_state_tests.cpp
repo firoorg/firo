@@ -2,7 +2,7 @@
 #include "../sigma/coinspend.h"
 #include "../sigma/coin.h"
 #include "../main.h"
-#include "../secp256k1/include/Scalar.h"
+#include "../secp256k1/include/secp256k1_scalar.hpp"
 #include "../sigma.h"
 #include "./test_bitcoin.h"
 #include "../wallet/wallet.h"
@@ -813,7 +813,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     CTransaction ctx(newtx);
 
     // check
-    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx,newTxIn) != Scalar(uint64_t(0)),
+    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx,newTxIn) != Scalar(unsigned(0)),
       "Expect serial number, got 0");
 
     // add more spend vin
@@ -835,7 +835,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     CTransaction ctx2(newtx);
 
     // check
-    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx2,newTxIn2) != Scalar(uint64_t(0)),
+    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx2,newTxIn2) != Scalar(unsigned(0)),
       "2 vin, Expect serial number, got 0");
 
     // not allow unspend vin
@@ -851,7 +851,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
 
     CTransaction ctx3(newtx);
 
-    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx3, newTxVin3) == Scalar(uint64_t(0)),
+    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx3, newTxVin3) == Scalar(unsigned(0)),
       "Expect 0 got serial");
 }
 
@@ -895,7 +895,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
     CTransaction ctx(newtx);
 
     // check
-    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx,newTxIn) == Scalar(uint64_t(0)),
+    BOOST_CHECK_MESSAGE(sigma::GetSigmaSpendSerialNumber(ctx,newTxIn) == Scalar(unsigned(0)),
       "Expect 0 got serial, Wrong script");
 }
 
