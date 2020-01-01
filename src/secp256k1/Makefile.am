@@ -9,9 +9,9 @@ JNI_LIB =
 endif
 include_HEADERS =
 include_HEADERS += include/secp256k1.h
-include_HEADERS += include/GroupElement.h
-include_HEADERS += include/Scalar.h
-include_HEADERS += include/MultiExponent.h
+include_HEADERS += include/secp256k1_group.hpp
+include_HEADERS += include/secp256k1_scalar.hpp
+include_HEADERS += include/secp256k1_ecmult.hpp
 noinst_HEADERS =
 noinst_HEADERS += src/scalar.h
 noinst_HEADERS += src/scalar_4x64.h
@@ -78,9 +78,9 @@ endif
 
 libsecp256k1_la_SOURCES =
 libsecp256k1_la_SOURCES += src/secp256k1.c
-libsecp256k1_la_SOURCES += src/cpp/GroupElement.cpp
-libsecp256k1_la_SOURCES += src/cpp/Scalar.cpp
-libsecp256k1_la_SOURCES += src/cpp/MultiExponent.cpp
+libsecp256k1_la_SOURCES += src/cpp/group.cpp
+libsecp256k1_la_SOURCES += src/cpp/scalar.cpp
+libsecp256k1_la_SOURCES += src/cpp/ecmult.cpp
 libsecp256k1_la_CPPFLAGS = -DSECP256K1_BUILD -I$(top_srcdir)/include -I$(top_srcdir)/src $(SECP_INCLUDES)
 libsecp256k1_la_LIBADD = $(JNI_LIB) $(SECP_LIBS) $(COMMON_LIB)
 

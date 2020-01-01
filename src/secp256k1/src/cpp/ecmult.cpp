@@ -1,4 +1,4 @@
-#include "../include/MultiExponent.h"
+#include <secp256k1_ecmult.hpp>
 
 #include "../include/secp256k1.h"
 #include "../field.h"

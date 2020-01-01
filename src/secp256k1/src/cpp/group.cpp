@@ -1,4 +1,4 @@
-#include "include/GroupElement.h"
+#include <secp256k1_group.hpp>
 #include "include/secp256k1.h"
 
 #include "../field.h"

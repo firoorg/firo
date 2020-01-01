@@ -1,7 +1,6 @@
 #ifndef COIN_CONTAINERS_H
 #define COIN_CONTAINERS_H
 
-#include <secp256k1/include/Scalar.h>
 #include "sigma/coin.h"
 
 #include <unordered_map>

@@ -1,7 +1,7 @@
 #include <boost/test/unit_test.hpp>
 
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "../secp256k1/include/secp256k1_scalar.hpp"
+#include "../secp256k1/include/secp256k1_group.hpp"
 
 BOOST_AUTO_TEST_SUITE(sigma_primitive_types)
 

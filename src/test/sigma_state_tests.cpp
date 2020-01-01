@@ -2,7 +2,7 @@
 #include "../sigma/coinspend.h"
 #include "../sigma/coin.h"
 #include "../validation.h"
-#include "../secp256k1/include/Scalar.h"
+#include "../secp256k1/include/secp256k1_scalar.hpp"
 #include "../sigma.h"
 #include "./test_bitcoin.h"
 #include "../wallet/wallet.h"

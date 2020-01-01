@@ -1,7 +1,7 @@
 #include "../sigma_primitives.h"
 
-#include "../../secp256k1/include/GroupElement.h"
-#include "../../secp256k1/include/Scalar.h"
+#include "../../secp256k1/include/secp256k1_group.hpp"
+#include "../../secp256k1/include/secp256k1_scalar.hpp"
 
 #include <boost/test/unit_test.hpp>
 

@@ -1,7 +1,7 @@
-#ifndef SECP_GROUP_ELEMENT_H__
-#define SECP_GROUP_ELEMENT_H__
+#ifndef SECP256K1_GROUP_HPP
+#define SECP256K1_GROUP_HPP
 
-#include "Scalar.h"
+#include "secp256k1_scalar.hpp"
 
 #include <cstddef>
 #include <ostream>
@@ -125,4 +125,4 @@ namespace std {
     };
 } // namespace std
 
-#endif // SECP_GROUP_ELEMENT_H__
+#endif // SECP256K1_GROUP_HPP

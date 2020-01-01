@@ -1,5 +1,5 @@
-#ifndef SCALAR_H__
-#define SCALAR_H__
+#ifndef SECP256K1_SCALAR_HPP
+#define SECP256K1_SCALAR_HPP
 
 #include <array>
 #include <functional>
@@ -139,4 +139,4 @@ struct hash<Scalar> {
 
 } // namespace std
 
-#endif // SCALAR_H__
+#endif // SECP256K1_SCALAR_HPP

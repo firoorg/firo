@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMA_PARAMS_H
 #define ZCOIN_SIGMA_PARAMS_H
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include <secp256k1/include/secp256k1_scalar.hpp>
+#include <secp256k1/include/secp256k1_group.hpp>
 #include <serialize.h>
 
 using namespace secp_primitives;

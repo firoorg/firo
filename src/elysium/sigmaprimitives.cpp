@@ -3,7 +3,7 @@
 #include "../hash.h"
 #include "../sigma/sigma_primitives.h"
 
-#include <GroupElement.h>
+
 
 #include <array>
 #include <stdexcept>

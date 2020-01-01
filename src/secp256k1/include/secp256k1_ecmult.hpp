@@ -1,9 +1,9 @@
-#ifndef SECP_MULTIEXPONENT_H
-#define SECP_MULTIEXPONENT_H
+#ifndef SECP256K1_ECMULT_HPP
+#define SECP256K1_ECMULT_HPP
 
 #include <vector>
-#include "../include/GroupElement.h"
-#include "../include/Scalar.h"
+#include "secp256k1_group.hpp"
+#include "secp256k1_scalar.hpp"
 
 namespace secp_primitives {
 
@@ -23,4 +23,4 @@ private:
 
 }// namespace secp_primitives
 
-#endif //SECP_MULTIEXPONENT_H
+#endif //SECP256K1_ECMULT_HPP

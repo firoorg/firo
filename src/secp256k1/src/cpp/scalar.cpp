@@ -1,4 +1,4 @@
-#include "include/Scalar.h"
+#include <secp256k1_scalar.hpp>
 
 #include "include/secp256k1.h"
 

@@ -16,8 +16,8 @@
 
 #include "../hdmint/hdmint.h"
 #include "../hdmint/mintpool.h"
-#include "../secp256k1/include/GroupElement.h"
-#include "../secp256k1/include/Scalar.h"
+#include "../secp256k1/include/secp256k1_group.hpp"
+#include "../secp256k1/include/secp256k1_scalar.hpp"
 
 #include <list>
 #include <stdint.h>

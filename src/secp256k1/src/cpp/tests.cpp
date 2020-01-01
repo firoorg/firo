@@ -10,8 +10,8 @@
 #include "../util.h"
 
 #ifdef ENABLE_OPENSSL_TESTS
-#include "include/GroupElement.h"
-#include "include/Scalar.h"
+#include <secp256k1_group.hpp>
+#include <secp256k1_scalar.hpp>
 #endif
 
 int main(int argc, char* argv[])
