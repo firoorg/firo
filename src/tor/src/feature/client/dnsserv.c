@@ -26,7 +26,7 @@
 #include "app/config/config.h"
 #include "core/mainloop/connection.h"
 #include "core/or/connection_edge.h"
-#include "feature/control/control.h"
+#include "feature/control/control_events.h"
 #include "core/mainloop/mainloop.h"
 #include "core/mainloop/netstatus.h"
 #include "core/or/policies.h"
@@ -238,7 +238,7 @@ dnsserv_launch_request(const char *name, int reverse,
     TO_CONN(conn)->port = control_conn->base_.port;
     TO_CONN(conn)->address = tor_addr_to_str_dup(&control_conn->base_.addr);
   }
-#else /* !(defined(AF_UNIX)) */
+#else /* !defined(AF_UNIX) */
   TO_CONN(conn)->port = control_conn->base_.port;
   TO_CONN(conn)->address = tor_addr_to_str_dup(&control_conn->base_.addr);
 #endif /* defined(AF_UNIX) */

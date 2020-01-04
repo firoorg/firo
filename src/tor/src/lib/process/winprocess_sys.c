@@ -51,13 +51,15 @@ subsys_winprocess_initialize(void)
 
   return 0;
 }
-#else  /* !defined(_WIN32) */
+#else /* !defined(_WIN32) */
 #define WINPROCESS_SYS_ENABLED false
 #define subsys_winprocess_initialize NULL
 #endif /* defined(_WIN32) */
 
 const subsys_fns_t sys_winprocess = {
   .name = "winprocess",
+  /* HeapEnableTerminationOnCorruption and setdeppolicy() are security
+   * features, we want them to run first. */
   .level = -100,
   .supported = WINPROCESS_SYS_ENABLED,
   .initialize = subsys_winprocess_initialize,
