@@ -6,7 +6,7 @@
 #include "tally.h"
 #include "tx.h"
 
-#include <GroupElement.h>
+#include "../secp256k1/include/secp256k1_group.hpp"
 #include "../clientversion.h"
 #include "../tinyformat.h"
 #include "../streams.h"

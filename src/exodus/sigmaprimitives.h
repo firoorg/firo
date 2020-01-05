@@ -10,8 +10,8 @@
 #include "../sigma/sigmaplus_prover.h"
 #include "../sigma/sigmaplus_verifier.h"
 
-#include <GroupElement.h>
-#include <Scalar.h>
+#include "../secp256k1/include/secp256k1_group.hpp"
+#include "../secp256k1/include/secp256k1_scalar.hpp"
 
 #include <boost/optional.hpp>
 
@@ -35,9 +35,11 @@ public:
     secp_primitives::GroupElement g;
     unsigned m, n;
     std::vector<secp_primitives::GroupElement> h;
+    secp256k1_context *ctx;
 
 public:
     SigmaParams(const secp_primitives::GroupElement& g, unsigned m, unsigned n);
+    ~SigmaParams();
 };
 
 class SigmaPrivateKey

@@ -3,7 +3,7 @@
 #include "../hash.h"
 #include "../sigma/sigma_primitives.h"
 
-#include <GroupElement.h>
+#include <openssl/rand.h>
 
 #include <array>
 #include <stdexcept>
@@ -40,6 +40,26 @@ SigmaParams::SigmaParams(const secp_primitives::GroupElement& g, unsigned m, uns
         h[i].generate(hash.data());
         h[i].sha256(hash.data());
     }
+
+    ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
+    if (!ctx)
+        throw ("Failed to create secp256k1's context.");
+
+    try {
+        secp256k1::initialize(ctx, [] (unsigned char *buf, size_t size) {
+            while (!RAND_bytes(buf, size));
+        });
+    } catch (std::exception& e) {
+        secp256k1_context_destroy(ctx);
+        throw ("Failed to initialize secp256k1's context.");
+    }
+}
+
+SigmaParams::~SigmaParams()
+{
+    secp256k1::terminate();
+    secp256k1_context_destroy(ctx);
 }
 
 // SigmaPrivateKey Implementation.

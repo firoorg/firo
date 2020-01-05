@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(scalar_serialize)
 
 BOOST_AUTO_TEST_CASE(proof_serialize)
 {
-    sigma::Params::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
