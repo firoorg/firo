@@ -81,12 +81,8 @@ bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> pr
     }
     
     LogPrintf("pubkeyBytes size = %d\n", pubKeyBytes.size());
-//     uint256 pubkeyHex(pubKeyBytes);
-//     LogPrintf("ScriptSigPubkey %s\n", pubkeyHex.GetHex());
-    
 
 
-    // vector<unsigned char> outpoint = ParseHex(wtx.vin[0].prevout.ToString());
     vector<unsigned char> outpoint(wtx.vin[0].prevout.hash.begin(), wtx.vin[0].prevout.hash.end());
     
     SecretPoint secretPoint(privKeyBytes, pubKeyBytes);
