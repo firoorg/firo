@@ -126,31 +126,6 @@ int main(int argc, char* argv[]) {
 
     init_test_config();
 
-//    std::vector<unsigned char> seed = ParseHex(test1.strHexMaster);
-//    CExtKey key;
-//    CExtPubKey pubkey;
-//    key.SetMaster(&seed[0], seed.size());
-//    pubkey = key.Neuter();
-//    const TestDerivation &derive = test1.vDerive[0];
-//
-//    unsigned char data[74];
-//    key.Encode(data);
-//    pubkey.Encode(data);
-//
-//    // Test private key
-//    CBitcoinExtKey b58key; b58key.SetKey(key);
-//
-//    printf("b58key = %s ,\n derive.prv = %s \n",
-//            b58key.ToString().c_str(),
-//            derive.prv.c_str());
-//
-//    CBitcoinExtKey b58keyDecodeCheck(derive.prv);
-//    CExtKey checkKey = b58keyDecodeCheck.GetKey();
-//    assert(checkKey == key);
-//
-//    printf("Test Passed\n");
-
-//    std::string strHexMaster = "b7b8706d714d9166e66e7ed5b3c61048";
     std::string strHexMaster = "64dca76abc9c6f0cf3d212d248c380c4622c8f93b2c425ec6a5567fd5db57e10d3e6f94a2f6af4ac2edb8998072aad92098db73558c323777abf5bd1082d970a";
     std::vector<unsigned char> seed = ParseHex(strHexMaster);
 
@@ -227,47 +202,6 @@ int main(int argc, char* argv[]) {
     CPubKey vchPubKey;
 
 
-//    "File named wallet.dat"
-//    if (!pwalletMain->GetPubKey(keyID, vchPubKey)) {
-//        printf("\n findout pubkey of address\n");
-//    } else {
-//        printf("\n cannot find out pubkey of address\n");
-//    }
-
-//    bip47::PaymentCode paymentCode1()
-
-
-
-    /**
-     * CKey CPubKey
-     * CKeyMetadata
-     * CBitcoinExtKey
-     * CBitcoinExtPubKey
-     * CExtKey
-     * CExtPubKey
-     */
-
-//    SelectParams(CBaseChainParams::REGTEST);
-
-//    string strAddress = "TPj1wZxMM7TRWeBdKWWMn34G6XNeobCq9K";
-//    string privstr = "cSaagnTkEJymA6amdQ5kpdPTszfKzdjiXZmJm42qy7Fd4MnTwZeB";
-//    CBitcoinSecret vchSecret;
-//    vchSecret.SetString(privstr);
-//    CKey key = vchSecret.GetKey();
-//    printf("%s\n", key.IsValid() ? "true" : "false");
-//
-//    LOCK(pwalletMain->cs_wallet);
-//    CPubKey pubKey = key.GetPubKey();
-
-
-//    assert(key.VerifyPubKey(pubKey));
-
-
-//    CBitcoinAddress addr(strAddress);
-//    CKeyID keyId;
-//    addr.GetKeyID(keyId);
-
-//    pwalletMain->GetKey(hdChain.masterKeyID, key);
 
     return 0;
 }
