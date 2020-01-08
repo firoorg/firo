@@ -1,127 +1,453 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# Copyright (c) 2016 The Bitcoin Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-# get gitian
-echo
-echo "Getting Gitian"
-echo
+set -x
 
-git init
-echo
+# What to do
+sign=false
+verify=false
+build=false
+setupenv=false
 
-git remote add origin https://github.com/zcoinofficial/gitian-builder.git
-git pull origin master
+# Systems to build
+linux=true
+windows=true
+osx=true
 
-# create build environment
-echo
-echo "Setting-up Build Environment"
-echo
+# Other Basic variables
+SIGNER=
+VERSION=
+commit=false
+url=${url:-https://github.com/zcoinofficial/zcoin}
+gsigsUrl=https://github.com/bitcoin-core/gitian.sigs
+detachUrl=https://github.com/bitcoin-core/bitcoin-detached-sigs.git
+proc=2
+mem=2000
+lxc=true
+osslTarUrl=http://downloads.sourceforge.net/project/osslsigncode/osslsigncode/osslsigncode-1.7.1.tar.gz
+osslPatchUrl=https://bitcoincore.org/cfields/osslsigncode-Backports-to-1.7.1.patch
+scriptName=$(basename -- "$0")
+signProg="gpg --detach-sign"
+commitFiles=true
 
-docker image rm -f base-trusty-amd64 2> /dev/null
-echo
+# Help Message
+read -d '' usage <<- EOF
+Usage: $scriptName [-c|u|v|b|s|B|o|h|j|m|] signer version
 
-./bin/make-base-vm --distro ubuntu --suite trusty --arch amd64 --docker
+Run this script from the directory containing the bitcoin, gitian-builder, gitian.sigs, and bitcoin-detached-sigs.
 
-export USE_DOCKER=1
+Arguments:
+signer          GPG signer to sign each build assert file
+version		Version number, commit, or branch to build. If building a commit or branch, the -c option must be specified
 
-# get macOS sdk
-echo
-echo "Getting macOS SDK"
-echo
-
-curl -L -o inputs/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
-
-# get dependencies patches
-echo
-echo "Getting patches for dependencies"
-echo
-
-pushd inputs
-
-curl -LO https://bitcoincore.org/cfields/osslsigncode-Backports-to-1.7.1.patch
-curl -LO http://downloads.sourceforge.net/project/osslsigncode/osslsigncode/osslsigncode-1.7.1.tar.gz
-
-popd
-
-# get dependencies
-echo
-echo "Getting Dependencies"
-echo
-
-make -C inputs/zcoin/depends download SOURCES_PATH=$(pwd)/cache/common
-
-# get project properties
-pushd inputs/zcoin > /dev/null
-
-version=$(git describe --tags HEAD | cut -c 2-)
-
-popd > /dev/null
-
-# copy cert_server_details
-cp /home/environment.conf inputs
-
-# prepare build
-mkdir zcoin-binaries
-
-NCPU=$(nproc)
-
-# build Linux binary
-echo
-echo "[$version] Building Linux Binary"
-echo
-
-./bin/gbuild -j ${NCPU} --commit zcoin=v$version inputs/zcoin/contrib/gitian-descriptors/gitian-linux.yml
-
-mv build/out/zcoin-*.tar.gz build/out/src/zcoin-*.tar.gz zcoin-binaries
-
-# build Windows binary
-echo
-echo "[$version] Building Windows Binary"
-echo
-
-./bin/gbuild -j ${NCPU} --commit zcoin=v$version inputs/zcoin/contrib/gitian-descriptors/gitian-win.yml
-
-mv build/out/zcoin-*.zip build/out/zcoin-*.exe zcoin-binaries
-
-# build macOS binary
-echo
-echo "[$version] Building macOS Binary"
-echo
-
-./bin/gbuild -j ${NCPU} --commit zcoin=v$version inputs/zcoin/contrib/gitian-descriptors/gitian-osx.yml
-
-mv build/out/zcoin-*.tar.gz build/out/zcoin-*.dmg zcoin-binaries
-
-# build Docker image if it not pre-release
-if [[ $version != *"-"* ]]; then
-  echo
-  echo "[$version] Building Docker Image"
-  echo
-
-  mkdir docker-image
-
-  pushd docker-image > /dev/null
-
-  tar -xzf ../zcoin-binaries/zcoin-*-x86_64-linux-gnu.tar.gz
-
-  cat <<EOF > Dockerfile
-FROM ubuntu:18.04
-
-COPY zcoin-* /
-
-RUN useradd -m -U zcoind
-USER zcoind
-
-WORKDIR /home/zcoind
-
-ENTRYPOINT ["/bin/zcoind", "-printtoconsole"]
+Options:
+-c|--commit	Indicate that the version argument is for a commit or branch
+-u|--url	Specify the URL of the zcoinofficial repository. Default is https://github.com/zcoinofficial/zcoin.git
+-g|--gsigsUrl	Specify the URL of the gitian.sigs repository. Default is https://github.com/bitcoin-core/gitian.sigs
+-d|--detachUrl	Specify the URL of the bitcoin-detached-sigs repository. Default is https://github.com/bitcoin-core/bitcoin-detached-sigs
+-v|--verify 	Verify the Gitian build
+-b|--build	Do a Gitian build
+-s|--sign	Make signed binaries for Windows and Mac OSX
+-B|--buildsign	Build both signed and unsigned binaries
+-o|--os		Specify which Operating Systems the build is for. Default is lwx. l for linux, w for windows, x for osx
+-j		Number of processes to use. Default 2
+-m		Memory to allocate in MiB. Default 2000
+--kvm           Use KVM instead of LXC
+--setup         Set up the Gitian building environment. Uses KVM. If you want to use lxc, use the --lxc option. Only works on Debian-based systems (Ubuntu, Debian)
+--detach-sign   Create the assert file for detached signing. Will not commit anything.
+--no-commit     Do not commit anything to git
+-h|--help	Print this help message
 EOF
 
-  docker build -t zcoinofficial/zcoind:$version .
-  docker tag zcoinofficial/zcoind:$version zcoinofficial/zcoind:latest
+# Get options and arguments
+while :; do
+    case $1 in
+        # Verify
+        -v|--verify)
+	    verify=true
+            ;;
+        # Build
+        -b|--build)
+	    build=true
+            ;;
+        # Sign binaries
+        -s|--sign)
+	    sign=true
+            ;;
+        # Build then Sign
+        -B|--buildsign)
+	    sign=true
+	    build=true
+            ;;
+        # PGP Signer
+        -S|--signer)
+	    if [ -n "$2" ]
+	    then
+		SIGNER=$2
+		shift
+	    else
+		echo 'Error: "--signer" requires a non-empty argument.'
+		exit 1
+	    fi
+           ;;
+        # Operating Systems
+        -o|--os)
+	    if [ -n "$2" ]
+	    then
+		linux=false
+		windows=false
+		osx=false
+		if [[ "$2" = *"l"* ]]
+		then
+		    linux=true
+		fi
+		if [[ "$2" = *"w"* ]]
+		then
+		    windows=true
+		fi
+		if [[ "$2" = *"x"* ]]
+		then
+		    osx=true
+		fi
+		shift
+	    else
+		echo 'Error: "--os" requires an argument containing an l (for linux), w (for windows), or x (for Mac OSX)\n'
+		exit 1
+	    fi
+	    ;;
+	# Help message
+	-h|--help)
+	    echo "$usage"
+	    exit 0
+	    ;;
+	# Commit or branch
+	-c|--commit)
+	    commit=true
+	    ;;
+	# Number of Processes
+	-j)
+	    if [ -n "$2" ]
+	    then
+		proc=$2
+		shift
+	    else
+		echo 'Error: "-j" requires an argument'
+		exit 1
+	    fi
+	    ;;
+	# Memory to allocate
+	-m)
+	    if [ -n "$2" ]
+	    then
+		mem=$2
+		shift
+	    else
+		echo 'Error: "-m" requires an argument'
+		exit 1
+	    fi
+	    ;;
+	# URL
+	-u|--url)
+	    if [ -n "$2" ]
+	    then
+		url=$2
+		shift
+	    else
+		echo 'Error: "-u" requires an argument'
+		exit 1
+	    fi
+	    ;;
+	# gitian.sigs Url
+	-g|--gsigsUrl)
+	    if [ -n "$2" ]
+            then
+                gsigsUrl=$2
+                shift
+            else
+                echo 'Error: "-g" requires an argument'
+                exit 1
+            fi
+            ;;
+	# detached sigs Url
+	-d|--detachUrl)
+            if [ -n "$2" ]
+            then
+                detachUrl=$2
+                shift
+            else
+                echo 'Error: "-d" requires an argument'
+                exit 1
+            fi
+            ;;
+        # kvm
+        --kvm)
+            lxc=false
+            ;;
+        # Detach sign
+        --detach-sign)
+            signProg="true"
+            commitFiles=false
+            ;;
+        # Commit files
+        --no-commit)
+            commitFiles=false
+            ;;
+        # Setup
+        --setup)
+            setup=true
+            ;;
+	*)               # Default case: If no more options then break out of the loop.
+             break
+    esac
+    shift
+done
 
-  docker push zcoinofficial/zcoind:$version
-  docker push zcoinofficial/zcoind:latest
+# Set up LXC
+if [[ $lxc = true ]]
+then
+    export USE_LXC=1
+fi
 
-  popd > /dev/null
+# Check for OSX SDK
+if [[ ! -e "gitian-builder/inputs/MacOSX10.11.sdk.tar.gz" && $osx == true ]]
+then
+    echo "Cannot build for OSX, SDK does not exist. Will build for other OSes"
+    osx=false
+fi
+
+# Get signer
+if [[ -n"$1" ]]
+then
+    SIGNER=$1
+    shift
+fi
+
+# Get version
+if [[ -n "$1" ]]
+then
+    VERSION=$1
+    COMMIT=$VERSION
+    shift
+fi
+
+# Check that a signer is specified
+if [[ $SIGNER == "" ]]
+then
+    echo "$scriptName: Missing signer."
+    echo "Try $scriptName --help for more information"
+    exit 1
+fi
+
+# Check that a version is specified
+if [[ $VERSION == "" ]]
+then
+    echo "$scriptName: Missing version."
+    echo "Try $scriptName --help for more information"
+    exit 1
+fi
+
+# Add a "v" if no -c
+if [[ $commit = false ]]
+then
+	COMMIT="v${VERSION}"
+fi
+
+me=`basename "$0"`
+
+echo "$me Building branch: ${COMMIT}"
+
+# Setup build environment
+if [[ $setup = true ]]
+then
+    sudo apt-get install --assume-yes ruby apache2 git apt-cacher-ng python-vm-builder qemu-kvm qemu-utils
+
+    # Only clone valid git repositories
+    urlRegex='^(https?:\/\/*|git@*).*'
+
+    if [[ $gsigsUrl =~ $urlRegex ]]
+    then
+    	git clone $gsigsUrl gitian.sigs
+    fi
+
+    if [[ $detachUrl =~ $urlRegex ]]
+    then
+    	git clone $detachUrl bitcoin-detached-sigs
+    fi
+
+    git clone https://github.com/devrandom/gitian-builder.git
+    pushd ./gitian-builder
+    if [[ -n "$USE_LXC" ]]
+    then
+        sudo apt-get --assume-yes install lxc
+        bin/make-base-vm --suite trusty --arch amd64 --lxc
+    else
+        bin/make-base-vm --suite trusty --arch amd64
+    fi
+    popd
+fi
+
+# Set up build
+pushd ./zcoin
+git fetch
+git checkout ${COMMIT}
+popd
+
+# Build
+if [[ $build = true ]]
+then
+	# Make output folder
+	mkdir -p ./zcoin-binaries/${VERSION}
+
+	# Build Dependencies
+	echo ""
+	echo "Building Dependencies"
+	echo ""
+	pushd ./gitian-builder
+	mkdir -p inputs
+	wget -N -P inputs $osslPatchUrl
+	wget -N -P inputs $osslTarUrl
+	make -C ../zcoin/depends download SOURCES_PATH=`pwd`/cache/common
+
+	# Linux
+	if [[ $linux = true ]]
+	then
+	    echo ""
+	    echo "Compiling ${VERSION} Linux"
+	    echo ""
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit zcoin=${COMMIT} --url zcoin=${url} ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
+	    ./bin/gsign -p "${signProg}" --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
+	    mv build/out/zcoin-*.tar.gz build/out/src/zcoin-*.tar.gz ../zcoin-binaries/${VERSION}
+	fi
+	# Windows
+	if [[ $windows = true ]]
+	then
+	   # if [ ! -f inputs/nsis-win32-utils.zip ];
+	   # then
+           #	echo ""
+        #	echo "Starting Utilities build for Windows"
+        #	echo ""
+        #	./bin/gbuild -j ${proc} -m ${mem} --allow-sudo ../zcoin/contrib/gitian-descriptors/gitian-win-utils.yml
+        #	if [ $? -ne 0 ];
+        #	then
+        #	    echo ""
+        #	    echo "FAILED to build Utilities for Windows"
+        #	    echo ""
+        #	    exit 1
+        #	fi
+        #	cd inputs
+        #	cp -a ../build/out/*-utils.zip .
+        #	mv nsis-*-win32-utils.zip nsis-win32-utils.zip
+        #	cd ..
+	#    fi
+
+	    echo ""
+	    echo "Compiling ${VERSION} Windows"
+	    echo ""
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit zcoin=${COMMIT} --url zcoin=${url} ../zcoin/contrib/gitian-descriptors/gitian-win.yml
+	    ./bin/gsign -p "${signProg}" --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win.yml
+	    mv build/out/zcoin-*-win-unsigned.tar.gz inputs/zcoin-win-unsigned.tar.gz
+	    mv build/out/zcoin-*.zip build/out/zcoin-*.exe ../zcoin-binaries/${VERSION}
+	fi
+	# Mac OSX
+	if [[ $osx = true ]]
+	then
+	    echo ""
+	    echo "Compiling ${VERSION} Mac OSX"
+	    echo ""
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit zcoin=${COMMIT} --url zcoin=${url} ../zcoin/contrib/gitian-descriptors/gitian-osx.yml
+	    ./bin/gsign -p "${signProg}" --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-osx.yml
+	    mv build/out/zcoin-*-osx-unsigned.tar.gz inputs/zcoin-osx-unsigned.tar.gz
+	    mv build/out/zcoin-*.tar.gz build/out/zcoin-*.dmg ../zcoin-binaries/${VERSION}
+	fi
+	popd
+
+        if [[ $commitFiles = true ]]
+        then
+	    # Commit to gitian.sigs repo
+            echo ""
+            echo "Committing ${VERSION} Unsigned Sigs"
+            echo ""
+            pushd gitian.sigs
+            git add ${VERSION}-linux/${SIGNER}
+            git add ${VERSION}-win-unsigned/${SIGNER}
+            git add ${VERSION}-osx-unsigned/${SIGNER}
+            git commit -a -m "Add ${VERSION} unsigned sigs for ${SIGNER}"
+            popd
+        fi
+fi
+
+# Verify the build
+if [[ $verify = true ]]
+then
+	# Linux
+	pushd ./gitian-builder
+	echo ""
+	echo "Verifying v${VERSION} Linux"
+	echo ""
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
+	# Windows
+	echo ""
+	echo "Verifying v${VERSION} Windows"
+	echo ""
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../zcoin/contrib/gitian-descriptors/gitian-win.yml
+	# Mac OSX
+	echo ""
+	echo "Verifying v${VERSION} Mac OSX"
+	echo ""
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../zcoin/contrib/gitian-descriptors/gitian-osx.yml
+	# Signed Windows
+	echo ""
+	echo "Verifying v${VERSION} Signed Windows"
+	echo ""
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+	# Signed Mac OSX
+	echo ""
+	echo "Verifying v${VERSION} Signed Mac OSX"
+	echo ""
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+	popd
+fi
+
+# Sign binaries
+if [[ $sign = true ]]
+then
+
+        pushd ./gitian-builder
+	# Sign Windows
+	if [[ $windows = true ]]
+	then
+	    echo ""
+	    echo "Signing ${VERSION} Windows"
+	    echo ""
+	    ./bin/gbuild -i --commit signature=${COMMIT} --url signature=${detachUrl} ../zcoin/contrib/gitian-descriptors/gitian-win-signer.yml
+	    ./bin/gsign -p "${signProg}" --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win-signer.yml
+	    mv build/out/zcoin-*win64-setup.exe ../zcoin-binaries/${VERSION}
+	    mv build/out/zcoin-*win32-setup.exe ../zcoin-binaries/${VERSION}
+	fi
+	# Sign Mac OSX
+	if [[ $osx = true ]]
+	then
+	    echo ""
+	    echo "Signing ${VERSION} Mac OSX"
+	    echo ""
+	    ./bin/gbuild -i --commit signature=${COMMIT} --url signature=${detachUrl} ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+	    ./bin/gsign -p "${signProg}" --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+	    mv build/out/zcoin-osx-signed.dmg ../zcoin-binaries/${VERSION}/zcoin-${VERSION}-osx.dmg
+	fi
+	popd
+
+        if [[ $commitFiles = true ]]
+        then
+            # Commit Sigs
+            pushd gitian.sigs
+            echo ""
+            echo "Committing ${VERSION} Signed Sigs"
+            echo ""
+            git add ${VERSION}-win-signed/${SIGNER}
+            git add ${VERSION}-osx-signed/${SIGNER}
+            git commit -a -m "Add ${VERSION} signed binary sigs for ${SIGNER}"
+            popd
+        fi
 fi
