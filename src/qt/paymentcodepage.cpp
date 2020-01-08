@@ -59,7 +59,6 @@ void PaymentcodePage::loadPaymentCode()
     QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pwalletMain->getNotifiactionAddress());
     ui->paymentcodeLabel->setToolTip(notificationAddress);
     
-//     connect(ui->copyPaymentcodeButton, SIGNAL(clicked()), this, SLOT(copy_button_clicked()));
     
 
 
@@ -106,9 +105,6 @@ void PaymentcodePage::loadPaymentCode()
 
 void PaymentcodePage::on_copyPaymentcodeButton_clicked() {
 
-//     QMessageBox::information(this, tr("Success"),
-//         tr("copy_button_clicked"),
-//         QMessageBox::Ok, QMessageBox::Ok);
 
     GUIUtil::setClipboard(ui->paymentcodeLabel->toPlainText());
 }
@@ -124,7 +120,6 @@ void PaymentcodePage::setWalletModel(WalletModel *model)
 
         if(model && model->getOptionsModel())
     {
-        // connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
         QTableView* tableView = ui->notificationTransactionsView;
 
@@ -140,15 +135,11 @@ void PaymentcodePage::setWalletModel(WalletModel *model)
         tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Fee, 130);
         tableView->setColumnWidth(RecentPCodeTransactionsTableModel::Timestamp, 150);
 
-        // QFont font("Arial", 20, QFont::Bold);
-        // tableView->horizontalHeader()->setFont( font );
-        // tableView->verticalHeader()->resizeSections(QHeaderView::ResizeToContents);
 
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::RPCode, QHeaderView::Stretch);
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Fee, QHeaderView::Interactive);
         tableView->horizontalHeader()->setSectionResizeMode(RecentPCodeTransactionsTableModel::Timestamp, QHeaderView::Interactive);
         tableView->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft);
-        // columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 150, 300, this);
     }
 
     
@@ -171,6 +162,5 @@ void PaymentcodePage::showContextMenu(const QPoint &point)
 void PaymentcodePage::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    // columnResizingFixer->stretchColumnWidth(RecentPCodeTransactionsTableModel::RPCode);
 
 }
