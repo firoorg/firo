@@ -328,13 +328,6 @@ void AddressBookPage::pcodeSelectionChanged() {
 }
 
 void AddressBookPage::done(int retval) {
-//     QTabWidget *tabWidget = ui->tabWidget;
-    
-    /**
-     * pageMode 0 : AddressTableModel
-     * pageMode 1 : PaymentCodeTableModel
-     * */
-//     const int tabIndex = tabWidget->currentIndex();
 
     QTableView *table;
     if(pageMode == 0) 
@@ -351,7 +344,6 @@ void AddressBookPage::done(int retval) {
     else
         indexes = table->selectionModel()->selectedRows(PaymentCodeTableModel::Address);
     
-//     QMessageBox::information(this, "indexes", QString::number(indexes.size()));
 
     Q_FOREACH(
     const QModelIndex &index, indexes) {
