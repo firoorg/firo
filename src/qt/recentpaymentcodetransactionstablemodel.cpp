@@ -26,13 +26,6 @@ RecentPCodeTransactionsTableModel::RecentPCodeTransactionsTableModel(CWallet *wa
     parent->loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
     BOOST_FOREACH(const std::string& request, vPCodeNotificationTransactions)
         addNewRequest(request);
-//     RecentPCodeTransactionEntry  ptx1(1, 0.12, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
-//     RecentPCodeTransactionEntry  ptx2(2, 0.35, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGvmCmYvdrY7TQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
-//     RecentPCodeTransactionEntry  ptx3(3, 0.32, QString("PM8TJPxaf9jzF7JEU9eAgvFrUGTQbotrwhy7DjZimmPQSuSu32uCuRx3GfJmEN2sMypKsqrHZ849nMZFkCxBUYWri21nHARtMTUyj4dEoR"));
-// 
-//     addNewRequest(ptx1);
-//     addNewRequest(ptx2);
-//     addNewRequest(ptx3);
 
     /* These columns must match the indices in the ColumnIndex enumeration */
     columns << "Receiver's Masked Payment Code" << "Fee" << "Timestamp";
@@ -75,39 +68,10 @@ QVariant RecentPCodeTransactionsTableModel::data(const QModelIndex &index, int r
             return rec->rpcode;
         case Fee:
             return QString("%1 XZC").arg(BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), rec->fee, false, BitcoinUnits::separatorNever));
-//             return QString("%1 XZC").arg(QString::number(rec->fee, 'f', 8));
-            // if(rec->recipient.label.isEmpty() && role == Qt::DisplayRole)
-            // {
-            //     return tr("(no label)");
-            // }
-            // else
-            // {
-            //     return rec->recipient.label;
-            // }
         case Timestamp:
             return GUIUtil::dateTimeStr(rec->date);
-            // if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)
-            // {
-            //     return tr("(no message)");
-            // }
-            // else
-            // {
-            //     return rec->recipient.message;
-            // }
-        // case Amount:
-            // if (rec->recipient.amount == 0 && role == Qt::DisplayRole)
-            //     return tr("(no amount requested)");
-            // else if (role == Qt::EditRole)
-            //     return BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), rec->recipient.amount, false, BitcoinUnits::separatorNever);
-            // else
-            //     return BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), rec->recipient.amount);
         }
     }
-    // else if (role == Qt::TextAlignmentRole)
-    // {
-    //     if (index.column() == Fee)
-    //         return (int)(Qt::AlignRight|Qt::AlignVCenter);
-    // }
     return QVariant();
 }
 
@@ -128,18 +92,6 @@ QVariant RecentPCodeTransactionsTableModel::headerData(int section, Qt::Orientat
     return QVariant();
 }
 
-/** Updates the column title to "Amount (DisplayUnit)" and emits headerDataChanged() signal for table headers to react. */
-// void RecentPCodeTransactionsTableModel::updateAmountColumnTitle()
-// {
-//     columns[Amount] = getAmountTitle();
-//     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
-// }
-
-/** Gets title for amount column including current display unit if optionsModel reference available. */
-// QString RecentPCodeTransactionsTableModel::getAmountTitle()
-// {
-//     return (this->walletModel->getOptionsModel() != NULL) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : "";
-// }
 
 QModelIndex RecentPCodeTransactionsTableModel::index(int row, int column, const QModelIndex &parent) const
 {
@@ -152,23 +104,6 @@ bool RecentPCodeTransactionsTableModel::removeRows(int row, int count, const QMo
 {
     Q_UNUSED(parent);
 
-    // if(count > 0 && row >= 0 && (row+count) <= list.size())
-    // {
-    //     const RecentRequestEntry *rec;
-    //     for (int i = 0; i < count; ++i)
-    //     {
-    //         rec = &list[row+i];
-    //         if (!walletModel->saveReceiveRequest(rec->recipient.address.toStdString(), rec->id, ""))
-    //             return false;
-    //     }
-
-    //     beginRemoveRows(parent, row, row + count - 1);
-    //     list.erase(list.begin() + row, list.begin() + row + count);
-    //     endRemoveRows();
-    //     return true;
-    // } else {
-    //     return false;
-    // }
     return false;
 }
 
