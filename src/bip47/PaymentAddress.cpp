@@ -7,8 +7,6 @@
 
 PaymentAddress::PaymentAddress()
 {
-    // paymentCode = nullptr;
-    // privKey = nullptr;
     index = 0;
 
 }
@@ -16,7 +14,6 @@ PaymentAddress::PaymentAddress(PaymentCode paymentCode_t)
 {
     paymentCode = paymentCode_t;
     index = 0;
-    // privKey = nullptr;
     
 }
 
@@ -94,9 +91,6 @@ GroupElement PaymentAddress::getECPoint(bool isMine) {
     
     
     
-//     secp256k1_pubkey pubKey ;
-//     secp256k1_context *context = OpenSSLContext::get_context();
-//     secp256k1_ec_pubkey_parse(context, &pubKey, pubkeybytes.data(), pubkeybytes.size());
     
     GroupElement ge;
     
