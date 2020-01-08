@@ -31,7 +31,6 @@ public:
     QDateTime date;
     CAmount fee;
     QString rpcode;
-    // SendCoinsRecipient recipient;
 
     ADD_SERIALIZE_METHODS;
 
@@ -99,7 +98,6 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     /*@}*/
 
-    // const RecentRequestEntry &entry(int row) const { return list[row]; }
     void addNewRequest(const QString &rpcode, CAmount fee);
     void addNewRequest(const std::string &recipient);
     void addNewRequest(RecentPCodeTransactionEntry &recipient);
