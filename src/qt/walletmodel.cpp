@@ -675,9 +675,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
             CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
-            // CTxOut txOut(0, op_returnScriptPubKey);
             LogPrintf("Add Blind Code to vecSend\n");
-            // wtx.vout.push_back(txOut);
             vecSend.push_back(pcodeBlind);
 
             fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
