@@ -1640,9 +1640,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode)
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
-        // CTxOut txOut(0, op_returnScriptPubKey);
         LogPrintf("Add Blind Code to vecSend\n");
-        // wtx.vout.push_back(txOut);
         vecSend.push_back(pcodeBlind);
 
         if(!CreateTransaction(vecSend, wtx, reservekey, nFeeRequired, nChangePosRet, strError)) {
@@ -1720,12 +1718,6 @@ bool CWallet::isToBIP47Address(CTransaction tx)
 {
 
     CBitcoinAddress incomingAddr = getAddressOfReceived(tx);
-//     if(incomingAddr.IsValid())
-//     {
-//         string pcodestr = getPaymentCodeForAddress(incomingAddr.ToString());
-//         LogPrintf("PaymentCode is %s For incomingAddr %s and valid is %s \n", pcodestr, incomingAddr.ToString(), !pcodestr.empty() ? "True": "False");
-//         return !pcodestr.empty();
-//     }
 
     return false;
 }
@@ -1908,7 +1900,6 @@ void CWallet::deriveBip47Accounts(vector<unsigned char> hd_seed)
     masterKey.SetMaster(&hd_seed[0], hd_seed.size());
     masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
     purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
-    // coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     Bip47Account bip47Account(coinTypeKey, 0);
 
     m_Bip47Accounts.clear();
@@ -1920,11 +1911,8 @@ void CWallet::deriveBip47Accounts(vector<unsigned char> hd_seed)
 void CWallet::deriveBip47Accounts(CExtKey masterKey)
 {
     LogPrintf("Dervie Bip47Accounts\n");
-    // CExtKey masterKey;             //bip47 master key
     CExtKey purposeKey;            //key at m/47'
     CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
-    // CExtKey identityKey;           //key identity
-    // CExtKey childKey;              // index
 
     masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
     
@@ -1932,7 +1920,6 @@ void CWallet::deriveBip47Accounts(CExtKey masterKey)
     
     purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     LogPrintf("Derive CoinTypeKey Done\n");
-    // coinTypeKey.Derive(identityKey, 0 | BIP32_HARDENED_KEY_LIMIT);
     Bip47Account bip47Account(coinTypeKey, 0);
     LogPrintf("Bip47 Account Created Done\n");
 
