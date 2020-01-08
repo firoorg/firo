@@ -91,3 +91,37 @@ echo
 ./bin/gbuild -j ${NCPU} --commit zcoin=v$version inputs/zcoin/contrib/gitian-descriptors/gitian-osx.yml
 
 mv build/out/zcoin-*.tar.gz build/out/zcoin-*.dmg zcoin-binaries
+
+# build Docker image if it not pre-release
+if [[ $version != *"-"* ]]; then
+  echo
+  echo "[$version] Building Docker Image"
+  echo
+
+  mkdir docker-image
+
+  pushd docker-image > /dev/null
+
+  tar -xzf ../zcoin-binaries/zcoin-*-x86_64-linux-gnu.tar.gz
+
+  cat <<EOF > Dockerfile
+FROM ubuntu:18.04
+
+COPY zcoin-* /
+
+RUN useradd -m -U zcoind
+USER zcoind
+
+WORKDIR /home/zcoind
+
+ENTRYPOINT ["/bin/zcoind", "-printtoconsole"]
+EOF
+
+  docker build -t zcoinofficial/zcoind:$version .
+  docker tag zcoinofficial/zcoind:$version zcoinofficial/zcoind:latest
+
+  docker push zcoinofficial/zcoind:$version
+  docker push zcoinofficial/zcoind:latest
+
+  popd > /dev/null
+fi
