@@ -555,10 +555,10 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             return InvalidAmount;
         }
 
-        // Get Or Create Payment Channel from payment code;
+        // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code];
         Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
 
-        // If channel already sent notifcation transaction.
+        // If channel already sent notifcation transaction. lgtm [cpp/commented-out-code]
         if (channel->isNotificationTransactionSent()) {
             LogPrintf("Payment Notification Transaction Already Sent\n");
             isNotificationTx = false;
@@ -761,7 +761,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
         std::string strLabel = rcp.label.toStdString();
         Bip47PaymentChannel pchannel(pcodestr, strLabel);
 
-        // Add to payment channel return true or false;
+        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
         wallet->addToBip47PaymentChannel(pchannel);
         Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
         channel->setLabel(strLabel);
@@ -910,7 +910,6 @@ static void NotifyAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
 
 static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)
 {
-//    qDebug() << "NotifyZerocoinChanged %s %s status=%i\n", pubCoin.c_str(), isUsed.c_str(), status);
     qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoin) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
     QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(pubCoin)),
@@ -1305,7 +1304,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendPCodeTransaction(
         
         
         
-        // Get Or Create Payment Channel from payment code;
+        // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code] ;
         Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
         
         // If channel already sent notifcation transaction.
