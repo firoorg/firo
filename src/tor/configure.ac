@@ -576,6 +576,8 @@ fi
 AM_CONDITIONAL(THREADS_WIN32, test "$bwin32" = "true")
 AM_CONDITIONAL(THREADS_PTHREADS, test "$bwin32" = "false")
 
+dnl explicit_bzero was removed as it breaks compat with GLIBC 2.21
+
 AC_CHECK_FUNCS(
 	_NSGetEnviron \
 	RtlSecureZeroMemory \
@@ -584,7 +586,6 @@ AC_CHECK_FUNCS(
 	backtrace \
 	backtrace_symbols_fd \
 	eventfd \
-	explicit_bzero \
 	timingsafe_memcmp \
 	flock \
 	ftime \
