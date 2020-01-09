@@ -164,7 +164,7 @@ PaymentAddress BIP47Util::getSendAddress(CWallet* pbip47Wallet, PaymentCode &pco
 {
     PaymentAddress pm_address;
     CExtKey accEkey = pbip47Wallet->getBip47Account(0).keyPrivAt(0);
-    if(accEkey.key.IsValid()){
+    if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_to, idx, accEkey);
     
