@@ -139,9 +139,7 @@ bool BIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByte
 }
 
 PaymentAddress BIP47Util::getPaymentAddress(PaymentCode &pcode, int idx, CExtKey extkey) {
-//     CPrivKey privekey = extkey.key.GetPrivKey();
     CKey prvkey = extkey.key;
-//     vector<unsigned char> privKey(privekey.begin(), privekey.end());
     
     vector<unsigned char> ppkeybytes(prvkey.begin(), prvkey.end());
     
@@ -155,7 +153,7 @@ PaymentAddress BIP47Util::getReceiveAddress(CWallet* pbip47Wallet, PaymentCode &
 {
     PaymentAddress pm_address;
     CExtKey accEkey = pbip47Wallet->getBip47Account(0).keyPrivAt(idx);
-    if(accEkey.key.IsValid()){
+    if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_from, 0, accEkey);
     
