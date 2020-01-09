@@ -9,7 +9,6 @@ private:
     String strPath ;
     
     CExtPubKey ecKey ;
-    // CExtKey ecKey ;
     
     std::vector<unsigned char> pubKey ;
     std::vector<unsigned char> pubKeyHash ;
@@ -25,9 +24,7 @@ public:
 
     String getPrivateKeyString() ;
 
-    // Address getAddress() {
-    //     return ecKey.toAddress(params);
-    // }
+
 
     String getPath() ;
 };
