@@ -12,6 +12,7 @@
 #include "client-api/send.h"
 #include "client-api/sigma.h"
 #include "client-api/protocol.h"
+#include "coincontrol.h"
 #include "univalue.h"
 #include <fstream>
 
@@ -669,6 +670,35 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     balanceObj.push_back(Pair("unspentMints", GetDenominations()));
 
     return balanceObj;
+}
+
+
+bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
+    if (find_value(data, "coincontrol").isNull()) return false;
+    UniValue uniValCC(UniValue::VOBJ);
+    uniValCC = find_value(uniValCC, "coincontrol");
+
+    UniValue selected(UniValue::VARR);
+    selected = find_value(uniValCC, "selected");
+    if (selected.isNull()) return false;
+
+    if (selected.getType() != UniValue::VARR) return false;
+
+    std::vector<string> selectedKeys = selected.getKeys();
+    for(size_t i = 0; i < selectedKeys.size(); i++) {
+        std::vector<string> splits;
+        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
+        if (splits.size() != 2) continue;
+        
+        uint256 hash;
+        hash.SetHex(splits[0]);
+        UniValue idx(UniValue::VNUM);
+        idx.setNumStr(splits[1]);
+        COutPoint op(hash, idx.get_int());
+        cc.Select(op);
+    }
+
+    return true;
 }
 
 static const CAPICommand commands[] =

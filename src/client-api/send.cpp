@@ -12,6 +12,7 @@
 #include "client-api/protocol.h"
 #include "rpc/server.h"
 #include "univalue.h"
+#include "coincontrol.h"
 #include <fstream>
 
 namespace fs = boost::filesystem;
@@ -134,6 +135,10 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     if(txMetadataData.empty()){
         UniValue txMetadataData(UniValue::VOBJ);
     }
+
+    CCoinControl cc;
+    bool hasCoinControl = GetCoinControl(data, cc);
+
     switch(type){
         case Create: {
             UniValue feePerKb;
@@ -219,7 +224,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             CAmount nFeeRequired = 0;
             int nChangePosRet = -1;
             string strFailReason;
-            bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+            bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl? (&cc):NULL);
             if (!fCreated)
                 throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
 
