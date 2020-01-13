@@ -1457,7 +1457,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         std::string strLabel = rcp.label.toStdString();
         Bip47PaymentChannel pchannel(pcodestr, strLabel);
 
-        // Add to payment channel return true or false;
+        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
         wallet->addToBip47PaymentChannel(pchannel);
         Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
         channel->setLabel(strLabel);
