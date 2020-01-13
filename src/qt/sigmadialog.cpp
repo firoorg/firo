@@ -644,7 +644,7 @@ void SigmaDialog::processPaymentCodeTransactions()
         .arg(tr(info.c_str())));
     
     QMessageBox::StandardButton retval;
-    if(is_notification_tx)
+    if(is_notification_tx) // Used Later on lgtm [cpp/uninitialized-local] 
     {
         SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
         formatted.join("<br />"), SEND_CONFIRM_DELAY, this);
@@ -986,9 +986,6 @@ void SigmaDialog::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &se
         msgParams.first = tr("The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
-    // case WalletModel::AbsurdFee:
-    //     msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
-    //     break;
     case WalletModel::PaymentRequestExpired:
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;

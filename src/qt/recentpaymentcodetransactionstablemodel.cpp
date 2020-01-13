@@ -164,7 +164,6 @@ void RecentPCodeTransactionsTableModel::sort(int column, Qt::SortOrder order)
 
 void RecentPCodeTransactionsTableModel::updateDisplayUnit()
 {
-    // updateAmountColumnTitle();
 }
 
 bool RecentPCodeTransactionEntryLessThan::operator()(RecentPCodeTransactionEntry &left, RecentPCodeTransactionEntry &right) const

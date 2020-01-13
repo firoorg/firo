@@ -10,7 +10,6 @@ int PaymentCode::PAYLOAD_LEN = 80;
 PaymentCode::PaymentCode() :
     pubkey ( 33 ),chain ( 32 )
 {
-    // strPaymentCode = null;
 }
 PaymentCode::PaymentCode ( String payment_code ) :
     pubkey ( 33 ),chain ( 32 )

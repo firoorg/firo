@@ -97,7 +97,6 @@ void PaymentcodePage::loadPaymentCode()
             painter.end();
 
             ui->paymentcodeQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));
-            // ui->btnSaveAs->setEnabled(true);
         }
     }
 #endif    

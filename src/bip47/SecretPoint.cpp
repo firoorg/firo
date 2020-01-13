@@ -83,25 +83,6 @@ bool SecretPoint::SelfTest(CWallet* wallet)
     pubkey2.Set(scriptSigPub.begin(), scriptSigPub.end());
 
 
-//     if (!wallet->GetKeyFromPool(pubkey1))
-//     {
-//         LogPrintf("Cannot get Key from Pool 1\n");
-//         return false;
-//     }
-//     else
-//     {
-//         wallet->GetKey(pubkey1.GetID(), key1);
-//     }
-// 
-//     if (!wallet->GetKeyFromPool(pubkey2))
-//     {
-//         LogPrintf("Cannot get Key from Pool 2\n");
-//         return false;
-//     }
-//     else
-//     {
-//         wallet->GetKey(pubkey2.GetID(), key2);
-//     }
 
     std::vector<unsigned char> key1bytes(key1.begin(), key1.end());
     std::vector<unsigned char> key2bytes(key2.begin(), key2.end());

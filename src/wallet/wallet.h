@@ -92,8 +92,8 @@ const uint32_t BIP44_MINT_INDEX = 0x2;
 const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
 #endif
 const uint32_t BIP47_INDEX = 0x2F;
-const uint32_t BIP47_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
-const uint32_t BIP47_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+const uint32_t BIP47_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types lgtm [cpp/unused-static-variable] 
+const uint32_t BIP47_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types lgtm [cpp/unused-static-variable] 
 
 class CBlockIndex;
 class CCoinControl;
@@ -294,7 +294,7 @@ public:
 class CWalletTx : public CMerkleTx
 {
 private:
-    const CWallet* pwallet;
+    const CWallet* pwallet; // lgtm [cpp/class-many-fields]
 
 public:
     mapValue_t mapValue;
@@ -638,7 +638,7 @@ enum MintAlgorithm {
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
-class CWallet : public CCryptoKeyStore, public CValidationInterface
+class CWallet : public CCryptoKeyStore, public CValidationInterface // lgtm [cpp/class-many-fields]
 {
 private:
     /**
@@ -879,8 +879,6 @@ public:
     bool IsCollateralAmount(CAmount nInputAmount) const;
     CAmount GetAnonymizableBalance(bool fSkipDenominated = false) const;
     CAmount GetAnonymizedBalance() const;
-//    double GetAverageAnonymizedRounds() const;
-//    CAmount GetNormalizedAnonymizedBalance() const;
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 

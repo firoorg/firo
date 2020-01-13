@@ -25,7 +25,6 @@ class Bip47PaymentChannel {
      int currentOutgoingIndex ;
      int currentIncomingIndex ;
 
-    // private static final Logger log = LoggerFactory.getLogger(Bip47PaymentChannel.class);
     public:
         Bip47PaymentChannel() ;
         Bip47PaymentChannel(string v_paymentCode);

@@ -105,7 +105,6 @@ public:
             {
                 if(item.randomness != 0 && item.serialNumber != 0){
                     const std::string& pubCoin = item.value.GetHex();
-                    // const std::string& isUsed = item.IsUsed ? "Used" : "New";
                     const std::string& isUsedDenomStr = item.IsUsed
                             ? "Used (" + std::to_string(item.denomination) + " mint)"
                             : "New (" + std::to_string(item.denomination) + " mint)";
@@ -588,7 +587,7 @@ struct PaymentCodeTableEntryLessThan
 };
 
 /* Determine address type from address purpose */
-static PaymentCodeTableEntry::Type translatePCodeTransactionType(const QString &strPurpose, bool isMine)
+static PaymentCodeTableEntry::Type translatePCodeTransactionType(const QString &strPurpose, bool isMine) // lgtm [cpp/unused-static-function]
 {
     PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Hidden;
     // "refund" addresses aren't shown, and change addresses aren't in mapAddressBook at all.

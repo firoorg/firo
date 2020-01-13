@@ -17,8 +17,6 @@
 
 
     typedef std::string  String;
-    // typedef bool bool;
-    // #define null    nullptr  
     class Bip47_common{
         public:
         static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
@@ -30,5 +28,4 @@
 
     };
     #define HARDENED_BIT    0x80000000
-    // const uint32_t HARDENED_BIT = 0x80000000;
 #endif

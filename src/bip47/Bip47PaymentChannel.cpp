@@ -64,7 +64,7 @@ void Bip47PaymentChannel::generateKeys(CWallet *bip47Wallet) {
 Bip47Address* Bip47PaymentChannel::getIncomingAddress(string address) {
     for (Bip47Address bip47Address: incomingAddresses) {
         if (bip47Address.getAddress().compare(address)==0) {
-            return &bip47Address;
+            return &bip47Address; // lgtm [cpp/return-stack-allocated-memory]
         }
     }
     return nullptr;
