@@ -13,6 +13,7 @@
 
 #include "../wallet/wallet.h"
 #include "../wallet/walletdb.h"
+#include "../wallet/walletexcept.h"
 
 #include <boost/optional.hpp>
 
@@ -186,8 +187,18 @@ SigmaMintId SigmaWallet::GenerateMint(PropertyId property, SigmaDenomination den
 
     // If not specify seed to use that mean caller want to generate a new mint.
     if (!seedId) {
+        if (pwalletMain->IsLocked()) {
+            throw WalletLocked();
+        }
+
         if (mintPool.empty()) {
-            throw std::runtime_error("Mint pool is empty");
+
+            // Try to recover mint pools
+            ReloadMasterKey();
+
+            if (mintPool.empty()) {
+                throw std::runtime_error("Mint pool is empty");
+            }
         }
 
         seedId = mintPool.begin()->seedId;

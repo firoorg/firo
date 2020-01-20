@@ -271,6 +271,9 @@ public:
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 222400;
     }
 };
 
@@ -454,6 +457,9 @@ public:
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 111270;
     }
 };
 
@@ -612,6 +618,9 @@ public:
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 0;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

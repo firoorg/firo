@@ -528,6 +528,9 @@ qt_zcoin_qt_LDADD += tor/src/core/libtor-app.a \
     tor/src/lib/libtor-err.a \
     tor/src/lib/libtor-log.a \
     tor/src/lib/libtor-version.a \
+    tor/src/lib/libtor-pubsub.a \
+    tor/src/lib/libtor-dispatch.a \
+    tor/src/lib/libtor-confmgt.a \
     tor/src/lib/libtor-container.a \
     tor/src/lib/libtor-crypt-ops.a \
     tor/src/lib/libtor-fs.a \

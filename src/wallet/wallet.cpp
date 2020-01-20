@@ -1986,7 +1986,7 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived,
  * successfully scanned.
  *
  */
-CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
+CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
     CBlockIndex* ret = nullptr;
     int64_t nNow = GetTime();
@@ -1998,8 +1998,14 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool f
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        if (fRecoverMnemonic) {
+            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            if (pindex == NULL)
+                pindex = chainActive.Tip();
+        } else
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
 
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
@@ -7882,6 +7888,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
+    bool fRecoverMnemonic = false;
     CWallet *walletInstance = new CWallet(walletFile);
     pwalletMain = walletInstance;
 
@@ -7947,6 +7954,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
                 SoftSetBoolArg("-rescan", true);
+                fRecoverMnemonic = true;
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
@@ -8016,7 +8024,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         uiInterface.InitMessage(_("Rescanning..."));
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        walletInstance->ScanForWalletTransactions(pindexRescan, true);
+        walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
         CWalletDB::IncrementUpdateCounter();
