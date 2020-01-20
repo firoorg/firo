@@ -15,6 +15,7 @@
 #include "coincontrol.h"
 #include "univalue.h"
 #include <fstream>
+#include <boost/algorithm/string.hpp>
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
@@ -676,15 +677,16 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coincontrol").isNull()) return false;
     UniValue uniValCC(UniValue::VOBJ);
-    uniValCC = find_value(uniValCC, "coincontrol");
+    uniValCC = find_value(data, "coincontrol");
+    UniValue uniSelected(UniValue::VSTR);
+    uniSelected = find_value(uniValCC, "selecteds");
 
-    UniValue selected(UniValue::VARR);
-    selected = find_value(uniValCC, "selected");
-    if (selected.isNull()) return false;
+    std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
+    if (selected.empty()) return false;
 
-    if (selected.getType() != UniValue::VARR) return false;
+    std::vector<string> selectedKeys;
+    boost::split(selectedKeys, selected, boost::is_any_of(":"));
 
-    std::vector<string> selectedKeys = selected.getKeys();
     for(size_t i = 0; i < selectedKeys.size(); i++) {
         std::vector<string> splits;
         boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
@@ -697,7 +699,6 @@ bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
         COutPoint op(hash, idx.get_int());
         cc.Select(op);
     }
-
     return true;
 }
 
