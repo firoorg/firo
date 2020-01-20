@@ -199,7 +199,7 @@ process_unix_exec(process_t *process)
                "Cannot find maximum file descriptor, assuming: %d", max_fd);
     }
   }
-#else /* !(defined(_SC_OPEN_MAX)) */
+#else /* !defined(_SC_OPEN_MAX) */
   max_fd = DEFAULT_MAX_FD;
 #endif /* defined(_SC_OPEN_MAX) */
 
@@ -253,22 +253,15 @@ process_unix_exec(process_t *process)
     process_environment_t *env = process_get_environment(process);
 
     /* Call the requested program. */
-    retval = execve(argv[0], argv, env->unixoid_environment_block);
+    execve(argv[0], argv, env->unixoid_environment_block);
 
     /* If we made it here it is because execve failed :-( */
-    if (-1 == retval)
-      fprintf(stderr, "Call to execve() failed: %s", strerror(errno));
-
     tor_free(argv);
     process_environment_free(env);
 
-    tor_assert_unreached();
-
  error:
-    /* LCOV_EXCL_START */
     fprintf(stderr, "Error from child process: %s", strerror(errno));
     _exit(1);
-    /* LCOV_EXCL_STOP */
   }
 
   /* We are in the parent process. */
@@ -702,4 +695,4 @@ process_unix_close_file_descriptors(process_unix_t *unix_process)
   return success;
 }
 
-#endif /* defined(_WIN32). */
+#endif /* !defined(_WIN32) */

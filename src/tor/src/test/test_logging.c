@@ -15,7 +15,7 @@
 #endif
 
 static void
-dummy_cb_fn(int severity, uint32_t domain, const char *msg)
+dummy_cb_fn(int severity, log_domain_mask_t domain, const char *msg)
 {
   (void)severity; (void)domain; (void)msg;
 }
@@ -35,7 +35,7 @@ test_get_sigsafe_err_fds(void *arg)
 
   set_log_severity_config(LOG_WARN, LOG_ERR, &include_bug);
   set_log_severity_config(LOG_WARN, LOG_ERR, &no_bug);
-  no_bug.masks[0] &= ~(LD_BUG|LD_GENERAL);
+  no_bug.masks[SEVERITY_MASK_IDX(LOG_ERR)] &= ~(LD_BUG|LD_GENERAL);
   set_log_severity_config(LOG_INFO, LOG_NOTICE, &no_bug2);
 
   /* Add some logs; make sure the output is as expected. */
