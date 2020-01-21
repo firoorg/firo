@@ -8,7 +8,7 @@
 
 #include "version.h"
 #include "chainparamsbase.h"
-#include "main.h"
+#include "validation.h"
 #include "streams.h"
 #include "util.h"
 
@@ -258,12 +258,12 @@ void CZMQPublisherInterface::NumConnectionsChanged()
     }
 }
 
-void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindex)
+void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload)
 {
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
-        if (notifier->NotifyBlock(pindex))
+        if (notifier->NotifyBlock(pindexNew))
         {
             i++;
         }

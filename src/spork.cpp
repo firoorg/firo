@@ -2,8 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "validation.h"
+#include "net_processing.h"
+#include "netmessagemaker.h"
 #include "darksend.h"
-#include "main.h"
 #include "spork.h"
 
 #include <boost/lexical_cast.hpp>
@@ -64,7 +66,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
         std::map<int, CSporkMessage>::iterator it = mapSporksActive.begin();
 
         while(it != mapSporksActive.end()) {
-            pfrom->PushMessage(NetMsgType::SPORK, it->second);
+            g_connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SPORK, it->second));
             it++;
         }
     }
@@ -259,5 +261,5 @@ bool CSporkMessage::CheckSignature()
 void CSporkMessage::Relay()
 {
     CInv inv(MSG_SPORK, GetHash());
-    RelayInv(inv);
+    g_connman->RelayInv(inv);
 }

@@ -6,7 +6,7 @@
 #include "uint256_extensions.h"
 
 #include "../arith_uint256.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../sync.h"
 
 #include <map>

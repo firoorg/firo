@@ -22,7 +22,7 @@ bool CZMQAbstract::NotifyBlock(const CBlockIndex * /*CBlockIndex*/)
     return true;
 }
 
-bool CZMQAbstract::NotifyTransaction(const CTransaction &/*transaction*/)
+bool CZMQAbstract::NotifyTransaction(const CTransaction& /*transaction*/)
 {
     return true;
 }

@@ -478,22 +478,17 @@ public:
         return ToString(16);
     }
 
-    unsigned int GetSerializeSize(int nType=0, int nVersion=PROTOCOL_VERSION) const
+    template<typename Stream>
+    void Serialize(Stream& s) const
     {
-        return ::GetSerializeSize(getvch(), nType, nVersion);
+        ::Serialize(s, getvch());
     }
 
     template<typename Stream>
-    void Serialize(Stream& s, int nType=0, int nVersion=PROTOCOL_VERSION) const
-    {
-        ::Serialize(s, getvch(), nType, nVersion);
-    }
-
-    template<typename Stream>
-    void Unserialize(Stream& s, int nType=0, int nVersion=PROTOCOL_VERSION)
+    void Unserialize(Stream& s)
     {
         std::vector<unsigned char> vch;
-        ::Unserialize(s, vch, nType, nVersion);
+        ::Unserialize(s, vch);
         setvch(vch);
     }
 

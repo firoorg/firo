@@ -4,7 +4,6 @@
 
 #include "activeznode.h"
 #include "addrman.h"
-#include "darksend.h"
 //#include "governance.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
@@ -12,8 +11,61 @@
 #include "znodeconfig.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
+#include "darksend.h"
+#include "netmessagemaker.h"
+#include "net.h"
+#include "net_processing.h"
 #include "util.h"
 #include "validationinterface.h"
+
+#define cs_vNodes (g_connman->cs_vNodes)
+#define vNodes (g_connman->vNodes)
+
+/**
+ * PRNG initialized from secure entropy based RNG
+ */
+class InsecureRand
+{
+private:
+    uint32_t nRz;
+    uint32_t nRw;
+    bool fDeterministic;
+
+public:
+    InsecureRand(bool _fDeterministic = false);
+
+    /**
+     * MWC RNG of George Marsaglia
+     * This is intended to be fast. It has a period of 2^59.3, though the
+     * least significant 16 bits only have a period of about 2^30.1.
+     *
+     * @return random value < nMax
+     */
+    int64_t operator()(int64_t nMax)
+    {
+        nRz = 36969 * (nRz & 65535) + (nRz >> 16);
+        nRw = 18000 * (nRw & 65535) + (nRw >> 16);
+        return ((nRw << 16) + nRz) % nMax;
+    }
+};
+
+InsecureRand::InsecureRand(bool _fDeterministic)
+        : nRz(11),
+          nRw(11),
+          fDeterministic(_fDeterministic)
+{
+    // The seed values have some unlikely fixed points which we avoid.
+    if(fDeterministic) return;
+    uint32_t nTmp;
+    do {
+        GetRandBytes((unsigned char*)&nTmp, 4);
+    } while (nTmp == 0 || nTmp == 0x9068ffffU);
+    nRz = nTmp;
+    do {
+        GetRandBytes((unsigned char*)&nTmp, 4);
+    } while (nTmp == 0 || nTmp == 0x464fffffU);
+    nRw = nTmp;
+}
 
 /** Znode manager */
 CZnodeMan mnodeman;
@@ -163,7 +215,7 @@ void CZnodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     }
     mWeAskedForZnodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
-    pnode->PushMessage(NetMsgType::DSEG, vin);
+    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, vin));
 }
 
 void CZnodeMan::Check()
@@ -439,7 +491,7 @@ void CZnodeMan::DsegUpdate(CNode* pnode)
         }
     }
     
-    pnode->PushMessage(NetMsgType::DSEG, CTxIn());
+    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, CTxIn()));
     int64_t askAgain = GetTime() + DSEG_UPDATE_SECONDS;
     mWeAskedForZnodeList[pnode->addr] = askAgain;
 
@@ -964,7 +1016,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         if (CheckMnbAndUpdateZnodeList(pfrom, mnb, nDos)) {
             // use announced Znode as a peer
-            addrman.Add(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
+            //addrman.Add(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
         } else if(nDos > 0) {
             Misbehaving(pfrom->GetId(), nDos);
         }
@@ -1069,7 +1121,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
         }
 
         if(vin == CTxIn()) {
-            pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount);
+            g_connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount));
             LogPrintf("DSEG -- Sent %d Znode invs to peer %d\n", nInvCount, pfrom->id);
             return;
         }
@@ -1240,7 +1292,8 @@ bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode
         return false;
     }
 
-    CNode* pnode = ConnectNode(addr, NULL, false, true);
+    // TODO: upgrade dash
+/*    CNode* pnode = ConnectNode(addr, NULL, false, true);
     if(pnode == NULL) {
         LogPrintf("CZnodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
         return false;
@@ -1251,8 +1304,8 @@ bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode
     CZnodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
     mWeAskedForVerification[addr] = mnv;
     LogPrintf("CZnodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
-    pnode->PushMessage(NetMsgType::MNVERIFY, mnv);
-
+    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
+*/
     return true;
 }
 
@@ -1292,7 +1345,7 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
         return;
     }
 
-    pnode->PushMessage(NetMsgType::MNVERIFY, mnv);
+    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
 }
 

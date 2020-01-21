@@ -22,7 +22,7 @@ bool GetZnodePayeeAddress(const std::string& txHash, const std::string& n, CBitc
         return false;
 
     CTxDestination destination;
-    const CTxOut &txout = wtx->vout[stoi(n)];
+    const CTxOut &txout = wtx->tx->vout[stoi(n)];
     if (!ExtractDestination(txout.scriptPubKey, destination))
         return false;
 

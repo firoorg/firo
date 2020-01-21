@@ -10,7 +10,7 @@
 #include "version.h"
 
 #include "../chainparams.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../script/standard.h"
 #include "../uint256.h"
 #include "../ui_interface.h"

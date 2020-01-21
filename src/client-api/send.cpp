@@ -3,10 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
-#include "main.h"
+#include "validation.h"
 #include "send.h"
 #include "client-api/server.h"
 #include "util.h"
+#include "init.h"
+#include "net.h"
 #include "wallet/wallet.h"
 #include <client-api/wallet.h>
 #include "client-api/protocol.h"
@@ -232,7 +234,9 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             }
             setTxMetadata(txMetadataUni);
 
-            if (!pwalletMain->CommitTransaction(wtx, keyChange))
+
+            CValidationState state;
+            if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state))
                 throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
 
             txid.push_back(Pair("txid", txidStr));

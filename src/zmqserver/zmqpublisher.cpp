@@ -210,9 +210,10 @@ bool CZMQConnectionsEvent::NotifyConnections()
     return true;
 }
 
-bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
+bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
 {
-    CWalletTx wtx(pwalletMain, transaction);
+    CTransactionRef transactionRef(&transaction);
+    CWalletTx wtx(pwalletMain, transactionRef);
     CAmount nFee;
     string strSentAccount;
     list<COutputEntry> listReceived;
@@ -243,9 +244,9 @@ bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
         if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
             throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
         }
-        BOOST_FOREACH(const CTransaction&tx, block.vtx)
+        BOOST_FOREACH(const CTransactionRef tx, block.vtx)
         {
-            const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
+            const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
             if(wtx){
                 request.replace("data", pindex->ToJSON());
                 Execute();

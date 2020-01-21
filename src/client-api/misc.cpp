@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "znodeman.h"
-#include "main.h"
+#include "validation.h"
 #include "init.h"
 #include "util.h"
 #include "client-api/server.h"
@@ -13,6 +13,7 @@
 #include "znode-sync.h"
 #include "wallet/wallet.h"
 #include "znode.h"
+#include "net.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
 #include "activeznode.h"
@@ -167,7 +168,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
-    obj.push_back(Pair("connections",   (int)vNodes.size()));
+    obj.push_back(Pair("connections",   (int)g_connman->vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));

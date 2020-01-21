@@ -1,7 +1,7 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "util.h"
-#include "main.h"
+#include "validation.h"
 #include "init.h"
 #include "wallet/wallet.h"
 #include "univalue.h"

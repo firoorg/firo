@@ -13,7 +13,7 @@
 #include "exodus/utilsbitcoin.h"
 
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "sync.h"
 #include "tinyformat.h"
 #include "txdb.h"

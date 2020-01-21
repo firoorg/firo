@@ -54,7 +54,7 @@ public:
 
     /* virtual functions to be implemented by publisher (defined here to allow access by notifiers) */ 
     virtual bool NotifyBlock(const CBlockIndex *pindex);
-    virtual bool NotifyTransaction(const CTransaction &transaction);
+    virtual bool NotifyTransaction(const CTransaction& transaction);
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
     virtual bool NotifyAPIStatus();

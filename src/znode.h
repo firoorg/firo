@@ -6,7 +6,7 @@
 #define ZNODE_H
 
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "net.h"
 #include "spork.h"
 #include "timedata.h"
@@ -50,7 +50,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vin);
         READWRITE(blockHash);
         READWRITE(sigTime);
@@ -191,7 +191,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         LOCK(cs);
         READWRITE(vin);
         READWRITE(addr);
@@ -357,7 +357,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vin);
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
@@ -424,7 +424,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vin1);
         READWRITE(vin2);
         READWRITE(addr);
@@ -448,7 +448,7 @@ public:
     void Relay() const
     {
         CInv inv(MSG_ZNODE_VERIFY, GetHash());
-        RelayInv(inv);
+        g_connman->RelayInv(inv);
     }
 };
 

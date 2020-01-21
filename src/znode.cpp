@@ -5,7 +5,6 @@
 #include "activeznode.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
-#include "darksend.h"
 #include "init.h"
 //#include "governance.h"
 #include "znode.h"
@@ -13,8 +12,10 @@
 #include "znodeconfig.h"
 #include "znode-sync.h"
 #include "znodeman.h"
+#include "darksend.h"
 #include "util.h"
-#include "validationinterface.h"
+#include "validationinterface.h" 
+#include "net.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -533,7 +534,7 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
             bool fMTP = BlockReading->nHeight > 0 && BlockReading->nTime >= params.nMTPSwitchTime;
             CAmount nZnodePayment = GetZnodePayment(params, fMTP);
 
-            BOOST_FOREACH(CTxOut txout, block.vtx[0].vout)
+            BOOST_FOREACH(CTxOut txout, block.vtx[0]->vout)
             if (mnpayee == txout.scriptPubKey && nZnodePayment == txout.nValue) {
                 SetBlockLastPaid(BlockReading->nHeight);
                 SetTimeLastPaid(BlockReading->nTime);
@@ -581,6 +582,8 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
         return false;
     }
 
+    // TODO: upgrade dash
+    /*
     CService service = CService(strService);
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
@@ -595,7 +598,9 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
         return false;
     }
 
-    return Create(txin, CService(strService), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);
+    return Create(txin, CService(strService), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);*/
+
+    return false;
 }
 
 bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet) {
@@ -805,7 +810,7 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     // verify that sig time is legit in past
     // should be at least not earlier than block when 1000 XZC tx got nZnodeMinimumConfirmations
     uint256 hashBlock = uint256();
-    CTransaction tx2;
+    CTransactionRef tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
     {
         LOCK(cs_main);
@@ -870,7 +875,7 @@ bool CZnodeBroadcast::CheckSignature(int &nDos) {
 void CZnodeBroadcast::RelayZNode() {
     LogPrintf("CZnodeBroadcast::RelayZNode\n");
     CInv inv(MSG_ZNODE_ANNOUNCE, GetHash());
-    RelayInv(inv);
+    g_connman->RelayInv(inv);
 }
 
 CZnodePing::CZnodePing(CTxIn &vinNew) {
@@ -1022,7 +1027,7 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
 void CZnodePing::Relay() {
     CInv inv(MSG_ZNODE_PING, GetHash());
-    RelayInv(inv);
+    g_connman->RelayInv(inv);
 }
 
 //void CZnode::AddGovernanceVote(uint256 nGovernanceObjectHash)

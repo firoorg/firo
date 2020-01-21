@@ -25,7 +25,7 @@ namespace
 CTransaction TxFromStr(std::string const & str)
 {
     CDataStream stream(ParseHex(str), SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
+    CMutableTransaction tx;
     stream >> tx;
     return tx;
 }

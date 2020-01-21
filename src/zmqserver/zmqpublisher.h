@@ -65,7 +65,7 @@ class CZMQTransactionEvent : virtual public CZMQAbstractPublisher
     /* Data related to a new transaction
     */
 public:
-    bool NotifyTransaction(const CTransaction &transaction);
+    bool NotifyTransaction(const CTransaction& transaction);
 };
 
 class CZMQConnectionsEvent : virtual public CZMQAbstractPublisher

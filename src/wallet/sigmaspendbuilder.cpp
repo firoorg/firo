@@ -7,7 +7,7 @@
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
 
-#include "../main.h"
+#include "../validation.h"
 #include "../serialize.h"
 #include "../streams.h"
 #include "../util.h"
@@ -173,9 +173,10 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        
         if(!fDummy){
             hdMint.SetNull();
-            mintWallet.GenerateMint(denomination, newCoin, hdMint);
+            mintWallet.GenerateMint(denomination, newCoin, hdMint, boost::none, true);
         }
 
         auto& pubCoin = newCoin.getPublicCoin();

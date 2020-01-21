@@ -1,12 +1,14 @@
 // Copyright (c) 2018 Tadhg Riordan Zcoin Developer
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include "main.h"
+#include "validation.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
 #include "core_io.h"
+#include "net.h"
+#include "init.h"
 #include "wallet/wallet.h"
 #include "client-api/wallet.h"
 #include "univalue.h"
@@ -51,8 +53,8 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
         currentBlock.push_back(Pair("timestamp", stoi(to_string(chainActive.Tip()->nTime))));
     }
 
-    blockinfoObj.push_back(Pair("testnet", Params().TestnetToBeDeprecatedFieldRPC()));
-    blockinfoObj.push_back(Pair("connections", (int)vNodes.size()));
+    blockinfoObj.push_back(Pair("testnet", Params().NetworkIDString() == CBaseChainParams::TESTNET));
+    blockinfoObj.push_back(Pair("connections", (int)g_connman->vNodes.size()));
     blockinfoObj.push_back(Pair("type","full"));
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
@@ -78,7 +80,7 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
 
     //decode transaction
     UniValue ret(UniValue::VOBJ);
-    CTransaction transaction;
+    CMutableTransaction transaction;
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
         throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
 
@@ -135,7 +137,7 @@ UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool
         // push to local node and sync with wallets
         CValidationState state;
         bool fMissingInputs;
-        if (!AcceptToMemoryPool(mempool, state, (CTransaction)*wtx, true, false, &fMissingInputs, true, false, maxTxFee)){
+        if (!AcceptToMemoryPool(mempool, state, wtx->tx, false, &fMissingInputs, NULL, true, false, maxTxFee)){
             ret.push_back(Pair("result", false));
             ret.push_back(Pair("error", "Transaction not accepted to mempool"));
             return ret;
@@ -146,7 +148,7 @@ UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool
         return ret;
     }
 
-    RelayTransaction((CTransaction)*wtx);
+    g_connman->RelayTransaction((CTransaction)*wtx);
     ret.push_back(Pair("result", true));
     return ret;
 }

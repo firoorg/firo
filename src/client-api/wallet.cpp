@@ -71,7 +71,7 @@ CAmount getLockUnspentAmount()
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    CTransaction tx;
+    CTransactionRef tx;
     uint256 hashBlock;
     uint256 hash;
     vector<COutPoint> vOutpts;
@@ -83,7 +83,7 @@ CAmount getLockUnspentAmount()
         uint256 hash = outpt.hash;
         if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
             continue;
-        total += tx.vout[outpt.n].nValue;
+        total += tx->vout[outpt.n].nValue;
     }
 
     return total;
@@ -230,19 +230,19 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string voutIndex = to_string(s.vout);
             
             // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
-            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint() ||
-               wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
+            if(wtx.tx->vout[s.vout].scriptPubKey.IsZerocoinMint() ||
+               wtx.tx->vout[s.vout].scriptPubKey.IsSigmaMint()){
                 category = "mint";
                 addrStr = "MINT";
-                if(pwalletMain && wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
+                if(pwalletMain && wtx.tx->vout[s.vout].scriptPubKey.IsZerocoinMint()){
                     bool isAvailable;
-                    if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
+                    if(!pwalletMain->IsMintFromTxOutAvailable(wtx.tx->vout[s.vout], isAvailable)){
                         continue;
                     }
                     entry.push_back(Pair("available", isAvailable));
                 }
             }
-            else if((wtx.IsZerocoinSpend() || wtx.IsSigmaSpend())){
+            else if((wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
@@ -343,7 +343,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
                 }
             }
-            else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
+            else if(wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             }
@@ -455,9 +455,9 @@ UniValue StateBlock(UniValue& ret, std::string blockhash){
     }
 
     UniValue transactions(UniValue::VOBJ);
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
+    BOOST_FOREACH(const CTransactionRef tx, block.vtx)
     {
-        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
+        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
         if(wtx){
             ListAPITransactions(*(wtx), transactions, filter);
         }

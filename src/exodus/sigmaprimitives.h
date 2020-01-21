@@ -66,7 +66,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(serial);
         READWRITE(randomness);
@@ -96,7 +96,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(commitment);
     }
@@ -194,7 +194,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(serial);
         READWRITE(proof);

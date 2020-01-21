@@ -12,7 +12,7 @@ static CCriticalSection cs_nWalletUnlockTime;
 
 class CRPCTable;
 
-void RegisterWalletRPCCommands(CRPCTable &tableRPC);
+void RegisterWalletRPCCommands(CRPCTable &t);
 
 bool EnsureWalletIsAvailable(bool avoidException);
 

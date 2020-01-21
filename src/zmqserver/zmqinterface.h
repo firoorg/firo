@@ -36,7 +36,7 @@ public:
 protected:
     // CValidationInterface
     void WalletTransaction(const CTransaction& tx);
-    void UpdatedBlockTip(const CBlockIndex *pindex);
+    void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
     void NumConnectionsChanged();
     void UpdateSyncStatus();
     void NotifyZnodeList();

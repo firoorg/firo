@@ -231,7 +231,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Cereţi plăţi (generează coduri QR şi zcoin: URIs)</translation>
+        <translation>Cereţi plăţi (generează coduri QR şi zcoin-uri: URls)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -253,33 +253,9 @@
         <source>%n active connection(s) to Zcoin network</source>
         <translation><numerusform>%n conexiune activă către reţeaua Zcoin</numerusform><numerusform>%n conexiuni active către reţeaua Zcoin</numerusform><numerusform>%n de conexiuni active către reţeaua Zcoin</numerusform></translation>
     </message>
-    <message>
-        <source>No block source available...</source>
-        <translation>Nici o sursă de bloc disponibilă...</translation>
-    </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
         <translation><numerusform>S-a procesat %n bloc din istoricul tranzacţiilor.</numerusform><numerusform>S-au procesat %n blocuri din istoricul tranzacţiilor.</numerusform><numerusform>S-au procesat %n de blocuri din istoricul tranzacţiilor.</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n oră</numerusform><numerusform>%n ore</numerusform><numerusform>%n ore</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n day(s)</source>
-        <translation><numerusform>%n zi</numerusform><numerusform>%n zile</numerusform><numerusform>%n de zile</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n week(s)</source>
-        <translation><numerusform>%n săptămână</numerusform><numerusform>%n săptămâni</numerusform><numerusform>%n de săptămâni</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 şi %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n year(s)</source>
-        <translation><numerusform>%n an</numerusform><numerusform>%n ani</numerusform><numerusform>%n de ani</numerusform></translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -359,7 +335,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>Portofelul este &lt;b&gt;criptat&lt;/b&gt; iar în momentul de faţă este &lt;b&gt;blocat&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -377,10 +353,6 @@
     <message>
         <source>Amount:</source>
         <translation>Sumă:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritate:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -433,10 +405,6 @@
     <message>
         <source>Confirmed</source>
         <translation>Confirmat</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>Prioritate</translation>
     </message>
     </context>
 <context>
@@ -567,6 +535,21 @@
         <translation><numerusform>(din %n GB necesar)</numerusform><numerusform>(din %n GB necesari)</numerusform><numerusform>(din %n GB necesari)</numerusform></translation>
     </message>
 </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>Form</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Data ultimului bloc</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Ascunde</translation>
+    </message>
+    </context>
 <context>
     <name>OpenURIDialog</name>
     <message>
@@ -741,7 +724,7 @@
         <translation>&amp;Unitatea de măsură pentru afişarea sumelor:</translation>
     </message>
     <message>
-        <source>Choose the default subdivision unit to show in the interface and when sending zcoins.</source>
+        <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
         <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de zcoin.</translation>
     </message>
     <message>
@@ -782,7 +765,7 @@
     </message>
     <message>
         <source>The supplied proxy address is invalid.</source>
-        <translation>Adresa Zcoin pe care aţi specificat-o nu este validă.</translation>
+        <translation>Adresa zcoin pe care aţi specificat-o nu este validă.</translation>
     </message>
 </context>
 <context>
@@ -873,11 +856,7 @@
         <source>Node/Service</source>
         <translation>Nod/Serviciu</translation>
     </message>
-    <message>
-        <source>Ping Time</source>
-        <translation>Timp ping</translation>
-    </message>
-</context>
+    </context>
 <context>
     <name>QObject</name>
     <message>
@@ -916,9 +895,20 @@
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
-</context>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 şi %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
+    </context>
 <context>
     <name>QRImageWidget</name>
+    <message>
+        <source>&amp;Save Image...</source>
+        <translation>&amp;Salvează imaginea...</translation>
+    </message>
     </context>
 <context>
     <name>RPCConsole</name>
@@ -1083,10 +1073,6 @@
         <translation>Curăţă consola</translation>
     </message>
     <message>
-        <source>&amp;Disconnect Node</source>
-        <translation>&amp;Deconectare nod</translation>
-    </message>
-    <message>
         <source>1 &amp;hour</source>
         <translation>1 &amp;oră</translation>
     </message>
@@ -1244,6 +1230,10 @@
         <source>&amp;Save Image...</source>
         <translation>&amp;Salvează imaginea...</translation>
     </message>
+    <message>
+        <source>Amount</source>
+        <translation>Cantitate</translation>
+    </message>
     </context>
 <context>
     <name>RecentRequestsTableModel</name>
@@ -1281,10 +1271,6 @@
     <message>
         <source>Amount:</source>
         <translation>Sumă:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritate:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -1333,10 +1319,6 @@
     <message>
         <source>Custom:</source>
         <translation>Personalizat:</translation>
-    </message>
-    <message>
-        <source>Confirmation time:</source>
-        <translation>Timp confirmare:</translation>
     </message>
     <message>
         <source>normal</source>
@@ -1403,7 +1385,7 @@
     </message>
     <message>
         <source>The Zcoin address to send the payment to</source>
-        <translation>Adresa Zcoin către care se face plata</translation>
+        <translation>Adresa zcoin către care se face plata</translation>
     </message>
     <message>
         <source>Alt+A</source>
@@ -1431,7 +1413,7 @@
     </message>
     <message>
         <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>un mesaj a fost ataşat la zcoin: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua Zcoin.</translation>
+        <translation>un mesaj a fost ataşat la zcoin: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua zcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -1551,6 +1533,10 @@
 </context>
 <context>
     <name>TransactionDesc</name>
+    <message>
+        <source>Amount</source>
+        <translation>Cantitate</translation>
+    </message>
     </context>
 <context>
     <name>TransactionDescDialog</name>
@@ -1608,20 +1594,12 @@
         <translation>Rulează în fundal ca un demon şi acceptă comenzi</translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>Acceptă conexiuni din afară (implicit: 1 dacă nu se foloseşte -proxy sau -connect)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>Nucleul Zcoin</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
         <translation>Ataşaţi adresei date şi ascultaţi totdeauna pe ea. Folosiţi notaţia [host]:port pentru IPv6</translation>
-    </message>
-    <message>
-        <source>Distributed under the MIT software license, see the accompanying file COPYING or &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</source>
-        <translation>Distribuit sub licenţa de programe MIT/X11, vezi fişierul însoţitor COPYING sau &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</translation>
     </message>
     <message>
         <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
@@ -1632,28 +1610,12 @@
         <translation>Setează numărul de thread-uri de verificare a script-urilor (%u la %d, 0 = auto, &lt;0 = lasă atîtea nuclee libere, implicit: %d)</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Aceasta este o versiune de test preliminară - vă asumaţi riscul folosind-o - nu folosiţi pentru minerit sau aplicaţiile comercianţilor</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>Atenţie: Reţeaua nu pare să fie de acord în totalitate! Aparent nişte mineri au probleme.</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>Atenţie: Aparent, nu sîntem de acord cu toţi partenerii noştri! Va trebui să faceţi o actualizare, sau alte noduri necesită actualizare.</translation>
-    </message>
-    <message>
         <source>&lt;category&gt; can be:</source>
         <translation>&lt;category&gt; poate fi:</translation>
     </message>
     <message>
         <source>Block creation options:</source>
         <translation>Opţiuni creare bloc:</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>Conectare doar la nod(urile) specificate</translation>
     </message>
     <message>
         <source>Connection options:</source>
@@ -1764,10 +1726,6 @@
         <translation>Setează mărimea pentru tranzacţiile prioritare/taxe mici în octeţi (implicit: %d)</translation>
     </message>
     <message>
-        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit &lt;https://www.openssl.org/&gt; and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
-        <translation>Acest produs include programe dezvoltate de către Proiectul OpenSSL pentru a fi folosite în OpenSSL Toolkit &lt;https://www.openssl.org/&gt; şi programe criptografice scrise de către Eric Young şi programe UPnP scrise de către Thomas Bernard.</translation>
-    </message>
-    <message>
         <source>(default: %u)</source>
         <translation>(implicit: %u)</translation>
     </message>
@@ -1834,10 +1792,6 @@
     <message>
         <source>Transaction amount too small</source>
         <translation>Suma tranzacţionată este prea mică</translation>
-    </message>
-    <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>Sumele tranzacţionate trebuie să fie pozitive</translation>
     </message>
     <message>
         <source>Transaction too large for fee policy</source>
