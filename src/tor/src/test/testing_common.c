@@ -12,6 +12,7 @@
 #include "orconfig.h"
 #include "core/or/or.h"
 #include "feature/control/control.h"
+#include "feature/control/control_events.h"
 #include "app/config/config.h"
 #include "lib/crypt_ops/crypto_dh.h"
 #include "lib/crypt_ops/crypto_ed25519.h"
@@ -88,7 +89,7 @@ setup_directory(void)
                  (int)getpid(), rnd32);
     r = mkdir(temp_dir);
   }
-#else /* !(defined(_WIN32)) */
+#else /* !defined(_WIN32) */
   tor_snprintf(temp_dir, sizeof(temp_dir), "/tmp/tor_test_%d_%s",
                (int) getpid(), rnd32);
   r = mkdir(temp_dir, 0700);
@@ -242,7 +243,7 @@ tinytest_postfork(void)
 }
 
 static void
-log_callback_failure(int severity, uint32_t domain, const char *msg)
+log_callback_failure(int severity, log_domain_mask_t domain, const char *msg)
 {
   (void)msg;
   if (severity == LOG_ERR || (domain & LD_BUG)) {
@@ -294,7 +295,7 @@ main(int c, const char **v)
     memset(&s, 0, sizeof(s));
     set_log_severity_config(loglevel, LOG_ERR, &s);
     /* ALWAYS log bug warnings. */
-    s.masks[LOG_WARN-LOG_ERR] |= LD_BUG;
+    s.masks[SEVERITY_MASK_IDX(LOG_WARN)] |= LD_BUG;
     add_stream_log(&s, "", fileno(stdout));
   }
   {
@@ -302,7 +303,7 @@ main(int c, const char **v)
     log_severity_list_t s;
     memset(&s, 0, sizeof(s));
     set_log_severity_config(LOG_ERR, LOG_ERR, &s);
-    s.masks[LOG_WARN-LOG_ERR] |= LD_BUG;
+    s.masks[SEVERITY_MASK_IDX(LOG_WARN)] |= LD_BUG;
     add_callback_log(&s, log_callback_failure);
   }
   flush_log_messages_from_startup();
