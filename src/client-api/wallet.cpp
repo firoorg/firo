@@ -358,6 +358,21 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
+            if (pwalletMain->IsSpent(txid, r.vout)) {
+                entry.push_back(Pair("spendable", false));
+            } else {
+                LogPrintf("%s: Spendable = %d, cat = %s\n", __func__, amount, category);
+                if (pwalletMain->IsLockedCoin(txid, r.vout)) {
+                    entry.push_back(Pair("locked", true));
+                } else {
+                    entry.push_back(Pair("locked", false));
+                }
+                if (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) {
+                    entry.push_back(Pair("spendable", false));
+                } else {
+                    entry.push_back(Pair("spendable", true));
+                }
+            }
 
             APIWalletTxToJSON(wtx, entry);
 
