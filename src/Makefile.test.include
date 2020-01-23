@@ -233,7 +233,6 @@ test_test_bitcoin_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -s
 if ENABLE_CLIENTAPI
 test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
-#
 
 # test_bitcoin_fuzzy binary #
 test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
@@ -251,7 +250,10 @@ test_test_bitcoin_fuzzy_LDADD = \
   $(LIBSECP256K1)
 
 test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
-#
+
+if ENABLE_CLIENTAPI
+test_test_bitcoin_fuzzy_LDADD += $(MINIZIP_LIBS)
+endif
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
 

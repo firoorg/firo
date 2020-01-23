@@ -480,6 +480,9 @@ libbitcoin_util_a_SOURCES = \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
+  univalue/lib/univalue.cpp \
+  univalue/lib/univalue_read.cpp \
+  univalue/lib/univalue_write.cpp \
   util.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
