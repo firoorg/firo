@@ -1,0 +1,75 @@
+name: Continuous Integration on Master
+on:
+  push:
+    branches:
+      - master
+jobs:
+  target-unix:
+    name: Target Linux
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt-get install -y ccache python3-zmq
+    - name: Build dependencies
+      run: make -C depends -j2 HOST=x86_64-unknown-linux-gnu
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --enable-exodus --enable-tests --with-comparison-tool=no --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu
+        make -j2
+    - name: Unit Tests
+      run: make check
+    - name: RPC Tests
+      env:
+        TIMEOUT: 600
+      run: qa/pull-tester/rpc-tests.py -extended
+
+  target-windows:
+    name: Target Windows
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y ccache g++-mingw-w64-x86-64 mingw-w64-x86-64-dev
+    - name: Update gcc mingw
+      run: sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+    - name: Update g++ mingw
+      run: sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+    - name: Build dependencies
+      run: make -C depends -j2 HOST=x86_64-w64-mingw32
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --disable-jni --enable-exodus --prefix=$(pwd)/depends/x86_64-w64-mingw32
+        make -j2
+
+  target-macos:
+    name: Target macOS
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt-get install -y ccache libcap-dev
+    - name: Prepare directory for SDKs
+      run: mkdir -p depends/SDKs
+    - name: Download SDK
+      run: curl -L -o /tmp/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
+    - name: Extract SDK
+      run: tar -C depends/SDKs -xf /tmp/MacOSX10.11.sdk.tar.gz
+    - name: Build dependencies
+      run: make -C depends -j2 HOST=x86_64-apple-darwin11
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --enable-exodus --prefix=$(pwd)/depends/x86_64-apple-darwin11
+        make -j2
