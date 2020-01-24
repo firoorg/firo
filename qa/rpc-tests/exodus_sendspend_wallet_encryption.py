@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 from test_framework.authproxy import JSONRPCException
 from test_framework.test_framework import ExodusTestFramework
-from test_framework.util import (assert_equal, assert_raises_message, start_node, bitcoind_processes)
+from test_framework.util import (
+    assert_equal,
+    assert_raises_message,
+    bitcoind_processes,
+    connect_nodes,
+    start_node,
+    sync_blocks)
 
 class ExodusSendSpendWalletEncryptionTest(ExodusTestFramework):
     def run_test(self):
@@ -44,7 +50,10 @@ class ExodusSendSpendWalletEncryptionTest(ExodusTestFramework):
         # encrypt wallet && restart node
         self.nodes[0].encryptwallet(passphase)
         bitcoind_processes[0].wait()
-        self.nodes[0] = start_node(0, self.options.tmpdir, ['-exodus'])
+        self.nodes[0] = start_node(0, self.options.tmpdir, ['-exodus', '-reindex'])
+        connect_nodes(self.nodes[0], 1)
+
+        sync_blocks(self.nodes)
 
         # try to spend using encrypted wallet
         assert_raises_message(
