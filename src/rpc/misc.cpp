@@ -932,7 +932,7 @@ UniValue getanonymityset(const UniValue& params, bool fHelp)
     UniValue serializedCoins(UniValue::VARR);
     for(sigma::PublicCoin const & coin : coins) {
         std::vector<unsigned char> vch = coin.getValue().getvch();
-        serializedCoins.push_back(HexStr(vch.begin(), vch.end()));
+        serializedCoins.push_back(std::string(vch.begin(), vch.end()));
     }
 
     UniValue ret(UniValue::VOBJ);
