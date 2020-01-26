@@ -99,14 +99,15 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     y.resize(M);
     for (int t = 0; t < M; ++t)
         y[t].randomize();
-    //TODO(levon) remove this matrix. we can only keep single row in each iteration. need some changes in logic.
-    std::vector<std::vector<Exponent>> f_i_;
-    f_i_.resize(M);
+
     std::vector<Exponent> f_i_t;
-    f_i_t.reserve(N);
+    f_i_t.resize(N);
+    GroupElement right;
+    Exponent exp;
     for (int t = 0; t < M; ++t)
     {
-        f_i_[t].reserve(N);
+        right += (LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], proofs[t].zV_, h_[1], proofs[t].zR_)) * y[t];
+        Exponent e;
         for (int i = 0; i < N - 1; ++i)
         {
             std::vector <uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
@@ -115,7 +116,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
             {
                 f_i *= f_[t][j*n + I[j]];
             }
-            f_i_[t].emplace_back(f_i);
+
+            f_i_t[i] += f_i * y[t];
+            e += f_i;
         }
 
         /*
@@ -149,15 +152,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= x;
         }
-        f_i_[t].emplace_back(pow);
-    }
 
-    for (int i = 0; i < N; ++i)
-    {
-        Exponent f_i;
-        for (int t = 0; t < M;++t)
-            f_i += f_i_[t][i] * y[t];
-        f_i_t.emplace_back(f_i);
+        f_i_t[N - 1] += pow * y[t];
+        e += pow;
+
+        e *= serials[t] * y[t];
+        exp += e;
     }
 
     secp_primitives::MultiExponent mult(commits, f_i_t);
@@ -180,17 +180,6 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     }
     GroupElement left(t1 + t2);
 
-    GroupElement right;
-    Exponent exp;
-    for (int t = 0; t < M; ++t)
-    {
-        right += (LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], proofs[t].zV_, h_[1], proofs[t].zR_)) * y[t];
-        Exponent e;
-        for(int i = 0; i < N; ++i)
-            e += f_i_[t][i];
-        e *= serials[t] * y[t];
-        exp += e;
-    }
     right += g_ * exp;
     if(left != right)
         return false;
