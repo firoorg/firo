@@ -28,6 +28,12 @@
 #include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
+#include "bip47/PaymentCode.h"
+#include "bip47/SecretPoint.h"
+#include "bip47/PaymentAddress.h"
+#include "bip47/Bip47Account.h"
+#include "bip47/Bip47Util.h"
+
 
 #include <znode-payments.h>
 
@@ -4142,7 +4148,441 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
+UniValue getnewpcode(const JSONRPCRequest& request)
+{
 
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+                "getnewpcode ( \"address\" )\n"
+                "\nReturns a new Zcoin payment code for receiving payments.\n"
+                "If 'address' is specified (DEPRECATED), it is added to the address book \n"
+                "so payments received with the payment code will be credited to 'address'.\n"
+                "\nArguments:\n"
+                "1. \"address\"        (string, optional) DEPRECATED.\n"
+                "\nResult:\n"
+                "\"paymentcode\"    (string) The new Zcoin paymentcode\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getnewpcode", "")
+                + HelpExampleRpc("getnewpcode", "")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Parse the account first so we don't generate a key if there's an error
+    string strAccount;
+    if (request.params.size() > 0)
+        strAccount = AccountFromValue(request.params[0]);
+
+    if (!pwalletMain->IsLocked())
+        pwalletMain->TopUpKeyPool();
+
+    // Generate a new key that is added to wallet
+    CPubKey newKey;
+    if (!pwalletMain->GetKeyFromPool(newKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+    CKeyID keyID = newKey.GetID();
+
+    pwalletMain->SetAddressBook(keyID, strAccount, "receive");
+
+    return CBitcoinAddress(keyID).ToString();
+}
+
+
+
+UniValue getMyPaymentCode(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() >= 1)
+        throw runtime_error(
+                "getMyPaymentCode\n" 
+                "return payment Code"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    
+    return pwalletMain->getPaymentCode();
+}
+
+UniValue getMyNotificationAddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() >= 1)
+        throw runtime_error(
+                "getMyNotificationAddress\n" 
+                "return notificatioinAddress"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    
+    return pwalletMain->getNotifiactionAddress();
+}
+
+UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+                "getNotificationAddressFromPaymentCode <Payment Code>\n" 
+                "return notificatioinAddress of Payment Code"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    Bip47Account bip47Account(request.params[0].get_str());
+
+    return bip47Account.getNotificationAddress().ToString();
+}
+
+UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+                "getPaymentCodeFromNotificationTx <txid of notification tx>\n" 
+                "return paymentcode of recieved"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    uint256 hash;
+    hash.SetHex(request.params[0].get_str());
+
+    if (!pwalletMain->mapWallet.count(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
+    const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+    CTransaction tx = static_cast<CTransaction>(wtx);
+
+    if(pwalletMain->isNotificationTransaction(tx))
+    {
+        PaymentCode pcode = pwalletMain->getPaymentCodeInNotificationTransaction(tx);
+        if (pcode.isValid())
+        {
+            bool needsSaving = pwalletMain->savePaymentCode(pcode);
+            if(needsSaving)
+            {
+                LogPrintf("saveBip47PaymentChannelData\n");
+                pwalletMain->saveBip47PaymentChannelData(pcode.toString());
+            }
+
+            return pcode.toString();
+        }
+        else
+        {
+            return "Invalid Result";
+        }
+    }
+    else 
+    {
+        throw runtime_error("getPaymentCodeFromNotificationTx <txid of notification tx>\n" 
+                        "Txid is not for notification Transaction"
+                );
+    }
+    
+    
+    return wtx.GetHash().GetHex();
+}
+
+UniValue SecretPointCheck(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    if(SecretPoint::SelfTest(pwalletMain))
+    {
+        return "true";
+    }
+    else
+    {
+        return "false";
+    }
+    
+}
+
+UniValue PaymentAddressSelfCheck(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    if(PaymentAddress::SelfTest(pwalletMain))
+    {
+        return "true";
+    }
+    else
+    {
+        return "false";
+    }
+}
+
+UniValue validatepcode(const JSONRPCRequest& request)
+{
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+                "validatepcode \"paymentcode\"\n"
+                "\nReturn information about the given paymentcode.\n"
+                "\nArguments:\n"
+                "1. \"paymentcode\"     (string, required) The paymentcode to validate\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"isvalid\" : true|false,       (boolean) If the paymentcode is valid or not. If not, this is the only property returned.\n"
+                "  \"paymentcode\" : \"paymentcode\", (string) The Zcoin paymentcode validated\n"
+                "  \"scriptPubKey\" : \"hex\",       (string) The hex encoded scriptPubKey generated by the address\n"
+                "  \"ismine\" : true|false,        (boolean) If the address is yours or not\n"
+                "  \"iswatchonly\" : true|false,   (boolean) If the address is watchonly\n"
+                "  \"isscript\" : true|false,      (boolean) If the key is a script\n"
+                "  \"pubkey\" : \"publickeyhex\",    (string) The hex value of the raw public key\n"
+                "  \"iscompressed\" : true|false,  (boolean) If the address is compressed\n"
+                "  \"account\" : \"account\"         (string) DEPRECATED. The account associated with the address, \"\" is the default account\n"
+                "  \"hdkeypath\" : \"keypath\"       (string, optional) The HD keypath if the key is HD and available\n"
+                "  \"hdmasterkeyid\" : \"<hash160>\" (string, optional) The Hash160 of the HD master pubkey\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("validatepcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"")
+                + HelpExampleRpc("validatepcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"")
+        );
+
+#ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+#else
+    LOCK(cs_main);
+#endif
+
+    std::string strPcode = request.params[0].get_str();
+    PaymentCode paymentCode(strPcode);
+    Bip47Account bip47Account(strPcode);
+    bool isValid = paymentCode.isValid();
+    bool walletBip47AccountValid = pwalletMain->getBip47Account(0).isValid();
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("isvalid", isValid));
+    ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
+    ret.push_back(Pair("Wallet Account isvalid", walletBip47AccountValid));
+    
+    if(pwalletMain->getPaymentCode().compare(strPcode) == 0)
+    {
+        ret.push_back(Pair("IsMine", true));
+    }
+    else
+    {
+        ret.push_back(Pair("IsMine", false));
+        if(pwalletMain->m_Bip47channels.count(strPcode) > 0 )
+        {
+            ret.push_back(Pair("Exist in Bip47PaymentChannel", true));
+            Bip47PaymentChannel *pchannel = pwalletMain->getPaymentChannelFromPaymentCode(strPcode);
+            std::string outaddress = pwalletMain->getCurrentOutgoingAddress(*pchannel);
+            ret.push_back(Pair("OutGoingAddress", outaddress));
+            ret.push_back(Pair("OutGoingAddress Size", pchannel->getOutgoingAddresses().size()));
+            if(pchannel->getIncomingAddresses().size() == 0) {
+                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwalletMain, paymentCode, 0);
+                CKey receiveKey = paddr.getReceiveECKey();
+                CPubKey rePubKey = receiveKey.GetPubKey();
+                CBitcoinAddress rcvAddr(rePubKey.GetID());
+                ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
+            } else {
+                LogPrintf("current Incoming Address size = %d\n", pchannel->getIncomingAddresses().size());
+                ret.push_back(Pair("IncomingAddress Size", pchannel->getIncomingAddresses().size()));
+            }
+        } 
+        else
+        {
+            ret.push_back(Pair("Exist in Bip47PaymentChannel", false));
+            Bip47PaymentChannel pchannel(strPcode);
+            std::string outaddress = pwalletMain->getCurrentOutgoingAddress(pchannel);
+            ret.push_back(Pair("OutGoingAddress", outaddress));
+            if(pchannel.getIncomingAddresses().size() == 0) {
+                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwalletMain, paymentCode, 0);
+                CKey receiveKey = paddr.getReceiveECKey();
+                CPubKey rePubKey = receiveKey.GetPubKey();
+                CBitcoinAddress rcvAddr(rePubKey.GetID());
+                ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
+            } else {
+                LogPrintf("current Incoming Address size = %d\n", pchannel.getIncomingAddresses().size());
+                
+            }
+        }
+        
+        
+    }
+
+    return ret;
+}
+
+
+
+UniValue sendtopcode(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+                "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+                "\nSend an amount to a given address.\n"
+                + HelpRequiringPassphrase() +
+                "\nArguments:\n"
+                "1. \"paymentcode\"  (string, required) The Zcoin paymentcode to send to.\n"
+                "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1")
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"donation\" \"seans outpost\"")
+                + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"\" \"\" true")
+                + HelpExampleRpc("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    PaymentCode paymentCode(request.params[0].get_str());
+    if (!paymentCode.isValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+
+    EnsureWalletIsUnlocked();
+    
+    Bip47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString());
+    
+    if (channel->isNotificationTransactionSent()) 
+    {
+        std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);
+        CBitcoinAddress pcAddress(addressTo);
+        CWalletTx wtx;
+        bool fSubtractFeeFromAmount = false;
+
+        SendMoney(pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+        return wtx.GetHash().GetHex();
+    }
+    else
+    {
+        return pwalletMain->makeNotificationTransaction(paymentCode.toString());    
+    }
+    
+    
+    
+}
+
+UniValue listreceivedbypcode(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 3)
+        throw runtime_error(
+                "listreceivedbypcode ( minconf includeempty includeWatchonly)\n"
+                "\nList balances by receiving paymentcode.\n"
+                "\nArguments:\n"
+                "1. minconf       (numeric, optional, default=1) The minimum number of confirmations before payments are included.\n"
+                "2. includeempty  (bool, optional, default=false) Whether to include addresses that haven't received any payments.\n"
+                "3. includeWatchonly (bool, optional, default=false) Whether to include watchonly addresses (see 'importaddress').\n"
+
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"involvesWatchonly\" : true,        (bool) Only returned if imported addresses were involved in transaction\n"
+                "    \"paymentcode\" : \"receivingpaymentcode\",  (string) The receiving paymentcode\n"
+                "    \"account\" : \"accountname\",       (string) DEPRECATED. The account of the receiving address. The default account is \"\".\n"
+                "    \"amount\" : x.xxx,                  (numeric) The total amount in " + CURRENCY_UNIT + " received by the address\n"
+                                                                                                            "    \"confirmations\" : n,               (numeric) The number of confirmations of the most recent transaction included\n"
+                                                                                                            "    \"label\" : \"label\"                (string) A comment for the address/transaction, if any\n"
+                                                                                                            "  }\n"
+                                                                                                            "  ,...\n"
+                                                                                                            "]\n"
+
+                                                                                                            "\nExamples:\n"
+                + HelpExampleCli("listreceivedbypcode", "")
+                + HelpExampleCli("listreceivedbypcode", "6 true")
+                + HelpExampleRpc("listreceivedbypcode", "6, true, true")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    return ListReceived(request.params, false);
+}
+
+UniValue getreceivedbypcode(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw runtime_error(
+                "getreceivedbypcode \"zcoinpaymentcode\" ( minconf )\n"
+                "\nReturns the total amount received by the given zcoinpaymentcode in transactions with at least minconf confirmations.\n"
+                "\nArguments:\n"
+                "1. \"zcoinpaymentcode\"  (string, required) The Zcoin paymentcode for transactions.\n"
+                "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+                "\nResult:\n"
+                "amount   (numeric) The total amount in " + CURRENCY_UNIT + " received at this paymentcode.\n"
+                                                                            "\nExamples:\n"
+                                                                            "\nThe amount from transactions with at least 1 confirmation\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"") +
+                "\nThe amount including unconfirmed transactions, zero confirmations\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0") +
+                "\nThe amount with at least 6 confirmation, very safe\n"
+                + HelpExampleCli("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 6") +
+                "\nAs a json rpc call\n"
+                + HelpExampleRpc("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 6")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Zcoin address
+    CBitcoinAddress address = CBitcoinAddress(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin zcoinpaymentcode");
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    if (!IsMine(*pwalletMain, scriptPubKey))
+        return ValueFromAmount(0);
+
+    // Minimum confirmations
+    int nMinDepth = 1;
+    if (request.params.size() > 1)
+        nMinDepth = request.params[1].get_int();
+
+    // Tally
+    CAmount nAmount = 0;
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+    {
+        const CWalletTx& wtx = (*it).second;
+        if (wtx.IsCoinBase() || !CheckFinalTx(wtx))
+            continue;
+
+        BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
+        if (txout.scriptPubKey == scriptPubKey)
+            if (wtx.GetDepthInMainChain() >= nMinDepth)
+                nAmount += txout.nValue;
+    }
+
+    return  ValueFromAmount(nAmount);
+}
 
 extern UniValue dumpprivkey_zcoin(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
@@ -4556,7 +4996,20 @@ static const CRPCCommand commands[] =
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
     { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
-    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
+    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
+
+    // new RPC functions for payment code
+    { "wallet",             "getnewpcode",            &getnewpcode,            true  },
+    { "wallet",             "getMyPaymentCode",       &getMyPaymentCode,       true  },
+    { "wallet",             "getMyNotificationAddress",       &getMyNotificationAddress,       true  },
+    { "wallet",             "getNotificationAddressFromPaymentCode",       &getNotificationAddressFromPaymentCode,       true  },
+    { "wallet",             "sendtopcode",            &sendtopcode,            false },
+    { "wallet",             "listreceivedbypcode",    &listreceivedbypcode,    false },
+    { "wallet",             "getreceivedbypcode",     &getreceivedbypcode,     false },
+    { "wallet",             "getPaymentCodeFromNotificationTx",     &getPaymentCodeFromNotificationTx,     false },
+    { "wallet",             "SecretPointCheck",     &SecretPointCheck,     false },
+    { "wallet",             "PaymentAddressSelfCheck",     &PaymentAddressSelfCheck,     false },
+    { "wallet",              "validatepcode",       &validatepcode,      true  },
 
 };
 

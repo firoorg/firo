@@ -14,6 +14,7 @@
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
+#include "recentpaymentcodetransactionstablemodel.h"
 
 #include "base58.h"
 #include "chainparams.h"
@@ -173,8 +174,6 @@ SendCoinsDialog::~SendCoinsDialog()
     QSettings settings;
     settings.setValue("fFeeSectionMinimized", fFeeMinimized);
     settings.setValue("nFeeRadio", true);
-//    settings.setValue("nCustomFeeRadio", ui->groupCustomFee->checkedId());
-//    settings.setValue("nSmartFeeSliderPosition", ui->sliderSmartFee->value());
     settings.setValue("nTransactionFee", (qint64)ui->customFee->value());
     settings.setValue("fPayOnlyMinFee", ui->checkBoxMinimumFee->isChecked());
 
@@ -194,6 +193,10 @@ void SendCoinsDialog::on_sendButton_clicked()
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry)
         {
+            if(entry->isPaymentCode())
+            {
+                return processPaymentCodeTransactions();
+            }
             if(entry->validate())
             {
                 recipients.append(entry->getValue());
@@ -332,6 +335,187 @@ void SendCoinsDialog::on_sendButton_clicked()
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
+    }
+    fNewRecipientAllowed = true;
+}
+
+void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
+{
+    if(!model || !model->getOptionsModel())
+        return;
+
+    QList<SendCoinsRecipient> recipients;
+    bool valid = true;
+
+    if (ui->entries->count() != 1)
+    {   
+        return;
+    }
+
+    SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(0)->widget());
+
+    if(entry)
+    {
+        if(entry->isPaymentCode())
+        {
+            recipients.append(entry->getValue());
+        } 
+        else
+        {
+            valid = false;
+        }
+    }
+
+    if(!valid || recipients.isEmpty())
+    {
+        return;
+    }
+
+    fNewRecipientAllowed = false;
+    WalletModel::UnlockContext ctx(model->requestUnlock());
+    if(!ctx.isValid())
+    {
+        // Unlock wallet was cancelled
+        fNewRecipientAllowed = true;
+        return;
+    }
+
+    // prepare transaction for getting txFee earlier
+    WalletModelTransaction currentTransaction(recipients);
+    WalletModel::SendCoinsReturn prepareStatus;
+    
+    prepareStatus = model->preparePCodeTransaction(currentTransaction);
+
+    // process prepareStatus and on error generate message shown to user
+    processSendCoinsReturn(prepareStatus,
+        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+
+    if(prepareStatus.status != WalletModel::OK) {
+        fNewRecipientAllowed = true;
+        return;
+    }
+
+    CAmount txFee = currentTransaction.getTransactionFee();
+
+    // Format confirmation message
+    QStringList formatted;
+    bool is_notification_tx;
+    QString pcodeqstr;
+    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
+    {
+        
+        bool is_pcode = model->validatePaymentCode(rcp.address);
+        is_notification_tx = !model->isNotificationTransactionSent(rcp.address);
+        // generate bold amount string
+        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        amount.append("</b>");
+        // generate monospace address string
+        QString address = "<span style='font-family: monospace;'>" + rcp.address;
+        address.append("</span>");
+
+        QString recipientElement;
+        
+        if(is_pcode && is_notification_tx)
+        {
+            pcodeqstr = rcp.address;
+            recipientElement = tr("%1 <br /> %2").arg("Your notification transaction will be broadcast first, followed by your main transaction.", "You can see and track your outbound transactions in the history list.");
+        }
+        else if (!rcp.paymentRequest.IsInitialized()) // normal payment
+        {
+            if(rcp.label.length() > 0) // label with address
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                recipientElement.append(QString(" (%1)").arg(address));
+            }
+            else // just address
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+        }
+        else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+        {
+            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+        }
+        else // unauthenticated payment request
+        {
+            recipientElement = tr("%1 to %2").arg(amount, address);
+        }
+
+        formatted.append(recipientElement);
+    }
+
+    QString questionString = tr("Are you sure you want to send?");
+    questionString.append("<br /><br />%1");
+
+    if(txFee > 0)
+    {
+        // append fee string if a fee is required
+        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        questionString.append("</span> ");
+        questionString.append(tr("added as transaction fee"));
+
+        // append transaction size
+        questionString.append(" (" + QString::number((double)currentTransaction.getTransactionSize() / 1000) + " kB)");
+    }
+
+    // add total amount in all subdivision units
+    questionString.append("<hr />");
+    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    QStringList alternativeUnits;
+    Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
+    {
+        if(u != model->getOptionsModel()->getDisplayUnit())
+            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
+    }
+    questionString.append(tr("Total Amount %1")
+        .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+        .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+
+    QMessageBox::StandardButton retval;
+    
+    if(is_notification_tx) // lgtm [cpp/uninitialized-local] 
+    {
+        SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
+        formatted.join("<br />"), SEND_CONFIRM_DELAY, this);
+        confirmationDialog.exec();
+        retval = (QMessageBox::StandardButton)confirmationDialog.result();
+    }
+    else
+    {
+        SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
+        questionString.arg(formatted.join("<br />")), isSecondTx ? 5 : SEND_CONFIRM_DELAY, this);
+        confirmationDialog.exec();
+        retval = (QMessageBox::StandardButton)confirmationDialog.result();
+    }
+    
+
+    if(retval != QMessageBox::Yes)
+    {
+        fNewRecipientAllowed = true;
+        return;
+    }
+
+    // now send the prepared transaction
+    bool needMainTx;
+    WalletModel::SendCoinsReturn sendStatus = model->sendPCodeCoins(currentTransaction, needMainTx);
+    // process sendStatus and on error generate message shown to user
+    processSendCoinsReturn(sendStatus);
+
+    if (sendStatus.status == WalletModel::OK)
+    {
+        LogPrintf("needMainTx is %s  isSecondTx is %s\n", needMainTx ? "True" : "False" , isSecondTx ? "True" : "False");
+        if(needMainTx && !isSecondTx)
+        {
+            LogPrintf("Process PaymentCode Main Transaction\n");
+            model->getRecentPCodeTransactionsTableModel()->addNewRequest(pcodeqstr, totalAmount);
+            processPaymentCodeTransactions(needMainTx);
+        }
+        accept();
+        CoinControlDialog::coinControl->UnSelectAll();
+        coinControlUpdateLabels();    
+        
     }
     fNewRecipientAllowed = true;
 }
@@ -541,24 +725,11 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
 
 void SendCoinsDialog::minimizeFeeSection(bool fMinimize)
 {
-//    ui->labelFeeMinimized->setVisible(fMinimize);
-//    ui->buttonChooseFee  ->setVisible(fMinimize);
-//    ui->buttonMinimizeFee->setVisible(!fMinimize);
     ui->frameFeeSelection->setVisible(!fMinimize);
     ui->horizontalLayoutSmartFee->setContentsMargins(0, (fMinimize ? 0 : 6), 0, 0);
     fFeeMinimized = fMinimize;
 }
 
-//void SendCoinsDialog::on_buttonChooseFee_clicked()
-//{
-//    minimizeFeeSection(false);
-//}
-//
-//void SendCoinsDialog::on_buttonMinimizeFee_clicked()
-//{
-//    updateFeeMinimizedLabel();
-//    minimizeFeeSection(true);
-//}
 
 void SendCoinsDialog::setMinimumFee()
 {
@@ -614,12 +785,7 @@ void SendCoinsDialog::updateFeeMinimizedLabel()
 {
     if(!model || !model->getOptionsModel())
         return;
-//    if (ui->radioSmartFee->isChecked())
-//        ui->labelFeeMinimized->setText(ui->labelSmartFee->text());
-//    else {
-//        ui->labelFeeMinimized->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), ui->customFee->value()) +
-//            ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
-//    }
+
 }
 
 void SendCoinsDialog::updateMinFeeLabel()

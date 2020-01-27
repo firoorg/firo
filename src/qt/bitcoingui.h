@@ -110,6 +110,7 @@ private:
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
+    QAction *paymentcodeAction;
     QAction *optionsAction;
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
@@ -228,6 +229,8 @@ private Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
+    /** Switch to paymentcode page */
+    void gotoPaymentcodePage();
     /** Switch to sigma page */
     void gotoSigmaPage();
     /** Switch to ZC->sigma page */

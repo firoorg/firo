@@ -140,6 +140,20 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
 }
 
+void setupPaymentCodeOrAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
+{
+    parent->setFocusProxy(widget);
+
+    widget->setFont(fixedPitchFont());
+#if QT_VERSION >= 0x040700
+    // We don't want translators to use own addresses in translations
+    // and this is the only place, where this address is supplied.
+    widget->setPlaceholderText(QString("Enter destination payment code or address"));
+#endif
+    widget->setValidator(new PaymentCodeOrBitcoinAddressEntryValidator(parent));
+    widget->setCheckValidator(new PaymentCodeOrBitcoinAddressCheckValidator(parent));
+}
+
 void setupAmountWidget(QLineEdit *widget, QWidget *parent)
 {
     QDoubleValidator *amountValidator = new QDoubleValidator(parent);

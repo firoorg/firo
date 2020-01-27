@@ -1425,6 +1425,117 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
     return Write(std::string("hdchain"), chain);
 }
 
+
+bool CWalletDB::WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId)
+{
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("Bip47PaymentChannel"), channelId), pchannel);
+}
+
+void CWalletDB::ListBip47PaymentChannel(std::map <string, Bip47PaymentChannel> &mPchannels)
+{
+    Dbc *pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::ListBip47PaymentChannel() : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    while (true) {
+        // Read next record
+        LogPrintf("Create CDataStream ssKey\n");
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("Bip47PaymentChannel"), string(""));
+        LogPrintf("Create CDataStream ssValue\n");
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        LogPrintf("ReadAtCursor sskey and ssValue\n");
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0) {
+            pcursor->close();
+            throw runtime_error("CWalletDB::ListBip47PaymentChannel() : error scanning DB");
+        }
+        LogPrintf("Unserialize sskey and ssValue\n");
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        LogPrintf("strType is %s\n", strType);
+        if (strType != "Bip47PaymentChannel")
+            break;
+        std::string value;
+        ssKey >> value;
+        LogPrintf("value is %s\n", value);
+        Bip47PaymentChannel pchannel;
+        LogPrintf("ssValue Size is %d\n", ssValue.size());
+        ssValue >> pchannel;
+        LogPrintf("Get Pchannl %s\n", pchannel.getPaymentCode());
+        mPchannels.insert(make_pair(value, pchannel));
+    }
+    pcursor->close();
+}
+
+bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value) {
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)), value);
+}
+
+bool CWalletDB::WriteBip47SeedMaster(const vector<unsigned char> &seedmaster) {
+    nWalletDBUpdateCounter++;
+    return Write(string("Bip47SeedMaster"), seedmaster);
+}
+
+bool CWalletDB::ReadBip47SeedMaster(vector<unsigned char>& seedmaster)
+{
+    return Read(string("Bip47SeedMaster"), seedmaster);
+}
+
+bool CWalletDB::ErasePcodeNotificationData(const std::string &rpcodestr, const std::string &key) {
+    nWalletDBUpdateCounter++;
+    return Erase(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)));
+}
+
+bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
+{
+    Dbc *pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::loadPCodeNotificationTransactions() : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    while (true) {
+        // Read next record
+        LogPrintf("Create CDataStream ssKey\n");
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("pcodentdata"), std::make_pair(string(""), string("")));
+        LogPrintf("Create CDataStream ssValue\n");
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        LogPrintf("ReadAtCursor sskey and ssValue\n");
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0) {
+            pcursor->close();
+            throw runtime_error("CWalletDB::loadPCodeNotificationTransactions() : error scanning DB");
+        }
+        LogPrintf("Unserialize sskey and ssValue\n");
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        LogPrintf("strType is %s\n", strType);
+        if (strType != "pcodentdata")
+            break;
+        std::pair<string, string> key2data;
+        ssKey >> key2data;
+        LogPrintf("key2data is (%s,%s) \n", key2data.first, key2data.second);
+        LogPrintf("ssValue Size is %d\n", ssValue.size());
+        std::string notificationtxvalue;
+        ssValue >> notificationtxvalue;
+        vPCodeNotificationTransactions.push_back(notificationtxvalue);
+    }
+    pcursor->close();
+    return true;
+}
+
 bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
     nWalletDBUpdateCounter++;
     return Write(std::string("mnemonic"), mnContainer);

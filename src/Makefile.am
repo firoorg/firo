@@ -124,7 +124,7 @@ TESTS =
 BENCHMARKS =
 
 if BUILD_BITCOIND
-  bin_PROGRAMS += zcoind
+  bin_PROGRAMS += zcoind testbip47
 endif
 
 if BUILD_BITCOIN_UTILS
@@ -249,6 +249,15 @@ BITCOIN_CORE_H = \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
+  bip47/bip47_common.h \
+  bip47/Bip47Account.h \
+  bip47/Bip47Address.h \
+  bip47/Bip47PaymentChannel.h \
+  bip47/Bip47Util.h \
+  bip47/PaymentAddress.h \
+  bip47/PaymentCode.h \
+  bip47/Bip47ChannelAddress.h \
+  bip47/SecretPoint.h \
   zerocoin.h \
   sigma.h \
   coin_containers.h \
@@ -353,6 +362,15 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
   primitives/zerocoin.cpp \
+  bip47/bip47_common.cpp \
+  bip47/Bip47Account.cpp \
+  bip47/Bip47Address.cpp \
+  bip47/Bip47PaymentChannel.cpp \
+  bip47/Bip47Util.cpp \
+  bip47/PaymentAddress.cpp \
+  bip47/PaymentCode.cpp \
+  bip47/Bip47ChannelAddress.cpp \
+  bip47/SecretPoint.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -546,6 +564,7 @@ libsigma_a_SOURCES = \
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
+AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
 # cli: shared between zcoin-cli and zcoin-qt
@@ -585,6 +604,33 @@ zcoind_LDADD = \
 
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+
+# bitcoind binary #
+
+testbip47_SOURCES = test-bip47.cpp
+testbip47_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+testbip47_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+testbip47_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+
+if TARGET_WINDOWS
+testbip47_SOURCES += bitcoind-res.rc
+endif
+testbip47_LDADD = \
+  $(LIBBITCOIN_SERVER) \
+  $(LIBBITCOIN_COMMON) \
+  $(LIBUNIVALUE) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_WALLET) \
+  $(LIBZCOIN_SIGMA) \
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBLEVELDB) \
+  $(LIBMEMENV) \
+  $(LIBSECP256K1)
+
+testbip47_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
@@ -697,13 +743,13 @@ clean-local:
 check-symbols: $(bin_PROGRAMS)
 if GLIBC_BACK_COMPAT
 	@echo "Checking glibc back compat..."
-	$(AM_V_at) READELF=$(READELF) CPPFILT=$(CPPFILT) $(top_srcdir)/contrib/devtools/symbol-check.py < $(bin_PROGRAMS)
+	$(AM_V_at) READELF=$(READELF) CPPFILT=$(CPPFILT) $(PYTHON) $(top_srcdir)/contrib/devtools/symbol-check.py < $(bin_PROGRAMS)
 endif
 
 check-security: $(bin_PROGRAMS)
 if HARDEN
 	@echo "Checking binary security..."
-	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
+	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(PYTHON) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
 endif
 
 %.pb.cc %.pb.h: %.proto

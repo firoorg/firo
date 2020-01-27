@@ -1187,7 +1187,6 @@ UniValue getinfoex(const JSONRPCRequest& request)
     return info;
 }
 
-
 static UniValue RPCLockedMemoryInfo()
 {
     LockedPool::Stats stats = LockedPoolManager::Instance().stats();
