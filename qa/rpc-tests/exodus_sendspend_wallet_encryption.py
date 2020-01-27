@@ -7,8 +7,7 @@ from test_framework.util import (
     assert_raises_message,
     bitcoind_processes,
     connect_nodes,
-    start_node,
-    sync_blocks)
+    start_node)
 
 class ExodusSendSpendWalletEncryptionTest(ExodusTestFramework):
     def run_test(self):

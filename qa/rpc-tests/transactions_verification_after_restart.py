@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import time
-from decimal import *
+from decimal import getcontext
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-
-from pprint import pprint
+from test_framework.util import bitcoind_processes, enable_mocktime, start_node, start_nodes
 
 # Zapwallettxes, rescan, reindex, reindex-chainstate are not affect existing transactions
 
