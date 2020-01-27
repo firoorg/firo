@@ -157,7 +157,7 @@ testScripts = [
     'wallet_dumpnonhd.py',
     'wallet_dumpsigma.py',
     'wallet_dumpzerocoin.py',
-    'transations_verification_after_restart.py',
+    'transactions_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
     'sigma_nonhd_wallet.py',
