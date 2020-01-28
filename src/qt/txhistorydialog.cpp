@@ -301,6 +301,27 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
         if (htxo.valid && type == EXODUS_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
+
+        if (htxo.valid && type == EXODUS_TYPE_SIMPLE_SPEND) { // override amount for spend
+            auto denomination = mp_obj.getDenomination();
+            std::array<uint8_t, 1> denoms = {denomination};
+            amount = SumDenominationsValue(mp_obj.getProperty(), denoms.begin(), denoms.end());
+        }
+
+        if (htxo.valid && type == EXODUS_TYPE_SIMPLE_MINT) { // override amount for mint
+            auto mints = mp_obj.getMints();
+            std::vector<uint8_t> denoms;
+            std::transform(
+                mints.begin(),
+                mints.end(),
+                std::back_inserter(denoms),
+                [](std::pair<uint8_t, exodus::SigmaPublicKey> mint) -> uint8_t {
+                    return mint.first;
+                });
+
+            amount = SumDenominationsValue(mp_obj.getProperty(), denoms.begin(), denoms.end());
+        }
+
         std::string displayAmount = FormatShortMP(mp_obj.getProperty(), amount) + getTokenLabel(mp_obj.getProperty());
         htxo.fundsMoved = true;
         htxo.txType = shrinkTxType(mp_obj.getType(), &htxo.fundsMoved);
@@ -309,6 +330,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         htxo.address = mp_obj.getSender();
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
+
         // override - special case for property creation (getProperty cannot get ID as createdID not stored in obj)
         if (type == EXODUS_TYPE_CREATE_PROPERTY_FIXED || type == EXODUS_TYPE_CREATE_PROPERTY_VARIABLE || type == EXODUS_TYPE_CREATE_PROPERTY_MANUAL) {
             displayAmount = "N/A";
@@ -317,11 +339,13 @@ int TXHistoryDialog::PopulateHistoryMap()
                 if (type == EXODUS_TYPE_CREATE_PROPERTY_FIXED) displayAmount = FormatShortMP(propertyId, getTotalTokens(propertyId)) + getTokenLabel(propertyId);
             }
         }
+
         // override - hide display amount for cancels and unknown transactions as we can't display amount/property as no prop exists
         if (type == EXODUS_TYPE_METADEX_CANCEL_PRICE || type == EXODUS_TYPE_METADEX_CANCEL_PAIR ||
             type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || type == EXODUS_TYPE_SEND_ALL || htxo.txType == "Unknown") {
             displayAmount = "N/A";
         }
+
         // override - display amount received not STO amount in packet (the total amount) for STOs I didn't send
         if (type == EXODUS_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
             UniValue receiveArray(UniValue::VARR);
@@ -330,6 +354,12 @@ int TXHistoryDialog::PopulateHistoryMap()
             s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
         }
+
+        // override - hide display amount for denomination creation transactions
+        if (type == EXODUS_TYPE_CREATE_DENOMINATION) {
+            displayAmount = "N/A";
+        }
+
         htxo.amount = displayAmount;
         txHistoryMap.insert(std::make_pair(txHash, htxo));
         nProcessed++;
@@ -523,6 +553,9 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
         case EXODUS_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
         case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
         case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
+        case EXODUS_TYPE_SIMPLE_SPEND: displayType = "Sigma Spend"; break;
+        case EXODUS_TYPE_CREATE_DENOMINATION: displayType = "Create Sigma Denomination"; *fundsMoved = false; break;
+        case EXODUS_TYPE_SIMPLE_MINT: displayType = "Sigma Mint"; break;
     }
     return displayType;
 }
