@@ -2,6 +2,9 @@
 .project
 .cproject
 .vscode
+src.kdev4
+
+dist/
 
 *.tar.gz
 
@@ -10,9 +13,11 @@ src/zcoin
 src/zcoind
 src/zcoin-cli
 src/zcoin-tx
+src/testbip47
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
+
 
 # autoreconf
 Makefile.in

@@ -91,6 +91,8 @@ const uint32_t BIP44_MINT_INDEX = 0x2;
 #ifdef ENABLE_EXODUS
 const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
 #endif
+
+// @todo Could be required later 
 const uint32_t BIP47_INDEX = 0x2F;
 const uint32_t BIP47_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types lgtm [cpp/unused-static-variable] 
 const uint32_t BIP47_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types lgtm [cpp/unused-static-variable] 

@@ -49,7 +49,7 @@ bool BIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
 
 bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, PaymentCode &paymentCode) {
     // tx.vin[0].scriptSig
-    CWalletTx wtx(pwalletMain, tx);
+//     CWalletTx wtx(pwalletMain, tx);
 
     CTxOut txout;
     if(!getOpCodeOutput(tx, txout)) {
@@ -74,7 +74,7 @@ bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> pr
      * */
     vector<unsigned char> pubKeyBytes;
 
-    if (!getScriptSigPubkey(wtx.vin[0], pubKeyBytes))
+    if (!getScriptSigPubkey(tx.vin[0], pubKeyBytes))
     {
         LogPrintf("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
         return false;
@@ -83,13 +83,13 @@ bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> pr
     LogPrintf("pubkeyBytes size = %d\n", pubKeyBytes.size());
 
 
-    vector<unsigned char> outpoint(wtx.vin[0].prevout.hash.begin(), wtx.vin[0].prevout.hash.end());
+    vector<unsigned char> outpoint(tx.vin[0].prevout.hash.begin(), tx.vin[0].prevout.hash.end());
     
     SecretPoint secretPoint(privKeyBytes, pubKeyBytes);
     
     LogPrintf("Generating Secret Point for Decode with \n privekey: %s\n pubkey: %s\n", HexStr(privKeyBytes), HexStr(pubKeyBytes));
     
-    LogPrintf("output: %s\n", wtx.vin[0].prevout.hash.GetHex());
+    LogPrintf("output: %s\n", tx.vin[0].prevout.hash.GetHex());
     uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
     LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 

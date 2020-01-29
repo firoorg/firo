@@ -345,9 +345,7 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-    //! write the bip47hdchain model (external chain child index counter)
-    bool WriteCBip47HDChain(const CBip47HDChain& bip47chain);
-    
+       
     // @bip47 channel data write
     bool WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId);
     
