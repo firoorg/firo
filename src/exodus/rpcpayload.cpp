@@ -687,6 +687,52 @@ UniValue exodus_createpayload_unfreeze(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
+UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+    {
+        throw std::runtime_error(
+            "exodus_createpayload_createdenomination propertyid \"value\"\n"
+            "\nCreate a payload for create a denomination for the given property.\n"
+            "\nArguments:\n"
+            "1. propertyid           (number, required) the property to create a new denomination\n"
+            "2. value                (string, required) the value of denomination to create\n"
+            "\nResult:\n"
+            "\"hash\"                  (string) the hex-encoded payload\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_createpayload_createdenomination", "1 \"100.0\"")
+            + HelpExampleRpc("exodus_createpayload_createdenomination", "1, \"100.0\"")
+        );
+    }
+
+    uint32_t propertyId = ParsePropertyId(params[0]);
+    int64_t value = ParseAmount(params[1], isPropertyDivisible(propertyId));
+
+    RequireExistingProperty(propertyId);
+    RequireSigma(propertyId);
+
+    // validate
+    {
+        LOCK(cs_main);
+
+        CMPSPInfo::Entry info;
+        assert(_my_sps->getSP(propertyId, info));
+
+        if (info.denominations.size() >= MAX_DENOMINATIONS) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "No more room for new denomination");
+        }
+
+        if (std::find(info.denominations.begin(), info.denominations.end(), value) != info.denominations.end()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination with value " + FormatMP(propertyId, value) + " already exists");
+        }
+    }
+
+    // create a payload
+    auto payload = CreatePayload_CreateDenomination(propertyId, value);
+
+    return HexStr(payload.begin(), payload.end());
+}
+
 static const CRPCCommand commands[] =
 { //  category                         name                                      actor (function)                         okSafeMode
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
@@ -710,6 +756,7 @@ static const CRPCCommand commands[] =
     { "exodus (payload creation)", "exodus_createpayload_disablefreezing",     &exodus_createpayload_disablefreezing,     true },
     { "exodus (payload creation)", "exodus_createpayload_freeze",              &exodus_createpayload_freeze,              true },
     { "exodus (payload creation)", "exodus_createpayload_unfreeze",            &exodus_createpayload_unfreeze,            true },
+    { "exodus (payload creation)", "exodus_createpayload_createdenomination",  &exodus_createpayload_createdenomination,  true },
 };
 
 void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC)

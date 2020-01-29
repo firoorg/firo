@@ -267,3 +267,29 @@ class ExodusTestFramework(BitcoinTestFramework):
         actual.sort(key = mint_key_extractor)
 
         assert_equal(expected, actual)
+
+    def ensure_reach_sigmaactivated_block(self, required_block = 550):
+        self.sync_all()
+        current_block = self.nodes[0].getblockcount()
+        if current_block >= required_block:
+            return []
+
+        return self.nodes[0].generate(required_block - current_block)
+
+    def create_default_property(self, name, sigma = True, amount = None, address = None):
+        if address is None:
+            address = self.addrs[0]
+
+        sigma_status = 1 if sigma else 0
+
+        if amount is None:
+            self.nodes[0].exodus_sendissuancemanaged(address, 1, 1, 0, '', '', name, '', '', sigma_status)
+        else:
+            self.nodes[0].exodus_sendissuancefixed(address, 1, 1, 0, '', '', name, '', '', amount, sigma_status)
+
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        # get lastest id
+        properties = self.nodes[0].exodus_listproperties()
+        return max(map(lambda p: p["propertyid"], properties))
