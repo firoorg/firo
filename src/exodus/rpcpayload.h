@@ -20,5 +20,6 @@ UniValue exodus_createpayload_canceltradesbyprice(const UniValue& params, bool f
 UniValue exodus_createpayload_canceltradesbypair(const UniValue& params, bool fHelp);
 UniValue exodus_createpayload_cancelalltrades(const UniValue& params, bool fHelp);
 UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fHelp);
+UniValue exodus_createpayload_mintbypublickeys(const UniValue& params, bool fHelp);
 
 #endif // EXODUS_RPCPAYLOAD_H

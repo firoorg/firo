@@ -271,6 +271,10 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "exodus_createpayload_canceltradesbypair", 0 },
 	{ "exodus_createpayload_canceltradesbypair", 1 },
 	{ "exodus_createpayload_cancelalltrades", 0 },
+	{ "exodus_createpayload_createdenomination", 0},
+    	{ "exodus_createpayload_mintbypublickeys", 0},
+    	{ "exodus_createpayload_mintbypublickeys", 1},
+    	{ "exodus_createpayload_mintbypublickeys", 2},
 
 	/* Exodus - backwards compatibility */
 	{ "getcrowdsale_MP", 0 },

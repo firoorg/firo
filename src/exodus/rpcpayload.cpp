@@ -689,8 +689,8 @@ UniValue exodus_createpayload_unfreeze(const UniValue& params, bool fHelp)
 
 UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fHelp)
 {
+
     if (fHelp || params.size() != 2)
-    {
         throw std::runtime_error(
             "exodus_createpayload_createdenomination propertyid \"value\"\n"
             "\nCreate a payload for create a denomination for the given property.\n"
@@ -703,7 +703,6 @@ UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fH
             + HelpExampleCli("exodus_createpayload_createdenomination", "1 \"100.0\"")
             + HelpExampleRpc("exodus_createpayload_createdenomination", "1, \"100.0\"")
         );
-    }
 
     uint32_t propertyId = ParsePropertyId(params[0]);
     int64_t value = ParseAmount(params[1], isPropertyDivisible(propertyId));
@@ -733,6 +732,91 @@ UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fH
     return HexStr(payload.begin(), payload.end());
 }
 
+UniValue exodus_createpayload_mintbypublickeys(const UniValue& params, bool fHelp)
+{
+
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
+            "\nCreate mints.\n"
+            "\nArguments:\n"
+            "1. propertyid                          (number, required) the property to create mints\n"
+            "2. mints                               (string, required) a JSON array of pairs of public key and denomination\n"
+            "     [\n"
+            "       {\n"
+            "         \"id\":\"hex\"                    (string, required) public key of coin to create mint\n"
+            "         \"denomination\":n              (number, required) denomination to create coin\n"
+            "       }\n"
+            "       ,...\n"
+            "     ]\n"
+            "3. denomminconf                        (number, optional, default=6) Allow only denominations with at least this many confirmations\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded payload\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exodus_sendmint", "1 \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
+            + HelpExampleRpc("exodus_sendmint", "1, \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
+        );
+
+    uint32_t propertyId = ParsePropertyId(params[0]);
+    UniValue mintObjs(UniValue::VARR);
+    mintObjs = params[1].get_array();
+
+    RequireExistingProperty(propertyId);
+    RequireSigma(propertyId);
+
+    std::vector<pair<uint8_t, SigmaPublicKey>> mints;
+    for (size_t idx = 0; idx < mintObjs.size(); idx++) {
+        const auto &mint = mintObjs[idx].get_obj();
+
+        RPCTypeCheckObj(mint,
+            {
+                {"id", UniValueType(UniValue::VSTR)},
+                {"denomination", UniValueType(UniValue::VNUM)}
+            });
+
+
+        auto id = ParseHex(find_value(mint, "id").get_str());
+        const auto denomId = find_value(mint, "denomination").get_int();
+
+        CDataStream pubkeyDeserialized(id, SER_NETWORK, CLIENT_VERSION);
+        SigmaPublicKey key;
+        try {
+            pubkeyDeserialized >> key;
+        } catch (const std::ios_base::failure &)
+        {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Public key is invalid.");
+        }
+
+        if (!key.IsValid()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Public key is invalid.");
+        }
+
+        if (denomId < 0 || denomId > UINT8_MAX) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination id is invalid.");
+        }
+
+        mints.push_back(std::make_pair(static_cast<SigmaDenomination>(denomId), key));
+    }
+
+    // validate denominations.
+    {
+        LOCK(cs_main);
+
+        CMPSPInfo::Entry info;
+        assert(_my_sps->getSP(propertyId, info));
+
+        for (auto &mint : mints) {
+            if (mint.first >= info.denominations.size()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Denomination is not exist");
+            }
+        }
+    }
+
+    auto payload = CreatePayload_SimpleMint(propertyId, mints);
+
+    return HexStr(payload.begin(), payload.end());
+}
+
 static const CRPCCommand commands[] =
 { //  category                         name                                      actor (function)                         okSafeMode
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
@@ -757,6 +841,7 @@ static const CRPCCommand commands[] =
     { "exodus (payload creation)", "exodus_createpayload_freeze",              &exodus_createpayload_freeze,              true },
     { "exodus (payload creation)", "exodus_createpayload_unfreeze",            &exodus_createpayload_unfreeze,            true },
     { "exodus (payload creation)", "exodus_createpayload_createdenomination",  &exodus_createpayload_createdenomination,  true },
+    { "exodus (payload creation)", "exodus_createpayload_mintbypublickeys",    &exodus_createpayload_mintbypublickeys,    true },
 };
 
 void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC)
