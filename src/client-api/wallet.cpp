@@ -348,8 +348,9 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
-            }
-            else {
+            } else if (wtx.vout[r.vout].scriptPubKey.IsSigmaMint()) {
+                category = "sigmaMint";
+            } else {
                 category = "receive";
             }
             string categoryIndex = category + voutIndex;
@@ -360,7 +361,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("amount", amount));
             if (pwalletMain->IsSpent(txid, r.vout)) {
                 entry.push_back(Pair("spendable", false));
-            } else {
+            } else if (wtx.GetBlocksToMaturity() <= 0) {
                 LogPrintf("%s: Spendable = %d, cat = %s\n", __func__, amount, category);
                 if (pwalletMain->IsLockedCoin(txid, r.vout)) {
                     entry.push_back(Pair("locked", true));
