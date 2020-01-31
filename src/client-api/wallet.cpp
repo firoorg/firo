@@ -183,8 +183,16 @@ UniValue setInitialTimestamp(string hash){
     TxTimestampOut << TxTimestampUni.write(4,0) << endl;
 
     return firstSeenAt;
+}
 
-
+void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry){
+    if (pwalletMain->IsSpent(outPoint.hash, outPoint.n) ||
+        (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0))
+        entry.push_back(Pair("spendable", false));
+    else{
+        entry.push_back(Pair("spendable", true));
+        entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n)));
+    }
 }
 
 UniValue getBlockHeight(const string strHash)
@@ -242,6 +250,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     // Sent
     if ((!listSent.empty() || nFee != 0))
     {
+
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {
             UniValue address(UniValue::VOBJ);         
@@ -260,19 +269,18 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string voutIndex = to_string(s.vout);
             
             // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
-            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint() ||
-               wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
+            if(wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
                 category = "mint";
                 addrStr = "MINT";
-                if(pwalletMain && wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
-                    bool isAvailable;
-                    if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
-                        continue;
-                    }
-                    entry.push_back(Pair("available", isAvailable));
+                if(pwalletMain->IsSigmaMintFromTxOutAvailable(wtx.vout[s.vout])){
+                    entry.push_back(Pair("available", true));
+                    COutPoint outPoint(wtx.GetHash(), s.vout);
+                    IsTxOutSpendable(wtx, outPoint, entry);
+                }else{
+                    entry.push_back(Pair("available", false));
                 }
             }
-            else if((wtx.IsZerocoinSpend() || wtx.IsSigmaSpend())){
+            else if((wtx.IsSigmaSpend())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
@@ -373,7 +381,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
                 }
             }
-            else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
+            else if(wtx.IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             } else {
@@ -386,13 +394,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
 
-            if (pwalletMain->IsSpent(txid, r.vout) ||
-                (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0))
-                entry.push_back(Pair("spendable", false));
-            else{
-                entry.push_back(Pair("spendable", true));
-                entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(txid, r.vout)));
-            }
+            COutPoint outPoint(txid, r.vout);
+            IsTxOutSpendable(wtx, outPoint, entry);
 
             APIWalletTxToJSON(wtx, entry);
 

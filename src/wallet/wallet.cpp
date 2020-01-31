@@ -3075,6 +3075,34 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
+// available implies a mature or unspent mint.
+bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsSigmaMint())
+        throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
+
+    if (!zwalletMain)
+        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    std::vector <CMintMeta> listMints;
+    listMints = zwalletMain->GetTracker().ListMints(true, true, false);
+    GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint))
+            continue;
+
+        if(pubCoinValue == dMint.GetPubcoinValue())
+            return true;
+    }
+
+    return false;
+}
+
 bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
     LOCK(cs_wallet);
 

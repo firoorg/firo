@@ -929,6 +929,7 @@ public:
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false);
 
+    bool IsSigmaMintFromTxOutAvailable(CTxOut txout);
     /**
      * Add zerocoin Mint and Spend function
      */
