@@ -21,6 +21,34 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 
+bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
+    if (find_value(data, "coincontrol").isNull()) return false;
+    UniValue uniValCC(UniValue::VOBJ);
+    uniValCC = find_value(data, "coincontrol");
+    UniValue uniSelected(UniValue::VSTR);
+    uniSelected = find_value(uniValCC, "selecteds");
+
+    std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
+    if (selected.empty()) return false;
+
+    std::vector<string> selectedKeys;
+    boost::split(selectedKeys, selected, boost::is_any_of(":"));
+
+    for(size_t i = 0; i < selectedKeys.size(); i++) {
+        std::vector<string> splits;
+        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
+        if (splits.size() != 2) continue;
+
+        uint256 hash;
+        hash.SetHex(splits[0]);
+        UniValue idx(UniValue::VNUM);
+        idx.setNumStr(splits[1]);
+        COutPoint op(hash, idx.get_int());
+        cc.Select(op);
+    }
+    return true;
+}
+
 void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
     auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
     for (const auto& coin : coins) {
@@ -348,8 +376,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             else if(wtx.IsZerocoinSpend() || wtx.IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
-            } else if (wtx.vout[r.vout].scriptPubKey.IsSigmaMint()) {
-                category = "sigmaMint";
             } else {
                 category = "receive";
             }
@@ -359,20 +385,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
-            if (pwalletMain->IsSpent(txid, r.vout)) {
+
+            if (pwalletMain->IsSpent(txid, r.vout) ||
+                (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0))
                 entry.push_back(Pair("spendable", false));
-            } else if (wtx.GetBlocksToMaturity() <= 0) {
-                LogPrintf("%s: Spendable = %d, cat = %s\n", __func__, amount, category);
-                if (pwalletMain->IsLockedCoin(txid, r.vout)) {
-                    entry.push_back(Pair("locked", true));
-                } else {
-                    entry.push_back(Pair("locked", false));
-                }
-                if (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) {
-                    entry.push_back(Pair("spendable", false));
-                } else {
-                    entry.push_back(Pair("spendable", true));
-                }
+            else{
+                entry.push_back(Pair("spendable", true));
+                entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(txid, r.vout)));
             }
 
             APIWalletTxToJSON(wtx, entry);
@@ -687,35 +706,6 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     balanceObj.push_back(Pair("unspentMints", GetDenominations()));
 
     return balanceObj;
-}
-
-
-bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
-    if (find_value(data, "coincontrol").isNull()) return false;
-    UniValue uniValCC(UniValue::VOBJ);
-    uniValCC = find_value(data, "coincontrol");
-    UniValue uniSelected(UniValue::VSTR);
-    uniSelected = find_value(uniValCC, "selecteds");
-
-    std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
-    if (selected.empty()) return false;
-
-    std::vector<string> selectedKeys;
-    boost::split(selectedKeys, selected, boost::is_any_of(":"));
-
-    for(size_t i = 0; i < selectedKeys.size(); i++) {
-        std::vector<string> splits;
-        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
-        if (splits.size() != 2) continue;
-        
-        uint256 hash;
-        hash.SetHex(splits[0]);
-        UniValue idx(UniValue::VNUM);
-        idx.setNumStr(splits[1]);
-        COutPoint op(hash, idx.get_int());
-        cc.Select(op);
-    }
-    return true;
 }
 
 static const CAPICommand commands[] =
