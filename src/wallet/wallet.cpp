@@ -1680,7 +1680,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
 
-        if(!IsZerocoinSpend() || !IsSigmaSpend()){
+        if(!IsSigmaSpend()){
             if (nDebit > 0) {
                 // Don't report 'change' txouts
                 if (IsChange(static_cast<uint32_t>(i)))
@@ -1693,7 +1693,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()) {
+        if (txout.scriptPubKey.IsSigmaMint()) {
             address = CNoDestination();
         } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
             LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
@@ -1704,7 +1704,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         COutputEntry output = {address, txout.nValue, (int) i};
 
         /// If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0 || ((IsZerocoinSpend() || IsSigmaSpend()) && fromMe)){
+        if (nDebit > 0 || (IsSigmaSpend() && fromMe)){
             listSent.push_back(output);
         }
 
@@ -3073,6 +3073,34 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 
     pubKeyRet = keyRet.GetPubKey();
     return true;
+}
+
+// available implies a mature or unspent mint.
+bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsSigmaMint())
+        throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
+
+    if (!zwalletMain)
+        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    std::vector <CMintMeta> listMints;
+    listMints = zwalletMain->GetTracker().ListMints(true, true, false);
+    GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint))
+            continue;
+
+        if(pubCoinValue == dMint.GetPubcoinValue())
+            return true;
+    }
+
+    return false;
 }
 
 bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
