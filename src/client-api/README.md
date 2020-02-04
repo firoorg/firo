@@ -96,6 +96,11 @@ OPTIONAL: not a necessary parameter to pass.
         walletVersion: INT, (VAR: Wallet initialized)
         walletLock: BOOL,  (VAR: Wallet initialized)
         unlockedUntil: INT, (VAR : wallet is unlocked)
+        Znode: {
+            localCount: INT,
+            totalCount: INT,
+            enabledCount: INT
+        },
         dataDir: STRING,
         network: STRING("main"|"testnet"|"regtest"),
         blocks: INT,
@@ -108,11 +113,6 @@ OPTIONAL: not a necessary parameter to pass.
         modules: {
             API: BOOL,
             Znode: BOOL
-        },
-        Znode: {
-            localCount: INT,
-            totalCount: INT,
-            enabledCount: INT
         }
     },
     meta:{
@@ -162,18 +162,6 @@ OPTIONAL: not a necessary parameter to pass.
             unconfirmed: INT,
         },
         unspentMints: {
-            "0.05": {
-                confirmed: INT,
-                unconfirmed: INT,
-            },
-            "0.1": {
-                confirmed: INT,
-                unconfirmed: INT,
-            },
-            "0.5": {
-                confirmed: INT,
-                unconfirmed: INT,
-            },
             "1": {
                 confirmed: INT,
                 unconfirmed: INT,
@@ -187,6 +175,18 @@ OPTIONAL: not a necessary parameter to pass.
                 unconfirmed: INT,
             },
             "100": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "0.05": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "0.1": {
+                confirmed: INT,
+                unconfirmed: INT,
+            },
+            "0.5": {
                 confirmed: INT,
                 unconfirmed: INT,
             }
@@ -208,152 +208,98 @@ OPTIONAL: not a necessary parameter to pass.
 *Returns:*
 ```
     data: {
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING                                    
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
+        addresses: {
+            [STRING | "MINT"]: (address) {
+                total: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    } 
-            },
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    }  
+                    ...
+                },
+                txids: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ...
+                }
             },
-        ...
-        },
+            [STRING | "MINT"]: (address) {
+                total: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                    },
+                    ...
+                },
+                txids: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ...
+                }
+            },
+            ...
+        }
+    }
     meta: {
         status: 200
     }
@@ -907,152 +853,98 @@ OPTIONAL: not a necessary parameter to pass.
 *Returns:*
 ```
     data: {
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING                                    
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
+        addresses: {
+            [STRING | "MINT"]: (address) {
+                total: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    } 
-            },
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    }  
+                    ...
+                },
+                txids: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ...
+                },
+            }
+            [STRING | "MINT"]: (address) {
+                total: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                        sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                    },
+                    ...
+                },
+                txids: {
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                        STRING: (txid): {
+                            address: STRING,
+                            category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                            amount: INT,
+                            fee: INT(sats),
+                            label: STRING (VAR : address is part of zcoind "account")
+                            firstSeenAt: INT(secs), 
+                            blockHash: STRING,
+                            blockTime: INT(secs),                            
+                            blockHeight: INT,
+                            txid: STRING
+                        },
+                    },
+                    ...
+                }
             },
-        ...
-        },
+            ...
+        }
+    }
     meta: {
         status: 200
     }
@@ -1395,152 +1287,96 @@ Methods specific to the publisher.
 ```
 { 
     data: {
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING                                    
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
-                    },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    } 
+        [STRING | "MINT"]: (address) {
+            total: {
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                    sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                    balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                },
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                    sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                    balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                },
+                ...
             },
-        [STRING | "MINT"]: (address)
-            { 
-                txids: 
-                    {
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        STRING: (txid)
-                            { 
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
-                                 {
-                                    address: STRING,
-                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
-                                    amount: INT,
-                                    fee: INT(sats),
-                                    label: STRING (VAR : address is part of zcoind "account")
-                                    firstSeenAt: INT(secs), 
-                                    blockHash: STRING,
-                                    blockTime: INT(secs),                            
-                                    blockHeight: INT,
-                                    txid: STRING 
-                                },
-                                ...
-                            },
-                        ...
+            txids: {
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                    STRING: (txid): {
+                        address: STRING,
+                        category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                        amount: INT,
+                        fee: INT(sats),
+                        label: STRING (VAR : address is part of zcoind "account")
+                        firstSeenAt: INT(secs), 
+                        blockHash: STRING,
+                        blockTime: INT(secs),                            
+                        blockHeight: INT,
+                        txid: STRING
                     },
-                total: 
-                    {
-                        sent: INT, (VAR : category=="send"|"mint"|"spend")
-                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
-                    }  
-            },
-        ...
+                },
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                    STRING: (txid): {
+                        address: STRING,
+                        category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                        amount: INT,
+                        fee: INT(sats),
+                        label: STRING (VAR : address is part of zcoind "account")
+                        firstSeenAt: INT(secs), 
+                        blockHash: STRING,
+                        blockTime: INT(secs),                            
+                        blockHeight: INT,
+                        txid: STRING
+                    },
+                },
+                ...
+            }
         },
+        [STRING | "MINT"]: (address) {
+            total: {
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                    sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                    balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                },
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"]{
+                    sent: INT, (VAR : category=="send"|"mint"|"spendOut")
+                    balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
+                },
+                ...
+            },
+            txids: {
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                    STRING: (txid): {
+                        address: STRING,
+                        category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                        amount: INT,
+                        fee: INT(sats),
+                        label: STRING (VAR : address is part of zcoind "account")
+                        firstSeenAt: INT(secs), 
+                        blockHash: STRING,
+                        blockTime: INT(secs),                            
+                        blockHeight: INT,
+                        txid: STRING
+                    },
+                },
+                ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
+                    STRING: (txid): {
+                        address: STRING,
+                        category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
+                        amount: INT,
+                        fee: INT(sats),
+                        label: STRING (VAR : address is part of zcoind "account")
+                        firstSeenAt: INT(secs), 
+                        blockHash: STRING,
+                        blockTime: INT(secs),                            
+                        blockHeight: INT,
+                        txid: STRING
+                    },
+                },
+                ...
+            }
+        },
+        ...
+    }
     meta: {
         status: 200
     }
