@@ -52,24 +52,14 @@ jobs:
 
   target-macos:
     name: Target macOS
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v1
     - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt-get install -y ccache libcap-dev
-    - name: Prepare directory for SDKs
-      run: mkdir -p depends/SDKs
-    - name: Download SDK
-      run: curl -L -o /tmp/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
-    - name: Extract SDK
-      run: tar -C depends/SDKs -xf /tmp/MacOSX10.11.sdk.tar.gz
-    - name: Build dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-apple-darwin11
+      run: brew install automake berkeley-db4 libtool boost miniupnpc pkg-config python qt libevent qrencode ccache
     - name: Build Zcoin
       run: |
         ./autogen.sh
-        ./configure --enable-exodus --prefix=$(pwd)/depends/x86_64-apple-darwin11
+        ./configure --enable-exodus
         make -j$(nproc)
