@@ -84,12 +84,14 @@ if ENABLE_WALLET
 EXODUS_H += \
   exodus/rpctx.h \
   exodus/sigmawallet.h \
+  exodus/sigmawalletv0.h \
   exodus/wallet.h \
   exodus/walletmodels.h
 
 EXODUS_CPP += \
   exodus/rpctx.cpp \
   exodus/sigmawallet.cpp \
+  exodus/sigmawalletv0.cpp \
   exodus/wallet.cpp \
   exodus/walletmodels.cpp
 endif

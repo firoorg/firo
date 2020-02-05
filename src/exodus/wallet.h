@@ -4,7 +4,7 @@
 #include "exodus.h"
 #include "property.h"
 #include "sigmaprimitives.h"
-#include "sigmawallet.h"
+#include "sigmawalletv0.h"
 #include "sp.h"
 #include "walletmodels.h"
 
@@ -91,7 +91,7 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
-    SigmaWallet mintWallet;
+    SigmaWalletV0 mintWallet;
 };
 
 extern Wallet *wallet;
