@@ -160,6 +160,35 @@ private:
 protected:
     virtual PrivateKey GeneratePrivateKey(uint512 const &seed) = 0;
 
+    // DB
+    virtual bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const = 0;
+    virtual bool EraseExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) = 0;
+    virtual bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const = 0;
+
+    virtual bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const = 0;
+    virtual bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
+    virtual bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
+
+    virtual bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
+
+    virtual void ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)>, CWalletDB *db = nullptr) = 0;
+
+    // Helper
+    std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db = nullptr) const
+    {
+        std::unique_ptr<CWalletDB> local;
+        if (db == nullptr)
+        {
+            db = new CWalletDB(walletFile);
+            local.reset(db);
+        }
+
+        return local;
+    }
+
     // Mint updating
 public:
     PrivateKey GeneratePrivateKey(CKeyID const &seedId)
@@ -220,7 +249,7 @@ public:
             m.second.chainState = SigmaMintChainState();
             m.second.spendTx = uint256();
 
-            if (!db.WriteExodusMint(m.first, m.second)) {
+            if (!WriteExodusMint(m.first, m.second)) {
                 throw std::runtime_error("Failed to write " + walletFile);
             }
         }
@@ -274,11 +303,10 @@ public:
 private:
     SigmaMint UpdateMint(SigmaMintId const &id, std::function<void(SigmaMint &)> const &modifier)
     {
-        CWalletDB walletdb(walletFile);
         auto m = GetMint(id);
         modifier(m);
 
-        if (!walletdb.WriteExodusMint(id, m)) {
+        if (!WriteExodusMint(id, m)) {
             throw std::runtime_error("fail to update mint");
         }
 
@@ -287,13 +315,11 @@ private:
 
     void WriteMint(SigmaMintId const &id, SigmaMint const &mint)
     {
-        CWalletDB walletdb(walletFile);
-
-        if (!walletdb.WriteExodusMint(id, mint)) {
+        if (!WriteExodusMint(id, mint)) {
             throw std::runtime_error("fail to write hdmint");
         }
 
-        if (!walletdb.WriteExodusMintID(mint.serialId, id)) {
+        if (!WriteExodusMintId(mint.serialId, id)) {
             throw std::runtime_error("fail to record id");
         }
 
@@ -328,22 +354,19 @@ public:
 
     bool HasMint(SigmaMintId const &id) const
     {
-        CWalletDB walletdb(walletFile);
-        return walletdb.HasExodusMint(id);
+        return HasExodusMint(id);
     }
 
     bool HasMint(secp_primitives::Scalar const &serial) const
     {
-        CWalletDB walletdb(walletFile);
         auto id = GetSerialId(serial);
-        return walletdb.HasExodusMintID(id);
+        return HasExodusMintId(id);
     }
 
     SigmaMint GetMint(SigmaMintId const &id) const
     {
-        CWalletDB walletdb(walletFile);
         SigmaMint m;
-        if (!walletdb.ReadExodusMint(id, m)) {
+        if (!ReadExodusMint(id, m)) {
             throw std::runtime_error("fail to read hdmint");
         }
 
@@ -357,11 +380,9 @@ public:
 
     SigmaMintId GetMintId(secp_primitives::Scalar const &serial) const
     {
-        CWalletDB walletdb(walletFile);
-
         SigmaMintId id;
         auto serialHash = GetSerialId(serial);
-        if (!walletdb.ReadExodusMintID(serialHash, id)) {
+        if (!ReadExodusMintId(serialHash, id)) {
             throw std::runtime_error("fail to read id");
         }
 
@@ -371,16 +392,9 @@ public:
     template<class Output>
     Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        std::unique_ptr<CWalletDB> local;
-
-        if (!db) {
-            db = new CWalletDB(walletFile);
-            local.reset(db);
-        }
-
-        db->ListExodusMints<SigmaMintId, SigmaMint>([&](const SigmaMintId& id, const SigmaMint &m) {
+        ListExodusMints([&](const SigmaMintId& id, const SigmaMint &m) {
             *output++ = std::make_pair(id, m);
-        });
+        }, db);
 
         return output;
     }
@@ -389,9 +403,8 @@ public:
 public:
     void DeleteUnconfirmedMint(SigmaMintId const &id)
     {
-        CWalletDB walletdb(walletFile);
         SigmaMint mint;
-        if (!walletdb.ReadExodusMint(id, mint)) {
+        if (!ReadExodusMint(id, mint)) {
             throw std::runtime_error("no mint data in wallet");
         }
 
@@ -405,7 +418,7 @@ public:
         mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
         SaveMintPool();
 
-        if (!walletdb.EraseExodusMint(id)) {
+        if (!EraseExodusMint(id)) {
             throw std::runtime_error("fail to erase mint from wallet");
         }
     }
@@ -485,10 +498,8 @@ protected:
 
         mintPool.clear();
 
-        CWalletDB walletdb(walletFile);
-
         std::vector<MintPoolEntry> mintPoolData;
-        if (walletdb.ReadExodusMintPool(mintPoolData)) {
+        if (ReadExodusMintPool(mintPoolData)) {
             for (auto &entry : mintPoolData) {
                 mintPool.insert(std::move(entry));
             }
@@ -506,7 +517,7 @@ protected:
             mintPoolData.push_back(entry);
         }
 
-        if (!CWalletDB(walletFile).WriteExodusMintPool(mintPoolData)) {
+        if (!WriteExodusMintPool(mintPoolData)) {
             throw std::runtime_error("fail to save mint pool to DB");
         }
     }

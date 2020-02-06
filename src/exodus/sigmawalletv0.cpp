@@ -34,4 +34,70 @@ unsigned SigmaWalletV0::GetChange() const
     return BIP44_EXODUS_MINT_INDEX;
 }
 
+bool SigmaWalletV0::WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->WriteExodusMint(id, mint);
+}
+
+bool SigmaWalletV0::ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db) const
+{
+    auto local = EnsureDBConnection(db);
+    return db->ReadExodusMint(id, mint);
+}
+
+bool SigmaWalletV0::EraseExodusMint(SigmaMintId const &id, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->EraseExodusMint(id);
+}
+
+bool SigmaWalletV0::HasExodusMint(SigmaMintId const &id, CWalletDB *db) const
+{
+    auto local = EnsureDBConnection(db);
+    return db->HasExodusMint(id);
+}
+
+bool SigmaWalletV0::WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->WriteExodusMintID(hash, mintId);
+}
+
+bool SigmaWalletV0::ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db) const
+{
+    auto local = EnsureDBConnection(db);
+    return db->ReadExodusMintID(hash, mintId);
+}
+
+bool SigmaWalletV0::EraseExodusMintId(uint160 const &hash, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->EraseExodusMintID(hash);
+}
+
+bool SigmaWalletV0::HasExodusMintId(uint160 const &hash, CWalletDB *db) const
+{
+    auto local = EnsureDBConnection(db);
+    return db->HasExodusMintID(hash);
+}
+
+bool SigmaWalletV0::WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->WriteExodusMintPool(mints);
+}
+
+bool SigmaWalletV0::ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    return db->ReadExodusMintPool(mints);
+}
+
+void SigmaWalletV0::ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)> inserter, CWalletDB *db)
+{
+    auto local = EnsureDBConnection(db);
+    db->ListExodusMints<SigmaMintId, SigmaMint>(inserter);
+}
+
 }

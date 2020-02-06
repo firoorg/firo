@@ -124,6 +124,72 @@ protected:
     unsigned GetChange() const {
         return BIP44_EXODUS_MINT_INDEX;
     }
+
+    bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->WriteExodusMint(id, mint);
+    }
+
+    bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const
+    {
+        auto local = EnsureDBConnection(db);
+        return db->ReadExodusMint(id, mint);
+    }
+
+    bool EraseExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->EraseExodusMint(id);
+    }
+
+    bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
+    {
+        auto local = EnsureDBConnection(db);
+        return db->HasExodusMint(id);
+    }
+
+    bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->WriteExodusMintID(hash, mintId);
+    }
+
+    bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
+    {
+        auto local = EnsureDBConnection(db);
+        return db->ReadExodusMintID(hash, mintId);
+    }
+
+    bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->EraseExodusMintID(hash);
+    }
+
+    bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const
+    {
+        auto local = EnsureDBConnection(db);
+        return db->HasExodusMintID(hash);
+    }
+
+    bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->WriteExodusMintPool(mints);
+    }
+
+    bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        return db->ReadExodusMintPool(mints);
+    }
+
+    void ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)> inserter, CWalletDB *db = nullptr)
+    {
+        auto local = EnsureDBConnection(db);
+        db->ListExodusMints<SigmaMintId, SigmaMint>(inserter);
+    }
 };
 
 struct SigmaWalletTestingSetup : WalletTestingSetup
