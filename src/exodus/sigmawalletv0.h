@@ -31,7 +31,7 @@ protected:
     bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
     bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
 
-    void ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)>, CWalletDB *db = nullptr);
+    void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
 
 public:
     using SigmaWallet::GeneratePrivateKey;

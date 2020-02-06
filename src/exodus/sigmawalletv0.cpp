@@ -94,7 +94,7 @@ bool SigmaWalletV0::ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalle
     return db->ReadExodusMintPool(mints);
 }
 
-void SigmaWalletV0::ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)> inserter, CWalletDB *db)
+void SigmaWalletV0::ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
     db->ListExodusMints<SigmaMintId, SigmaMint>(inserter);

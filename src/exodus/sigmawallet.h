@@ -174,7 +174,7 @@ protected:
     virtual bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
     virtual bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
 
-    virtual void ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)>, CWalletDB *db = nullptr) = 0;
+    virtual void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
 
     // Helper
     std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db = nullptr) const

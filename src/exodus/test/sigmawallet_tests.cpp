@@ -185,7 +185,7 @@ protected:
         return db->ReadExodusMintPool(mints);
     }
 
-    void ListExodusMints(std::function<void(SigmaMintId const&, SigmaMint const&)> inserter, CWalletDB *db = nullptr)
+    void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter, CWalletDB *db = nullptr)
     {
         auto local = EnsureDBConnection(db);
         db->ListExodusMints<SigmaMintId, SigmaMint>(inserter);
