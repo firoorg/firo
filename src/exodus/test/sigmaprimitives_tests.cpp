@@ -54,6 +54,28 @@ BOOST_AUTO_TEST_CASE(private_key_hash)
     BOOST_CHECK_NE(hasher(key1), hasher(key2));
 }
 
+BOOST_AUTO_TEST_CASE(private_key_v1)
+{
+    secp_primitives::Scalar randomness, serial;
+    randomness.randomize();
+    serial.randomize();
+
+    std::array<uint8_t, 32> secret;
+    std::fill(secret.begin(), secret.end(), 0);
+    secret[31] = 1;
+
+    SigmaPrivateKeyV1 priv(secret.begin(), secret.size(), serial, randomness);
+
+    BOOST_CHECK(priv.IsValid());
+    BOOST_CHECK_EQUAL(serial, priv.serial);
+    BOOST_CHECK_EQUAL(randomness, priv.randomness);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        secret.begin(),
+        secret.end(),
+        &priv.ecdsaPrivkey[0],
+        &priv.ecdsaPrivkey[0] + sizeof(priv.ecdsaPrivkey));
+}
+
 BOOST_AUTO_TEST_CASE(public_key)
 {
     auto& params = DefaultSigmaParams;

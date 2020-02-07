@@ -54,7 +54,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 namespace exodus {
 namespace {
 
-class TestSigmaWallet : public SigmaWallet<SigmaPrivateKey>
+class TestSigmaWallet : public SigmaWallet<SigmaPrivateKey, BIP44_EXODUS_MINT_INDEX>
 {
 
 public:

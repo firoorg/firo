@@ -29,11 +29,6 @@ SigmaPrivateKey SigmaWalletV0::GeneratePrivateKey(const uint512& seed)
     return priv;
 }
 
-unsigned SigmaWalletV0::GetChange() const
-{
-    return BIP44_EXODUS_MINT_INDEX;
-}
-
 bool SigmaWalletV0::WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);

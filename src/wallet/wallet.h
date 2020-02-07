@@ -89,6 +89,7 @@ const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips
 const uint32_t BIP44_MINT_INDEX = 0x2;
 #ifdef ENABLE_EXODUS
 const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
+const uint32_t BIP44_EXODUS_MINTV1_INDEX = 0x4;
 #endif
 
 class CBlockIndex;

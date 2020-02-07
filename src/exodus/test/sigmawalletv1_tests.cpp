@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "../sigmadb.h"
-#include "../sigmawalletv0.h"
+#include "../sigmawalletv1.h"
 #include "../walletmodels.h"
 
 #include "../../key.h"
@@ -12,6 +12,7 @@
 #include "../../validationinterface.h"
 
 #include "../../rpc/server.h"
+#include "../../sigma/openssl_context.h"
 
 #include "../../wallet/db.h"
 #include "../../wallet/rpcwallet.h"
@@ -54,83 +55,93 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 namespace exodus {
 namespace {
 
-class TestSigmaWalletV0 : public SigmaWalletV0
+class TestSigmaWalletV1 : public SigmaWalletV1
 {
 
 public:
-    TestSigmaWalletV0()
+    TestSigmaWalletV1()
     {
     }
 
 public:
     // Proxy
-    using SigmaWalletV0::GeneratePrivateKey;
-    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed)
+    bool GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out)
     {
-        return SigmaWalletV0::GeneratePrivateKey(seed);
+        return SigmaWalletV1::GeneratePublicKey(priv, privSize, out);
+    }
+
+    void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial)
+    {
+        SigmaWalletV1::GenerateSerial(pubkey, serial);
+    }
+
+    using SigmaWalletV1::GeneratePrivateKey;
+    SigmaPrivateKeyV1 GeneratePrivateKey(uint512 const &seed)
+    {
+        return SigmaWalletV1::GeneratePrivateKey(seed);
     }
 
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint)
     {
-        return SigmaWalletV0::WriteExodusMint(id, mint);
+        return SigmaWalletV1::WriteExodusMint(id, mint);
     }
 
     bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint) const
     {
-        return SigmaWalletV0::ReadExodusMint(id, mint);
+        return SigmaWalletV1::ReadExodusMint(id, mint);
     }
 
     bool EraseExodusMint(SigmaMintId const &id)
     {
-        return SigmaWalletV0::EraseExodusMint(id);
+        return SigmaWalletV1::EraseExodusMint(id);
     }
 
     bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::HasExodusMint(id);
+        return SigmaWalletV1::HasExodusMint(id);
     }
 
     bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId)
     {
-        return SigmaWalletV0::WriteExodusMintId(hash, mintId);
+        return SigmaWalletV1::WriteExodusMintId(hash, mintId);
     }
 
     bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::ReadExodusMintId(hash, mintId);
+        return SigmaWalletV1::ReadExodusMintId(hash, mintId);
     }
 
     bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV0::EraseExodusMintId(hash);
+        return SigmaWalletV1::EraseExodusMintId(hash);
     }
 
     bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::HasExodusMintId(hash);
+        return SigmaWalletV1::HasExodusMintId(hash);
     }
 
     bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints)
     {
-        return SigmaWalletV0::WriteExodusMintPool(mints);
+        return SigmaWalletV1::WriteExodusMintPool(mints);
     }
 
     bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV0::ReadExodusMintPool(mints);
+        return SigmaWalletV1::ReadExodusMintPool(mints);
     }
 
     void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
     {
-        return SigmaWalletV0::ListExodusMints(inserter);
+        return SigmaWalletV1::ListExodusMints(inserter);
     }
 };
 
-struct SigmaWalletV0TestingSetup : WalletTestingSetup
+struct SigmaWalletV1TestingSetup : WalletTestingSetup
 {
-    std::unique_ptr<TestSigmaWalletV0> wallet;
+    std::unique_ptr<TestSigmaWalletV1> wallet;
 
-    SigmaWalletV0TestingSetup() : wallet(new TestSigmaWalletV0())
+    SigmaWalletV1TestingSetup() : wallet(new TestSigmaWalletV1())
     {
         wallet->ReloadMasterKey();
     }
@@ -150,7 +161,7 @@ struct SigmaWalletV0TestingSetup : WalletTestingSetup
             SigmaMint(id, denom, seedId, serialId));
     }
 
-    std::pair<exodus::SigmaPrivateKey, exodus::SigmaPublicKey> GetKey(CKeyID const &id)
+    std::pair<exodus::SigmaPrivateKeyV1, exodus::SigmaPublicKey> GetKey(CKeyID const &id)
     {
         LOCK(pwalletMain->cs_wallet);
         auto priv = wallet->GeneratePrivateKey(id);
@@ -179,7 +190,7 @@ struct SigmaWalletV0TestingSetup : WalletTestingSetup
 
 } // unnamed namespace
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmawalletv0_tests, SigmaWalletV0TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_sigmawalletv1_tests, SigmaWalletV1TestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_private_key)
 {
@@ -191,13 +202,60 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
 
     auto key = wallet->GeneratePrivateKey(seed);
 
+    auto expectedSecret = ParseHex("cb30cc143888ef4e09bb4cfd6d0a699e3c089f42419a8a200132e3190e0e5951");
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expectedSecret.data(), expectedSecret.data() + expectedSecret.size(), &key.ecdsaPrivkey[0], &key.ecdsaPrivkey[0] + sizeof(key.ecdsaPrivkey));
+
     BOOST_CHECK_EQUAL(
-        std::string("cb30cc143888ef4e09bb4cfd6d0a699e3c089f42419a8a200132e3190e0e5951"),
+        std::string("afffcf7021f53224acb46ac82e71013149cd736ee12f6821802f52f9e92b73dd"),
         key.serial.GetHex());
 
     BOOST_CHECK_EQUAL(
         std::string("d2e5b830ab1fa8235a9af7db4fd554de5757a0e594acbfc1a4526c3fb26bcbbd"),
         key.randomness.GetHex());
+}
+
+BOOST_AUTO_TEST_CASE(generate_pubkey)
+{
+    auto secret = ParseHex("c634aba3ff562690db4a52cb869d38a43e8d817eddbf68dfb9983af5e9c3e505");
+
+    secp256k1_pubkey pubkey;
+    wallet->GeneratePublicKey(secret.data(), secret.size(), pubkey);
+
+    std::array<uint8_t, 33> compressedPub;
+
+    size_t outSize = sizeof(compressedPub);
+    secp256k1_ec_pubkey_serialize(
+        OpenSSLContext::get_context(),
+        compressedPub.begin(),
+        &outSize,
+        &pubkey,
+        SECP256K1_EC_COMPRESSED);
+
+    BOOST_CHECK_EQUAL(
+        std::string("02dce8866a065822ede68f54040342dafb55328fc666e2cbe5b37c56ebe5195ca1"),
+        HexStr(compressedPub));
+}
+
+BOOST_AUTO_TEST_CASE(generate_serial)
+{
+    auto rawPubkey = ParseHex("02dce8866a065822ede68f54040342dafb55328fc666e2cbe5b37c56ebe5195ca1");
+
+    secp256k1_pubkey pubkey;
+    BOOST_CHECK(secp256k1_ec_pubkey_parse(
+        OpenSSLContext::get_context(),
+        &pubkey,
+        rawPubkey.data(),
+        rawPubkey.size()
+    ));
+
+    secp_primitives::Scalar serial;
+    wallet->GenerateSerial(pubkey, serial);
+
+    BOOST_CHECK_EQUAL(
+        std::string("b8394f96f9aedc8a00091bf2e4dc639eb54af823477afac4dd89db23657c5576"),
+        serial.GetHex());
 }
 
 BOOST_AUTO_TEST_CASE(writemint)

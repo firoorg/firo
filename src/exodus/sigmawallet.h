@@ -64,7 +64,7 @@ typedef boost::multi_index_container<
     >
 > MintPool;
 
-template<class PrivateKey>
+template<class PrivateKey, uint32_t ChangeIndex>
 class SigmaWallet
 {
 public:
@@ -110,7 +110,7 @@ private:
     uint32_t GenerateNewSeed(CKeyID &seedId, uint512 &seed)
     {
         LOCK(pwalletMain->cs_wallet);
-        seedId = pwalletMain->GenerateNewKey(GetChange()).GetID();
+        seedId = pwalletMain->GenerateNewKey(ChangeIndex).GetID();
         return GenerateSeed(seedId, seed);
     }
 
@@ -539,8 +539,6 @@ protected:
         // publicKey is not in the pool
         return false;
     }
-
-    virtual unsigned GetChange() const = 0;
 
 protected:
     static uint32_t GetBIP44AddressIndex(std::string const &path)

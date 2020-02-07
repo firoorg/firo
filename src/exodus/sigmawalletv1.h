@@ -2,21 +2,26 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_EXODUS_SIGMAWALLETV0_H
-#define ZCOIN_EXODUS_SIGMAWALLETV0_H
+#ifndef ZCOIN_EXODUS_SIGMAWALLETV1_H
+#define ZCOIN_EXODUS_SIGMAWALLETV1_H
 
 #include "sigmawallet.h"
 
 namespace exodus {
 
-class SigmaWalletV0 : public SigmaWallet<SigmaPrivateKey, BIP44_EXODUS_MINT_INDEX>
+class SigmaWalletV1 : public SigmaWallet<SigmaPrivateKeyV1, BIP44_EXODUS_MINTV1_INDEX>
 {
 public:
-    SigmaWalletV0();
+    SigmaWalletV1();
 
 protected:
-    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
+    bool GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out);
+    void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial);
 
+protected:
+    SigmaPrivateKeyV1 GeneratePrivateKey(uint512 const &seed);
+
+    // DB
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
     bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const;
     bool EraseExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr);
@@ -38,4 +43,4 @@ public:
 
 }
 
-#endif // ZCOIN_EXODUS_SIGMAWALLETV0_H
+#endif // ZCOIN_EXODUS_SIGMAWALLETV1_H

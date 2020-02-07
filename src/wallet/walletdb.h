@@ -300,6 +300,55 @@ public:
 
 #ifdef ENABLE_EXODUS
 
+private:
+    template<typename K, typename V, typename InsertF>
+    void ListExodusMints(string const &type, InsertF insertF)
+    {
+        auto cursor = GetCursor();
+        if (!cursor) {
+            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+        }
+
+        unsigned int flags = DB_SET_RANGE;
+        while (true) {
+
+            // Read next record
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            if (flags == DB_SET_RANGE) {
+                ssKey << std::make_pair(type, K());
+            }
+
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+
+            flags = DB_NEXT;
+            if (ret == DB_NOTFOUND) {
+                break;
+            } else if (ret != 0) {
+                cursor->close();
+                throw runtime_error(std::string(__func__)+" : error scanning DB");
+            }
+
+            // Unserialize
+            std::string itemType;
+            ssKey >> itemType;
+            if (itemType != type) {
+                break;
+            }
+
+            K key;
+            ssKey >> key;
+
+            V value;
+            ssValue >> value;
+
+            insertF(key, value);
+        }
+
+        cursor->close();
+    }
+
+public:
     template<class MintPool>
     bool ReadExodusMintPool(MintPool &mintPool)
     {
@@ -368,49 +417,82 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListExodusMints(InsertF insertF)
     {
-        auto cursor = GetCursor();
-        if (!cursor) {
-            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
-        }
-
-        unsigned int flags = DB_SET_RANGE;
-        while (true) {
-
-            // Read next record
-            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (flags == DB_SET_RANGE) {
-                ssKey << std::make_pair(string("exodus_mint"), K());
-            }
-
-            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
-
-            flags = DB_NEXT;
-            if (ret == DB_NOTFOUND) {
-                break;
-            } else if (ret != 0) {
-                cursor->close();
-                throw runtime_error(std::string(__func__)+" : error scanning DB");
-            }
-
-            // Unserialize
-            std::string type;
-            ssKey >> type;
-            if (type != "exodus_mint") {
-                break;
-            }
-
-            K key;
-            ssKey >> key;
-
-            V value;
-            ssValue >> value;
-
-            insertF(key, value);
-        }
-
-        cursor->close();
+        ListExodusMints<K, V, InsertF>(string("exodus_mint"), insertF);
     }
+
+    // version 1
+    template<class MintPool>
+    bool ReadExodusMintPoolV1(MintPool &mintPool)
+    {
+        return Read(std::string("exodus_mint_pool_v1"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteExodusMintPoolV1(MintPool const &mintPool)
+    {
+        return Write(std::string("exodus_mint_pool_v1"), mintPool, true);
+    }
+
+    bool HasExodusMintPoolV1()
+    {
+        return Exists(std::string("exodus_mint_pool_v1"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadExodusMintIDV1(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_id_v1"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteExodusMintIDV1(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_id_v1"), k), id);
+    }
+
+    template<class Key>
+    bool HasExodusMintIDV1(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_id_v1"), k));
+    }
+
+    template<class Key>
+    bool EraseExodusMintIDV1(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_id_v1"), k));
+    }
+
+    template<class K, class V>
+    bool ReadExodusMintV1(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_v1"), k), v);
+    }
+
+    template<class K>
+    bool HasExodusMintV1(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_v1"), k));
+    }
+
+    template<class K, class V>
+    bool WriteExodusMintV1(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_v1"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseExodusMintV1(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_v1"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListExodusMintsV1(InsertF insertF)
+    {
+        ListExodusMints<K, V, InsertF>(string("exodus_mint_v1"), insertF);
+    }
+
+
 #endif
 
 private:
