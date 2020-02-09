@@ -751,7 +751,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
         if(!wallet->CommitTransaction(*newTx, *keyChange, g_connman.get(), state))
             return TransactionCommitFailed;
 
-        CTransaction* t = (CTransaction*)newTx;
+        const CTransaction* t = (newTx->tx.get());
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *t;
         transaction_array.append(&(ssTx[0]), ssTx.size());
