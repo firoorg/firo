@@ -12,6 +12,7 @@
 #include "base58.h"
 #include "client-api/send.h"
 #include "client-api/protocol.h"
+#include "coincontrol.h"
 #include <zerocoin.h>
 #include <sigma.h>
 #include <vector>
@@ -147,6 +148,9 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     std::string label = find_value(data, "label").get_str();
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
 
+    CCoinControl cc;
+    bool hasCoinControl = GetCoinControl(data, cc);
+
     std::set<CBitcoinAddress> setAddress;
     std::vector<CRecipient> vecSend;
 
@@ -191,7 +195,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
 
     try {
         // create transaction
-        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, NULL, fDummy);
+        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, hasCoinControl? (&cc):NULL, fDummy);
     }catch (const InsufficientFunds& e) {
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
     }
