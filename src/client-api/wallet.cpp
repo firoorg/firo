@@ -187,8 +187,10 @@ UniValue setInitialTimestamp(string hash){
 
 void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry){
     if (pwalletMain->IsSpent(outPoint.hash, outPoint.n) ||
-        (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0))
+        (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) ||
+        wtx.GetDepthInMainChain() <= 0)
         entry.push_back(Pair("spendable", false));
+
     else{
         entry.push_back(Pair("spendable", true));
         entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n)));
@@ -438,6 +440,39 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             ret.replace(addrStr, address);
         }
     }
+
+    UniValue listInputs(UniValue::VARR);
+    if (!wtx.IsSigmaSpend()) {
+        BOOST_FOREACH(const CTxIn& in, wtx.vin) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("txid", in.prevout.hash.ToString()));
+            entry.push_back(Pair("index", to_string(in.prevout.n)));
+            listInputs.push_back(entry);
+        }
+    }else {
+        COutPoint outpoint;
+        CMintMeta meta;
+        Scalar zcSpendSerial;
+        uint256 spentSerialHash;
+
+        BOOST_FOREACH(const CTxIn& in, wtx.vin) {
+            UniValue entry(UniValue::VOBJ);
+
+            zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
+            spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
+
+            if(!zwalletMain->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
+                continue;
+            
+            if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
+                continue;
+
+            entry.push_back(Pair("txid", outpoint.hash.ToString()));
+            entry.push_back(Pair("index", to_string(outpoint.n)));
+            listInputs.push_back(entry);
+        }
+    }
+    ret.push_back(Pair("inputs", listInputs));
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
@@ -457,7 +492,6 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
 
     UniValue transactions(UniValue::VOBJ);
-
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
     {
         CWalletTx tx = (*it).second;
