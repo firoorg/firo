@@ -23,11 +23,11 @@ using namespace boost::chrono;
 using namespace std;
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
-    if (find_value(data, "coincontrol").isNull()) return false;
+    if (find_value(data, "coinControl").isNull()) return false;
     UniValue uniValCC(UniValue::VOBJ);
-    uniValCC = find_value(data, "coincontrol");
+    uniValCC = find_value(data, "coinControl");
     UniValue uniSelected(UniValue::VSTR);
-    uniSelected = find_value(uniValCC, "selecteds");
+    uniSelected = find_value(uniValCC, "selected");
 
     std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
     if (selected.empty()) return false;

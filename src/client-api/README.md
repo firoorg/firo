@@ -645,8 +645,8 @@ OPTIONAL: not a necessary parameter to pass.
         ],
         label: STRING,
         subtractFeeFromAmount: BOOL,
-        coincontrol: { (OPTIONAL)
-            selecteds: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        coinControl: { (OPTIONAL)
+            selected: STRING ("txid0|vout:txid1|vout...txidn|vout")
         }
     }
     auth: {
@@ -685,8 +685,8 @@ OPTIONAL: not a necessary parameter to pass.
         },
         feePerKb: INT (sats),
         subtractFeeFromAmount: BOOL,
-        coincontrol: { (OPTIONAL)
-            selecteds: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        coinControl: { (OPTIONAL)
+            selected: STRING ("txid0|vout:txid1|vout...txidn|vout")
         }
     },
     auth: {
