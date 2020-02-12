@@ -86,7 +86,7 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
     if(wtx==NULL)
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     
-    ListAPITransactions(*wtx, ret, ISMINE_ALL);
+    ListAPITransactions(*wtx, ret, ISMINE_ALL, true);
 
     return ret;
 }

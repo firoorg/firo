@@ -644,7 +644,10 @@ OPTIONAL: not a necessary parameter to pass.
             }
         ],
         label: STRING,
-        subtractFeeFromAmount: BOOL
+        subtractFeeFromAmount: BOOL,
+        coincontrol: { (OPTIONAL)
+            selecteds: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        }
     }
     auth: {
         passphrase: STRING
@@ -681,7 +684,10 @@ OPTIONAL: not a necessary parameter to pass.
           ...
         },
         feePerKb: INT (sats),
-        subtractFeeFromAmount: BOOL
+        subtractFeeFromAmount: BOOL,
+        coincontrol: { (OPTIONAL)
+            selecteds: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        }
     },
     auth: {
         passphrase: STRING
@@ -1376,7 +1382,18 @@ Methods specific to the publisher.
             }
         },
         ...
-    }
+    },
+    "inputs": [
+        {
+            txid: STRING,
+            index: STRING
+        },
+        {
+            txid: STRING,
+            index: STRING
+        },
+        ...
+    ]
     meta: {
         status: 200
     }

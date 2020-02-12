@@ -12,6 +12,7 @@
 #include "client-api/send.h"
 #include "client-api/sigma.h"
 #include "client-api/protocol.h"
+#include "client-api/wallet.h"
 #include "coincontrol.h"
 #include "univalue.h"
 #include <fstream>
@@ -238,7 +239,7 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair(item.first, item.second));
 }
 
-void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter)
+void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs)
 {
     CAmount nFee;
     string strSentAccount;
@@ -440,39 +441,40 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             ret.replace(addrStr, address);
         }
     }
+    if(getInputs){
+        UniValue listInputs(UniValue::VARR);
+        if (!wtx.IsSigmaSpend()) {
+            BOOST_FOREACH(const CTxIn& in, wtx.vin) {
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("txid", in.prevout.hash.ToString()));
+                entry.push_back(Pair("index", to_string(in.prevout.n)));
+                listInputs.push_back(entry);
+            }
+        }else {
+            COutPoint outpoint;
+            CMintMeta meta;
+            Scalar zcSpendSerial;
+            uint256 spentSerialHash;
 
-    UniValue listInputs(UniValue::VARR);
-    if (!wtx.IsSigmaSpend()) {
-        BOOST_FOREACH(const CTxIn& in, wtx.vin) {
-            UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("txid", in.prevout.hash.ToString()));
-            entry.push_back(Pair("index", to_string(in.prevout.n)));
-            listInputs.push_back(entry);
+            BOOST_FOREACH(const CTxIn& in, wtx.vin) {
+                UniValue entry(UniValue::VOBJ);
+
+                zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
+                spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
+
+                if(!zwalletMain->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
+                    continue;
+
+                if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
+                    continue;
+
+                entry.push_back(Pair("txid", outpoint.hash.ToString()));
+                entry.push_back(Pair("index", to_string(outpoint.n)));
+                listInputs.push_back(entry);
+            }
         }
-    }else {
-        COutPoint outpoint;
-        CMintMeta meta;
-        Scalar zcSpendSerial;
-        uint256 spentSerialHash;
-
-        BOOST_FOREACH(const CTxIn& in, wtx.vin) {
-            UniValue entry(UniValue::VOBJ);
-
-            zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
-            spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
-
-            if(!zwalletMain->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
-                continue;
-            
-            if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
-                continue;
-
-            entry.push_back(Pair("txid", outpoint.hash.ToString()));
-            entry.push_back(Pair("index", to_string(outpoint.n)));
-            listInputs.push_back(entry);
-        }
+        ret.push_back(Pair("inputs", listInputs));
     }
-    ret.push_back(Pair("inputs", listInputs));
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
