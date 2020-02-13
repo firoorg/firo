@@ -4295,7 +4295,7 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
             Bip47PaymentChannel *pchannel = pwalletMain->getPaymentChannelFromPaymentCode(strPcode);
             std::string outaddress = pwalletMain->getCurrentOutgoingAddress(*pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
-            ret.push_back(Pair("OutGoingAddress Size", pchannel->getOutgoingAddresses().size()));
+            ret.push_back(Pair("OutGoingAddress Size", (int64_t)pchannel->getOutgoingAddresses().size()));
             if(pchannel->getIncomingAddresses().size() == 0) {
                 PaymentAddress paddr = BIP47Util::getReceiveAddress(pwalletMain, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
@@ -4304,7 +4304,7 @@ UniValue validatepcode(const UniValue& params, bool fHelp)
                 ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
             } else {
                 LogPrintf("current Incoming Address size = %d\n", pchannel->getIncomingAddresses().size());
-                ret.push_back(Pair("IncomingAddress Size", pchannel->getIncomingAddresses().size()));
+                ret.push_back(Pair("IncomingAddress Size", (int64_t)pchannel->getIncomingAddresses().size()));
             }
         } 
         else

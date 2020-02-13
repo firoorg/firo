@@ -647,8 +647,6 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             }
 
-
-
             wallet->GetKey(designatedPubKey.GetID(), privKey);
             CPubKey pubkey = toBip47Account.getNotificationKey().pubkey;
             vector<unsigned char> dataPriv(privKey.size());

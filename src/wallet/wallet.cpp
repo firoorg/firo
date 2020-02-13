@@ -1562,7 +1562,6 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
             LogPrintf("Bip47Wallet Error CreateTransaction 1 %s\n", strError);
             throw std::runtime_error(std::string("Bip47Wallet Error CreateTransaction 1 ") + strError );
         }
-        LogPrintf("Script sig 1: %s\n", HexStr(wtx.vin[0].scriptSig.begin(), wtx.vin[0].scriptSig.end()));
 
         if ( wtx.vin.size() == 0 ) {
             LogPrintf("Bip47Wallet Error CreateTransaction wtx.vin.size = 0\n");
@@ -1579,7 +1578,6 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
         else
         {
             designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
-            LogPrintf("ScriptSigPubKey Hash %s\n", designatedPubKey.GetHash().GetHex());
 
         }
         GetKey(designatedPubKey.GetID(), privKey);
@@ -1597,9 +1595,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
 
         vector<unsigned char> outpoint(wtx.vin[0].prevout.hash.begin(), wtx.vin[0].prevout.hash.end());
 
-        LogPrintf("output: %s\n", wtx.vin[0].prevout.hash.GetHex());
         uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
-        LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
 
         LogPrintf("Get Mask from payment code\n"); //Masking Protections for Secret Point
@@ -1618,7 +1614,6 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
             throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
                 
-        LogPrintf("Script sig 2: %s\n", HexStr(wtx.vin[0].scriptSig.begin(), wtx.vin[0].scriptSig.end()));
         if (!BIP47Util::getScriptSigPubkey(wtx.vin[0], pubKeyBytes))
         {
             throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error 2\n");
@@ -1831,6 +1826,7 @@ bool CWallet::savePaymentCode(PaymentCode from_pcode)
 
 Bip47Account CWallet::getBip47Account(int i)
 {
+    if (m_Bip47Accounts.empty()) throw runtime_error("m_Bip47Accounts error");
     return m_Bip47Accounts[i];
 }
 

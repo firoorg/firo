@@ -118,8 +118,22 @@ bool BIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByte
 
     if (!txin.scriptSig.GetOp(pc, opcode1, chunk1data))
     {
-        LogPrintf("Bip47Utiles ScriptSig Chunk1 error != 2\n");
-        return false;
+        //check whether this is a P2PK redeems cript
+        CScript dest = pwalletMain->mapWallet[txin.prevout.hash].vout[txin.prevout.n].scriptPubKey;
+        CScript::const_iterator pc = dest.begin();
+        opcodetype opcode;
+        std::vector<unsigned char> vch;
+        if (!dest.GetOp(pc, opcode, vch) || vch.size() < 33 || vch.size() > 65) 
+            return false;
+        CPubKey pubKeyOut = CPubKey(vch);
+        if (!pubKeyOut.IsFullyValid())
+            return false;
+        if (!dest.GetOp(pc, opcode, vch) || opcode != OP_CHECKSIG || dest.GetOp(pc, opcode, vch))
+            return false;
+
+        pubkeyBytes.clear();
+        std::copy(pubKeyOut.begin(), pubKeyOut.end(), std::back_inserter(pubkeyBytes));
+        return true;
     } 
     LogPrintf("opcode1 = %x, chunk1data.size = %d\n", opcode1, chunk1data.size());
     
