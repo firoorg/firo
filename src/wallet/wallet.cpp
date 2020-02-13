@@ -1896,13 +1896,6 @@ void CWallet::deriveBip47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramete
     LogPrintf("Dervie Bip47Accounts Done\n");
 }
 
-bool CWallet::importBip47PaymentChannelData()
-{
-    CWalletDB walletdb(bip47WalletFile, "r+", false);
-    walletdb.ListBip47PaymentChannel(m_Bip47channels);
-    return true;
-}
-
 void CWallet::saveBip47PaymentChannelData(string pchannelId)
 {
     try {

@@ -1267,7 +1267,6 @@ public:
     void deriveBip47Accounts(std::vector<unsigned char> hd_seed);
     void deriveBip47Accounts(CExtKey masterKey);
     
-    bool importBip47PaymentChannelData();
     void saveBip47PaymentChannelData(string pchannelId);
     bool addToBip47PaymentChannel(Bip47PaymentChannel paymentChannel);
     
