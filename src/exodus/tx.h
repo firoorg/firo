@@ -141,6 +141,9 @@ private:
     uint16_t groupSize;
     std::unique_ptr<exodus::SigmaProof> spend;
 
+    std::array<uint8_t, 33> sigmaECDSAPubkey;
+    std::array<uint8_t, 64> sigmaECDSASignature;
+
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
 
@@ -240,6 +243,7 @@ public:
     uint64_t getFeePaid() const { return tx_fee_paid; }
     const std::string& getSender() const { return sender; }
     const std::string& getReceiver() const { return receiver; }
+    boost::optional<CAmount> getReferenceAmount() const { return referenceAmount; }
     uint64_t getAmount() const { return nValue; }
     uint64_t getNewAmount() const { return nNewValue; }
     uint8_t getEcosystem() const { return ecosystem; }
@@ -269,6 +273,8 @@ public:
     uint32_t getGroup() const { return group; }
     uint16_t getGroupSize() const { return groupSize; }
     const exodus::SigmaProof *getSpend() const { return spend.get(); }
+    const std::array<uint8_t, 33> &getSigmaECDSAPublicKey() const { return sigmaECDSAPubkey; }
+    const std::array<uint8_t, 64> &getSigmaECDSASignature() const { return sigmaECDSASignature; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

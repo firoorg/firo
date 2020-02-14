@@ -1,10 +1,12 @@
 #ifndef ZCOIN_EXODUS_WALLET_H
 #define ZCOIN_EXODUS_WALLET_H
 
+#include "coinsigner.h"
 #include "exodus.h"
 #include "property.h"
 #include "sigmaprimitives.h"
 #include "sigmawalletv0.h"
+#include "sigmawalletv1.h"
 #include "sp.h"
 #include "walletmodels.h"
 
@@ -21,6 +23,14 @@ namespace exodus {
 
 class Wallet
 {
+protected:
+    enum class CoinVersion : uint8_t
+    {
+        Unknown,
+        SigmaV0,
+        SigmaV1
+    };
+
 public:
     Wallet(const std::string& walletFile);
     virtual ~Wallet();
@@ -47,24 +57,43 @@ public:
     void ClearAllChainState();
 
     SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding);
+    SigmaSpend CreateLegacySigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding);
+
     void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
     void ListSigmaMints(OutputIt it)
     {
-        mintWallet.ListMints(it);
+        mintWalletV1.ListMints(it);
+    }
+
+    template<class OutputIt>
+    void ListLegacySigmaMints(OutputIt it)
+    {
+        mintWalletV0.ListMints(it);
     }
 
     SigmaMint GetSigmaMint(const SigmaMintId& id);
+    CoinSigner GetSigmaSigner(const SigmaMintId &id);
     SigmaPrivateKey GetKey(const SigmaMint &mint);
+
     bool HasSigmaMint(const SigmaMintId& id);
     bool HasSigmaMint(const secp_primitives::Scalar &serial);
 
 protected:
     boost::optional<SigmaMint> GetSpendableSigmaMint(
-        PropertyId property, SigmaDenomination denomination);
+        PropertyId property, SigmaDenomination denomination, CoinVersion version);
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
+
+    SigmaWallet& GetMintWallet(CoinVersion version);
+    SigmaWallet& GetMintWallet(SigmaMintId const &id);
+    SigmaWallet& GetMintWallet(secp_primitives::Scalar &serial);
+
+    bool HasSigmaMint(const SigmaMintId& id, CoinVersion &version);
+    bool HasSigmaMint(const secp_primitives::Scalar &scalar, CoinVersion &version);
+
+    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, CoinVersion version);
 
 private:
     void OnSpendAdded(
@@ -91,7 +120,8 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
-    SigmaWalletV0 mintWallet;
+    SigmaWalletV0 mintWalletV0;
+    SigmaWalletV1 mintWalletV1;
 };
 
 extern Wallet *wallet;

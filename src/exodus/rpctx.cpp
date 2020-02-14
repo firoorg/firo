@@ -8,6 +8,7 @@
 #include "rpcrequirements.h"
 #include "rpcvalues.h"
 #include "rules.h"
+#include "signaturebuilder.h"
 #include "sp.h"
 #include "tx.h"
 #include "utilsbitcoin.h"
@@ -1719,15 +1720,26 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         bool fPadding = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock;
 
         auto spend = wallet->CreateSigmaSpend(propertyId, denomination, fPadding);
-        mint = spend.mint;
+        auto signer = wallet->GetSigmaSigner(spend.mint);
+        auto pubkey = signer.GetPublicKey();
 
+        CBitcoinAddress address(toAddress);
+
+        SigmaV1SignatureBuilder sigBuilder(
+            address, referenceAmount, spend.proof, pubkey.data(), pubkey.size());
+
+        auto signature = sigBuilder.Sign(signer);
+
+        mint = spend.mint;
         payload = CreatePayload_SimpleSpend(
             mint.property,
             mint.denomination,
             spend.group,
             spend.groupSize,
-            spend.proof
-        );
+            spend.proof,
+            signature,
+            pubkey);
+
     } catch (InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
     } catch (WalletError &e) {

@@ -5,11 +5,12 @@
 #ifndef ZCOIN_EXODUS_SIGMAWALLETV1_H
 #define ZCOIN_EXODUS_SIGMAWALLETV1_H
 
+#include "coinsigner.h"
 #include "sigmawallet.h"
 
 namespace exodus {
 
-class SigmaWalletV1 : public SigmaWallet<SigmaPrivateKeyV1, BIP44_EXODUS_MINTV1_INDEX>
+class SigmaWalletV1 : public SigmaWallet
 {
 public:
     SigmaWalletV1();
@@ -18,8 +19,11 @@ protected:
     bool GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out);
     void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial);
 
+
 protected:
-    SigmaPrivateKeyV1 GeneratePrivateKey(uint512 const &seed);
+    uint32_t ChangeIndex();
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, std::array<uint8_t, 32> &ecdsaKeyOut);
 
     // DB
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
@@ -39,6 +43,10 @@ protected:
 
 public:
     using SigmaWallet::GeneratePrivateKey;
+
+public:
+    // V1 specific
+    CoinSigner GetSigner(SigmaMintId const &id);
 };
 
 }

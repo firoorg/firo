@@ -856,9 +856,21 @@ bool CMPTransaction::interpret_SimpleSpend()
     );
 
     spend.reset(new SigmaProof(DefaultSigmaParams));
-
     try {
-        serialized >> *spend;
+        if (version == 1) {
+            serialized.read(reinterpret_cast<char*>(sigmaECDSAPubkey.data()), sizeof(sigmaECDSAPubkey));
+            serialized >> spend->proof;
+            serialized.read(reinterpret_cast<char*>(sigmaECDSASignature.data()), sizeof(sigmaECDSASignature));
+
+            std::array<uint8_t, CSHA256::OUTPUT_SIZE> hash;
+            CSHA256()
+                .Write(sigmaECDSAPubkey.data(), sizeof(sigmaECDSAPubkey))
+                .Finalize(hash.data());
+
+            spend->serial.memberFromSeed(hash.begin());
+        } else {
+            serialized >> *spend;
+        }
     } catch (std::ios_base::failure&) {
         PrintToLog("\tsize of data is less than spend size");
         return false;

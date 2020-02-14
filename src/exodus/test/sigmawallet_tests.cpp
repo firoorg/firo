@@ -52,9 +52,11 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 } // namespace std
 
 namespace exodus {
+
+using MintPoolEntry = SigmaWallet::MintPoolEntry;
 namespace {
 
-class TestSigmaWallet : public SigmaWallet<SigmaPrivateKey, BIP44_EXODUS_MINT_INDEX>
+class TestSigmaWallet : public SigmaWallet
 {
 
 public:
@@ -63,9 +65,19 @@ public:
     }
 
 public:
+    uint32_t ChangeIndex()
+    {
+        return BIP44_EXODUS_MINT_INDEX;
+    }
+
     SigmaPrivateKey GeneratePrivateKeyFromSeed(uint512 const &seed)
     {
         return GeneratePrivateKey(seed);
+    }
+
+    std::array<uint8_t, 64> Sign(SigmaMintId const &id, unsigned char const *payload, size_t payloadSize)
+    {
+        return std::array<uint8_t, 64>();
     }
 
     void LoadMintPool()

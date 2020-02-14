@@ -2,6 +2,7 @@
 
 #include "rules.h"
 #include "sigma.h"
+#include "signaturebuilder.h"
 
 #include "../base58.h"
 
@@ -161,6 +162,23 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     bool const fPadding = block >= ::Params().GetConsensus().nSigmaPaddingBlock;
 
     assert(spend);
+
+    // check signature
+    CBitcoinAddress receiver(tx.getReceiver());
+    int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
+    auto &publicKey = tx.getSigmaECDSAPublicKey();
+
+    SigmaV1SignatureBuilder sigBuilder(
+        receiver,
+        referenceAmount,
+        *spend,
+        publicKey.data(),
+        publicKey.size());
+
+    if (!sigBuilder.Verify(tx.getSigmaECDSASignature())) {
+        PrintToLog("%s(): rejected: signature is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 907;
+    }
 
     // check serial in database
     uint256 spendTx;

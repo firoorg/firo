@@ -53,6 +53,8 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 } // namespace std
 
 namespace exodus {
+
+using MintPoolEntry = SigmaWallet::MintPoolEntry;
 namespace {
 
 class TestSigmaWalletV1 : public SigmaWalletV1
@@ -76,7 +78,7 @@ public:
     }
 
     using SigmaWalletV1::GeneratePrivateKey;
-    SigmaPrivateKeyV1 GeneratePrivateKey(uint512 const &seed)
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed)
     {
         return SigmaWalletV1::GeneratePrivateKey(seed);
     }
@@ -161,7 +163,7 @@ struct SigmaWalletV1TestingSetup : WalletTestingSetup
             SigmaMint(id, denom, seedId, serialId));
     }
 
-    std::pair<exodus::SigmaPrivateKeyV1, exodus::SigmaPublicKey> GetKey(CKeyID const &id)
+    std::pair<exodus::SigmaPrivateKey, exodus::SigmaPublicKey> GetKey(CKeyID const &id)
     {
         LOCK(pwalletMain->cs_wallet);
         auto priv = wallet->GeneratePrivateKey(id);
@@ -203,9 +205,6 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
     auto key = wallet->GeneratePrivateKey(seed);
 
     auto expectedSecret = ParseHex("cb30cc143888ef4e09bb4cfd6d0a699e3c089f42419a8a200132e3190e0e5951");
-
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-        expectedSecret.data(), expectedSecret.data() + expectedSecret.size(), &key.ecdsaPrivkey[0], &key.ecdsaPrivkey[0] + sizeof(key.ecdsaPrivkey));
 
     BOOST_CHECK_EQUAL(
         std::string("afffcf7021f53224acb46ac82e71013149cd736ee12f6821802f52f9e92b73dd"),

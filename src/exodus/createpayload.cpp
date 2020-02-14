@@ -607,6 +607,7 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
     return payload;
 }
 
+// Legacy version
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, exodus::SigmaProof const &proof)
@@ -630,6 +631,38 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
+
+    return payload;
+}
+
+std::vector<unsigned char> CreatePayload_SimpleSpend(
+    uint32_t propertyId, uint8_t denomination, uint32_t group,
+    uint16_t groupSize, exodus::SigmaProof const &proof,
+    std::array<uint8_t, 64> const &signature, std::array<uint8_t, 33> const &pubkey)
+{
+    std::vector<unsigned char> payload;
+    uint16_t messageVer = 1;
+    uint16_t messageType = EXODUS_TYPE_SIMPLE_SPEND;
+    exodus::swapByteOrder(messageVer);
+    exodus::swapByteOrder(messageType);
+    exodus::swapByteOrder(propertyId);
+    exodus::swapByteOrder(group);
+    exodus::swapByteOrder(groupSize);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, denomination);
+    PUSH_BACK_BYTES(payload, group);
+    PUSH_BACK_BYTES(payload, groupSize);
+
+    payload.insert(payload.end(), pubkey.begin(), pubkey.end());
+
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof.proof;
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
+
+    payload.insert(payload.end(), signature.begin(), signature.end());
 
     return payload;
 }

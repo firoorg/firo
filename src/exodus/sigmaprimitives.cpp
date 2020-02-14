@@ -80,42 +80,6 @@ void SigmaPrivateKey::Generate()
     } while (!IsValid());
 }
 
-// SigmaPrivateKeyV1 Implementation.
-SigmaPrivateKeyV1::SigmaPrivateKeyV1()
-{
-}
-
-SigmaPrivateKeyV1::SigmaPrivateKeyV1(
-    unsigned char const *ecdsaPrivkey,
-    size_t ecdsaPrivKeySize,
-    secp_primitives::Scalar const &serial,
-    secp_primitives::Scalar const &randomness)
-    : serial(serial), randomness(randomness)
-{
-    if (ecdsaPrivKeySize == sizeof(this->ecdsaPrivkey)) {
-        std::copy(ecdsaPrivkey, ecdsaPrivkey + ecdsaPrivKeySize, this->ecdsaPrivkey);
-    } else {
-        throw std::invalid_argument("EcdsaKey size does not match.");
-    }
-}
-
-bool SigmaPrivateKeyV1::operator==(const SigmaPrivateKeyV1& other) const
-{
-    return this->ecdsaPrivkey == other.ecdsaPrivkey
-        && serial == other.serial
-        && randomness == other.randomness;
-}
-
-bool SigmaPrivateKeyV1::operator!=(const SigmaPrivateKeyV1& other) const
-{
-    return !(*this == other);
-}
-
-bool SigmaPrivateKeyV1::IsValid() const
-{
-    return serial.isMember() && randomness.isMember();
-}
-
 // SigmaPublicKey Implementation.
 
 SigmaPublicKey::SigmaPublicKey()
@@ -123,11 +87,6 @@ SigmaPublicKey::SigmaPublicKey()
 }
 
 SigmaPublicKey::SigmaPublicKey(const SigmaPrivateKey& key, const SigmaParams& params)
-{
-    Generate(key, params);
-}
-
-SigmaPublicKey::SigmaPublicKey(const SigmaPrivateKeyV1& key, const SigmaParams& params)
 {
     Generate(key, params);
 }
@@ -148,20 +107,6 @@ bool SigmaPublicKey::IsValid() const
 }
 
 void SigmaPublicKey::Generate(const SigmaPrivateKey& key, const SigmaParams& params)
-{
-    if (!key.IsValid()) {
-        throw std::invalid_argument("The private key is not valid");
-    }
-
-    commitment = sigma::SigmaPrimitives<secp_primitives::Scalar, secp_primitives::GroupElement>::commit(
-        params.g,
-        key.serial,
-        params.h[0],
-        key.randomness
-    );
-}
-
-void SigmaPublicKey::Generate(const SigmaPrivateKeyV1& key, const SigmaParams& params)
 {
     if (!key.IsValid()) {
         throw std::invalid_argument("The private key is not valid");

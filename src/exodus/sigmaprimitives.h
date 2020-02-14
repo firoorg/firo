@@ -74,40 +74,6 @@ public:
     }
 };
 
-class SigmaPrivateKeyV1
-{
-public:
-    unsigned char ecdsaPrivkey[32];
-    secp_primitives::Scalar serial;
-    secp_primitives::Scalar randomness;
-
-public:
-    SigmaPrivateKeyV1();
-    SigmaPrivateKeyV1(
-        unsigned char const *ecdsaPrivkey,
-        size_t ecdsaPrivKeySize,
-        secp_primitives::Scalar const &serial,
-        secp_primitives::Scalar const &randomness);
-
-public:
-    bool operator==(const SigmaPrivateKeyV1& other) const;
-    bool operator!=(const SigmaPrivateKeyV1& other) const;
-
-public:
-    bool IsValid() const;
-
-public:
-    ADD_SERIALIZE_METHODS;
-
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(ecdsaPrivkey);
-        READWRITE(serial);
-        READWRITE(randomness);
-    }
-};
-
 class SigmaPublicKey
 {
 public:
@@ -116,7 +82,6 @@ public:
 public:
     SigmaPublicKey();
     SigmaPublicKey(const SigmaPrivateKey& key, const SigmaParams& params);
-    SigmaPublicKey(const SigmaPrivateKeyV1& key, const SigmaParams& params);
 
 public:
     bool operator==(const SigmaPublicKey& other) const;
@@ -127,7 +92,6 @@ public:
 
 public:
     void Generate(const SigmaPrivateKey& key, const SigmaParams& params);
-    void Generate(const SigmaPrivateKeyV1& key, const SigmaParams& params);
 
 public:
     ADD_SERIALIZE_METHODS;
@@ -259,21 +223,6 @@ struct hash<SigmaPrivateKey>
     {
         size_t h = 0;
 
-        h ^= hash<secp_primitives::Scalar>()(k.serial);
-        h ^= hash<secp_primitives::Scalar>()(k.randomness);
-
-        return h;
-    }
-};
-
-template<>
-struct hash<SigmaPrivateKeyV1>
-{
-    size_t operator()(const SigmaPrivateKeyV1& k) const
-    {
-        size_t h = 0;
-
-        h ^= hash<unsigned char const*>()(k.ecdsaPrivkey);
         h ^= hash<secp_primitives::Scalar>()(k.serial);
         h ^= hash<secp_primitives::Scalar>()(k.randomness);
 

@@ -9,12 +9,13 @@
 
 namespace exodus {
 
-class SigmaWalletV0 : public SigmaWallet<SigmaPrivateKey, BIP44_EXODUS_MINT_INDEX>
+class SigmaWalletV0 : public SigmaWallet
 {
 public:
     SigmaWalletV0();
 
 protected:
+    uint32_t ChangeIndex();
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
 
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);

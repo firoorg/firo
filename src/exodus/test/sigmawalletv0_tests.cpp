@@ -52,6 +52,8 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 } // namespace std
 
 namespace exodus {
+
+using MintPoolEntry = SigmaWallet::MintPoolEntry;
 namespace {
 
 class TestSigmaWalletV0 : public SigmaWalletV0

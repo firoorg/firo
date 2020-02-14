@@ -48,18 +48,30 @@ void SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitiv
     serial.memberFromSeed(hash.begin());
 }
 
-SigmaPrivateKeyV1 SigmaWalletV1::GeneratePrivateKey(const uint512& seed)
+uint32_t SigmaWalletV1::ChangeIndex()
+{
+    return BIP44_EXODUS_MINTV1_INDEX;
+}
+
+SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(uint512 const &seed)
+{
+    std::array<uint8_t, 32> ecdsaKeyOut;
+    return GeneratePrivateKey(seed, ecdsaKeyOut);
+}
+
+SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
+    uint512 const &seed, std::array<uint8_t, 32> &ecdsaKeyOut)
 {
     // first 32 bytes as seed of ecdsa key and serial
-    std::array<uint8_t, 32> ecdsaPrivKey, tmp;
-    std::copy(seed.begin(), seed.begin() + 32, ecdsaPrivKey.begin());
+    std::array<uint8_t, 32> tmp;
+    std::copy(seed.begin(), seed.end(), ecdsaKeyOut.begin());
 
     // hash until get valid private key
     secp256k1_pubkey pubkey;
     do {
-        std::copy(ecdsaPrivKey.begin(), ecdsaPrivKey.end(), tmp.begin());
-        CSHA256().Write(tmp.begin(), tmp.size()).Finalize(ecdsaPrivKey.begin());
-    } while(!GeneratePublicKey(ecdsaPrivKey.begin(), sizeof(ecdsaPrivKey), pubkey));
+        std::copy(ecdsaKeyOut.begin(), ecdsaKeyOut.end(), tmp.begin());
+        CSHA256().Write(tmp.begin(), tmp.size()).Finalize(ecdsaKeyOut.begin());
+    } while(!GeneratePublicKey(ecdsaKeyOut.begin(), sizeof(ecdsaKeyOut), pubkey));
 
     secp_primitives::Scalar serial;
     GenerateSerial(pubkey, serial);
@@ -70,7 +82,7 @@ SigmaPrivateKeyV1 SigmaWalletV1::GeneratePrivateKey(const uint512& seed)
     secp_primitives::Scalar randomness;
     randomness.memberFromSeed(randomnessSeed.begin());
 
-    return SigmaPrivateKeyV1(ecdsaPrivKey.data(), sizeof(ecdsaPrivKey), serial, randomness);
+    return SigmaPrivateKey(serial, randomness);
 }
 
 bool SigmaWalletV1::WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db)
@@ -137,6 +149,18 @@ void SigmaWalletV1::ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)
 {
     auto local = EnsureDBConnection(db);
     db->ListExodusMintsV1<SigmaMintId, SigmaMint>(inserter);
+}
+
+CoinSigner SigmaWalletV1::GetSigner(SigmaMintId const &id)
+{
+    auto mint = GetMint(id);
+    uint512 seed;
+    std::array<uint8_t, 32> ecdsaKey;
+
+    GenerateSeed(mint.seedId, seed);
+    GeneratePrivateKey(seed, ecdsaKey);
+
+    return CoinSigner(ecdsaKey.begin(), sizeof(ecdsaKey));
 }
 
 }

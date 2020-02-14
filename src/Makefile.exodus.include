@@ -1,5 +1,6 @@
 EXODUS_H = \
   exodus/activation.h \
+  exodus/coinsigner.h \
   exodus/consensushash.h \
   exodus/convert.h \
   exodus/createpayload.h \
@@ -28,6 +29,7 @@ EXODUS_H = \
   exodus/sigma.h \
   exodus/sigmaprimitives.h \
   exodus/sigmadb.h \
+  exodus/signaturebuilder.h \
   exodus/sp.h \
   exodus/sto.h \
   exodus/tally.h \
@@ -42,6 +44,7 @@ EXODUS_H = \
 
 EXODUS_CPP = \
   exodus/activation.cpp \
+  exodus/coinsigner.cpp \
   exodus/consensushash.cpp \
   exodus/convert.cpp \
   exodus/createpayload.cpp \
@@ -69,6 +72,7 @@ EXODUS_CPP = \
   exodus/sigma.cpp \
   exodus/sigmaprimitives.cpp \
   exodus/sigmadb.cpp \
+  exodus/signaturebuilder.cpp \
   exodus/sp.cpp \
   exodus/sto.cpp \
   exodus/tally.cpp \

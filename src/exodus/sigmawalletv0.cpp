@@ -12,6 +12,11 @@ SigmaWalletV0::SigmaWalletV0() : SigmaWallet()
 {
 }
 
+uint32_t SigmaWalletV0::ChangeIndex()
+{
+    return BIP44_EXODUS_MINT_INDEX;
+}
+
 SigmaPrivateKey SigmaWalletV0::GeneratePrivateKey(const uint512& seed)
 {
     SigmaPrivateKey priv;

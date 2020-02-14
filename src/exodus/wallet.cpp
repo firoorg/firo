@@ -54,34 +54,48 @@ Wallet::~Wallet()
 
 void Wallet::ReloadMasterKey()
 {
-    mintWallet.ReloadMasterKey();
+    mintWalletV0.ReloadMasterKey();
+    mintWalletV1.ReloadMasterKey();
 }
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
-    return mintWallet.GenerateMint(property, denomination);
+    return mintWalletV1.GenerateMint(property, denomination);
 }
 
 void Wallet::SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx)
 {
-    mintWallet.UpdateMintCreatedTx(id, tx);
+    auto &wallet = GetMintWallet(id);
+    wallet.UpdateMintCreatedTx(id, tx);
 }
 
 void Wallet::SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& tx)
 {
-    mintWallet.UpdateMintSpendTx(id, tx);
+    auto &wallet = GetMintWallet(id);
+    wallet.UpdateMintSpendTx(id, tx);
 }
 
 void Wallet::ClearAllChainState()
 {
-    mintWallet.ClearMintsChainState();
+    mintWalletV0.ClearMintsChainState();
+    mintWalletV1.ClearMintsChainState();
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
+    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV1);
+}
+
+SigmaSpend Wallet::CreateLegacySigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding)
+{
+    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV0);
+}
+
+SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, CoinVersion version)
+{
     LOCK(cs_main);
 
-    auto mint = GetSpendableSigmaMint(property, denomination);
+    auto mint = GetSpendableSigmaMint(property, denomination, version);
     if (!mint) {
         throw InsufficientFunds(_("No available mint to spend"));
     }
@@ -114,29 +128,39 @@ SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denom
 
 void Wallet::DeleteUnconfirmedSigmaMint(const SigmaMintId &id)
 {
-    mintWallet.DeleteUnconfirmedMint(id);
+    auto &wallet = GetMintWallet(id);
+    wallet.DeleteUnconfirmedMint(id);
 }
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
-    return mintWallet.HasMint(id);
+    CoinVersion version;
+    return HasSigmaMint(id, version);
 }
 
 bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 {
-    return mintWallet.HasMint(serial);
+    CoinVersion version;
+    return HasSigmaMint(serial, version);
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 {
-    return mintWallet.GetMint(id);
+    auto &wallet = GetMintWallet(id);
+    return wallet.GetMint(id);
 }
 
-boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination)
+CoinSigner Wallet::GetSigmaSigner(const SigmaMintId &id)
+{
+    return mintWalletV1.GetSigner(id);
+}
+
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination, CoinVersion version)
 {
     // Get all spendable mints.
     std::vector<SigmaMint> spendables;
 
+    auto &mintWallet = GetMintWallet(version);
     mintWallet.ListMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
         if (m.second.property != property || m.second.denomination != denomination) {
             return;
@@ -172,12 +196,66 @@ boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, Si
 
 SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
 {
-    return mintWallet.GeneratePrivateKey(mint.seedId);
+    // Try all mint wallets
+    try {
+        return mintWalletV1.GeneratePrivateKey(mint.seedId);
+    } catch (...) {
+        return mintWalletV0.GeneratePrivateKey(mint.seedId);
+    }
 }
 
 void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainState& state)
 {
+    auto &mintWallet = GetMintWallet(id);
     mintWallet.UpdateMintChainstate(id, state);
+}
+
+SigmaWallet& Wallet::GetMintWallet(CoinVersion version)
+{
+    switch (version) {
+    case CoinVersion::SigmaV0:
+        return mintWalletV0;
+    case CoinVersion::SigmaV1:
+        return mintWalletV1;
+    default:
+        throw new std::runtime_error("Coin version is not found.");
+    }
+}
+
+SigmaWallet& Wallet::GetMintWallet(SigmaMintId const &id)
+{
+    CoinVersion version;
+    if (HasSigmaMint(id, version)) {
+        return GetMintWallet(version);
+    }
+
+    throw std::runtime_error("Sigma Mint Id is not found.");
+}
+
+bool Wallet::HasSigmaMint(const SigmaMintId& id, CoinVersion &version)
+{
+    if (mintWalletV0.HasMint(id)) {
+        version = CoinVersion::SigmaV0;
+        return true;
+    } else if (mintWalletV1.HasMint(id)) {
+        version = CoinVersion::SigmaV1;
+        return true;
+    }
+
+    return false;
+}
+
+bool Wallet::HasSigmaMint(const secp_primitives::Scalar &scalar, CoinVersion &version)
+{
+    if (mintWalletV0.HasMint(scalar)) {
+        version = CoinVersion::SigmaV0;
+        return true;
+    } else if (mintWalletV1.HasMint(scalar)) {
+        version = CoinVersion::SigmaV1;
+        return true;
+    }
+
+    return false;
 }
 
 void Wallet::OnSpendAdded(
@@ -186,12 +264,14 @@ void Wallet::OnSpendAdded(
     const secp_primitives::Scalar &serial,
     const uint256 &tx)
 {
-    if (!HasSigmaMint(serial)) {
+    CoinVersion version;
+    if (!HasSigmaMint(serial, version)) {
         // the serial is not in wallet.
         return;
     }
 
     SigmaMintId id;
+    auto &mintWallet = GetMintWallet(version);
     try {
         id = mintWallet.GetMintId(serial);
     } catch (std::runtime_error const &e) {
@@ -206,11 +286,13 @@ void Wallet::OnSpendRemoved(
     SigmaDenomination denomination,
     const secp_primitives::Scalar &serial)
 {
-    if (!HasSigmaMint(serial)) {
+    CoinVersion version;
+    if (!HasSigmaMint(serial, version)) {
         // the serial is not in wallet.
         return;
     }
 
+    auto &mintWallet = GetMintWallet(version);
     try {
         auto id = mintWallet.GetMintId(serial);
         SetSigmaMintUsedTransaction(id, uint256());
@@ -237,9 +319,12 @@ void Wallet::OnMintAdded(
     } else {
 
         // 2. try to recover new mint
-        if (mintWallet.TryRecoverMint(
-            id, SigmaMintChainState(block, group, idx)
-        )) {
+        SigmaMintChainState chainState(block, group, idx);
+        if (mintWalletV0.TryRecoverMint(id, chainState)) {
+            LogPrintf("%s : Found new legacy mint when try to recover\n", __func__);
+        }
+
+        if (mintWalletV1.TryRecoverMint(id, chainState)) {
             LogPrintf("%s : Found new mint when try to recover\n", __func__);
         }
     }
