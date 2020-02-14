@@ -62,6 +62,7 @@ private:
     QSortFilterProxyModel *proxyModel;
     QSortFilterProxyModel *pcodeProxyModel;
     QMenu *contextMenu;
+    QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
 

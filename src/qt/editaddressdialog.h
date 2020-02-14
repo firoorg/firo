@@ -6,8 +6,9 @@
 #define BITCOIN_QT_EDITADDRESSDIALOG_H
 
 #include <QDialog>
-
+#include <QAbstractItemModel>
 class AddressTableModel;
+class ZCoinTableModel;
 
 namespace Ui {
     class EditAddressDialog;
@@ -34,11 +35,12 @@ public:
     explicit EditAddressDialog(Mode mode, QWidget *parent);
     ~EditAddressDialog();
 
-    void setModel(AddressTableModel *model);
+    void setModel(ZCoinTableModel *model);
     void loadRow(int row);
 
     QString getAddress() const;
     void setAddress(const QString &address);
+    void setIsForAddress(bool val);
 
 public Q_SLOTS:
     void accept();
@@ -49,9 +51,10 @@ private:
     Ui::EditAddressDialog *ui;
     QDataWidgetMapper *mapper;
     Mode mode;
-    AddressTableModel *model;
+    ZCoinTableModel *model;
 
     QString address;
+    bool isForAddress;
 };
 
 #endif // BITCOIN_QT_EDITADDRESSDIALOG_H
