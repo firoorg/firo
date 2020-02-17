@@ -104,17 +104,22 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     f_i_t.resize(N);
     GroupElement right;
     Exponent exp;
+
+    std::vector <std::vector<uint64_t>> I_;
+    I_.resize(N);
+    for (int i = 0; i < N ; ++i)
+        I_[i] = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+
     for (int t = 0; t < M; ++t)
     {
         right += (LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], proofs[t].zV_, h_[1], proofs[t].zR_)) * y[t];
         Exponent e;
         for (int i = 0; i < N - 1; ++i)
         {
-            std::vector <uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
             Exponent f_i(uint64_t(1));
             for (int j = 0; j < m; ++j)
             {
-                f_i *= f_[t][j*n + I[j]];
+                f_i *= f_[t][j*n + I_[i][j]];
             }
 
             f_i_t[i] += f_i * y[t];
@@ -137,17 +142,16 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
         */
 
         Exponent pow(uint64_t(1));
-        std::vector<uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
         vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
         for (int j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
-            pow *= f_[t][j * n + I[j]];
+            pow *= f_[t][j * n + I_[N - 1][j]];
         }
 
         Exponent xj(uint64_t(1));;    // x^j
         for (int j = 0; j < m; j++) {
             Exponent fi_sum(uint64_t(0));
-            for (int i = I[j] + 1; i < n; i++)
+            for (int i = I_[N - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= x;
@@ -253,18 +257,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
         const SigmaPlusProof<Exponent, GroupElement>& proof,
         const Exponent& x,
         const std::vector<Exponent>& f_) const {
-    GroupElement one;
-    LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, f_, proof.ZA_, one);
-    if((proof.B_ * x + proof.A_) != one)
-        return false;
-
-    std::vector<Exponent> f_prime;
-    f_prime.reserve(f_.size());
+    std::vector<Exponent> f_plus_f_prime;
+    f_plus_f_prime.reserve(f_.size());
     for(int i = 0; i < f_.size(); i++)
-        f_prime.emplace_back(f_[i] * (x - f_[i]));
-    GroupElement two;
-    LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, f_prime, proof.ZC_, two);
-    if((proof.C_ * x + proof.D_) != two)
+        f_plus_f_prime.emplace_back(f_[i] + f_[i] * (x - f_[i]));
+
+    GroupElement right;
+    LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, f_plus_f_prime, proof.ZA_ + proof.ZC_, right);
+    if((proof.B_ * x + proof.A_ + proof.C_ * x + proof.D_) != right)
         return false;
     return true;
 }
