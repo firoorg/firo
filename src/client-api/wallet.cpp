@@ -248,7 +248,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     CBitcoinAddress addr;
     string addrStr;
 
-    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
+    wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
     // Sent
     if ((!listSent.empty() || nFee != 0))

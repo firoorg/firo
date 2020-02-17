@@ -465,6 +465,9 @@ public:
     CAmount GetAnonymizedCredit(bool fUseCache=true) const;
     CAmount GetChange() const;
 
+    void GetAPIAmounts(std::list<COutputEntry>& listReceived,
+                    std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter) const;
+
     void GetAmounts(std::list<COutputEntry>& listReceived,
                     std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter) const;
 
