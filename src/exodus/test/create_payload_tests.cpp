@@ -560,7 +560,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
     key1.Generate();
     key2.Generate();
     anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
-    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end());
+    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end(), false);
     buffer << spend;
 
     std::vector<unsigned char> payload;

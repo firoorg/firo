@@ -155,11 +155,17 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
-    // try to get the master key
-    if (!GetKey(hdChain.masterKeyID, key))
-        throw std::runtime_error(std::string(__func__) + ": Master key not found");
-
-    masterKey.SetMaster(key.begin(), key.size());
+    if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
+        MnemonicContainer mContainer = mnemonicContainer;
+        DecryptMnemonicContainer(mContainer);
+        SecureVector seed = mContainer.GetSeed();
+        masterKey.SetMaster(&seed[0], seed.size());
+    } else {
+        // try to get the master key
+        if (!GetKey(hdChain.masterKeyID, key))
+            throw std::runtime_error(std::string(__func__) + ": Master key not found");
+        masterKey.SetMaster(key.begin(), key.size());
+    }
 
     // derive m/44'
     // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
@@ -212,12 +218,18 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         CExtKey accountKey;            //key at m/44'/<1/136>'/0'
         CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
-
-        // try to get the master key
-        if (!GetKey(hdChain.masterKeyID, key))
-            throw std::runtime_error(std::string(__func__) + ": Master key not found");
-
-        masterKey.SetMaster(key.begin(), key.size());
+        //For bip39 we use it's original way for generating keys to make it compatible with hardware and software wallets
+        if(hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
+            MnemonicContainer mContainer = mnemonicContainer;
+            DecryptMnemonicContainer(mContainer);
+            SecureVector seed = mContainer.GetSeed();
+            masterKey.SetMaster(&seed[0], seed.size());
+        } else {
+            // try to get the master key
+            if (!GetKey(hdChain.masterKeyID, key))
+                throw std::runtime_error(std::string(__func__) + ": Master key not found");
+            masterKey.SetMaster(key.begin(), key.size());
+        }
 
         // derive m/44'
         // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
@@ -751,21 +763,13 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         Lock();
         Unlock(strWalletPassphrase, true);
 
-        // if we are using HD, replace the HD master key (seed) with a new one
-        if (!hdChain.masterKeyID.IsNull()) {
-            CKey key;
-            CPubKey masterPubKey = GenerateNewHDMasterKey();
-            if (!SetHDMasterKey(masterPubKey))
-                return false;
-
-            uint160 hashSeedMaster = hdChain.masterKeyID;
-
-            // Setup HDMint wallet following encryption
-            zwalletMain->SetupWallet(hashSeedMaster, true);
-            zwalletMain->SyncWithChain();
+        if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
+            assert(EncryptMnemonicContainer(vMasterKey));
+            SetMinVersion(FEATURE_HD);
+            assert(SetMnemonicContainer(mnemonicContainer, false));
+            TopUpKeyPool();
         }
 
-        NewKeyPool();
         Lock();
 
         // Need to completely rewrite the wallet file; if we don't, bdb might keep
@@ -1427,7 +1431,45 @@ CPubKey CWallet::GenerateNewHDMasterKey() {
     return pubkey;
 }
 
-bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
+void CWallet::GenerateNewMnemonic(){
+    CHDChain newHdChain;
+    MnemonicContainer mnContainer;
+
+    std::string strSeed = GetArg("-hdseed", "not hex");
+
+    bool isHDSeedSet = strSeed != "not hex";
+
+    if(isHDSeedSet && IsHex(strSeed)) {
+        std::vector<unsigned char> seed = ParseHex(strSeed);
+        if (!mnContainer.SetSeed(SecureVector(seed.begin(), seed.end())))
+            throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+        newHdChain.masterKeyID = CKeyID(Hash160(seed.begin(), seed.end()));
+    }
+    else {
+        LogPrintf("CWallet::GenerateNewMnemonic -- Generating new MnemonicContainer\n");
+
+        std::string mnemonic = GetArg("-mnemonic", "");
+        std::string mnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
+        //Use 24 words by default;
+        bool use12Words = GetBoolArg("-use12", false);
+        mnContainer.Set12Words(use12Words);
+
+        SecureString secureMnemonic(mnemonic.begin(), mnemonic.end());
+        SecureString securePassphrase(mnemonicPassphrase.begin(), mnemonicPassphrase.end());
+
+        if (!mnContainer.SetMnemonic(secureMnemonic, securePassphrase))
+            throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+        newHdChain.masterKeyID = CKeyID(Hash160(mnContainer.seed.begin(), mnContainer.seed.end()));
+    }
+
+    if (!SetHDChain(newHdChain, false))
+        throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
+
+    if (!SetMnemonicContainer(mnContainer, false))
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonicContainer failed");
+}
+
+bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     LOCK(cs_wallet);
 
     // ensure this wallet.dat can only be opened by clients supporting HD
@@ -1437,19 +1479,24 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
     // the child index counter in the database
     // as a hdchain object
     CHDChain newHdChain;
+    newHdChain.nVersion = cHDChainVersion;
     newHdChain.masterKeyID = pubkey.GetID();
     SetHDChain(newHdChain, false);
 
     return true;
 }
 
-bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
+bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain, bool genNewKeyPool)
+{
     LOCK(cs_wallet);
-    bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if(upgradeChain && !IsLocked()){ // Upgrade HDChain to latest version
+    upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
+    if (upgradeChain && !IsLocked()) { // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
-        NewKeyPool();
+        newChain.nVersion = CHDChain::VERSION_WITH_BIP44; // old versions cannot use mnemonic
+        // whether to generate the keypool now (conditional as leads to DB deadlock if loading DB simultaneously)
+        if (genNewKeyPool)
+            NewKeyPool();
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
@@ -1458,6 +1505,86 @@ bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = chain;
     }
+
+    return true;
+}
+
+bool CWallet::SetMnemonicContainer(const MnemonicContainer& mnContainer, bool memonly) {
+    if (!memonly && !CWalletDB(strWalletFile).WriteMnemonic(mnContainer))
+        throw runtime_error(std::string(__func__) + ": writing chain failed");
+    mnemonicContainer = mnContainer;
+    return true;
+}
+
+bool CWallet::EncryptMnemonicContainer(const CKeyingMaterial& vMasterKeyIn)
+{
+    if (!IsCrypted())
+        return false;
+
+    if (mnemonicContainer.IsCrypted())
+        return true;
+
+    uint256 id = uint256S(hdChain.masterKeyID.GetHex());
+
+    std::vector<unsigned char> cryptedSeed;
+    if (!EncryptMnemonicSecret(vMasterKeyIn, mnemonicContainer.GetSeed(), id, cryptedSeed))
+        return false;
+    SecureVector secureCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
+    if (!mnemonicContainer.SetSeed(secureCryptedSeed))
+        return false;
+
+    SecureString mnemonic;
+    if (mnemonicContainer.GetMnemonic(mnemonic)) {
+        std::vector<unsigned char> cryptedMnemonic;
+        SecureVector vectorMnemonic(mnemonic.begin(), mnemonic.end());
+
+        if ((!mnemonic.empty() && !EncryptMnemonicSecret(vMasterKeyIn, vectorMnemonic, id, cryptedMnemonic)))
+            return false;
+
+        SecureVector secureCryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
+        if (!mnemonicContainer.SetMnemonic(secureCryptedMnemonic))
+            return false;
+    }
+
+    mnemonicContainer.SetCrypted(true);
+
+    return true;
+}
+
+bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer)
+{
+    if (!IsCrypted())
+        return true;
+
+    if (!mnemonicContainer.IsCrypted())
+        return false;
+
+    uint256 id = uint256S(hdChain.masterKeyID.GetHex());
+
+    SecureVector seed;
+    SecureVector cryptedSeed = mnemonicContainer.GetSeed();
+    std::vector<unsigned char> vCryptedSeed(cryptedSeed.begin(), cryptedSeed.end());
+    if (!DecryptMnemonicSecret(vCryptedSeed, id, seed))
+        return false;
+
+    mnContainer = mnemonicContainer;
+    if (!mnContainer.SetSeed(seed))
+        return false;
+
+    SecureString cryptedMnemonic;
+
+    if (mnemonicContainer.GetMnemonic(cryptedMnemonic)) {
+        SecureVector vectorMnemonic;
+
+        std::vector<unsigned char> CryptedMnemonic(cryptedMnemonic.begin(), cryptedMnemonic.end());
+        if (!CryptedMnemonic.empty() && !DecryptMnemonicSecret(CryptedMnemonic, id, vectorMnemonic))
+            return false;
+
+        if (!mnContainer.SetMnemonic(vectorMnemonic))
+            return false;
+    }
+
+    mnContainer.SetCrypted(false);
 
     return true;
 }
@@ -1588,7 +1715,7 @@ void CWalletTx::GetAccountAmounts(const string &strAccount, CAmount &nReceived,
  * from or to us. If fUpdate is true, found transactions that already
  * exist in the wallet will be updated.
  */
-int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
+int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic) {
     int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams &chainParams = Params();
@@ -1599,8 +1726,14 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate) {
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        if (fRecoverMnemonic) {
+            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            if (pindex == NULL)
+                pindex = chainActive.Tip();
+        } else
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
 
         ShowProgress(_("Rescanning..."),
                      0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
@@ -1785,7 +1918,7 @@ CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const {
     return 0;
 }
 
-CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
+CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const {
     if (pwallet == 0)
         return 0;
 
@@ -1794,7 +1927,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !IsZerocoinMint() && !IsSigmaMint())
+    if (fUseCache && fAvailableCreditCached && !IsZerocoinMint() && !IsSigmaMint() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -1803,7 +1936,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
         if (!pwallet->IsSpent(hashTx, i)) {
             const CTxOut &txout = vout[i];
             bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint();
-            nCredit += isPrivate ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            bool condition = isPrivate;
+            if (fExcludeLocked)
+                condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));
+            nCredit += condition ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -1811,6 +1947,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
 
     nAvailableCreditCached = nCredit;
     fAvailableCreditCached = true;
+
+    if (fExcludeLocked)
+        fAvailableCreditCached = false;
+
     return nCredit;
 }
 
@@ -2014,14 +2154,14 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime) {
  */
 
 
-CAmount CWallet::GetBalance() const {
+CAmount CWallet::GetBalance(bool fExcludeLocked) const {
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
             if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(true, fExcludeLocked);
         }
     }
 
@@ -5659,7 +5799,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
 {
     int nHeight = chainActive.Height();
     if(nHeight >= ::Params().GetConsensus().nDisableUnpaddedSigmaBlock && nHeight < ::Params().GetConsensus().nSigmaPaddingBlock)
-        throw std::runtime_error(_("Sigma is disbled at this period"));
+        throw std::runtime_error(_("Sigma is disabled at this period."));
     // sanity check
     EnsureMintWalletAvailable();
 
@@ -7830,6 +7970,12 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     strUsage += HelpMessageOpt("-usehd",
                                _("Use hierarchical deterministic key generation (HD) after BIP32. Only has effect during wallet creation/first start") +
                                " " + strprintf(_("(default: %u)"), DEFAULT_USE_HD_WALLET));
+    strUsage += HelpMessageOpt("-usemnemonic",
+                               _("Use Mnemonic code for generating deterministic keys. Only has effect during wallet creation/first start") +
+                               " " + strprintf(_("(default: %u)"), DEFAULT_USE_MNEMONIC));
+    strUsage += HelpMessageOpt("-mnemonic=<text>", _("User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)"));
+    strUsage += HelpMessageOpt("-mnemonicpassphrase=<text>", _("User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)"));
+    strUsage += HelpMessageOpt("-hdseed=<hex>", _("User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)"));
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
     strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " +
                                                  strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
@@ -7901,6 +8047,7 @@ bool CWallet::InitLoadWallet() {
     uiInterface.InitMessage(_("Loading wallet..."));
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
+    bool fRecoverMnemonic = false;
     CWallet *walletInstance = new CWallet(walletFile);
     pwalletMain = walletInstance;
 
@@ -7941,10 +8088,24 @@ bool CWallet::InitLoadWallet() {
     if (fFirstRun) {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && walletInstance->hdChain.masterKeyID.IsNull()) {
+            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) { 
+                if (GetArg("-mnemonicpassphrase", "").size() > 256) {
+                    throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
+                }
+                // generate a new HD chain
+                walletInstance->GenerateNewMnemonic();
+                walletInstance->SetMinVersion(FEATURE_HD);
+                /* set rescan to true.
+                 * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
+                 */
+                SoftSetBoolArg("-rescan", true);
+                fRecoverMnemonic = true;
+            }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
-            if (!walletInstance->SetHDMasterKey(masterPubKey))
+            if (!walletInstance->SetHDMasterKey(masterPubKey, CHDChain().VERSION_WITH_BIP44))
                 throw std::runtime_error(std::string(__func__) + ": Storing master key failed");
+            }
         }
         CPubKey newDefaultKey;
         if (walletInstance->GetKeyFromPool(newDefaultKey)) {
@@ -8003,7 +8164,7 @@ bool CWallet::InitLoadWallet() {
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight,
                   pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        walletInstance->ScanForWalletTransactions(pindexRescan, true);
+        walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
         nWalletDBUpdated++;

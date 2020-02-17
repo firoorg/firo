@@ -37,6 +37,9 @@ TOR_LIBS = tor/src/core/libtor-app.a \
     tor/src/lib/libtor-err.a \
     tor/src/lib/libtor-log.a \
     tor/src/lib/libtor-version.a \
+    tor/src/lib/libtor-pubsub.a \
+    tor/src/lib/libtor-dispatch.a \
+    tor/src/lib/libtor-confmgt.a \
     tor/src/lib/libtor-container.a \
     tor/src/lib/libtor-crypt-ops.a \
     tor/src/lib/libtor-fs.a \
@@ -224,6 +227,7 @@ BITCOIN_CORE_H = \
   validation.h \
   validationinterface.h \
   versionbits.h \
+  wallet/mnemoniccontainer.h \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
@@ -233,6 +237,8 @@ BITCOIN_CORE_H = \
   wallet/walletexcept.h \
   wallet/walletdb.h \
   wallet/authhelper.h \
+  wallet/bip39.h \
+  wallet/bip39_english.h \
   definition.h \
   zmq/zmqabstractnotifier.h \
   zmq/zmqconfig.h\
@@ -330,6 +336,8 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/wallet.cpp \
   sigma.cpp \
   wallet/crypter.cpp \
+  wallet/bip39.cpp \
+  wallet/mnemoniccontainer.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
@@ -534,6 +542,7 @@ libsigma_a_SOURCES = \
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
+AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
 # cli: shared between zcoin-cli and zcoin-qt
@@ -677,13 +686,13 @@ clean-local:
 check-symbols: $(bin_PROGRAMS)
 if GLIBC_BACK_COMPAT
 	@echo "Checking glibc back compat..."
-	$(AM_V_at) READELF=$(READELF) CPPFILT=$(CPPFILT) $(top_srcdir)/contrib/devtools/symbol-check.py < $(bin_PROGRAMS)
+	$(AM_V_at) READELF=$(READELF) CPPFILT=$(CPPFILT) $(PYTHON) $(top_srcdir)/contrib/devtools/symbol-check.py < $(bin_PROGRAMS)
 endif
 
 check-security: $(bin_PROGRAMS)
 if HARDEN
 	@echo "Checking binary security..."
-	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
+	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(PYTHON) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
 endif
 
 %.pb.cc %.pb.h: %.proto

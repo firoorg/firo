@@ -869,7 +869,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
     }
-    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+    // Need this to restore Sigma spend state
+    if (GetBoolArg("-rescan", false) && zwalletMain) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
@@ -990,6 +991,18 @@ void InitParameterInteraction() {
     if (GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
         if (SoftSetBoolArg("-whitelistrelay", true))
             LogPrintf("%s: parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1\n", __func__);
+    }
+
+    // Forcing all mnemonic settings off if -usehd is off.
+    if (!GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET)) {
+        if (SoftSetBoolArg("-usemnemonic", false) && SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
+            LogPrintf("%s: Potential  parameter interaction: -usehd=0 -> setting -usemnemonic=0, -mnemonic=\"\", -mnemonicpassphrase=\"\", -hdseed=\"not hex\"\n", __func__);
+    }
+
+    // Forcing all remaining mnemonic settings off if -usemnemonic is off.
+    if (!GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) {
+        if (SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
+            LogPrintf("%s: Potential parameter interaction: -usemnemonic=0 -> setting -mnemonic=\"\", -mnemonicpassphrase=\"\"\n, -hdseed=\"not hex\"\n", __func__);
     }
 }
 
@@ -1568,7 +1581,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         } else {
             struct in_addr inaddr_any;
             inaddr_any.s_addr = INADDR_ANY;
-            fBound |= Bind(CService(in6addr_any, GetListenPort()), BF_NONE);
+            fBound |= Bind(CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
             fBound |= Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
         }
         if (!fBound)

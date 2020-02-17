@@ -70,8 +70,14 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
         throw std::runtime_error(_("One of the minted coin is invalid"));
     }
 
+    int version;
+    {
+        LOCK(cs_main);
+        version = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock ? ZEROCOIN_TX_VERSION_3_1
+                                                                                       : ZEROCOIN_TX_VERSION_3;
+    }
     // construct private part of the mint
-    sigma::PrivateCoin priv(params, denom, ZEROCOIN_TX_VERSION_3);
+    sigma::PrivateCoin priv(params, denom, version);
 
     priv.setSerialNumber(coin.serialNumber);
     priv.setRandomness(coin.randomness);
@@ -102,7 +108,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
         throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
     }
 
-    if(chainActive.Height() < ::Params().GetConsensus().nSigmaPaddingBlock)
+    if(version < ZEROCOIN_TX_VERSION_3_1)
         signer->fPadding = false;
 
     return signer;
