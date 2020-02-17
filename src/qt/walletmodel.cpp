@@ -60,7 +60,7 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
-CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
+CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLocked) const
 {
     if (coinControl)
     {
@@ -74,7 +74,7 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl) const
         return nBalance;
     }
 
-    return wallet->GetBalance();
+    return wallet->GetBalance(fExcludeLocked);
 }
 
 CAmount WalletModel::getUnconfirmedBalance() const
@@ -668,7 +668,7 @@ bool WalletModel::havePrivKey(const CKeyID &address) const
 }
 
 // returns a list of COutputs from COutPoints
-void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs)
+void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs, boost::optional<bool> fMintTabSelected)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     BOOST_FOREACH(const COutPoint& outpoint, vOutpoints)
@@ -676,6 +676,15 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
+        if(fMintTabSelected!=boost::none){
+            if(wallet->mapWallet[outpoint.hash].vout[outpoint.n].scriptPubKey.IsSigmaMint()){
+                if(fMintTabSelected.get()) // only allow mint outputs on the "Spend" tab
+                    continue;
+            }else{
+                if(!fMintTabSelected.get())
+                    continue; // only allow normal outputs on the "Mint" tab
+            }
+        }
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true, true);
         vOutputs.push_back(out);
     }
@@ -704,6 +713,17 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true, true);
+
+        if(nCoinType == ALL_COINS){
+            // We are now taking ALL_COINS to mean everything sans mints
+            if(out.tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->vout[out.i].scriptPubKey.IsZerocoinRemint())
+                continue;
+        } else if(nCoinType == ONLY_MINTS){
+            // Do not consider anything other than mints
+            if(!(out.tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->vout[out.i].scriptPubKey.IsZerocoinRemint()))
+                continue;
+        }
+
         if (outpoint.n < out.tx->vout.size() && wallet->IsMine(out.tx->vout[outpoint.n]) == ISMINE_SPENDABLE)
             vCoins.push_back(out);
     }
@@ -741,12 +761,14 @@ void WalletModel::lockCoin(COutPoint& output)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     wallet->LockCoin(output);
+    Q_EMIT updateMintable();
 }
 
 void WalletModel::unlockCoin(COutPoint& output)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     wallet->UnlockCoin(output);
+    Q_EMIT updateMintable();
 }
 
 void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
@@ -875,6 +897,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     } catch (const std::runtime_error& err) {
         if (_("Can not choose coins within limit.") == err.what())
             return ExceedLimit;
+        if (_("Sigma is disabled at this period.") == err.what())
+            return SigmaDisabled;
         throw err;
     } catch (const std::invalid_argument& err) {
         return ExceedLimit;

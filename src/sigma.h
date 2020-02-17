@@ -15,10 +15,10 @@
 #include "coin_containers.h"
 
 //tests
-namespace sigma_mintspend_many { struct sigma_mintspend_many; }
-namespace sigma_mintspend { struct sigma_mintspend_test; }
-namespace sigma_partialspend_mempool_tests { struct partialspend; }
-namespace zerocoin_tests3_v3 { struct zerocoin_mintspend_v3; }
+namespace sigma_mintspend_many { class sigma_mintspend_many; }
+namespace sigma_mintspend { class sigma_mintspend_test; }
+namespace sigma_partialspend_mempool_tests { class partialspend; }
+namespace zerocoin_tests3_v3 { class zerocoin_mintspend_v3; }
 
 namespace sigma {
 

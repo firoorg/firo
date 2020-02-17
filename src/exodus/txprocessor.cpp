@@ -158,12 +158,14 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     auto group = tx.getGroup();
     auto groupSize = tx.getGroupSize();
 
+    bool const fPadding = block >= ::Params().GetConsensus().nSigmaPaddingBlock;
+
     assert(spend);
 
     // check serial in database
     uint256 spendTx;
     if (sigmaDb->HasSpendSerial(property, denomination, spend->serial, spendTx)
-        || !VerifySigmaSpend(property, denomination, group, groupSize, *spend)) {
+        || !VerifySigmaSpend(property, denomination, group, groupSize, *spend, fPadding)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
     }

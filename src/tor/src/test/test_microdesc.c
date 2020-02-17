@@ -21,6 +21,7 @@
 #include "feature/nodelist/routerstatus_st.h"
 
 #include "test/test.h"
+#include "test/log_test_helpers.h"
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -648,6 +649,41 @@ static const char MD_PARSE_TEST_DATA[] =
   "ntor-onion-key k2yFqTU2vzMCQDEiE/j9UcEHxKrXMLpB3IL0or09sik=\n"
   "id rsa1024 2A8wYpHxnkKJ92orocvIQBzeHlE\n"
   "p6 allow 80\n"
+  /* Good 11: Normal, non-exit relay with ipv6 address */
+  "onion-key\n"
+  "-----BEGIN RSA PUBLIC KEY-----\n"
+  "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+  "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+  "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+  "-----END RSA PUBLIC KEY-----\n"
+  "a [::1:2:3:4]:9090\n"
+  "a 18.0.0.1:9999\n"
+  "ntor-onion-key k2yFqTU2vzMCQDEiE/j9UcEHxKrXMLpB3IL0or09sik=\n"
+  "id rsa1024 2A8wYpHxnkKJ92orocvIQBzeHlE\n"
+  /* Good 12: Normal, exit relay with ipv6 address */
+  "onion-key\n"
+  "-----BEGIN RSA PUBLIC KEY-----\n"
+  "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+  "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+  "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+  "-----END RSA PUBLIC KEY-----\n"
+  "a [::1:2:3:4]:9090\n"
+  "a 18.0.0.1:9999\n"
+  "ntor-onion-key k2yFqTU2vzMCQDEiE/j9UcEHxKrXMLpB3IL0or09sik=\n"
+  "p accept 20-23,43,53,79-81,88,110,143,194,220,389,443,464,531,543-544\n"
+  "id rsa1024 2A8wYpHxnkKJ92orocvIQBzeHlE\n"
+  /* Good 13: Normal, exit relay with only ipv6 exit policy */
+  "onion-key\n"
+  "-----BEGIN RSA PUBLIC KEY-----\n"
+  "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+  "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+  "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+  "-----END RSA PUBLIC KEY-----\n"
+  "a [::1:2:3:4]:9090\n"
+  "a 18.0.0.1:9999\n"
+  "ntor-onion-key k2yFqTU2vzMCQDEiE/j9UcEHxKrXMLpB3IL0or09sik=\n"
+  "p6 accept 20-23,43,53,79-81,88,110,143,194,220,389,443,464,531,543-544\n"
+  "id rsa1024 2A8wYpHxnkKJ92orocvIQBzeHlE\n"
   ;
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
 ENABLE_GCC_WARNING(overlength-strings)
@@ -665,7 +701,7 @@ test_md_parse(void *arg)
   smartlist_t *mds = microdescs_parse_from_string(MD_PARSE_TEST_DATA,
                                                   NULL, 1, SAVED_NOWHERE,
                                                   invalid);
-  tt_int_op(smartlist_len(mds), OP_EQ, 11);
+  tt_int_op(smartlist_len(mds), OP_EQ, 14);
   tt_int_op(smartlist_len(invalid), OP_EQ, 4);
 
   test_memeq_hex(smartlist_get(invalid,0),
@@ -712,12 +748,101 @@ test_md_parse(void *arg)
   tt_assert(tor_addr_family(&md->ipv6_addr) == AF_INET6);
   tt_int_op(md->ipv6_orport, OP_EQ, 9090);
 
+  md = smartlist_get(mds, 11);
+  tt_assert(tor_addr_family(&md->ipv6_addr) == AF_INET6);
+  tt_int_op(md->ipv6_orport, OP_EQ, 9090);
+  tt_int_op(md->policy_is_reject_star, OP_EQ, 1);
+
+  md = smartlist_get(mds, 12);
+  tt_assert(tor_addr_family(&md->ipv6_addr) == AF_INET6);
+  tt_int_op(md->ipv6_orport, OP_EQ, 9090);
+  tt_int_op(md->policy_is_reject_star, OP_EQ, 0);
+
+  md = smartlist_get(mds, 13);
+  tt_assert(tor_addr_family(&md->ipv6_addr) == AF_INET6);
+  tt_int_op(md->ipv6_orport, OP_EQ, 9090);
+  tt_int_op(md->policy_is_reject_star, OP_EQ, 0);
+
  done:
   SMARTLIST_FOREACH(mds, microdesc_t *, mdsc, microdesc_free(mdsc));
   smartlist_free(mds);
   SMARTLIST_FOREACH(invalid, char *, cp, tor_free(cp));
   smartlist_free(invalid);
   tor_free(mem_op_hex_tmp);
+}
+
+static void
+test_md_parse_id_ed25519(void *arg)
+{
+  (void)arg;
+
+  /* A correct MD with an ed25519 ID ... and an unspecified ID type,
+   * which is permitted. */
+  const char GOOD_MD[] =
+    "onion-key\n"
+    "-----BEGIN RSA PUBLIC KEY-----\n"
+    "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+    "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+    "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+    "-----END RSA PUBLIC KEY-----\n"
+    "id ed25519 VGhpcyBpc24ndCBhY3R1YWxseSBhIHB1YmxpYyBrZXk\n"
+    "id wumpus dodecahedron\n";
+
+  smartlist_t *mds = NULL;
+  const microdesc_t *md;
+
+  mds = microdescs_parse_from_string(GOOD_MD,
+                                     NULL, 1, SAVED_NOWHERE, NULL);
+  tt_assert(mds);
+  tt_int_op(smartlist_len(mds), OP_EQ, 1);
+  md = smartlist_get(mds, 0);
+  tt_mem_op(md->ed25519_identity_pkey, OP_EQ,
+            "This isn't actually a public key", ED25519_PUBKEY_LEN);
+  SMARTLIST_FOREACH(mds, microdesc_t *, m, microdesc_free(m));
+  smartlist_free(mds);
+
+  /* As above, but ed25519 ID key appears twice. */
+  const char DUPLICATE_KEY[] =
+    "onion-key\n"
+    "-----BEGIN RSA PUBLIC KEY-----\n"
+    "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+    "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+    "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+    "-----END RSA PUBLIC KEY-----\n"
+    "id ed25519 VGhpcyBpc24ndCBhY3R1YWxseSBhIHB1YmxpYyBrZXk\n"
+    "id ed25519 VGhpcyBpc24ndCBhY3R1YWxseSBhIHB1YmxpYyBrZXk\n";
+
+  setup_capture_of_logs(LOG_WARN);
+  mds = microdescs_parse_from_string(DUPLICATE_KEY,
+                                     NULL, 1, SAVED_NOWHERE, NULL);
+  tt_assert(mds);
+  tt_int_op(smartlist_len(mds), OP_EQ, 0); // no entries.
+  expect_single_log_msg_containing("Extra ed25519 key");
+  mock_clean_saved_logs();
+  smartlist_free(mds);
+
+  /* As above, but ed25519 ID key is invalid. */
+  const char BOGUS_KEY[] =
+    "onion-key\n"
+    "-----BEGIN RSA PUBLIC KEY-----\n"
+    "MIGJAoGBAM7uUtq5F6h63QNYIvC+4NcWaD0DjtnrOORZMkdpJhinXUOwce3cD5Dj\n"
+    "sgdN1wJpWpTQMXJ2DssfSgmOVXETP7qJuZyRprxalQhaEATMDNJA/66Ml1jSO9mZ\n"
+    "+8Xb7m/4q778lNtkSbsvMaYD2Dq6k2QQ3kMhr9z8oUtX0XA23+pfAgMBAAE=\n"
+    "-----END RSA PUBLIC KEY-----\n"
+    "id ed25519 VGhpcyBpc24ndCBhY3R1YWxseSBhIHB1YmxpYyZZZZZZZZZZZ\n";
+
+  mds = microdescs_parse_from_string(BOGUS_KEY,
+                                     NULL, 1, SAVED_NOWHERE, NULL);
+  tt_assert(mds);
+  tt_int_op(smartlist_len(mds), OP_EQ, 0); // no entries.
+  expect_single_log_msg_containing("Bogus ed25519 key");
+
+ done:
+  if (mds) {
+    SMARTLIST_FOREACH(mds, microdesc_t *, m, microdesc_free(m));
+    smartlist_free(mds);
+  }
+  teardown_capture_of_logs();
 }
 
 static int mock_rgsbd_called = 0;
@@ -853,6 +978,7 @@ struct testcase_t microdesc_tests[] = {
   { "broken_cache", test_md_cache_broken, TT_FORK, NULL, NULL },
   { "generate", test_md_generate, 0, NULL, NULL },
   { "parse", test_md_parse, 0, NULL, NULL },
+  { "parse_id_ed25519", test_md_parse_id_ed25519, 0, NULL, NULL },
   { "reject_cache", test_md_reject_cache, TT_FORK, NULL, NULL },
   { "corrupt_desc", test_md_corrupt_desc, TT_FORK, NULL, NULL },
   END_OF_TESTCASES
