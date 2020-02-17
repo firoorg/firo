@@ -890,7 +890,7 @@ QString PaymentCodeTableModel::addRow(const QString &type, const QString &label,
 
     if(type == Send)
     {
-        if(!walletModel->validateAddress(address))
+        if(!walletModel->validatePaymentCode(address))
         {
             editStatus = INVALID_PAYMENTCODE;
             return QString();

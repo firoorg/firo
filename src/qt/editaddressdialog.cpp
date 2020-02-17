@@ -92,12 +92,12 @@ bool EditAddressDialog::saveCurrentRow()
     case NewReceivingAddress:
     case NewSendingAddress:
         if (isForAddress) {
-            address = ((AddressTableModel*)model)->addRow(
+            address = model->addRow(
                     mode == NewSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
                     ui->labelEdit->text(),
                     ui->addressEdit->text());
         } else {
-            address = ((PaymentCodeTableModel*)model)->addRow(
+            address = model->addRow(
                     mode == NewSendingAddress ? PaymentCodeTableModel::Send : PaymentCodeTableModel::Receive,
                     ui->labelEdit->text(),
                     ui->addressEdit->text());
@@ -137,6 +137,16 @@ void EditAddressDialog::accept()
         case EditStatus::DUPLICATE_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
                 tr("The entered address \"%1\" is already in the address book.").arg(ui->addressEdit->text()),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case EditStatus::INVALID_PAYMENTCODE:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered payment code \"%1\" is not a valid Zcoin payment code.").arg(ui->addressEdit->text()),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case EditStatus::DUPLICATE_PAYMENTCODE:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered payment code \"%1\" is already in the payment code book.").arg(ui->addressEdit->text()),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case EditStatus::WALLET_UNLOCK_FAILURE:

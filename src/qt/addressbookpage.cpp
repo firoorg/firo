@@ -21,6 +21,8 @@
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 #include <QTabWidget>
+#include <iostream>
+
 
 AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent) :
         QDialog(parent),
@@ -91,7 +93,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     // Context menu actions
     copyAddressAction = new QAction(tr("&Copy Address"), this);
     QAction *copyLabelAction = new QAction(tr("Copy &Label"), this);
-    QAction *editAction = new QAction(tr("&Edit"), this);
+    editAction = new QAction(tr("&Edit"), this);
     deleteAction = new QAction(ui->deleteAddress->text(), this);
 
     // Build context menu
@@ -113,6 +115,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     connect(ui->paymentcodeTableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
 
     connect(ui->closeButton, SIGNAL(clicked()), this, SLOT(accept()));
+    setActiveModel();
 }
 
 AddressBookPage::~AddressBookPage() {
@@ -146,11 +149,11 @@ void AddressBookPage::setModel(AddressTableModel *model) {
 
     // Set column widths
 #if QT_VERSION < 0x050000
-    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
+    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::ResizeToContents);
+    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
 #else
-    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
+    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::ResizeToContents);
+    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
 #endif
 
     connect(ui->tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
@@ -158,8 +161,8 @@ void AddressBookPage::setModel(AddressTableModel *model) {
 
     // Select row for newly created address
     connect(model, SIGNAL(rowsInserted(QModelIndex, int, int)), this, SLOT(selectNewAddress(QModelIndex, int, int)));
-
     selectionChanged();
+    setActiveModel();
 }
 
 void AddressBookPage::setModel(PaymentCodeTableModel *pcodeModel)
@@ -189,54 +192,39 @@ void AddressBookPage::setModel(PaymentCodeTableModel *pcodeModel)
 
     // Set column widths
 #if QT_VERSION < 0x050000
-    ui->paymentcodeTableView->horizontalHeader()->setResizeMode(PaymentCodeTableModel::Label, QHeaderView::Stretch);
-    ui->paymentcodeTableView->horizontalHeader()->setResizeMode(PaymentCodeTableModel::Address, QHeaderView::ResizeToContents);
+    ui->paymentcodeTableView->horizontalHeader()->setResizeMode(PaymentCodeTableModel::Label, QHeaderView::ResizeToContents);
+    ui->paymentcodeTableView->horizontalHeader()->setResizeMode(PaymentCodeTableModel::Address, QHeaderView::Stretch);
 #else
-    ui->paymentcodeTableView->horizontalHeader()->setSectionResizeMode(ZCoinTableModel::Label, QHeaderView::Stretch);
-    ui->paymentcodeTableView->horizontalHeader()->setSectionResizeMode(ZCoinTableModel::Address, QHeaderView::ResizeToContents);
+    ui->paymentcodeTableView->horizontalHeader()->setSectionResizeMode(ZCoinTableModel::Label, QHeaderView::ResizeToContents);
+    ui->paymentcodeTableView->horizontalHeader()->setSectionResizeMode(ZCoinTableModel::Address, QHeaderView::Stretch);
 #endif
 
     connect(ui->paymentcodeTableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
             this, SLOT(pcodeSelectionChanged()));
 
     // Select row for newly created address
-    connect(pcodeModel, SIGNAL(rowsInserted(QModelIndex, int, int)), this, SLOT(selectNewAddress(QModelIndex, int, int)));
-
+    connect(pcodeModel, SIGNAL(rowsInserted(QModelIndex, int, int)), this, SLOT(selectNewPaymentCode(QModelIndex, int, int)));
     pcodeSelectionChanged();
-    
+    setActiveModel();
 }
 
 void AddressBookPage::on_copyAddress_clicked() {
-    if(pageMode == 0)
-        GUIUtil::copyEntryData(ui->tableView, ZCoinTableModel::Address);
-    else
-        GUIUtil::copyEntryData(ui->paymentcodeTableView, ZCoinTableModel::Address);
+    GUIUtil::copyEntryData(pActiveTableView, ZCoinTableModel::Address);
 }
 
 void AddressBookPage::onCopyLabelAction() {
-    if(pageMode == 0)
-        GUIUtil::copyEntryData(ui->tableView, ZCoinTableModel::Label);
-    else
-        GUIUtil::copyEntryData(ui->paymentcodeTableView, ZCoinTableModel::Label);
+    GUIUtil::copyEntryData(pActiveTableView, ZCoinTableModel::Label);
 }
 
 
 void AddressBookPage::onEditAction() {
-    if (!model)
+    if (!pActiveAddressModel)
         return;
 
-    if ((pageMode == 0 && !ui->tableView->selectionModel()) || (pageMode != 0 && !ui->paymentcodeTableView->selectionModel()))
+    if (!pActiveTableView->selectionModel())
         return;
-    
-    QModelIndexList indexes; 
-    QSortFilterProxyModel* proxy;
-    if (!pageMode) {
-        indexes = ui->tableView->selectionModel()->selectedRows();
-        proxy = proxyModel;
-    } else {
-        indexes = ui->paymentcodeTableView->selectionModel()->selectedRows();
-        proxy = pcodeProxyModel;
-    }
+
+    QModelIndexList indexes = pActiveTableView->selectionModel()->selectedRows(); 
     if (indexes.isEmpty())
         return;
 
@@ -245,8 +233,8 @@ void AddressBookPage::onEditAction() {
             EditAddressDialog::EditSendingAddress :
             EditAddressDialog::EditReceivingAddress, this);
     dlg.setIsForAddress(pageMode == 0);
-    dlg.setModel(model);
-    QModelIndex origIndex = proxy->mapToSource(indexes.at(0));
+    dlg.setModel(pActiveAddressModel);
+    QModelIndex origIndex = pActiveProxyModel->mapToSource(indexes.at(0));
     dlg.loadRow(origIndex.row());
     dlg.exec();
 }
@@ -254,21 +242,40 @@ void AddressBookPage::onEditAction() {
 void AddressBookPage::on_tabWidget_currentChanged(int index) {
     pageMode = index;
     //change all tool tips
+    setActiveModel();
+}
+
+void AddressBookPage::setActiveModel()
+{
     if (pageMode == 0) {
         this->ui->newAddress->setToolTip("Create a new address");
         this->ui->copyAddress->setToolTip("Copy the currently selected address to the system clipboard");
         this->ui->deleteAddress->setToolTip("Delete the currently selected address from the list");
         this->copyAddressAction->setText("&Copy Address");
+        this->pActiveAddressModel = this->model;
+        this->pActiveProxyModel = this->proxyModel;
+        this->pActiveTableView = this->ui->tableView;
+        editAction->setEnabled(true);
+        deleteAction->setEnabled(true);
+        this->ui->newAddress->setEnabled(true);
+        this->ui->deleteAddress->setEnabled(true);
     } else {
         this->ui->newAddress->setToolTip("Import a new payment code");
         this->ui->copyAddress->setToolTip("Copy the currently selected payment code to the system clipboard");
         this->ui->deleteAddress->setToolTip("Delete the currently selected payment code from the list");
         this->copyAddressAction->setText("&Copy Payment Code");
+        this->pActiveAddressModel = this->pcodeModel;
+        this->pActiveProxyModel = this->pcodeProxyModel;
+        this->pActiveTableView = this->ui->paymentcodeTableView;
+        editAction->setEnabled(false);
+        deleteAction->setEnabled(false);
+        this->ui->newAddress->setEnabled(false);
+        this->ui->deleteAddress->setEnabled(false);
     }
 }
 
 void AddressBookPage::on_newAddress_clicked() {
-    if (!model)
+    if (!pActiveAddressModel)
         return;
 
     EditAddressDialog dlg(
@@ -276,55 +283,37 @@ void AddressBookPage::on_newAddress_clicked() {
             EditAddressDialog::NewSendingAddress :
             EditAddressDialog::NewReceivingAddress, this);
     dlg.setIsForAddress(pageMode == 0);
-    dlg.setModel(model);
+    dlg.setModel(pActiveAddressModel);
     if (dlg.exec()) {
         newAddressToSelect = dlg.getAddress();
     }
 }
 
 void AddressBookPage::on_deleteAddress_clicked() {
-    QTableView *table = ui->tableView;
+    QTableView *table = pActiveTableView;
     if (!table->selectionModel())
         return;
 
     QModelIndexList indexes = table->selectionModel()->selectedRows();
     if (!indexes.isEmpty()) {
+        std::cout << "deleting:" << indexes.at(0).row() << std::endl;
         table->model()->removeRow(indexes.at(0).row());
     }
 }
 
 void AddressBookPage::selectionChanged() {
     // Set button states based on selected tab and selection
-    QTableView *table = ui->tableView;
-    if (!table->selectionModel())
-        return;
-
-    if (table->selectionModel()->hasSelection()) {
-        switch (tab) {
-            case SendingTab:
-                // In sending tab, allow deletion of selection
-                ui->deleteAddress->setEnabled(true);
-                ui->deleteAddress->setVisible(true);
-                deleteAction->setEnabled(true);
-                break;
-            case ReceivingTab:
-                // Deleting receiving addresses, however, is not allowed
-                ui->deleteAddress->setEnabled(false);
-                ui->deleteAddress->setVisible(false);
-                deleteAction->setEnabled(false);
-                break;
-        }
-        ui->copyAddress->setEnabled(true);
-    } else {
-        ui->deleteAddress->setEnabled(false);
-        ui->copyAddress->setEnabled(false);
-    }
+    selectionChanged(ui->tableView);
 }
 
 void AddressBookPage::pcodeSelectionChanged() {
     // Set button states based on selected tab and selection
-    
-    QTableView *table = ui->paymentcodeTableView;
+    selectionChanged(ui->paymentcodeTableView);
+}
+
+void AddressBookPage::selectionChanged(const QTableView *table) 
+{
+    if (!table) return;
     if (!table->selectionModel())
         return;
 
@@ -348,25 +337,18 @@ void AddressBookPage::pcodeSelectionChanged() {
         ui->deleteAddress->setEnabled(false);
         ui->copyAddress->setEnabled(false);
     }
+    setActiveModel();
 }
 
 void AddressBookPage::done(int retval) {
 
-    QTableView *table;
-    if(pageMode == 0) 
-        table = ui->tableView;    
-    else
-        table = ui->paymentcodeTableView;
+    QTableView *table = pActiveTableView;
     if (!table->selectionModel() || !table->model())
         return;
 
     // Figure out which address was selected, and return it
     QModelIndexList indexes;
-    if(pageMode == 0)
-        indexes = table->selectionModel()->selectedRows(ZCoinTableModel::Address);
-    else
-        indexes = table->selectionModel()->selectedRows(ZCoinTableModel::Address);
-    
+    indexes = table->selectionModel()->selectedRows(ZCoinTableModel::Address);
 
     Q_FOREACH(
     const QModelIndex &index, indexes) {
@@ -406,18 +388,14 @@ void AddressBookPage::on_exportButton_clicked() {
 }
 
 void AddressBookPage::contextualMenu(const QPoint &point) {
-    QModelIndex index;
-    if(pageMode == 0)
-        index = ui->tableView->indexAt(point);
-    else
-        index = ui->paymentcodeTableView->indexAt(point);
+    QModelIndex index = pActiveTableView->indexAt(point);
     if (index.isValid()) {
         contextMenu->exec(QCursor::pos());
     }
 }
 
 void AddressBookPage::selectNewAddress(const QModelIndex &parent, int begin, int /*end*/) {
-    QModelIndex idx = proxyModel->mapFromSource(model->index(begin, AddressTableModel::Address, parent));
+    QModelIndex idx = proxyModel->mapFromSource(model->index(begin, ZCoinTableModel::Address, parent));
     if (idx.isValid() && (idx.data(Qt::EditRole).toString() == newAddressToSelect)) {
         // Select row of newly created address, once
         ui->tableView->setFocus();
@@ -428,7 +406,7 @@ void AddressBookPage::selectNewAddress(const QModelIndex &parent, int begin, int
 
 void AddressBookPage::selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/)
 {
-    QModelIndex idx = pcodeProxyModel->mapFromSource(model->index(begin, ZCoinTableModel::Address, parent));
+    QModelIndex idx = pcodeProxyModel->mapFromSource(pcodeModel->index(begin, ZCoinTableModel::Address, parent));
     if (idx.isValid() && (idx.data(Qt::EditRole).toString() == newAddressToSelect)) {
         // Select row of newly created address, once
         ui->paymentcodeTableView->setFocus();

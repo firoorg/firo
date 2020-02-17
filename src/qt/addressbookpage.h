@@ -6,11 +6,12 @@
 #define BITCOIN_QT_ADDRESSBOOKPAGE_H
 
 #include <QDialog>
-
+#include <QTableView>
 class AddressTableModel;
 class PaymentCodeTableModel;
 class OptionsModel;
 class PlatformStyle;
+class ZCoinTableModel;
 
 namespace Ui {
     class AddressBookPage;
@@ -55,16 +56,22 @@ private:
     Ui::AddressBookPage *ui;
     AddressTableModel *model;
     PaymentCodeTableModel *pcodeModel;
+    ZCoinTableModel *pActiveAddressModel;
     Mode mode;
     Tabs tab;
     int pageMode;
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
     QSortFilterProxyModel *pcodeProxyModel;
+    QSortFilterProxyModel *pActiveProxyModel;
     QMenu *contextMenu;
     QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
+    QAction *editAction;
     QString newAddressToSelect;
+
+    QTableView *pActiveTableView;
+    void setActiveModel();
 
 private Q_SLOTS:
     /** TabWidget Changed **/
@@ -93,6 +100,8 @@ private Q_SLOTS:
     /** @bip47 */
     void pcodeSelectionChanged();
     void selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/);
+
+    void selectionChanged(const QTableView *table);
     
 
 Q_SIGNALS:
