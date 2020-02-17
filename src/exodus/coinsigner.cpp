@@ -19,12 +19,6 @@ CoinSigner::CoinSigner(unsigned char const *ecdsaKey, size_t keySize)
     std::copy(ecdsaKey, ecdsaKey + keySize, key.begin());
 }
 
-CoinSigner& CoinSigner::Write(char const *pch, size_t size)
-{
-    hasher.write(pch, size);
-    return (*this);
-}
-
 std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
 {
     secp256k1_pubkey pubkey;
@@ -34,7 +28,7 @@ std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
     }
 
     std::array<uint8_t, 33> compressedPubKey;
-    size_t len;
+    size_t len = sizeof(compressedPubKey);
     if (1 != secp256k1_ec_pubkey_serialize(
         OpenSSLContext::get_context(),
         compressedPubKey.begin(), &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
@@ -42,28 +36,6 @@ std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
     }
 
     return compressedPubKey;
-}
-
-std::array<uint8_t, 64> CoinSigner::GetSignature()
-{
-    secp256k1_ecdsa_signature sig;
-    if (1 != secp256k1_ecdsa_sign(
-        OpenSSLContext::get_context(),
-        &sig,
-        hasher.GetHash().begin(),
-        key.begin(),
-        nullptr,
-        nullptr)) {
-        throw std::runtime_error("Unable to sign with ECDSA key.");
-    }
-
-    std::array<uint8_t, 64> serializedSig;
-    if (1 != secp256k1_ecdsa_signature_serialize_compact(
-        OpenSSLContext::get_context(), serializedSig.data(), &sig)) {
-        throw std::runtime_error("Unable to serialize ecdsa signature.");
-    }
-
-    return serializedSig;
 }
 
 }

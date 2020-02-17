@@ -24,7 +24,7 @@ public:
 class SigmaV1SignatureBuilder : SignatureBuilder
 {
 protected:
-    std::vector<unsigned char> payload;
+    CHashWriter hasher;
     std::array<uint8_t, 33> publicKey;
 
 public:

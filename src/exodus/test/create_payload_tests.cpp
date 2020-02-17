@@ -574,6 +574,38 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
     );
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
+{
+    auto& params = DefaultSigmaParams;
+    SigmaPrivateKey key1, key2;
+    std::vector<SigmaPublicKey> anonimitySet;
+    SigmaProof spend(params);
+    CDataStream buffer(SER_DISK, CLIENT_VERSION);
+
+    std::array<uint8_t, 64> signature;
+    std::array<uint8_t, 33> publicKey;
+
+    std::fill(signature.begin(), signature.end(), 0xFF);
+    std::fill(publicKey.begin(), publicKey.end(), 0xFF);
+
+    key1.Generate();
+    key2.Generate();
+    anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
+    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end(), false);
+    buffer << spend.proof;
+
+    std::vector<unsigned char> payload;
+    BOOST_CHECK_NO_THROW(
+        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, signature, publicKey)
+    );
+
+    BOOST_CHECK_EQUAL(
+        HexStr(payload),
+        "000104000000000102000000030002" +
+        HexStr(publicKey) + HexStr(buffer.vch) + HexStr(signature)
+    );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace exodus

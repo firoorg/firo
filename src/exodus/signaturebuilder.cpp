@@ -21,7 +21,7 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     int64_t referenceAmount,
     SigmaProof const &proof,
     unsigned char const *publicKey,
-    size_t publicKeySize)
+    size_t publicKeySize) : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION))
 {
     // serialize payload
     CKeyID keyId;
@@ -29,23 +29,20 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
         throw std::runtime_error("Fail to get address key id.");
     }
 
-    payload.insert(payload.end(), keyId.begin(), keyId.end());
+    hasher.write(reinterpret_cast<char*>(keyId.begin()), keyId.size());
 
     // reference amount
     exodus::swapByteOrder(referenceAmount);
-    payload.insert(
-        payload.end(),
-        reinterpret_cast<unsigned char*>(referenceAmount),
-        reinterpret_cast<unsigned char*>(referenceAmount) + sizeof(referenceAmount));
+    hasher.write(reinterpret_cast<char*>(&referenceAmount), sizeof(referenceAmount));
 
     // serial and proof
-    unsigned char *ptr = &payload.back();
-    payload.resize(payload.size() +
-        sizeof(proof.serial.memoryRequired()) +
-        sizeof(proof.proof.memoryRequired()));
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof.serial;
+    serialized << proof.proof;
+    std::vector<char> serializedData;
+    serializedData.insert(serializedData.end(), serialized.begin(), serialized.end());
 
-    ptr = proof.serial.serialize(ptr);
-    ptr = proof.proof.serialize(ptr);
+    hasher.write(serializedData.data(), serialized.size());
 
     // copy public key
     if (publicKeySize != sizeof(this->publicKey)) {
@@ -57,14 +54,13 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
 
 std::array<uint8_t, 64> SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
 {
-    signer.Write(reinterpret_cast<const char*>(payload.data()), payload.size());
-    return signer.GetSignature();
+    auto hash = hasher.GetHash();
+    return signer.Sign(hash.begin(), hash.end());
 }
 
 bool SigmaV1SignatureBuilder::Verify(std::array<uint8_t, 64> const &signature)
 {
-    std::array<uint8_t, 32> hash;
-    CSHA256().Write(payload.data(), payload.size()).Finalize(hash.data());
+    auto hash = hasher.GetHash();
 
     secp256k1_pubkey pubkey;
     secp256k1_ecdsa_signature parsedSignature;
@@ -84,7 +80,7 @@ bool SigmaV1SignatureBuilder::Verify(std::array<uint8_t, 64> const &signature)
         throw std::runtime_error("Sigma spend fail due to unable to parse signature");
     }
 
-    return 1 == secp256k1_ecdsa_verify(OpenSSLContext::get_context(), &parsedSignature, hash.data(), &pubkey);
+    return 1 == secp256k1_ecdsa_verify(OpenSSLContext::get_context(), &parsedSignature, hash.begin(), &pubkey);
 }
 
 }

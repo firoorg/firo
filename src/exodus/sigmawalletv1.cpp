@@ -64,7 +64,7 @@ SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
 {
     // first 32 bytes as seed of ecdsa key and serial
     std::array<uint8_t, 32> tmp;
-    std::copy(seed.begin(), seed.end(), ecdsaKeyOut.begin());
+    std::copy(seed.begin(), seed.begin() + 32, ecdsaKeyOut.begin());
 
     // hash until get valid private key
     secp256k1_pubkey pubkey;
