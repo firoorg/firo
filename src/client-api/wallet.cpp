@@ -440,8 +440,10 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             ret.replace(addrStr, address);
         }
     }
-
     UniValue listInputs(UniValue::VARR);
+    if (!find_value(ret, "inputs").isNull()) {
+        listInputs = find_value(ret, "inputs");
+    }
     if (!wtx.IsSigmaSpend()) {
         BOOST_FOREACH(const CTxIn& in, wtx.vin) {
             UniValue entry(UniValue::VOBJ);
@@ -472,7 +474,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             listInputs.push_back(entry);
         }
     }
-    ret.push_back(Pair("inputs", listInputs));
+    ret.replace("inputs", listInputs);
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
