@@ -29,6 +29,7 @@ namespace exodus {
 
 void RequireSigma(PropertyId property);
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);
+void RequireSigmaSpendV1Feature();
 
 }
 

@@ -193,4 +193,11 @@ void RequireExistingDenomination(PropertyId property, SigmaDenomination denomina
     }
 }
 
+void RequireSigmaSpendV1Feature()
+{
+    if (!IsFeatureActivated(FEATURE_SIGMA_SPENDV1, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma spend v1 feature is not activated yet");
+    }
+}
+
 }

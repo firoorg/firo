@@ -1710,10 +1710,18 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     RequireExistingProperty(propertyId);
     RequireExistingDenomination(propertyId, denomination);
     RequireSaneReferenceAmount(referenceAmount);
+    RequireSigmaSpendV1Feature();
 
     // create spend
     SigmaMintId mint;
     std::vector<unsigned char> payload;
+
+    // calculate reference amount
+    CBitcoinAddress address(toAddress);
+    if (referenceAmount <= 0) {
+        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(address).Get());
+        referenceAmount = GetDustThreshold(scriptPubKey);
+    }
 
     try {
 
@@ -1723,12 +1731,14 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         auto signer = wallet->GetSigmaSigner(spend.mint);
         auto pubkey = signer.GetPublicKey();
 
-        CBitcoinAddress address(toAddress);
-
         SigmaV1SignatureBuilder sigBuilder(
             address, referenceAmount, spend.proof, pubkey.data(), pubkey.size());
 
         auto signature = sigBuilder.Sign(signer);
+        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof, pubkey.data(), pubkey.size());
+        if (!sigVerifier.Verify(signature)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Fail to create valid signature to spend.");
+        }
 
         mint = spend.mint;
         payload = CreatePayload_SimpleSpend(

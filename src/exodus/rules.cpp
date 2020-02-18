@@ -69,9 +69,10 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
 
         { EXODUS_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   EXODUS_BET_BLOCK      },
 
-        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
-        { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
-        { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK   },
+        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V1,  false,   SIGMA_SPENDV1_FEATURE_BLOCK },
+        { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);
@@ -131,6 +132,7 @@ CMainConsensusParams::CMainConsensusParams()
 
     // Sigma releated
     SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
+    SIGMA_SPENDV1_FEATURE_BLOCK = 999999;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 212000;
@@ -180,6 +182,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
 
     // sigma related
     SIGMA_FEATURE_BLOCK = 100000;
+    SIGMA_SPENDV1_FEATURE_BLOCK = 999999;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 100000;
@@ -229,6 +232,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
 
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
+    SIGMA_SPENDV1_FEATURE_BLOCK = 700;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 500;
@@ -402,6 +406,9 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_SIGMA:
             MutableConsensusParams().SIGMA_FEATURE_BLOCK = activationBlock;
         break;
+        case FEATURE_SIGMA_SPENDV1:
+            MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = activationBlock;
+        break;
         default:
             supported = false;
         break;
@@ -476,6 +483,9 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         case FEATURE_SIGMA:
             MutableConsensusParams().SIGMA_FEATURE_BLOCK = 999999;
         break;
+        case FEATURE_SIGMA_SPENDV1:
+            MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = 999999;
+        break;
         default:
             return false;
         break;
@@ -508,6 +518,7 @@ std::string GetFeatureName(uint16_t featureId)
         case FEATURE_STOV1: return "Cross-property Send To Owners";
         case FEATURE_FREEZENOTICE: return "Activate the waiting period for enabling freezing";
         case FEATURE_SIGMA: return "Activate Sigma transactions";
+        case FEATURE_SIGMA_SPENDV1: return "Activate Sigma spendv1 transactions";
 
         default: return "Unknown feature";
     }
@@ -557,6 +568,9 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             break;
         case FEATURE_SIGMA:
             activationBlock = params.SIGMA_FEATURE_BLOCK;
+            break;
+        case FEATURE_SIGMA_SPENDV1:
+            activationBlock = params.SIGMA_SPENDV1_FEATURE_BLOCK;
             break;
         default:
             return false;
