@@ -232,7 +232,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
 
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
-    SIGMA_SPENDV1_FEATURE_BLOCK = 700;
+    SIGMA_SPENDV1_FEATURE_BLOCK = 550;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 500;
