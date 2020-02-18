@@ -5,6 +5,7 @@ EXODUS_TEST_CPP = \
   exodus/test/alert_tests.cpp \
   exodus/test/build_tx_tests.cpp \
   exodus/test/checkpoint_tests.cpp \
+  exodus/test/coinsigner_tests.cpp \
   exodus/test/create_payload_tests.cpp \
   exodus/test/create_tx_tests.cpp \
   exodus/test/crowdsale_participation_tests.cpp \
@@ -29,6 +30,7 @@ EXODUS_TEST_CPP = \
   exodus/test/sigma_tests.cpp \
   exodus/test/sigmadb_tests.cpp \
   exodus/test/sigmaprimitives_tests.cpp \
+  exodus/test/signaturebuilder_sigmav1_tests.cpp \
   exodus/test/sp_tests.cpp \
   exodus/test/strtoint64_tests.cpp \
   exodus/test/swapbyteorder_tests.cpp \

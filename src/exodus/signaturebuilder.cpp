@@ -42,11 +42,11 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     std::vector<char> serializedData;
     serializedData.insert(serializedData.end(), serialized.begin(), serialized.end());
 
-    hasher.write(serializedData.data(), serialized.size());
+    hasher.write(serializedData.data(), serializedData.size());
 
     // copy public key
     if (publicKeySize != sizeof(this->publicKey)) {
-        throw std::runtime_error("Public key size is invalid.");
+        throw std::invalid_argument("Public key size is invalid.");
     }
 
     std::copy(publicKey, publicKey + publicKeySize, this->publicKey.data());

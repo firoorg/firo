@@ -23,33 +23,7 @@ protected:
 
 public:
     std::array<uint8_t, 33> GetPublicKey() const;
-
-    template<class It>
-    std::array<uint8_t, 64> Sign(It start, It end)
-    {
-        if (std::distance(start, end) != 32) {
-            throw std::runtime_error("Payload to sign is invalid.");
-        }
-
-        secp256k1_ecdsa_signature sig;
-        if (1 != secp256k1_ecdsa_sign(
-            OpenSSLContext::get_context(),
-            &sig,
-            start,
-            key.begin(),
-            nullptr,
-            nullptr)) {
-            throw std::runtime_error("Unable to sign with ECDSA key.");
-        }
-
-        std::array<uint8_t, 64> serializedSig;
-        if (1 != secp256k1_ecdsa_signature_serialize_compact(
-            OpenSSLContext::get_context(), serializedSig.data(), &sig)) {
-            throw std::runtime_error("Unable to serialize ecdsa signature.");
-        }
-
-        return serializedSig;
-    }
+    std::array<uint8_t, 64> Sign(unsigned char const *start, unsigned char const *end);
 };
 
 }
