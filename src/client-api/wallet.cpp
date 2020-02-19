@@ -441,8 +441,12 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             ret.replace(addrStr, address);
         }
     }
+
     if(getInputs){
         UniValue listInputs(UniValue::VARR);
+        if (!find_value(ret, "inputs").isNull()) {
+            listInputs = find_value(ret, "inputs");
+        }
         if (!wtx.IsSigmaSpend()) {
             BOOST_FOREACH(const CTxIn& in, wtx.vin) {
                 UniValue entry(UniValue::VOBJ);
@@ -473,8 +477,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 listInputs.push_back(entry);
             }
         }
-        ret.push_back(Pair("inputs", listInputs));
-    }
+        ret.replace("inputs", listInputs);
+    }        
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
@@ -499,7 +503,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
         CWalletTx tx = (*it).second;
 
         if (depth == -1 || tx.GetDepthInMainChain() <= depth)
-            ListAPITransactions(tx, transactions, filter);
+            ListAPITransactions(tx, transactions, filter, true);
     }
 
     ret.push_back(Pair("addresses", transactions));
@@ -535,7 +539,7 @@ UniValue StateBlock(UniValue& ret, std::string blockhash){
     {
         const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
         if(wtx){
-            ListAPITransactions(*(wtx), transactions, filter);
+            ListAPITransactions(*(wtx), transactions, filter, true);
         }
     }
 
