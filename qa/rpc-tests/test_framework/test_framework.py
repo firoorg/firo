@@ -215,7 +215,7 @@ class ComparisonTestFramework(BitcoinTestFramework):
             binary=[self.options.testbinary] +
             [self.options.refbinary]*(self.num_nodes-1))
 
-class ExodusTestFramework(BitcoinTestFramework):
+class ElysiumTestFramework(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.addrs = []
@@ -283,13 +283,13 @@ class ExodusTestFramework(BitcoinTestFramework):
         sigma_status = 1 if sigma else 0
 
         if amount is None:
-            self.nodes[0].exodus_sendissuancemanaged(address, 1, 1, 0, '', '', name, '', '', sigma_status)
+            self.nodes[0].elysium_sendissuancemanaged(address, 1, 1, 0, '', '', name, '', '', sigma_status)
         else:
-            self.nodes[0].exodus_sendissuancefixed(address, 1, 1, 0, '', '', name, '', '', amount, sigma_status)
+            self.nodes[0].elysium_sendissuancefixed(address, 1, 1, 0, '', '', name, '', '', amount, sigma_status)
 
         self.nodes[0].generate(1)
         self.sync_all()
 
         # get lastest id
-        properties = self.nodes[0].exodus_listproperties()
+        properties = self.nodes[0].elysium_listproperties()
         return max(map(lambda p: p["propertyid"], properties))

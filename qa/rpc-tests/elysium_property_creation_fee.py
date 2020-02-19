@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from test_framework.authproxy import JSONRPCException
-from test_framework.test_framework import ExodusTestFramework
+from test_framework.test_framework import ElysiumTestFramework
 from test_framework.util import assert_raises_message
 
-class ExodusPropertyCreationFeeTest(ExodusTestFramework):
+class ElysiumPropertyCreationFeeTest(ElysiumTestFramework):
 
     def get_new_address(self, default_balance = 0):
         addr = self.nodes[0].getnewaddress()
@@ -18,11 +18,11 @@ class ExodusPropertyCreationFeeTest(ExodusTestFramework):
     def test(self, balance = 1, ecosystem = 1, amount = None, expected_error = None):
         addr = self.get_new_address(balance)
 
-        operator = self.nodes[0].exodus_sendissuancemanaged
+        operator = self.nodes[0].elysium_sendissuancemanaged
         options = [addr, ecosystem, 1, 0, "", "", "Foo", "", ""]
 
         if amount is not None:
-            operator = self.nodes[0].exodus_sendissuancefixed
+            operator = self.nodes[0].elysium_sendissuancefixed
             options.append(amount)
 
         if expected_error is None:
@@ -66,4 +66,4 @@ class ExodusPropertyCreationFeeTest(ExodusTestFramework):
         self.test(balance = 101, ecosystem = 1, amount = "10000")
 
 if __name__ == '__main__':
-    ExodusPropertyCreationFeeTest().main()
+    ElysiumPropertyCreationFeeTest().main()

@@ -15,11 +15,11 @@
 using std::runtime_error;
 using namespace exodus;
 
-UniValue exodus_createpayload_simplesend(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_simplesend(const UniValue& params, bool fHelp)
 {
    if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_createpayload_simplesend propertyid \"amount\"\n"
+            "elysium_createpayload_simplesend propertyid \"amount\"\n"
 
             "\nCreate the payload for a simple send transaction.\n"
 
@@ -31,8 +31,8 @@ UniValue exodus_createpayload_simplesend(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_simplesend", "1 \"100.0\"")
-            + HelpExampleRpc("exodus_createpayload_simplesend", "1, \"100.0\"")
+            + HelpExampleCli("elysium_createpayload_simplesend", "1 \"100.0\"")
+            + HelpExampleRpc("elysium_createpayload_simplesend", "1, \"100.0\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -44,11 +44,11 @@ UniValue exodus_createpayload_simplesend(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_sendall(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_sendall(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_sendall ecosystem\n"
+            "elysium_createpayload_sendall ecosystem\n"
 
             "\nCreate the payload for a send all transaction.\n"
 
@@ -59,8 +59,8 @@ UniValue exodus_createpayload_sendall(const UniValue& params, bool fHelp)
             "\"payload\"               (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_sendall", "2")
-            + HelpExampleRpc("exodus_createpayload_sendall", "2")
+            + HelpExampleCli("elysium_createpayload_sendall", "2")
+            + HelpExampleRpc("elysium_createpayload_sendall", "2")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -70,17 +70,17 @@ UniValue exodus_createpayload_sendall(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_dexsell(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_dexsell(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 6)
         throw runtime_error(
-            "exodus_createpayload_dexsell propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
+            "elysium_createpayload_dexsell propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
 
-            "\nCreate a payload to place, update or cancel a sell offer on the traditional distributed EXODUS/XZC exchange.\n"
+            "\nCreate a payload to place, update or cancel a sell offer on the traditional distributed ELYSIUM/XZC exchange.\n"
 
             "\nArguments:\n"
 
-            "1. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for EXODUS or 2 for TEXODUS)\n"
+            "1. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for ELYSIUM or 2 for TELYSIUM)\n"
             "2. amountforsale        (string, required) the amount of tokens to list for sale\n"
             "3. amountdesired        (string, required) the amount of bitcoins desired\n"
             "4. paymentwindow        (number, required) a time limit in blocks a buyer has to pay following a successful accepting order\n"
@@ -91,8 +91,8 @@ UniValue exodus_createpayload_dexsell(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_dexsell", "1 \"1.5\" \"0.75\" 25 \"0.0005\" 1")
-            + HelpExampleRpc("exodus_createpayload_dexsell", "1, \"1.5\", \"0.75\", 25, \"0.0005\", 1")
+            + HelpExampleCli("elysium_createpayload_dexsell", "1 \"1.5\" \"0.75\" 25 \"0.0005\" 1")
+            + HelpExampleRpc("elysium_createpayload_dexsell", "1, \"1.5\", \"0.75\", 25, \"0.0005\", 1")
         );
 
     uint32_t propertyIdForSale = ParsePropertyId(params[0]);
@@ -104,7 +104,7 @@ UniValue exodus_createpayload_dexsell(const UniValue& params, bool fHelp)
     int64_t minAcceptFee = 0;  // depending on action
 
     if (action <= CMPTransaction::UPDATE) { // actions 3 permit zero values, skip check
-        amountForSale = ParseAmount(params[1], true); // TEXODUS/EXODUS is divisible
+        amountForSale = ParseAmount(params[1], true); // TELYSIUM/ELYSIUM is divisible
         amountDesired = ParseAmount(params[2], true); // XZC is divisible
         paymentWindow = ParseDExPaymentWindow(params[3]);
         minAcceptFee = ParseDExFee(params[4]);
@@ -115,11 +115,11 @@ UniValue exodus_createpayload_dexsell(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_dexaccept(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_dexaccept(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_createpayload_dexaccept propertyid \"amount\"\n"
+            "elysium_createpayload_dexaccept propertyid \"amount\"\n"
 
             "\nCreate the payload for an accept offer for the specified token and amount.\n"
 
@@ -131,8 +131,8 @@ UniValue exodus_createpayload_dexaccept(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_dexaccept", "1 \"15.0\"")
-            + HelpExampleRpc("exodus_createpayload_dexaccept", "1, \"15.0\"")
+            + HelpExampleCli("elysium_createpayload_dexaccept", "1 \"15.0\"")
+            + HelpExampleRpc("elysium_createpayload_dexaccept", "1, \"15.0\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -144,11 +144,11 @@ UniValue exodus_createpayload_dexaccept(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_sto(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_sto(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "exodus_createpayload_sto propertyid \"amount\" ( distributionproperty )\n"
+            "elysium_createpayload_sto propertyid \"amount\" ( distributionproperty )\n"
 
             "\nCreates the payload for a send-to-owners transaction.\n"
 
@@ -160,8 +160,8 @@ UniValue exodus_createpayload_sto(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_sto", "3 \"5000\"")
-            + HelpExampleRpc("exodus_createpayload_sto", "3, \"5000\"")
+            + HelpExampleCli("elysium_createpayload_sto", "3 \"5000\"")
+            + HelpExampleRpc("elysium_createpayload_sto", "3, \"5000\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -174,11 +174,11 @@ UniValue exodus_createpayload_sto(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_issuancefixed(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancefixed(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 9)
         throw runtime_error(
-            "exodus_createpayload_issuancefixed ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\"\n"
+            "elysium_createpayload_issuancefixed ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\"\n"
 
             "\nCreates the payload for a new tokens issuance with fixed supply.\n"
 
@@ -197,8 +197,8 @@ UniValue exodus_createpayload_issuancefixed(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancefixed", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
-            + HelpExampleRpc("exodus_createpayload_issuancefixed", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
+            + HelpExampleCli("elysium_createpayload_issuancefixed", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
+            + HelpExampleRpc("elysium_createpayload_issuancefixed", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -218,11 +218,11 @@ UniValue exodus_createpayload_issuancefixed(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_issuancecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancecrowdsale(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 13)
         throw runtime_error(
-            "exodus_createpayload_issuancecrowdsale ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline earlybonus issuerpercentage\n"
+            "elysium_createpayload_issuancecrowdsale ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline earlybonus issuerpercentage\n"
 
             "\nCreates the payload for a new tokens issuance with crowdsale.\n"
 
@@ -245,8 +245,8 @@ UniValue exodus_createpayload_issuancecrowdsale(const UniValue& params, bool fHe
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancecrowdsale", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
-            + HelpExampleRpc("exodus_createpayload_issuancecrowdsale", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
+            + HelpExampleCli("elysium_createpayload_issuancecrowdsale", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
+            + HelpExampleRpc("elysium_createpayload_issuancecrowdsale", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -272,11 +272,11 @@ UniValue exodus_createpayload_issuancecrowdsale(const UniValue& params, bool fHe
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_issuancemanaged(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancemanaged(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 8)
         throw runtime_error(
-            "exodus_createpayload_issuancemanaged ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\"\n"
+            "elysium_createpayload_issuancemanaged ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\"\n"
 
             "\nCreates the payload for a new tokens issuance with manageable supply.\n"
 
@@ -294,8 +294,8 @@ UniValue exodus_createpayload_issuancemanaged(const UniValue& params, bool fHelp
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancemanaged", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
-            + HelpExampleRpc("exodus_createpayload_issuancemanaged", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
+            + HelpExampleCli("elysium_createpayload_issuancemanaged", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
+            + HelpExampleRpc("elysium_createpayload_issuancemanaged", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -314,11 +314,11 @@ UniValue exodus_createpayload_issuancemanaged(const UniValue& params, bool fHelp
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_closecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_closecrowdsale(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_closecrowdsale propertyid\n"
+            "elysium_createpayload_closecrowdsale propertyid\n"
 
             "\nCreates the payload to manually close a crowdsale.\n"
 
@@ -329,8 +329,8 @@ UniValue exodus_createpayload_closecrowdsale(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_closecrowdsale", "70")
-            + HelpExampleRpc("exodus_createpayload_closecrowdsale", "70")
+            + HelpExampleCli("elysium_createpayload_closecrowdsale", "70")
+            + HelpExampleRpc("elysium_createpayload_closecrowdsale", "70")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -342,11 +342,11 @@ UniValue exodus_createpayload_closecrowdsale(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_grant(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_grant(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "exodus_createpayload_grant propertyid \"amount\" ( \"memo\" )\n"
+            "elysium_createpayload_grant propertyid \"amount\" ( \"memo\" )\n"
 
             "\nCreates the payload to issue or grant new units of managed tokens.\n"
 
@@ -359,8 +359,8 @@ UniValue exodus_createpayload_grant(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_grant", "51 \"7000\"")
-            + HelpExampleRpc("exodus_createpayload_grant", "51, \"7000\"")
+            + HelpExampleCli("elysium_createpayload_grant", "51 \"7000\"")
+            + HelpExampleRpc("elysium_createpayload_grant", "51, \"7000\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -374,11 +374,11 @@ UniValue exodus_createpayload_grant(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_revoke(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_revoke(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "exodus_createpayload_revoke propertyid \"amount\" ( \"memo\" )\n"
+            "elysium_createpayload_revoke propertyid \"amount\" ( \"memo\" )\n"
 
             "\nCreates the payload to revoke units of managed tokens.\n"
 
@@ -391,8 +391,8 @@ UniValue exodus_createpayload_revoke(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_revoke", "51 \"100\"")
-            + HelpExampleRpc("exodus_createpayload_revoke", "51, \"100\"")
+            + HelpExampleCli("elysium_createpayload_revoke", "51 \"100\"")
+            + HelpExampleRpc("elysium_createpayload_revoke", "51, \"100\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -406,11 +406,11 @@ UniValue exodus_createpayload_revoke(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_changeissuer(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_changeissuer(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_changeissuer propertyid\n"
+            "elysium_createpayload_changeissuer propertyid\n"
 
             "\nCreats the payload to change the issuer on record of the given tokens.\n"
 
@@ -421,8 +421,8 @@ UniValue exodus_createpayload_changeissuer(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_changeissuer", "3")
-            + HelpExampleRpc("exodus_createpayload_changeissuer", "3")
+            + HelpExampleCli("elysium_createpayload_changeissuer", "3")
+            + HelpExampleRpc("elysium_createpayload_changeissuer", "3")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -433,11 +433,11 @@ UniValue exodus_createpayload_changeissuer(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_trade(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_trade(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_createpayload_trade propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
+            "elysium_createpayload_trade propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
             "\nCreates the payload to place a trade offer on the distributed token exchange.\n"
 
@@ -451,8 +451,8 @@ UniValue exodus_createpayload_trade(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_trade", "31 \"250.0\" 1 \"10.0\"")
-            + HelpExampleRpc("exodus_createpayload_trade", "31, \"250.0\", 1, \"10.0\"")
+            + HelpExampleCli("elysium_createpayload_trade", "31 \"250.0\" 1 \"10.0\"")
+            + HelpExampleRpc("elysium_createpayload_trade", "31, \"250.0\", 1, \"10.0\"")
         );
 
     uint32_t propertyIdForSale = ParsePropertyId(params[0]);
@@ -470,11 +470,11 @@ UniValue exodus_createpayload_trade(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_canceltradesbyprice(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_canceltradesbyprice(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_createpayload_canceltradesbyprice propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
+            "elysium_createpayload_canceltradesbyprice propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
             "\nCreates the payload to cancel offers on the distributed token exchange with the specified price.\n"
 
@@ -488,8 +488,8 @@ UniValue exodus_createpayload_canceltradesbyprice(const UniValue& params, bool f
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_canceltradesbyprice", "31 \"100.0\" 1 \"5.0\"")
-            + HelpExampleRpc("exodus_createpayload_canceltradesbyprice", "31, \"100.0\", 1, \"5.0\"")
+            + HelpExampleCli("elysium_createpayload_canceltradesbyprice", "31 \"100.0\" 1 \"5.0\"")
+            + HelpExampleRpc("elysium_createpayload_canceltradesbyprice", "31, \"100.0\", 1, \"5.0\"")
         );
 
     uint32_t propertyIdForSale = ParsePropertyId(params[0]);
@@ -506,11 +506,11 @@ UniValue exodus_createpayload_canceltradesbyprice(const UniValue& params, bool f
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_canceltradesbypair(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_canceltradesbypair(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_createpayload_canceltradesbypair propertyidforsale propertiddesired\n"
+            "elysium_createpayload_canceltradesbypair propertyidforsale propertiddesired\n"
 
             "\nCreates the payload to cancel all offers on the distributed token exchange with the given currency pair.\n"
 
@@ -522,8 +522,8 @@ UniValue exodus_createpayload_canceltradesbypair(const UniValue& params, bool fH
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_canceltradesbypair", "1 31")
-            + HelpExampleRpc("exodus_createpayload_canceltradesbypair", "1, 31")
+            + HelpExampleCli("elysium_createpayload_canceltradesbypair", "1 31")
+            + HelpExampleRpc("elysium_createpayload_canceltradesbypair", "1, 31")
         );
 
     uint32_t propertyIdForSale = ParsePropertyId(params[0]);
@@ -538,11 +538,11 @@ UniValue exodus_createpayload_canceltradesbypair(const UniValue& params, bool fH
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_cancelalltrades(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_cancelalltrades(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_cancelalltrades ecosystem\n"
+            "elysium_createpayload_cancelalltrades ecosystem\n"
 
             "\nCreates the payload to cancel all offers on the distributed token exchange.\n"
 
@@ -553,8 +553,8 @@ UniValue exodus_createpayload_cancelalltrades(const UniValue& params, bool fHelp
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_cancelalltrades", "1")
-            + HelpExampleRpc("exodus_createpayload_cancelalltrades", "1")
+            + HelpExampleCli("elysium_createpayload_cancelalltrades", "1")
+            + HelpExampleRpc("elysium_createpayload_cancelalltrades", "1")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -564,11 +564,11 @@ UniValue exodus_createpayload_cancelalltrades(const UniValue& params, bool fHelp
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_enablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_enablefreezing(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_enablefreezing propertyid\n"
+            "elysium_createpayload_enablefreezing propertyid\n"
 
             "\nCreates the payload to enable address freezing for a centrally managed property.\n"
 
@@ -579,8 +579,8 @@ UniValue exodus_createpayload_enablefreezing(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_enablefreezing", "3")
-            + HelpExampleRpc("exodus_createpayload_enablefreezing", "3")
+            + HelpExampleCli("elysium_createpayload_enablefreezing", "3")
+            + HelpExampleRpc("elysium_createpayload_enablefreezing", "3")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -592,11 +592,11 @@ UniValue exodus_createpayload_enablefreezing(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_disablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_disablefreezing(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_createpayload_disablefreezing propertyid\n"
+            "elysium_createpayload_disablefreezing propertyid\n"
 
             "\nCreates the payload to disable address freezing for a centrally managed property.\n"
             "\nIMPORTANT NOTE:  Disabling freezing for a property will UNFREEZE all frozen addresses for that property!"
@@ -608,8 +608,8 @@ UniValue exodus_createpayload_disablefreezing(const UniValue& params, bool fHelp
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_disablefreezing", "3")
-            + HelpExampleRpc("exodus_createpayload_disablefreezing", "3")
+            + HelpExampleCli("elysium_createpayload_disablefreezing", "3")
+            + HelpExampleRpc("elysium_createpayload_disablefreezing", "3")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -621,11 +621,11 @@ UniValue exodus_createpayload_disablefreezing(const UniValue& params, bool fHelp
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_freeze(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_freeze(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
         throw runtime_error(
-            "exodus_createpayload_freeze \"toaddress\" propertyid amount \n"
+            "elysium_createpayload_freeze \"toaddress\" propertyid amount \n"
 
             "\nCreates the payload to freeze an address for a centrally managed token.\n"
 
@@ -638,8 +638,8 @@ UniValue exodus_createpayload_freeze(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_freeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
-            + HelpExampleRpc("exodus_createpayload_freeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
+            + HelpExampleCli("elysium_createpayload_freeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
+            + HelpExampleRpc("elysium_createpayload_freeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
     std::string refAddress = ParseAddress(params[0]);
@@ -654,11 +654,11 @@ UniValue exodus_createpayload_freeze(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_unfreeze(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_unfreeze(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
         throw runtime_error(
-            "exodus_createpayload_unfreeze \"toaddress\" propertyid amount \n"
+            "elysium_createpayload_unfreeze \"toaddress\" propertyid amount \n"
 
             "\nCreates the payload to unfreeze an address for a centrally managed token.\n"
 
@@ -671,8 +671,8 @@ UniValue exodus_createpayload_unfreeze(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_unfreeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
-            + HelpExampleRpc("exodus_createpayload_unfreeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
+            + HelpExampleCli("elysium_createpayload_unfreeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
+            + HelpExampleRpc("elysium_createpayload_unfreeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
     std::string refAddress = ParseAddress(params[0]);
@@ -687,12 +687,12 @@ UniValue exodus_createpayload_unfreeze(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_createdenomination(const UniValue& params, bool fHelp)
 {
 
     if (fHelp || params.size() != 2)
         throw std::runtime_error(
-            "exodus_createpayload_createdenomination propertyid \"value\"\n"
+            "elysium_createpayload_createdenomination propertyid \"value\"\n"
             "\nCreate a payload for create a denomination for the given property.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the property to create a new denomination\n"
@@ -700,8 +700,8 @@ UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fH
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded payload\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_createdenomination", "1 \"100.0\"")
-            + HelpExampleRpc("exodus_createpayload_createdenomination", "1, \"100.0\"")
+            + HelpExampleCli("elysium_createpayload_createdenomination", "1 \"100.0\"")
+            + HelpExampleRpc("elysium_createpayload_createdenomination", "1, \"100.0\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -732,12 +732,12 @@ UniValue exodus_createpayload_createdenomination(const UniValue& params, bool fH
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue exodus_createpayload_mintbypublickeys(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_mintbypublickeys(const UniValue& params, bool fHelp)
 {
 
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw std::runtime_error(
-            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
+            "elysium_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
             "\nCreate mints.\n"
             "\nArguments:\n"
             "1. propertyid                          (number, required) the property to create mints\n"
@@ -753,8 +753,8 @@ UniValue exodus_createpayload_mintbypublickeys(const UniValue& params, bool fHel
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded payload\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendmint", "1 \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
-            + HelpExampleRpc("exodus_sendmint", "1, \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
+            + HelpExampleCli("elysium_sendmint", "1 \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
+            + HelpExampleRpc("elysium_sendmint", "1, \"[{\"id\":\"52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100\", \"denomination\":0}]\"")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -820,31 +820,31 @@ UniValue exodus_createpayload_mintbypublickeys(const UniValue& params, bool fHel
 static const CRPCCommand commands[] =
 { //  category                         name                                      actor (function)                         okSafeMode
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
-    { "exodus (payload creation)", "exodus_createpayload_simplesend",          &exodus_createpayload_simplesend,          true },
-    { "exodus (payload creation)", "exodus_createpayload_sendall",             &exodus_createpayload_sendall,             true },
-    { "exodus (payload creation)", "exodus_createpayload_dexsell",             &exodus_createpayload_dexsell,             true },
-    { "exodus (payload creation)", "exodus_createpayload_dexaccept",           &exodus_createpayload_dexaccept,           true },
-    { "exodus (payload creation)", "exodus_createpayload_sto",                 &exodus_createpayload_sto,                 true },
-    { "exodus (payload creation)", "exodus_createpayload_grant",               &exodus_createpayload_grant,               true },
-    { "exodus (payload creation)", "exodus_createpayload_revoke",              &exodus_createpayload_revoke,              true },
-    { "exodus (payload creation)", "exodus_createpayload_changeissuer",        &exodus_createpayload_changeissuer,        true },
-    { "exodus (payload creation)", "exodus_createpayload_trade",               &exodus_createpayload_trade,               true },
-    { "exodus (payload creation)", "exodus_createpayload_issuancefixed",       &exodus_createpayload_issuancefixed,       true },
-    { "exodus (payload creation)", "exodus_createpayload_issuancecrowdsale",   &exodus_createpayload_issuancecrowdsale,   true },
-    { "exodus (payload creation)", "exodus_createpayload_issuancemanaged",     &exodus_createpayload_issuancemanaged,     true },
-    { "exodus (payload creation)", "exodus_createpayload_closecrowdsale",      &exodus_createpayload_closecrowdsale,      true },
-    { "exodus (payload creation)", "exodus_createpayload_canceltradesbyprice", &exodus_createpayload_canceltradesbyprice, true },
-    { "exodus (payload creation)", "exodus_createpayload_canceltradesbypair",  &exodus_createpayload_canceltradesbypair,  true },
-    { "exodus (payload creation)", "exodus_createpayload_cancelalltrades",     &exodus_createpayload_cancelalltrades,     true },
-    { "exodus (payload creation)", "exodus_createpayload_enablefreezing",      &exodus_createpayload_enablefreezing,      true },
-    { "exodus (payload creation)", "exodus_createpayload_disablefreezing",     &exodus_createpayload_disablefreezing,     true },
-    { "exodus (payload creation)", "exodus_createpayload_freeze",              &exodus_createpayload_freeze,              true },
-    { "exodus (payload creation)", "exodus_createpayload_unfreeze",            &exodus_createpayload_unfreeze,            true },
-    { "exodus (payload creation)", "exodus_createpayload_createdenomination",  &exodus_createpayload_createdenomination,  true },
-    { "exodus (payload creation)", "exodus_createpayload_mintbypublickeys",    &exodus_createpayload_mintbypublickeys,    true },
+    { "elysium (payload creation)", "elysium_createpayload_simplesend",          &elysium_createpayload_simplesend,          true },
+    { "elysium (payload creation)", "elysium_createpayload_sendall",             &elysium_createpayload_sendall,             true },
+    { "elysium (payload creation)", "elysium_createpayload_dexsell",             &elysium_createpayload_dexsell,             true },
+    { "elysium (payload creation)", "elysium_createpayload_dexaccept",           &elysium_createpayload_dexaccept,           true },
+    { "elysium (payload creation)", "elysium_createpayload_sto",                 &elysium_createpayload_sto,                 true },
+    { "elysium (payload creation)", "elysium_createpayload_grant",               &elysium_createpayload_grant,               true },
+    { "elysium (payload creation)", "elysium_createpayload_revoke",              &elysium_createpayload_revoke,              true },
+    { "elysium (payload creation)", "elysium_createpayload_changeissuer",        &elysium_createpayload_changeissuer,        true },
+    { "elysium (payload creation)", "elysium_createpayload_trade",               &elysium_createpayload_trade,               true },
+    { "elysium (payload creation)", "elysium_createpayload_issuancefixed",       &elysium_createpayload_issuancefixed,       true },
+    { "elysium (payload creation)", "elysium_createpayload_issuancecrowdsale",   &elysium_createpayload_issuancecrowdsale,   true },
+    { "elysium (payload creation)", "elysium_createpayload_issuancemanaged",     &elysium_createpayload_issuancemanaged,     true },
+    { "elysium (payload creation)", "elysium_createpayload_closecrowdsale",      &elysium_createpayload_closecrowdsale,      true },
+    { "elysium (payload creation)", "elysium_createpayload_canceltradesbyprice", &elysium_createpayload_canceltradesbyprice, true },
+    { "elysium (payload creation)", "elysium_createpayload_canceltradesbypair",  &elysium_createpayload_canceltradesbypair,  true },
+    { "elysium (payload creation)", "elysium_createpayload_cancelalltrades",     &elysium_createpayload_cancelalltrades,     true },
+    { "elysium (payload creation)", "elysium_createpayload_enablefreezing",      &elysium_createpayload_enablefreezing,      true },
+    { "elysium (payload creation)", "elysium_createpayload_disablefreezing",     &elysium_createpayload_disablefreezing,     true },
+    { "elysium (payload creation)", "elysium_createpayload_freeze",              &elysium_createpayload_freeze,              true },
+    { "elysium (payload creation)", "elysium_createpayload_unfreeze",            &elysium_createpayload_unfreeze,            true },
+    { "elysium (payload creation)", "elysium_createpayload_createdenomination",  &elysium_createpayload_createdenomination,  true },
+    { "elysium (payload creation)", "elysium_createpayload_mintbypublickeys",    &elysium_createpayload_mintbypublickeys,    true },
 };
 
-void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC)
+void RegisterElysiumPayloadCreationRPCCommands(CRPCTable &tableRPC)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);

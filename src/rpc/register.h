@@ -34,10 +34,10 @@ void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 void RegisterExodusDataRetrievalRPCCommands(CRPCTable &tableRPC);
 #ifdef ENABLE_WALLET
 /** Register Exodus transaction creation RPC commands */
-void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC);
+void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC);
 #endif
 /** Register Exodus payload creation RPC commands */
-void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC);
+void RegisterElysiumPayloadCreationRPCCommands(CRPCTable &tableRPC);
 /** Register Exodus raw transaction RPC commands */
 void RegisterExodusRawTransactionRPCCommands(CRPCTable &tableRPC);
 
@@ -52,11 +52,11 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 #ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         RegisterExodusDataRetrievalRPCCommands(tableRPC);
-        RegisterExodusPayloadCreationRPCCommands(tableRPC);
+        RegisterElysiumPayloadCreationRPCCommands(tableRPC);
         RegisterExodusRawTransactionRPCCommands(tableRPC);
 
 #ifdef ENABLE_WALLET
-        RegisterExodusTransactionCreationRPCCommands(tableRPC);
+        RegisterElysiumTransactionCreationRPCCommands(tableRPC);
 #endif
     }
 #endif

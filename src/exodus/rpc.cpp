@@ -219,11 +219,11 @@ bool BalanceToJSON(const std::string& address, uint32_t property, UniValue& bala
 }
 
 // Obtains details of a fee distribution
-UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
+UniValue elysium_getfeedistribution(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getfeedistribution distributionid\n"
+            "elysium_getfeedistribution distributionid\n"
             "\nGet the details for a fee distribution.\n"
             "\nArguments:\n"
             "1. distributionid           (number, required) the distribution to obtain details for\n"
@@ -242,8 +242,8 @@ UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getfeedistribution", "1")
-            + HelpExampleRpc("exodus_getfeedistribution", "1")
+            + HelpExampleCli("elysium_getfeedistribution", "1")
+            + HelpExampleRpc("elysium_getfeedistribution", "1")
         );
 
     int id = params[0].get_int();
@@ -285,11 +285,11 @@ UniValue exodus_getfeedistribution(const UniValue& params, bool fHelp)
 
 // Obtains all fee distributions for a property
 // TODO : Split off code to populate a fee distribution object into a seperate function
-UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
+UniValue elysium_getfeedistributions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getfeedistributions propertyid\n"
+            "elysium_getfeedistributions propertyid\n"
             "\nGet the details of all fee distributions for a property.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the property id to retrieve distributions for\n"
@@ -309,8 +309,8 @@ UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
             "  }\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getfeedistributions", "1")
-            + HelpExampleRpc("exodus_getfeedistributions", "1")
+            + HelpExampleCli("elysium_getfeedistributions", "1")
+            + HelpExampleRpc("elysium_getfeedistributions", "1")
         );
 
     uint32_t prop = ParsePropertyId(params[0]);
@@ -360,11 +360,11 @@ UniValue exodus_getfeedistributions(const UniValue& params, bool fHelp)
 }
 
 // Obtains the trigger value for fee distribution for a/all properties
-UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
+UniValue elysium_getfeetrigger(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "exodus_getfeetrigger ( propertyid )\n"
+            "elysium_getfeetrigger ( propertyid )\n"
             "\nReturns the amount of fees required in the cache to trigger distribution.\n"
             "\nArguments:\n"
             "1. propertyid           (number, optional) filter the results on this property id\n"
@@ -377,8 +377,8 @@ UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getfeetrigger", "3")
-            + HelpExampleRpc("exodus_getfeetrigger", "3")
+            + HelpExampleCli("elysium_getfeetrigger", "3")
+            + HelpExampleRpc("elysium_getfeetrigger", "3")
         );
 
     uint32_t propertyId = 0;
@@ -410,11 +410,11 @@ UniValue exodus_getfeetrigger(const UniValue& params, bool fHelp)
 }
 
 // Provides the fee share the wallet (or specific address) will receive from fee distributions
-UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
+UniValue elysium_getfeeshare(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "exodus_getfeeshare ( address ecosystem )\n"
+            "elysium_getfeeshare ( address ecosystem )\n"
             "\nReturns the percentage share of fees distribution applied to the wallet (default) or address (if supplied).\n"
             "\nArguments:\n"
             "1. address              (string, optional) retrieve the fee share for the supplied address\n"
@@ -428,8 +428,8 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getfeeshare", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
-            + HelpExampleRpc("exodus_getfeeshare", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
+            + HelpExampleCli("elysium_getfeeshare", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
+            + HelpExampleRpc("elysium_getfeeshare", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
         );
 
     std::string address;
@@ -467,7 +467,7 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
         if (addObj) {
             UniValue feeShareObj(UniValue::VOBJ);
             // NOTE: using float here as this is a display value only which isn't an exact percentage and
-            //       changes block to block (due to dev Exodus) so high precision not required(?)
+            //       changes block to block (due to dev Elysium) so high precision not required(?)
             double feeShare = (double(it->first) / double(COIN)) * (double)100;
             std::string strFeeShare = strprintf("%.4f", feeShare);
             strFeeShare += "%";
@@ -481,11 +481,11 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
 }
 
 // Provides the current values of the fee cache
-UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
+UniValue elysium_getfeecache(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "exodus_getfeecache ( propertyid )\n"
+            "elysium_getfeecache ( propertyid )\n"
             "\nReturns the amount of fees cached for distribution.\n"
             "\nArguments:\n"
             "1. propertyid           (number, optional) filter the results on this property id\n"
@@ -498,8 +498,8 @@ UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getfeecache", "31")
-            + HelpExampleRpc("exodus_getfeecache", "31")
+            + HelpExampleCli("elysium_getfeecache", "31")
+            + HelpExampleRpc("elysium_getfeecache", "31")
         );
 
     uint32_t propertyId = 0;
@@ -535,24 +535,24 @@ UniValue exodus_getfeecache(const UniValue& params, bool fHelp)
 }
 
 // generate a list of seed blocks based on the data in LevelDB
-UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
+UniValue elysium_getseedblocks(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_getseedblocks startblock endblock\n"
-            "\nReturns a list of blocks containing Exodus transactions for use in seed block filtering.\n"
-            "\nWARNING: The Exodus crowdsale is not stored in LevelDB, thus this is currently only safe to use to generate seed blocks after block 255365."
+            "elysium_getseedblocks startblock endblock\n"
+            "\nReturns a list of blocks containing Elysium transactions for use in seed block filtering.\n"
+            "\nWARNING: The Elysium crowdsale is not stored in LevelDB, thus this is currently only safe to use to generate seed blocks after block 255365."
             "\nArguments:\n"
-            "1. startblock           (number, required) the first block to look for Exodus transactions (inclusive)\n"
-            "2. endblock             (number, required) the last block to look for Exodus transactions (inclusive)\n"
+            "1. startblock           (number, required) the first block to look for Elysium transactions (inclusive)\n"
+            "2. endblock             (number, required) the last block to look for Elysium transactions (inclusive)\n"
             "\nResult:\n"
             "[                     (array of numbers) a list of seed blocks\n"
             "   nnnnnn,              (number) the block height of the seed block\n"
             "   ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getseedblocks", "290000 300000")
-            + HelpExampleRpc("exodus_getseedblocks", "290000, 300000")
+            + HelpExampleCli("elysium_getseedblocks", "290000 300000")
+            + HelpExampleRpc("elysium_getseedblocks", "290000, 300000")
         );
 
     int startHeight = params[0].get_int();
@@ -575,22 +575,22 @@ UniValue exodus_getseedblocks(const UniValue& params, bool fHelp)
 }
 
 // obtain the payload for a transaction
-UniValue exodus_getpayload(const UniValue& params, bool fHelp)
+UniValue elysium_getpayload(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getpayload \"txid\"\n"
-            "\nGet the payload for an Exodus transaction.\n"
+            "elysium_getpayload \"txid\"\n"
+            "\nGet the payload for an Elysium transaction.\n"
             "\nArguments:\n"
             "1. txid                 (string, required) the hash of the transaction to retrieve payload\n"
             "\nResult:\n"
             "{\n"
-            "  \"payload\" : \"payloadmessage\",       (string) the decoded Exodus payload message\n"
+            "  \"payload\" : \"payloadmessage\",       (string) the decoded Elysium payload message\n"
             "  \"payloadsize\" : n                     (number) the size of the payload\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getpayload", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
-            + HelpExampleRpc("exodus_getpayload", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleCli("elysium_getpayload", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleRpc("elysium_getpayload", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
     uint256 txid = ParseHashV(params[0], "txid");
@@ -623,19 +623,19 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
 }
 
 // determine whether to automatically commit transactions
-UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
+UniValue elysium_setautocommit(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_setautocommit flag\n"
+            "elysium_setautocommit flag\n"
             "\nSets the global flag that determines whether transactions are automatically committed and broadcast.\n"
             "\nArguments:\n"
             "1. flag                 (boolean, required) the flag\n"
             "\nResult:\n"
             "true|false              (boolean) the updated flag status\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_setautocommit", "false")
-            + HelpExampleRpc("exodus_setautocommit", "false")
+            + HelpExampleCli("elysium_setautocommit", "false")
+            + HelpExampleRpc("elysium_setautocommit", "false")
         );
 
     LOCK(cs_main);
@@ -645,20 +645,20 @@ UniValue exodus_setautocommit(const UniValue& params, bool fHelp)
 }
 
 // display the tally map & the offer/accept list(s)
-UniValue exodusrpc(const UniValue& params, bool fHelp)
+UniValue elysiumrpc(const UniValue& params, bool fHelp)
 {
     int extra = 0;
     int extra2 = 0, extra3 = 0;
 
     if (fHelp || params.size() > 3)
         throw runtime_error(
-            "exodusrpc\n"
+            "elysiumrpc\n"
             "\nReturns the number of blocks in the longest block chain.\n"
             "\nResult:\n"
             "n    (number) the current block count\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodusrpc", "")
-            + HelpExampleRpc("exodusrpc", "")
+            + HelpExampleCli("elysiumrpc", "")
+            + HelpExampleRpc("elysiumrpc", "")
         );
 
     if (0 < params.size()) extra = atoi(params[0].get_str());
@@ -804,11 +804,11 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
 }
 
 // display an MP balance via RPC
-UniValue exodus_getbalance(const UniValue& params, bool fHelp)
+UniValue elysium_getbalance(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_getbalance \"address\" propertyid\n"
+            "elysium_getbalance \"address\" propertyid\n"
             "\nReturns the token balance for a given address and property.\n"
             "\nArguments:\n"
             "1. address              (string, required) the address\n"
@@ -819,8 +819,8 @@ UniValue exodus_getbalance(const UniValue& params, bool fHelp)
             "  \"reserved\" : \"n.nnnnnnnn\"   (string) the amount reserved by sell offers and accepts\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getbalance", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
-            + HelpExampleRpc("exodus_getbalance", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
+            + HelpExampleCli("elysium_getbalance", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
+            + HelpExampleRpc("elysium_getbalance", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
         );
 
     std::string address = ParseAddress(params[0]);
@@ -834,11 +834,11 @@ UniValue exodus_getbalance(const UniValue& params, bool fHelp)
     return balanceObj;
 }
 
-UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
+UniValue elysium_getallbalancesforid(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getallbalancesforid propertyid\n"
+            "elysium_getallbalancesforid propertyid\n"
             "\nReturns a list of token balances for a given currency or property identifier.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the property identifier\n"
@@ -852,8 +852,8 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getallbalancesforid", "1")
-            + HelpExampleRpc("exodus_getallbalancesforid", "1")
+            + HelpExampleCli("elysium_getallbalancesforid", "1")
+            + HelpExampleRpc("elysium_getallbalancesforid", "1")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -891,11 +891,11 @@ UniValue exodus_getallbalancesforid(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
+UniValue elysium_getallbalancesforaddress(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getallbalancesforaddress \"address\"\n"
+            "elysium_getallbalancesforaddress \"address\"\n"
             "\nReturns a list of all token balances for a given address.\n"
             "\nArguments:\n"
             "1. address              (string, required) the address\n"
@@ -909,8 +909,8 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getallbalancesforaddress", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\"")
-            + HelpExampleRpc("exodus_getallbalancesforaddress", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\"")
+            + HelpExampleCli("elysium_getallbalancesforaddress", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\"")
+            + HelpExampleRpc("elysium_getallbalancesforaddress", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\"")
         );
 
     std::string address = ParseAddress(params[0]);
@@ -941,11 +941,11 @@ UniValue exodus_getallbalancesforaddress(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getproperty(const UniValue& params, bool fHelp)
+UniValue elysium_getproperty(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getproperty propertyid\n"
+            "elysium_getproperty propertyid\n"
             "\nReturns details for about the tokens or smart property to lookup.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the identifier of the tokens or property\n"
@@ -973,8 +973,8 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getproperty", "3")
-            + HelpExampleRpc("exodus_getproperty", "3")
+            + HelpExampleCli("elysium_getproperty", "3")
+            + HelpExampleRpc("elysium_getproperty", "3")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -1026,11 +1026,11 @@ UniValue exodus_getproperty(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_listproperties(const UniValue& params, bool fHelp)
+UniValue elysium_listproperties(const UniValue& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "exodus_listproperties\n"
+            "elysium_listproperties\n"
             "\nLists all tokens or smart properties.\n"
             "\nResult:\n"
             "[                                (array of JSON objects)\n"
@@ -1046,8 +1046,8 @@ UniValue exodus_listproperties(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listproperties", "")
-            + HelpExampleRpc("exodus_listproperties", "")
+            + HelpExampleCli("elysium_listproperties", "")
+            + HelpExampleRpc("elysium_listproperties", "")
         );
 
     UniValue response(UniValue::VARR);
@@ -1081,11 +1081,11 @@ UniValue exodus_listproperties(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_getcrowdsale(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "exodus_getcrowdsale propertyid ( verbose )\n"
+            "elysium_getcrowdsale propertyid ( verbose )\n"
             "\nReturns information about a crowdsale.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the identifier of the crowdsale\n"
@@ -1120,8 +1120,8 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getcrowdsale", "3 true")
-            + HelpExampleRpc("exodus_getcrowdsale", "3, true")
+            + HelpExampleCli("elysium_getcrowdsale", "3 true")
+            + HelpExampleRpc("elysium_getcrowdsale", "3, true")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -1225,11 +1225,11 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
+UniValue elysium_getactivecrowdsales(const UniValue& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "exodus_getactivecrowdsales\n"
+            "elysium_getactivecrowdsales\n"
             "\nLists currently active crowdsales.\n"
             "\nResult:\n"
             "[                                 (array of JSON objects)\n"
@@ -1247,8 +1247,8 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getactivecrowdsales", "")
-            + HelpExampleRpc("exodus_getactivecrowdsales", "")
+            + HelpExampleCli("elysium_getactivecrowdsales", "")
+            + HelpExampleRpc("elysium_getactivecrowdsales", "")
         );
 
     UniValue response(UniValue::VARR);
@@ -1293,11 +1293,11 @@ UniValue exodus_getactivecrowdsales(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getgrants(const UniValue& params, bool fHelp)
+UniValue elysium_getgrants(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getgrants propertyid\n"
+            "elysium_getgrants propertyid\n"
             "\nReturns information about granted and revoked units of managed tokens.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the identifier of the managed tokens to lookup\n"
@@ -1321,8 +1321,8 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getgrants", "31")
-            + HelpExampleRpc("exodus_getgrants", "31")
+            + HelpExampleCli("elysium_getgrants", "31")
+            + HelpExampleRpc("elysium_getgrants", "31")
         );
 
     uint32_t propertyId = ParsePropertyId(params[0]);
@@ -1375,11 +1375,11 @@ UniValue exodus_getgrants(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
+UniValue elysium_getorderbook(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "exodus_getorderbook propertyid ( propertyid )\n"
+            "elysium_getorderbook propertyid ( propertyid )\n"
             "\nList active offers on the distributed token exchange.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) filter orders by property identifier for sale\n"
@@ -1405,8 +1405,8 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getorderbook", "2")
-            + HelpExampleRpc("exodus_getorderbook", "2")
+            + HelpExampleCli("elysium_getorderbook", "2")
+            + HelpExampleRpc("elysium_getorderbook", "2")
         );
 
     bool filterDesired = (params.size() > 1);
@@ -1444,11 +1444,11 @@ UniValue exodus_getorderbook(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
+UniValue elysium_gettradehistoryforaddress(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            "exodus_gettradehistoryforaddress \"address\" ( count propertyid )\n"
+            "elysium_gettradehistoryforaddress \"address\" ( count propertyid )\n"
             "\nRetrieves the history of orders on the distributed exchange for the supplied address.\n"
             "\nArguments:\n"
             "1. address              (string, required) address to retrieve history for\n"
@@ -1492,8 +1492,8 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
             "\nNote:\n"
             "The documentation only covers the output for a trade, but there are also cancel transactions with different properties.\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_gettradehistoryforaddress", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\"")
-            + HelpExampleRpc("exodus_gettradehistoryforaddress", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\"")
+            + HelpExampleCli("elysium_gettradehistoryforaddress", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\"")
+            + HelpExampleRpc("elysium_gettradehistoryforaddress", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\"")
         );
 
     std::string address = ParseAddress(params[0]);
@@ -1528,11 +1528,11 @@ UniValue exodus_gettradehistoryforaddress(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
+UniValue elysium_gettradehistoryforpair(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "exodus_gettradehistoryforpair propertyid propertyid ( count )\n"
+            "elysium_gettradehistoryforpair propertyid propertyid ( count )\n"
             "\nRetrieves the history of trades on the distributed token exchange for the specified market.\n"
             "\nArguments:\n"
             "1. propertyid           (number, required) the first side of the traded pair\n"
@@ -1554,8 +1554,8 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_gettradehistoryforpair", "1 12 500")
-            + HelpExampleRpc("exodus_gettradehistoryforpair", "1, 12, 500")
+            + HelpExampleCli("elysium_gettradehistoryforpair", "1 12 500")
+            + HelpExampleRpc("elysium_gettradehistoryforpair", "1, 12, 500")
         );
 
     // obtain property identifiers for pair & check valid parameters
@@ -1575,11 +1575,11 @@ UniValue exodus_gettradehistoryforpair(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
+UniValue elysium_getactivedexsells(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "exodus_getactivedexsells ( address )\n"
+            "elysium_getactivedexsells ( address )\n"
             "\nReturns currently active offers on the distributed exchange.\n"
             "\nArguments:\n"
             "1. address              (string, optional) address filter (default: include any)\n"
@@ -1609,8 +1609,8 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getactivedexsells", "")
-            + HelpExampleRpc("exodus_getactivedexsells", "")
+            + HelpExampleCli("elysium_getactivedexsells", "")
+            + HelpExampleRpc("elysium_getactivedexsells", "")
         );
 
     std::string addressFilter;
@@ -1698,12 +1698,12 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
+UniValue elysium_listblocktransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_listblocktransactions index\n"
-            "\nLists all Exodus transactions in a block.\n"
+            "elysium_listblocktransactions index\n"
+            "\nLists all Elysium transactions in a block.\n"
             "\nArguments:\n"
             "1. index                (number, required) the block height or block index\n"
             "\nResult:\n"
@@ -1713,8 +1713,8 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
             "]\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listblocktransactions", "279007")
-            + HelpExampleRpc("exodus_listblocktransactions", "279007")
+            + HelpExampleCli("elysium_listblocktransactions", "279007")
+            + HelpExampleRpc("elysium_listblocktransactions", "279007")
         );
 
     int blockHeight = params[0].get_int();
@@ -1750,12 +1750,12 @@ UniValue exodus_listblocktransactions(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
+UniValue elysium_gettransaction(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_gettransaction \"txid\"\n"
-            "\nGet detailed information about an Exodus transaction.\n"
+            "elysium_gettransaction \"txid\"\n"
+            "\nGet detailed information about an Elysium transaction.\n"
             "\nArguments:\n"
             "1. txid                 (string, required) the hash of the transaction to lookup\n"
             "\nResult:\n"
@@ -1775,8 +1775,8 @@ UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
             "  [...]                             (mixed) other transaction type specific properties\n"
             "}\n"
             "\nbExamples:\n"
-            + HelpExampleCli("exodus_gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
-            + HelpExampleRpc("exodus_gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleCli("elysium_gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleRpc("elysium_gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
     uint256 hash = ParseHashV(params[0], "txid");
@@ -1788,11 +1788,11 @@ UniValue exodus_gettransaction(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
+UniValue elysium_listtransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 5)
         throw runtime_error(
-            "exodus_listtransactions ( \"address\" count skip startblock endblock )\n"
+            "elysium_listtransactions ( \"address\" count skip startblock endblock )\n"
             "\nList wallet transactions, optionally filtered by an address and block boundaries.\n"
             "\nArguments:\n"
             "1. address              (string, optional) address filter (default: \"*\")\n"
@@ -1819,8 +1819,8 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listtransactions", "")
-            + HelpExampleRpc("exodus_listtransactions", "")
+            + HelpExampleCli("elysium_listtransactions", "")
+            + HelpExampleRpc("elysium_listtransactions", "")
         );
 
     // obtains parameters - default all wallet addresses & last 10 transactions
@@ -1841,7 +1841,7 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
     if (params.size() > 4) nEndBlock = params[4].get_int64();
     if (nEndBlock < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative end block");
 
-    // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending)
+    // obtain a sorted list of Elysium layer wallet transactions (including STO receipts and pending)
     std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(nFrom+nCount, nStartBlock, nEndBlock);
 
     // reverse iterate over (now ordered) transactions and populate RPC objects for each one
@@ -1870,11 +1870,11 @@ UniValue exodus_listtransactions(const UniValue& params, bool fHelp)
 }
 
 #ifdef ENABLE_WALLET
-UniValue exodus_listmints(const UniValue& params, bool fHelp)
+UniValue elysium_listmints(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 3) {
         throw std::runtime_error(
-            "exodus_listmints ( propertyid denomination verbose )\n"
+            "elysium_listmints ( propertyid denomination verbose )\n"
             "\nList all non-pending unused sigma mints in the wallet, optionally filtered by property and denomination.\n"
             "\nArguments:\n"
             "1. propertyid           (number, optional) show only mints that belonged to this property\n"
@@ -1893,8 +1893,8 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listmints", "")
-            + HelpExampleRpc("exodus_listmints", "")
+            + HelpExampleCli("elysium_listmints", "")
+            + HelpExampleRpc("elysium_listmints", "")
         );
     }
 
@@ -1939,11 +1939,11 @@ UniValue exodus_listmints(const UniValue& params, bool fHelp)
     return SigmaMintsToJson(mints.begin(), mints.end(), verbose);
 }
 
-UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
+UniValue elysium_listpendingmints(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0) {
         throw std::runtime_error(
-            "exodus_listpendingmints\n"
+            "elysium_listpendingmints\n"
             "\nList all pending sigma mints in the wallet.\n"
             "\nResult:\n"
             "[                       (array of JSON objects)\n"
@@ -1955,8 +1955,8 @@ UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listpendingmints", "")
-            + HelpExampleRpc("exodus_listpendingmints", "")
+            + HelpExampleCli("elysium_listpendingmints", "")
+            + HelpExampleRpc("elysium_listpendingmints", "")
         );
     }
 
@@ -1974,12 +1974,12 @@ UniValue exodus_listpendingmints(const UniValue& params, bool fHelp)
 }
 #endif
 
-UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
+UniValue elysium_listpendingtransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "exodus_listpendingtransactions ( \"address\" )\n"
-            "\nReturns a list of unconfirmed Exodus transactions, pending in the memory pool.\n"
+            "elysium_listpendingtransactions ( \"address\" )\n"
+            "\nReturns a list of unconfirmed Elysium transactions, pending in the memory pool.\n"
             "\nAn optional filter can be provided to only include transactions which involve the given address.\n"
             "\nNote: the validity of pending transactions is uncertain, and the state of the memory pool may "
             "change at any moment. It is recommended to check transactions after confirmation, and pending "
@@ -2002,8 +2002,8 @@ UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_listpendingtransactions", "")
-            + HelpExampleRpc("exodus_listpendingtransactions", "")
+            + HelpExampleCli("elysium_listpendingtransactions", "")
+            + HelpExampleRpc("elysium_listpendingtransactions", "")
         );
 
     std::string filterAddress;
@@ -2025,21 +2025,21 @@ UniValue exodus_listpendingtransactions(const UniValue& params, bool fHelp)
     return result;
 }
 
-UniValue exodus_getinfo(const UniValue& params, bool fHelp)
+UniValue elysium_getinfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "exodus_getinfo\n"
+            "elysium_getinfo\n"
             "Returns various state information of the client and protocol.\n"
             "\nResult:\n"
             "{\n"
-            "  \"exodusversion_int\" : xxxxxxx,       (number) client version as integer\n"
-            "  \"exodusversion\" : \"x.x.x.x-xxx\",     (string) client version\n"
+            "  \"elysiumversion_int\" : xxxxxxx,      (number) client version as integer\n"
+            "  \"elysiumversion\" : \"x.x.x.x-xxx\",    (string) client version\n"
             "  \"zcoincoreversion\" : \"x.x.x\",        (string) Zcoin Core version\n"
             "  \"block\" : nnnnnn,                      (number) index of the last processed block\n"
             "  \"blocktime\" : nnnnnnnnnn,              (number) timestamp of the last processed block\n"
-            "  \"blocktransactions\" : nnnn,            (number) Exodus transactions found in the last processed block\n"
-            "  \"totaltransactions\" : nnnnnnnn,        (number) Exodus transactions processed in total\n"
+            "  \"blocktransactions\" : nnnn,            (number) Elysium transactions found in the last processed block\n"
+            "  \"totaltransactions\" : nnnnnnnn,        (number) Elysium transactions processed in total\n"
             "  \"alerts\" : [                           (array of JSON objects) active protocol alert (if any)\n"
             "    {\n"
             "      \"alerttypeint\" : n,                    (number) alert type as integer\n"
@@ -2051,15 +2051,15 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getinfo", "")
-            + HelpExampleRpc("exodus_getinfo", "")
+            + HelpExampleCli("elysium_getinfo", "")
+            + HelpExampleRpc("elysium_getinfo", "")
         );
 
     UniValue infoResponse(UniValue::VOBJ);
 
-    // provide the Exodus and Zcoin version
-    infoResponse.push_back(Pair("exodusversion_int", EXODUS_VERSION));
-    infoResponse.push_back(Pair("exodusversion", ExodusVersion()));
+    // provide the Elysium and Zcoin version
+    infoResponse.push_back(Pair("elysiumversion_int", EXODUS_VERSION));
+    infoResponse.push_back(Pair("elysiumversion", ExodusVersion()));
     infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
 
     // provide the current block details
@@ -2107,11 +2107,11 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
     return infoResponse;
 }
 
-UniValue exodus_getactivations(const UniValue& params, bool fHelp)
+UniValue elysium_getactivations(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "exodus_getactivations\n"
+            "elysium_getactivations\n"
             "Returns pending and completed feature activations.\n"
             "\nResult:\n"
             "{\n"
@@ -2135,8 +2135,8 @@ UniValue exodus_getactivations(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getactivations", "")
-            + HelpExampleRpc("exodus_getactivations", "")
+            + HelpExampleCli("elysium_getactivations", "")
+            + HelpExampleRpc("elysium_getactivations", "")
         );
 
     UniValue response(UniValue::VOBJ);
@@ -2171,11 +2171,11 @@ UniValue exodus_getactivations(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getsto(const UniValue& params, bool fHelp)
+UniValue elysium_getsto(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "exodus_getsto \"txid\" \"recipientfilter\"\n"
+            "elysium_getsto \"txid\" \"recipientfilter\"\n"
             "\nGet information and recipients of a send-to-owners transaction.\n"
             "\nArguments:\n"
             "1. txid                 (string, required) the hash of the transaction to lookup\n"
@@ -2195,7 +2195,7 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
             "  \"propertyid\" : n,               (number) the identifier of sent tokens\n"
             "  \"divisible\" : true|false,       (boolean) whether the sent tokens are divisible\n"
             "  \"amount\" : \"n.nnnnnnnn\",        (string) the number of tokens sent to owners\n"
-            "  \"totalstofee\" : \"n.nnnnnnnn\",   (string) the fee paid by the sender, nominated in EXODUS or TEXODUS\n"
+            "  \"totalstofee\" : \"n.nnnnnnnn\",   (string) the fee paid by the sender, nominated in ELYSIUM or TELYSIUM\n"
             "  \"recipients\": [                 (array of JSON objects) a list of recipients\n"
             "    {\n"
             "      \"address\" : \"address\",          (string) the Zcoin address of the recipient\n"
@@ -2205,8 +2205,8 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
             "  ]\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \"*\"")
-            + HelpExampleRpc("exodus_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\", \"*\"")
+            + HelpExampleCli("elysium_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \"*\"")
+            + HelpExampleRpc("elysium_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\", \"*\"")
         );
 
     uint256 hash = ParseHashV(params[0], "txid");
@@ -2220,11 +2220,11 @@ UniValue exodus_getsto(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_gettrade(const UniValue& params, bool fHelp)
+UniValue elysium_gettrade(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_gettrade \"txid\"\n"
+            "elysium_gettrade \"txid\"\n"
             "\nGet detailed information and trade matches for orders on the distributed token exchange.\n"
             "\nArguments:\n"
             "1. txid                 (string, required) the hash of the order to lookup\n"
@@ -2263,8 +2263,8 @@ UniValue exodus_gettrade(const UniValue& params, bool fHelp)
             "\nNote:\n"
             "The documentation only covers the output for a trade, but there are also cancel transactions with different properties.\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_gettrade", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
-            + HelpExampleRpc("exodus_gettrade", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleCli("elysium_gettrade", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
+            + HelpExampleRpc("elysium_gettrade", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
         );
 
     uint256 hash = ParseHashV(params[0], "txid");
@@ -2276,11 +2276,11 @@ UniValue exodus_gettrade(const UniValue& params, bool fHelp)
     return txobj;
 }
 
-UniValue exodus_getcurrentconsensushash(const UniValue& params, bool fHelp)
+UniValue elysium_getcurrentconsensushash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "exodus_getcurrentconsensushash\n"
+            "elysium_getcurrentconsensushash\n"
             "\nReturns the consensus hash for all balances for the current block.\n"
             "\nResult:\n"
             "{\n"
@@ -2290,8 +2290,8 @@ UniValue exodus_getcurrentconsensushash(const UniValue& params, bool fHelp)
             "}\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getcurrentconsensushash", "")
-            + HelpExampleRpc("exodus_getcurrentconsensushash", "")
+            + HelpExampleCli("elysium_getcurrentconsensushash", "")
+            + HelpExampleRpc("elysium_getcurrentconsensushash", "")
         );
 
     LOCK(cs_main); // TODO - will this ensure we don't take in a new block in the couple of ms it takes to calculate the consensus hash?
@@ -2311,11 +2311,11 @@ UniValue exodus_getcurrentconsensushash(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
+UniValue elysium_getmetadexhash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "exodus_getmetadexhash propertyId\n"
+            "elysium_getmetadexhash propertyId\n"
             "\nReturns a hash of the current state of the MetaDEx (default) or orderbook.\n"
             "\nArguments:\n"
             "1. propertyid                  (number, optional) hash orderbook (only trades selling propertyid)\n"
@@ -2328,8 +2328,8 @@ UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
             "}\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getmetadexhash", "3")
-            + HelpExampleRpc("exodus_getmetadexhash", "3")
+            + HelpExampleCli("elysium_getmetadexhash", "3")
+            + HelpExampleRpc("elysium_getmetadexhash", "3")
         );
 
     LOCK(cs_main);
@@ -2355,11 +2355,11 @@ UniValue exodus_getmetadexhash(const UniValue& params, bool fHelp)
     return response;
 }
 
-UniValue exodus_getbalanceshash(const UniValue& params, bool fHelp)
+UniValue elysium_getbalanceshash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "exodus_getbalanceshash propertyid\n"
+            "elysium_getbalanceshash propertyid\n"
             "\nReturns a hash of the balances for the property.\n"
             "\nArguments:\n"
             "1. propertyid                  (number, required) the property to hash balances for\n"
@@ -2372,8 +2372,8 @@ UniValue exodus_getbalanceshash(const UniValue& params, bool fHelp)
             "}\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_getbalanceshash", "31")
-            + HelpExampleRpc("exodus_getbalanceshash", "31")
+            + HelpExampleCli("elysium_getbalanceshash", "31")
+            + HelpExampleRpc("elysium_getbalanceshash", "31")
         );
 
     LOCK(cs_main);
@@ -2399,61 +2399,61 @@ UniValue exodus_getbalanceshash(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
-    { "exodus (data retrieval)", "exodus_getinfo",                   &exodus_getinfo,                    true  },
-    { "exodus (data retrieval)", "exodus_getactivations",            &exodus_getactivations,             true  },
-    { "exodus (data retrieval)", "exodus_getallbalancesforid",       &exodus_getallbalancesforid,        false },
-    { "exodus (data retrieval)", "exodus_getbalance",                &exodus_getbalance,                 false },
-    { "exodus (data retrieval)", "exodus_gettransaction",            &exodus_gettransaction,             false },
-    { "exodus (data retrieval)", "exodus_getproperty",               &exodus_getproperty,                false },
-    { "exodus (data retrieval)", "exodus_listproperties",            &exodus_listproperties,             false },
-    { "exodus (data retrieval)", "exodus_getcrowdsale",              &exodus_getcrowdsale,               false },
-    { "exodus (data retrieval)", "exodus_getgrants",                 &exodus_getgrants,                  false },
-    { "exodus (data retrieval)", "exodus_getactivedexsells",         &exodus_getactivedexsells,          false },
-    { "exodus (data retrieval)", "exodus_getactivecrowdsales",       &exodus_getactivecrowdsales,        false },
-    { "exodus (data retrieval)", "exodus_getorderbook",              &exodus_getorderbook,               false },
-    { "exodus (data retrieval)", "exodus_gettrade",                  &exodus_gettrade,                   false },
-    { "exodus (data retrieval)", "exodus_getsto",                    &exodus_getsto,                     false },
-    { "exodus (data retrieval)", "exodus_listblocktransactions",     &exodus_listblocktransactions,      false },
-    { "exodus (data retrieval)", "exodus_listpendingtransactions",   &exodus_listpendingtransactions,    false },
-    { "exodus (data retrieval)", "exodus_getallbalancesforaddress",  &exodus_getallbalancesforaddress,   false },
-    { "exodus (data retrieval)", "exodus_gettradehistoryforaddress", &exodus_gettradehistoryforaddress,  false },
-    { "exodus (data retrieval)", "exodus_gettradehistoryforpair",    &exodus_gettradehistoryforpair,     false },
-    { "exodus (data retrieval)", "exodus_getcurrentconsensushash",   &exodus_getcurrentconsensushash,    false },
-    { "exodus (data retrieval)", "exodus_getpayload",                &exodus_getpayload,                 false },
-    { "exodus (data retrieval)", "exodus_getseedblocks",             &exodus_getseedblocks,              false },
-    { "exodus (data retrieval)", "exodus_getmetadexhash",            &exodus_getmetadexhash,             false },
-    { "exodus (data retrieval)", "exodus_getfeecache",               &exodus_getfeecache,                false },
-    { "exodus (data retrieval)", "exodus_getfeetrigger",             &exodus_getfeetrigger,              false },
-    { "exodus (data retrieval)", "exodus_getfeedistribution",        &exodus_getfeedistribution,         false },
-    { "exodus (data retrieval)", "exodus_getfeedistributions",       &exodus_getfeedistributions,        false },
-    { "exodus (data retrieval)", "exodus_getbalanceshash",           &exodus_getbalanceshash,            false },
+    { "elysium (data retrieval)", "elysium_getinfo",                   &elysium_getinfo,                    true  },
+    { "elysium (data retrieval)", "elysium_getactivations",            &elysium_getactivations,             true  },
+    { "elysium (data retrieval)", "elysium_getallbalancesforid",       &elysium_getallbalancesforid,        false },
+    { "elysium (data retrieval)", "elysium_getbalance",                &elysium_getbalance,                 false },
+    { "elysium (data retrieval)", "elysium_gettransaction",            &elysium_gettransaction,             false },
+    { "elysium (data retrieval)", "elysium_getproperty",               &elysium_getproperty,                false },
+    { "elysium (data retrieval)", "elysium_listproperties",            &elysium_listproperties,             false },
+    { "elysium (data retrieval)", "elysium_getcrowdsale",              &elysium_getcrowdsale,               false },
+    { "elysium (data retrieval)", "elysium_getgrants",                 &elysium_getgrants,                  false },
+    { "elysium (data retrieval)", "elysium_getactivedexsells",         &elysium_getactivedexsells,          false },
+    { "elysium (data retrieval)", "elysium_getactivecrowdsales",       &elysium_getactivecrowdsales,        false },
+    { "elysium (data retrieval)", "elysium_getorderbook",              &elysium_getorderbook,               false },
+    { "elysium (data retrieval)", "elysium_gettrade",                  &elysium_gettrade,                   false },
+    { "elysium (data retrieval)", "elysium_getsto",                    &elysium_getsto,                     false },
+    { "elysium (data retrieval)", "elysium_listblocktransactions",     &elysium_listblocktransactions,      false },
+    { "elysium (data retrieval)", "elysium_listpendingtransactions",   &elysium_listpendingtransactions,    false },
+    { "elysium (data retrieval)", "elysium_getallbalancesforaddress",  &elysium_getallbalancesforaddress,   false },
+    { "elysium (data retrieval)", "elysium_gettradehistoryforaddress", &elysium_gettradehistoryforaddress,  false },
+    { "elysium (data retrieval)", "elysium_gettradehistoryforpair",    &elysium_gettradehistoryforpair,     false },
+    { "elysium (data retrieval)", "elysium_getcurrentconsensushash",   &elysium_getcurrentconsensushash,    false },
+    { "elysium (data retrieval)", "elysium_getpayload",                &elysium_getpayload,                 false },
+    { "elysium (data retrieval)", "elysium_getseedblocks",             &elysium_getseedblocks,              false },
+    { "elysium (data retrieval)", "elysium_getmetadexhash",            &elysium_getmetadexhash,             false },
+    { "elysium (data retrieval)", "elysium_getfeecache",               &elysium_getfeecache,                false },
+    { "elysium (data retrieval)", "elysium_getfeetrigger",             &elysium_getfeetrigger,              false },
+    { "elysium (data retrieval)", "elysium_getfeedistribution",        &elysium_getfeedistribution,         false },
+    { "elysium (data retrieval)", "elysium_getfeedistributions",       &elysium_getfeedistributions,        false },
+    { "elysium (data retrieval)", "elysium_getbalanceshash",           &elysium_getbalanceshash,            false },
 #ifdef ENABLE_WALLET
-    { "exodus (data retrieval)", "exodus_listtransactions",          &exodus_listtransactions,           false },
-    { "exodus (data retrieval)", "exodus_listmints",                 &exodus_listmints,                  false },
-    { "exodus (data retrieval)", "exodus_listpendingmints",          &exodus_listpendingmints,           false },
-    { "exodus (data retrieval)", "exodus_getfeeshare",               &exodus_getfeeshare,                false },
-    { "exodus (configuration)",  "exodus_setautocommit",             &exodus_setautocommit,              true  },
+    { "elysium (data retrieval)", "elysium_listtransactions",          &elysium_listtransactions,           false },
+    { "elysium (data retrieval)", "elysium_listmints",                 &elysium_listmints,                  false },
+    { "elysium (data retrieval)", "elysium_listpendingmints",          &elysium_listpendingmints,           false },
+    { "elysium (data retrieval)", "elysium_getfeeshare",               &elysium_getfeeshare,                false },
+    { "elysium (configuration)",  "elysium_setautocommit",             &elysium_setautocommit,              true  },
 #endif
-    { "hidden",                      "exodusrpc",                         &exodusrpc,                          true  },
+    { "hidden",                   "elysiumrpc",                        &elysiumrpc,                          true  },
 
     /* depreciated: */
-    { "hidden",                      "getinfo_MP",                     &exodus_getinfo,                    true  },
-    { "hidden",                      "getbalance_MP",                  &exodus_getbalance,                 false },
-    { "hidden",                      "getallbalancesforaddress_MP",    &exodus_getallbalancesforaddress,   false },
-    { "hidden",                      "getallbalancesforid_MP",         &exodus_getallbalancesforid,        false },
-    { "hidden",                      "getproperty_MP",                 &exodus_getproperty,                false },
-    { "hidden",                      "listproperties_MP",              &exodus_listproperties,             false },
-    { "hidden",                      "getcrowdsale_MP",                &exodus_getcrowdsale,               false },
-    { "hidden",                      "getgrants_MP",                   &exodus_getgrants,                  false },
-    { "hidden",                      "getactivedexsells_MP",           &exodus_getactivedexsells,          false },
-    { "hidden",                      "getactivecrowdsales_MP",         &exodus_getactivecrowdsales,        false },
-    { "hidden",                      "getsto_MP",                      &exodus_getsto,                     false },
-    { "hidden",                      "getorderbook_MP",                &exodus_getorderbook,               false },
-    { "hidden",                      "gettrade_MP",                    &exodus_gettrade,                   false },
-    { "hidden",                      "gettransaction_MP",              &exodus_gettransaction,             false },
-    { "hidden",                      "listblocktransactions_MP",       &exodus_listblocktransactions,      false },
+    { "hidden",                      "getinfo_MP",                     &elysium_getinfo,                    true  },
+    { "hidden",                      "getbalance_MP",                  &elysium_getbalance,                 false },
+    { "hidden",                      "getallbalancesforaddress_MP",    &elysium_getallbalancesforaddress,   false },
+    { "hidden",                      "getallbalancesforid_MP",         &elysium_getallbalancesforid,        false },
+    { "hidden",                      "getproperty_MP",                 &elysium_getproperty,                false },
+    { "hidden",                      "listproperties_MP",              &elysium_listproperties,             false },
+    { "hidden",                      "getcrowdsale_MP",                &elysium_getcrowdsale,               false },
+    { "hidden",                      "getgrants_MP",                   &elysium_getgrants,                  false },
+    { "hidden",                      "getactivedexsells_MP",           &elysium_getactivedexsells,          false },
+    { "hidden",                      "getactivecrowdsales_MP",         &elysium_getactivecrowdsales,        false },
+    { "hidden",                      "getsto_MP",                      &elysium_getsto,                     false },
+    { "hidden",                      "getorderbook_MP",                &elysium_getorderbook,               false },
+    { "hidden",                      "gettrade_MP",                    &elysium_gettrade,                   false },
+    { "hidden",                      "gettransaction_MP",              &elysium_gettransaction,             false },
+    { "hidden",                      "listblocktransactions_MP",       &elysium_listblocktransactions,      false },
 #ifdef ENABLE_WALLET
-    { "hidden",                      "listtransactions_MP",            &exodus_listtransactions,           false },
+    { "hidden",                      "listtransactions_MP",            &elysium_listtransactions,           false },
 #endif
 };
 

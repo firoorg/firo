@@ -34,12 +34,12 @@
 using std::runtime_error;
 using namespace exodus;
 
-UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
+UniValue elysium_sendrawtx(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error(
-            "exodus_sendrawtx \"fromaddress\" \"rawtransaction\" ( \"referenceaddress\" \"redeemaddress\" \"referenceamount\" )\n"
-            "\nBroadcasts a raw Exodus Layer transaction.\n"
+            "elysium_sendrawtx \"fromaddress\" \"rawtransaction\" ( \"referenceaddress\" \"redeemaddress\" \"referenceamount\" )\n"
+            "\nBroadcasts a raw Elysium Layer transaction.\n"
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to send from\n"
             "2. rawtransaction       (string, required) the hex-encoded raw transaction\n"
@@ -49,8 +49,8 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendrawtx", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\" \"000000000000000100000000017d7840\" \"1EqTta1Rt8ixAA32DuC29oukbsSWU62qAV\"")
-            + HelpExampleRpc("exodus_sendrawtx", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\", \"000000000000000100000000017d7840\", \"1EqTta1Rt8ixAA32DuC29oukbsSWU62qAV\"")
+            + HelpExampleCli("elysium_sendrawtx", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\" \"000000000000000100000000017d7840\" \"1EqTta1Rt8ixAA32DuC29oukbsSWU62qAV\"")
+            + HelpExampleRpc("elysium_sendrawtx", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\", \"000000000000000100000000017d7840\", \"1EqTta1Rt8ixAA32DuC29oukbsSWU62qAV\"")
         );
 
     std::string fromAddress = ParseAddress(params[0]);
@@ -76,11 +76,11 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_send(const UniValue& params, bool fHelp)
+UniValue elysium_send(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 4 || params.size() > 6)
         throw runtime_error(
-            "exodus_send \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"redeemaddress\" \"referenceamount\" )\n"
+            "elysium_send \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"redeemaddress\" \"referenceamount\" )\n"
 
             "\nCreate and broadcast a simple send transaction.\n"
 
@@ -96,8 +96,8 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_send", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"100.0\"")
-            + HelpExampleRpc("exodus_send", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"100.0\"")
+            + HelpExampleCli("elysium_send", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"100.0\"")
+            + HelpExampleRpc("elysium_send", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"100.0\"")
         );
 
     // obtain parameters & info
@@ -134,11 +134,11 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendall(const UniValue& params, bool fHelp)
+UniValue elysium_sendall(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
         throw runtime_error(
-            "exodus_sendall \"fromaddress\" \"toaddress\" ecosystem ( \"redeemaddress\" \"referenceamount\" )\n"
+            "elysium_sendall \"fromaddress\" \"toaddress\" ecosystem ( \"redeemaddress\" \"referenceamount\" )\n"
 
             "\nTransfers all available tokens in the given ecosystem to the recipient.\n"
 
@@ -153,8 +153,8 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendall", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 2")
-            + HelpExampleRpc("exodus_sendall", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 2")
+            + HelpExampleCli("elysium_sendall", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 2")
+            + HelpExampleRpc("elysium_sendall", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 2")
         );
 
     // obtain parameters & info
@@ -188,18 +188,18 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
+UniValue elysium_senddexsell(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 7)
         throw runtime_error(
-            "exodus_senddexsell \"fromaddress\" propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
+            "elysium_senddexsell \"fromaddress\" propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
 
-            "\nPlace, update or cancel a sell offer on the traditional distributed EXODUS/BTC exchange.\n"
+            "\nPlace, update or cancel a sell offer on the traditional distributed ELYSIUM/BTC exchange.\n"
 
             "\nArguments:\n"
 
             "1. fromaddress          (string, required) the address to send from\n"
-            "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for EXODUS or 2 for TEXODUS)\n"
+            "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for ELYSIUM or 2 for TELYSIUM)\n"
             "3. amountforsale        (string, required) the amount of tokens to list for sale\n"
             "4. amountdesired        (string, required) the amount of zcoins desired\n"
             "5. paymentwindow        (number, required) a time limit in blocks a buyer has to pay following a successful accepting order\n"
@@ -210,8 +210,8 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_senddexsell", "\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"1.5\" \"0.75\" 25 \"0.0005\" 1")
-            + HelpExampleRpc("exodus_senddexsell", "\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"1.5\", \"0.75\", 25, \"0.0005\", 1")
+            + HelpExampleCli("elysium_senddexsell", "\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"1.5\" \"0.75\" 25 \"0.0005\" 1")
+            + HelpExampleRpc("elysium_senddexsell", "\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"1.5\", \"0.75\", 25, \"0.0005\", 1")
         );
 
     // obtain parameters & info
@@ -277,11 +277,11 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
+UniValue elysium_senddexaccept(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 4 || params.size() > 5)
         throw runtime_error(
-            "exodus_senddexaccept \"fromaddress\" \"toaddress\" propertyid \"amount\" ( override )\n"
+            "elysium_senddexaccept \"fromaddress\" \"toaddress\" propertyid \"amount\" ( override )\n"
 
             "\nCreate and broadcast an accept offer for the specified token and amount.\n"
 
@@ -296,8 +296,8 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_senddexaccept", "\"35URq1NN3xL6GeRKUP6vzaQVcxoJiiJKd8\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"15.0\"")
-            + HelpExampleRpc("exodus_senddexaccept", "\"35URq1NN3xL6GeRKUP6vzaQVcxoJiiJKd8\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"15.0\"")
+            + HelpExampleCli("elysium_senddexaccept", "\"35URq1NN3xL6GeRKUP6vzaQVcxoJiiJKd8\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 1 \"15.0\"")
+            + HelpExampleRpc("elysium_senddexaccept", "\"35URq1NN3xL6GeRKUP6vzaQVcxoJiiJKd8\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 1, \"15.0\"")
         );
 
     // obtain parameters & info
@@ -356,11 +356,11 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_sendissuancecrowdsale(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 14)
         throw runtime_error(
-            "exodus_sendissuancecrowdsale \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline ( earlybonus issuerpercentage )\n"
+            "elysium_sendissuancecrowdsale \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline ( earlybonus issuerpercentage )\n"
 
             "Create new tokens as crowdsale."
 
@@ -384,8 +384,8 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
-            + HelpExampleRpc("exodus_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
+            + HelpExampleCli("elysium_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
+            + HelpExampleRpc("elysium_sendissuancecrowdsale", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
         );
 
     // obtain parameters & info
@@ -429,11 +429,11 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
+UniValue elysium_sendissuancefixed(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 10 || params.size() > 11)
         throw runtime_error(
-            "exodus_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
+            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
 
             "\nCreate new tokens with fixed supply.\n"
 
@@ -454,8 +454,8 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
-            + HelpExampleRpc("exodus_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
+            + HelpExampleCli("elysium_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
+            + HelpExampleRpc("elysium_sendissuancefixed", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
         );
 
     // obtain parameters & info
@@ -522,11 +522,11 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
+UniValue elysium_sendissuancemanaged(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 9 || params.size() > 10)
         throw runtime_error(
-            "exodus_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
+            "elysium_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
 
             "\nCreate new tokens with manageable supply.\n"
 
@@ -546,8 +546,8 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
-            + HelpExampleRpc("exodus_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
+            + HelpExampleCli("elysium_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\" 2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
+            + HelpExampleRpc("elysium_sendissuancemanaged", "\"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\", 2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
         );
 
     // obtain parameters & info
@@ -612,11 +612,11 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendsto(const UniValue& params, bool fHelp)
+UniValue elysium_sendsto(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
         throw runtime_error(
-            "exodus_sendsto \"fromaddress\" propertyid \"amount\" ( \"redeemaddress\" distributionproperty )\n"
+            "elysium_sendsto \"fromaddress\" propertyid \"amount\" ( \"redeemaddress\" distributionproperty )\n"
 
             "\nCreate and broadcast a send-to-owners transaction.\n"
 
@@ -631,8 +631,8 @@ UniValue exodus_sendsto(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 3 \"5000\"")
-            + HelpExampleRpc("exodus_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 3, \"5000\"")
+            + HelpExampleCli("elysium_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 3 \"5000\"")
+            + HelpExampleRpc("elysium_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 3, \"5000\"")
         );
 
     // obtain parameters & info
@@ -666,11 +666,11 @@ UniValue exodus_sendsto(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
+UniValue elysium_sendgrant(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 4 || params.size() > 5)
         throw runtime_error(
-            "exodus_sendgrant \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"memo\" )\n"
+            "elysium_sendgrant \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"memo\" )\n"
 
             "\nIssue or grant new units of managed tokens.\n"
 
@@ -685,8 +685,8 @@ UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendgrant", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\" \"\" 51 \"7000\"")
-            + HelpExampleRpc("exodus_sendgrant", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\", \"\", 51, \"7000\"")
+            + HelpExampleCli("elysium_sendgrant", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\" \"\" 51 \"7000\"")
+            + HelpExampleRpc("elysium_sendgrant", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\", \"\", 51, \"7000\"")
         );
 
     // obtain parameters & info
@@ -721,11 +721,11 @@ UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
+UniValue elysium_sendrevoke(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "exodus_sendrevoke \"fromaddress\" propertyid \"amount\" ( \"memo\" )\n"
+            "elysium_sendrevoke \"fromaddress\" propertyid \"amount\" ( \"memo\" )\n"
 
             "\nRevoke units of managed tokens.\n"
 
@@ -739,8 +739,8 @@ UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendrevoke", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\" \"\" 51 \"100\"")
-            + HelpExampleRpc("exodus_sendrevoke", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\", \"\", 51, \"100\"")
+            + HelpExampleCli("elysium_sendrevoke", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\" \"\" 51 \"100\"")
+            + HelpExampleRpc("elysium_sendrevoke", "\"3HsJvhr9qzgRe3ss97b1QHs38rmaLExLcH\", \"\", 51, \"100\"")
         );
 
     // obtain parameters & info
@@ -775,11 +775,11 @@ UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendclosecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_sendclosecrowdsale(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_sendclosecrowdsale \"fromaddress\" propertyid\n"
+            "elysium_sendclosecrowdsale \"fromaddress\" propertyid\n"
 
             "\nManually close a crowdsale.\n"
 
@@ -791,8 +791,8 @@ UniValue exodus_sendclosecrowdsale(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendclosecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\" 70")
-            + HelpExampleRpc("exodus_sendclosecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\", 70")
+            + HelpExampleCli("elysium_sendclosecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\" 70")
+            + HelpExampleRpc("elysium_sendclosecrowdsale", "\"3JYd75REX3HXn1vAU83YuGfmiPXW7BpYXo\", 70")
         );
 
     // obtain parameters & info
@@ -831,10 +831,10 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
         throw runtime_error(
             "trade_MP \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\" action\n"
             "\nNote: this command is depreciated, and was replaced by:\n"
-            " - sendtrade_EXODUS\n"
-            " - sendcanceltradebyprice_EXODUS\n"
-            " - sendcanceltradebypair_EXODUS\n"
-            " - sendcanceltradebypair_EXODUS\n"
+            " - sendtrade_ELYSIUM\n"
+            " - sendcanceltradebyprice_ELYSIUM\n"
+            " - sendcanceltradebypair_ELYSIUM\n"
+            " - sendcanceltradebypair_ELYSIUM\n"
         );
 
     UniValue values(UniValue::VARR);
@@ -849,7 +849,7 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             values.push_back(params[2]); // amountForSale
             values.push_back(params[3]); // propertyIdDesired
             values.push_back(params[4]); // amountDesired
-            return exodus_sendtrade(values, fHelp);
+            return elysium_sendtrade(values, fHelp);
         }
         case CMPTransaction::CANCEL_AT_PRICE:
         {
@@ -858,14 +858,14 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             values.push_back(params[2]); // amountForSale
             values.push_back(params[3]); // propertyIdDesired
             values.push_back(params[4]); // amountDesired
-            return exodus_sendcanceltradesbyprice(values, fHelp);
+            return elysium_sendcanceltradesbyprice(values, fHelp);
         }
         case CMPTransaction::CANCEL_ALL_FOR_PAIR:
         {
             values.push_back(params[0]); // fromAddress
             values.push_back(params[1]); // propertyIdForSale
             values.push_back(params[3]); // propertyIdDesired
-            return exodus_sendcanceltradesbypair(values, fHelp);
+            return elysium_sendcanceltradesbypair(values, fHelp);
         }
         case CMPTransaction::CANCEL_EVERYTHING:
         {
@@ -880,18 +880,18 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             }
             values.push_back(params[0]); // fromAddress
             values.push_back(ecosystem);
-            return exodus_sendcancelalltrades(values, fHelp);
+            return elysium_sendcancelalltrades(values, fHelp);
         }
     }
 
     throw JSONRPCError(RPC_TYPE_ERROR, "Invalid action (1,2,3,4 only)");
 }
 
-UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
+UniValue elysium_sendtrade(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 5)
         throw runtime_error(
-            "exodus_sendtrade \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
+            "elysium_sendtrade \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
             "\nPlace a trade offer on the distributed token exchange.\n"
 
@@ -906,8 +906,8 @@ UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendtrade", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 31 \"250.0\" 1 \"10.0\"")
-            + HelpExampleRpc("exodus_sendtrade", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 31, \"250.0\", 1, \"10.0\"")
+            + HelpExampleCli("elysium_sendtrade", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 31 \"250.0\" 1 \"10.0\"")
+            + HelpExampleRpc("elysium_sendtrade", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 31, \"250.0\", 1, \"10.0\"")
         );
 
     // obtain parameters & info
@@ -945,11 +945,11 @@ UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
+UniValue elysium_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 5)
         throw runtime_error(
-            "exodus_sendcanceltradesbyprice \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
+            "elysium_sendcanceltradesbyprice \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
             "\nCancel offers on the distributed token exchange with the specified price.\n"
 
@@ -964,8 +964,8 @@ UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendcanceltradesbyprice", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 31 \"100.0\" 1 \"5.0\"")
-            + HelpExampleRpc("exodus_sendcanceltradesbyprice", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 31, \"100.0\", 1, \"5.0\"")
+            + HelpExampleCli("elysium_sendcanceltradesbyprice", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 31 \"100.0\" 1 \"5.0\"")
+            + HelpExampleRpc("elysium_sendcanceltradesbyprice", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 31, \"100.0\", 1, \"5.0\"")
         );
 
     // obtain parameters & info
@@ -1003,11 +1003,11 @@ UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
+UniValue elysium_sendcanceltradesbypair(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
         throw runtime_error(
-            "exodus_sendcanceltradesbypair \"fromaddress\" propertyidforsale propertiddesired\n"
+            "elysium_sendcanceltradesbypair \"fromaddress\" propertyidforsale propertiddesired\n"
 
             "\nCancel all offers on the distributed token exchange with the given currency pair.\n"
 
@@ -1020,8 +1020,8 @@ UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendcanceltradesbypair", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 1 31")
-            + HelpExampleRpc("exodus_sendcanceltradesbypair", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 1, 31")
+            + HelpExampleCli("elysium_sendcanceltradesbypair", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 1 31")
+            + HelpExampleRpc("elysium_sendcanceltradesbypair", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 1, 31")
         );
 
     // obtain parameters & info
@@ -1057,11 +1057,11 @@ UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
+UniValue elysium_sendcancelalltrades(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_sendcancelalltrades \"fromaddress\" ecosystem\n"
+            "elysium_sendcancelalltrades \"fromaddress\" ecosystem\n"
 
             "\nCancel all offers on the distributed token exchange.\n"
 
@@ -1073,8 +1073,8 @@ UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendcancelalltrades", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 1")
-            + HelpExampleRpc("exodus_sendcancelalltrades", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 1")
+            + HelpExampleCli("elysium_sendcancelalltrades", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\" 1")
+            + HelpExampleRpc("elysium_sendcancelalltrades", "\"3BydPiSLPP3DR5cf726hDQ89fpqWLxPKLR\", 1")
         );
 
     // obtain parameters & info
@@ -1105,11 +1105,11 @@ UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
+UniValue elysium_sendchangeissuer(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
         throw runtime_error(
-            "exodus_sendchangeissuer \"fromaddress\" \"toaddress\" propertyid\n"
+            "elysium_sendchangeissuer \"fromaddress\" \"toaddress\" propertyid\n"
 
             "\nChange the issuer on record of the given tokens.\n"
 
@@ -1122,8 +1122,8 @@ UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendchangeissuer", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
-            + HelpExampleRpc("exodus_sendchangeissuer", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
+            + HelpExampleCli("elysium_sendchangeissuer", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
+            + HelpExampleRpc("elysium_sendchangeissuer", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
         );
 
     // obtain parameters & info
@@ -1155,11 +1155,11 @@ UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_sendenablefreezing(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_sendenablefreezing \"fromaddress\" propertyid\n"
+            "elysium_sendenablefreezing \"fromaddress\" propertyid\n"
 
             "\nEnables address freezing for a centrally managed property.\n"
 
@@ -1171,8 +1171,8 @@ UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendenablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
-            + HelpExampleRpc("exodus_sendenablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
+            + HelpExampleCli("elysium_sendenablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
+            + HelpExampleRpc("elysium_sendenablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
         );
 
     // obtain parameters & info
@@ -1204,11 +1204,11 @@ UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_senddisablefreezing(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_senddisablefreezing \"fromaddress\" propertyid\n"
+            "elysium_senddisablefreezing \"fromaddress\" propertyid\n"
 
             "\nDisables address freezing for a centrally managed property.\n"
             "\nIMPORTANT NOTE:  Disabling freezing for a property will UNFREEZE all frozen addresses for that property!"
@@ -1221,8 +1221,8 @@ UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_senddisablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
-            + HelpExampleRpc("exodus_senddisablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
+            + HelpExampleCli("elysium_senddisablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
+            + HelpExampleRpc("elysium_senddisablefreezing", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
         );
 
     // obtain parameters & info
@@ -1254,11 +1254,11 @@ UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
+UniValue elysium_sendfreeze(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_sendfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
+            "elysium_sendfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
             "\nFreeze an address for a centrally managed token.\n"
             "\nNote: Only the issuer may freeze tokens, and only if the token is of the managed type with the freezing option enabled.\n"
             "\nArguments:\n"
@@ -1269,8 +1269,8 @@ UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
-            + HelpExampleRpc("exodus_sendfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
+            + HelpExampleCli("elysium_sendfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
+            + HelpExampleRpc("elysium_sendfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
     // obtain parameters & info
@@ -1305,11 +1305,11 @@ UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
+UniValue elysium_sendunfreeze(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_sendunfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
+            "elysium_sendunfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
             "\nUnfreezes an address for a centrally managed token.\n"
             "\nNote: Only the issuer may unfreeze tokens.\n"
             "\nArguments:\n"
@@ -1320,8 +1320,8 @@ UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendunfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
-            + HelpExampleRpc("exodus_sendunfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
+            + HelpExampleCli("elysium_sendunfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 1 0")
+            + HelpExampleRpc("elysium_sendunfreeze", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
     // obtain parameters & info
@@ -1356,13 +1356,13 @@ UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
+UniValue elysium_sendactivation(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_sendactivation \"fromaddress\" featureid block minclientversion\n"
+            "elysium_sendactivation \"fromaddress\" featureid block minclientversion\n"
             "\nActivate a protocol feature.\n"
-            "\nNote: Exodus Core ignores activations from unauthorized sources.\n"
+            "\nNote: Elysium Core ignores activations from unauthorized sources.\n"
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to send from\n"
             "2. featureid            (number, required) the identifier of the feature to activate\n"
@@ -1371,8 +1371,8 @@ UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1 370000 999")
-            + HelpExampleRpc("exodus_sendactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1, 370000, 999")
+            + HelpExampleCli("elysium_sendactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1 370000 999")
+            + HelpExampleRpc("elysium_sendactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1, 370000, 999")
         );
 
     // obtain parameters & info
@@ -1401,21 +1401,21 @@ UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddeactivation(const UniValue& params, bool fHelp)
+UniValue elysium_senddeactivation(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_senddeactivation \"fromaddress\" featureid\n"
+            "elysium_senddeactivation \"fromaddress\" featureid\n"
             "\nDeactivate a protocol feature.  For Emergency Use Only.\n"
-            "\nNote: Exodus Core ignores deactivations from unauthorized sources.\n"
+            "\nNote: Elysium Core ignores deactivations from unauthorized sources.\n"
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to send from\n"
             "2. featureid            (number, required) the identifier of the feature to activate\n"
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_senddeactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
-            + HelpExampleRpc("exodus_senddeactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
+            + HelpExampleCli("elysium_senddeactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\" 1")
+            + HelpExampleRpc("elysium_senddeactivation", "\"1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P\", 1")
         );
 
     // obtain parameters & info
@@ -1442,13 +1442,13 @@ UniValue exodus_senddeactivation(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendalert(const UniValue& params, bool fHelp)
+UniValue elysium_sendalert(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "exodus_sendalert \"fromaddress\" alerttype expiryvalue typecheck versioncheck \"message\"\n"
-            "\nCreates and broadcasts an Exodus Core alert.\n"
-            "\nNote: Exodus Core ignores alerts from unauthorized sources.\n"
+            "elysium_sendalert \"fromaddress\" alerttype expiryvalue typecheck versioncheck \"message\"\n"
+            "\nCreates and broadcasts an Elysium Core alert.\n"
+            "\nNote: Elysium Core ignores alerts from unauthorized sources.\n"
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to send from\n"
             "2. alerttype            (number, required) the alert type\n"
@@ -1457,8 +1457,8 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendalert", "")
-            + HelpExampleRpc("exodus_sendalert", "")
+            + HelpExampleCli("elysium_sendalert", "")
+            + HelpExampleRpc("elysium_sendalert", "")
         );
 
     // obtain parameters & info
@@ -1495,11 +1495,11 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
+UniValue elysium_sendcreatedenomination(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3) {
         throw std::runtime_error(
-            "exodus_sendcreatedenomination \"fromaddress\" propertyid \"value\"\n"
+            "elysium_sendcreatedenomination \"fromaddress\" propertyid \"value\"\n"
             "\nCreate a new denomination for the given property.\n"
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to send from\n"
@@ -1508,8 +1508,8 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"100.0\"")
-            + HelpExampleRpc("exodus_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"100.0\"")
+            + HelpExampleCli("elysium_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"100.0\"")
+            + HelpExampleRpc("elysium_sendcreatedenomination", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"100.0\"")
         );
     }
 
@@ -1558,11 +1558,11 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendmint(const UniValue& params, bool fHelp)
+UniValue elysium_sendmint(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4) {
         throw std::runtime_error(
-            "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
+            "elysium_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
             "\nCreate mints.\n"
             "\nArguments:\n"
             "1. fromaddress                  (string, required) the address to send from\n"
@@ -1576,8 +1576,8 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\":1, \"1\":2}\"")
-            + HelpExampleRpc("exodus_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
+            + HelpExampleCli("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"{\"0\":1, \"1\":2}\"")
+            + HelpExampleRpc("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, \"{\"0\":1, \"1\":2}\"")
         );
     }
 
@@ -1681,11 +1681,11 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendspend(const UniValue& params, bool fHelp)
+UniValue elysium_sendspend(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4) {
         throw std::runtime_error(
-            "exodus_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
+            "elysium_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
             "\nCreate spend.\n"
             "\nArguments:\n"
             "1. toaddress                    (string, required) the address to spend to\n"
@@ -1695,8 +1695,8 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
-            + HelpExampleCli("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
-            + HelpExampleRpc("exodus_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
+            + HelpExampleCli("elysium_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("elysium_sendspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
         );
     }
 
@@ -1796,42 +1796,42 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
-    { "exodus (transaction creation)",  "exodus_sendrawtx",                 &exodus_sendrawtx,                  false },
-    { "exodus (transaction creation)",  "exodus_send",                      &exodus_send,                       false },
-    { "hidden",                         "exodus_senddexsell",               &exodus_senddexsell,                false },
-    { "hidden",                         "exodus_senddexaccept",             &exodus_senddexaccept,              false },
-    { "hidden",                         "exodus_sendissuancecrowdsale",     &exodus_sendissuancecrowdsale,      false },
-    { "exodus (transaction creation)",  "exodus_sendissuancefixed",         &exodus_sendissuancefixed,          false },
-    { "exodus (transaction creation)",  "exodus_sendissuancemanaged",       &exodus_sendissuancemanaged,        false },
-    { "exodus (transaction creation)",  "exodus_sendtrade",                 &exodus_sendtrade,                  false },
-    { "exodus (transaction creation)",  "exodus_sendcanceltradesbyprice",   &exodus_sendcanceltradesbyprice,    false },
-    { "exodus (transaction creation)",  "exodus_sendcanceltradesbypair",    &exodus_sendcanceltradesbypair,     false },
-    { "exodus (transaction creation)",  "exodus_sendcancelalltrades",       &exodus_sendcancelalltrades,        false },
-    { "exodus (transaction creation)",  "exodus_sendsto",                   &exodus_sendsto,                    false },
-    { "exodus (transaction creation)",  "exodus_sendgrant",                 &exodus_sendgrant,                  false },
-    { "exodus (transaction creation)",  "exodus_sendrevoke",                &exodus_sendrevoke,                 false },
-    { "hidden",                         "exodus_sendclosecrowdsale",        &exodus_sendclosecrowdsale,         false },
-    { "exodus (transaction creation)",  "exodus_sendchangeissuer",          &exodus_sendchangeissuer,           false },
-    { "hidden",                         "exodus_sendall",                   &exodus_sendall,                    false },
-    { "hidden",                         "exodus_sendenablefreezing",        &exodus_sendenablefreezing,         false },
-    { "hidden",                         "exodus_senddisablefreezing",       &exodus_senddisablefreezing,        false },
-    { "hidden",                         "exodus_sendfreeze",                &exodus_sendfreeze,                 false },
-    { "hidden",                         "exodus_sendunfreeze",              &exodus_sendunfreeze,               false },
-    { "hidden",                         "exodus_senddeactivation",          &exodus_senddeactivation,           true  },
-    { "hidden",                         "exodus_sendactivation",            &exodus_sendactivation,             false },
-    { "hidden",                         "exodus_sendalert",                 &exodus_sendalert,                  true  },
-    { "exodus (transaction creation)",  "exodus_sendcreatedenomination",    &exodus_sendcreatedenomination,     false },
-    { "exodus (transaction creation)",  "exodus_sendmint",                  &exodus_sendmint,                   false },
-    { "exodus (transaction creation)",  "exodus_sendspend",                 &exodus_sendspend,                  false },
+    { "elysium (transaction creation)",  "elysium_sendrawtx",                 &elysium_sendrawtx,                  false },
+    { "elysium (transaction creation)",  "elysium_send",                      &elysium_send,                       false },
+    { "hidden",                          "elysium_senddexsell",               &elysium_senddexsell,                false },
+    { "hidden",                          "elysium_senddexaccept",             &elysium_senddexaccept,              false },
+    { "hidden",                          "elysium_sendissuancecrowdsale",     &elysium_sendissuancecrowdsale,      false },
+    { "elysium (transaction creation)",  "elysium_sendissuancefixed",         &elysium_sendissuancefixed,          false },
+    { "elysium (transaction creation)",  "elysium_sendissuancemanaged",       &elysium_sendissuancemanaged,        false },
+    { "elysium (transaction creation)",  "elysium_sendtrade",                 &elysium_sendtrade,                  false },
+    { "elysium (transaction creation)",  "elysium_sendcanceltradesbyprice",   &elysium_sendcanceltradesbyprice,    false },
+    { "elysium (transaction creation)",  "elysium_sendcanceltradesbypair",    &elysium_sendcanceltradesbypair,     false },
+    { "elysium (transaction creation)",  "elysium_sendcancelalltrades",       &elysium_sendcancelalltrades,        false },
+    { "elysium (transaction creation)",  "elysium_sendsto",                   &elysium_sendsto,                    false },
+    { "elysium (transaction creation)",  "elysium_sendgrant",                 &elysium_sendgrant,                  false },
+    { "elysium (transaction creation)",  "elysium_sendrevoke",                &elysium_sendrevoke,                 false },
+    { "hidden",                          "elysium_sendclosecrowdsale",        &elysium_sendclosecrowdsale,         false },
+    { "elysium (transaction creation)",  "elysium_sendchangeissuer",          &elysium_sendchangeissuer,           false },
+    { "hidden",                          "elysium_sendall",                   &elysium_sendall,                    false },
+    { "hidden",                          "elysium_sendenablefreezing",        &elysium_sendenablefreezing,         false },
+    { "hidden",                          "elysium_senddisablefreezing",       &elysium_senddisablefreezing,        false },
+    { "hidden",                          "elysium_sendfreeze",                &elysium_sendfreeze,                 false },
+    { "hidden",                          "elysium_sendunfreeze",              &elysium_sendunfreeze,               false },
+    { "hidden",                          "elysium_senddeactivation",          &elysium_senddeactivation,           true  },
+    { "hidden",                          "elysium_sendactivation",            &elysium_sendactivation,             false },
+    { "hidden",                          "elysium_sendalert",                 &elysium_sendalert,                  true  },
+    { "elysium (transaction creation)",  "elysium_sendcreatedenomination",    &elysium_sendcreatedenomination,     false },
+    { "elysium (transaction creation)",  "elysium_sendmint",                  &elysium_sendmint,                   false },
+    { "elysium (transaction creation)",  "elysium_sendspend",                 &elysium_sendspend,                  false },
 
     /* depreciated: */
-    { "hidden",                         "sendrawtx_MP",                     &exodus_sendrawtx,                  false },
-    { "hidden",                         "send_MP",                          &exodus_send,                       false },
-    { "hidden",                         "sendtoowners_MP",                  &exodus_sendsto,                    false },
-    { "hidden",                         "trade_MP",                         &trade_MP,                          false },
+    { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },
+    { "hidden",                          "send_MP",                           &elysium_send,                       false },
+    { "hidden",                          "sendtoowners_MP",                   &elysium_sendsto,                    false },
+    { "hidden",                          "trade_MP",                          &trade_MP,                           false },
 };
 
-void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC)
+void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);

@@ -1,14 +1,13 @@
-#ifndef EXODUS_RPCRAWTX_H
-#define EXODUS_RPCRAWTX_H
+#ifndef ELYSIUM_RPCRAWTX_H
+#define ELYSIUM_RPCRAWTX_H
 
 #include <univalue.h>
 
-UniValue exodus_decodetransaction(const UniValue& params, bool fHelp);
-UniValue exodus_createrawtx_opreturn(const UniValue& params, bool fHelp);
-UniValue exodus_createrawtx_multisig(const UniValue& params, bool fHelp);
-UniValue exodus_createrawtx_input(const UniValue& params, bool fHelp);
-UniValue exodus_createrawtx_reference(const UniValue& params, bool fHelp);
-UniValue exodus_createrawtx_change(const UniValue& params, bool fHelp);
+UniValue elysium_decodetransaction(const UniValue& params, bool fHelp);
+UniValue elysium_createrawtx_opreturn(const UniValue& params, bool fHelp);
+UniValue elysium_createrawtx_multisig(const UniValue& params, bool fHelp);
+UniValue elysium_createrawtx_input(const UniValue& params, bool fHelp);
+UniValue elysium_createrawtx_reference(const UniValue& params, bool fHelp);
+UniValue elysium_createrawtx_change(const UniValue& params, bool fHelp);
 
-
-#endif // EXODUS_RPCRAWTX_H
+#endif // ELYSIUM_RPCRAWTX_H
