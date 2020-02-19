@@ -89,14 +89,30 @@ BOOST_AUTO_TEST_CASE(sign)
 BOOST_AUTO_TEST_CASE(verify)
 {
     TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
-    std::array<uint8_t, 64> signature;
+    ECDSASignature signature;
     auto validSig = ParseHex("f4f3070c8dbf329449331fc055bdfc3786994e1547e6ce11246d152db10981a456df5adfe7aae942637ed9e1655f447cc7aa050504c54cfb7a07bac01df84731");
     auto invalidSig = ParseHex("f4f3070c8dbf329449331fc055bdfc3786994e1547e6ce11246d152db10981a456df5adfe7aae942637ed9e1655f447cc7aa050504c54cfb7a07bac01df84730");
 
     std::copy(validSig.begin(), validSig.end(), signature.begin());
     BOOST_CHECK_EQUAL(true, builder.Verify(signature));
 
+    // invalid signature
+    builder = TestSignatureSigmaV1Builder(address, 10, proof, publicKey);
     std::copy(invalidSig.begin(), invalidSig.end(), signature.begin());
+    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+
+    // invalid content
+    std::copy(validSig.begin(), validSig.end(), signature.begin());
+    builder = TestSignatureSigmaV1Builder(CBitcoinAddress("aGXhTgKqDgdH9kHNTyg47TbwGfs54k2cQF"), 10, proof, publicKey);
+    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+
+    builder = TestSignatureSigmaV1Builder(address, 11, proof, publicKey);
+    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+
+    ECDSAPublicKey otherPublicKey;
+    auto rawPublicKey = ParseHex("0277d283f21eb4b02d8d0d39494821b8684fc7c9507d81485847f15ed92311e66e");
+    std::copy(rawPublicKey.begin(), rawPublicKey.end(), otherPublicKey.begin());
+    builder = TestSignatureSigmaV1Builder(address, 11, proof, otherPublicKey);
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 }
 

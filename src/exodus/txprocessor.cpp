@@ -169,13 +169,13 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
         auto &publicKey = tx.getSigmaECDSAPublicKey();
 
-        SigmaV1SignatureBuilder sigBuilder(
+        SigmaV1SignatureBuilder sigVerifier(
             receiver,
             referenceAmount,
             *spend,
             publicKey);
 
-        if (!sigBuilder.Verify(tx.getSigmaECDSASignature())) {
+        if (!sigVerifier.Verify(tx.getSigmaECDSASignature())) {
             PrintToLog("%s(): rejected: signature is invalid\n", __func__);
             return PKT_ERROR_SIGMA - 907;
         }
