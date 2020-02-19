@@ -857,7 +857,7 @@ bool CMPTransaction::interpret_SimpleSpend()
 
     spend.reset(new SigmaProof(DefaultSigmaParams));
     try {
-        if (version == 1) {
+        if (version == MP_TX_PKT_V1) {
             serialized.read(reinterpret_cast<char*>(sigmaECDSAPubkey.data()), sizeof(sigmaECDSAPubkey));
             serialized >> spend->proof;
             serialized.read(reinterpret_cast<char*>(sigmaECDSASignature.data()), sizeof(sigmaECDSASignature));

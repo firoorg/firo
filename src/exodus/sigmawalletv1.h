@@ -46,7 +46,6 @@ public:
     using SigmaWallet::GeneratePrivateKey;
 
 public:
-    // V1 specific
     CoinSigner GetSigner(SigmaMintId const &id);
 };
 
