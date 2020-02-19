@@ -14,16 +14,12 @@ SigmaWalletV1::SigmaWalletV1() : SigmaWallet()
 {
 }
 
-bool SigmaWalletV1::GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out)
+bool SigmaWalletV1::GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
 {
-    if (privSize != 32) {
-        throw std::runtime_error("Secret size is invalid.");
-    }
-
     return secp256k1_ec_pubkey_create(
         OpenSSLContext::get_context(),
         &out,
-        priv);
+        priv.data());
 }
 
 void SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial)
@@ -60,7 +56,7 @@ SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(uint512 const &seed)
 }
 
 SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
-    uint512 const &seed, std::array<uint8_t, 32> &ecdsaKeyOut)
+    uint512 const &seed, ECDSAPrivateKey &ecdsaKeyOut)
 {
     // first 32 bytes as seed of ecdsa key and serial
     std::array<uint8_t, 32> tmp;
@@ -71,7 +67,7 @@ SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
     do {
         std::copy(ecdsaKeyOut.begin(), ecdsaKeyOut.end(), tmp.begin());
         CSHA256().Write(tmp.begin(), tmp.size()).Finalize(ecdsaKeyOut.begin());
-    } while(!GeneratePublicKey(ecdsaKeyOut.begin(), sizeof(ecdsaKeyOut), pubkey));
+    } while(!GeneratePublicKey(ecdsaKeyOut, pubkey));
 
     secp_primitives::Scalar serial;
     GenerateSerial(pubkey, serial);
@@ -160,7 +156,7 @@ CoinSigner SigmaWalletV1::GetSigner(SigmaMintId const &id)
     GenerateSeed(mint.seedId, seed);
     GeneratePrivateKey(seed, ecdsaKey);
 
-    return CoinSigner(ecdsaKey.begin(), sizeof(ecdsaKey));
+    return CoinSigner(ecdsaKey);
 }
 
 }

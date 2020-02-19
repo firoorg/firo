@@ -12,18 +12,21 @@
 
 namespace exodus {
 
+typedef std::array<uint8_t, 32> ECDSAPrivateKey;
+typedef std::array<uint8_t, 33> ECDSAPublicKey;
+typedef std::array<uint8_t, 64> ECDSASignature;
+
 class CoinSigner
 {
 public:
-    CoinSigner(unsigned char const *ecdsaKey, size_t keySize);
+    CoinSigner(ECDSAPrivateKey priv);
 
 protected:
-    std::array<uint8_t, 32> key;
-    CHashWriter hasher;
+    ECDSAPrivateKey key;
 
 public:
-    std::array<uint8_t, 33> GetPublicKey() const;
-    std::array<uint8_t, 64> Sign(unsigned char const *start, unsigned char const *end);
+    ECDSAPublicKey GetPublicKey() const;
+    ECDSASignature Sign(unsigned char const *start, unsigned char const *end);
 };
 
 }

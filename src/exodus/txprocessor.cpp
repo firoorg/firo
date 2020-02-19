@@ -172,8 +172,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         receiver,
         referenceAmount,
         *spend,
-        publicKey.data(),
-        publicKey.size());
+        publicKey);
 
     if (!sigBuilder.Verify(tx.getSigmaECDSASignature())) {
         PrintToLog("%s(): rejected: signature is invalid\n", __func__);

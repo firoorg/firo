@@ -20,8 +20,8 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     CBitcoinAddress const &receiver,
     int64_t referenceAmount,
     SigmaProof const &proof,
-    unsigned char const *publicKey,
-    size_t publicKeySize) : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION))
+    ECDSAPublicKey const &publicKey)
+        : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION)), publicKey(publicKey)
 {
     // serialize payload
     CKeyID keyId;
@@ -43,22 +43,15 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     serializedData.insert(serializedData.end(), serialized.begin(), serialized.end());
 
     hasher.write(serializedData.data(), serializedData.size());
-
-    // copy public key
-    if (publicKeySize != sizeof(this->publicKey)) {
-        throw std::invalid_argument("Public key size is invalid.");
-    }
-
-    std::copy(publicKey, publicKey + publicKeySize, this->publicKey.data());
 }
 
-std::array<uint8_t, 64> SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
+ECDSASignature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
 {
     auto hash = hasher.GetHash();
     return signer.Sign(hash.begin(), hash.end());
 }
 
-bool SigmaV1SignatureBuilder::Verify(std::array<uint8_t, 64> const &signature)
+bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
 {
     auto hash = hasher.GetHash();
 

@@ -10,20 +10,21 @@
 
 namespace exodus {
 
+typedef std::array<uint8_t, 32> ECDSAPrivateKey;
+
 class SigmaWalletV1 : public SigmaWallet
 {
 public:
     SigmaWalletV1();
 
 protected:
-    bool GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out);
+    bool GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out);
     void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial);
-
 
 protected:
     uint32_t ChangeIndex();
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
-    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, std::array<uint8_t, 32> &ecdsaKeyOut);
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &ecdsaKeyOut);
 
     // DB
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);

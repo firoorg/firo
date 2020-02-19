@@ -66,7 +66,7 @@ void SigmaWallet::ReloadMasterKey()
     // Load mint pool from DB
     LoadMintPool();
 
-    // Clean up any mint entry that isn't corresponded to current masterId
+    // Clean up any mint entries that aren't corresponded to current masterId
     RemoveInvalidMintPoolEntries();
 
     // Refill mint pool
@@ -222,7 +222,7 @@ void SigmaWallet::ClearMintsChainState()
         m.second.chainState = SigmaMintChainState();
         m.second.spendTx = uint256();
 
-        if (!WriteExodusMint(m.first, m.second)) {
+        if (!WriteExodusMint(m.first, m.second, &db)) {
             throw std::runtime_error("Failed to write " + walletFile);
         }
     }

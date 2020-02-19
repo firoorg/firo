@@ -16,9 +16,8 @@ public:
         CBitcoinAddress const &receiver,
         int64_t referenceAmount,
         SigmaProof const &proof,
-        unsigned char const *publicKey,
-        size_t publicKeySize)
-        : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, publicKey, publicKeySize)
+        ECDSAPublicKey publicKey)
+        : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, publicKey)
     {
     }
 
@@ -35,8 +34,8 @@ public:
     CBitcoinAddress address;
     SigmaProof proof;
 
-    std::array<uint8_t, 32> secret;
-    std::array<uint8_t, 33> publicKey;
+    ECDSAPrivateKey secret;
+    ECDSAPublicKey publicKey;
 
 public:
     SignatureBuilderSigmaV1Setup()
@@ -56,25 +55,18 @@ public:
 public:
     CoinSigner GetCoinSigner()
     {
-        return CoinSigner(secret.begin(), secret.size());
+        return CoinSigner(secret);
     }
 };
 
 BOOST_FIXTURE_TEST_SUITE(exodus_signaturebuilder_sigmav1_tests, SignatureBuilderSigmaV1Setup)
-
-BOOST_AUTO_TEST_CASE(construct_withinvalid_pubkey)
-{
-    BOOST_CHECK_THROW(
-        TestSignatureSigmaV1Builder(address, 10, proof, publicKey.begin(), 1),
-        std::invalid_argument);
-}
 
 BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 {
     std::unique_ptr<TestSignatureSigmaV1Builder> builder;
 
     BOOST_CHECK_NO_THROW(
-        builder.reset(new TestSignatureSigmaV1Builder(address, 10, proof, publicKey.begin(), publicKey.size())));
+        builder.reset(new TestSignatureSigmaV1Builder(address, 10, proof, publicKey)));
 
     auto hash = builder->GetHash();
     BOOST_CHECK_EQUAL(
@@ -84,7 +76,7 @@ BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 
 BOOST_AUTO_TEST_CASE(sign)
 {
-    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey.begin(), publicKey.size());
+    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
     auto signer = GetCoinSigner();
 
     auto signature = builder.Sign(signer);
@@ -96,7 +88,7 @@ BOOST_AUTO_TEST_CASE(sign)
 
 BOOST_AUTO_TEST_CASE(verify)
 {
-    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey.begin(), publicKey.size());
+    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
     std::array<uint8_t, 64> signature;
     auto validSig = ParseHex("f4f3070c8dbf329449331fc055bdfc3786994e1547e6ce11246d152db10981a456df5adfe7aae942637ed9e1655f447cc7aa050504c54cfb7a07bac01df84731");
     auto invalidSig = ParseHex("f4f3070c8dbf329449331fc055bdfc3786994e1547e6ce11246d152db10981a456df5adfe7aae942637ed9e1655f447cc7aa050504c54cfb7a07bac01df84730");

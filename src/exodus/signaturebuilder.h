@@ -17,29 +17,28 @@ namespace exodus {
 class SignatureBuilder
 {
 public:
-    virtual std::array<uint8_t, 64> Sign(CoinSigner &signer) = 0;
-    virtual bool Verify(std::array<uint8_t, 64> const &signature) = 0;
+    virtual ECDSASignature Sign(CoinSigner &signer) = 0;
+    virtual bool Verify(ECDSASignature const &signature) = 0;
 };
 
 class SigmaV1SignatureBuilder : SignatureBuilder
 {
 protected:
     CHashWriter hasher;
-    std::array<uint8_t, 33> publicKey;
+    ECDSAPublicKey publicKey;
 
 public:
     SigmaV1SignatureBuilder(
         CBitcoinAddress const &receiver,
         int64_t referenceAmount,
         SigmaProof const &proof,
-        unsigned char const *publicKey,
-        size_t publicKeySize);
+        ECDSAPublicKey const &publicKey);
 
 public:
-    std::array<uint8_t, 64> Sign(CoinSigner &signer);
-    bool Verify(std::array<uint8_t, 64> const &signature);
+    ECDSASignature Sign(CoinSigner &signer);
+    bool Verify(ECDSASignature const &signature);
 
-    std::array<uint8_t, 33> const& PublicKey();
+    ECDSAPublicKey const& PublicKey();
 };
 
 }

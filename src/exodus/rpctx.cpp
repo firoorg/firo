@@ -1731,11 +1731,10 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         auto signer = wallet->GetSigmaSigner(spend.mint);
         auto pubkey = signer.GetPublicKey();
 
-        SigmaV1SignatureBuilder sigBuilder(
-            address, referenceAmount, spend.proof, pubkey.data(), pubkey.size());
+        SigmaV1SignatureBuilder sigBuilder(address, referenceAmount, spend.proof, pubkey);
 
         auto signature = sigBuilder.Sign(signer);
-        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof, pubkey.data(), pubkey.size());
+        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof, pubkey);
         if (!sigVerifier.Verify(signature)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Fail to create valid signature to spend.");
         }

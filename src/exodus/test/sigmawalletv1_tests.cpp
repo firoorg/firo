@@ -67,9 +67,9 @@ public:
 
 public:
     // Proxy
-    bool GeneratePublicKey(unsigned char const *priv, size_t privSize, secp256k1_pubkey &out)
+    bool GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
     {
-        return SigmaWalletV1::GeneratePublicKey(priv, privSize, out);
+        return SigmaWalletV1::GeneratePublicKey(priv, out);
     }
 
     void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial)
@@ -217,10 +217,12 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
 
 BOOST_AUTO_TEST_CASE(generate_pubkey)
 {
-    auto secret = ParseHex("c634aba3ff562690db4a52cb869d38a43e8d817eddbf68dfb9983af5e9c3e505");
+    ECDSAPrivateKey priv;
+    auto rawSecret = ParseHex("c634aba3ff562690db4a52cb869d38a43e8d817eddbf68dfb9983af5e9c3e505");
+    std::copy(rawSecret.begin(), rawSecret.end(), priv.begin());
 
     secp256k1_pubkey pubkey;
-    wallet->GeneratePublicKey(secret.data(), secret.size(), pubkey);
+    wallet->GeneratePublicKey(priv, pubkey);
 
     std::array<uint8_t, 33> compressedPub;
 

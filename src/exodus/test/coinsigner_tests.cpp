@@ -28,39 +28,24 @@ namespace exodus {
 class TestCoinSigner : public CoinSigner
 {
 public:
-    TestCoinSigner(unsigned char const *ecdsaKey, size_t keySize)
-        : CoinSigner(ecdsaKey, keySize)
+    TestCoinSigner(ECDSAPrivateKey const &priv) : CoinSigner(priv)
     {
     }
 
     std::array<uint8_t, 32> const &GetKey() const {
         return CoinSigner::key;
     }
-
-    CHashWriter &GetHasher() {
-        return CoinSigner::hasher;
-    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(exodus_coinsigner_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(construct_withinvalid_keysize)
-{
-    std::array<uint8_t, 30> invalidKey;
-    std::fill(invalidKey.begin(), invalidKey.end(), 0xFF);
-
-    BOOST_CHECK_THROW(
-        TestCoinSigner(invalidKey.begin(), sizeof(invalidKey)),
-        std::runtime_error);
-}
-
 BOOST_AUTO_TEST_CASE(construct_withvalid_keysize)
 {
-    std::array<uint8_t, 32> key;
+    ECDSAPrivateKey key;
     std::fill(key.begin(), key.end(), 0xFF);
 
     std::unique_ptr<TestCoinSigner> signer;
-    BOOST_CHECK_NO_THROW(signer.reset(new TestCoinSigner(key.begin(), sizeof(key))));
+    BOOST_CHECK_NO_THROW(signer.reset(new TestCoinSigner(key)));
 
     auto retrievedKey = signer->GetKey();
     BOOST_CHECK_EQUAL(key, retrievedKey);
@@ -68,10 +53,10 @@ BOOST_AUTO_TEST_CASE(construct_withvalid_keysize)
 
 BOOST_AUTO_TEST_CASE(getpublickey)
 {
-    std::array<uint8_t, 32> key;
+    ECDSAPrivateKey key;
     std::fill(key.begin(), key.end(), 0x11);
 
-    TestCoinSigner signer(key.begin(), key.size());
+    TestCoinSigner signer(key);
     auto pubkey = signer.GetPublicKey();
 
     BOOST_CHECK_EQUAL(
@@ -81,10 +66,10 @@ BOOST_AUTO_TEST_CASE(getpublickey)
 
 BOOST_AUTO_TEST_CASE(ecdsasign)
 {
-    std::array<uint8_t, 32> key;
+    ECDSAPrivateKey key;
     std::fill(key.begin(), key.end(), 0x11);
 
-    TestCoinSigner signer(key.begin(), key.size());
+    TestCoinSigner signer(key);
     auto msg = ParseHex("6483023e2c7bdc9e719708f49d08f3b2c8da6f42347317543ac77bda6199f470");
 
     auto sig = signer.Sign(msg.data(), msg.data() + msg.size());

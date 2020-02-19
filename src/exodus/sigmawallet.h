@@ -157,7 +157,7 @@ public:
     bool GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry);
 
 protected:
-    void RemoveInvalidMintPoolEntries(); // Remove MintPool entry that isn't belong to current masterId.
+    void RemoveInvalidMintPoolEntries(); // Remove MintPool entries that aren't belong to current masterId.
     size_t FillMintPool();
 
     void LoadMintPool();

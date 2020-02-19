@@ -9,17 +9,12 @@
 
 namespace exodus {
 
-CoinSigner::CoinSigner(unsigned char const *ecdsaKey, size_t keySize)
-    : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION))
+CoinSigner::CoinSigner(ECDSAPrivateKey priv)
+    : key(priv)
 {
-    if (keySize != sizeof(key)) {
-        throw std::runtime_error("Key size is invalid.");
-    }
-
-    std::copy(ecdsaKey, ecdsaKey + keySize, key.begin());
 }
 
-std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
+ECDSAPublicKey CoinSigner::GetPublicKey() const
 {
     secp256k1_pubkey pubkey;
     if(!secp256k1_ec_pubkey_create(
@@ -27,7 +22,7 @@ std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
         throw std::runtime_error("Unable to get public key.");
     }
 
-    std::array<uint8_t, 33> compressedPubKey;
+    ECDSAPublicKey compressedPubKey;
     size_t len = sizeof(compressedPubKey);
     if (1 != secp256k1_ec_pubkey_serialize(
         OpenSSLContext::get_context(),
@@ -38,7 +33,7 @@ std::array<uint8_t, 33> CoinSigner::GetPublicKey() const
     return compressedPubKey;
 }
 
-std::array<uint8_t, 64> CoinSigner::Sign(unsigned char const *start, unsigned char const *end)
+ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const *end)
 {
     if (std::distance(start, end) != 32) {
         throw std::runtime_error("Payload to sign is invalid.");
@@ -55,7 +50,7 @@ std::array<uint8_t, 64> CoinSigner::Sign(unsigned char const *start, unsigned ch
         throw std::runtime_error("Unable to sign with ECDSA key.");
     }
 
-    std::array<uint8_t, 64> serializedSig;
+    ECDSASignature serializedSig;
     if (1 != secp256k1_ecdsa_signature_serialize_compact(
         OpenSSLContext::get_context(), serializedSig.data(), &sig)) {
         throw std::runtime_error("Unable to serialize ecdsa signature.");
