@@ -164,19 +164,21 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     assert(spend);
 
     // check signature
-    CBitcoinAddress receiver(tx.getReceiver());
-    int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
-    auto &publicKey = tx.getSigmaECDSAPublicKey();
+    if (version == MP_TX_PKT_V1) {
+        CBitcoinAddress receiver(tx.getReceiver());
+        int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
+        auto &publicKey = tx.getSigmaECDSAPublicKey();
 
-    SigmaV1SignatureBuilder sigBuilder(
-        receiver,
-        referenceAmount,
-        *spend,
-        publicKey);
+        SigmaV1SignatureBuilder sigBuilder(
+            receiver,
+            referenceAmount,
+            *spend,
+            publicKey);
 
-    if (!sigBuilder.Verify(tx.getSigmaECDSASignature())) {
-        PrintToLog("%s(): rejected: signature is invalid\n", __func__);
-        return PKT_ERROR_SIGMA - 907;
+        if (!sigBuilder.Verify(tx.getSigmaECDSASignature())) {
+            PrintToLog("%s(): rejected: signature is invalid\n", __func__);
+            return PKT_ERROR_SIGMA - 907;
+        }
     }
 
     // check serial in database
