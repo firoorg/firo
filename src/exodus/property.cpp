@@ -25,7 +25,7 @@ bool IsRequireCreationFee(EcosystemId ecosystem, int block)
 
 bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network)
 {
-    if (ecosystem != EXODUS_PROPERTY_EXODUS) {
+    if (ecosystem != ELYSIUM_PROPERTY_ELYSIUM) {
         return false;
     }
 

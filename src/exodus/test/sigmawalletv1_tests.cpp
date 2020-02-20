@@ -151,7 +151,7 @@ struct SigmaWalletV1TestingSetup : WalletTestingSetup
     std::pair<SigmaMintId, SigmaMint> GenerateMint(exodus::PropertyId id, exodus::SigmaDenomination denom)
     {
         LOCK(pwalletMain->cs_wallet);
-        auto seedId = pwalletMain->GenerateNewKey(BIP44_EXODUS_MINT_INDEX).GetID();
+        auto seedId = pwalletMain->GenerateNewKey(BIP44_ELYSIUM_MINT_INDEX).GetID();
 
         auto priv = wallet->GeneratePrivateKey(seedId);
         SigmaPublicKey pub(priv, DefaultSigmaParams);

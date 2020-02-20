@@ -4,8 +4,8 @@
  * This file provides helper to handle uint256 calculations.
  */
 
-#ifndef EXODUS_UINT256_EXTENSIONS_H
-#define EXODUS_UINT256_EXTENSIONS_H
+#ifndef ELYSIUM_UINT256_EXTENSIONS_H
+#define ELYSIUM_UINT256_EXTENSIONS_H
 
 #include "arith_uint256.h"
 
@@ -61,4 +61,4 @@ inline arith_uint256 DivideAndRoundUp(const arith_uint256& numerator, const arit
 
 } // namespace exodus
 
-#endif // EXODUS_UINT256_EXTENSIONS_H
+#endif // ELYSIUM_UINT256_EXTENSIONS_H

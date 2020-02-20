@@ -1,5 +1,5 @@
-#ifndef EXODUS_CREATETX_H
-#define EXODUS_CREATETX_H
+#ifndef ELYSIUM_CREATETX_H
+#define ELYSIUM_CREATETX_H
 
 class CCoinsViewCache;
 class CMutableTransaction;
@@ -225,4 +225,4 @@ public:
 void InputsToView(const std::vector<PrevTxsEntry>& prevTxs, CCoinsViewCache& view);
 
 
-#endif // EXODUS_CREATETX_H
+#endif // ELYSIUM_CREATETX_H

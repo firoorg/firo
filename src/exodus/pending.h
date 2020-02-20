@@ -1,5 +1,5 @@
-#ifndef EXODUS_PENDING_H
-#define EXODUS_PENDING_H
+#ifndef ELYSIUM_PENDING_H
+#define ELYSIUM_PENDING_H
 
 class uint256;
 struct CMPPending;
@@ -46,4 +46,4 @@ struct CMPPending
 };
 
 
-#endif // EXODUS_PENDING_H
+#endif // ELYSIUM_PENDING_H

@@ -1,5 +1,5 @@
-#ifndef EXODUS_PARSE_STRING_H
-#define EXODUS_PARSE_STRING_H
+#ifndef ELYSIUM_PARSE_STRING_H
+#define ELYSIUM_PARSE_STRING_H
 
 #include <stdint.h>
 #include <string>
@@ -18,4 +18,4 @@ int64_t StrToInt64(const std::string& str, bool divisible);
 }
 
 
-#endif // EXODUS_PARSE_STRING_H
+#endif // ELYSIUM_PARSE_STRING_H

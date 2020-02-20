@@ -1,5 +1,5 @@
-#ifndef EXODUS_STO_H
-#define EXODUS_STO_H
+#ifndef ELYSIUM_STO_H
+#define ELYSIUM_STO_H
 
 #include <stdint.h>
 #include <set>
@@ -26,4 +26,4 @@ OwnerAddrType STO_GetReceivers(const std::string& sender, uint32_t property, int
 }
 
 
-#endif // EXODUS_STO_H
+#endif // ELYSIUM_STO_H

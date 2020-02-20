@@ -1,5 +1,5 @@
-#ifndef EXODUS_CONSENSUSHASH_H
-#define EXODUS_CONSENSUSHASH_H
+#ifndef ELYSIUM_CONSENSUSHASH_H
+#define ELYSIUM_CONSENSUSHASH_H
 
 #include "uint256.h"
 
@@ -19,4 +19,4 @@ uint256 GetBalancesHash(const uint32_t hashPropertyId);
 
 }
 
-#endif // EXODUS_CONSENSUSHASH_H
+#endif // ELYSIUM_CONSENSUSHASH_H

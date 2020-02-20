@@ -75,7 +75,7 @@ void LookupTXDialog::searchTX()
                            "confirmed transactions.\n\nTip: You can view your own outgoing unconfirmed "
                            "transactions in the transactions tab.";
             break;
-            case MP_TX_IS_NOT_EXODUS_PROTOCOL:
+            case MP_TX_IS_NOT_ELYSIUM_PROTOCOL:
                 strText += "a Zcoin transaction only.\n\nTip: You can use the debug console "
                            "'gettransaction' command to lookup specific Zcoin transactions.";
             break;

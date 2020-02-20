@@ -1,5 +1,5 @@
-#ifndef EXODUS_PERSISTENCE_H
-#define EXODUS_PERSISTENCE_H
+#ifndef ELYSIUM_PERSISTENCE_H
+#define ELYSIUM_PERSISTENCE_H
 
 #include "leveldb/db.h"
 
@@ -94,4 +94,4 @@ public:
 };
 
 
-#endif // EXODUS_PERSISTENCE_H
+#endif // ELYSIUM_PERSISTENCE_H

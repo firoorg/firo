@@ -1,5 +1,5 @@
-#ifndef EXODUS_TALLY_H
-#define EXODUS_TALLY_H
+#ifndef ELYSIUM_TALLY_H
+#define ELYSIUM_TALLY_H
 
 #include <stdint.h>
 #include <map>
@@ -63,4 +63,4 @@ public:
 };
 
 
-#endif // EXODUS_TALLY_H
+#endif // ELYSIUM_TALLY_H

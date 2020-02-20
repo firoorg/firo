@@ -46,7 +46,7 @@ void SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitiv
 
 uint32_t SigmaWalletV1::ChangeIndex()
 {
-    return BIP44_EXODUS_MINTV1_INDEX;
+    return BIP44_ELYSIUM_MINTV1_INDEX;
 }
 
 SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(uint512 const &seed)

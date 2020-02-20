@@ -1,5 +1,5 @@
-#ifndef EXODUS_WALLETTXS_H
-#define EXODUS_WALLETTXS_H
+#ifndef ELYSIUM_WALLETTXS_H
+#define ELYSIUM_WALLETTXS_H
 
 class CCoinControl;
 class CPubKey;
@@ -32,4 +32,4 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
     InputMode inputMode = InputMode::NORMAL);
 }
 
-#endif // EXODUS_WALLETTXS_H
+#endif // ELYSIUM_WALLETTXS_H

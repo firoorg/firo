@@ -1,5 +1,5 @@
-#ifndef EXODUS_FEES_H
-#define EXODUS_FEES_H
+#ifndef ELYSIUM_FEES_H
+#define ELYSIUM_FEES_H
 
 #include "leveldb/db.h"
 
@@ -34,7 +34,7 @@ public:
     // Show Fee Cache DB records
     void printAll();
 
-    // Sets the distribution thresholds to total tokens for a property / EXODUS_FEE_THRESHOLD
+    // Sets the distribution thresholds to total tokens for a property / ELYSIUM_FEE_THRESHOLD
     void UpdateDistributionThresholds(uint32_t propertyId);
     // Returns the distribution threshold for a property
     int64_t GetDistributionThreshold(const uint32_t &propertyId);
@@ -98,4 +98,4 @@ namespace exodus
     extern CExodusFeeHistory *p_feehistory;
 }
 
-#endif // EXODUS_FEES_H
+#endif // ELYSIUM_FEES_H

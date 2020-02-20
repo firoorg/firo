@@ -1,5 +1,5 @@
-#ifndef EXODUS_MDEX_H
-#define EXODUS_MDEX_H
+#ifndef ELYSIUM_MDEX_H
+#define ELYSIUM_MDEX_H
 
 #include "exodus/tx.h"
 
@@ -111,7 +111,7 @@ struct MetaDEx_compare
 
 // ---------------
 //! Set of objects sorted by block+idx
-typedef std::set<CMPMetaDEx, MetaDEx_compare> md_Set; 
+typedef std::set<CMPMetaDEx, MetaDEx_compare> md_Set;
 //! Map of prices; there is a set of sorted objects for each price
 typedef std::map<rational_t, md_Set> md_PricesMap;
 //! Map of properties; there is a map of prices for each property
@@ -143,4 +143,4 @@ const CMPMetaDEx* MetaDEx_RetrieveTrade(const uint256& txid);
 }
 
 
-#endif // EXODUS_MDEX_H
+#endif // ELYSIUM_MDEX_H

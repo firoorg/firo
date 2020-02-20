@@ -31,48 +31,48 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
     const TransactionRestriction vTxRestrictions[] =
     { //  transaction type                    version        allow 0  activation block
       //  ----------------------------------  -------------  -------  ------------------
-        { EXODUS_MESSAGE_TYPE_ALERT,        0xFFFF,        true,    EXODUS_ALERT_BLOCK    },
-        { EXODUS_MESSAGE_TYPE_ACTIVATION,   0xFFFF,        true,    EXODUS_ALERT_BLOCK    },
-        { EXODUS_MESSAGE_TYPE_DEACTIVATION, 0xFFFF,        true,    EXODUS_ALERT_BLOCK    },
+        { ELYSIUM_MESSAGE_TYPE_ALERT,        0xFFFF,        true,    ELYSIUM_ALERT_BLOCK    },
+        { ELYSIUM_MESSAGE_TYPE_ACTIVATION,   0xFFFF,        true,    ELYSIUM_ALERT_BLOCK    },
+        { ELYSIUM_MESSAGE_TYPE_DEACTIVATION, 0xFFFF,        true,    ELYSIUM_ALERT_BLOCK    },
 
-        { EXODUS_TYPE_SIMPLE_SEND,               MP_TX_PKT_V0,  false,   EXODUS_SEND_BLOCK     },
+        { ELYSIUM_TYPE_SIMPLE_SEND,               MP_TX_PKT_V0,  false,   ELYSIUM_SEND_BLOCK     },
 
-        { EXODUS_TYPE_TRADE_OFFER,               MP_TX_PKT_V0,  false,   EXODUS_DEX_BLOCK      },
-        { EXODUS_TYPE_TRADE_OFFER,               MP_TX_PKT_V1,  false,   EXODUS_DEX_BLOCK      },
-        { EXODUS_TYPE_ACCEPT_OFFER_BTC,          MP_TX_PKT_V0,  false,   EXODUS_DEX_BLOCK      },
+        { ELYSIUM_TYPE_TRADE_OFFER,               MP_TX_PKT_V0,  false,   ELYSIUM_DEX_BLOCK      },
+        { ELYSIUM_TYPE_TRADE_OFFER,               MP_TX_PKT_V1,  false,   ELYSIUM_DEX_BLOCK      },
+        { ELYSIUM_TYPE_ACCEPT_OFFER_BTC,          MP_TX_PKT_V0,  false,   ELYSIUM_DEX_BLOCK      },
 
-        { EXODUS_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
-        { EXODUS_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
-        { EXODUS_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
-        { EXODUS_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V1,  false,   EXODUS_SP_BLOCK       },
-        { EXODUS_TYPE_CLOSE_CROWDSALE,           MP_TX_PKT_V0,  false,   EXODUS_SP_BLOCK       },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V1,  false,   ELYSIUM_SP_BLOCK       },
+        { ELYSIUM_TYPE_CLOSE_CROWDSALE,           MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
 
-        { EXODUS_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
-        { EXODUS_TYPE_GRANT_PROPERTY_TOKENS,     MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_REVOKE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_CHANGE_ISSUER_ADDRESS,     MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_ENABLE_FREEZING,           MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_DISABLE_FREEZING,          MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_FREEZE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
-        { EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS,  MP_TX_PKT_V0,  false,   EXODUS_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
+        { ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS,     MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS,     MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_ENABLE_FREEZING,           MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_DISABLE_FREEZING,          MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
+        { ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS,  MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
 
-        { EXODUS_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V0,  false,   EXODUS_STO_BLOCK      },
-        { EXODUS_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V1,  false,   EXODUS_STOV1_BLOCK    },
+        { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V0,  false,   ELYSIUM_STO_BLOCK      },
+        { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V1,  false,   ELYSIUM_STOV1_BLOCK    },
 
-        { EXODUS_TYPE_METADEX_TRADE,             MP_TX_PKT_V0,  false,   EXODUS_METADEX_BLOCK  },
-        { EXODUS_TYPE_METADEX_CANCEL_PRICE,      MP_TX_PKT_V0,  false,   EXODUS_METADEX_BLOCK  },
-        { EXODUS_TYPE_METADEX_CANCEL_PAIR,       MP_TX_PKT_V0,  false,   EXODUS_METADEX_BLOCK  },
-        { EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM,  MP_TX_PKT_V0,  false,   EXODUS_METADEX_BLOCK  },
+        { ELYSIUM_TYPE_METADEX_TRADE,             MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
+        { ELYSIUM_TYPE_METADEX_CANCEL_PRICE,      MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
+        { ELYSIUM_TYPE_METADEX_CANCEL_PAIR,       MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
+        { ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM,  MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
 
-        { EXODUS_TYPE_SEND_ALL,                  MP_TX_PKT_V0,  false,   EXODUS_SEND_ALL_BLOCK },
+        { ELYSIUM_TYPE_SEND_ALL,                  MP_TX_PKT_V0,  false,   ELYSIUM_SEND_ALL_BLOCK },
 
-        { EXODUS_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   EXODUS_BET_BLOCK      },
+        { ELYSIUM_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   ELYSIUM_BET_BLOCK      },
 
-        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
-        { EXODUS_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V1,  false,   SIGMA_SPENDV1_FEATURE_BLOCK },
-        { EXODUS_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
-        { EXODUS_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { ELYSIUM_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { ELYSIUM_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V1,  false,   SIGMA_SPENDV1_FEATURE_BLOCK },
+        { ELYSIUM_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { ELYSIUM_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);
@@ -102,7 +102,7 @@ CMainConsensusParams::CMainConsensusParams()
     MAX_ACTIVATION_BLOCKS = 12288; // ~12 weeks
 
     // Waiting period for enabling freezing
-    EXODUS_FREEZE_WAIT_PERIOD = 4096; // ~4 weeks
+    ELYSIUM_FREEZE_WAIT_PERIOD = 4096; // ~4 weeks
 
     // Script related:
     PUBKEYHASH_BLOCK = 0;
@@ -111,16 +111,16 @@ CMainConsensusParams::CMainConsensusParams()
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
-    EXODUS_ALERT_BLOCK = 0;
-    EXODUS_SEND_BLOCK = 0;
-    EXODUS_DEX_BLOCK = 0;
-    EXODUS_SP_BLOCK = 0;
-    EXODUS_MANUALSP_BLOCK = 0;
-    EXODUS_STO_BLOCK = 0;
-    EXODUS_METADEX_BLOCK = 0;
-    EXODUS_SEND_ALL_BLOCK = 0;
-    EXODUS_BET_BLOCK = 999999;
-    EXODUS_STOV1_BLOCK = 999999;
+    ELYSIUM_ALERT_BLOCK = 0;
+    ELYSIUM_SEND_BLOCK = 0;
+    ELYSIUM_DEX_BLOCK = 0;
+    ELYSIUM_SP_BLOCK = 0;
+    ELYSIUM_MANUALSP_BLOCK = 0;
+    ELYSIUM_STO_BLOCK = 0;
+    ELYSIUM_METADEX_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_BET_BLOCK = 999999;
+    ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
@@ -152,7 +152,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     MAX_ACTIVATION_BLOCKS = 999999;
 
     // Waiting period for enabling freezing
-    EXODUS_FREEZE_WAIT_PERIOD = 0;
+    ELYSIUM_FREEZE_WAIT_PERIOD = 0;
 
     // Script related:
     PUBKEYHASH_BLOCK = 0;
@@ -161,16 +161,16 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
-    EXODUS_ALERT_BLOCK = 0;
-    EXODUS_SEND_BLOCK = 0;
-    EXODUS_DEX_BLOCK = 0;
-    EXODUS_SP_BLOCK = 0;
-    EXODUS_MANUALSP_BLOCK = 0;
-    EXODUS_STO_BLOCK = 0;
-    EXODUS_METADEX_BLOCK = 0;
-    EXODUS_SEND_ALL_BLOCK = 0;
-    EXODUS_BET_BLOCK = 999999;
-    EXODUS_STOV1_BLOCK = 999999;
+    ELYSIUM_ALERT_BLOCK = 0;
+    ELYSIUM_SEND_BLOCK = 0;
+    ELYSIUM_DEX_BLOCK = 0;
+    ELYSIUM_SP_BLOCK = 0;
+    ELYSIUM_MANUALSP_BLOCK = 0;
+    ELYSIUM_STO_BLOCK = 0;
+    ELYSIUM_METADEX_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_BET_BLOCK = 999999;
+    ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
@@ -202,7 +202,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     MAX_ACTIVATION_BLOCKS = 10;
 
     // Waiting period for enabling freezing
-    EXODUS_FREEZE_WAIT_PERIOD = 10;
+    ELYSIUM_FREEZE_WAIT_PERIOD = 10;
 
     // Script related:
     PUBKEYHASH_BLOCK = 0;
@@ -211,16 +211,16 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
-    EXODUS_ALERT_BLOCK = 0;
-    EXODUS_SEND_BLOCK = 0;
-    EXODUS_DEX_BLOCK = 0;
-    EXODUS_SP_BLOCK = 0;
-    EXODUS_MANUALSP_BLOCK = 0;
-    EXODUS_STO_BLOCK = 0;
-    EXODUS_METADEX_BLOCK = 0;
-    EXODUS_SEND_ALL_BLOCK = 0;
-    EXODUS_BET_BLOCK = 999999;
-    EXODUS_STOV1_BLOCK = 999999;
+    ELYSIUM_ALERT_BLOCK = 0;
+    ELYSIUM_SEND_BLOCK = 0;
+    ELYSIUM_DEX_BLOCK = 0;
+    ELYSIUM_SP_BLOCK = 0;
+    ELYSIUM_MANUALSP_BLOCK = 0;
+    ELYSIUM_STO_BLOCK = 0;
+    ELYSIUM_METADEX_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_BET_BLOCK = 999999;
+    ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
@@ -368,16 +368,16 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
 
     // check feature is recognized and activation is successful
     std::string featureName = GetFeatureName(featureId);
-    bool supported = EXODUS_VERSION >= minClientVersion;
+    bool supported = ELYSIUM_VERSION >= minClientVersion;
     switch (featureId) {
         case FEATURE_CLASS_C:
             MutableConsensusParams().NULLDATA_BLOCK = activationBlock;
         break;
         case FEATURE_METADEX:
-            MutableConsensusParams().EXODUS_METADEX_BLOCK = activationBlock;
+            MutableConsensusParams().ELYSIUM_METADEX_BLOCK = activationBlock;
         break;
         case FEATURE_BETTING:
-            MutableConsensusParams().EXODUS_BET_BLOCK = activationBlock;
+            MutableConsensusParams().ELYSIUM_BET_BLOCK = activationBlock;
         break;
         case FEATURE_GRANTEFFECTS:
             MutableConsensusParams().GRANTEFFECTS_FEATURE_BLOCK = activationBlock;
@@ -386,7 +386,7 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
             MutableConsensusParams().DEXMATH_FEATURE_BLOCK = activationBlock;
         break;
         case FEATURE_SENDALL:
-            MutableConsensusParams().EXODUS_SEND_ALL_BLOCK = activationBlock;
+            MutableConsensusParams().ELYSIUM_SEND_ALL_BLOCK = activationBlock;
         break;
         case FEATURE_SPCROWDCROSSOVER:
             MutableConsensusParams().SPCROWDCROSSOVER_FEATURE_BLOCK = activationBlock;
@@ -398,7 +398,7 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
             MutableConsensusParams().FEES_FEATURE_BLOCK = activationBlock;
         break;
         case FEATURE_STOV1:
-            MutableConsensusParams().EXODUS_STOV1_BLOCK = activationBlock;
+            MutableConsensusParams().ELYSIUM_STOV1_BLOCK = activationBlock;
         break;
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = activationBlock;
@@ -451,10 +451,10 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
             MutableConsensusParams().NULLDATA_BLOCK = 999999;
         break;
         case FEATURE_METADEX:
-            MutableConsensusParams().EXODUS_METADEX_BLOCK = 999999;
+            MutableConsensusParams().ELYSIUM_METADEX_BLOCK = 999999;
         break;
         case FEATURE_BETTING:
-            MutableConsensusParams().EXODUS_BET_BLOCK = 999999;
+            MutableConsensusParams().ELYSIUM_BET_BLOCK = 999999;
         break;
         case FEATURE_GRANTEFFECTS:
             MutableConsensusParams().GRANTEFFECTS_FEATURE_BLOCK = 999999;
@@ -463,7 +463,7 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
             MutableConsensusParams().DEXMATH_FEATURE_BLOCK = 999999;
         break;
         case FEATURE_SENDALL:
-            MutableConsensusParams().EXODUS_SEND_ALL_BLOCK = 999999;
+            MutableConsensusParams().ELYSIUM_SEND_ALL_BLOCK = 999999;
         break;
         case FEATURE_SPCROWDCROSSOVER:
             MutableConsensusParams().SPCROWDCROSSOVER_FEATURE_BLOCK = 999999;
@@ -475,7 +475,7 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
             MutableConsensusParams().FEES_FEATURE_BLOCK = 999999;
         break;
         case FEATURE_STOV1:
-            MutableConsensusParams().EXODUS_STOV1_BLOCK = 999999;
+            MutableConsensusParams().ELYSIUM_STOV1_BLOCK = 999999;
         break;
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = 999999;
@@ -537,10 +537,10 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             activationBlock = params.NULLDATA_BLOCK;
             break;
         case FEATURE_METADEX:
-            activationBlock = params.EXODUS_METADEX_BLOCK;
+            activationBlock = params.ELYSIUM_METADEX_BLOCK;
             break;
         case FEATURE_BETTING:
-            activationBlock = params.EXODUS_BET_BLOCK;
+            activationBlock = params.ELYSIUM_BET_BLOCK;
             break;
         case FEATURE_GRANTEFFECTS:
             activationBlock = params.GRANTEFFECTS_FEATURE_BLOCK;
@@ -549,7 +549,7 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             activationBlock = params.DEXMATH_FEATURE_BLOCK;
             break;
         case FEATURE_SENDALL:
-            activationBlock = params.EXODUS_SEND_ALL_BLOCK;
+            activationBlock = params.ELYSIUM_SEND_ALL_BLOCK;
             break;
         case FEATURE_SPCROWDCROSSOVER:
             activationBlock = params.SPCROWDCROSSOVER_FEATURE_BLOCK;
@@ -561,7 +561,7 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             activationBlock = params.FEES_FEATURE_BLOCK;
             break;
         case FEATURE_STOV1:
-            activationBlock = params.EXODUS_STOV1_BLOCK;
+            activationBlock = params.ELYSIUM_STOV1_BLOCK;
             break;
         case FEATURE_FREEZENOTICE:
             activationBlock = params.FREEZENOTICE_FEATURE_BLOCK;
@@ -599,7 +599,7 @@ bool IsTransactionTypeAllowed(int txBlock, uint32_t txProperty, uint16_t txType,
             continue;
         }
         // a property identifier of 0 (= XZC) may be used as wildcard
-        if (EXODUS_PROPERTY_XZC == txProperty && !entry.allowWildcard) {
+        if (ELYSIUM_PROPERTY_XZC == txProperty && !entry.allowWildcard) {
             continue;
         }
         // transactions are not restricted in the test ecosystem

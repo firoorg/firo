@@ -1,5 +1,5 @@
-#ifndef ZCOIN_EXODUS_EXODUS_H
-#define ZCOIN_EXODUS_EXODUS_H
+#ifndef ZCOIN_ELYSIUM_ELYSIUM_H
+#define ZCOIN_ELYSIUM_ELYSIUM_H
 
 class CBlockIndex;
 class CCoinsView;
@@ -35,7 +35,7 @@ using std::string;
 
 int const MAX_STATE_HISTORY = 50;
 
-constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
+constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
 // increment this value to force a refresh of the state (similar to --startclean)
 #define DB_VERSION 6
@@ -49,12 +49,12 @@ constexpr size_t EXODUS_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
 #define MIN_PAYLOAD_SIZE     5
 
-#define EXODUS_PROPERTY_TYPE_INDIVISIBLE             1
-#define EXODUS_PROPERTY_TYPE_DIVISIBLE               2
-#define EXODUS_PROPERTY_TYPE_INDIVISIBLE_REPLACING   65
-#define EXODUS_PROPERTY_TYPE_DIVISIBLE_REPLACING     66
-#define EXODUS_PROPERTY_TYPE_INDIVISIBLE_APPENDING   129
-#define EXODUS_PROPERTY_TYPE_DIVISIBLE_APPENDING     130
+#define ELYSIUM_PROPERTY_TYPE_INDIVISIBLE             1
+#define ELYSIUM_PROPERTY_TYPE_DIVISIBLE               2
+#define ELYSIUM_PROPERTY_TYPE_INDIVISIBLE_REPLACING   65
+#define ELYSIUM_PROPERTY_TYPE_DIVISIBLE_REPLACING     66
+#define ELYSIUM_PROPERTY_TYPE_INDIVISIBLE_APPENDING   129
+#define ELYSIUM_PROPERTY_TYPE_DIVISIBLE_APPENDING     130
 
 enum FILETYPES {
   FILETYPE_BALANCES = 0,
@@ -85,9 +85,9 @@ enum FILETYPES {
 #define PKT_ERROR_SEND_ALL    (-83000)
 #define PKT_ERROR_SIGMA       (-84000)
 
-#define EXODUS_PROPERTY_XZC   0
-#define EXODUS_PROPERTY_EXODUS   1
-#define EXODUS_PROPERTY_TEXODUS  2
+#define ELYSIUM_PROPERTY_XZC   0
+#define ELYSIUM_PROPERTY_ELYSIUM   1
+#define ELYSIUM_PROPERTY_TELYSIUM  2
 
 // forward declarations
 std::string FormatDivisibleMP(int64_t amount, bool fSign = false);
@@ -337,4 +337,4 @@ void PrintFreezeState();
 
 }
 
-#endif // ZCOIN_EXODUS_EXODUS_H
+#endif // ZCOIN_ELYSIUM_ELYSIUM_H

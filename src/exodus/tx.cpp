@@ -41,36 +41,36 @@ using namespace exodus;
 std::string exodus::strTransactionType(uint16_t txType)
 {
     switch (txType) {
-        case EXODUS_TYPE_SIMPLE_SEND: return "Simple Send";
-        case EXODUS_TYPE_RESTRICTED_SEND: return "Restricted Send";
-        case EXODUS_TYPE_SEND_TO_OWNERS: return "Send To Owners";
-        case EXODUS_TYPE_SEND_ALL: return "Send All";
-        case EXODUS_TYPE_SAVINGS_MARK: return "Savings";
-        case EXODUS_TYPE_SAVINGS_COMPROMISED: return "Savings COMPROMISED";
-        case EXODUS_TYPE_RATELIMITED_MARK: return "Rate-Limiting";
-        case EXODUS_TYPE_AUTOMATIC_DISPENSARY: return "Automatic Dispensary";
-        case EXODUS_TYPE_TRADE_OFFER: return "DEx Sell Offer";
-        case EXODUS_TYPE_METADEX_TRADE: return "MetaDEx trade";
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE: return "MetaDEx cancel-price";
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR: return "MetaDEx cancel-pair";
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM: return "MetaDEx cancel-ecosystem";
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC: return "DEx Accept Offer";
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED: return "Create Property - Fixed";
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE: return "Create Property - Variable";
-        case EXODUS_TYPE_PROMOTE_PROPERTY: return "Promote Property";
-        case EXODUS_TYPE_CLOSE_CROWDSALE: return "Close Crowdsale";
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL: return "Create Property - Manual";
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS: return "Grant Property Tokens";
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS: return "Revoke Property Tokens";
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS: return "Change Issuer Address";
-        case EXODUS_TYPE_ENABLE_FREEZING: return "Enable Freezing";
-        case EXODUS_TYPE_DISABLE_FREEZING: return "Disable Freezing";
-        case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS: return "Freeze Property Tokens";
-        case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS: return "Unfreeze Property Tokens";
-        case EXODUS_TYPE_NOTIFICATION: return "Notification";
-        case EXODUS_MESSAGE_TYPE_ALERT: return "ALERT";
-        case EXODUS_MESSAGE_TYPE_DEACTIVATION: return "Feature Deactivation";
-        case EXODUS_MESSAGE_TYPE_ACTIVATION: return "Feature Activation";
+        case ELYSIUM_TYPE_SIMPLE_SEND: return "Simple Send";
+        case ELYSIUM_TYPE_RESTRICTED_SEND: return "Restricted Send";
+        case ELYSIUM_TYPE_SEND_TO_OWNERS: return "Send To Owners";
+        case ELYSIUM_TYPE_SEND_ALL: return "Send All";
+        case ELYSIUM_TYPE_SAVINGS_MARK: return "Savings";
+        case ELYSIUM_TYPE_SAVINGS_COMPROMISED: return "Savings COMPROMISED";
+        case ELYSIUM_TYPE_RATELIMITED_MARK: return "Rate-Limiting";
+        case ELYSIUM_TYPE_AUTOMATIC_DISPENSARY: return "Automatic Dispensary";
+        case ELYSIUM_TYPE_TRADE_OFFER: return "DEx Sell Offer";
+        case ELYSIUM_TYPE_METADEX_TRADE: return "MetaDEx trade";
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE: return "MetaDEx cancel-price";
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR: return "MetaDEx cancel-pair";
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM: return "MetaDEx cancel-ecosystem";
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: return "DEx Accept Offer";
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: return "Create Property - Fixed";
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: return "Create Property - Variable";
+        case ELYSIUM_TYPE_PROMOTE_PROPERTY: return "Promote Property";
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE: return "Close Crowdsale";
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: return "Create Property - Manual";
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: return "Grant Property Tokens";
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: return "Revoke Property Tokens";
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: return "Change Issuer Address";
+        case ELYSIUM_TYPE_ENABLE_FREEZING: return "Enable Freezing";
+        case ELYSIUM_TYPE_DISABLE_FREEZING: return "Disable Freezing";
+        case ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS: return "Freeze Property Tokens";
+        case ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS: return "Unfreeze Property Tokens";
+        case ELYSIUM_TYPE_NOTIFICATION: return "Notification";
+        case ELYSIUM_MESSAGE_TYPE_ALERT: return "ALERT";
+        case ELYSIUM_MESSAGE_TYPE_DEACTIVATION: return "Feature Deactivation";
+        case ELYSIUM_MESSAGE_TYPE_ACTIVATION: return "Feature Activation";
 
         default: return "* unknown type *";
     }
@@ -122,82 +122,82 @@ bool CMPTransaction::interpret_Transaction()
     }
 
     switch (type) {
-        case EXODUS_TYPE_SIMPLE_SEND:
+        case ELYSIUM_TYPE_SIMPLE_SEND:
             return interpret_SimpleSend();
 
-        case EXODUS_TYPE_SEND_TO_OWNERS:
+        case ELYSIUM_TYPE_SEND_TO_OWNERS:
             return interpret_SendToOwners();
 
-        case EXODUS_TYPE_SEND_ALL:
+        case ELYSIUM_TYPE_SEND_ALL:
             return interpret_SendAll();
 
-        case EXODUS_TYPE_TRADE_OFFER:
+        case ELYSIUM_TYPE_TRADE_OFFER:
             return interpret_TradeOffer();
 
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC:
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
             return interpret_AcceptOfferBTC();
 
-        case EXODUS_TYPE_METADEX_TRADE:
+        case ELYSIUM_TYPE_METADEX_TRADE:
             return interpret_MetaDExTrade();
 
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
             return interpret_MetaDExCancelPrice();
 
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
             return interpret_MetaDExCancelPair();
 
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
             return interpret_MetaDExCancelEcosystem();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             return interpret_CreatePropertyFixed();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
             return interpret_CreatePropertyVariable();
 
-        case EXODUS_TYPE_CLOSE_CROWDSALE:
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
             return interpret_CloseCrowdsale();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
             return interpret_CreatePropertyManaged();
 
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             return interpret_GrantTokens();
 
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
             return interpret_RevokeTokens();
 
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS:
             return interpret_ChangeIssuer();
 
-        case EXODUS_TYPE_ENABLE_FREEZING:
+        case ELYSIUM_TYPE_ENABLE_FREEZING:
             return interpret_EnableFreezing();
 
-        case EXODUS_TYPE_DISABLE_FREEZING:
+        case ELYSIUM_TYPE_DISABLE_FREEZING:
             return interpret_DisableFreezing();
 
-        case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS:
             return interpret_FreezeTokens();
 
-        case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS:
             return interpret_UnfreezeTokens();
 
-        case EXODUS_TYPE_CREATE_DENOMINATION:
+        case ELYSIUM_TYPE_CREATE_DENOMINATION:
             return interpret_CreateDenomination();
 
-        case EXODUS_TYPE_SIMPLE_MINT:
+        case ELYSIUM_TYPE_SIMPLE_MINT:
             return interpret_SimpleMint();
 
-        case EXODUS_TYPE_SIMPLE_SPEND:
+        case ELYSIUM_TYPE_SIMPLE_SPEND:
             return interpret_SimpleSpend();
 
-        case EXODUS_MESSAGE_TYPE_DEACTIVATION:
+        case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
-        case EXODUS_MESSAGE_TYPE_ACTIVATION:
+        case ELYSIUM_MESSAGE_TYPE_ACTIVATION:
             return interpret_Activation();
 
-        case EXODUS_MESSAGE_TYPE_ALERT:
+        case ELYSIUM_MESSAGE_TYPE_ALERT:
             return interpret_Alert();
     }
 
@@ -1062,99 +1062,99 @@ int CMPTransaction::interpretPacket()
 
     int status;
     switch (type) {
-        case EXODUS_TYPE_SIMPLE_SEND:
+        case ELYSIUM_TYPE_SIMPLE_SEND:
             status = logicMath_SimpleSend();
             break;
 
-        case EXODUS_TYPE_SEND_TO_OWNERS:
+        case ELYSIUM_TYPE_SEND_TO_OWNERS:
             status = logicMath_SendToOwners();
             break;
 
-        case EXODUS_TYPE_SEND_ALL:
+        case ELYSIUM_TYPE_SEND_ALL:
             status = logicMath_SendAll();
             break;
 
-        case EXODUS_TYPE_TRADE_OFFER:
+        case ELYSIUM_TYPE_TRADE_OFFER:
             status = logicMath_TradeOffer();
             break;
 
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC:
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
             status = logicMath_AcceptOffer_BTC();
             break;
 
-        case EXODUS_TYPE_METADEX_TRADE:
+        case ELYSIUM_TYPE_METADEX_TRADE:
             status = logicMath_MetaDExTrade();
             break;
 
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
             status = logicMath_MetaDExCancelPrice();
             break;
 
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
             status = logicMath_MetaDExCancelPair();
             break;
 
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
             status = logicMath_MetaDExCancelEcosystem();
             break;
 
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             status = logicMath_CreatePropertyFixed();
             break;
 
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
             status = logicMath_CreatePropertyVariable();
             break;
 
-        case EXODUS_TYPE_CLOSE_CROWDSALE:
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
             status = logicMath_CloseCrowdsale();
             break;
 
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
             status = logicMath_CreatePropertyManaged();
             break;
 
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             status = logicMath_GrantTokens();
             break;
 
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
             status = logicMath_RevokeTokens();
             break;
 
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS:
             status = logicMath_ChangeIssuer();
             break;
 
-        case EXODUS_TYPE_ENABLE_FREEZING:
+        case ELYSIUM_TYPE_ENABLE_FREEZING:
             status = logicMath_EnableFreezing();
             break;
 
-        case EXODUS_TYPE_DISABLE_FREEZING:
+        case ELYSIUM_TYPE_DISABLE_FREEZING:
             status = logicMath_DisableFreezing();
             break;
 
-        case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS:
             status = logicMath_FreezeTokens();
             break;
 
-        case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS:
             status = logicMath_UnfreezeTokens();
             break;
 
-        case EXODUS_TYPE_CREATE_DENOMINATION:
+        case ELYSIUM_TYPE_CREATE_DENOMINATION:
             status = logicMath_CreateDenomination();
             break;
 
-        case EXODUS_MESSAGE_TYPE_DEACTIVATION:
+        case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             status = logicMath_Deactivation();
             break;
 
-        case EXODUS_MESSAGE_TYPE_ACTIVATION:
+        case ELYSIUM_MESSAGE_TYPE_ACTIVATION:
             status = logicMath_Activation();
             break;
 
-        case EXODUS_MESSAGE_TYPE_ALERT:
+        case ELYSIUM_MESSAGE_TYPE_ALERT:
             status = logicMath_Alert();
             break;
 
@@ -1374,7 +1374,7 @@ int CMPTransaction::logicMath_SendToOwners()
     assert(sent_so_far == (int64_t)nValue);
 
     // Number of tokens has changed, update fee distribution thresholds
-    if (version == MP_TX_PKT_V0) NotifyTotalTokensChanged(EXODUS_PROPERTY_EXODUS, block); // fee was burned
+    if (version == MP_TX_PKT_V0) NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block); // fee was burned
 
     return 0;
 }
@@ -1410,10 +1410,10 @@ int CMPTransaction::logicMath_SendAll()
 
     while (0 != (propertyId = ptally->next())) {
         // only transfer tokens in the specified ecosystem
-        if (ecosystem == EXODUS_PROPERTY_EXODUS && isTestEcosystemProperty(propertyId)) {
+        if (ecosystem == ELYSIUM_PROPERTY_ELYSIUM && isTestEcosystemProperty(propertyId)) {
             continue;
         }
-        if (ecosystem == EXODUS_PROPERTY_TEXODUS && isMainEcosystemProperty(propertyId)) {
+        if (ecosystem == ELYSIUM_PROPERTY_TELYSIUM && isMainEcosystemProperty(propertyId)) {
             continue;
         }
 
@@ -1460,8 +1460,8 @@ int CMPTransaction::logicMath_TradeOffer()
         return (PKT_ERROR_TRADEOFFER -23);
     }
 
-    if (EXODUS_PROPERTY_TEXODUS != property && EXODUS_PROPERTY_EXODUS != property) {
-        PrintToLog("%s(): rejected: property for sale %d must be EXODUS or TEXODUS\n", __func__, property);
+    if (ELYSIUM_PROPERTY_TELYSIUM != property && ELYSIUM_PROPERTY_ELYSIUM != property) {
+        PrintToLog("%s(): rejected: property for sale %d must be ELYSIUM or TELYSIUM\n", __func__, property);
         return (PKT_ERROR_TRADEOFFER -47);
     }
 
@@ -1615,9 +1615,9 @@ int CMPTransaction::logicMath_MetaDExTrade()
 
     if (!IsFeatureActivated(FEATURE_TRADEALLPAIRS, block)) {
         // Trading non-Exodus pairs is not allowed before trading all pairs is activated
-        if ((property != EXODUS_PROPERTY_EXODUS) && (desired_property != EXODUS_PROPERTY_EXODUS) &&
-            (property != EXODUS_PROPERTY_TEXODUS) && (desired_property != EXODUS_PROPERTY_TEXODUS)) {
-            PrintToLog("%s(): rejected: one side of a trade [%d, %d] must be EXODUS or TEXODUS\n", __func__, property, desired_property);
+        if ((property != ELYSIUM_PROPERTY_ELYSIUM) && (desired_property != ELYSIUM_PROPERTY_ELYSIUM) &&
+            (property != ELYSIUM_PROPERTY_TELYSIUM) && (desired_property != ELYSIUM_PROPERTY_TELYSIUM)) {
+            PrintToLog("%s(): rejected: one side of a trade [%d, %d] must be ELYSIUM or TELYSIUM\n", __func__, property, desired_property);
             return (PKT_ERROR_METADEX -35);
         }
     }
@@ -1755,7 +1755,7 @@ int CMPTransaction::logicMath_MetaDExCancelEcosystem()
         return (PKT_ERROR_METADEX -22);
     }
 
-    if (EXODUS_PROPERTY_EXODUS != ecosystem && EXODUS_PROPERTY_TEXODUS != ecosystem) {
+    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
         PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, ecosystem);
         return (PKT_ERROR_METADEX -21);
     }
@@ -1780,7 +1780,7 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         blockHash = pindex->GetBlockHash();
     }
 
-    if (EXODUS_PROPERTY_EXODUS != ecosystem && EXODUS_PROPERTY_TEXODUS != ecosystem) {
+    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
         PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, (uint32_t) ecosystem);
         return (PKT_ERROR_SP -21);
     }
@@ -1800,7 +1800,7 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         return (PKT_ERROR_SP -23);
     }
 
-    if (EXODUS_PROPERTY_TYPE_INDIVISIBLE != prop_type && EXODUS_PROPERTY_TYPE_DIVISIBLE != prop_type) {
+    if (ELYSIUM_PROPERTY_TYPE_INDIVISIBLE != prop_type && ELYSIUM_PROPERTY_TYPE_DIVISIBLE != prop_type) {
         PrintToLog("%s(): rejected: invalid property type: %d\n", __func__, prop_type);
         return (PKT_ERROR_SP -36);
     }
@@ -1865,7 +1865,7 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
         blockHash = pindex->GetBlockHash();
     }
 
-    if (EXODUS_PROPERTY_EXODUS != ecosystem && EXODUS_PROPERTY_TEXODUS != ecosystem) {
+    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
         PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, (uint32_t) ecosystem);
         return (PKT_ERROR_SP -21);
     }
@@ -1903,7 +1903,7 @@ int CMPTransaction::logicMath_CreatePropertyVariable()
         return (PKT_ERROR_SP -24);
     }
 
-    if (EXODUS_PROPERTY_TYPE_INDIVISIBLE != prop_type && EXODUS_PROPERTY_TYPE_DIVISIBLE != prop_type) {
+    if (ELYSIUM_PROPERTY_TYPE_INDIVISIBLE != prop_type && ELYSIUM_PROPERTY_TYPE_DIVISIBLE != prop_type) {
         PrintToLog("%s(): rejected: invalid property type: %d\n", __func__, prop_type);
         return (PKT_ERROR_SP -36);
     }
@@ -2039,7 +2039,7 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         blockHash = pindex->GetBlockHash();
     }
 
-    if (EXODUS_PROPERTY_EXODUS != ecosystem && EXODUS_PROPERTY_TEXODUS != ecosystem) {
+    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
         PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, (uint32_t) ecosystem);
         return (PKT_ERROR_SP -21);
     }
@@ -2054,7 +2054,7 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         return (PKT_ERROR_SP -22);
     }
 
-    if (EXODUS_PROPERTY_TYPE_INDIVISIBLE != prop_type && EXODUS_PROPERTY_TYPE_DIVISIBLE != prop_type) {
+    if (ELYSIUM_PROPERTY_TYPE_INDIVISIBLE != prop_type && ELYSIUM_PROPERTY_TYPE_DIVISIBLE != prop_type) {
         PrintToLog("%s(): rejected: invalid property type: %d\n", __func__, prop_type);
         return (PKT_ERROR_SP -36);
     }
@@ -2381,7 +2381,7 @@ int CMPTransaction::logicMath_EnableFreezing()
         liveBlock = block;
     } else {
         const CConsensusParams& params = ConsensusParams();
-        liveBlock = params.EXODUS_FREEZE_WAIT_PERIOD + block;
+        liveBlock = params.ELYSIUM_FREEZE_WAIT_PERIOD + block;
     }
 
     enableFreezing(property, liveBlock);
@@ -2731,7 +2731,7 @@ int CMPTransaction::logicMath_Alert()
         return (PKT_ERROR -51);
     }
 
-    if (alert_type == ALERT_CLIENT_VERSION_EXPIRY && EXODUS_VERSION < alert_expiry) {
+    if (alert_type == ALERT_CLIENT_VERSION_EXPIRY && ELYSIUM_VERSION < alert_expiry) {
         // regular alert keys CANNOT be used to force a client upgrade on mainnet - at least 3 signatures from board/devs are required
         if (sender == "48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd" || isNonMainNet()) {
             std::string msgText = "Client upgrade is required!  Shutting down due to unsupported consensus state!";

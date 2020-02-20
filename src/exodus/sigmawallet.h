@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_EXODUS_SIGMAWALLET_H
-#define ZCOIN_EXODUS_SIGMAWALLET_H
+#ifndef ZCOIN_ELYSIUM_SIGMAWALLET_H
+#define ZCOIN_ELYSIUM_SIGMAWALLET_H
 
 #include "property.h"
 #include "sigmaprimitives.h"
@@ -168,4 +168,4 @@ protected:
 
 } // namespace exodus
 
-#endif // ZCOIN_EXODUS_SIGMAWALLET_H
+#endif // ZCOIN_ELYSIUM_SIGMAWALLET_H

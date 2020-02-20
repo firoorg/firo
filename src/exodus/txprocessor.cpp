@@ -21,11 +21,11 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
     if (result == (PKT_ERROR - 100)) {
         // Unknow transaction type.
         switch (tx.getType()) {
-        case EXODUS_TYPE_SIMPLE_MINT:
+        case ELYSIUM_TYPE_SIMPLE_MINT:
             result = ProcessSimpleMint(tx);
             break;
 
-        case EXODUS_TYPE_SIMPLE_SPEND:
+        case ELYSIUM_TYPE_SIMPLE_SPEND:
             result = ProcessSimpleSpend(tx);
             break;
         }

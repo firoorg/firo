@@ -9,31 +9,31 @@
 #    include "build.h"
 #endif
 
-#ifdef EXODUS_VERSION_STATUS
-#    define EXODUS_VERSION_SUFFIX STRINGIZE(EXODUS_VERSION_STATUS)
+#ifdef ELYSIUM_VERSION_STATUS
+#    define ELYSIUM_VERSION_SUFFIX STRINGIZE(ELYSIUM_VERSION_STATUS)
 #else
-#    define EXODUS_VERSION_SUFFIX ""
+#    define ELYSIUM_VERSION_SUFFIX ""
 #endif
 
-extern const int EXODUS_VERSION_MAJOR;
-extern const int EXODUS_VERSION_MINOR;
-extern const int EXODUS_VERSION_PATCH;
-extern const int EXODUS_VERSION_BUILD;
+extern const int ELYSIUM_VERSION_MAJOR;
+extern const int ELYSIUM_VERSION_MINOR;
+extern const int ELYSIUM_VERSION_PATCH;
+extern const int ELYSIUM_VERSION_BUILD;
 
 //! Returns formatted Exodus version, e.g. "1.2.0" or "1.3.4.1"
 const std::string ExodusVersion()
 {
-    if (EXODUS_VERSION_BUILD) {
+    if (ELYSIUM_VERSION_BUILD) {
         return strprintf("%d.%d.%d.%d",
-                EXODUS_VERSION_MAJOR,
-                EXODUS_VERSION_MINOR,
-                EXODUS_VERSION_PATCH,
-                EXODUS_VERSION_BUILD);
+                ELYSIUM_VERSION_MAJOR,
+                ELYSIUM_VERSION_MINOR,
+                ELYSIUM_VERSION_PATCH,
+                ELYSIUM_VERSION_BUILD);
     } else {
         return strprintf("%d.%d.%d",
-                EXODUS_VERSION_MAJOR,
-                EXODUS_VERSION_MINOR,
-                EXODUS_VERSION_PATCH);
+                ELYSIUM_VERSION_MAJOR,
+                ELYSIUM_VERSION_MINOR,
+                ELYSIUM_VERSION_PATCH);
     }
 }
 

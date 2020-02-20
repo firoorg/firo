@@ -33,7 +33,7 @@
 std::vector<unsigned char> CreatePayload_SimpleSend(uint32_t propertyId, uint64_t amount)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_SIMPLE_SEND;
+    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SEND;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -52,7 +52,7 @@ std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SEND_ALL;
+    uint16_t messageType = ELYSIUM_TYPE_SEND_ALL;
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
 
@@ -66,7 +66,7 @@ std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem)
 std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t amountForSale, uint64_t amountDesired, uint8_t timeLimit, uint64_t minFee, uint8_t subAction)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_TRADE_OFFER;
+    uint16_t messageType = ELYSIUM_TYPE_TRADE_OFFER;
     uint16_t messageVer = 1;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -90,7 +90,7 @@ std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t a
 std::vector<unsigned char> CreatePayload_DExAccept(uint32_t propertyId, uint64_t amount)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_ACCEPT_OFFER_BTC;
+    uint16_t messageType = ELYSIUM_TYPE_ACCEPT_OFFER_BTC;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -111,7 +111,7 @@ std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint6
 
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_SEND_TO_OWNERS;
+    uint16_t messageType = ELYSIUM_TYPE_SEND_TO_OWNERS;
     uint16_t messageVer = (v0) ? 0 : 1;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -135,7 +135,7 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
                                                        boost::optional<SigmaStatus> sigmaStatus)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_CREATE_PROPERTY_FIXED;
+    uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_FIXED;
     uint16_t messageVer = sigmaStatus ? 1 : 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -179,7 +179,7 @@ std::vector<unsigned char> CreatePayload_IssuanceVariable(uint8_t ecosystem, uin
                                                           uint64_t amountPerUnit, uint64_t deadline, uint8_t earlyBonus, uint8_t issuerPercentage)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_CREATE_PROPERTY_VARIABLE;
+    uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
@@ -223,7 +223,7 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
                                                        boost::optional<SigmaStatus> sigmaStatus)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_CREATE_PROPERTY_MANUAL;
+    uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL;
     uint16_t messageVer = sigmaStatus ? 1 : 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -263,7 +263,7 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
 std::vector<unsigned char> CreatePayload_CloseCrowdsale(uint32_t propertyId)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_CLOSE_CROWDSALE;
+    uint16_t messageType = ELYSIUM_TYPE_CLOSE_CROWDSALE;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -279,7 +279,7 @@ std::vector<unsigned char> CreatePayload_CloseCrowdsale(uint32_t propertyId)
 std::vector<unsigned char> CreatePayload_Grant(uint32_t propertyId, uint64_t amount, std::string memo)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_GRANT_PROPERTY_TOKENS;
+    uint16_t messageType = ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -301,7 +301,7 @@ std::vector<unsigned char> CreatePayload_Grant(uint32_t propertyId, uint64_t amo
 std::vector<unsigned char> CreatePayload_Revoke(uint32_t propertyId, uint64_t amount, std::string memo)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_REVOKE_PROPERTY_TOKENS;
+    uint16_t messageType = ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -322,7 +322,7 @@ std::vector<unsigned char> CreatePayload_Revoke(uint32_t propertyId, uint64_t am
 std::vector<unsigned char> CreatePayload_ChangeIssuer(uint32_t propertyId)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_CHANGE_ISSUER_ADDRESS;
+    uint16_t messageType = ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -338,7 +338,7 @@ std::vector<unsigned char> CreatePayload_ChangeIssuer(uint32_t propertyId)
 std::vector<unsigned char> CreatePayload_EnableFreezing(uint32_t propertyId)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_ENABLE_FREEZING;
+    uint16_t messageType = ELYSIUM_TYPE_ENABLE_FREEZING;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -354,7 +354,7 @@ std::vector<unsigned char> CreatePayload_EnableFreezing(uint32_t propertyId)
 std::vector<unsigned char> CreatePayload_DisableFreezing(uint32_t propertyId)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_DISABLE_FREEZING;
+    uint16_t messageType = ELYSIUM_TYPE_DISABLE_FREEZING;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -370,7 +370,7 @@ std::vector<unsigned char> CreatePayload_DisableFreezing(uint32_t propertyId)
 std::vector<unsigned char> CreatePayload_FreezeTokens(uint32_t propertyId, uint64_t amount, const std::string& address)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_FREEZE_PROPERTY_TOKENS;
+    uint16_t messageType = ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -390,7 +390,7 @@ std::vector<unsigned char> CreatePayload_FreezeTokens(uint32_t propertyId, uint6
 std::vector<unsigned char> CreatePayload_UnfreezeTokens(uint32_t propertyId, uint64_t amount, const std::string& address)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS;
+    uint16_t messageType = ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS;
     uint16_t messageVer = 0;
     exodus::swapByteOrder16(messageType);
     exodus::swapByteOrder16(messageVer);
@@ -411,7 +411,7 @@ std::vector<unsigned char> CreatePayload_MetaDExTrade(uint32_t propertyIdForSale
 {
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_METADEX_TRADE;
+    uint16_t messageType = ELYSIUM_TYPE_METADEX_TRADE;
     uint16_t messageVer = 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -435,7 +435,7 @@ std::vector<unsigned char> CreatePayload_MetaDExCancelPrice(uint32_t propertyIdF
 {
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_METADEX_CANCEL_PRICE;
+    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_PRICE;
     uint16_t messageVer = 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -459,7 +459,7 @@ std::vector<unsigned char> CreatePayload_MetaDExCancelPair(uint32_t propertyIdFo
 {
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_METADEX_CANCEL_PAIR;
+    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_PAIR;
     uint16_t messageVer = 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -479,7 +479,7 @@ std::vector<unsigned char> CreatePayload_MetaDExCancelEcosystem(uint8_t ecosyste
 {
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM;
+    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM;
     uint16_t messageVer = 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -497,7 +497,7 @@ std::vector<unsigned char> CreatePayload_DeactivateFeature(uint16_t featureId)
     std::vector<unsigned char> payload;
 
     uint16_t messageVer = 65535;
-    uint16_t messageType = EXODUS_MESSAGE_TYPE_DEACTIVATION;
+    uint16_t messageType = ELYSIUM_MESSAGE_TYPE_DEACTIVATION;
 
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
@@ -515,7 +515,7 @@ std::vector<unsigned char> CreatePayload_ActivateFeature(uint16_t featureId, uin
     std::vector<unsigned char> payload;
 
     uint16_t messageVer = 65535;
-    uint16_t messageType = EXODUS_MESSAGE_TYPE_ACTIVATION;
+    uint16_t messageType = ELYSIUM_MESSAGE_TYPE_ACTIVATION;
 
     exodus::swapByteOrder16(messageVer);
     exodus::swapByteOrder16(messageType);
@@ -535,7 +535,7 @@ std::vector<unsigned char> CreatePayload_ActivateFeature(uint16_t featureId, uin
 std::vector<unsigned char> CreatePayload_ExodusAlert(uint16_t alertType, uint32_t expiryValue, const std::string& alertMessage)
 {
     std::vector<unsigned char> payload;
-    uint16_t messageType = EXODUS_MESSAGE_TYPE_ALERT;
+    uint16_t messageType = ELYSIUM_MESSAGE_TYPE_ALERT;
     uint16_t messageVer = 65535;
 
     exodus::swapByteOrder16(messageVer);
@@ -557,7 +557,7 @@ std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId,
 {
     std::vector<unsigned char> payload;
 
-    uint16_t messageType = EXODUS_TYPE_CREATE_DENOMINATION;
+    uint16_t messageType = ELYSIUM_TYPE_CREATE_DENOMINATION;
     uint16_t messageVer = 0;
 
     exodus::swapByteOrder16(messageVer);
@@ -578,7 +578,7 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SIMPLE_MINT;
+    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_MINT;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);
@@ -587,7 +587,7 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
 
-    if (mints.size() > EXODUS_MAX_SIMPLE_MINTS) {
+    if (mints.size() > ELYSIUM_MAX_SIMPLE_MINTS) {
         throw std::invalid_argument("amount of mints exceeded limit");
     }
 
@@ -614,7 +614,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = EXODUS_TYPE_SIMPLE_SPEND;
+    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SPEND;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);
@@ -642,7 +642,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 1;
-    uint16_t messageType = EXODUS_TYPE_SIMPLE_SPEND;
+    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SPEND;
     exodus::swapByteOrder(messageVer);
     exodus::swapByteOrder(messageType);
     exodus::swapByteOrder(propertyId);

@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_EXODUS_SIGNATUREBUILDER_H
-#define ZCOIN_EXODUS_SIGNATUREBUILDER_H
+#ifndef ZCOIN_ELYSIUM_SIGNATUREBUILDER_H
+#define ZCOIN_ELYSIUM_SIGNATUREBUILDER_H
 
 #include "base58.h"
 #include "coinsigner.h"
@@ -43,4 +43,4 @@ public:
 
 }
 
-#endif // ZCOIN_EXODUS_SIGNATUREBUILDER_H
+#endif // ZCOIN_ELYSIUM_SIGNATUREBUILDER_H

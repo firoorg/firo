@@ -109,11 +109,11 @@ std::set<std::pair<std::string,uint32_t> > setFrozenAddresses;
 /**
  * Used to indicate, whether to automatically commit created transactions.
  *
- * Can be set with configuration "-autocommit" or RPC "setautocommit_EXODUS".
+ * Can be set with configuration "-autocommit" or RPC "setautocommit_ELYSIUM".
  */
 bool autoCommit = true;
 
-//! Number of "Dev EXODUS" of the last processed block
+//! Number of "Dev ELYSIUM" of the last processed block
 static int64_t exodus_prev = 0;
 
 static boost::filesystem::path MPPersistencePath;
@@ -154,11 +154,11 @@ std::string exodus::strMPProperty(uint32_t propertyId)
         str = strprintf("Test token: %d : 0x%08X", 0x7FFFFFFF & propertyId, propertyId);
     } else {
         switch (propertyId) {
-            case EXODUS_PROPERTY_XZC: str = "XZC";
+            case ELYSIUM_PROPERTY_XZC: str = "XZC";
                 break;
-            case EXODUS_PROPERTY_EXODUS: str = "EXODUS";
+            case ELYSIUM_PROPERTY_ELYSIUM: str = "ELYSIUM";
                 break;
-            case EXODUS_PROPERTY_TEXODUS: str = "TEXODUS";
+            case ELYSIUM_PROPERTY_TELYSIUM: str = "TELYSIUM";
                 break;
             default:
                 str = strprintf("SP token: %d", propertyId);
@@ -228,7 +228,7 @@ std::string FormatMP(uint32_t property, int64_t n, bool fSign)
 
 std::string FormatByType(int64_t amount, uint16_t propertyType)
 {
-    if (propertyType & EXODUS_PROPERTY_TYPE_INDIVISIBLE) {
+    if (propertyType & ELYSIUM_PROPERTY_TYPE_INDIVISIBLE) {
         return FormatIndivisibleMP(amount);
     } else {
         return FormatDivisibleMP(amount);
@@ -260,8 +260,8 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
     if (TALLY_TYPE_COUNT <= ttype) {
         return 0;
     }
-    if (ttype == ACCEPT_RESERVE && propertyId > EXODUS_PROPERTY_TEXODUS) {
-        // ACCEPT_RESERVE is always empty, except for EXODUS and TEXODUS
+    if (ttype == ACCEPT_RESERVE && propertyId > ELYSIUM_PROPERTY_TELYSIUM) {
+        // ACCEPT_RESERVE is always empty, except for ELYSIUM and TELYSIUM
         return 0;
     }
 
@@ -299,14 +299,14 @@ int64_t getUserFrozenMPbalance(const std::string& address, uint32_t propertyId)
 
 bool exodus::isTestEcosystemProperty(uint32_t propertyId)
 {
-    if ((EXODUS_PROPERTY_TEXODUS == propertyId) || (TEST_ECO_PROPERTY_1 <= propertyId)) return true;
+    if ((ELYSIUM_PROPERTY_TELYSIUM == propertyId) || (TEST_ECO_PROPERTY_1 <= propertyId)) return true;
 
     return false;
 }
 
 bool exodus::isMainEcosystemProperty(uint32_t propertyId)
 {
-    if ((EXODUS_PROPERTY_XZC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
+    if ((ELYSIUM_PROPERTY_XZC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
 
     return false;
 }
@@ -403,9 +403,9 @@ std::string exodus::getTokenLabel(uint32_t propertyId)
     std::string tokenStr;
     if (propertyId < 3) {
         if (propertyId == 1) {
-            tokenStr = " EXODUS";
+            tokenStr = " ELYSIUM";
         } else {
-            tokenStr = " TEXODUS";
+            tokenStr = " TELYSIUM";
         }
     } else {
         tokenStr = strprintf(" SPT#%d", propertyId);
@@ -511,17 +511,17 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
 /**
  * Calculates and updates the "development mastercoins".
  *
- * For every 10 EXODUS sold during the Exodus period, 1 additional "Dev EXODUS" was generated,
+ * For every 10 ELYSIUM sold during the Exodus period, 1 additional "Dev ELYSIUM" was generated,
  * which are being awarded to the Exodus address slowly over the years.
  *
- * @see The "Dev EXODUS" specification:
+ * @see The "Dev ELYSIUM" specification:
  * https://github.com/ExodusLayer/spec#development-mastercoins-dev-exodus-previously-reward-mastercoins
  *
  * Note:
- * If timestamps are out of order, then previously vested "Dev EXODUS" are not voided.
+ * If timestamps are out of order, then previously vested "Dev ELYSIUM" are not voided.
  *
- * @param nTime  The timestamp of the block to update the "Dev EXODUS" for
- * @return The number of "Dev EXODUS" generated
+ * @param nTime  The timestamp of the block to update the "Dev ELYSIUM" for
+ * @return The number of "Dev ELYSIUM" generated
  */
 static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
 {
@@ -549,16 +549,16 @@ static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
 
     // sanity check that devexodus isn't an impossible value
     if (devexodus > all_reward || 0 > devexodus) {
-        PrintToLog("%s(): ERROR: insane number of Dev EXODUS (nTime=%d, exodus_prev=%d, devexodus=%d)\n", __func__, nTime, exodus_prev, devexodus);
+        PrintToLog("%s(): ERROR: insane number of Dev ELYSIUM (nTime=%d, exodus_prev=%d, devexodus=%d)\n", __func__, nTime, exodus_prev, devexodus);
         return 0;
     }
 
     if (exodus_delta > 0) {
-        update_tally_map(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, exodus_delta, BALANCE);
+        update_tally_map(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, exodus_delta, BALANCE);
         exodus_prev = devexodus;
     }
 
-    NotifyTotalTokensChanged(EXODUS_PROPERTY_EXODUS, block);
+    NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block);
 
     return exodus_delta;
 }
@@ -1284,7 +1284,7 @@ int input_mp_offers_string(const std::string& s)
     uint256 txid = uint256S(vstr[i++]);
 
     // TODO: should this be here? There are usually no sanity checks..
-    if (EXODUS_PROPERTY_XZC != prop_desired) return -1;
+    if (ELYSIUM_PROPERTY_XZC != prop_desired) return -1;
 
     const std::string combo = STR_SELLOFFER_ADDR_PROP_COMBO(sellerAddr, prop);
     CMPOffer newOffer(offerBlock, amountOriginal, prop, btcDesired, minFee, blocktimelimit, txid);
@@ -1752,8 +1752,8 @@ static int write_mp_accepts(ofstream &file, SHA256_CTX *shaCtx)
 
 static int write_globals_state(ofstream &file, SHA256_CTX *shaCtx)
 {
-  unsigned int nextSPID = _my_sps->peekNextSPID(EXODUS_PROPERTY_EXODUS);
-  unsigned int nextTestSPID = _my_sps->peekNextSPID(EXODUS_PROPERTY_TEXODUS);
+  unsigned int nextSPID = _my_sps->peekNextSPID(ELYSIUM_PROPERTY_ELYSIUM);
+  unsigned int nextTestSPID = _my_sps->peekNextSPID(ELYSIUM_PROPERTY_TELYSIUM);
   std::string lineOut = strprintf("%d,%d,%d",
     exodus_prev,
     nextSPID,
@@ -1991,8 +1991,8 @@ int exodus_init()
             boost::filesystem::path spPath = GetDataDir() / "MP_spinfo";
             boost::filesystem::path stoPath = GetDataDir() / "MP_stolist";
             boost::filesystem::path exodusTXDBPath = GetDataDir() / "Exodus_TXDB";
-            boost::filesystem::path feesPath = GetDataDir() / "EXODUS_feecache";
-            boost::filesystem::path feeHistoryPath = GetDataDir() / "EXODUS_feehistory";
+            boost::filesystem::path feesPath = GetDataDir() / "ELYSIUM_feecache";
+            boost::filesystem::path feeHistoryPath = GetDataDir() / "ELYSIUM_feehistory";
             if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath);
             if (boost::filesystem::exists(txlistPath)) boost::filesystem::remove_all(txlistPath);
             if (boost::filesystem::exists(tradePath)) boost::filesystem::remove_all(tradePath);
@@ -2014,8 +2014,8 @@ int exodus_init()
     sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ExodusTXDB = new CExodusTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
-    p_feecache = new CExodusFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
-    p_feehistory = new CExodusFeeHistory(GetDataDir() / "EXODUS_feehistory", fReindex);
+    p_feecache = new CExodusFeeCache(GetDataDir() / "ELYSIUM_feecache", fReindex);
+    p_feehistory = new CExodusFeeHistory(GetDataDir() / "ELYSIUM_feehistory", fReindex);
 
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
@@ -2076,7 +2076,7 @@ int exodus_init()
     // collect the real Exodus balances available at the snapshot time
     // redundant? do we need to show it both pre-parse and post-parse?  if so let's label the printfs accordingly
     if (exodus_debug_exo) {
-        int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
+        int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
         PrintToLog("Exodus balance at start: %s\n", FormatDivisibleMP(exodus_balance));
     }
 
@@ -2099,7 +2099,7 @@ int exodus_init()
     exodus_initial_scan(nWaterlineBlock);
 
     // display Exodus balance
-    int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
+    int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
 
     PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
     PrintToLog("Exodus initialization completed\n");
@@ -2442,8 +2442,8 @@ bool CMPTxList::CheckForFreezeTxs(int blockHeight)
         int block = atoi(vstr[1]);
         if (block < blockHeight) continue;
         uint16_t txtype = atoi(vstr[2]);
-        if (txtype == EXODUS_TYPE_FREEZE_PROPERTY_TOKENS || txtype == EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS ||
-            txtype == EXODUS_TYPE_ENABLE_FREEZING || txtype == EXODUS_TYPE_DISABLE_FREEZING) {
+        if (txtype == ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS || txtype == ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS ||
+            txtype == ELYSIUM_TYPE_ENABLE_FREEZING || txtype == ELYSIUM_TYPE_DISABLE_FREEZING) {
             delete it;
             return true;
         }
@@ -2467,8 +2467,8 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue;
         uint16_t txtype = atoi(vstr[2]);
-        if (txtype != EXODUS_TYPE_FREEZE_PROPERTY_TOKENS && txtype != EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS &&
-            txtype != EXODUS_TYPE_ENABLE_FREEZING && txtype != EXODUS_TYPE_DISABLE_FREEZING) continue;
+        if (txtype != ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS && txtype != ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS &&
+            txtype != ELYSIUM_TYPE_ENABLE_FREEZING && txtype != ELYSIUM_TYPE_DISABLE_FREEZING) continue;
         if (atoi(vstr[0]) != 1) continue; // invalid, ignore
         uint256 txid = uint256S(it->key().ToString());
         int txPosition = p_ExodusTXDB->FetchTransactionPosition(txid);
@@ -2511,8 +2511,8 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             PrintToLog("ERROR: While loading freeze transaction %s: failed interpret_Transaction.\n", hash.GetHex());
             return false;
         }
-        if (EXODUS_TYPE_FREEZE_PROPERTY_TOKENS != mp_obj.getType() && EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS != mp_obj.getType() &&
-            EXODUS_TYPE_ENABLE_FREEZING != mp_obj.getType() && EXODUS_TYPE_DISABLE_FREEZING != mp_obj.getType()) {
+        if (ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS != mp_obj.getType() && ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS != mp_obj.getType() &&
+            ELYSIUM_TYPE_ENABLE_FREEZING != mp_obj.getType() && ELYSIUM_TYPE_DISABLE_FREEZING != mp_obj.getType()) {
             PrintToLog("ERROR: While loading freeze transaction %s: levelDB type mismatch, not a freeze transaction.\n", hash.GetHex());
             return false;
         }
@@ -2548,7 +2548,7 @@ void CMPTxList::LoadActivations(int blockHeight)
         std::vector<std::string> vstr;
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue; // unexpected number of tokens
-        if (atoi(vstr[2]) != EXODUS_MESSAGE_TYPE_ACTIVATION || atoi(vstr[0]) != 1) continue; // we only care about valid activations
+        if (atoi(vstr[2]) != ELYSIUM_MESSAGE_TYPE_ACTIVATION || atoi(vstr[0]) != 1) continue; // we only care about valid activations
         uint256 txid = uint256S(it->key().ToString());;
         loadOrder.push_back(std::make_pair(atoi(vstr[1]), txid));
     }
@@ -2583,7 +2583,7 @@ void CMPTxList::LoadActivations(int blockHeight)
             PrintToLog("ERROR: While loading activation transaction %s: failed interpret_Transaction.\n", hash.GetHex());
             continue;
         }
-        if (EXODUS_MESSAGE_TYPE_ACTIVATION != mp_obj.getType()) {
+        if (ELYSIUM_MESSAGE_TYPE_ACTIVATION != mp_obj.getType()) {
             PrintToLog("ERROR: While loading activation transaction %s: levelDB type mismatch, not an activation.\n", hash.GetHex());
             continue;
         }
@@ -2616,7 +2616,7 @@ void CMPTxList::LoadAlerts(int blockHeight)
         std::vector<std::string> vstr;
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue; // unexpected number of tokens
-        if (atoi(vstr[2]) != EXODUS_MESSAGE_TYPE_ALERT || atoi(vstr[0]) != 1) continue; // not a valid alert
+        if (atoi(vstr[2]) != ELYSIUM_MESSAGE_TYPE_ALERT || atoi(vstr[0]) != 1) continue; // not a valid alert
         uint256 txid = uint256S(it->key().ToString());;
         loadOrder.push_back(std::make_pair(atoi(vstr[1]), txid));
     }
@@ -2640,7 +2640,7 @@ void CMPTxList::LoadAlerts(int blockHeight)
             PrintToLog("ERROR: While loading alert %s: failed interpret_Transaction.\n", txid.GetHex());
             continue;
         }
-        if (EXODUS_MESSAGE_TYPE_ALERT != mp_obj.getType()) {
+        if (ELYSIUM_MESSAGE_TYPE_ALERT != mp_obj.getType()) {
             PrintToLog("ERROR: While loading alert %s: levelDB type mismatch, not an alert.\n", txid.GetHex());
             continue;
         }
@@ -3782,7 +3782,7 @@ int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
     devexodus = calculate_and_update_devexodus(pBlockIndex->GetBlockTime(), nBlockNow);
 
     if (exodus_debug_exo) {
-        int64_t balance = getMPbalance(GetSystemAddress().ToString(), EXODUS_PROPERTY_EXODUS, BALANCE);
+        int64_t balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
         PrintToLog("devexodus for block %d: %d, Exodus balance: %d\n", nBlockNow, devexodus, FormatDivisibleMP(balance));
     }
 

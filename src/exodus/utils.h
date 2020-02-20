@@ -1,5 +1,5 @@
-#ifndef EXODUS_UTILS_H
-#define EXODUS_UTILS_H
+#ifndef ELYSIUM_UTILS_H
+#define ELYSIUM_UTILS_H
 
 #include <string>
 
@@ -11,4 +11,4 @@ std::string HashToAddress(unsigned char version, const uint160& hash);
 /** Returns a vector of bytes containing the version and hash160 for an address.*/
 std::vector<unsigned char> AddressToBytes(const std::string& address);
 
-#endif // EXODUS_UTILS_H
+#endif // ELYSIUM_UTILS_H

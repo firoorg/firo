@@ -1,5 +1,5 @@
-#ifndef EXODUS_ERRORS_H
-#define EXODUS_ERRORS_H
+#ifndef ELYSIUM_ERRORS_H
+#define ELYSIUM_ERRORS_H
 
 #include <string>
 
@@ -33,7 +33,7 @@ enum MPRPCErrorCode
     MP_BLOCK_NOT_IN_CHAIN =         -3333,  // Transaction not part of the active chain.   (pBlockIndex is NULL)
     MP_CROWDSALE_WITHOUT_PROPERTY = -3334,  // Potential database corruption: "Crowdsale Purchase" without valid property identifier.
     MP_INVALID_TX_IN_DB_FOUND     = -3335,  // Potential database corruption: Invalid transaction found.
-    MP_TX_IS_NOT_EXODUS_PROTOCOL  = -3336,  // Not a Exodus Protocol transaction.
+    MP_TX_IS_NOT_ELYSIUM_PROTOCOL  = -3336,  // Not a Exodus Protocol transaction.
 };
 
 inline std::string error_str(int ec) {
@@ -171,7 +171,7 @@ inline std::string error_str(int ec) {
           ec_str = "Value out of range or zero";
           break;
       case PKT_ERROR_TRADEOFFER -47:
-          ec_str = "Property for sale must be EXODUS or TEXODUS";
+          ec_str = "Property for sale must be ELYSIUM or TELYSIUM";
           break;
       case PKT_ERROR_TRADEOFFER -49:
           ec_str = "Sender has no active sell offer for the property";
@@ -356,4 +356,4 @@ inline std::string error_str(int ec) {
 }
 
 
-#endif // EXODUS_ERRORS_H
+#endif // ELYSIUM_ERRORS_H

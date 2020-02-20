@@ -534,7 +534,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_mint_no_mints)
 BOOST_AUTO_TEST_CASE(payload_create_simple_mint_exceed_limit)
 {
     std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> pubs;
-    pubs.resize(EXODUS_MAX_SIMPLE_MINTS + 1);
+    pubs.resize(ELYSIUM_MAX_SIMPLE_MINTS + 1);
 
     // Simple mint [type 1026, version 0]
     BOOST_CHECK_EXCEPTION(

@@ -1,5 +1,5 @@
-#ifndef ZCOIN_EXODUS_SIGMADB_H
-#define ZCOIN_EXODUS_SIGMADB_H
+#ifndef ZCOIN_ELYSIUM_SIGMADB_H
+#define ZCOIN_ELYSIUM_SIGMADB_H
 
 #include "convert.h"
 #include "persistence.h"
@@ -118,4 +118,4 @@ extern SigmaDatabase *sigmaDb;
 
 } // namespace exodus
 
-#endif // ZCOIN_EXODUS_SIGMADB_H
+#endif // ZCOIN_ELYSIUM_SIGMADB_H

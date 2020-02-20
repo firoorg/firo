@@ -1,5 +1,5 @@
-#ifndef EXODUS_ACTIVATION_H
-#define EXODUS_ACTIVATION_H
+#ifndef ELYSIUM_ACTIVATION_H
+#define ELYSIUM_ACTIVATION_H
 
 #include <stdint.h>
 #include <string>
@@ -33,4 +33,4 @@ void CheckLiveActivations(int blockHeight);
 void AddPendingActivation(uint16_t featureId, int activationBlock, uint32_t minClientVersion, const std::string& featureName);
 }
 
-#endif // EXODUS_ACTIVATION_H
+#endif // ELYSIUM_ACTIVATION_H

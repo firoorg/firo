@@ -1,5 +1,5 @@
-#ifndef ZCOIN_EXODUS_WALLET_H
-#define ZCOIN_EXODUS_WALLET_H
+#ifndef ZCOIN_ELYSIUM_WALLET_H
+#define ZCOIN_ELYSIUM_WALLET_H
 
 #include "coinsigner.h"
 #include "exodus.h"
@@ -128,4 +128,4 @@ extern Wallet *wallet;
 
 } // namespace exodus
 
-#endif // ZCOIN_EXODUS_WALLET_H
+#endif // ZCOIN_ELYSIUM_WALLET_H

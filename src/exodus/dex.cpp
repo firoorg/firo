@@ -445,11 +445,11 @@ int DEx_payment(const uint256& txid, unsigned int vout, const std::string& addre
 
     int rc = DEX_ERROR_PAYMENT;
 
-    uint32_t propertyId = EXODUS_PROPERTY_EXODUS; // test for EXODUS accept first
+    uint32_t propertyId = ELYSIUM_PROPERTY_ELYSIUM; // test for ELYSIUM accept first
     CMPAccept* p_accept = DEx_getAccept(addressSeller, propertyId, addressBuyer);
 
     if (!p_accept) {
-        propertyId = EXODUS_PROPERTY_TEXODUS; // test for TEXODUS accept second
+        propertyId = ELYSIUM_PROPERTY_TELYSIUM; // test for TELYSIUM accept second
         p_accept = DEx_getAccept(addressSeller, propertyId, addressBuyer);
     }
 

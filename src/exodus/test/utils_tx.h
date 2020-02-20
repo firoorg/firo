@@ -1,5 +1,5 @@
-#ifndef EXODUS_TEST_UTILS_TX_H
-#define EXODUS_TEST_UTILS_TX_H
+#ifndef ELYSIUM_TEST_UTILS_TX_H
+#define ELYSIUM_TEST_UTILS_TX_H
 
 class CTxOut;
 
@@ -19,4 +19,4 @@ CTxOut OpReturn_MultiSimpleSend();
 CTxOut NonStandardOutput();
 
 
-#endif // EXODUS_TEST_UTILS_TX_H
+#endif // ELYSIUM_TEST_UTILS_TX_H

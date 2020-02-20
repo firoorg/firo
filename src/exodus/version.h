@@ -1,5 +1,5 @@
-#ifndef EXODUS_VERSION_H
-#define EXODUS_VERSION_H
+#ifndef ELYSIUM_VERSION_H
+#define ELYSIUM_VERSION_H
 
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
@@ -23,28 +23,28 @@
 //
 
 // Increase with every consensus affecting change
-//#define EXODUS_VERSION_MAJOR 0
+//#define ELYSIUM_VERSION_MAJOR 0
 
-const int EXODUS_VERSION_MAJOR = 0;
+const int ELYSIUM_VERSION_MAJOR = 0;
 
 // Increase with every non-consensus affecting feature
-//#define EXODUS_VERSION_MINOR 3
-const int EXODUS_VERSION_MINOR = 3;
+//#define ELYSIUM_VERSION_MINOR 3
+const int ELYSIUM_VERSION_MINOR = 3;
 
 // Increase with every patch, which is not a feature or consensus affecting
-//#define EXODUS_VERSION_PATCH 0
-const int EXODUS_VERSION_PATCH = 0;
+//#define ELYSIUM_VERSION_PATCH 0
+const int ELYSIUM_VERSION_PATCH = 0;
 
 // Non-public build number/revision (usually zero)
-//#define EXODUS_VERSION_BUILD 0
-const int EXODUS_VERSION_BUILD = 0;
+//#define ELYSIUM_VERSION_BUILD 0
+const int ELYSIUM_VERSION_BUILD = 0;
 
 //! Exodus client version
-static const int EXODUS_VERSION =
-                    +100000000000 * EXODUS_VERSION_MAJOR
-                    +    10000000 * EXODUS_VERSION_MINOR
-                    +        1000 * EXODUS_VERSION_PATCH
-                    +           1 * EXODUS_VERSION_BUILD;
+static const int ELYSIUM_VERSION =
+                    +100000000000 * ELYSIUM_VERSION_MAJOR
+                    +    10000000 * ELYSIUM_VERSION_MINOR
+                    +        1000 * ELYSIUM_VERSION_PATCH
+                    +           1 * ELYSIUM_VERSION_BUILD;
 
 //! Returns formatted Exodus version, e.g. "1.2.0"
 const std::string ExodusVersion();
@@ -55,4 +55,4 @@ const std::string ZcoinCoreVersion();
 
 //#endif // WINDRES_PREPROC
 
-#endif // EXODUS_VERSION_H
+#endif // ELYSIUM_VERSION_H

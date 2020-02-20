@@ -128,7 +128,7 @@ UniValue elysium_send(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_SEND, propertyId, amount);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_SIMPLE_SEND, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -271,7 +271,7 @@ UniValue elysium_senddexsell(const UniValue& params, bool fHelp)
             return rawHex;
         } else {
             bool fSubtract = (action <= CMPTransaction::UPDATE); // no pending balances for cancels
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_TRADE_OFFER, propertyIdForSale, amountForSale, fSubtract);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_TRADE_OFFER, propertyIdForSale, amountForSale, fSubtract);
             return txid.GetHex();
         }
     }
@@ -660,7 +660,7 @@ UniValue elysium_sendsto(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_SEND_TO_OWNERS, propertyId, amount);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_SEND_TO_OWNERS, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -872,11 +872,11 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             uint8_t ecosystem = 0;
             if (isMainEcosystemProperty(params[1].get_int64())
                     && isMainEcosystemProperty(params[3].get_int64())) {
-                ecosystem = EXODUS_PROPERTY_EXODUS;
+                ecosystem = ELYSIUM_PROPERTY_ELYSIUM;
             }
             if (isTestEcosystemProperty(params[1].get_int64())
                     && isTestEcosystemProperty(params[3].get_int64())) {
-                ecosystem = EXODUS_PROPERTY_TEXODUS;
+                ecosystem = ELYSIUM_PROPERTY_TELYSIUM;
             }
             values.push_back(params[0]); // fromAddress
             values.push_back(ecosystem);
@@ -939,7 +939,7 @@ UniValue elysium_sendtrade(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_TRADE, propertyIdForSale, amountForSale);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_METADEX_TRADE, propertyIdForSale, amountForSale);
             return txid.GetHex();
         }
     }
@@ -997,7 +997,7 @@ UniValue elysium_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_PRICE, propertyIdForSale, amountForSale, false);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_METADEX_CANCEL_PRICE, propertyIdForSale, amountForSale, false);
             return txid.GetHex();
         }
     }
@@ -1051,7 +1051,7 @@ UniValue elysium_sendcanceltradesbypair(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_PAIR, propertyIdForSale, 0, false);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_METADEX_CANCEL_PAIR, propertyIdForSale, 0, false);
             return txid.GetHex();
         }
     }
@@ -1099,7 +1099,7 @@ UniValue elysium_sendcancelalltrades(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM, ecosystem, 0, false);
+            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM, ecosystem, 0, false);
             return txid.GetHex();
         }
     }
@@ -1676,7 +1676,7 @@ UniValue elysium_sendmint(const UniValue& params, bool fHelp)
     if (!autoCommit) {
         return rawHex;
     } else {
-        PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_MINT, propertyId, amount);
+        PendingAdd(txid, fromAddress, ELYSIUM_TYPE_SIMPLE_MINT, propertyId, amount);
         return txid.GetHex();
     }
 }
@@ -1783,7 +1783,7 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
             PendingAdd(
                 txid,
                 "Spend",
-                EXODUS_TYPE_SIMPLE_SPEND,
+                ELYSIUM_TYPE_SIMPLE_SPEND,
                 propertyId,
                 GetDenominationValue(mint.property, mint.denomination),
                 false

@@ -86,7 +86,7 @@ void CheckLiveActivations(int blockHeight)
         if (liveActivation.activationBlock > blockHeight) {
             continue;
         }
-        if (EXODUS_VERSION < liveActivation.minClientVersion) {
+        if (ELYSIUM_VERSION < liveActivation.minClientVersion) {
             std::string msgText = strprintf("Shutting down due to unsupported feature activation (%d: %s)", liveActivation.featureId, liveActivation.featureName);
             PrintToLog(msgText);
             if (!GetBoolArg("-overrideforcedshutdown", false)) {

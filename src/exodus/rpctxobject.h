@@ -1,5 +1,5 @@
-#ifndef EXODUS_RPCTXOBJECT_H
-#define EXODUS_RPCTXOBJECT_H
+#ifndef ELYSIUM_RPCTXOBJECT_H
+#define ELYSIUM_RPCTXOBJECT_H
 
 #include <univalue.h>
 
@@ -41,4 +41,4 @@ int populateRPCSendAllSubSends(const uint256& txid, UniValue& subSends);
 
 bool showRefForTx(uint32_t txType);
 
-#endif // EXODUS_RPCTXOBJECT_H
+#endif // ELYSIUM_RPCTXOBJECT_H

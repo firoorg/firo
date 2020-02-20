@@ -1,5 +1,5 @@
-#ifndef EXODUS_NOTIFICATIONS_H
-#define EXODUS_NOTIFICATIONS_H
+#ifndef ELYSIUM_NOTIFICATIONS_H
+#define ELYSIUM_NOTIFICATIONS_H
 
 #include <stdint.h>
 #include <string>
@@ -47,4 +47,4 @@ std::vector<std::string> GetExodusAlertMessages();
 bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime);
 }
 
-#endif // EXODUS_NOTIFICATIONS_H
+#endif // ELYSIUM_NOTIFICATIONS_H

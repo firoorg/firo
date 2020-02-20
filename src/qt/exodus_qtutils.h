@@ -1,5 +1,5 @@
-#ifndef EXODUS_QTUTILS
-#define EXODUS_QTUTILS
+#ifndef ELYSIUM_QTUTILS
+#define ELYSIUM_QTUTILS
 
 #include <string>
 
@@ -32,4 +32,4 @@ namespace exodus
     std::string ReplaceStr(const std::string& findText, const std::string& replaceText, const std::string& inputStr);
 }
 
-#endif // EXODUS_QTUTILS
+#endif // ELYSIUM_QTUTILS

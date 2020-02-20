@@ -67,7 +67,7 @@ public:
 public:
     uint32_t ChangeIndex()
     {
-        return BIP44_EXODUS_MINT_INDEX;
+        return BIP44_ELYSIUM_MINT_INDEX;
     }
 
     SigmaPrivateKey GeneratePrivateKeyFromSeed(uint512 const &seed)
@@ -134,7 +134,7 @@ protected:
     }
 
     unsigned GetChange() const {
-        return BIP44_EXODUS_MINT_INDEX;
+        return BIP44_ELYSIUM_MINT_INDEX;
     }
 
     bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr)

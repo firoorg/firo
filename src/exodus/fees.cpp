@@ -32,10 +32,10 @@ int64_t CExodusFeeCache::GetDistributionThreshold(const uint32_t &propertyId)
     return distributionThresholds[propertyId];
 }
 
-// Sets the distribution thresholds to total tokens for a property / EXODUS_FEE_THRESHOLD
+// Sets the distribution thresholds to total tokens for a property / ELYSIUM_FEE_THRESHOLD
 void CExodusFeeCache::UpdateDistributionThresholds(uint32_t propertyId)
 {
-    int64_t distributionThreshold = getTotalTokens(propertyId) / EXODUS_FEE_THRESHOLD;
+    int64_t distributionThreshold = getTotalTokens(propertyId) / ELYSIUM_FEE_THRESHOLD;
     if (distributionThreshold <= 0) {
         // protect against zero valued thresholds for low token count properties
         distributionThreshold = 1;
@@ -191,12 +191,12 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 
     OwnerAddrType receiversSet;
     if (isTestEcosystemProperty(propertyId)) {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_TEXODUS, cachedAmount);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", ELYSIUM_PROPERTY_TELYSIUM, cachedAmount);
     } else {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_EXODUS, cachedAmount);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", ELYSIUM_PROPERTY_ELYSIUM, cachedAmount);
     }
 
-    uint64_t numberOfReceivers = receiversSet.size(); // there will always be addresses holding EXODUS, so no need to check size>0
+    uint64_t numberOfReceivers = receiversSet.size(); // there will always be addresses holding ELYSIUM, so no need to check size>0
     PrintToLog("Starting fee distribution for property %d to %d recipients...\n", propertyId, numberOfReceivers);
 
     int64_t sent_so_far = 0;

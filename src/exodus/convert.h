@@ -1,5 +1,5 @@
-#ifndef EXODUS_CONVERT_H
-#define EXODUS_CONVERT_H
+#ifndef ELYSIUM_CONVERT_H
+#define ELYSIUM_CONVERT_H
 
 #include <stdint.h>
 #include <stdexcept>
@@ -44,4 +44,4 @@ void swapByteOrder(T& t)
 }
 
 
-#endif // EXODUS_CONVERT_H
+#endif // ELYSIUM_CONVERT_H

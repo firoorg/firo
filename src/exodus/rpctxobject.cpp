@@ -78,7 +78,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     // attempt to parse the transaction
     CMPTransaction mp_obj;
     int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
-    if (parseRC < 0) return MP_TX_IS_NOT_EXODUS_PROTOCOL;
+    if (parseRC < 0) return MP_TX_IS_NOT_ELYSIUM_PROTOCOL;
 
     const uint256& txid = tx.GetHash();
 
@@ -111,7 +111,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     if (!filterAddress.empty() && mp_obj.getSender() != filterAddress && mp_obj.getReceiver() != filterAddress) return -1;
 
     // parse packet and populate mp_obj
-    if (!mp_obj.interpret_Transaction()) return MP_TX_IS_NOT_EXODUS_PROTOCOL;
+    if (!mp_obj.interpret_Transaction()) return MP_TX_IS_NOT_ELYSIUM_PROTOCOL;
 
     // obtain validity - only confirmed transactions can be valid
     bool valid = false;
@@ -131,7 +131,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     txobj.push_back(Pair("ismine", fMine));
     txobj.push_back(Pair("version", (uint64_t)mp_obj.getVersion()));
     txobj.push_back(Pair("type_int", (uint64_t)mp_obj.getType()));
-    if (mp_obj.getType() != EXODUS_TYPE_SIMPLE_SEND) { // Type 0 will add "Type" attribute during populateRPCTypeSimpleSend
+    if (mp_obj.getType() != ELYSIUM_TYPE_SIMPLE_SEND) { // Type 0 will add "Type" attribute during populateRPCTypeSimpleSend
         txobj.push_back(Pair("type", mp_obj.getTypeString()));
     }
 
@@ -164,55 +164,55 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txType, bool extendedDetails, std::string extendedDetailsFilter, int confirmations)
 {
     switch (txType) {
-        case EXODUS_TYPE_SIMPLE_SEND:
+        case ELYSIUM_TYPE_SIMPLE_SEND:
             populateRPCTypeSimpleSend(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_SEND_TO_OWNERS:
+        case ELYSIUM_TYPE_SEND_TO_OWNERS:
             populateRPCTypeSendToOwners(mp_obj, txobj, extendedDetails, extendedDetailsFilter);
             break;
-        case EXODUS_TYPE_SEND_ALL:
+        case ELYSIUM_TYPE_SEND_ALL:
             populateRPCTypeSendAll(mp_obj, txobj, confirmations);
             break;
-        case EXODUS_TYPE_TRADE_OFFER:
+        case ELYSIUM_TYPE_TRADE_OFFER:
             populateRPCTypeTradeOffer(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_METADEX_TRADE:
+        case ELYSIUM_TYPE_METADEX_TRADE:
             populateRPCTypeMetaDExTrade(mp_obj, txobj, extendedDetails);
             break;
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
             populateRPCTypeMetaDExCancelPrice(mp_obj, txobj, extendedDetails);
             break;
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
             populateRPCTypeMetaDExCancelPair(mp_obj, txobj, extendedDetails);
             break;
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
             populateRPCTypeMetaDExCancelEcosystem(mp_obj, txobj, extendedDetails);
             break;
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC:
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
             populateRPCTypeAcceptOffer(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             populateRPCTypeCreatePropertyFixed(mp_obj, txobj, confirmations);
             break;
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
             populateRPCTypeCreatePropertyVariable(mp_obj, txobj, confirmations);
             break;
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
             populateRPCTypeCreatePropertyManual(mp_obj, txobj, confirmations);
             break;
-        case EXODUS_TYPE_CLOSE_CROWDSALE:
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
             populateRPCTypeCloseCrowdsale(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             populateRPCTypeGrant(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
             populateRPCTypeRevoke(mp_obj, txobj);
             break;
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS:
             populateRPCTypeChangeIssuer(mp_obj, txobj);
             break;
-        case EXODUS_MESSAGE_TYPE_ACTIVATION:
+        case ELYSIUM_MESSAGE_TYPE_ACTIVATION:
             populateRPCTypeActivation(mp_obj, txobj);
             break;
     }
@@ -223,23 +223,23 @@ void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txTyp
 bool showRefForTx(uint32_t txType)
 {
     switch (txType) {
-        case EXODUS_TYPE_SIMPLE_SEND: return true;
-        case EXODUS_TYPE_SEND_TO_OWNERS: return false;
-        case EXODUS_TYPE_TRADE_OFFER: return false;
-        case EXODUS_TYPE_METADEX_TRADE: return false;
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE: return false;
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR: return false;
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM: return false;
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC: return true;
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED: return false;
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE: return false;
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL: return false;
-        case EXODUS_TYPE_CLOSE_CROWDSALE: return false;
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS: return true;
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS: return false;
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS: return true;
-        case EXODUS_TYPE_SEND_ALL: return true;
-        case EXODUS_MESSAGE_TYPE_ACTIVATION: return false;
+        case ELYSIUM_TYPE_SIMPLE_SEND: return true;
+        case ELYSIUM_TYPE_SEND_TO_OWNERS: return false;
+        case ELYSIUM_TYPE_TRADE_OFFER: return false;
+        case ELYSIUM_TYPE_METADEX_TRADE: return false;
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE: return false;
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR: return false;
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM: return false;
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: return true;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: return false;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: return false;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: return false;
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE: return false;
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: return true;
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: return false;
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: return true;
+        case ELYSIUM_TYPE_SEND_ALL: return true;
+        case ELYSIUM_MESSAGE_TYPE_ACTIVATION: return false;
     }
     return true; // default to true, shouldn't be needed but just in case
 }
@@ -524,7 +524,7 @@ void populateRPCExtendedTypeSendToOwners(const uint256 txid, std::string extende
     } else {
         stoFee = numRecipients * TRANSFER_FEE_PER_OWNER_V1;
     }
-    txobj.push_back(Pair("totalstofee", FormatDivisibleMP(stoFee))); // fee always EXODUS so always divisible
+    txobj.push_back(Pair("totalstofee", FormatDivisibleMP(stoFee))); // fee always ELYSIUM so always divisible
     txobj.push_back(Pair("recipients", receiveArray));
 }
 

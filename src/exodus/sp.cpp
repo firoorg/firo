@@ -41,9 +41,9 @@ CMPSPInfo::Entry::Entry()
 bool CMPSPInfo::Entry::isDivisible() const
 {
     switch (prop_type) {
-        case EXODUS_PROPERTY_TYPE_DIVISIBLE:
-        case EXODUS_PROPERTY_TYPE_DIVISIBLE_REPLACING:
-        case EXODUS_PROPERTY_TYPE_DIVISIBLE_APPENDING:
+        case ELYSIUM_PROPERTY_TYPE_DIVISIBLE:
+        case ELYSIUM_PROPERTY_TYPE_DIVISIBLE_REPLACING:
+        case ELYSIUM_PROPERTY_TYPE_DIVISIBLE_APPENDING:
             return true;
     }
     return false;
@@ -65,9 +65,9 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     leveldb::Status status = Open(path, fWipe);
     PrintToLog("Loading smart property database: %s\n", status.ToString());
 
-    // special cases for constant SPs EXODUS and TEXODUS
+    // special cases for constant SPs ELYSIUM and TELYSIUM
     implied_exodus.issuer = GetSystemAddress().ToString();
-    implied_exodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
+    implied_exodus.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
     implied_exodus.num_tokens = 700000;
     implied_exodus.category = "N/A";
     implied_exodus.subcategory = "N/A";
@@ -75,7 +75,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_exodus.url = "https://www.zcoin.io";
     implied_exodus.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
     implied_texodus.issuer = GetSystemAddress().ToString();
-    implied_texodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
+    implied_texodus.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
     implied_texodus.num_tokens = 700000;
     implied_texodus.category = "N/A";
     implied_texodus.subcategory = "N/A";
@@ -110,10 +110,10 @@ uint32_t CMPSPInfo::peekNextSPID(uint8_t ecosystem) const
     uint32_t nextId = 0;
 
     switch (ecosystem) {
-        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, EXODUS: 1, TEXODUS: 2, First available SP = 3
+        case ELYSIUM_PROPERTY_ELYSIUM: // Main ecosystem, ELYSIUM: 1, TELYSIUM: 2, First available SP = 3
             nextId = next_spid;
             break;
-        case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
+        case ELYSIUM_PROPERTY_TELYSIUM: // Test ecosystem, same as above with high bit set
             nextId = next_test_spid;
             break;
         default: // Non-standard ecosystem, ID's start at 0
@@ -126,7 +126,7 @@ uint32_t CMPSPInfo::peekNextSPID(uint8_t ecosystem) const
 bool CMPSPInfo::updateSP(uint32_t propertyId, const Entry& info)
 {
     // cannot update implied SP
-    if (EXODUS_PROPERTY_EXODUS == propertyId || EXODUS_PROPERTY_TEXODUS == propertyId) {
+    if (ELYSIUM_PROPERTY_ELYSIUM == propertyId || ELYSIUM_PROPERTY_TELYSIUM == propertyId) {
         return false;
     }
 
@@ -171,10 +171,10 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 {
     uint32_t propertyId = 0;
     switch (ecosystem) {
-        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, EXODUS: 1, TEXODUS: 2, First available SP = 3
+        case ELYSIUM_PROPERTY_ELYSIUM: // Main ecosystem, ELYSIUM: 1, TELYSIUM: 2, First available SP = 3
             propertyId = next_spid++;
             break;
-        case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
+        case ELYSIUM_PROPERTY_TELYSIUM: // Test ecosystem, same as above with high bit set
             propertyId = next_test_spid++;
             break;
         default: // Non-standard ecosystem, ID's start at 0
@@ -229,11 +229,11 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 
 bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 {
-    // special cases for constant SPs EXODUS and TEXODUS
-    if (EXODUS_PROPERTY_EXODUS == propertyId) {
+    // special cases for constant SPs ELYSIUM and TELYSIUM
+    if (ELYSIUM_PROPERTY_ELYSIUM == propertyId) {
         info = implied_exodus;
         return true;
-    } else if (EXODUS_PROPERTY_TEXODUS == propertyId) {
+    } else if (ELYSIUM_PROPERTY_TELYSIUM == propertyId) {
         info = implied_texodus;
         return true;
     }
@@ -267,7 +267,7 @@ bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 bool CMPSPInfo::hasSP(uint32_t propertyId) const
 {
     // Special cases for constant SPs MSC and TMSC
-    if (EXODUS_PROPERTY_EXODUS == propertyId || EXODUS_PROPERTY_TEXODUS == propertyId) {
+    if (ELYSIUM_PROPERTY_ELYSIUM == propertyId || ELYSIUM_PROPERTY_TELYSIUM == propertyId) {
         return true;
     }
 
@@ -500,7 +500,7 @@ int CMPSPInfo::getDenominationRemainingConfirmation(
 void CMPSPInfo::printAll() const
 {
     // print off the hard coded MSC and TMSC entries
-    for (uint32_t idx = EXODUS_PROPERTY_EXODUS; idx <= EXODUS_PROPERTY_TEXODUS; idx++) {
+    for (uint32_t idx = ELYSIUM_PROPERTY_ELYSIUM; idx <= ELYSIUM_PROPERTY_TELYSIUM; idx++) {
         Entry info;
         PrintToLog("%10d => ", idx);
         if (getSP(idx, info)) {
@@ -1008,8 +1008,8 @@ unsigned int exodus::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
 std::string exodus::strPropertyType(uint16_t propertyType)
 {
     switch (propertyType) {
-        case EXODUS_PROPERTY_TYPE_DIVISIBLE: return "divisible";
-        case EXODUS_PROPERTY_TYPE_INDIVISIBLE: return "indivisible";
+        case ELYSIUM_PROPERTY_TYPE_DIVISIBLE: return "divisible";
+        case ELYSIUM_PROPERTY_TYPE_INDIVISIBLE: return "indivisible";
     }
 
     return "unknown";
@@ -1018,8 +1018,8 @@ std::string exodus::strPropertyType(uint16_t propertyType)
 std::string exodus::strEcosystem(uint8_t ecosystem)
 {
     switch (ecosystem) {
-        case EXODUS_PROPERTY_EXODUS: return "main";
-        case EXODUS_PROPERTY_TEXODUS: return "test";
+        case ELYSIUM_PROPERTY_ELYSIUM: return "main";
+        case ELYSIUM_PROPERTY_TELYSIUM: return "test";
     }
 
     return "unknown";

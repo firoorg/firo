@@ -1,5 +1,5 @@
-#ifndef EXODUS_WALLETCACHE_H
-#define EXODUS_WALLETCACHE_H
+#ifndef ELYSIUM_WALLETCACHE_H
+#define ELYSIUM_WALLETCACHE_H
 
 class uint256;
 
@@ -20,4 +20,4 @@ void WalletTXIDCacheInit();
 int WalletCacheUpdate();
 }
 
-#endif // EXODUS_WALLETCACHE_H
+#endif // ELYSIUM_WALLETCACHE_H

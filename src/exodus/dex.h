@@ -1,5 +1,5 @@
-#ifndef EXODUS_DEX_H
-#define EXODUS_DEX_H
+#ifndef ELYSIUM_DEX_H
+#define ELYSIUM_DEX_H
 
 #include "exodus/log.h"
 #include "exodus/exodus.h"
@@ -45,7 +45,7 @@ class CMPOffer
 {
 private:
     int offerBlock;
-    //! amount of EXODUS for sale specified when the offer was placed
+    //! amount of ELYSIUM for sale specified when the offer was placed
     int64_t offer_amount_original;
     uint32_t property;
     //! amount desired, in XZC
@@ -95,7 +95,7 @@ public:
                 offer_amount_original,
                 property,
                 XZC_desired_original,
-                (EXODUS_PROPERTY_XZC),
+                (ELYSIUM_PROPERTY_XZC),
                 min_fee,
                 blocktimelimit,
                 txid.ToString()
@@ -117,8 +117,8 @@ public:
 class CMPAccept
 {
 private:
-    int64_t accept_amount_original;    // amount of EXODUS/TEXODUS desired to purchased
-    int64_t accept_amount_remaining;   // amount of EXODUS/TEXODUS remaining to purchased
+    int64_t accept_amount_original;    // amount of ELYSIUM/TELYSIUM desired to purchased
+    int64_t accept_amount_remaining;   // amount of ELYSIUM/TELYSIUM remaining to purchased
     uint8_t blocktimelimit;            // copied from the offer during creation
     uint32_t property;                 // copied from the offer during creation
 
@@ -243,4 +243,4 @@ unsigned int eraseExpiredAccepts(int block);
 }
 
 
-#endif // EXODUS_DEX_H
+#endif // ELYSIUM_DEX_H

@@ -1,5 +1,5 @@
-#ifndef EXODUS_FETCHWALLETTX_H
-#define EXODUS_FETCHWALLETTX_H
+#ifndef ELYSIUM_FETCHWALLETTX_H
+#define ELYSIUM_FETCHWALLETTX_H
 
 class uint256;
 
@@ -15,4 +15,4 @@ unsigned int GetTransactionByteOffset(const uint256& txid);
 std::map<std::string, uint256> FetchWalletExodusTransactions(unsigned int count, int startBlock = 0, int endBlock = 999999);
 }
 
-#endif // EXODUS_FETCHWALLETTX_H
+#endif // ELYSIUM_FETCHWALLETTX_H

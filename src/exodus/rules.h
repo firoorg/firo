@@ -1,5 +1,5 @@
-#ifndef ZCOIN_EXODUS_RULES_H
-#define ZCOIN_EXODUS_RULES_H
+#ifndef ZCOIN_ELYSIUM_RULES_H
+#define ZCOIN_ELYSIUM_RULES_H
 
 #include "../amount.h"
 #include "../base58.h"
@@ -77,8 +77,8 @@ constexpr uint16_t FEATURE_SIGMA = 15;
  **/
 constexpr uint16_t FEATURE_SIGMA_SPENDV1 = 16;
 
-//! When (propertyTotalTokens / EXODUS_FEE_THRESHOLD) is reached fee distribution will occur
-const int64_t EXODUS_FEE_THRESHOLD = 100000; // 0.001%
+//! When (propertyTotalTokens / ELYSIUM_FEE_THRESHOLD) is reached fee distribution will occur
+const int64_t ELYSIUM_FEE_THRESHOLD = 100000; // 0.001%
 
 /** A structure to represent transaction restrictions.
  */
@@ -131,7 +131,7 @@ public:
     /**
      * Waiting period after enabling freezing before addresses may be frozen.
      **/
-    int EXODUS_FREEZE_WAIT_PERIOD;
+    int ELYSIUM_FREEZE_WAIT_PERIOD;
 
     /**
      * Block to enable pay-to-pubkey-hash support.
@@ -156,52 +156,52 @@ public:
     /**
      * Block to enable alerts and notifications.
      **/
-    int EXODUS_ALERT_BLOCK;
+    int ELYSIUM_ALERT_BLOCK;
 
     /**
      * Block to enable simple send transactions.
      **/
-    int EXODUS_SEND_BLOCK;
+    int ELYSIUM_SEND_BLOCK;
 
     /**
      * Block to enable DEx transactions.
      **/
-    int EXODUS_DEX_BLOCK;
+    int ELYSIUM_DEX_BLOCK;
 
     /**
      * Block to enable smart property transactions.
      **/
-    int EXODUS_SP_BLOCK;
+    int ELYSIUM_SP_BLOCK;
 
     /**
      * Block to enable managed properties.
      **/
-    int EXODUS_MANUALSP_BLOCK;
+    int ELYSIUM_MANUALSP_BLOCK;
 
     /**
      * Block to enable send-to-owners transactions.
      **/
-    int EXODUS_STO_BLOCK;
+    int ELYSIUM_STO_BLOCK;
 
     /**
      * Block to enable MetaDEx transactions.
      **/
-    int EXODUS_METADEX_BLOCK;
+    int ELYSIUM_METADEX_BLOCK;
 
     /**
      * Block to enable "send all" transactions.
      **/
-    int EXODUS_SEND_ALL_BLOCK;
+    int ELYSIUM_SEND_ALL_BLOCK;
 
     /**
      * Block to enable betting transactions.
      **/
-    int EXODUS_BET_BLOCK;
+    int ELYSIUM_BET_BLOCK;
 
     /**
      * Block to enable cross property STO (v1).
      **/
-    int EXODUS_STOV1_BLOCK;
+    int ELYSIUM_STOV1_BLOCK;
 
     /**
      * Block to deactivate crowdsale participations when "granting tokens".
@@ -337,4 +337,4 @@ bool VerifyCheckpoint(int block, const uint256& blockHash);
 
 } // namespace exodus
 
-#endif // ZCOIN_EXODUS_RULES_H
+#endif // ZCOIN_ELYSIUM_RULES_H

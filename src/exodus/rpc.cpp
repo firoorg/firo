@@ -137,7 +137,7 @@ void PopulateFailure(int error)
                                                   \"Crowdsale Purchase\" without valid property identifier");
         case MP_INVALID_TX_IN_DB_FOUND:
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Potential database corruption: Invalid transaction found");
-        case MP_TX_IS_NOT_EXODUS_PROTOCOL:
+        case MP_TX_IS_NOT_ELYSIUM_PROTOCOL:
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Not a Exodus Protocol transaction");
     }
     throw JSONRPCError(RPC_INTERNAL_ERROR, "Generic transaction population failure");
@@ -450,9 +450,9 @@ UniValue elysium_getfeeshare(const UniValue& params, bool fHelp)
 
     OwnerAddrType receiversSet;
     if (ecosystem == 1) {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_EXODUS, COIN);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", ELYSIUM_PROPERTY_ELYSIUM, COIN);
     } else {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_TEXODUS, COIN);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", ELYSIUM_PROPERTY_TELYSIUM, COIN);
     }
 
     for (OwnerAddrType::reverse_iterator it = receiversSet.rbegin(); it != receiversSet.rend(); ++it) {
@@ -613,7 +613,7 @@ UniValue elysium_getpayload(const UniValue& params, bool fHelp)
 
     CMPTransaction mp_obj;
     int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
-    if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_EXODUS_PROTOCOL);
+    if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_ELYSIUM_PROTOCOL);
 
     auto& payload = mp_obj.getRaw();
     UniValue payloadObj(UniValue::VOBJ);
@@ -1179,8 +1179,8 @@ UniValue elysium_getcrowdsale(const UniValue& params, bool fHelp)
 
     // note the database is already deserialized here and there is minimal performance penalty to iterate recipients to calculate amountRaised
     int64_t amountRaised = 0;
-    uint16_t propertyIdType = isPropertyDivisible(propertyId) ? EXODUS_PROPERTY_TYPE_DIVISIBLE : EXODUS_PROPERTY_TYPE_INDIVISIBLE;
-    uint16_t desiredIdType = isPropertyDivisible(sp.property_desired) ? EXODUS_PROPERTY_TYPE_DIVISIBLE : EXODUS_PROPERTY_TYPE_INDIVISIBLE;
+    uint16_t propertyIdType = isPropertyDivisible(propertyId) ? ELYSIUM_PROPERTY_TYPE_DIVISIBLE : ELYSIUM_PROPERTY_TYPE_INDIVISIBLE;
+    uint16_t desiredIdType = isPropertyDivisible(sp.property_desired) ? ELYSIUM_PROPERTY_TYPE_DIVISIBLE : ELYSIUM_PROPERTY_TYPE_INDIVISIBLE;
     std::map<std::string, UniValue> sortMap;
     for (std::map<uint256, std::vector<int64_t> >::const_iterator it = database.begin(); it != database.end(); it++) {
         UniValue participanttx(UniValue::VOBJ);
@@ -2058,7 +2058,7 @@ UniValue elysium_getinfo(const UniValue& params, bool fHelp)
     UniValue infoResponse(UniValue::VOBJ);
 
     // provide the Elysium and Zcoin version
-    infoResponse.push_back(Pair("elysiumversion_int", EXODUS_VERSION));
+    infoResponse.push_back(Pair("elysiumversion_int", ELYSIUM_VERSION));
     infoResponse.push_back(Pair("elysiumversion", ExodusVersion()));
     infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
 

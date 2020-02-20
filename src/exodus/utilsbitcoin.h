@@ -1,5 +1,5 @@
-#ifndef EXODUS_BITCOIN_H
-#define	EXODUS_BITCOIN_H
+#ifndef ELYSIUM_BITCOIN_H
+#define	ELYSIUM_BITCOIN_H
 
 class CBlockIndex;
 class uint256;
@@ -22,4 +22,4 @@ bool UnitTest();
 bool isNonMainNet();
 }
 
-#endif // EXODUS_BITCOIN_H
+#endif // ELYSIUM_BITCOIN_H

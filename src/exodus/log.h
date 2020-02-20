@@ -1,5 +1,5 @@
-#ifndef EXODUS_LOG_H
-#define EXODUS_LOG_H
+#ifndef ELYSIUM_LOG_H
+#define ELYSIUM_LOG_H
 
 #include "util.h"
 #include "tinyformat.h"
@@ -53,7 +53,7 @@ extern bool exodus_debug_fees;
 /* When we switch to C++11, this can be switched to variadic templates instead
  * of this macro-based construction (see tinyformat.h).
  */
-#define MAKE_EXODUS_ERROR_AND_LOG_FUNC(n)                                    \
+#define MAKE_ELYSIUM_ERROR_AND_LOG_FUNC(n)                                    \
     template<TINYFORMAT_ARGTYPES(n)>                                            \
     static inline int PrintToLog(const char* format, TINYFORMAT_VARARGS(n))     \
     {                                                                           \
@@ -65,9 +65,9 @@ extern bool exodus_debug_fees;
         return LogFilePrint(tfm::format("%s", TINYFORMAT_PASSARGS(n)));         \
     }
 
-TINYFORMAT_FOREACH_ARGNUM(MAKE_EXODUS_ERROR_AND_LOG_FUNC)
+TINYFORMAT_FOREACH_ARGNUM(MAKE_ELYSIUM_ERROR_AND_LOG_FUNC)
 
-#undef MAKE_EXODUS_ERROR_AND_LOG_FUNC
+#undef MAKE_ELYSIUM_ERROR_AND_LOG_FUNC
 
 
-#endif // EXODUS_LOG_H
+#endif // ELYSIUM_LOG_H
