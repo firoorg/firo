@@ -338,7 +338,7 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
 
-    // Connect Exodus signals
+    // Connect Elysium signals
     uiInterface.ElysiumStateChanged.connect(boost::bind(ElysiumStateChanged, this));
     uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, _1));
     uiInterface.ElysiumBalanceChanged.connect(boost::bind(ElysiumBalanceChanged, this));

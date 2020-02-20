@@ -103,7 +103,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     appMenuBar(0),
     overviewAction(0),
 #ifdef ENABLE_EXODUS
-    exoAssetsAction(0),
+    elyAssetsAction(0),
     toolboxAction(0),
 #endif
     historyAction(0),
@@ -369,12 +369,12 @@ void BitcoinGUI::createActions()
     bool elysiumEnabled = isElysiumEnabled();
 
     if (elysiumEnabled) {
-        exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&lyAssets"), this);
-        exoAssetsAction->setStatusTip(tr("Show Elysium balances"));
-        exoAssetsAction->setToolTip(exoAssetsAction->statusTip());
-        exoAssetsAction->setCheckable(true);
-        exoAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
-        tabGroup->addAction(exoAssetsAction);
+        elyAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&lyAssets"), this);
+        elyAssetsAction->setStatusTip(tr("Show Elysium balances"));
+        elyAssetsAction->setToolTip(elyAssetsAction->statusTip());
+        elyAssetsAction->setCheckable(true);
+        elyAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
+        tabGroup->addAction(elyAssetsAction);
 
         toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
         toolboxAction->setStatusTip(tr("Tools to obtain varions Elysium information and transaction information"));
@@ -405,8 +405,8 @@ void BitcoinGUI::createActions()
 
 #ifdef ENABLE_EXODUS
     if (elysiumEnabled) {
-        connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-        connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(gotoExoAssetsPage()));
+        connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+        connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(gotoElyAssetsPage()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
     }
@@ -551,7 +551,7 @@ void BitcoinGUI::createToolBars()
 
 #ifdef ENABLE_EXODUS
         if (isElysiumEnabled()) {
-            toolbar->addAction(exoAssetsAction);
+            toolbar->addAction(elyAssetsAction);
             toolbar->addAction(toolboxAction);
         }
 #endif
@@ -672,7 +672,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 
 #ifdef ENABLE_EXODUS
     if (isElysiumEnabled()) {
-        exoAssetsAction->setEnabled(enabled);
+        elyAssetsAction->setEnabled(enabled);
         toolboxAction->setEnabled(enabled);
     }
 #endif
@@ -793,10 +793,10 @@ void BitcoinGUI::gotoOverviewPage()
 }
 
 #ifdef ENABLE_EXODUS
-void BitcoinGUI::gotoExoAssetsPage()
+void BitcoinGUI::gotoElyAssetsPage()
 {
-    exoAssetsAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoExoAssetsPage();
+    elyAssetsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoElyAssetsPage();
 }
 #endif
 

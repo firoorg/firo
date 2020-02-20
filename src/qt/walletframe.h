@@ -58,8 +58,8 @@ public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
 #ifdef ENABLE_EXODUS
-    /** Switch to ExoAssets page */
-    void gotoExoAssetsPage();
+    /** Switch to ElyAssets page */
+    void gotoElyAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
     /** Switch directory to Elysium tx history tab */

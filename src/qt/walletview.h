@@ -14,7 +14,7 @@
 #include "sigmadialog.h"
 
 #ifdef ENABLE_EXODUS
-#include "exoassetsdialog.h"
+#include "elyassetsdialog.h"
 #endif
 
 #include <QStackedWidget>
@@ -89,7 +89,7 @@ private:
 
     OverviewPage *overviewPage;
 #ifdef ENABLE_EXODUS
-    ExoAssetsDialog *exoAssetsPage;
+    ElyAssetsDialog *elyAssetsPage;
     QWidget *toolboxPage;
     TXHistoryDialog *elysiumTransactionsView;
     QTabWidget *transactionTabs;
@@ -123,7 +123,7 @@ public Q_SLOTS:
     void gotoOverviewPage();
 #ifdef ENABLE_EXODUS
     /** Switch to ExoAssets page */
-    void gotoExoAssetsPage();
+    void gotoElyAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
     /** Switch specifically to elysium tx history tab */

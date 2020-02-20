@@ -94,7 +94,7 @@ private:
     QMenuBar *appMenuBar;
     QAction *overviewAction;
 #ifdef ENABLE_EXODUS
-    QAction *exoAssetsAction;
+    QAction *elyAssetsAction;
     QAction *toolboxAction;
 #endif
     QAction *historyAction;
@@ -197,8 +197,8 @@ private Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
 #ifdef ENABLE_EXODUS
-    /** Switch to ExoAssets page */
-    void gotoExoAssetsPage();
+    /** Switch to ElyAssets page */
+    void gotoElyAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
     /** Switch directly to Elysium history tab */

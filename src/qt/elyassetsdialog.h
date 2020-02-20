@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef EXOASSETSDIALOG_H
-#define EXOASSETSDIALOG_H
+#ifndef ELYASSETSDIALOG_H
+#define ELYASSETSDIALOG_H
 
 #include "guiutil.h"
 
@@ -21,16 +21,16 @@ class QWidget;
 QT_END_NAMESPACE
 
 namespace Ui {
-    class ExoAssetsDialog;
+    class ElyAssetsDialog;
 }
 
-class ExoAssetsDialog : public QDialog
+class ElyAssetsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ExoAssetsDialog(QWidget *parent = 0);
-    ~ExoAssetsDialog();
+    explicit ElyAssetsDialog(QWidget *parent = 0);
+    ~ElyAssetsDialog();
 
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
@@ -39,7 +39,7 @@ public:
     void UpdatePropSelector();
 
 private:
-    Ui::ExoAssetsDialog *ui;
+    Ui::ElyAssetsDialog *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
     QMenu *contextMenu;
@@ -65,4 +65,4 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
 };
 
-#endif // EXOASSETSDIALOG_H
+#endif // ELYASSETSDIALOG_H

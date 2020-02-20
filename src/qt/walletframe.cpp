@@ -114,11 +114,11 @@ void WalletFrame::gotoOverviewPage()
 }
 
 #ifdef ENABLE_EXODUS
-void WalletFrame::gotoExoAssetsPage()
+void WalletFrame::gotoElyAssetsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoExoAssetsPage();
+        i.value()->gotoElyAssetsPage();
 }
 #endif
 

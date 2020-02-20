@@ -69,7 +69,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
 #ifdef ENABLE_EXODUS
-    exoAssetsPage = new ExoAssetsDialog();
+    elyAssetsPage = new ElyAssetsDialog();
 #endif
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
@@ -92,7 +92,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 
     addWidget(overviewPage);
 #ifdef ENABLE_EXODUS
-    addWidget(exoAssetsPage);
+    addWidget(elyAssetsPage);
 #endif
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
@@ -265,7 +265,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
 #ifdef ENABLE_EXODUS
-    exoAssetsPage->setClientModel(clientModel);
+    elyAssetsPage->setClientModel(clientModel);
 #endif
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setClientModel(clientModel);
@@ -302,7 +302,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     sendZcoinView->setModel(walletModel);
     zc2SigmaPage->setWalletModel(walletModel);
 #ifdef ENABLE_EXODUS
-    exoAssetsPage->setWalletModel(walletModel);
+    elyAssetsPage->setWalletModel(walletModel);
 
     if (elysiumTransactionsView) {
         elysiumTransactionsView->setWalletModel(walletModel);
@@ -360,9 +360,9 @@ void WalletView::gotoOverviewPage()
 }
 
 #ifdef ENABLE_EXODUS
-void WalletView::gotoExoAssetsPage()
+void WalletView::gotoElyAssetsPage()
 {
-    setCurrentWidget(exoAssetsPage);
+    setCurrentWidget(elyAssetsPage);
 }
 #endif
 
