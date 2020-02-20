@@ -50,7 +50,7 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterRawTransactionRPCCommands(tableRPC);
 
 #ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+    if (isElysiumEnabled()) {
         RegisterExodusDataRetrievalRPCCommands(tableRPC);
         RegisterElysiumPayloadCreationRPCCommands(tableRPC);
         RegisterExodusRawTransactionRPCCommands(tableRPC);

@@ -95,8 +95,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     labelEncryptionIcon(0),
     labelConnectionsIcon(0),
     labelBlocksIcon(0),
-    labelExodusPendingIcon(0),
-    labelExodusPendingText(0),
+    labelElysiumPendingIcon(0),
+    labelElysiumPendingText(0),
     progressBarLabel(0),
     progressBar(0),
     progressDialog(0),
@@ -238,13 +238,13 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     framePendingLayout->setContentsMargins(3,0,3,0);
     framePendingLayout->setSpacing(3);
     framePendingLayout->addStretch();
-    labelExodusPendingIcon = new QLabel();
-    labelExodusPendingText = new QLabel("You have Exodus transactions awaiting confirmation.");
-    framePendingLayout->addWidget(labelExodusPendingIcon);
-    framePendingLayout->addWidget(labelExodusPendingText);
+    labelElysiumPendingIcon = new QLabel();
+    labelElysiumPendingText = new QLabel("You have Elysium transactions awaiting confirmation.");
+    framePendingLayout->addWidget(labelElysiumPendingIcon);
+    framePendingLayout->addWidget(labelElysiumPendingText);
     framePendingLayout->addStretch();
-    labelExodusPendingIcon->hide();
-    labelExodusPendingText->hide();
+    labelElysiumPendingIcon->hide();
+    labelElysiumPendingText->hide();
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
@@ -366,18 +366,18 @@ void BitcoinGUI::createActions()
 #endif
 
 #ifdef ENABLE_EXODUS
-    bool exodusEnabled = isExodusEnabled();
+    bool elysiumEnabled = isElysiumEnabled();
 
-    if (exodusEnabled) {
+    if (elysiumEnabled) {
         exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&xoAssets"), this);
-        exoAssetsAction->setStatusTip(tr("Show Exodus balances"));
+        exoAssetsAction->setStatusTip(tr("Show Elysium balances"));
         exoAssetsAction->setToolTip(exoAssetsAction->statusTip());
         exoAssetsAction->setCheckable(true);
         exoAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
         tabGroup->addAction(exoAssetsAction);
 
         toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
-        toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
+        toolboxAction->setStatusTip(tr("Tools to obtain varions Elysium information and transaction information"));
         toolboxAction->setToolTip(toolboxAction->statusTip());
         toolboxAction->setCheckable(true);
         toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
@@ -404,7 +404,7 @@ void BitcoinGUI::createActions()
         connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
 #ifdef ENABLE_EXODUS
-    if (exodusEnabled) {
+    if (elysiumEnabled) {
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(gotoExoAssetsPage()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -550,7 +550,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(znodeAction);
 
 #ifdef ENABLE_EXODUS
-        if (isExodusEnabled()) {
+        if (isElysiumEnabled()) {
             toolbar->addAction(exoAssetsAction);
             toolbar->addAction(toolboxAction);
         }
@@ -584,7 +584,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         // Show progress dialog
         connect(clientModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
 
-        // Update Exodus pending status
+        // Update Elysium pending status
         connect(clientModel, SIGNAL(refreshExodusPending(bool)), this, SLOT(setExodusPendingStatus(bool)));
 
         rpcConsole->setClientModel(clientModel);
@@ -671,7 +671,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     openAction->setEnabled(enabled);
 
 #ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+    if (isElysiumEnabled()) {
         exoAssetsAction->setEnabled(enabled);
         toolboxAction->setEnabled(enabled);
     }
@@ -807,10 +807,10 @@ void BitcoinGUI::gotoHistoryPage()
 }
 
 #ifdef ENABLE_EXODUS
-void BitcoinGUI::gotoExodusHistoryTab()
+void BitcoinGUI::gotoElysiumHistoryTab()
 {
     historyAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoExodusHistoryTab();
+    if (walletFrame) walletFrame->gotoElysiumHistoryTab();
 }
 #endif
 
@@ -1216,13 +1216,13 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 void BitcoinGUI::setExodusPendingStatus(bool pending)
 {
     if (!pending) {
-        labelExodusPendingIcon->hide();
-        labelExodusPendingText->hide();
+        labelElysiumPendingIcon->hide();
+        labelElysiumPendingText->hide();
     } else {
-        labelExodusPendingIcon->show();
-        labelExodusPendingText->show();
-        labelExodusPendingIcon->setPixmap(QIcon(":/icons/exodus_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
-        labelExodusPendingIcon->setToolTip(tr("You have Exodus transactions awaiting confirmation."));
+        labelElysiumPendingIcon->show();
+        labelElysiumPendingText->show();
+        labelElysiumPendingIcon->setPixmap(QIcon(":/icons/exodus_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelElysiumPendingIcon->setToolTip(tr("You have Elysium transactions awaiting confirmation."));
     }
 }
 

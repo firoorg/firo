@@ -62,8 +62,8 @@ public Q_SLOTS:
     void gotoExoAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
-    /** Switch directory to Exodus tx history tab */
-    void gotoExodusHistoryTab();
+    /** Switch directory to Elysium tx history tab */
+    void gotoElysiumHistoryTab();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();

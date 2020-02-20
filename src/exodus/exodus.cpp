@@ -140,7 +140,7 @@ static bool writePersistence(int block_now)
   return true;
 }
 
-bool isExodusEnabled()
+bool isElysiumEnabled()
 {
     return GetBoolArg("-exodus", false);
 }

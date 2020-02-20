@@ -85,8 +85,8 @@ private:
     QLabel *labelEncryptionIcon;
     QLabel *labelConnectionsIcon;
     QLabel *labelBlocksIcon;
-    QLabel *labelExodusPendingIcon;
-    QLabel *labelExodusPendingText;
+    QLabel *labelElysiumPendingIcon;
+    QLabel *labelElysiumPendingText;
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
     QProgressDialog *progressDialog;
@@ -183,7 +183,7 @@ public Q_SLOTS:
     */
     void setEncryptionStatus(int status);
 
-    /** Set the Exodus pending transactions label **/
+    /** Set the Elysium pending transactions label **/
     void setExodusPendingStatus(bool pending);
 
     bool handlePaymentRequest(const SendCoinsRecipient& recipient);
@@ -201,8 +201,8 @@ private Q_SLOTS:
     void gotoExoAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
-    /** Switch directly to Exodus history tab */
-    void gotoExodusHistoryTab();
+    /** Switch directly to Elysium history tab */
+    void gotoElysiumHistoryTab();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();

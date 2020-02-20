@@ -323,7 +323,7 @@ void LookupSPDialog::updateDisplayedProperty()
     }
     else
     {
-       if (propertyId == 1) { tokenLabel = " EXODUS"; } else { tokenLabel = " TEXODUS"; }
+       if (propertyId == 1) { tokenLabel = " Elysium"; } else { tokenLabel = " TElysium"; }
     }
     if (divisible) { strTotalTokens = FormatDivisibleMP(totalTokens); } else { strTotalTokens = FormatIndivisibleMP(totalTokens); }
     if (divisible) { strWalletTokens = FormatDivisibleMP(walletTokens); } else { strWalletTokens = FormatIndivisibleMP(walletTokens); }
@@ -388,7 +388,7 @@ void LookupSPDialog::updateDisplayedProperty()
     }
     else
     {
-        ui->issuanceTypeLabel->setText("Exodus");
+        ui->issuanceTypeLabel->setText("Elysium");
         if (fixedIssuance) ui->issuanceTypeLabel->setText("Fixed");
         if (manualIssuance) ui->issuanceTypeLabel->setText("Manual");
         // hide crowdinfo

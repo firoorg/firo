@@ -91,7 +91,7 @@ private:
 #ifdef ENABLE_EXODUS
     ExoAssetsDialog *exoAssetsPage;
     QWidget *toolboxPage;
-    TXHistoryDialog *exodusTransactionsView;
+    TXHistoryDialog *elysiumTransactionsView;
     QTabWidget *transactionTabs;
     SendMPDialog *sendExodusView;
     QTabWidget *sendCoinsTabs;
@@ -126,9 +126,9 @@ public Q_SLOTS:
     void gotoExoAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
-    /** Switch specifically to exodus tx history tab */
-    void gotoExodusHistoryTab();
-    /** Switch to exodus tx history tab and focus on specific transaction */
+    /** Switch specifically to elysium tx history tab */
+    void gotoElysiumHistoryTab();
+    /** Switch to elysium tx history tab and focus on specific transaction */
     void focusExodusTransaction(const uint256& txid);
 #endif
     /** Switch to history (transactions) page */

@@ -281,7 +281,7 @@ void Shutdown() {
     }
 
 #ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+    if (isElysiumEnabled()) {
         exodus_shutdown();
     }
 #endif
@@ -1848,7 +1848,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 8.5: load exodus
 
 #ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+    if (isElysiumEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them
             std::string msg = _("Disabled transaction index detected.\n\n"

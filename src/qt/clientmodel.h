@@ -76,9 +76,9 @@ public:
     QString formatClientStartupTime() const;
     QString dataDir() const;
 
-    // Try to avoid Exodus queuing too many messages
-    bool tryLockExodusStateChanged();
-    bool tryLockExodusBalanceChanged();
+    // Try to avoid Elysium queuing too many messages
+    bool tryLockElysiumStateChanged();
+    bool tryLockElysiumBalanceChanged();
 
 private:
     OptionsModel *optionsModel;
@@ -90,9 +90,9 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
-    // Locks for Exodus state changes
-    bool lockedExodusStateChanged;
-    bool lockedExodusBalanceChanged;
+    // Locks for Elysium state changes
+    bool lockedElysiumStateChanged;
+    bool lockedElysiumBalanceChanged;
 
 Q_SIGNALS:
     void numConnectionsChanged(int count);
@@ -102,7 +102,7 @@ Q_SIGNALS:
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
     void additionalDataSyncProgressChanged(int count, double nSyncProgress);
 
-    // Additional Exodus signals
+    // Additional Elysium signals
     void reinitExodusState();
     void refreshExodusState();
     void refreshExodusBalance();
@@ -120,7 +120,7 @@ public Q_SLOTS:
     void updateAlert();
     void updateBanlist();
 
-    // Additional Exodus slots
+    // Additional Elysium slots
     void invalidateExodusState();
     void updateExodusState();
     void updateExodusBalance();

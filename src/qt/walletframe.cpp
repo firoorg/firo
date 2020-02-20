@@ -130,11 +130,11 @@ void WalletFrame::gotoHistoryPage()
 }
 
 #ifdef ENABLE_EXODUS
-void WalletFrame::gotoExodusHistoryTab()
+void WalletFrame::gotoElysiumHistoryTab()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoExodusHistoryTab();
+        i.value()->gotoElysiumHistoryTab();
 }
 #endif
 

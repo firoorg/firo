@@ -55,7 +55,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     walletModel(0),
     overviewPage(0),
 #ifdef ENABLE_EXODUS
-    exodusTransactionsView(0),
+    elysiumTransactionsView(0),
     transactionTabs(0),
     sendExodusView(0),
     sendCoinsTabs(0),
@@ -147,12 +147,12 @@ void WalletView::setupTransactionPage()
 
 #ifdef ENABLE_EXODUS
     // Create tabs for transaction categories
-    if (isExodusEnabled()) {
-        exodusTransactionsView = new TXHistoryDialog();
+    if (isElysiumEnabled()) {
+        elysiumTransactionsView = new TXHistoryDialog();
 
         transactionTabs = new QTabWidget();
         transactionTabs->addTab(zcoinTransactionsView, tr("Zcoin"));
-        transactionTabs->addTab(exodusTransactionsView, tr("Exodus"));
+        transactionTabs->addTab(elysiumTransactionsView, tr("Elysium"));
     }
 #endif
 
@@ -177,12 +177,12 @@ void WalletView::setupSendCoinPage()
 
 #ifdef ENABLE_EXODUS
     // Create tab for coin type
-    if (isExodusEnabled()) {
+    if (isElysiumEnabled()) {
         sendExodusView = new SendMPDialog(platformStyle);
 
         sendCoinsTabs = new QTabWidget();
         sendCoinsTabs->addTab(sendZcoinView, tr("Zcoin"));
-        sendCoinsTabs->addTab(sendExodusView, tr("Exodus"));
+        sendCoinsTabs->addTab(sendExodusView, tr("Elysium"));
     }
 #endif
 
@@ -244,7 +244,7 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
     {
         // Clicking on a transaction on the overview page simply sends you to transaction history page
         connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), gui, SLOT(gotoBitcoinHistoryTab()));
-        connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), gui, SLOT(gotoExodusHistoryTab()));
+        connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), gui, SLOT(gotoElysiumHistoryTab()));
 
         // Receive and report messages
         connect(this, SIGNAL(message(QString,QString,unsigned int)), gui, SLOT(message(QString,QString,unsigned int)));
@@ -273,8 +273,8 @@ void WalletView::setClientModel(ClientModel *clientModel)
     zc2SigmaPage->setClientModel(clientModel);
 
 #ifdef ENABLE_EXODUS
-    if (exodusTransactionsView) {
-        exodusTransactionsView->setClientModel(clientModel);
+    if (elysiumTransactionsView) {
+        elysiumTransactionsView->setClientModel(clientModel);
     }
 
     if (sendExodusView) {
@@ -304,8 +304,8 @@ void WalletView::setWalletModel(WalletModel *walletModel)
 #ifdef ENABLE_EXODUS
     exoAssetsPage->setWalletModel(walletModel);
 
-    if (exodusTransactionsView) {
-        exodusTransactionsView->setWalletModel(walletModel);
+    if (elysiumTransactionsView) {
+        elysiumTransactionsView->setWalletModel(walletModel);
     }
 
     if (sendExodusView) {
@@ -372,7 +372,7 @@ void WalletView::gotoHistoryPage()
 }
 
 #ifdef ENABLE_EXODUS
-void WalletView::gotoExodusHistoryTab()
+void WalletView::gotoElysiumHistoryTab()
 {
     if (!transactionTabs) {
         return;
@@ -397,12 +397,12 @@ void WalletView::gotoBitcoinHistoryTab()
 #ifdef ENABLE_EXODUS
 void WalletView::focusExodusTransaction(const uint256& txid)
 {
-    if (!exodusTransactionsView) {
+    if (!elysiumTransactionsView) {
         return;
     }
 
-    gotoExodusHistoryTab();
-    exodusTransactionsView->focusTransaction(txid);
+    gotoElysiumHistoryTab();
+    elysiumTransactionsView->focusTransaction(txid);
 }
 #endif
 

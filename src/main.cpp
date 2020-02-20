@@ -3500,7 +3500,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
 
 #ifdef ENABLE_EXODUS
     //! Exodus: begin block disconnect notification
-    auto fExodus = isExodusEnabled();
+    auto fExodus = isElysiumEnabled();
 
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
@@ -3581,7 +3581,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
              nTimeChainState * 0.000001);
 
 #ifdef ENABLE_EXODUS
-    bool fExodus = isExodusEnabled();
+    bool fExodus = isElysiumEnabled();
 
     //! Exodus: transaction position within the block
     unsigned int nTxIdx = 0;

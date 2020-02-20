@@ -34,8 +34,8 @@ ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     peerTableModel(0),
     banTableModel(0),
     pollTimer(0),
-    lockedExodusStateChanged(false),
-    lockedExodusBalanceChanged(false)
+    lockedElysiumStateChanged(false),
+    lockedElysiumBalanceChanged(false)
 {
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
@@ -133,35 +133,35 @@ void ClientModel::invalidateExodusState()
 
 void ClientModel::updateExodusState()
 {
-    lockedExodusStateChanged = false;
+    lockedElysiumStateChanged = false;
     Q_EMIT refreshExodusState();
 }
 
-bool ClientModel::tryLockExodusStateChanged()
+bool ClientModel::tryLockElysiumStateChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusStateChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumStateChanged) {
         return false;
     }
 
-    lockedExodusStateChanged = true;
+    lockedElysiumStateChanged = true;
     return true;
 }
 
 void ClientModel::updateExodusBalance()
 {
-    lockedExodusBalanceChanged = false;
+    lockedElysiumBalanceChanged = false;
     Q_EMIT refreshExodusBalance();
 }
 
-bool ClientModel::tryLockExodusBalanceChanged()
+bool ClientModel::tryLockElysiumBalanceChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusBalanceChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumBalanceChanged) {
         return false;
     }
 
-    lockedExodusBalanceChanged = true;
+    lockedElysiumBalanceChanged = true;
     return true;
 }
 
@@ -251,8 +251,8 @@ static void ExodusStateInvalidated(ClientModel *clientmodel)
 
 static void ExodusStateChanged(ClientModel *clientmodel)
 {
-    // This will be triggered for each block that contains Exodus layer transactions
-    if (clientmodel->tryLockExodusStateChanged()) {
+    // This will be triggered for each block that contains Elysium layer transactions
+    if (clientmodel->tryLockElysiumStateChanged()) {
         QMetaObject::invokeMethod(clientmodel, "updateExodusState", Qt::QueuedConnection);
     }
 }
@@ -260,14 +260,14 @@ static void ExodusStateChanged(ClientModel *clientmodel)
 static void ExodusBalanceChanged(ClientModel *clientmodel)
 {
     // Triggered when a balance for a wallet address changes
-    if (clientmodel->tryLockExodusBalanceChanged()) {
+    if (clientmodel->tryLockElysiumBalanceChanged()) {
         QMetaObject::invokeMethod(clientmodel, "updateExodusBalance", Qt::QueuedConnection);
     }
 }
 
 static void ExodusPendingChanged(ClientModel *clientmodel, bool pending)
 {
-    // Triggered when Exodus pending map adds/removes transactions
+    // Triggered when Elysium pending map adds/removes transactions
     QMetaObject::invokeMethod(clientmodel, "updateExodusPending", Qt::QueuedConnection, Q_ARG(bool, pending));
 }
 
@@ -356,7 +356,7 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
 
-    // Disconnect Exodus signals
+    // Disconnect Elysium signals
     uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
     uiInterface.ExodusPendingChanged.disconnect(boost::bind(ExodusPendingChanged, this, _1));
     uiInterface.ExodusBalanceChanged.disconnect(boost::bind(ExodusBalanceChanged, this));
