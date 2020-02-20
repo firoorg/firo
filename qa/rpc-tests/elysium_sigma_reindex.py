@@ -55,7 +55,7 @@ class ElysiumSigmaReindexTest(ElysiumTestFramework):
 
         # restart with reindexing
         stop_node(self.nodes[0], 0)
-        self.nodes[0] = start_node(0, self.options.tmpdir, ['-exodus', '-reindex'])
+        self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium', '-reindex'])
         connect_nodes(self.nodes[0], 1)
 
         sync_blocks(self.nodes)

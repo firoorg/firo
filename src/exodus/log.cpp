@@ -218,20 +218,20 @@ int LogFilePrint(const std::string& str)
 }
 
 /**
- * Determine whether to override compiled debug levels via enumerating startup option --exodusdebug.
+ * Determine whether to override compiled debug levels via enumerating startup option --elysiumdebug.
  *
- * Example usage (granular categories)    : --exodusdebug=parser --exodusdebug=metadex1 --exodusdebug=ui
- * Example usage (enable all categories)  : --exodusdebug=all
- * Example usage (disable all debugging)  : --exodusdebug=none
- * Example usage (disable all except XYZ) : --exodusdebug=none --omnidebug=parser --exodusdebug=sto
+ * Example usage (granular categories)    : --elysiumdebug=parser --elysiumdebug=metadex1 --elysiumdebug=ui
+ * Example usage (enable all categories)  : --elysiumdebug=all
+ * Example usage (disable all debugging)  : --elysiumdebug=none
+ * Example usage (disable all except XYZ) : --elysiumdebug=none --omnidebug=parser --elysiumdebug=sto
  */
 void InitDebugLogLevels()
 {
-    if (!mapArgs.count("-exodusdebug")) {
+    if (!mapArgs.count("-elysiumdebug")) {
         return;
     }
 
-    const std::vector<std::string>& debugLevels = mapMultiArgs["-exodusdebug"];
+    const std::vector<std::string>& debugLevels = mapMultiArgs["-elysiumdebug"];
 
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") exodus_debug_parser_data = true;

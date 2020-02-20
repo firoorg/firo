@@ -142,7 +142,7 @@ static bool writePersistence(int block_now)
 
 bool isElysiumEnabled()
 {
-    return GetBoolArg("-exodus", false);
+    return GetBoolArg("-elysium", false);
 }
 
 std::string exodus::strMPProperty(uint32_t propertyId)
@@ -515,7 +515,7 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
  * which are being awarded to the Exodus address slowly over the years.
  *
  * @see The "Dev ELYSIUM" specification:
- * https://github.com/ExodusLayer/spec#development-mastercoins-dev-exodus-previously-reward-mastercoins
+ * https://github.com/ExodusLayer/spec#development-mastercoins-dev-elysium-previously-reward-mastercoins
  *
  * Note:
  * If timestamps are out of order, then previously vested "Dev ELYSIUM" are not voided.
@@ -641,7 +641,7 @@ static unsigned int nCacheMiss = 0;
  */
 static bool FillTxInputCache(const CTransaction& tx)
 {
-    static unsigned int nCacheSize = GetArg("-exodustxcache", 500000);
+    static unsigned int nCacheSize = GetArg("-elysiumtxcache", 500000);
 
     if (view.GetCacheSize() > nCacheSize) {
         PrintToLog("%s(): clearing cache before insertion [size=%d, hit=%d, miss=%d]\n",
@@ -1151,7 +1151,7 @@ public:
  */
 static int exodus_initial_scan(int nFirstBlock)
 {
-    int nTimeBetweenProgressReports = GetArg("-exodusprogressfrequency", 30);  // seconds
+    int nTimeBetweenProgressReports = GetArg("-elysiumprogressfrequency", 30);  // seconds
     int64_t nNow = GetTime();
     size_t nTxsTotal = 0, nTxsFoundTotal = 0;
     int nBlock = 999999;
@@ -2597,7 +2597,7 @@ void CMPTxList::LoadActivations(int blockHeight)
     CheckLiveActivations(blockHeight);
 
     // This alert never expires as long as custom activations are used
-    if (mapArgs.count("-exodusactivationallowsender") || mapArgs.count("-exodusactivationignoresender")) {
+    if (mapArgs.count("-elysiumactivationallowsender") || mapArgs.count("-elysiumactivationignoresender")) {
         AddAlert("exodus", ALERT_CLIENT_VERSION_EXPIRY, std::numeric_limits<uint32_t>::max(),
                  "Authorization for feature activation has been modified.  Data provided by this client should not be trusted.");
     }

@@ -25,7 +25,7 @@ class ElysiumSendMintWalletEncrytionTest(ElysiumTestFramework):
         passphase = 'test'
         self.nodes[0].encryptwallet(passphase)
         bitcoind_processes[0].wait()
-        self.nodes[0] = start_node(0, self.options.tmpdir, ['-exodus'])
+        self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium'])
 
         # try to mint using encrypted wallet
         assert_raises_message(

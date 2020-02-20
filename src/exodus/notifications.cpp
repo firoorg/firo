@@ -79,10 +79,10 @@ void AddAlert(const std::string& sender, uint16_t alertType, uint32_t alertExpir
 /**
  * Determines whether the sender is an authorized source for Exodus Core alerts.
  *
- * The option "-exodusalertallowsender=source" can be used to whitelist additional sources,
- * and the option "-exodusalertignoresender=source" can be used to ignore a source.
+ * The option "-elysiumalertallowsender=source" can be used to whitelist additional sources,
+ * and the option "-elysiumalertignoresender=source" can be used to ignore a source.
  *
- * To consider any alert as authorized, "-exodusalertallowsender=any" can be used. This
+ * To consider any alert as authorized, "-elysiumalertallowsender=any" can be used. This
  * should only be done for testing purposes!
  */
 bool CheckAlertAuthorization(const std::string& sender)
@@ -93,11 +93,11 @@ bool CheckAlertAuthorization(const std::string& sender)
     whitelisted.insert("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd"); // Poramin Insom   <poramin@zcoin.io>
 
     // Testnet / Regtest
-    // use -exodusalertallowsender for testing
+    // use -elysiumalertallowsender for testing
 
     // Add manually whitelisted sources
-    if (mapArgs.count("-exodusalertallowsender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusalertallowsender"];
+    if (mapArgs.count("-elysiumalertallowsender")) {
+        const std::vector<std::string>& sources = mapMultiArgs["-elysiumalertallowsender"];
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.insert(*it);
@@ -105,8 +105,8 @@ bool CheckAlertAuthorization(const std::string& sender)
     }
 
     // Remove manually ignored sources
-    if (mapArgs.count("-exodusalertignoresender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusalertignoresender"];
+    if (mapArgs.count("-elysiumalertignoresender")) {
+        const std::vector<std::string>& sources = mapMultiArgs["-elysiumalertignoresender"];
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.erase(*it);
