@@ -1842,7 +1842,7 @@ UniValue elysium_listtransactions(const UniValue& params, bool fHelp)
     if (nEndBlock < 0) throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative end block");
 
     // obtain a sorted list of Elysium layer wallet transactions (including STO receipts and pending)
-    std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(nFrom+nCount, nStartBlock, nEndBlock);
+    std::map<std::string,uint256> walletTransactions = FetchWalletElysiumTransactions(nFrom+nCount, nStartBlock, nEndBlock);
 
     // reverse iterate over (now ordered) transactions and populate RPC objects for each one
     UniValue response(UniValue::VARR);

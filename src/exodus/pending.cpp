@@ -47,7 +47,7 @@ void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t
     }
     // after adding a transaction to pending the available balance may now be reduced, refresh wallet totals
     CheckWalletUpdate(true); // force an update since some outbound pending (eg MetaDEx cancel) may not change balances
-    uiInterface.ExodusPendingChanged(true);
+    uiInterface.ElysiumPendingChanged(true);
 }
 
 /**
@@ -68,7 +68,7 @@ void PendingDelete(const uint256& txid)
         my_pending.erase(it);
 
         // if pending map is now empty following deletion, trigger a status change
-        if (my_pending.empty()) uiInterface.ExodusPendingChanged(false);
+        if (my_pending.empty()) uiInterface.ElysiumPendingChanged(false);
     }
 }
 

@@ -93,7 +93,7 @@ private:
     QWidget *toolboxPage;
     TXHistoryDialog *elysiumTransactionsView;
     QTabWidget *transactionTabs;
-    SendMPDialog *sendExodusView;
+    SendMPDialog *sendElysiumView;
     QTabWidget *sendCoinsTabs;
 #endif
     QWidget *transactionsPage;
@@ -129,7 +129,7 @@ public Q_SLOTS:
     /** Switch specifically to elysium tx history tab */
     void gotoElysiumHistoryTab();
     /** Switch to elysium tx history tab and focus on specific transaction */
-    void focusExodusTransaction(const uint256& txid);
+    void focusElysiumTransaction(const uint256& txid);
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();

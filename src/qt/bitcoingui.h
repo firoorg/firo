@@ -184,7 +184,7 @@ public Q_SLOTS:
     void setEncryptionStatus(int status);
 
     /** Set the Elysium pending transactions label **/
-    void setExodusPendingStatus(bool pending);
+    void setElysiumPendingStatus(bool pending);
 
     bool handlePaymentRequest(const SendCoinsRecipient& recipient);
 

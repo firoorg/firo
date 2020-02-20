@@ -163,9 +163,9 @@ void TXHistoryDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshExodusBalance()), this, SLOT(UpdateHistory()));
+        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(UpdateHistory()));
         connect(model, SIGNAL(numBlocksChanged(int)), this, SLOT(UpdateConfirmations()));
-        connect(model, SIGNAL(reinitExodusState()), this, SLOT(ReinitTXHistoryTable()));
+        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(ReinitTXHistoryTable()));
     }
 }
 
@@ -188,7 +188,7 @@ int TXHistoryDialog::PopulateHistoryMap()
     int64_t nProcessed = 0; // counter for how many transactions we've added to history this time
 
     // obtain a sorted list of Elysium layer wallet transactions (including STO receipts and pending) - default last 65535
-    std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(GetArg("-exodusuiwalletscope", 65535L));
+    std::map<std::string,uint256> walletTransactions = FetchWalletElysiumTransactions(GetArg("-exodusuiwalletscope", 65535L));
 
     // reverse iterate over (now ordered) transactions and populate history map for each one
     for (std::map<std::string,uint256>::reverse_iterator it = walletTransactions.rbegin(); it != walletTransactions.rend(); it++) {

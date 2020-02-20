@@ -49,11 +49,11 @@ unsigned int GetTransactionByteOffset(const uint256& txid)
 }
 
 /**
- * Returns an ordered list of Exodus transactions including STO receipts that are relevant to the wallet.
+ * Returns an ordered list of Elysium transactions including STO receipts that are relevant to the wallet.
  *
  * Ignores order in the wallet (which can be skewed by watch addresses) and utilizes block height and position within block.
  */
-std::map<std::string, uint256> FetchWalletExodusTransactions(unsigned int count, int startBlock, int endBlock)
+std::map<std::string, uint256> FetchWalletElysiumTransactions(unsigned int count, int startBlock, int endBlock)
 {
     std::map<std::string, uint256> mapResponse;
 #ifdef ENABLE_WALLET

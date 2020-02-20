@@ -369,7 +369,7 @@ void BitcoinGUI::createActions()
     bool elysiumEnabled = isElysiumEnabled();
 
     if (elysiumEnabled) {
-        exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&xoAssets"), this);
+        exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&lyAssets"), this);
         exoAssetsAction->setStatusTip(tr("Show Elysium balances"));
         exoAssetsAction->setToolTip(exoAssetsAction->statusTip());
         exoAssetsAction->setCheckable(true);
@@ -585,7 +585,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         connect(clientModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
 
         // Update Elysium pending status
-        connect(clientModel, SIGNAL(refreshExodusPending(bool)), this, SLOT(setExodusPendingStatus(bool)));
+        connect(clientModel, SIGNAL(refreshElysiumPending(bool)), this, SLOT(setElysiumPendingStatus(bool)));
 
         rpcConsole->setClientModel(clientModel);
 #ifdef ENABLE_WALLET
@@ -1213,7 +1213,7 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
     return false;
 }
 
-void BitcoinGUI::setExodusPendingStatus(bool pending)
+void BitcoinGUI::setElysiumPendingStatus(bool pending)
 {
     if (!pending) {
         labelElysiumPendingIcon->hide();

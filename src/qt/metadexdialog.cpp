@@ -114,9 +114,9 @@ void MetaDExDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (NULL != model) {
-        connect(model, SIGNAL(refreshExodusState()), this, SLOT(UpdateOffers()));
-        connect(model, SIGNAL(refreshExodusBalance()), this, SLOT(BalanceOrderRefresh()));
-        connect(model, SIGNAL(reinitExodusState()), this, SLOT(FullRefresh()));
+        connect(model, SIGNAL(refreshElysiumState()), this, SLOT(UpdateOffers()));
+        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(BalanceOrderRefresh()));
+        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(FullRefresh()));
     }
 }
 

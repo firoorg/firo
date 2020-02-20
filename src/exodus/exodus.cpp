@@ -584,7 +584,7 @@ void CheckWalletUpdate(bool forceUpdate)
     if (!WalletCacheUpdate()) {
         // no balance changes were detected that affect wallet addresses, signal a generic change to overall Exodus state
         if (!forceUpdate) {
-            uiInterface.ExodusStateChanged();
+            uiInterface.ElysiumStateChanged();
             return;
         }
     }
@@ -617,7 +617,7 @@ void CheckWalletUpdate(bool forceUpdate)
         }
     }
     // signal an Exodus balance change
-    uiInterface.ExodusBalanceChanged();
+    uiInterface.ElysiumBalanceChanged();
 #endif
 }
 
@@ -3737,7 +3737,7 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         // clear the global wallet property list, perform a forced wallet update and tell the UI that state is no longer valid, and UI views need to be reinit
         global_wallet_property_list.clear();
         CheckWalletUpdate(true);
-        uiInterface.ExodusStateInvalidated();
+        uiInterface.ElysiumStateInvalidated();
 
         if (nWaterlineBlock < nBlockPrev) {
             // scan from the block after the best active block to catch up to the active chain

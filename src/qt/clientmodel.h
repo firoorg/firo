@@ -103,10 +103,10 @@ Q_SIGNALS:
     void additionalDataSyncProgressChanged(int count, double nSyncProgress);
 
     // Additional Elysium signals
-    void reinitExodusState();
-    void refreshExodusState();
-    void refreshExodusBalance();
-    void refreshExodusPending(bool pending);
+    void reinitElysiumState();
+    void refreshElysiumState();
+    void refreshElysiumBalance();
+    void refreshElysiumPending(bool pending);
 
     //! Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
@@ -121,10 +121,10 @@ public Q_SLOTS:
     void updateBanlist();
 
     // Additional Elysium slots
-    void invalidateExodusState();
-    void updateExodusState();
-    void updateExodusBalance();
-    void updateExodusPending(bool pending);
+    void invalidateElysiumState();
+    void updateElysiumState();
+    void updateElysiumBalance();
+    void updateElysiumPending(bool pending);
 };
 
 #endif // BITCOIN_QT_CLIENTMODEL_H

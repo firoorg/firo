@@ -52,7 +52,7 @@ static void PendingActivationCompleted(const FeatureActivation& activation)
 {
     DeletePendingActivation(activation.featureId);
     vecCompletedActivations.push_back(activation);
-    uiInterface.ExodusStateChanged();
+    uiInterface.ElysiumStateChanged();
 }
 
 /**
@@ -72,7 +72,7 @@ void AddPendingActivation(uint16_t featureId, int activationBlock, uint32_t minC
 
     vecPendingActivations.push_back(featureActivation);
 
-    uiInterface.ExodusStateChanged();
+    uiInterface.ElysiumStateChanged();
 }
 
 /**
@@ -125,7 +125,7 @@ void ClearActivations()
 {
     vecPendingActivations.clear();
     vecCompletedActivations.clear();
-    uiInterface.ExodusStateChanged();
+    uiInterface.ElysiumStateChanged();
 }
 
 /**

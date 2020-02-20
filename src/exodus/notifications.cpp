@@ -36,7 +36,7 @@ void DeleteAlerts(const std::string& sender)
             PrintToLog("Removing deleted alert (from:%s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                 alert.alert_type, alert.alert_expiry, alert.alert_message);
             it = currentExodusAlerts.erase(it);
-            uiInterface.ExodusStateChanged();
+            uiInterface.ElysiumStateChanged();
         } else {
             it++;
         }
@@ -51,7 +51,7 @@ void DeleteAlerts(const std::string& sender)
 void ClearAlerts()
 {
     currentExodusAlerts.clear();
-    uiInterface.ExodusStateChanged();
+    uiInterface.ElysiumStateChanged();
 }
 
 /**
@@ -152,7 +152,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                     PrintToLog("Expiring alert (from %s: type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
                     it = currentExodusAlerts.erase(it);
-                    uiInterface.ExodusStateChanged();
+                    uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
                 }
@@ -162,7 +162,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                     PrintToLog("Expiring alert (from %s: type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
                     it = currentExodusAlerts.erase(it);
-                    uiInterface.ExodusStateChanged();
+                    uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
                 }
@@ -172,7 +172,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                     PrintToLog("Expiring alert (form: %s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
                     it = currentExodusAlerts.erase(it);
-                    uiInterface.ExodusStateChanged();
+                    uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
                 }
@@ -181,7 +181,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                     PrintToLog("Removing invalid alert (from:%s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
                     it = currentExodusAlerts.erase(it);
-                    uiInterface.ExodusStateChanged();
+                    uiInterface.ElysiumStateChanged();
             break;
         }
     }
