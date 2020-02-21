@@ -100,7 +100,7 @@ UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
 
 CAmount getLockUnspentAmount()
 {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CTransaction tx;
     uint256 hashBlock;
@@ -483,7 +483,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -513,7 +513,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 
 UniValue StateBlock(UniValue& ret, std::string blockhash){
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -569,7 +569,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (fHelp)
         return true;
@@ -651,7 +651,7 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
             "before being able to call any methods which require the wallet to be unlocked.\n"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but lockwallet was called.");
@@ -670,7 +670,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but unlockwallet was called.");
@@ -705,7 +705,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
