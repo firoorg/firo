@@ -91,7 +91,7 @@ OwnerAddrType STO_GetReceivers(const std::string& sender, uint32_t property, int
 
         sent_so_far += will_really_receive;
 
-        if (exodus_debug_sto) {
+        if (elysium_debug_sto) {
             PrintToLog("%14d = %s, temp= %38s, should_get= %19d, will_really_get= %14d, sent_so_far= %14d\n",
                 it->first, address, temp.ToString(), should_receive, will_really_receive, sent_so_far);
         }

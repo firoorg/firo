@@ -35,7 +35,7 @@ static std::map<std::string, CMPTally> walletBalancesCache;
  */
 void WalletTXIDCacheAdd(const uint256& hash)
 {
-    if (exodus_debug_walletcache) PrintToLog("WALLETTXIDCACHE: Adding tx to txid cache : %s\n", hash.GetHex());
+    if (elysium_debug_walletcache) PrintToLog("WALLETTXIDCACHE: Adding tx to txid cache : %s\n", hash.GetHex());
     if (std::find(walletTXIDCache.begin(), walletTXIDCache.end(), hash) != walletTXIDCache.end()) {
         PrintToLog("ERROR: Wallet TXID Cache blocked duplicate insertion for %s\n", hash.GetHex());
     } else {
@@ -48,7 +48,7 @@ void WalletTXIDCacheAdd(const uint256& hash)
  */
 void WalletTXIDCacheInit()
 {
-    if (exodus_debug_walletcache) PrintToLog("WALLETTXIDCACHE: WalletTXIDCacheInit requested\n");
+    if (elysium_debug_walletcache) PrintToLog("WALLETTXIDCACHE: WalletTXIDCacheInit requested\n");
 #ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -63,7 +63,7 @@ void WalletTXIDCacheInit()
             const uint256& hash = pwtx->GetHash();
             if (p_txlistdb->exists(hash)) {
                 walletTXIDCache.push_back(hash);
-                if (exodus_debug_walletcache) PrintToLog("WALLETTXIDCACHE: Adding tx to txid cache : %s\n", hash.GetHex());
+                if (elysium_debug_walletcache) PrintToLog("WALLETTXIDCACHE: Adding tx to txid cache : %s\n", hash.GetHex());
             }
         }
     }
@@ -77,7 +77,7 @@ void WalletTXIDCacheInit()
  */
 int WalletCacheUpdate()
 {
-    if (exodus_debug_walletcache) PrintToLog("WALLETCACHE: Update requested\n");
+    if (elysium_debug_walletcache) PrintToLog("WALLETCACHE: Update requested\n");
     int numChanges = 0;
     std::set<std::string> changedAddresses;
 
@@ -89,7 +89,7 @@ int WalletCacheUpdate()
         // determine if this address is in the wallet
         int addressIsMine = IsMyAddress(address);
         if (!addressIsMine) {
-            if (exodus_debug_walletcache) PrintToLog("WALLETCACHE: Ignoring non-wallet address %s\n", address);
+            if (elysium_debug_walletcache) PrintToLog("WALLETCACHE: Ignoring non-wallet address %s\n", address);
             continue; // ignore this address, not in wallet
         }
 
@@ -103,7 +103,7 @@ int WalletCacheUpdate()
             ++numChanges;
             changedAddresses.insert(address);
             walletBalancesCache.insert(std::make_pair(address,tally));
-            if (exodus_debug_walletcache) PrintToLog("WALLETCACHE: *CACHE MISS* - %s not in cache\n", address);
+            if (elysium_debug_walletcache) PrintToLog("WALLETCACHE: *CACHE MISS* - %s not in cache\n", address);
             continue;
         }
 
@@ -120,12 +120,12 @@ int WalletCacheUpdate()
                 changedAddresses.insert(address);
                 walletBalancesCache.erase(search_it);
                 walletBalancesCache.insert(std::make_pair(address,tally));
-                if (exodus_debug_walletcache) PrintToLog("WALLETCACHE: *CACHE MISS* - %s balance for property %d differs\n", address, propertyId);
+                if (elysium_debug_walletcache) PrintToLog("WALLETCACHE: *CACHE MISS* - %s balance for property %d differs\n", address, propertyId);
                 break;
             }
         }
     }
-    if (exodus_debug_walletcache) PrintToLog("WALLETCACHE: Update finished - there were %d changes\n", numChanges);
+    if (elysium_debug_walletcache) PrintToLog("WALLETCACHE: Update finished - there were %d changes\n", numChanges);
     return numChanges;
 }
 

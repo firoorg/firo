@@ -282,7 +282,7 @@ void Shutdown() {
 
 #ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
-        exodus_shutdown();
+        elysium_shutdown();
     }
 #endif
 

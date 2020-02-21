@@ -23,49 +23,49 @@ static const long LOG_BUFFERSIZE  =  8000000; //  8 MB
 static const long LOG_SHRINKSIZE  = 50000000; // 50 MB
 
 // Debug flags
-bool exodus_debug_parser_data        = 0;
-bool exodus_debug_parser_readonly    = 0;
+bool elysium_debug_parser_data        = 0;
+bool elysium_debug_parser_readonly    = 0;
 //! Print information to potential DEx payments and outputs
-bool exodus_debug_parser_dex         = 1;
-bool exodus_debug_parser             = 0;
-bool exodus_debug_verbose            = 0;
-bool exodus_debug_verbose2           = 0;
-bool exodus_debug_verbose3           = 0;
-bool exodus_debug_vin                = 0;
-bool exodus_debug_script             = 0;
-bool exodus_debug_dex                = 1;
-bool exodus_debug_send               = 1;
-bool exodus_debug_tokens             = 0;
+bool elysium_debug_parser_dex         = 1;
+bool elysium_debug_parser             = 0;
+bool elysium_debug_verbose            = 0;
+bool elysium_debug_verbose2           = 0;
+bool elysium_debug_verbose3           = 0;
+bool elysium_debug_vin                = 0;
+bool elysium_debug_script             = 0;
+bool elysium_debug_dex                = 1;
+bool elysium_debug_send               = 1;
+bool elysium_debug_tokens             = 0;
 //! Print information about payloads with non-sequential sequence number
-bool exodus_debug_spec               = 0;
-bool exodus_debug_exo                = 0;
-bool exodus_debug_tally              = 1;
-bool exodus_debug_sp                 = 1;
-bool exodus_debug_sto                = 1;
-bool exodus_debug_txdb               = 0;
-bool exodus_debug_tradedb            = 1;
-bool exodus_debug_persistence        = 0;
-bool exodus_debug_ui                 = 0;
-bool exodus_debug_pending            = 1;
-bool exodus_debug_metadex1           = 0;
-bool exodus_debug_metadex2           = 0;
+bool elysium_debug_spec               = 0;
+bool elysium_debug_ely                = 0;
+bool elysium_debug_tally              = 1;
+bool elysium_debug_sp                 = 1;
+bool elysium_debug_sto                = 1;
+bool elysium_debug_txdb               = 0;
+bool elysium_debug_tradedb            = 1;
+bool elysium_debug_persistence        = 0;
+bool elysium_debug_ui                 = 0;
+bool elysium_debug_pending            = 1;
+bool elysium_debug_metadex1           = 0;
+bool elysium_debug_metadex2           = 0;
 //! Print orderbook before and after each trade
-bool exodus_debug_metadex3           = 0;
+bool elysium_debug_metadex3           = 0;
 //! Print transaction fields, when interpreting packets
-bool exodus_debug_packets            = 1;
+bool elysium_debug_packets            = 1;
 //! Print transaction fields, when interpreting packets (in RPC mode)
-bool exodus_debug_packets_readonly   = 0;
-bool exodus_debug_walletcache        = 0;
+bool elysium_debug_packets_readonly   = 0;
+bool elysium_debug_walletcache        = 0;
 //! Print each line added to consensus hash
-bool exodus_debug_consensus_hash     = 0;
+bool elysium_debug_consensus_hash     = 0;
 //! Print consensus hashes for each block when parsing
-bool exodus_debug_consensus_hash_every_block = 0;
+bool elysium_debug_consensus_hash_every_block = 0;
 //! Print extra info on alert processing
-bool exodus_debug_alerts             = 1;
+bool elysium_debug_alerts             = 1;
 //! Print consensus hashes for each transaction when parsing
-bool exodus_debug_consensus_hash_every_transaction = 0;
+bool elysium_debug_consensus_hash_every_transaction = 0;
 //! Debug fees
-bool exodus_debug_fees               = 1;
+bool elysium_debug_fees               = 1;
 
 /**
  * LogPrintf() has been broken a couple of times now
@@ -234,75 +234,75 @@ void InitDebugLogLevels()
     const std::vector<std::string>& debugLevels = mapMultiArgs["-elysiumdebug"];
 
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
-        if (*it == "parser_data") exodus_debug_parser_data = true;
-        if (*it == "parser_readonly") exodus_debug_parser_readonly = true;
-        if (*it == "parser_dex") exodus_debug_parser_dex = true;
-        if (*it == "parser") exodus_debug_parser = true;
-        if (*it == "verbose") exodus_debug_verbose = true;
-        if (*it == "verbose2") exodus_debug_verbose2 = true;
-        if (*it == "verbose3") exodus_debug_verbose3 = true;
-        if (*it == "vin") exodus_debug_vin = true;
-        if (*it == "script") exodus_debug_script = true;
-        if (*it == "dex") exodus_debug_dex = true;
-        if (*it == "send") exodus_debug_send = true;
-        if (*it == "tokens") exodus_debug_tokens = true;
-        if (*it == "spec") exodus_debug_spec = true;
-        if (*it == "exo") exodus_debug_exo = true;
-        if (*it == "tally") exodus_debug_tally = true;
-        if (*it == "sp") exodus_debug_sp = true;
-        if (*it == "sto") exodus_debug_sto = true;
-        if (*it == "txdb") exodus_debug_txdb = true;
-        if (*it == "tradedb") exodus_debug_tradedb = true;
-        if (*it == "persistence") exodus_debug_persistence = true;
-        if (*it == "ui") exodus_debug_ui = true;
-        if (*it == "pending") exodus_debug_pending = true;
-        if (*it == "metadex1") exodus_debug_metadex1 = true;
-        if (*it == "metadex2") exodus_debug_metadex2 = true;
-        if (*it == "metadex3") exodus_debug_metadex3 = true;
-        if (*it == "packets") exodus_debug_packets = true;
-        if (*it == "packets_readonly") exodus_debug_packets_readonly = true;
-        if (*it == "walletcache") exodus_debug_walletcache = true;
-        if (*it == "consensus_hash") exodus_debug_consensus_hash = true;
-        if (*it == "consensus_hash_every_block") exodus_debug_consensus_hash_every_block = true;
-        if (*it == "alerts") exodus_debug_alerts = true;
-        if (*it == "consensus_hash_every_transaction") exodus_debug_consensus_hash_every_transaction = true;
-        if (*it == "fees") exodus_debug_fees = true;
+        if (*it == "parser_data") elysium_debug_parser_data = true;
+        if (*it == "parser_readonly") elysium_debug_parser_readonly = true;
+        if (*it == "parser_dex") elysium_debug_parser_dex = true;
+        if (*it == "parser") elysium_debug_parser = true;
+        if (*it == "verbose") elysium_debug_verbose = true;
+        if (*it == "verbose2") elysium_debug_verbose2 = true;
+        if (*it == "verbose3") elysium_debug_verbose3 = true;
+        if (*it == "vin") elysium_debug_vin = true;
+        if (*it == "script") elysium_debug_script = true;
+        if (*it == "dex") elysium_debug_dex = true;
+        if (*it == "send") elysium_debug_send = true;
+        if (*it == "tokens") elysium_debug_tokens = true;
+        if (*it == "spec") elysium_debug_spec = true;
+        if (*it == "ely") elysium_debug_ely = true;
+        if (*it == "tally") elysium_debug_tally = true;
+        if (*it == "sp") elysium_debug_sp = true;
+        if (*it == "sto") elysium_debug_sto = true;
+        if (*it == "txdb") elysium_debug_txdb = true;
+        if (*it == "tradedb") elysium_debug_tradedb = true;
+        if (*it == "persistence") elysium_debug_persistence = true;
+        if (*it == "ui") elysium_debug_ui = true;
+        if (*it == "pending") elysium_debug_pending = true;
+        if (*it == "metadex1") elysium_debug_metadex1 = true;
+        if (*it == "metadex2") elysium_debug_metadex2 = true;
+        if (*it == "metadex3") elysium_debug_metadex3 = true;
+        if (*it == "packets") elysium_debug_packets = true;
+        if (*it == "packets_readonly") elysium_debug_packets_readonly = true;
+        if (*it == "walletcache") elysium_debug_walletcache = true;
+        if (*it == "consensus_hash") elysium_debug_consensus_hash = true;
+        if (*it == "consensus_hash_every_block") elysium_debug_consensus_hash_every_block = true;
+        if (*it == "alerts") elysium_debug_alerts = true;
+        if (*it == "consensus_hash_every_transaction") elysium_debug_consensus_hash_every_transaction = true;
+        if (*it == "fees") elysium_debug_fees = true;
         if (*it == "none" || *it == "all") {
             bool allDebugState = false;
             if (*it == "all") allDebugState = true;
-            exodus_debug_parser_data = allDebugState;
-            exodus_debug_parser_readonly = allDebugState;
-            exodus_debug_parser_dex = allDebugState;
-            exodus_debug_parser = allDebugState;
-            exodus_debug_verbose = allDebugState;
-            exodus_debug_verbose2 = allDebugState;
-            exodus_debug_verbose3 = allDebugState;
-            exodus_debug_vin = allDebugState;
-            exodus_debug_script = allDebugState;
-            exodus_debug_dex = allDebugState;
-            exodus_debug_send = allDebugState;
-            exodus_debug_tokens = allDebugState;
-            exodus_debug_spec = allDebugState;
-            exodus_debug_exo = allDebugState;
-            exodus_debug_tally = allDebugState;
-            exodus_debug_sp = allDebugState;
-            exodus_debug_sto = allDebugState;
-            exodus_debug_txdb = allDebugState;
-            exodus_debug_tradedb = allDebugState;
-            exodus_debug_persistence = allDebugState;
-            exodus_debug_ui = allDebugState;
-            exodus_debug_pending = allDebugState;
-            exodus_debug_metadex1 = allDebugState;
-            exodus_debug_metadex2 = allDebugState;
-            exodus_debug_metadex3 = allDebugState;
-            exodus_debug_packets =  allDebugState;
-            exodus_debug_packets_readonly =  allDebugState;
-            exodus_debug_walletcache = allDebugState;
-            exodus_debug_consensus_hash = allDebugState;
-            exodus_debug_consensus_hash_every_block = allDebugState;
-            exodus_debug_alerts = allDebugState;
-            exodus_debug_consensus_hash_every_transaction = allDebugState;
-            exodus_debug_fees = allDebugState;
+            elysium_debug_parser_data = allDebugState;
+            elysium_debug_parser_readonly = allDebugState;
+            elysium_debug_parser_dex = allDebugState;
+            elysium_debug_parser = allDebugState;
+            elysium_debug_verbose = allDebugState;
+            elysium_debug_verbose2 = allDebugState;
+            elysium_debug_verbose3 = allDebugState;
+            elysium_debug_vin = allDebugState;
+            elysium_debug_script = allDebugState;
+            elysium_debug_dex = allDebugState;
+            elysium_debug_send = allDebugState;
+            elysium_debug_tokens = allDebugState;
+            elysium_debug_spec = allDebugState;
+            elysium_debug_ely = allDebugState;
+            elysium_debug_tally = allDebugState;
+            elysium_debug_sp = allDebugState;
+            elysium_debug_sto = allDebugState;
+            elysium_debug_txdb = allDebugState;
+            elysium_debug_tradedb = allDebugState;
+            elysium_debug_persistence = allDebugState;
+            elysium_debug_ui = allDebugState;
+            elysium_debug_pending = allDebugState;
+            elysium_debug_metadex1 = allDebugState;
+            elysium_debug_metadex2 = allDebugState;
+            elysium_debug_metadex3 = allDebugState;
+            elysium_debug_packets =  allDebugState;
+            elysium_debug_packets_readonly =  allDebugState;
+            elysium_debug_walletcache = allDebugState;
+            elysium_debug_consensus_hash = allDebugState;
+            elysium_debug_consensus_hash_every_block = allDebugState;
+            elysium_debug_alerts = allDebugState;
+            elysium_debug_consensus_hash_every_transaction = allDebugState;
+            elysium_debug_fees = allDebugState;
         }
     }
 }

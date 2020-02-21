@@ -3504,7 +3504,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
 
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
-        exodus_handler_disc_begin(GetHeight(), pindexDelete);
+        elysium_handler_disc_begin(GetHeight(), pindexDelete);
     }
 #endif
 
@@ -3518,7 +3518,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     //! Elysium: end of block disconnect notification
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
-        exodus_handler_disc_end(GetHeight(), pindexDelete);
+        elysium_handler_disc_end(GetHeight(), pindexDelete);
     }
 #endif
 
@@ -3591,7 +3591,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     //! Elysium: begin block connect notification
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block connect begin [height: %d]\n", GetHeight());
-        exodus_handler_block_begin(GetHeight(), pindexNew);
+        elysium_handler_block_begin(GetHeight(), pindexNew);
     }
 #endif
 
@@ -3621,7 +3621,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
         //! Elysium: new confirmed transaction notification
         if (fElysium) {
             LogPrint("handler", "Elysium handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
-            if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
+            if (elysium_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
 #endif
     }
@@ -3646,7 +3646,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     //! Elysium: end of block connect notification
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
-        exodus_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
+        elysium_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
     }
 #endif
 

@@ -139,7 +139,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
     MatchReturnType NewReturn = NOTHING;
     bool bBuyerSatisfied = false;
 
-    if (exodus_debug_metadex1) PrintToLog("%s(%s: prop=%d, desprop=%d, desprice= %s);newo: %s\n",
+    if (elysium_debug_metadex1) PrintToLog("%s(%s: prop=%d, desprop=%d, desprice= %s);newo: %s\n",
         __FUNCTION__, pnew->getAddr(), propertyForSale, propertyDesired, xToString(pnew->inversePrice()), pnew->ToString());
 
     md_PricesMap* const ppriceMap = get_Prices(propertyDesired);
@@ -154,7 +154,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
     for (md_PricesMap::iterator priceIt = ppriceMap->begin(); priceIt != ppriceMap->end(); ++priceIt) { // check all prices
         const rational_t sellersPrice = priceIt->first;
 
-        if (exodus_debug_metadex2) PrintToLog("comparing prices: desprice %s needs to be GREATER THAN OR EQUAL TO %s\n",
+        if (elysium_debug_metadex2) PrintToLog("comparing prices: desprice %s needs to be GREATER THAN OR EQUAL TO %s\n",
             xToString(pnew->inversePrice()), xToString(sellersPrice));
 
         // Is the desired price check satisfied? The buyer's inverse price must be larger than that of the seller.
@@ -170,7 +170,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
             const CMPMetaDEx* const pold = &(*offerIt);
             assert(pold->unitPrice() == sellersPrice);
 
-            if (exodus_debug_metadex1) PrintToLog("Looking at existing: %s (its prop= %d, its des prop= %d) = %s\n",
+            if (elysium_debug_metadex1) PrintToLog("Looking at existing: %s (its prop= %d, its des prop= %d) = %s\n",
                 xToString(sellersPrice), pold->getProperty(), pold->getDesProperty(), pold->ToString());
 
             // does the desired property match?
@@ -179,16 +179,16 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
                 continue;
             }
 
-            if (exodus_debug_metadex1) PrintToLog("MATCH FOUND, Trade: %s = %s\n", xToString(sellersPrice), pold->ToString());
+            if (elysium_debug_metadex1) PrintToLog("MATCH FOUND, Trade: %s = %s\n", xToString(sellersPrice), pold->ToString());
 
             // match found, execute trade now!
             const int64_t seller_amountForSale = pold->getAmountRemaining();
             const int64_t buyer_amountOffered = pnew->getAmountRemaining();
 
-            if (exodus_debug_metadex1) PrintToLog("$$ trading using price: %s; seller: forsale=%d, desired=%d, remaining=%d, buyer amount offered=%d\n",
+            if (elysium_debug_metadex1) PrintToLog("$$ trading using price: %s; seller: forsale=%d, desired=%d, remaining=%d, buyer amount offered=%d\n",
                 xToString(sellersPrice), pold->getAmountForSale(), pold->getAmountDesired(), pold->getAmountRemaining(), pnew->getAmountRemaining());
-            if (exodus_debug_metadex1) PrintToLog("$$ old: %s\n", pold->ToString());
-            if (exodus_debug_metadex1) PrintToLog("$$ new: %s\n", pnew->ToString());
+            if (elysium_debug_metadex1) PrintToLog("$$ old: %s\n", pold->ToString());
+            if (elysium_debug_metadex1) PrintToLog("$$ new: %s\n", pnew->ToString());
 
             ///////////////////////////
 
@@ -217,7 +217,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
             }
 
             if (nCouldBuy == 0) {
-                if (exodus_debug_metadex1) PrintToLog(
+                if (elysium_debug_metadex1) PrintToLog(
                         "-- buyer has not enough tokens for sale to purchase one unit!\n");
                 ++offerIt;
                 continue;
@@ -235,7 +235,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
             const rational_t xEffectivePrice(nWouldPay, nCouldBuy);
 
             if (xEffectivePrice > pnew->inversePrice()) {
-                if (exodus_debug_metadex1) PrintToLog(
+                if (elysium_debug_metadex1) PrintToLog(
                         "-- effective price is too expensive: %s\n", xToString(xEffectivePrice));
                 ++offerIt;
                 continue;
@@ -246,7 +246,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
             const int64_t buyer_amountLeft = pnew->getAmountRemaining() - seller_amountGot;
             const int64_t seller_amountLeft = pold->getAmountRemaining() - buyer_amountGot;
 
-            if (exodus_debug_metadex1) PrintToLog("$$ buyer_got= %d, seller_got= %d, seller_left_for_sale= %d, buyer_still_for_sale= %d\n",
+            if (elysium_debug_metadex1) PrintToLog("$$ buyer_got= %d, seller_got= %d, seller_left_for_sale= %d, buyer_still_for_sale= %d\n",
                 buyer_amountGot, seller_amountGot, seller_amountLeft, buyer_amountLeft);
 
             ///////////////////////////
@@ -276,7 +276,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
                     // add the fee to the fee cache
                     p_feecache->AddFee(pnew->getDesProperty(), pnew->getBlock(), tradingFee);
                 } else {
-                    if (exodus_debug_fees) PrintToLog("Skipping fee reduction for trade match %s:%s as one of the properties is Omni\n", pold->getHash().GetHex(), pnew->getHash().GetHex());
+                    if (elysium_debug_fees) PrintToLog("Skipping fee reduction for trade match %s:%s as one of the properties is Omni\n", pold->getHash().GetHex(), pnew->getHash().GetHex());
                 }
             }
 
@@ -307,13 +307,13 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
                 NewReturn = TRADED_MOREINSELLER;
             }
 
-            if (exodus_debug_metadex1) PrintToLog("==== TRADED !!! %u=%s\n", NewReturn, getTradeReturnType(NewReturn));
+            if (elysium_debug_metadex1) PrintToLog("==== TRADED !!! %u=%s\n", NewReturn, getTradeReturnType(NewReturn));
 
             // record the trade in MPTradeList
             t_tradelistdb->recordMatchedTrade(pold->getHash(), pnew->getHash(), // < might just pass pold, pnew
                 pold->getAddr(), pnew->getAddr(), pold->getDesProperty(), pnew->getDesProperty(), seller_amountGot, buyer_amountGotAfterFee, pnew->getBlock(), tradingFee);
 
-            if (exodus_debug_metadex1) PrintToLog("++ erased old: %s\n", offerIt->ToString());
+            if (elysium_debug_metadex1) PrintToLog("++ erased old: %s\n", offerIt->ToString());
             // erase the old seller element
             pofferSet->erase(offerIt++);
 
@@ -496,15 +496,15 @@ int elysium::MetaDEx_ADD(const std::string& sender_addr, uint32_t prop, int64_t 
 
     // Create a MetaDEx object from paremeters
     CMPMetaDEx new_mdex(sender_addr, block, prop, amount, property_desired, amount_desired, txid, idx, CMPTransaction::ADD);
-    if (exodus_debug_metadex1) PrintToLog("%s(); buyer obj: %s\n", __FUNCTION__, new_mdex.ToString());
+    if (elysium_debug_metadex1) PrintToLog("%s(); buyer obj: %s\n", __FUNCTION__, new_mdex.ToString());
 
     // Ensure this is not a badly priced trade (for example due to zero amounts)
     if (0 >= new_mdex.unitPrice()) return METADEX_ERROR -66;
 
     // Match against existing trades, remainder of the order will be put into the order book
-    if (exodus_debug_metadex3) MetaDEx_debug_print();
+    if (elysium_debug_metadex3) MetaDEx_debug_print();
     x_Trade(&new_mdex);
-    if (exodus_debug_metadex3) MetaDEx_debug_print();
+    if (elysium_debug_metadex3) MetaDEx_debug_print();
 
     // Insert the remaining order into the MetaDEx maps
     if (0 < new_mdex.getAmountRemaining()) { //switch to getAmountRemaining() when ready
@@ -516,8 +516,8 @@ int elysium::MetaDEx_ADD(const std::string& sender_addr, uint32_t prop, int64_t 
             assert(update_tally_map(sender_addr, prop, -new_mdex.getAmountRemaining(), BALANCE));
             assert(update_tally_map(sender_addr, prop, new_mdex.getAmountRemaining(), METADEX_RESERVE));
 
-            if (exodus_debug_metadex1) PrintToLog("==== INSERTED: %s= %s\n", xToString(new_mdex.unitPrice()), new_mdex.ToString());
-            if (exodus_debug_metadex3) MetaDEx_debug_print();
+            if (elysium_debug_metadex1) PrintToLog("==== INSERTED: %s= %s\n", xToString(new_mdex.unitPrice()), new_mdex.ToString());
+            if (elysium_debug_metadex3) MetaDEx_debug_print();
         }
     }
 
@@ -532,9 +532,9 @@ int elysium::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, co
     md_PricesMap* prices = get_Prices(prop);
     const CMPMetaDEx* p_mdex = NULL;
 
-    if (exodus_debug_metadex1) PrintToLog("%s():%s\n", __FUNCTION__, mdex.ToString());
+    if (elysium_debug_metadex1) PrintToLog("%s():%s\n", __FUNCTION__, mdex.ToString());
 
-    if (exodus_debug_metadex2) MetaDEx_debug_print();
+    if (elysium_debug_metadex2) MetaDEx_debug_print();
 
     if (!prices) {
         PrintToLog("%s() NOTHING FOUND for %s\n", __FUNCTION__, mdex.ToString());
@@ -552,7 +552,7 @@ int elysium::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, co
         for (md_Set::iterator iitt = indexes->begin(); iitt != indexes->end();) {
             p_mdex = &(*iitt);
 
-            if (exodus_debug_metadex3) PrintToLog("%s(): %s\n", __FUNCTION__, p_mdex->ToString());
+            if (elysium_debug_metadex3) PrintToLog("%s(): %s\n", __FUNCTION__, p_mdex->ToString());
 
             if ((p_mdex->getDesProperty() != property_desired) || (p_mdex->getAddr() != sender_addr)) {
                 ++iitt;
@@ -574,7 +574,7 @@ int elysium::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, co
         }
     }
 
-    if (exodus_debug_metadex2) MetaDEx_debug_print();
+    if (elysium_debug_metadex2) MetaDEx_debug_print();
 
     return rc;
 }
@@ -587,7 +587,7 @@ int elysium::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block
 
     PrintToLog("%s(%d,%d)\n", __FUNCTION__, prop, property_desired);
 
-    if (exodus_debug_metadex3) MetaDEx_debug_print();
+    if (elysium_debug_metadex3) MetaDEx_debug_print();
 
     if (!prices) {
         PrintToLog("%s() NOTHING FOUND\n", __FUNCTION__);
@@ -601,7 +601,7 @@ int elysium::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block
         for (md_Set::iterator iitt = indexes->begin(); iitt != indexes->end();) {
             p_mdex = &(*iitt);
 
-            if (exodus_debug_metadex3) PrintToLog("%s(): %s\n", __FUNCTION__, p_mdex->ToString());
+            if (elysium_debug_metadex3) PrintToLog("%s(): %s\n", __FUNCTION__, p_mdex->ToString());
 
             if ((p_mdex->getDesProperty() != property_desired) || (p_mdex->getAddr() != sender_addr)) {
                 ++iitt;
@@ -623,7 +623,7 @@ int elysium::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block
         }
     }
 
-    if (exodus_debug_metadex3) MetaDEx_debug_print();
+    if (elysium_debug_metadex3) MetaDEx_debug_print();
 
     return rc;
 }
@@ -637,7 +637,7 @@ int elysium::MetaDEx_CANCEL_EVERYTHING(const uint256& txid, unsigned int block, 
 
     PrintToLog("%s()\n", __FUNCTION__);
 
-    if (exodus_debug_metadex2) MetaDEx_debug_print();
+    if (elysium_debug_metadex2) MetaDEx_debug_print();
 
     PrintToLog("<<<<<<\n");
 
@@ -682,7 +682,7 @@ int elysium::MetaDEx_CANCEL_EVERYTHING(const uint256& txid, unsigned int block, 
     }
     PrintToLog(">>>>>>\n");
 
-    if (exodus_debug_metadex2) MetaDEx_debug_print();
+    if (elysium_debug_metadex2) MetaDEx_debug_print();
 
     return rc;
 }

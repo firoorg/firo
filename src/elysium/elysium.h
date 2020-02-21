@@ -102,18 +102,18 @@ extern bool autoCommit;
 /** LevelDB based storage for storing Exodus transaction data.  This will become the new master database, holding serialized Exodus transactions.
  *  Note, intention is to consolidate and clean up data storage
  */
-class CExodusTransactionDB : public CDBBase
+class CElysiumTransactionDB : public CDBBase
 {
 public:
-    CExodusTransactionDB(const boost::filesystem::path& path, bool fWipe)
+    CElysiumTransactionDB(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
         PrintToLog("Loading master transactions database: %s\n", status.ToString());
     }
 
-    virtual ~CExodusTransactionDB()
+    virtual ~CElysiumTransactionDB()
     {
-        if (exodus_debug_persistence) PrintToLog("CExodusTransactionDB closed\n");
+        if (elysium_debug_persistence) PrintToLog("CElysiumTransactionDB closed\n");
     }
 
     /* These functions would be expanded upon to store a serialized version of the transaction and associated state data
@@ -143,7 +143,7 @@ public:
 
     virtual ~CMPSTOList()
     {
-        if (exodus_debug_persistence) PrintToLog("CMPSTOList closed\n");
+        if (elysium_debug_persistence) PrintToLog("CMPSTOList closed\n");
     }
 
     void getRecipients(const uint256 txid, string filterAddress, UniValue *recipientArray, uint64_t *total, uint64_t *numRecipients);
@@ -168,7 +168,7 @@ public:
 
     virtual ~CMPTradeList()
     {
-        if (exodus_debug_persistence) PrintToLog("CMPTradeList closed\n");
+        if (elysium_debug_persistence) PrintToLog("CMPTradeList closed\n");
     }
 
     void recordMatchedTrade(const uint256 txid1, const uint256 txid2, string address1, string address2, unsigned int prop1, unsigned int prop2, uint64_t amount1, uint64_t amount2, int blockNum, int64_t fee);
@@ -196,7 +196,7 @@ public:
 
     virtual ~CMPTxList()
     {
-        if (exodus_debug_persistence) PrintToLog("CMPTxList closed\n");
+        if (elysium_debug_persistence) PrintToLog("CMPTxList closed\n");
     }
 
     void recordTX(const uint256 &txid, bool fValid, int nBlock, unsigned int type, uint64_t nValue);
@@ -251,7 +251,7 @@ bool isElysiumEnabled();
 int exodus_init();
 
 /** Global handler to shut down Exodus Core. */
-int exodus_shutdown();
+int elysium_shutdown();
 
 /** Global handler to total wallet balances. */
 void CheckWalletUpdate(bool forceUpdate = false);
@@ -259,12 +259,12 @@ void CheckWalletUpdate(bool forceUpdate = false);
 /** Used to notify that the number of tokens for a property has changed. */
 void NotifyTotalTokensChanged(uint32_t propertyId, int block);
 
-int exodus_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
-int exodus_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex);
-int exodus_handler_block_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
-int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex, unsigned int);
-bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex);
-int exodus_save_state( CBlockIndex const *pBlockIndex );
+int elysium_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
+int elysium_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex);
+int elysium_handler_block_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
+int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex, unsigned int);
+bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex);
+int elysium_save_state( CBlockIndex const *pBlockIndex );
 
 namespace elysium
 {
@@ -272,7 +272,7 @@ extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;
 extern CMPTradeList *t_tradelistdb;
 extern CMPSTOList *s_stolistdb;
-extern CExodusTransactionDB *p_ExodusTXDB;
+extern CElysiumTransactionDB *p_ExodusTXDB;
 
 // TODO: move, rename
 extern CCoinsView viewDummy;

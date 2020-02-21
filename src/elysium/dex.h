@@ -77,7 +77,7 @@ public:
         XZC_desired_original(amountDesired), min_fee(minAcceptFee), blocktimelimit(paymentWindow),
         txid(tx), subaction(0)
     {
-        if (exodus_debug_dex) PrintToLog("%s(%d): %s\n", __func__, amountOffered, txid.GetHex());
+        if (elysium_debug_dex) PrintToLog("%s(%d): %s\n", __func__, amountOffered, txid.GetHex());
     }
 
     CMPOffer(const CMPTransaction& tx)

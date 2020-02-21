@@ -51,7 +51,7 @@ bool DEx_offerExists(const std::string& addressSeller, uint32_t propertyId)
  */
 CMPOffer* DEx_getOffer(const std::string& addressSeller, uint32_t propertyId)
 {
-    if (exodus_debug_dex) PrintToLog("%s(%s, %d)\n", __func__, addressSeller, propertyId);
+    if (elysium_debug_dex) PrintToLog("%s(%s, %d)\n", __func__, addressSeller, propertyId);
 
     std::string key = STR_SELLOFFER_ADDR_PROP_COMBO(addressSeller, propertyId);
     OfferMap::iterator it = my_offers.find(key);
@@ -78,7 +78,7 @@ bool DEx_acceptExists(const std::string& addressSeller, uint32_t propertyId, con
  */
 CMPAccept* DEx_getAccept(const std::string& addressSeller, uint32_t propertyId, const std::string& addressBuyer)
 {
-    if (exodus_debug_dex) PrintToLog("%s(%s, %d, %s)\n", __func__, addressSeller, propertyId, addressBuyer);
+    if (elysium_debug_dex) PrintToLog("%s(%s, %d, %s)\n", __func__, addressSeller, propertyId, addressBuyer);
 
     std::string key = STR_ACCEPT_ADDR_PROP_ADDR_COMBO(addressSeller, addressBuyer, propertyId);
     AcceptMap::iterator it = my_accepts.find(key);
@@ -156,7 +156,7 @@ int DEx_offerCreate(const std::string& addressSeller, uint32_t propertyId, int64
     }
 
     const std::string key = STR_SELLOFFER_ADDR_PROP_COMBO(addressSeller, propertyId);
-    if (exodus_debug_dex) PrintToLog("%s(%s|%s), nValue=%d)\n", __func__, addressSeller, key, amountOffered);
+    if (elysium_debug_dex) PrintToLog("%s(%s|%s), nValue=%d)\n", __func__, addressSeller, key, amountOffered);
 
     const int64_t balanceReallyAvailable = getMPbalance(addressSeller, propertyId, BALANCE);
 
@@ -230,7 +230,7 @@ int DEx_offerDestroy(const std::string& addressSeller, uint32_t propertyId)
     OfferMap::iterator it = my_offers.find(key);
     my_offers.erase(it);
 
-    if (exodus_debug_dex) PrintToLog("%s(%s|%s)\n", __func__, addressSeller, key);
+    if (elysium_debug_dex) PrintToLog("%s(%s|%s)\n", __func__, addressSeller, key);
 
     return 0;
 }
@@ -244,7 +244,7 @@ int DEx_offerDestroy(const std::string& addressSeller, uint32_t propertyId)
  */
 int DEx_offerUpdate(const std::string& addressSeller, uint32_t propertyId, int64_t amountOffered, int block, int64_t amountDesired, int64_t minAcceptFee, uint8_t paymentWindow, const uint256& txid, uint64_t* nAmended)
 {
-    if (exodus_debug_dex) PrintToLog("%s(%s, %d)\n", __func__, addressSeller, propertyId);
+    if (elysium_debug_dex) PrintToLog("%s(%s, %d)\n", __func__, addressSeller, propertyId);
 
     if (!DEx_offerExists(addressSeller, propertyId)) {
         return (DEX_ERROR_SELLOFFER -12); // offer does not exist
@@ -441,7 +441,7 @@ int64_t calculateDExPurchase(const int64_t amountOffered, const int64_t amountDe
  */
 int DEx_payment(const uint256& txid, unsigned int vout, const std::string& addressSeller, const std::string& addressBuyer, int64_t amountPaid, int block, uint64_t* nAmended)
 {
-    if (exodus_debug_dex) PrintToLog("%s(%s, %s)\n", __func__, addressSeller, addressBuyer);
+    if (elysium_debug_dex) PrintToLog("%s(%s, %s)\n", __func__, addressSeller, addressBuyer);
 
     int rc = DEX_ERROR_PAYMENT;
 
@@ -465,7 +465,7 @@ int DEx_payment(const uint256& txid, unsigned int vout, const std::string& addre
 
     // divide by 0 protection
     if (0 == amountDesired) {
-        if (exodus_debug_dex) PrintToLog("%s: ERROR: desired amount of accept order is zero", __func__);
+        if (elysium_debug_dex) PrintToLog("%s: ERROR: desired amount of accept order is zero", __func__);
 
         return (DEX_ERROR_PAYMENT -2);
     }
@@ -493,7 +493,7 @@ int DEx_payment(const uint256& txid, unsigned int vout, const std::string& addre
 
     const int64_t amountRemaining = p_accept->getAcceptAmountRemaining(); // actual amount desired, in the Accept
 
-    if (exodus_debug_dex) PrintToLog(
+    if (elysium_debug_dex) PrintToLog(
             "%s: BTC desired: %s, offered amount: %s, amount to purchase: %s, amount remaining: %s\n", __func__,
             FormatDivisibleMP(amountDesired), FormatDivisibleMP(amountOffered),
             FormatDivisibleMP(amountPurchased), FormatDivisibleMP(amountRemaining));

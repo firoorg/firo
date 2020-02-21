@@ -253,14 +253,14 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                     continue;
                 }
                 if (txOut.nValue < GetEconomicThreshold(txOut)) {
-                    if (exodus_debug_tokens)
+                    if (elysium_debug_tokens)
                         PrintToLog("%s: output value below economic threshold: %s:%d, value: %d\n",
                                 __func__, txid.GetHex(), n, txOut.nValue);
                     continue;
                 }
 
                 std::string sAddress = CBitcoinAddress(dest).ToString();
-                if (exodus_debug_tokens)
+                if (elysium_debug_tokens)
                     PrintToLog("%s: sender: %s, outpoint: %s:%d, value: %d\n", __func__, sAddress, txid.GetHex(), n, txOut.nValue);
 
                 // only use funds from the sender's address

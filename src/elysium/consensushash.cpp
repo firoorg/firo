@@ -25,7 +25,7 @@
 namespace elysium
 {
 bool ShouldConsensusHashBlock(int block) {
-    if (exodus_debug_consensus_hash_every_block) {
+    if (elysium_debug_consensus_hash_every_block) {
         return true;
     }
 
@@ -155,7 +155,7 @@ uint256 GetConsensusHash()
 
     LOCK(cs_main);
 
-    if (exodus_debug_consensus_hash) PrintToLog("Beginning generation of current consensus hash...\n");
+    if (elysium_debug_consensus_hash) PrintToLog("Beginning generation of current consensus hash...\n");
 
     // Balances - loop through the tally map, updating the sha context with the data from each balance and tally type
     // Placeholders:  "address|propertyid|balance|selloffer_reserve|accept_reserve|metadex_reserve"
@@ -172,7 +172,7 @@ uint256 GetConsensusHash()
         while (0 != (propertyId = (tally.next()))) {
             std::string dataStr = GenerateConsensusString(tally, address, propertyId);
             if (dataStr.empty()) continue; // skip empty balances
-            if (exodus_debug_consensus_hash) PrintToLog("Adding balance data to consensus hash: %s\n", dataStr);
+            if (elysium_debug_consensus_hash) PrintToLog("Adding balance data to consensus hash: %s\n", dataStr);
             SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
         }
     }
@@ -190,7 +190,7 @@ uint256 GetConsensusHash()
     std::sort (vecDExOffers.begin(), vecDExOffers.end());
     for (std::vector<std::pair<arith_uint256, std::string> >::iterator it = vecDExOffers.begin(); it != vecDExOffers.end(); ++it) {
         const std::string& dataStr = it->second;
-        if (exodus_debug_consensus_hash) PrintToLog("Adding DEx offer data to consensus hash: %s\n", dataStr);
+        if (elysium_debug_consensus_hash) PrintToLog("Adding DEx offer data to consensus hash: %s\n", dataStr);
         SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
     }
 
@@ -208,7 +208,7 @@ uint256 GetConsensusHash()
     std::sort (vecAccepts.begin(), vecAccepts.end());
     for (std::vector<std::pair<std::string, std::string> >::iterator it = vecAccepts.begin(); it != vecAccepts.end(); ++it) {
         const std::string& dataStr = it->second;
-        if (exodus_debug_consensus_hash) PrintToLog("Adding DEx accept to consensus hash: %s\n", dataStr);
+        if (elysium_debug_consensus_hash) PrintToLog("Adding DEx accept to consensus hash: %s\n", dataStr);
         SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
     }
 
@@ -229,7 +229,7 @@ uint256 GetConsensusHash()
     std::sort (vecMetaDExTrades.begin(), vecMetaDExTrades.end());
     for (std::vector<std::pair<arith_uint256, std::string> >::iterator it = vecMetaDExTrades.begin(); it != vecMetaDExTrades.end(); ++it) {
         const std::string& dataStr = it->second;
-        if (exodus_debug_consensus_hash) PrintToLog("Adding MetaDEx trade data to consensus hash: %s\n", dataStr);
+        if (elysium_debug_consensus_hash) PrintToLog("Adding MetaDEx trade data to consensus hash: %s\n", dataStr);
         SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
     }
 
@@ -247,7 +247,7 @@ uint256 GetConsensusHash()
     std::sort (vecCrowds.begin(), vecCrowds.end());
     for (std::vector<std::pair<uint32_t, std::string> >::iterator it = vecCrowds.begin(); it != vecCrowds.end(); ++it) {
         std::string dataStr = (*it).second;
-        if (exodus_debug_consensus_hash) PrintToLog("Adding Crowdsale entry to consensus hash: %s\n", dataStr);
+        if (elysium_debug_consensus_hash) PrintToLog("Adding Crowdsale entry to consensus hash: %s\n", dataStr);
         SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
     }
 
@@ -264,7 +264,7 @@ uint256 GetConsensusHash()
                 continue;
             }
             std::string dataStr = GenerateConsensusString(propertyId, sp.issuer);
-            if (exodus_debug_consensus_hash) PrintToLog("Adding property to consensus hash: %s\n", dataStr);
+            if (elysium_debug_consensus_hash) PrintToLog("Adding property to consensus hash: %s\n", dataStr);
             SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
         }
     }
@@ -272,7 +272,7 @@ uint256 GetConsensusHash()
     // extract the final result and return the hash
     uint256 consensusHash;
     SHA256_Final((unsigned char*)&consensusHash, &shaCtx);
-    if (exodus_debug_consensus_hash) PrintToLog("Finished generation of consensus hash.  Result: %s\n", consensusHash.GetHex());
+    if (elysium_debug_consensus_hash) PrintToLog("Finished generation of consensus hash.  Result: %s\n", consensusHash.GetHex());
 
     return consensusHash;
 }
@@ -331,7 +331,7 @@ uint256 GetBalancesHash(const uint32_t hashPropertyId)
             if (propertyId != hashPropertyId) continue;
             std::string dataStr = GenerateConsensusString(tally, address, propertyId);
             if (dataStr.empty()) continue;
-            if (exodus_debug_consensus_hash) PrintToLog("Adding data to balances hash: %s\n", dataStr);
+            if (elysium_debug_consensus_hash) PrintToLog("Adding data to balances hash: %s\n", dataStr);
             SHA256_Update(&shaCtx, dataStr.c_str(), dataStr.length());
         }
     }

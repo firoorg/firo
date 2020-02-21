@@ -14,23 +14,23 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 
 void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txType, bool extendedDetails, std::string extendedDetailsFilter, int confirmations);
 
-void populateRPCTypeSimpleSend(CMPTransaction& exodusObj, UniValue& txobj);
-void populateRPCTypeSendToOwners(CMPTransaction& exodusObj, UniValue& txobj, bool extendedDetails, std::string extendedDetailsFilter);
-void populateRPCTypeSendAll(CMPTransaction& exodusObj, UniValue& txobj, int confirmations);
-void populateRPCTypeTradeOffer(CMPTransaction& exodusObj, UniValue& txobj);
-void populateRPCTypeMetaDExTrade(CMPTransaction& exodusObj, UniValue& txobj, bool extendedDetails);
-void populateRPCTypeMetaDExCancelPrice(CMPTransaction& exodusObj, UniValue& txobj, bool extendedDetails);
-void populateRPCTypeMetaDExCancelPair(CMPTransaction& exodusObj, UniValue& txobj, bool extendedDetails);
-void populateRPCTypeMetaDExCancelEcosystem(CMPTransaction& exodusObj, UniValue& txobj, bool extendedDetails);
-void populateRPCTypeAcceptOffer(CMPTransaction& exodusObj, UniValue& txobj);
-void populateRPCTypeCreatePropertyFixed(CMPTransaction& exodusObj, UniValue& txobj, int confirmations);
-void populateRPCTypeCreatePropertyVariable(CMPTransaction& exodusObj, UniValue& txobj, int confirmations);
-void populateRPCTypeCreatePropertyManual(CMPTransaction& exodusObj, UniValue& txobj, int confirmations);
-void populateRPCTypeCloseCrowdsale(CMPTransaction& exodusObj, UniValue& txobj);
-void populateRPCTypeGrant(CMPTransaction& exodusObj, UniValue& txobj);
+void populateRPCTypeSimpleSend(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeSendToOwners(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails, std::string extendedDetailsFilter);
+void populateRPCTypeSendAll(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
+void populateRPCTypeTradeOffer(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeMetaDExTrade(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails);
+void populateRPCTypeMetaDExCancelPrice(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails);
+void populateRPCTypeMetaDExCancelPair(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails);
+void populateRPCTypeMetaDExCancelEcosystem(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails);
+void populateRPCTypeAcceptOffer(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeCreatePropertyFixed(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
+void populateRPCTypeCreatePropertyVariable(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
+void populateRPCTypeCreatePropertyManual(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
+void populateRPCTypeCloseCrowdsale(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeGrant(CMPTransaction& elysiumObj, UniValue& txobj);
 void populateRPCTypeRevoke(CMPTransaction& exodusOobj, UniValue& txobj);
-void populateRPCTypeChangeIssuer(CMPTransaction& exodusObj, UniValue& txobj);
-void populateRPCTypeActivation(CMPTransaction& exodusObj, UniValue& txobj);
+void populateRPCTypeChangeIssuer(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeActivation(CMPTransaction& elysiumObj, UniValue& txobj);
 
 void populateRPCExtendedTypeSendToOwners(const uint256 txid, std::string extendedDetailsFilter, UniValue& txobj, uint16_t version);
 void populateRPCExtendedTypeMetaDExTrade(const uint256& txid, uint32_t propertyIdForSale, int64_t amountForSale, UniValue& txobj);

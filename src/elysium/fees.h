@@ -26,7 +26,7 @@ public:
 
     virtual ~CExodusFeeCache()
     {
-        if (exodus_debug_fees) PrintToLog("CExodusFeeCache closed\n");
+        if (elysium_debug_fees) PrintToLog("CExodusFeeCache closed\n");
     }
 
     // Show Fee Cache DB statistics
@@ -69,7 +69,7 @@ public:
 
     virtual ~CExodusFeeHistory()
     {
-        if (exodus_debug_fees) PrintToLog("CExodusFeeHistory closed\n");
+        if (elysium_debug_fees) PrintToLog("CExodusFeeHistory closed\n");
     }
 
     // Show Fee History DB statistics

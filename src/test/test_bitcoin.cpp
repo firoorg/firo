@@ -118,7 +118,7 @@ TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
 #ifdef ENABLE_ELYSIUM
-    exodus_shutdown();
+    elysium_shutdown();
 #endif
     threadGroup.interrupt_all();
     threadGroup.join_all();

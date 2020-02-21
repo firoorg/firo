@@ -88,7 +88,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
 
 CMPSPInfo::~CMPSPInfo()
 {
-    if (exodus_debug_persistence) PrintToLog("CMPSPInfo closed\n");
+    if (elysium_debug_persistence) PrintToLog("CMPSPInfo closed\n");
 }
 
 void CMPSPInfo::Clear()
@@ -929,7 +929,7 @@ void elysium::eraseMaxedCrowdsale(const std::string& address, int64_t blockTime,
         PrintToLog("%s(): ERASING MAXED OUT CROWDSALE from address=%s, at block %d (timestamp: %d), SP: %d (%s)\n",
             __func__, address, block, blockTime, crowdsale.getPropertyId(), strMPProperty(crowdsale.getPropertyId()));
 
-        if (exodus_debug_sp) {
+        if (elysium_debug_sp) {
             PrintToLog("%s(): %s\n", __func__, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", blockTime));
             PrintToLog("%s(): %s\n", __func__, crowdsale.toString(address));
         }
@@ -970,7 +970,7 @@ unsigned int elysium::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
             PrintToLog("%s(): ERASING EXPIRED CROWDSALE from address=%s, at block %d (timestamp: %d), SP: %d (%s)\n",
                 __func__, address, blockHeight, blockTime, crowdsale.getPropertyId(), strMPProperty(crowdsale.getPropertyId()));
 
-            if (exodus_debug_sp) {
+            if (elysium_debug_sp) {
                 PrintToLog("%s(): %s\n", __func__, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", blockTime));
                 PrintToLog("%s(): %s\n", __func__, crowdsale.toString(address));
             }

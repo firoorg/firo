@@ -62,10 +62,10 @@ int64_t CExodusFeeCache::GetCachedAmount(const uint32_t &propertyId)
 // Zeros a property in the fee cache
 void CExodusFeeCache::ClearCache(const uint32_t &propertyId, int block)
 {
-    if (exodus_debug_fees) PrintToLog("ClearCache starting (block %d, property ID %d)...\n", block, propertyId);
+    if (elysium_debug_fees) PrintToLog("ClearCache starting (block %d, property ID %d)...\n", block, propertyId);
     const std::string key = strprintf("%010d", propertyId);
     std::set<feeCacheItem> sCacheHistoryItems = GetCacheHistory(propertyId);
-    if (exodus_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
+    if (elysium_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
     std::string newValue;
     if (!sCacheHistoryItems.empty()) {
         for (std::set<feeCacheItem>::iterator it = sCacheHistoryItems.begin(); it != sCacheHistoryItems.end(); it++) {
@@ -73,11 +73,11 @@ void CExodusFeeCache::ClearCache(const uint32_t &propertyId, int block)
             if (tempItem.first == block) continue;
             if (!newValue.empty()) newValue += ",";
             newValue += strprintf("%d:%d", tempItem.first, tempItem.second);
-            if (exodus_debug_fees) PrintToLog("      Readding entry: block %d amount %d\n", tempItem.first, tempItem.second);
+            if (elysium_debug_fees) PrintToLog("      Readding entry: block %d amount %d\n", tempItem.first, tempItem.second);
         }
         if (!newValue.empty()) newValue += ",";
     }
-    if (exodus_debug_fees) PrintToLog("   Adding zero valued entry: block %d\n", block);
+    if (elysium_debug_fees) PrintToLog("   Adding zero valued entry: block %d\n", block);
     newValue += strprintf("%d:%d", block, 0);
     leveldb::Status status = pdb->Put(writeoptions, key, newValue);
     assert(status.ok());
@@ -85,17 +85,17 @@ void CExodusFeeCache::ClearCache(const uint32_t &propertyId, int block)
 
     PruneCache(propertyId, block);
 
-    if (exodus_debug_fees) PrintToLog("Cleared cache for property %d block %d [%s]\n", propertyId, block, status.ToString());
+    if (elysium_debug_fees) PrintToLog("Cleared cache for property %d block %d [%s]\n", propertyId, block, status.ToString());
 }
 
 // Adds a fee to the cache (eg on a completed trade)
 void CExodusFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_t &amount)
 {
-    if (exodus_debug_fees) PrintToLog("Starting AddFee for prop %d (block %d amount %d)...\n", propertyId, block, amount);
+    if (elysium_debug_fees) PrintToLog("Starting AddFee for prop %d (block %d amount %d)...\n", propertyId, block, amount);
 
     // Get current cached fee
     int64_t currentCachedAmount = GetCachedAmount(propertyId);
-    if (exodus_debug_fees) PrintToLog("   Current cached amount %d\n", currentCachedAmount);
+    if (elysium_debug_fees) PrintToLog("   Current cached amount %d\n", currentCachedAmount);
 
     // Add new fee and rewrite record
     if ((currentCachedAmount > 0) && (amount > std::numeric_limits<int64_t>::max() - currentCachedAmount)) {
@@ -110,10 +110,10 @@ void CExodusFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_
     }
     int64_t newCachedAmount = currentCachedAmount + amount;
 
-    if (exodus_debug_fees) PrintToLog("   New cached amount %d\n", newCachedAmount);
+    if (elysium_debug_fees) PrintToLog("   New cached amount %d\n", newCachedAmount);
     const std::string key = strprintf("%010d", propertyId);
     std::set<feeCacheItem> sCacheHistoryItems = GetCacheHistory(propertyId);
-    if (exodus_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
+    if (elysium_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
     std::string newValue;
     if (!sCacheHistoryItems.empty()) {
         for (std::set<feeCacheItem>::iterator it = sCacheHistoryItems.begin(); it != sCacheHistoryItems.end(); it++) {
@@ -121,16 +121,16 @@ void CExodusFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_
             if (tempItem.first == block) continue; // this is an older entry for the same block, discard it
             if (!newValue.empty()) newValue += ",";
             newValue += strprintf("%d:%d", tempItem.first, tempItem.second);
-            if (exodus_debug_fees) PrintToLog("      Readding entry: block %d amount %d\n", tempItem.first, tempItem.second);
+            if (elysium_debug_fees) PrintToLog("      Readding entry: block %d amount %d\n", tempItem.first, tempItem.second);
         }
         if (!newValue.empty()) newValue += ",";
     }
-    if (exodus_debug_fees) PrintToLog("   Adding requested entry: block %d new amount %d\n", block, newCachedAmount);
+    if (elysium_debug_fees) PrintToLog("   Adding requested entry: block %d new amount %d\n", block, newCachedAmount);
     newValue += strprintf("%d:%d", block, newCachedAmount);
     leveldb::Status status = pdb->Put(writeoptions, key, newValue);
     assert(status.ok());
     ++nWritten;
-    if (exodus_debug_fees) PrintToLog("AddFee completed for property %d (new=%s [%s])\n", propertyId, newValue, status.ToString());
+    if (elysium_debug_fees) PrintToLog("AddFee completed for property %d (new=%s [%s])\n", propertyId, newValue, status.ToString());
 
     // Call for pruning (we only prune when we update a record)
     PruneCache(propertyId, block);
@@ -205,7 +205,7 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
         const std::string& address = it->second;
         int64_t will_really_receive = it->first;
         sent_so_far += will_really_receive;
-        if (exodus_debug_fees) PrintToLog("  %s receives %d (running total %d of %d)\n", address, will_really_receive, sent_so_far, cachedAmount);
+        if (elysium_debug_fees) PrintToLog("  %s receives %d (running total %d of %d)\n", address, will_really_receive, sent_so_far, cachedAmount);
         assert(update_tally_map(address, propertyId, will_really_receive, BALANCE));
         feeHistoryItem recipient(address, will_really_receive);
         historyItems.insert(recipient);
@@ -224,33 +224,33 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 // Prunes entries over MAX_STATE_HISTORY blocks old from the entry for a property
 void CExodusFeeCache::PruneCache(const uint32_t &propertyId, int block)
 {
-    if (exodus_debug_fees) PrintToLog("Starting PruneCache for prop %d block %d...\n", propertyId, block);
+    if (elysium_debug_fees) PrintToLog("Starting PruneCache for prop %d block %d...\n", propertyId, block);
     assert(pdb);
 
     int pruneBlock = block - MAX_STATE_HISTORY;
-    if (exodus_debug_fees) PrintToLog("Removing entries prior to block %d...\n", pruneBlock);
+    if (elysium_debug_fees) PrintToLog("Removing entries prior to block %d...\n", pruneBlock);
     const std::string key = strprintf("%010d", propertyId);
     std::set<feeCacheItem> sCacheHistoryItems = GetCacheHistory(propertyId);
-    if (exodus_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
+    if (elysium_debug_fees) PrintToLog("   Iterating cache history (%d items)...\n",sCacheHistoryItems.size());
     if (!sCacheHistoryItems.empty()) {
         std::set<feeCacheItem>::iterator startIt = sCacheHistoryItems.begin();
         feeCacheItem firstItem = *startIt;
         if (firstItem.first >= pruneBlock) {
-            if (exodus_debug_fees) PrintToLog("Endingg PruneCache - no matured entries found.\n");
+            if (elysium_debug_fees) PrintToLog("Endingg PruneCache - no matured entries found.\n");
             return; // all entries are above supplied block value, nothing to do
         }
         std::string newValue;
         for (std::set<feeCacheItem>::iterator it = sCacheHistoryItems.begin(); it != sCacheHistoryItems.end(); it++) {
             feeCacheItem tempItem = *it;
             if (tempItem.first < pruneBlock) {
-                if (exodus_debug_fees) {
+                if (elysium_debug_fees) {
                     PrintToLog("      Skipping matured entry: block %d amount %d\n", tempItem.first, tempItem.second);
                     continue; // discard this entry
                 }
             }
             if (!newValue.empty()) newValue += ",";
             newValue += strprintf("%d:%d", tempItem.first, tempItem.second);
-            if (exodus_debug_fees) PrintToLog("      Readding immature entry: block %d amount %d\n", tempItem.first, tempItem.second);
+            if (elysium_debug_fees) PrintToLog("      Readding immature entry: block %d amount %d\n", tempItem.first, tempItem.second);
         }
         // make sure the pruned cache isn't completely empty, if it is, prune down to just the most recent entry
         if (newValue.empty()) {
@@ -258,11 +258,11 @@ void CExodusFeeCache::PruneCache(const uint32_t &propertyId, int block)
             --mostRecentIt;
             feeCacheItem mostRecentItem = *mostRecentIt;
             newValue = strprintf("%d:%d", mostRecentItem.first, mostRecentItem.second);
-            if (exodus_debug_fees) PrintToLog("   All entries matured and pruned - readding most recent entry: block %d amount %d\n", mostRecentItem.first, mostRecentItem.second);
+            if (elysium_debug_fees) PrintToLog("   All entries matured and pruned - readding most recent entry: block %d amount %d\n", mostRecentItem.first, mostRecentItem.second);
         }
         leveldb::Status status = pdb->Put(writeoptions, key, newValue);
         assert(status.ok());
-        if (exodus_debug_fees) PrintToLog("PruneCache completed for property %d (new=%s [%s])\n", propertyId, newValue, status.ToString());
+        if (elysium_debug_fees) PrintToLog("PruneCache completed for property %d (new=%s [%s])\n", propertyId, newValue, status.ToString());
     } else {
         return; // nothing to do
     }
@@ -485,5 +485,5 @@ void CExodusFeeHistory::RecordFeeDistribution(const uint32_t &propertyId, int bl
 
     std::string value = strprintf("%d:%d:%d:%s", block, propertyId, total, feeRecipientsStr);
     leveldb::Status status = pdb->Put(writeoptions, key, value);
-    if (exodus_debug_fees) PrintToLog("Added fee distribution to feeCacheHistory - key=%s value=%s [%s]\n", key, value, status.ToString());
+    if (elysium_debug_fees) PrintToLog("Added fee distribution to feeCacheHistory - key=%s value=%s [%s]\n", key, value, status.ToString());
 }

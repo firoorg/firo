@@ -219,7 +219,7 @@ bool CMPTransaction::interpret_TransactionType()
     version = txVersion;
     type = txType;
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t------------------------------\n");
         PrintToLog("\t         version: %d, class %s\n", txVersion, std::to_string(*packetClass));
         PrintToLog("\t            type: %d (%s)\n", txType, strTransactionType(txType));
@@ -240,7 +240,7 @@ bool CMPTransaction::interpret_SimpleSend()
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
     }
@@ -265,7 +265,7 @@ bool CMPTransaction::interpret_SendToOwners()
         swapByteOrder32(distribution_property);
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t             property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t                value: %s\n", FormatMP(property, nValue));
         if (version > MP_TX_PKT_V1) {
@@ -286,7 +286,7 @@ bool CMPTransaction::interpret_SendAll()
 
     property = ecosystem; // provide a hint for the UI, TODO: better handling!
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", (int)ecosystem);
     }
 
@@ -314,7 +314,7 @@ bool CMPTransaction::interpret_TradeOffer()
     swapByteOrder64(amount_desired);
     swapByteOrder64(min_fee);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
         PrintToLog("\t  amount desired: %s\n", FormatDivisibleMP(amount_desired));
@@ -340,7 +340,7 @@ bool CMPTransaction::interpret_AcceptOfferBTC()
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
     }
@@ -366,7 +366,7 @@ bool CMPTransaction::interpret_MetaDExTrade()
 
     action = CMPTransaction::ADD; // depreciated
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
         PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
@@ -394,7 +394,7 @@ bool CMPTransaction::interpret_MetaDExCancelPrice()
 
     action = CMPTransaction::CANCEL_AT_PRICE; // depreciated
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
         PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
@@ -420,7 +420,7 @@ bool CMPTransaction::interpret_MetaDExCancelPair()
     desired_value = 0; // depreciated
     action = CMPTransaction::CANCEL_ALL_FOR_PAIR; // depreciated
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
     }
@@ -443,7 +443,7 @@ bool CMPTransaction::interpret_MetaDExCancelEcosystem()
     desired_value = 0; // depreciated
     action = CMPTransaction::CANCEL_EVERYTHING; // depreciated
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", (int)ecosystem);
     }
 
@@ -500,7 +500,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         p += 1;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
         PrintToLog("\tprev property id: %d\n", prev_prop_id);
@@ -562,7 +562,7 @@ bool CMPTransaction::interpret_CreatePropertyVariable()
     memcpy(&early_bird, p++, 1);
     memcpy(&percentage, p++, 1);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
         PrintToLog("\tprev property id: %d\n", prev_prop_id);
@@ -595,7 +595,7 @@ bool CMPTransaction::interpret_CloseCrowdsale()
     memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
@@ -648,7 +648,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         p += 1;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t       ecosystem: %d\n", ecosystem);
         PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
         PrintToLog("\tprev property id: %d\n", prev_prop_id);
@@ -680,7 +680,7 @@ bool CMPTransaction::interpret_GrantTokens()
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
     }
@@ -700,7 +700,7 @@ bool CMPTransaction::interpret_RevokeTokens()
     swapByteOrder64(nValue);
     nNewValue = nValue;
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
     }
@@ -717,7 +717,7 @@ bool CMPTransaction::interpret_ChangeIssuer()
     memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
@@ -733,7 +733,7 @@ bool CMPTransaction::interpret_EnableFreezing()
     memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
@@ -749,7 +749,7 @@ bool CMPTransaction::interpret_DisableFreezing()
     memcpy(&property, &raw[4], 4);
     swapByteOrder32(property);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
@@ -786,7 +786,7 @@ bool CMPTransaction::interpret_FreezeTokens()
         return false;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t  value (unused): %s\n", FormatMP(property, nValue));
         PrintToLog("\t         address: %s\n", receiver);
@@ -825,7 +825,7 @@ bool CMPTransaction::interpret_UnfreezeTokens()
         return false;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t  value (unused): %s\n", FormatMP(property, nValue));
         PrintToLog("\t         address: %s\n", receiver);
@@ -881,7 +881,7 @@ bool CMPTransaction::interpret_SimpleSpend()
         return false;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           spend: %s\n", std::to_string(denomination));
     }
@@ -901,7 +901,7 @@ bool CMPTransaction::interpret_CreateDenomination()
     memcpy(&nValue, &raw[8], 8);
     swapByteOrder64(nValue);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
     }
@@ -939,7 +939,7 @@ bool CMPTransaction::interpret_SimpleMint()
         deserialized >> mint;
     }
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         std::vector<uint8_t> denominations;
         denominations.reserve(mints.size());
         for (auto const& mint : mints) {
@@ -970,7 +970,7 @@ bool CMPTransaction::interpret_Deactivation()
     memcpy(&feature_id, &raw[4], 2);
     swapByteOrder16(feature_id);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t      feature id: %d\n", feature_id);
     }
 
@@ -990,7 +990,7 @@ bool CMPTransaction::interpret_Activation()
     memcpy(&min_client_version, &raw[10], 4);
     swapByteOrder32(min_client_version);
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t      feature id: %d\n", feature_id);
         PrintToLog("\tactivation block: %d\n", activation_block);
         PrintToLog("\t minimum version: %d\n", min_client_version);
@@ -1020,7 +1020,7 @@ bool CMPTransaction::interpret_Alert()
     std::string spstr(p, last);
     memcpy(alert_text, spstr.c_str(), std::min(spstr.length(), sizeof(alert_text)-1));
 
-    if ((!rpcOnly && exodus_debug_packets) || exodus_debug_packets_readonly) {
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t      alert type: %d\n", alert_type);
         PrintToLog("\t    expiry value: %d\n", alert_expiry);
         PrintToLog("\t   alert message: %s\n", alert_text);
@@ -1202,7 +1202,7 @@ int CMPTransaction::logicHelper_CrowdsaleParticipation()
             sp.num_tokens, sp.percentage, getTotalTokens(pcrowdsale->getPropertyId()),
             tokens, close_crowdsale);
 
-    if (exodus_debug_sp) {
+    if (elysium_debug_sp) {
         PrintToLog("%s(): granting via crowdsale to user: %s %d (%s)\n",
                 __func__, FormatMP(property, tokens.first), property, strMPProperty(property));
         PrintToLog("%s(): granting via crowdsale to issuer: %s %d (%s)\n",
@@ -2019,7 +2019,7 @@ int CMPTransaction::logicMath_CloseCrowdsale()
     }
     my_crowds.erase(it);
 
-    if (exodus_debug_sp) PrintToLog("CLOSED CROWDSALE id: %d=%X\n", property, property);
+    if (elysium_debug_sp) PrintToLog("CLOSED CROWDSALE id: %d=%X\n", property, property);
 
     return 0;
 }
