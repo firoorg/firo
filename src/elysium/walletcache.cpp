@@ -24,7 +24,7 @@
 
 namespace elysium {
 
-//! Global vector of Exodus transactions in the wallet
+//! Global vector of Elysium transactions in the wallet
 std::vector<uint256> walletTXIDCache;
 
 //! Map of wallet balances
@@ -55,11 +55,11 @@ void WalletTXIDCacheInit()
     std::list<CAccountingEntry> acentries;
     CWallet::TxItems txOrdered = pwalletMain->wtxOrdered;
 
-    // Iterate through the wallet, checking if each transaction is Exodus (via levelDB)
+    // Iterate through the wallet, checking if each transaction is Elysium (via levelDB)
     for (CWallet::TxItems::reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
         const CWalletTx* pwtx = it->second.first;
         if (pwtx != NULL) {
-            // get the hash of the transaction and check leveldb to see if this is an Exodus tx, if so add to cache
+            // get the hash of the transaction and check leveldb to see if this is an Elysium tx, if so add to cache
             const uint256& hash = pwtx->GetHash();
             if (p_txlistdb->exists(hash)) {
                 walletTXIDCache.push_back(hash);

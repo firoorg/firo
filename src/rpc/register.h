@@ -30,16 +30,16 @@ void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 /** Register raw transaction RPC commands */
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 
-/** Register Exodus data retrieval RPC commands */
-void RegisterExodusDataRetrievalRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium data retrieval RPC commands */
+void RegisterElysiumDataRetrievalRPCCommands(CRPCTable &tableRPC);
 #ifdef ENABLE_WALLET
-/** Register Exodus transaction creation RPC commands */
+/** Register Elysium transaction creation RPC commands */
 void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC);
 #endif
-/** Register Exodus payload creation RPC commands */
+/** Register Elysium payload creation RPC commands */
 void RegisterElysiumPayloadCreationRPCCommands(CRPCTable &tableRPC);
-/** Register Exodus raw transaction RPC commands */
-void RegisterExodusRawTransactionRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium raw transaction RPC commands */
+void RegisterElysiumRawTransactionRPCCommands(CRPCTable &tableRPC);
 
 static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 {
@@ -51,9 +51,9 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 
 #ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
-        RegisterExodusDataRetrievalRPCCommands(tableRPC);
+        RegisterElysiumDataRetrievalRPCCommands(tableRPC);
         RegisterElysiumPayloadCreationRPCCommands(tableRPC);
-        RegisterExodusRawTransactionRPCCommands(tableRPC);
+        RegisterElysiumRawTransactionRPCCommands(tableRPC);
 
 #ifdef ENABLE_WALLET
         RegisterElysiumTransactionCreationRPCCommands(tableRPC);

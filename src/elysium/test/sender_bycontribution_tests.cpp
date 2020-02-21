@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(invalid_inputs)
     {
         std::vector<CTxOut> vouts;
         vouts.push_back(PayToScriptHash_Unrelated());
-        vouts.push_back(PayToPubKeyHash_Exodus());
+        vouts.push_back(PayToPubKeyHash_Elysium());
         vouts.push_back(NonStandardOutput());
         std::string strSender;
         BOOST_CHECK(!GetSenderByContribution(vouts, strSender));
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(p2pkh_contribution_by_total_sum_test)
  * have equal values, and a candidate is chosen based on the lexicographical order of
  * the base58 string representation (!) of the candidate.
  *
- * Note: it reflects the behavior of Exodus Core, but this edge case is not specified.
+ * Note: it reflects the behavior of Elysium Core, but this edge case is not specified.
  */
 BOOST_AUTO_TEST_CASE(p2pkh_contribution_by_sum_order_test)
 {
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(p2sh_contribution_by_total_sum_test)
  * have equal values, and a candidate is chosen based on the lexicographical order of
  * the base58 string representation (!) of the candidate.
  *
- * Note: it reflects the behavior of Exodus Core, but this edge case is not specified.
+ * Note: it reflects the behavior of Elysium Core, but this edge case is not specified.
  */
 BOOST_AUTO_TEST_CASE(p2sh_contribution_by_sum_order_test)
 {
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE(p2sh_contribution_by_sum_order_test)
  * In practise this implies selecting the sender "by sum" via a comparison of
  * CBitcoinAddress objects would yield faulty results.
  *
- * Note: it reflects the behavior of Exodus Core, but this edge case is not specified.
+ * Note: it reflects the behavior of Elysium Core, but this edge case is not specified.
  */
 BOOST_AUTO_TEST_CASE(sender_selection_string_based_test)
 {
@@ -353,7 +353,7 @@ static CTransaction TxClassB(const std::vector<CTxOut>& txInputs)
     }
 
     // Outputs:
-    mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+    mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
     mutableTx.vout.push_back(PayToBareMultisig_1of3());
     mutableTx.vout.push_back(PayToPubKeyHash_Unrelated());
 

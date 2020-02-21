@@ -17,7 +17,7 @@ ADDR=$($SRCDIR/omnicore-cli --regtest getnewaddress OMNIAccount)
 printf "   * Funding the address with some testnet BTC for fees\n"
 $SRCDIR/omnicore-cli --regtest sendtoaddress $ADDR 20 >$NUL
 $SRCDIR/omnicore-cli --regtest setgenerate true 1 >$NUL
-printf "   * Participating in the Exodus crowdsale to obtain some OMNI\n"
+printf "   * Participating in the Elysium crowdsale to obtain some OMNI\n"
 JSON="{\"moneyqMan7uh8FqdCA2BV5yZ8qVrc9ikLP\":10,\""$ADDR"\":4}"
 $SRCDIR/omnicore-cli --regtest sendmany OMNIAccount $JSON >$NUL
 $SRCDIR/omnicore-cli --regtest setgenerate true 1 >$NUL

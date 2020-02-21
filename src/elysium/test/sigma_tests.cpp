@@ -16,7 +16,7 @@ struct SigmaDatabaseFixture : TestingSetup
 {
     SigmaDatabaseFixture()
     {
-        sigmaDb = new SigmaDatabase(pathTemp / "exodus-sigmadb", true, 10);
+        sigmaDb = new SigmaDatabase(pathTemp / "elysium-sigmadb", true, 10);
     }
 
     ~SigmaDatabaseFixture()

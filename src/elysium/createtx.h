@@ -126,10 +126,10 @@ protected:
 };
 
 /**
- * Builder to create Exodus transactions.
+ * Builder to create Elysium transactions.
  *
  * The ElysiumTxBuilder class is an extension of the TxBuilder, with additional
- * methods to build Exodus transactions. Payloads can be embedded with class B
+ * methods to build Elysium transactions. Payloads can be embedded with class B
  * (bare-multisig) or class C (op-return) encoding.
  *
  * The output values are based on the dust threshold, but may optionally be
@@ -148,12 +148,12 @@ class ElysiumTxBuilder: public TxBuilder
 {
 public:
     /**
-     * Creates a new Exodus transaction builder.
+     * Creates a new Elysium transaction builder.
      */
     ElysiumTxBuilder();
 
     /**
-     * Creates a new Exodus transaction builder to extend a transaction.
+     * Creates a new Elysium transaction builder to extend a transaction.
      *
      * @param transactionIn The transaction used to build upon
      */

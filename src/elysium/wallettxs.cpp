@@ -97,7 +97,7 @@ bool CheckFee(const std::string& fromAddress, size_t nDataSize)
         minFee = feePerKB * 3;
     } else {
         // Averages for Class C transactions are not yet available, Calculation based on a 2KB transaction due to:
-        //   - Class B values but considering Class C removes outputs for both data and Exodus (reduces size).
+        //   - Class B values but considering Class C removes outputs for both data and Elysium (reduces size).
         minFee = feePerKB * 2;
     }
 #endif

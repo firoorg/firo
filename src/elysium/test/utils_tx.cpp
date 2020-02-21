@@ -15,7 +15,7 @@
 
 #include <inttypes.h>
 
-CTxOut PayToPubKeyHash_Exodus()
+CTxOut PayToPubKeyHash_Elysium()
 {
     CScript scriptPubKey = GetScriptForDestination(elysium::GetSystemAddress().Get());
     int64_t amount = GetDustThreshold(scriptPubKey);

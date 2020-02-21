@@ -1,7 +1,7 @@
 /**
  * @file fees.cpp
  *
- * This file contains code for handling Exodus fees.
+ * This file contains code for handling Elysium fees.
  */
 
 #include "elysium/fees.h"

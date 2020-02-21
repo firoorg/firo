@@ -485,4 +485,4 @@ std::unique_ptr<CWalletDB> SigmaWallet::EnsureDBConnection(CWalletDB* &db) const
     return local;
 }
 
-} // exodus
+} // namespace elysium

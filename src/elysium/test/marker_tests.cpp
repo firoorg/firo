@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         int nBlock = 0;
 
         CMutableTransaction mutableTx;
-        mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+        mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
         mutableTx.vout.push_back(PayToBareMultisig_1of3());
 
         CTransaction tx(mutableTx);
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(PayToPubKey_Unrelated());
         mutableTx.vout.push_back(PayToBareMultisig_3of5());
         mutableTx.vout.push_back(PayToBareMultisig_3of5());
-        mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+        mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
         mutableTx.vout.push_back(PayToPubKey_Unrelated());
 
         CTransaction tx(mutableTx);
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         mutableTx.vout.push_back(OpReturn_Unrelated());
         mutableTx.vout.push_back(NonStandardOutput());
         mutableTx.vout.push_back(PayToScriptHash_Unrelated());
-        mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+        mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
 
         CTransaction tx(mutableTx);
         BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
 
         CMutableTransaction mutableTx;
         mutableTx.vout.push_back(OpReturn_UnrelatedShort());
-        mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+        mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
         mutableTx.vout.push_back(OpReturn_Empty());
         mutableTx.vout.push_back(PayToPubKey_Unrelated());
         mutableTx.vout.push_back(PayToPubKeyHash_Unrelated());
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(class_class_c)
         mutableTx.vout.push_back(PayToScriptHash_Unrelated());
         mutableTx.vout.push_back(NonStandardOutput());
         mutableTx.vout.push_back(OpReturn_PlainMarker());
-        mutableTx.vout.push_back(PayToPubKeyHash_Exodus());
+        mutableTx.vout.push_back(PayToPubKeyHash_Elysium());
 
         CTransaction tx(mutableTx);
         BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::C);

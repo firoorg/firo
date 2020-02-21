@@ -1845,7 +1845,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
 
-    // ********************************************************* Step 8.5: load exodus
+    // ********************************************************* Step 8.5: load elysium
 
 #ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {

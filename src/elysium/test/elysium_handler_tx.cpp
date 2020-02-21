@@ -88,10 +88,10 @@ BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx)
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction exodusTx = block.vtx[1];
+    CTransaction elysiumTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
@@ -118,10 +118,10 @@ BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction exodusTx = block.vtx[1];
+    CTransaction elysiumTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)

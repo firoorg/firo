@@ -2082,8 +2082,8 @@ UniValue elysium_getinfo(const UniValue& params, bool fHelp)
 
     // handle alerts
     UniValue alerts(UniValue::VARR);
-    std::vector<AlertData> exodusAlerts = GetElysiumAlerts();
-    for (std::vector<AlertData>::iterator it = exodusAlerts.begin(); it != exodusAlerts.end(); it++) {
+    std::vector<AlertData> elysiumAlerts = GetElysiumAlerts();
+    for (std::vector<AlertData>::iterator it = elysiumAlerts.begin(); it != elysiumAlerts.end(); it++) {
         AlertData alert = *it;
         UniValue alertResponse(UniValue::VOBJ);
         std::string alertTypeStr;
@@ -2457,7 +2457,7 @@ static const CRPCCommand commands[] =
 #endif
 };
 
-void RegisterExodusDataRetrievalRPCCommands(CRPCTable &tableRPC)
+void RegisterElysiumDataRetrievalRPCCommands(CRPCTable &tableRPC)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);

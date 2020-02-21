@@ -27,7 +27,7 @@ struct AlertData
     std::string alert_message;
 };
 
-/** Determines whether the sender is an authorized source for Exodus alerts. */
+/** Determines whether the sender is an authorized source for Elysium alerts. */
 bool CheckAlertAuthorization(const std::string& sender);
 
 /** Deletes previously broadcast alerts from the sender. */

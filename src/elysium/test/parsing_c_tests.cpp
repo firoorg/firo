@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE(reference_identification)
         txOutputs.push_back(NonStandardOutput());
         txOutputs.push_back(createTxOut(6000, "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd"));
         txOutputs.push_back(createTxOut(6000, "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd"));
-        txOutputs.push_back(PayToPubKeyHash_Exodus());
+        txOutputs.push_back(PayToPubKeyHash_Elysium());
         txOutputs.push_back(OpReturn_SimpleSend());
 
         CTransaction dummyTx = TxClassC(txInputs, txOutputs);

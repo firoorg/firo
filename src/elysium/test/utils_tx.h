@@ -3,7 +3,7 @@
 
 class CTxOut;
 
-CTxOut PayToPubKeyHash_Exodus();
+CTxOut PayToPubKeyHash_Elysium();
 CTxOut PayToPubKeyHash_Unrelated();
 CTxOut PayToScriptHash_Unrelated();
 CTxOut PayToPubKey_Unrelated();

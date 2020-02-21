@@ -452,7 +452,7 @@ BOOST_AUTO_TEST_CASE(payload_feature_activation)
 BOOST_AUTO_TEST_CASE(payload_elysium_alert_block)
 {
     // Exodus Core client notification [type 65535, version 65535]
-    std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
+    std::vector<unsigned char> vch = CreatePayload_ElysiumAlert(
         static_cast<int32_t>(1),            // alert target: by block number
         static_cast<uint64_t>(300000),      // expiry value: 300000
         static_cast<std::string>("test"));  // alert message: test
@@ -463,7 +463,7 @@ BOOST_AUTO_TEST_CASE(payload_elysium_alert_block)
 BOOST_AUTO_TEST_CASE(payload_elysium_alert_blockexpiry)
 {
     // Exodus Core client notification [type 65535, version 65535]
-    std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
+    std::vector<unsigned char> vch = CreatePayload_ElysiumAlert(
         static_cast<int32_t>(2),            // alert target: by block time
         static_cast<uint64_t>(1439528630),  // expiry value: 1439528630
         static_cast<std::string>("test"));  // alert message: test
@@ -474,7 +474,7 @@ BOOST_AUTO_TEST_CASE(payload_elysium_alert_blockexpiry)
 BOOST_AUTO_TEST_CASE(payload_elysium_alert_minclient)
 {
     // Exodus Core client notification [type 65535, version 65535]
-    std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
+    std::vector<unsigned char> vch = CreatePayload_ElysiumAlert(
         static_cast<int32_t>(3),            // alert target: by client version
         static_cast<uint64_t>(900100),      // expiry value: v0.0.9.1
         static_cast<std::string>("test"));  // alert message: test

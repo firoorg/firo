@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(valid_common_class_b)
     txInputs.push_back(createTxOut(2000001, "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd"));
 
     std::vector<CTxOut> txOutputs;
-    txOutputs.push_back(PayToPubKeyHash_Exodus());
+    txOutputs.push_back(PayToPubKeyHash_Elysium());
     txOutputs.push_back(PayToBareMultisig_1of3());
     txOutputs.push_back(PayToBareMultisig_3of5());
     txOutputs.push_back(PayToBareMultisig_3of5());
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
         txOutputs.push_back(NonStandardOutput());
         txOutputs.push_back(PayToPubKey_Unrelated());
         txOutputs.push_back(PayToScriptHash_Unrelated());
-        txOutputs.push_back(PayToPubKeyHash_Exodus());
+        txOutputs.push_back(PayToPubKeyHash_Elysium());
     }
 
     std::random_shuffle(txOutputs.begin(), txOutputs.end());

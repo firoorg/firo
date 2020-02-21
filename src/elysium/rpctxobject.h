@@ -28,7 +28,7 @@ void populateRPCTypeCreatePropertyVariable(CMPTransaction& elysiumObj, UniValue&
 void populateRPCTypeCreatePropertyManual(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
 void populateRPCTypeCloseCrowdsale(CMPTransaction& elysiumObj, UniValue& txobj);
 void populateRPCTypeGrant(CMPTransaction& elysiumObj, UniValue& txobj);
-void populateRPCTypeRevoke(CMPTransaction& exodusOobj, UniValue& txobj);
+void populateRPCTypeRevoke(CMPTransaction& elysiumObj, UniValue& txobj);
 void populateRPCTypeChangeIssuer(CMPTransaction& elysiumObj, UniValue& txobj);
 void populateRPCTypeActivation(CMPTransaction& elysiumObj, UniValue& txobj);
 

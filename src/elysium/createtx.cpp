@@ -108,13 +108,13 @@ CMutableTransaction TxBuilder::build()
     return transaction;
 }
 
-/** Creates a new Exodus transaction builder. */
+/** Creates a new Elysium transaction builder. */
 ElysiumTxBuilder::ElysiumTxBuilder()
   : TxBuilder()
 {
 }
 
-/** Creates a new Exodus transaction builder to extend a transaction. */
+/** Creates a new Elysium transaction builder to extend a transaction. */
 ElysiumTxBuilder::ElysiumTxBuilder(const CMutableTransaction& transactionIn)
   : TxBuilder(transactionIn)
 {

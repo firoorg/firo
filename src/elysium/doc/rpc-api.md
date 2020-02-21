@@ -1434,7 +1434,7 @@ $ omnicore-cli "omni_getactivations" "1075db55d416d3ca199f55b6084e2115b9345e16c5
 
 Returns a list of blocks containing Omni transactions for use in seed block filtering.
 
-WARNING: The Exodus crowdsale is not stored in LevelDB, thus this is currently only safe to use to generate seed blocks after block 255365.
+WARNING: The Elysium crowdsale is not stored in LevelDB, thus this is currently only safe to use to generate seed blocks after block 255365.
 
 **Arguments:**
 
