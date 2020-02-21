@@ -6,7 +6,7 @@ class uint256;
 
 #include <stdint.h>
 
-namespace exodus
+namespace elysium
 {
 /** Returns the current chain length. */
 int GetHeight();

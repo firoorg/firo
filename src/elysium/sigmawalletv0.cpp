@@ -6,7 +6,7 @@
 
 #include "../wallet/wallet.h"
 
-namespace exodus {
+namespace elysium {
 
 SigmaWalletV0::SigmaWalletV0() : SigmaWallet()
 {

@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(overpayment_close)
     std::pair<int64_t, int64_t> tokensCreated;
     bool fClosed = false;
 
-    exodus::calculateFundraiser(true, amountInvested, earlyBirdBonus, deadline,
+    elysium::calculateFundraiser(true, amountInvested, earlyBirdBonus, deadline,
             timestamp, amountPerUnitInvested, issuerBonus, totalTokens,
             tokensCreated, fClosed);
 
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(max_limits)
     std::pair<int64_t, int64_t> tokensCreated;
     bool fClosed = false;
 
-    exodus::calculateFundraiser(true, amountInvested, earlyBirdBonus, deadline,
+    elysium::calculateFundraiser(true, amountInvested, earlyBirdBonus, deadline,
             timestamp, amountPerUnitInvested, issuerBonus, totalTokens,
             tokensCreated, fClosed);
 
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(negative_time)
     std::pair<int64_t, int64_t> tokensCreated;
     bool fClosed = false;
 
-    exodus::calculateFundraiser(false, amountInvested, earlyBirdBonus, deadline,
+    elysium::calculateFundraiser(false, amountInvested, earlyBirdBonus, deadline,
             timestamp, amountPerUnitInvested, issuerBonus, totalTokens,
             tokensCreated, fClosed);
 

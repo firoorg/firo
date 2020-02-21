@@ -34,15 +34,15 @@
 typedef boost::multiprecision::cpp_dec_float_100 dec_float;
 typedef boost::multiprecision::checked_int128_t int128_t;
 
-using namespace exodus;
+using namespace elysium;
 
 //! Number of digits of unit price
 #define DISPLAY_PRECISION_LEN  50
 
 //! Global map for price and order data
-md_PropertiesMap exodus::metadex;
+md_PropertiesMap elysium::metadex;
 
-md_PricesMap* exodus::get_Prices(uint32_t prop)
+md_PricesMap* elysium::get_Prices(uint32_t prop)
 {
     md_PropertiesMap::iterator it = metadex.find(prop);
 
@@ -51,7 +51,7 @@ md_PricesMap* exodus::get_Prices(uint32_t prop)
     return (md_PricesMap*) NULL;
 }
 
-md_Set* exodus::get_Indexes(md_PricesMap* p, rational_t price)
+md_Set* elysium::get_Indexes(md_PricesMap* p, rational_t price)
 {
     md_PricesMap::iterator it = p->find(price);
 
@@ -454,7 +454,7 @@ bool MetaDEx_compare::operator()(const CMPMetaDEx &lhs, const CMPMetaDEx &rhs) c
     else return lhs.getBlock() < rhs.getBlock();
 }
 
-bool exodus::MetaDEx_INSERT(const CMPMetaDEx& objMetaDEx)
+bool elysium::MetaDEx_INSERT(const CMPMetaDEx& objMetaDEx)
 {
     // Create an empty price map (to use in case price map for this property does not already exist)
     md_PricesMap temp_prices;
@@ -490,7 +490,7 @@ bool exodus::MetaDEx_INSERT(const CMPMetaDEx& objMetaDEx)
 }
 
 // pretty much directly linked to the ADD TX21 command off the wire
-int exodus::MetaDEx_ADD(const std::string& sender_addr, uint32_t prop, int64_t amount, int block, uint32_t property_desired, int64_t amount_desired, const uint256& txid, unsigned int idx)
+int elysium::MetaDEx_ADD(const std::string& sender_addr, uint32_t prop, int64_t amount, int block, uint32_t property_desired, int64_t amount_desired, const uint256& txid, unsigned int idx)
 {
     int rc = METADEX_ERROR -1;
 
@@ -525,7 +525,7 @@ int exodus::MetaDEx_ADD(const std::string& sender_addr, uint32_t prop, int64_t a
     return rc;
 }
 
-int exodus::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, const std::string& sender_addr, uint32_t prop, int64_t amount, uint32_t property_desired, int64_t amount_desired)
+int elysium::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, const std::string& sender_addr, uint32_t prop, int64_t amount, uint32_t property_desired, int64_t amount_desired)
 {
     int rc = METADEX_ERROR -20;
     CMPMetaDEx mdex(sender_addr, 0, prop, amount, property_desired, amount_desired, uint256(), 0, CMPTransaction::CANCEL_AT_PRICE);
@@ -579,7 +579,7 @@ int exodus::MetaDEx_CANCEL_AT_PRICE(const uint256& txid, unsigned int block, con
     return rc;
 }
 
-int exodus::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block, const std::string& sender_addr, uint32_t prop, uint32_t property_desired)
+int elysium::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block, const std::string& sender_addr, uint32_t prop, uint32_t property_desired)
 {
     int rc = METADEX_ERROR -30;
     md_PricesMap* prices = get_Prices(prop);
@@ -631,7 +631,7 @@ int exodus::MetaDEx_CANCEL_ALL_FOR_PAIR(const uint256& txid, unsigned int block,
 /**
  * Scans the orderbook and remove everything for an address.
  */
-int exodus::MetaDEx_CANCEL_EVERYTHING(const uint256& txid, unsigned int block, const std::string& sender_addr, unsigned char ecosystem)
+int elysium::MetaDEx_CANCEL_EVERYTHING(const uint256& txid, unsigned int block, const std::string& sender_addr, unsigned char ecosystem)
 {
     int rc = METADEX_ERROR -40;
 
@@ -690,7 +690,7 @@ int exodus::MetaDEx_CANCEL_EVERYTHING(const uint256& txid, unsigned int block, c
 /**
  * Scans the orderbook and removes every all-pair order
  */
-int exodus::MetaDEx_SHUTDOWN_ALLPAIR()
+int elysium::MetaDEx_SHUTDOWN_ALLPAIR()
 {
     int rc = 0;
     PrintToLog("%s()\n", __FUNCTION__);
@@ -715,7 +715,7 @@ int exodus::MetaDEx_SHUTDOWN_ALLPAIR()
 /**
  * Scans the orderbook and removes every order
  */
-int exodus::MetaDEx_SHUTDOWN()
+int elysium::MetaDEx_SHUTDOWN()
 {
     int rc = 0;
     PrintToLog("%s()\n", __FUNCTION__);
@@ -737,7 +737,7 @@ int exodus::MetaDEx_SHUTDOWN()
 
 // searches the metadex maps to see if a trade is still open
 // allows search to be optimized if propertyIdForSale is specified
-bool exodus::MetaDEx_isOpen(const uint256& txid, uint32_t propertyIdForSale)
+bool elysium::MetaDEx_isOpen(const uint256& txid, uint32_t propertyIdForSale)
 {
     for (md_PropertiesMap::iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
         if (propertyIdForSale != 0 && propertyIdForSale != my_it->first) continue;
@@ -757,7 +757,7 @@ bool exodus::MetaDEx_isOpen(const uint256& txid, uint32_t propertyIdForSale)
  * Returns a string describing the status of a trade
  *
  */
-std::string exodus::MetaDEx_getStatusText(int tradeStatus)
+std::string elysium::MetaDEx_getStatusText(int tradeStatus)
 {
     switch (tradeStatus) {
         case TRADE_OPEN: return "open";
@@ -774,7 +774,7 @@ std::string exodus::MetaDEx_getStatusText(int tradeStatus)
  * Returns the status of a MetaDEx trade
  *
  */
-int exodus::MetaDEx_getStatus(const uint256& txid, uint32_t propertyIdForSale, int64_t amountForSale, int64_t totalSold)
+int elysium::MetaDEx_getStatus(const uint256& txid, uint32_t propertyIdForSale, int64_t amountForSale, int64_t totalSold)
 {
     // NOTE: If the calling code is already aware of the total amount sold, pass the value in to this function to avoid duplication of
     //       work.  If the calling code doesn't know the amount, leave default (-1) and we will calculate it from levelDB lookups.
@@ -805,7 +805,7 @@ int exodus::MetaDEx_getStatus(const uint256& txid, uint32_t propertyIdForSale, i
     }
 }
 
-void exodus::MetaDEx_debug_print(bool bShowPriceLevel, bool bDisplay)
+void elysium::MetaDEx_debug_print(bool bShowPriceLevel, bool bDisplay)
 {
     PrintToLog("<<<\n");
     for (md_PropertiesMap::iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it) {
@@ -835,7 +835,7 @@ void exodus::MetaDEx_debug_print(bool bShowPriceLevel, bool bDisplay)
  * Locates a trade in the MetaDEx maps via txid and returns the trade object
  *
  */
-const CMPMetaDEx* exodus::MetaDEx_RetrieveTrade(const uint256& txid)
+const CMPMetaDEx* elysium::MetaDEx_RetrieveTrade(const uint256& txid)
 {
     for (md_PropertiesMap::iterator propIter = metadex.begin(); propIter != metadex.end(); ++propIter) {
         md_PricesMap & prices = propIter->second;

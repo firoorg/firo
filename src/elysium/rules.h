@@ -10,7 +10,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 /**
  * Feature identifier to enable Class C transaction parsing and processing.
@@ -335,6 +335,6 @@ bool IsTransactionTypeAllowed(int txBlock, uint32_t txProperty, uint16_t txType,
 /** Compares a supplied block, block hash and consensus hash against a hardcoded list of checkpoints. */
 bool VerifyCheckpoint(int block, const uint256& blockHash);
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_RULES_H

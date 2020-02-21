@@ -34,7 +34,7 @@
 #include <vector>
 
 // Namespaces
-using namespace exodus;
+using namespace elysium;
 
 /**
  * Function to standardize RPC output for transactions into a JSON object in either basic or extended mode.

@@ -13,7 +13,7 @@
 
 #include <stddef.h>
 
-namespace exodus {
+namespace elysium {
 
 class SigmaMintChainState
 {
@@ -130,11 +130,11 @@ public:
     SigmaSpend(const SigmaMintId& mint, SigmaMintGroup group, size_t groupSize, const SigmaProof& proof);
 };
 
-} // namespace exodus
+} // namespace elysium
 
 namespace std {
 
-using namespace exodus;
+using namespace elysium;
 
 // std::hash specialization.
 

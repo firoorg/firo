@@ -31,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 /**
  * Gets the byte offset of a transaction from the transaction index.
@@ -139,4 +139,4 @@ std::map<std::string, uint256> FetchWalletElysiumTransactions(unsigned int count
 }
 
 
-} // namespace exodus
+} // namespace elysium

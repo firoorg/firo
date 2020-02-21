@@ -10,7 +10,7 @@
 #include <array>
 #include <stdexcept>
 
-namespace exodus {
+namespace elysium {
 
 uint160 GetSerialId(const secp_primitives::Scalar &serial)
 {
@@ -138,4 +138,4 @@ bool SigmaProof::operator!=(const SigmaProof& other) const
     return !(*this == other);
 }
 
-} // namespace exodus
+} // namespace elysium

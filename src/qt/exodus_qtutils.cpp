@@ -12,7 +12,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 
-namespace exodus
+namespace elysium
 {
 
 /**

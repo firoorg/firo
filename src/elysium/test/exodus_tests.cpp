@@ -10,7 +10,7 @@
 
 #include <limits>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_exodus_tests, TestingSetup)
 

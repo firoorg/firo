@@ -217,7 +217,7 @@ public:
     }
 };
 
-namespace exodus
+namespace elysium
 {
 typedef std::map<std::string, CMPOffer> OfferMap;
 typedef std::map<std::string, CMPAccept> AcceptMap;
@@ -240,7 +240,7 @@ int DEx_acceptDestroy(const std::string& addressBuyer, const std::string& addres
 int DEx_payment(const uint256& txid, unsigned int vout, const std::string& addressSeller, const std::string& addressBuyer, int64_t amountPaid, int block, uint64_t* nAmended = NULL);
 
 unsigned int eraseExpiredAccepts(int block);
-}
+} // namespace elysium
 
 
 #endif // ELYSIUM_DEX_H

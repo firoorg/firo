@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 
-namespace exodus {
+namespace elysium {
 
 bool VerifySigmaSpend(
     PropertyId property,
@@ -16,6 +16,6 @@ bool VerifySigmaSpend(
     const SigmaProof& proof,
     bool fPadding);
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_SIGMA_H

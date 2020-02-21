@@ -46,8 +46,8 @@ static std::vector<unsigned char> createMockSpendPayload()
 
     uint16_t messageType = 1024;
     uint16_t messageVer = 0;
-    exodus::swapByteOrder16(messageVer);
-    exodus::swapByteOrder16(messageType);
+    elysium::swapByteOrder16(messageVer);
+    elysium::swapByteOrder16(messageType);
 
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
+        elysium::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
     );
 
     CreateAndProcessBlock({}, scriptPubKey);
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx_with_spend)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
+        elysium::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
     );
 
     CreateAndProcessBlock({}, scriptPubKey);
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_non_spend)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder("", "", "", 0, payload, txid, rawHex, true, exodus::InputMode::SIGMA)
+        elysium::WalletTxBuilder("", "", "", 0, payload, txid, rawHex, true, elysium::InputMode::SIGMA)
     );
 
     CreateAndProcessBlock({}, scriptPubKey);
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_spend)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder("", "", "", 0, data, txid, rawHex, true, exodus::InputMode::SIGMA)
+        elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, true, elysium::InputMode::SIGMA)
     );
 
     CreateAndProcessBlock({}, scriptPubKey);

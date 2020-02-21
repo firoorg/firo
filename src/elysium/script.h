@@ -17,7 +17,7 @@ bool GetOutputType(const CScript& scriptPubKey, txnouttype& whichTypeRet);
 /** Returns public keys or hashes from scriptPubKey, for standard transaction types. */
 bool SafeSolver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 
-namespace exodus {
+namespace elysium {
 
 /**
  * Extracts the pushed data from a script.
@@ -43,6 +43,6 @@ Output GetPushedValues(const CScript& script, Output output)
     return output;
 }
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_SCRIPT_H

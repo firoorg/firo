@@ -5,7 +5,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 #define TEST_ECO_PROPERTY_1 (0x80000003UL)
 
@@ -28,6 +28,6 @@ bool IsRequireCreationFee(EcosystemId ecosystem);
 bool IsRequireCreationFee(EcosystemId ecosystem, int block);
 bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network);
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_PROPERTY_H

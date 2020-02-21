@@ -26,7 +26,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-namespace exodus {
+namespace elysium {
 
 uint160 GetSerialId(const secp_primitives::Scalar &serial);
 
@@ -208,11 +208,11 @@ typedef uint16_t SigmaMintIndex;
 
 extern const SigmaParams DefaultSigmaParams;
 
-} // namespace exodus
+} // namespace elysium
 
 namespace std {
 
-using namespace exodus;
+using namespace elysium;
 
 // std::hash specialization.
 

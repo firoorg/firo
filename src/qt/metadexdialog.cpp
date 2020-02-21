@@ -50,7 +50,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 MetaDExDialog::MetaDExDialog(QWidget *parent) :
     QDialog(parent),

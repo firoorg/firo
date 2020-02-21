@@ -5,7 +5,7 @@
 #include <limits>
 #include <type_traits>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_AUTO_TEST_SUITE(exodus_property_tests)
 

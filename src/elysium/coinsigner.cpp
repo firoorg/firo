@@ -7,7 +7,7 @@
 #include "../libzerocoin/Zerocoin.h"
 #include "../sigma/openssl_context.h"
 
-namespace exodus {
+namespace elysium {
 
 CoinSigner::CoinSigner(ECDSAPrivateKey priv)
     : key(priv)
@@ -59,4 +59,4 @@ ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const 
     return serializedSig;
 }
 
-}
+} // namespace elysium

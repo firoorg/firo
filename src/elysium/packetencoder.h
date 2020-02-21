@@ -26,7 +26,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-namespace exodus {
+namespace elysium {
 
 static_assert(CPubKey::COMPRESSED_PUBLIC_KEY_SIZE >= 4, "Size of compressed public key must be at least 4 bytes");
 
@@ -212,11 +212,11 @@ CTxOut EncodeClassC(Payload first, Payload last)
     return CTxOut(0, script);
 }
 
-} // namespace exodus
+} // namespace elysium
 
 namespace std {
 
-using namespace exodus;
+using namespace elysium;
 
 string to_string(PacketClass c);
 

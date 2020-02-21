@@ -25,7 +25,7 @@
 #include <memory>
 #include <utility>
 
-namespace exodus {
+namespace elysium {
 
 class SigmaWallet
 {
@@ -166,6 +166,6 @@ protected:
     bool RemoveFromMintPool(SigmaPublicKey const &publicKey);
 };
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_SIGMAWALLET_H

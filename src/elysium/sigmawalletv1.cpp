@@ -8,7 +8,7 @@
 #include "../sigma/openssl_context.h"
 #include "../wallet/wallet.h"
 
-namespace exodus {
+namespace elysium {
 
 SigmaWalletV1::SigmaWalletV1() : SigmaWallet()
 {

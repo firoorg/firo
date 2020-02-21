@@ -16,7 +16,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const C
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 BOOST_AUTO_TEST_SUITE(exodus_packetencoder_tests)
 
@@ -57,4 +57,4 @@ BOOST_AUTO_TEST_CASE(system_address_regtest)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

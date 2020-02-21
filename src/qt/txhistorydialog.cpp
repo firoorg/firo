@@ -56,7 +56,7 @@
 #include <QWidget>
 
 using std::string;
-using namespace exodus;
+using namespace elysium;
 
 TXHistoryDialog::TXHistoryDialog(QWidget *parent) :
     QDialog(parent),

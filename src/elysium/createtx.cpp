@@ -146,14 +146,14 @@ ExodusTxBuilder& ExodusTxBuilder::addReference(const std::string& destination, i
 /** Embeds a payload with class C (op-return) encoding. */
 ExodusTxBuilder& ExodusTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
 {
-    transaction.vout.push_back(exodus::EncodeClassC(data.begin(), data.end()));
+    transaction.vout.push_back(elysium::EncodeClassC(data.begin(), data.end()));
     return *this;
 }
 
 /** Embeds a payload with class B (bare-multisig) encoding. */
 ExodusTxBuilder& ExodusTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
 {
-    exodus::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
+    elysium::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
     return *this;
 }
 

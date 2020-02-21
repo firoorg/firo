@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-using namespace exodus;
+using namespace elysium;
 
 // Is only temporarily modified and restored after each test
 extern std::map<std::string, std::string> mapArgs;

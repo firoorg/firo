@@ -19,7 +19,7 @@
 #include <forward_list>
 #include <string>
 
-namespace exodus {
+namespace elysium {
 
 class Wallet
 {
@@ -126,6 +126,6 @@ private:
 
 extern Wallet *wallet;
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_WALLET_H

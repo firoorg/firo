@@ -22,7 +22,7 @@
 
 #include <openssl/sha.h>
 
-namespace exodus
+namespace elysium
 {
 bool ShouldConsensusHashBlock(int block) {
     if (exodus_debug_consensus_hash_every_block) {
@@ -342,4 +342,4 @@ uint256 GetBalancesHash(const uint32_t hashPropertyId)
     return balancesHash;
 }
 
-} // namespace exodus
+} // namespace elysium

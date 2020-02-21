@@ -10,7 +10,7 @@
 #include "../libzerocoin/Zerocoin.h"
 #include "../sigma/openssl_context.h"
 
-namespace exodus {
+namespace elysium {
 
 typedef std::array<uint8_t, 32> ECDSAPrivateKey;
 typedef std::array<uint8_t, 33> ECDSAPublicKey;
@@ -29,6 +29,6 @@ public:
     ECDSASignature Sign(unsigned char const *start, unsigned char const *end);
 };
 
-}
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_WALLET_H

@@ -17,7 +17,7 @@
 
 CTxOut PayToPubKeyHash_Exodus()
 {
-    CScript scriptPubKey = GetScriptForDestination(exodus::GetSystemAddress().Get());
+    CScript scriptPubKey = GetScriptForDestination(elysium::GetSystemAddress().Get());
     int64_t amount = GetDustThreshold(scriptPubKey);
 
     return CTxOut(amount, scriptPubKey);

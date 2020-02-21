@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-namespace exodus
+namespace elysium
 {
 //! Comparator for owner/receiver entries
 struct SendToOwners_compare

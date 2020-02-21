@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 
 //! Vector of currently active Exodus alerts
@@ -188,4 +188,4 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
     return true;
 }
 
-} // namespace exodus
+} // namespace elysium

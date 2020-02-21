@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-using exodus::StrToInt64;
+using elysium::StrToInt64;
 
 std::string ParseAddress(const UniValue& value)
 {
@@ -57,7 +57,7 @@ uint32_t ParsePropertyId(const UniValue& value)
 
 int64_t ParseAmount(const UniValue& value, bool isDivisible)
 {
-    int64_t amount = exodus::StrToInt64(value.get_str(), isDivisible);
+    int64_t amount = elysium::StrToInt64(value.get_str(), isDivisible);
     if (amount < 1) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
     }
@@ -190,7 +190,7 @@ CMutableTransaction ParseMutableTransaction(const UniValue& value)
 CPubKey ParsePubKeyOrAddress(const UniValue& value)
 {
     CPubKey pubKey;
-    if (!exodus::AddressToPubKey(value.get_str(), pubKey)) {
+    if (!elysium::AddressToPubKey(value.get_str(), pubKey)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid redemption key or address");
     }
     return pubKey;
@@ -236,7 +236,7 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
     return prevTxsParsed;
 }
 
-namespace exodus {
+namespace elysium {
 
 SigmaDenomination ParseSigmaDenomination(const UniValue& value)
 {

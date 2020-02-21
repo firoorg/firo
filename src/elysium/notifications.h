@@ -11,7 +11,7 @@
 #define ALERT_BLOCKTIME_EXPIRY        2
 #define ALERT_CLIENT_VERSION_EXPIRY   3
 
-namespace exodus
+namespace elysium
 {
 /** A structure for alert messages.
  */

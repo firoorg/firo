@@ -6,7 +6,7 @@ class uint256;
 #include <map>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 /** Gets the byte offset of a transaction from the transaction index. */
 unsigned int GetTransactionByteOffset(const uint256& txid);

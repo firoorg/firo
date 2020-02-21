@@ -9,7 +9,7 @@
 #include <iterator>
 #include <vector>
 
-namespace exodus {
+namespace elysium {
 
 bool VerifySigmaSpend(
     PropertyId property,
@@ -34,4 +34,4 @@ bool VerifySigmaSpend(
     return proof.Verify(anonimitySet.begin(), anonimitySet.end(), fPadding);
 }
 
-} // namespace exodus
+} // namespace elysium

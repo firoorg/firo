@@ -30,7 +30,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_build_tx_tests, ZerocoinTestingSetup200)
 
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
+        elysium::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
     );
 
     CTransaction decTx;
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
+        elysium::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
     );
 
     CTransaction decTx;
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_without_mints)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         MPRPCErrorCode::MP_SIGMA_INPUTS_INVALID,
-        exodus::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, exodus::InputMode::SIGMA)
+        elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, elysium::InputMode::SIGMA)
     );
 }
 
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_with_toolarge_data)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         MPRPCErrorCode::MP_ENCODING_ERROR,
-        exodus::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, exodus::InputMode::SIGMA)
+        elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, elysium::InputMode::SIGMA)
     );
 }
 
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
     std::string rawHex;
     BOOST_CHECK_EQUAL(
         0, // No error
-        exodus::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, exodus::InputMode::SIGMA)
+        elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, elysium::InputMode::SIGMA)
     );
 
     CTransaction decTx;
@@ -153,4 +153,4 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

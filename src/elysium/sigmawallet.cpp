@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace exodus {
+namespace elysium {
 
 SigmaWallet::MintPoolEntry::MintPoolEntry()
 {

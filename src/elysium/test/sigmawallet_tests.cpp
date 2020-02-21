@@ -51,7 +51,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 using MintPoolEntry = SigmaWallet::MintPoolEntry;
 namespace {
@@ -604,4 +604,4 @@ BOOST_AUTO_TEST_CASE(restore_wallet)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

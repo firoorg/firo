@@ -6,7 +6,7 @@
 
 #include "../chainparams.h"
 
-namespace exodus {
+namespace elysium {
 
 bool IsEnabledFlag(SigmaStatus status)
 {
@@ -32,4 +32,4 @@ bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& n
     return block >= ConsensusParams(network).PROPERTY_CREATION_FEE_BLOCK;
 }
 
-} // namespace exodus
+} // namespace elysium

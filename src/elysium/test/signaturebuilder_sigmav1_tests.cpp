@@ -7,7 +7,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-namespace exodus {
+namespace elysium {
 
 class TestSignatureSigmaV1Builder : public SigmaV1SignatureBuilder
 {
@@ -118,4 +118,4 @@ BOOST_AUTO_TEST_CASE(verify)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

@@ -10,7 +10,7 @@ struct CMPPending;
 #include <map>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 //! Map of pending transaction objects
 typedef std::map<uint256, CMPPending> PendingMap;

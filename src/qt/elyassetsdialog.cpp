@@ -38,7 +38,7 @@
 
 using std::ostringstream;
 using std::string;
-using namespace exodus;
+using namespace elysium;
 
 ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     QDialog(parent), ui(new Ui::ElyAssetsDialog()), clientModel(0), walletModel(0)

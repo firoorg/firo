@@ -22,7 +22,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 //! Global vector of Exodus transactions in the wallet
 std::vector<uint256> walletTXIDCache;
@@ -130,4 +130,4 @@ int WalletCacheUpdate()
 }
 
 
-} // namespace exodus
+} // namespace elysium

@@ -24,7 +24,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const s
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_script_extraction_tests, BasicTestingSetup)
 
@@ -280,4 +280,4 @@ BOOST_AUTO_TEST_CASE(extract_anypush_test)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

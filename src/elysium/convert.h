@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdexcept>
 
-namespace exodus
+namespace elysium
 {
 
 /**
@@ -41,7 +41,6 @@ void swapByteOrder(T& t)
   }
 }
 
-}
-
+} // namespace elysium
 
 #endif // ELYSIUM_CONVERT_H

@@ -20,7 +20,7 @@
 
 #include <ctype.h>
 
-namespace exodus {
+namespace elysium {
 
 const std::array<unsigned char, 6> magic = { 0x65, 0x78, 0x6f, 0x64, 0x75, 0x73 }; // "exodus"
 
@@ -105,11 +105,11 @@ boost::optional<PacketClass> DeterminePacketClass(const CTransaction& tx, int he
     return boost::none;
 }
 
-} // namespace exodus
+} // namespace elysium
 
 namespace std {
 
-using namespace exodus;
+using namespace elysium;
 
 string to_string(PacketClass c)
 {

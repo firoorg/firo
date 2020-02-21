@@ -28,7 +28,7 @@
 #include <map>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 /**
  * Retrieves a public key from the wallet, or converts a hex-string to a public key.
@@ -301,4 +301,4 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
 }
 
 
-} // namespace exodus
+} // namespace elysium

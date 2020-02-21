@@ -21,7 +21,7 @@
 
 #include <inttypes.h>
 
-namespace exodus
+namespace elysium
 {
 /**
  * Returns a mapping of transaction types, and the blocks at which they are enabled.
@@ -649,4 +649,4 @@ bool VerifyCheckpoint(int block, const uint256& blockHash)
     return true;
 }
 
-} // namespace exodus
+} // namespace elysium

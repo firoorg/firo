@@ -266,7 +266,7 @@ int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex, uns
 bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex);
 int exodus_save_state( CBlockIndex const *pBlockIndex );
 
-namespace exodus
+namespace elysium
 {
 extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;

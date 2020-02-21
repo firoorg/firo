@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 extern std::string GenerateConsensusString(const CMPTally& tallyObj, const std::string& address, const uint32_t propertyId); // done
 extern std::string GenerateConsensusString(const CMPOffer& offerObj, const std::string& address); // half
@@ -28,7 +28,7 @@ extern std::string GenerateConsensusString(const uint32_t propertyId, const std:
 
 extern void clear_all_state();
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_checkpoint_tests, BasicTestingSetup)
 

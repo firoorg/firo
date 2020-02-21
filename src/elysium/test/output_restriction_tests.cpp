@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <limits>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_output_restriction_tests, BasicTestingSetup)
 

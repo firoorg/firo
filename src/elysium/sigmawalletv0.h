@@ -7,7 +7,7 @@
 
 #include "sigmawallet.h"
 
-namespace exodus {
+namespace elysium {
 
 class SigmaWalletV0 : public SigmaWallet
 {

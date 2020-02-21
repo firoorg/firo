@@ -13,7 +13,7 @@
 
 #include <limits>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_marker_tests, BasicTestingSetup)
 
@@ -232,4 +232,4 @@ BOOST_AUTO_TEST_CASE(class_class_c)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

@@ -14,7 +14,7 @@
 #include <functional>
 #include <utility>
 
-namespace exodus {
+namespace elysium {
 
 Wallet *wallet;
 
@@ -341,4 +341,4 @@ void Wallet::OnMintRemoved(PropertyId property, SigmaDenomination denomination, 
     SetSigmaMintChainState(id, SigmaMintChainState());
 }
 
-} // namespace exodus
+} // namespace elysium

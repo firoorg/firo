@@ -32,7 +32,7 @@ struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterat
     static constexpr bool value = true;
 };
 
-namespace exodus {
+namespace elysium {
 
 class SigmaDatabase : public CDBBase
 {
@@ -65,14 +65,14 @@ public:
         typename std::enable_if<is_iterator<OutputIt>::value, void>::type* = nullptr
     > OutputIt GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count, OutputIt firstIt)
     {
-        GetAnonimityGroup(propertyId, denomination, groupId, count, [&firstIt](exodus::SigmaPublicKey& pub) mutable {
+        GetAnonimityGroup(propertyId, denomination, groupId, count, [&firstIt](elysium::SigmaPublicKey& pub) mutable {
             *firstIt++ = std::move(pub);
         });
 
         return firstIt;
     }
     size_t GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
-        std::function<void(exodus::SigmaPublicKey&)>);
+        std::function<void(elysium::SigmaPublicKey&)>);
 
     template<class OutputIt>
     OutputIt GetAnonimityGroup(uint32_t propertyId, uint8_t denomination, uint32_t groupId, OutputIt firstIt)
@@ -116,6 +116,6 @@ protected:
 
 extern SigmaDatabase *sigmaDb;
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_SIGMADB_H

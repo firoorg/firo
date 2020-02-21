@@ -13,7 +13,7 @@
 #include <univalue.h>
 
 using std::runtime_error;
-using namespace exodus;
+using namespace elysium;
 
 UniValue elysium_createpayload_simplesend(const UniValue& params, bool fHelp)
 {

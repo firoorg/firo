@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace exodus
+namespace elysium
 {
     /**
      * Sets up a simple dialog layout that can be used to provide selectable text to the user

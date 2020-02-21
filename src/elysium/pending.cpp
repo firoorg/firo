@@ -15,7 +15,7 @@
 
 #include <string>
 
-namespace exodus {
+namespace elysium {
 
 //! Global map of pending transaction objects
 PendingMap my_pending;
@@ -94,7 +94,7 @@ void PendingCheck()
     }
 }
 
-} // namespace exodus
+} // namespace elysium
 
 /**
  * Prints information about a pending transaction object.

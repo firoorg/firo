@@ -35,10 +35,10 @@
 
 using boost::algorithm::token_compress_on;
 
-using namespace exodus;
+using namespace elysium;
 
 /** Returns a label for the given transaction type. */
-std::string exodus::strTransactionType(uint16_t txType)
+std::string elysium::strTransactionType(uint16_t txType)
 {
     switch (txType) {
         case ELYSIUM_TYPE_SIMPLE_SEND: return "Simple Send";
@@ -85,7 +85,7 @@ void CMPTransaction::Set(
     unsigned int idx,
     unsigned char *p,
     unsigned int size,
-    const boost::optional<exodus::PacketClass>& packetClass,
+    const boost::optional<elysium::PacketClass>& packetClass,
     uint64_t txf,
     const boost::optional<CAmount>& referenceAmount)
 {

@@ -90,7 +90,7 @@ using std::pair;
 using std::string;
 using std::vector;
 
-using namespace exodus;
+using namespace elysium;
 
 static int nWaterlineBlock = 0;
 
@@ -123,12 +123,12 @@ static int exodusInitialized = 0;
 static int reorgRecoveryMode = 0;
 static int reorgRecoveryMaxHeight = 0;
 
-CMPTxList *exodus::p_txlistdb;
-CMPTradeList *exodus::t_tradelistdb;
-CMPSTOList *exodus::s_stolistdb;
-CExodusTransactionDB *exodus::p_ExodusTXDB;
-CExodusFeeCache *exodus::p_feecache;
-CExodusFeeHistory *exodus::p_feehistory;
+CMPTxList *elysium::p_txlistdb;
+CMPTradeList *elysium::t_tradelistdb;
+CMPSTOList *elysium::s_stolistdb;
+CExodusTransactionDB *elysium::p_ExodusTXDB;
+CExodusFeeCache *elysium::p_feecache;
+CExodusFeeHistory *elysium::p_feehistory;
 
 // indicate whether persistence is enabled at this point, or not
 // used to write/read files, for breakout mode, debugging, etc.
@@ -145,7 +145,7 @@ bool isElysiumEnabled()
     return GetBoolArg("-elysium", false);
 }
 
-std::string exodus::strMPProperty(uint32_t propertyId)
+std::string elysium::strMPProperty(uint32_t propertyId)
 {
     std::string str = "*unknown*";
 
@@ -203,7 +203,7 @@ std::string FormatDivisibleMP(int64_t n, bool fSign)
     return str;
 }
 
-std::string exodus::FormatIndivisibleMP(int64_t n)
+std::string elysium::FormatIndivisibleMP(int64_t n)
 {
     return strprintf("%d", n);
 }
@@ -235,16 +235,16 @@ std::string FormatByType(int64_t amount, uint16_t propertyType)
     }
 }
 
-OfferMap exodus::my_offers;
-AcceptMap exodus::my_accepts;
+OfferMap elysium::my_offers;
+AcceptMap elysium::my_accepts;
 
-CMPSPInfo *exodus::_my_sps;
-CrowdMap exodus::my_crowds;
+CMPSPInfo *elysium::_my_sps;
+CrowdMap elysium::my_crowds;
 
 // this is the master list of all amounts for all addresses for all properties, map is unsorted
-std::unordered_map<std::string, CMPTally> exodus::mp_tally_map;
+std::unordered_map<std::string, CMPTally> elysium::mp_tally_map;
 
-CMPTally* exodus::getTally(const std::string& address)
+CMPTally* elysium::getTally(const std::string& address)
 {
     std::unordered_map<std::string, CMPTally>::iterator it = mp_tally_map.find(address);
 
@@ -297,28 +297,28 @@ int64_t getUserFrozenMPbalance(const std::string& address, uint32_t propertyId)
     return frozen;
 }
 
-bool exodus::isTestEcosystemProperty(uint32_t propertyId)
+bool elysium::isTestEcosystemProperty(uint32_t propertyId)
 {
     if ((ELYSIUM_PROPERTY_TELYSIUM == propertyId) || (TEST_ECO_PROPERTY_1 <= propertyId)) return true;
 
     return false;
 }
 
-bool exodus::isMainEcosystemProperty(uint32_t propertyId)
+bool elysium::isMainEcosystemProperty(uint32_t propertyId)
 {
     if ((ELYSIUM_PROPERTY_XZC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
 
     return false;
 }
 
-void exodus::ClearFreezeState()
+void elysium::ClearFreezeState()
 {
     // Should only ever be called in the event of a reorg
     setFreezingEnabledProperties.clear();
     setFrozenAddresses.clear();
 }
 
-void exodus::PrintFreezeState()
+void elysium::PrintFreezeState()
 {
     PrintToLog("setFrozenAddresses state:\n");
     for (std::set<std::pair<std::string,uint32_t> >::iterator it = setFrozenAddresses.begin(); it != setFrozenAddresses.end(); it++) {
@@ -330,14 +330,14 @@ void exodus::PrintFreezeState()
     }
 }
 
-void exodus::enableFreezing(uint32_t propertyId, int liveBlock)
+void elysium::enableFreezing(uint32_t propertyId, int liveBlock)
 {
     setFreezingEnabledProperties.insert(std::make_pair(propertyId, liveBlock));
     assert(isFreezingEnabled(propertyId, liveBlock));
     PrintToLog("Freezing for property %d will be enabled at block %d.\n", propertyId, liveBlock);
 }
 
-void exodus::disableFreezing(uint32_t propertyId)
+void elysium::disableFreezing(uint32_t propertyId)
 {
     int liveBlock = 0;
     for (std::set<std::pair<uint32_t,int> >::iterator it = setFreezingEnabledProperties.begin(); it != setFreezingEnabledProperties.end(); it++) {
@@ -364,7 +364,7 @@ void exodus::disableFreezing(uint32_t propertyId)
     assert(!isFreezingEnabled(propertyId, liveBlock));
 }
 
-bool exodus::isFreezingEnabled(uint32_t propertyId, int block)
+bool elysium::isFreezingEnabled(uint32_t propertyId, int block)
 {
     for (std::set<std::pair<uint32_t,int> >::iterator it = setFreezingEnabledProperties.begin(); it != setFreezingEnabledProperties.end(); it++) {
         uint32_t itemPropertyId = (*it).first;
@@ -376,21 +376,21 @@ bool exodus::isFreezingEnabled(uint32_t propertyId, int block)
     return false;
 }
 
-void exodus::freezeAddress(const std::string& address, uint32_t propertyId)
+void elysium::freezeAddress(const std::string& address, uint32_t propertyId)
 {
     setFrozenAddresses.insert(std::make_pair(address, propertyId));
     assert(isAddressFrozen(address, propertyId));
     PrintToLog("Address %s has been frozen for property %d.\n", address, propertyId);
 }
 
-void exodus::unfreezeAddress(const std::string& address, uint32_t propertyId)
+void elysium::unfreezeAddress(const std::string& address, uint32_t propertyId)
 {
     setFrozenAddresses.erase(std::make_pair(address, propertyId));
     assert(!isAddressFrozen(address, propertyId));
     PrintToLog("Address %s has been unfrozen for property %d.\n", address, propertyId);
 }
 
-bool exodus::isAddressFrozen(const std::string& address, uint32_t propertyId)
+bool elysium::isAddressFrozen(const std::string& address, uint32_t propertyId)
 {
     if (setFrozenAddresses.find(std::make_pair(address, propertyId)) != setFrozenAddresses.end()) {
         return true;
@@ -398,7 +398,7 @@ bool exodus::isAddressFrozen(const std::string& address, uint32_t propertyId)
     return false;
 }
 
-std::string exodus::getTokenLabel(uint32_t propertyId)
+std::string elysium::getTokenLabel(uint32_t propertyId)
 {
     std::string tokenStr;
     if (propertyId < 3) {
@@ -415,7 +415,7 @@ std::string exodus::getTokenLabel(uint32_t propertyId)
 
 // get total tokens for a property
 // optionally counts the number of addresses who own that property: n_owners_total
-int64_t exodus::getTotalTokens(uint32_t propertyId, int64_t* n_owners_total)
+int64_t elysium::getTotalTokens(uint32_t propertyId, int64_t* n_owners_total)
 {
     int64_t prev = 0;
     int64_t owners = 0;
@@ -456,7 +456,7 @@ int64_t exodus::getTotalTokens(uint32_t propertyId, int64_t* n_owners_total)
 }
 
 // return true if everything is ok
-bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64_t amount, TallyType ttype)
+bool elysium::update_tally_map(const std::string& who, uint32_t propertyId, int64_t amount, TallyType ttype)
 {
     if (0 == amount) {
         PrintToLog("%s(%s, %u=0x%X, %+d, ttype=%d) ERROR: amount to credit or debit is zero\n", __func__, who, propertyId, propertyId, amount, ttype);
@@ -563,7 +563,7 @@ static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
     return exodus_delta;
 }
 
-uint32_t exodus::GetNextPropertyId(bool maineco)
+uint32_t elysium::GetNextPropertyId(bool maineco)
 {
     if (maineco) {
         return _my_sps->peekNextSPID(1);
@@ -622,11 +622,11 @@ void CheckWalletUpdate(bool forceUpdate)
 }
 
 // TODO: move
-CCoinsView exodus::viewDummy;
-CCoinsViewCache exodus::view(&viewDummy);
+CCoinsView elysium::viewDummy;
+CCoinsViewCache elysium::view(&viewDummy);
 
 //! Guards coins view cache
-CCriticalSection exodus::cs_tx_cache;
+CCriticalSection elysium::cs_tx_cache;
 
 static unsigned int nCacheHits = 0;
 static unsigned int nCacheMiss = 0;
@@ -2199,7 +2199,7 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
  * @param nDataSize The length of the payload
  * @return True, if Class C is enabled and the payload is small enough
  */
-bool exodus::UseEncodingClassC(size_t nDataSize)
+bool elysium::UseEncodingClassC(size_t nDataSize)
 {
     size_t nTotalSize = nDataSize + magic.size(); // Marker "exodus"
     bool fDataEnabled = GetBoolArg("-datacarrier", true);
@@ -2211,7 +2211,7 @@ bool exodus::UseEncodingClassC(size_t nDataSize)
 }
 
 // This function requests the wallet create an Exodus transaction using the supplied parameters and payload
-int exodus::WalletTxBuilder(
+int elysium::WalletTxBuilder(
     const std::string& senderAddress,
     const std::string& receiverAddress,
     const std::string& redemptionAddress,
@@ -3640,7 +3640,7 @@ void CMPTradeList::printAll()
 }
 
 // global wrapper, block numbers are inclusive, if ending_block is 0 top of the chain will be used
-bool exodus::isMPinBlockRange(int starting_block, int ending_block, bool bDeleteFound)
+bool elysium::isMPinBlockRange(int starting_block, int ending_block, bool bDeleteFound)
 {
   if (!p_txlistdb) return false;
 
@@ -3656,7 +3656,7 @@ bool exodus::isMPinBlockRange(int starting_block, int ending_block, bool bDelete
 //
 // if (getValidMPTX(txid, &block, &type, &nNew)) // if true -- the TX is a valid MP TX
 //
-bool exodus::getValidMPTX(const uint256 &txid, int *block, unsigned int *type, uint64_t *nAmended)
+bool elysium::getValidMPTX(const uint256 &txid, int *block, unsigned int *type, uint64_t *nAmended)
 {
 string result;
 int validity = 0;

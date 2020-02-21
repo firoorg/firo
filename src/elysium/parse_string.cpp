@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 int64_t StrToInt64(const std::string& str, bool divisible)
 {    
@@ -63,4 +63,4 @@ int64_t StrToInt64(const std::string& str, bool divisible)
     return nAmount;
 }
 
-} // namespace exodus
+} // namespace elysium

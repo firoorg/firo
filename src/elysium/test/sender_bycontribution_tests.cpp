@@ -19,7 +19,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_sender_bycontribution_tests, BasicTestingSetup)
 

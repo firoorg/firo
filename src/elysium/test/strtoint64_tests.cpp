@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_strtoint64_tests, BasicTestingSetup)
 

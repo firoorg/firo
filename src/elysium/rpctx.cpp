@@ -32,7 +32,7 @@
 #include <inttypes.h>
 
 using std::runtime_error;
-using namespace exodus;
+using namespace elysium;
 
 UniValue elysium_sendrawtx(const UniValue& params, bool fHelp)
 {

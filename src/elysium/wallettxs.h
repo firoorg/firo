@@ -10,7 +10,7 @@ class CPubKey;
 #include <stdint.h>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 /** Retrieves a public key from the wallet, or converts a hex-string to a public key. */
 bool AddressToPubKey(const std::string& key, CPubKey& pubKey);

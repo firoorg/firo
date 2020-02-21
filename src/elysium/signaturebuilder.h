@@ -12,7 +12,7 @@
 
 #include "sigmaprimitives.h"
 
-namespace exodus {
+namespace elysium {
 
 class SignatureBuilder
 {

@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 /**
  * @return The current chain length.
@@ -76,4 +76,4 @@ bool isNonMainNet()
 }
 
 
-} // namespace exodus
+} // namespace elysium

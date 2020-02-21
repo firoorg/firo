@@ -30,7 +30,7 @@
 #include <vector>
 #include <utility>
 
-using namespace exodus;
+using namespace elysium;
 
 CMPSPInfo::Entry::Entry()
   : prop_type(0), prev_prop_id(0), num_tokens(0), property_desired(0),
@@ -613,7 +613,7 @@ void CMPCrowd::saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std:
     file << lineOut << std::endl;
 }
 
-CMPCrowd* exodus::getCrowd(const std::string& address)
+CMPCrowd* elysium::getCrowd(const std::string& address)
 {
     CrowdMap::iterator my_it = my_crowds.find(address);
 
@@ -622,7 +622,7 @@ CMPCrowd* exodus::getCrowd(const std::string& address)
     return (CMPCrowd *)NULL;
 }
 
-bool exodus::IsPropertyIdValid(uint32_t propertyId)
+bool elysium::IsPropertyIdValid(uint32_t propertyId)
 {
     if (propertyId == 0) return false;
 
@@ -641,7 +641,7 @@ bool exodus::IsPropertyIdValid(uint32_t propertyId)
     return false;
 }
 
-bool exodus::IsSigmaStatusValid(SigmaStatus status)
+bool elysium::IsSigmaStatusValid(SigmaStatus status)
 {
     return status == SigmaStatus::SoftDisabled ||
            status == SigmaStatus::SoftEnabled ||
@@ -649,7 +649,7 @@ bool exodus::IsSigmaStatusValid(SigmaStatus status)
            status == SigmaStatus::HardEnabled;
 }
 
-bool exodus::IsSigmaEnabled(PropertyId property)
+bool elysium::IsSigmaEnabled(PropertyId property)
 {
     CMPSPInfo::Entry info;
 
@@ -662,7 +662,7 @@ bool exodus::IsSigmaEnabled(PropertyId property)
     return IsEnabledFlag(info.sigmaStatus);
 }
 
-bool exodus::IsDenominationValid(PropertyId property, SigmaDenomination denomination)
+bool elysium::IsDenominationValid(PropertyId property, SigmaDenomination denomination)
 {
     CMPSPInfo::Entry info;
 
@@ -675,7 +675,7 @@ bool exodus::IsDenominationValid(PropertyId property, SigmaDenomination denomina
     return denomination < info.denominations.size();
 }
 
-int64_t exodus::GetDenominationValue(PropertyId property, SigmaDenomination denomination)
+int64_t elysium::GetDenominationValue(PropertyId property, SigmaDenomination denomination)
 {
     CMPSPInfo::Entry info;
 
@@ -708,7 +708,7 @@ std::string std::to_string(SigmaStatus status)
     }
 }
 
-bool exodus::isPropertyDivisible(uint32_t propertyId)
+bool elysium::isPropertyDivisible(uint32_t propertyId)
 {
     // TODO: is a lock here needed
     CMPSPInfo::Entry sp;
@@ -718,14 +718,14 @@ bool exodus::isPropertyDivisible(uint32_t propertyId)
     return true;
 }
 
-std::string exodus::getPropertyName(uint32_t propertyId)
+std::string elysium::getPropertyName(uint32_t propertyId)
 {
     CMPSPInfo::Entry sp;
     if (_my_sps->getSP(propertyId, sp)) return sp.name;
     return "Property Name Not Found";
 }
 
-bool exodus::isCrowdsaleActive(uint32_t propertyId)
+bool elysium::isCrowdsaleActive(uint32_t propertyId)
 {
     for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
         const CMPCrowd& crowd = it->second;
@@ -746,7 +746,7 @@ bool exodus::isCrowdsaleActive(uint32_t propertyId)
  * @param crowdsale The crowdsale
  * @return The number of missed tokens
  */
-int64_t exodus::GetMissedIssuerBonus(const CMPSPInfo::Entry& sp, const CMPCrowd& crowdsale)
+int64_t elysium::GetMissedIssuerBonus(const CMPSPInfo::Entry& sp, const CMPCrowd& crowdsale)
 {
     // consistency check
     assert(getTotalTokens(crowdsale.getPropertyId())
@@ -786,7 +786,7 @@ int64_t exodus::GetMissedIssuerBonus(const CMPSPInfo::Entry& sp, const CMPCrowd&
 
 // calculateFundraiser does token calculations per transaction
 // calcluateFractional does calculations for missed tokens
-void exodus::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_t bonusPerc,
+void elysium::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_t bonusPerc,
         int64_t fundraiserSecs, int64_t currentSecs, int64_t numProps, uint8_t issuerPerc, int64_t totalTokens,
         std::pair<int64_t, int64_t>& tokens, bool& close_crowdsale)
 {
@@ -876,7 +876,7 @@ void exodus::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8_
 
 // go hunting for whether a simple send is a crowdsale purchase
 // TODO !!!! horribly inefficient !!!! find a more efficient way to do this
-bool exodus::isCrowdsalePurchase(const uint256& txid, const std::string& address, int64_t* propertyId, int64_t* userTokens, int64_t* issuerTokens)
+bool elysium::isCrowdsalePurchase(const uint256& txid, const std::string& address, int64_t* propertyId, int64_t* userTokens, int64_t* issuerTokens)
 {
     // 1. loop crowdsales (active/non-active) looking for issuer address
     // 2. loop those crowdsales for that address and check their participant txs in database
@@ -919,7 +919,7 @@ bool exodus::isCrowdsalePurchase(const uint256& txid, const std::string& address
     return false;
 }
 
-void exodus::eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, int block)
+void elysium::eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, int block)
 {
     CrowdMap::iterator it = my_crowds.find(address);
 
@@ -953,7 +953,7 @@ void exodus::eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, 
     }
 }
 
-unsigned int exodus::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
+unsigned int elysium::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
 {
     if (pBlockIndex == NULL) return 0;
 
@@ -1005,7 +1005,7 @@ unsigned int exodus::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
     return how_many_erased;
 }
 
-std::string exodus::strPropertyType(uint16_t propertyType)
+std::string elysium::strPropertyType(uint16_t propertyType)
 {
     switch (propertyType) {
         case ELYSIUM_PROPERTY_TYPE_DIVISIBLE: return "divisible";
@@ -1015,7 +1015,7 @@ std::string exodus::strPropertyType(uint16_t propertyType)
     return "unknown";
 }
 
-std::string exodus::strEcosystem(uint8_t ecosystem)
+std::string elysium::strEcosystem(uint8_t ecosystem)
 {
     switch (ecosystem) {
         case ELYSIUM_PROPERTY_ELYSIUM: return "main";

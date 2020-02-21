@@ -6,7 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_rounduint64_tests, BasicTestingSetup)
 

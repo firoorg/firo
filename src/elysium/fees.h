@@ -92,7 +92,7 @@ public:
     // Retrieve fee distribution receipts for an address
 };
 
-namespace exodus
+namespace elysium
 {
     extern CExodusFeeCache *p_feecache;
     extern CExodusFeeHistory *p_feehistory;

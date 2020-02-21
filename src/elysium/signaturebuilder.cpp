@@ -14,7 +14,7 @@
 #include "sigmaprimitives.h"
 #include "signaturebuilder.h"
 
-namespace exodus {
+namespace elysium {
 
 SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     CBitcoinAddress const &receiver,
@@ -32,7 +32,7 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     hasher.write(reinterpret_cast<char*>(keyId.begin()), keyId.size());
 
     // reference amount
-    exodus::swapByteOrder(referenceAmount);
+    elysium::swapByteOrder(referenceAmount);
     hasher.write(reinterpret_cast<char*>(&referenceAmount), sizeof(referenceAmount));
 
     // serial and proof

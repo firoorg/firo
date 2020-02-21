@@ -23,8 +23,8 @@
 
 extern CCriticalSection cs_main;
 
-using exodus::cs_tx_cache;
-using exodus::view;
+using elysium::cs_tx_cache;
+using elysium::view;
 
 
 UniValue elysium_decodetransaction(const UniValue& params, bool fHelp)

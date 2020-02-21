@@ -9,7 +9,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 const int MAX_BLOCK = std::numeric_limits<int>::max();
 const int MAX_VERSION = std::numeric_limits<uint16_t>::max();

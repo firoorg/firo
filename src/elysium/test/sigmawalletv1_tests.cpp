@@ -52,7 +52,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 using MintPoolEntry = SigmaWallet::MintPoolEntry;
 namespace {
@@ -148,7 +148,7 @@ struct SigmaWalletV1TestingSetup : WalletTestingSetup
         wallet->ReloadMasterKey();
     }
 
-    std::pair<SigmaMintId, SigmaMint> GenerateMint(exodus::PropertyId id, exodus::SigmaDenomination denom)
+    std::pair<SigmaMintId, SigmaMint> GenerateMint(elysium::PropertyId id, elysium::SigmaDenomination denom)
     {
         LOCK(pwalletMain->cs_wallet);
         auto seedId = pwalletMain->GenerateNewKey(BIP44_ELYSIUM_MINT_INDEX).GetID();
@@ -163,7 +163,7 @@ struct SigmaWalletV1TestingSetup : WalletTestingSetup
             SigmaMint(id, denom, seedId, serialId));
     }
 
-    std::pair<exodus::SigmaPrivateKey, exodus::SigmaPublicKey> GetKey(CKeyID const &id)
+    std::pair<elysium::SigmaPrivateKey, elysium::SigmaPublicKey> GetKey(CKeyID const &id)
     {
         LOCK(pwalletMain->cs_wallet);
         auto priv = wallet->GeneratePrivateKey(id);
@@ -417,4 +417,4 @@ BOOST_AUTO_TEST_CASE(listexodusmints_withsomemints)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

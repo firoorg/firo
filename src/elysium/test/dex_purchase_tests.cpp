@@ -7,11 +7,11 @@
 #include <stdint.h>
 
 // forward declaration
-namespace exodus {
+namespace elysium {
 extern int64_t calculateDExPurchase(const int64_t amountOffered, const int64_t amountDesired, const int64_t amountPaid);
 }
 
-using exodus::calculateDExPurchase;
+using elysium::calculateDExPurchase;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_dex_purchase_tests, BasicTestingSetup)
 

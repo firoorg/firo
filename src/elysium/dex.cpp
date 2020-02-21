@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 /**
  * Checks, if such a sell offer exists.
@@ -572,4 +572,4 @@ unsigned int eraseExpiredAccepts(int blockNow)
 }
 
 
-} // namespace exodus
+} // namespace elysium

@@ -25,7 +25,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_parsing_c_tests, BasicTestingSetup)
 
@@ -440,4 +440,4 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

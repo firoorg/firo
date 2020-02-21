@@ -31,7 +31,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const b
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_walletmodels_tests, BasicTestingSetup)
 
@@ -346,4 +346,4 @@ BOOST_AUTO_TEST_CASE(sigma_spend_init)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

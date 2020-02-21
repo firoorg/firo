@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 //! Pending activations
 std::vector<FeatureActivation> vecPendingActivations;
@@ -234,4 +234,4 @@ bool CheckDeactivationAuthorization(const std::string& sender)
     return fAuthorized;
 }
 
-} // namespace exodus
+} // namespace elysium

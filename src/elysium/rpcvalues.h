@@ -39,7 +39,7 @@ uint32_t ParseOutputIndex(const UniValue& value);
 /** Parses previous transaction outputs. */
 std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value);
 
-namespace exodus {
+namespace elysium {
 
 SigmaDenomination ParseSigmaDenomination(const UniValue& value);
 

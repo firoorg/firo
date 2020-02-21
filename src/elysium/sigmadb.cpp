@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace exodus {
+namespace elysium {
 
 enum class KeyType : uint8_t
 {
@@ -63,7 +63,7 @@ template<
 > It SerializeKey(It it, T t, R ...r)
 {
     if (sizeof(t) > 1) {
-        exodus::swapByteOrder(t);
+        elysium::swapByteOrder(t);
     }
     it = std::copy_n(reinterpret_cast<uint8_t*>(&t), sizeof(t), it);
     return SerializeKey(it, r...);
@@ -191,9 +191,9 @@ bool ParseMintKey(
         std::memcpy(&groupId, it += sizeof(denomination), sizeof(groupId));
         std::memcpy(&idx, it += sizeof(groupId), sizeof(idx));
 
-        exodus::swapByteOrder(propertyId);
-        exodus::swapByteOrder(groupId);
-        exodus::swapByteOrder(idx);
+        elysium::swapByteOrder(propertyId);
+        elysium::swapByteOrder(groupId);
+        elysium::swapByteOrder(idx);
 
         return true;
     }
@@ -213,7 +213,7 @@ bool ParseSpendSerialKey(
         std::memcpy(&denomination, it += sizeof(propertyId), sizeof(denomination));
         std::memcpy(serial.data(), it += sizeof(denomination), std::tuple_size<SpendSerial>::value);
 
-        exodus::swapByteOrder(propertyId);
+        elysium::swapByteOrder(propertyId);
 
         return true;
     }
@@ -518,7 +518,7 @@ uint16_t SigmaDatabase::InitGroupSize(uint16_t groupSize)
 
 size_t SigmaDatabase::GetAnonimityGroup(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, size_t count,
-    std::function<void(exodus::SigmaPublicKey&)> insertF)
+    std::function<void(elysium::SigmaPublicKey&)> insertF)
 {
     auto firstKey = CreateMintKey(propertyId, denomination, groupId, 0);
 
@@ -619,14 +619,14 @@ uint64_t SigmaDatabase::GetNextSequence()
         }
         auto lastKey = it->key();
         std::memcpy(&nextSequence, lastKey.data() + sizeof(KeyType), sizeof(nextSequence));
-        exodus::swapByteOrder(nextSequence);
+        elysium::swapByteOrder(nextSequence);
         nextSequence++;
     }
 
     return nextSequence;
 }
 
-exodus::SigmaPublicKey SigmaDatabase::GetMint(
+elysium::SigmaPublicKey SigmaDatabase::GetMint(
     uint32_t propertyId, uint8_t denomination, uint32_t groupId, uint16_t index)
 {
     auto key = CreateMintKey(propertyId, denomination, groupId, index);
@@ -707,4 +707,4 @@ std::unique_ptr<leveldb::Iterator> SigmaDatabase::NewIterator() const
     return std::unique_ptr<leveldb::Iterator>(CDBBase::NewIterator());
 }
 
-} // namespace exodus
+} // namespace elysium

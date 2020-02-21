@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 /**
  * Compares two owner/receiver entries, based on amount.
@@ -112,4 +112,4 @@ OwnerAddrType STO_GetReceivers(const std::string& sender, uint32_t property, int
     return receiversSet;
 }
 
-} // namespace exodus
+} // namespace elysium

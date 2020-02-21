@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <limits>
 
-namespace exodus {
+namespace elysium {
 namespace uint256_const {
 //! The number 1 as uint256
 static const arith_uint256 one(static_cast<uint64_t>(1));
@@ -59,6 +59,6 @@ inline arith_uint256 DivideAndRoundUp(const arith_uint256& numerator, const arit
     return uint256_const::one + (numerator - uint256_const::one) / denominator;
 }
 
-} // namespace exodus
+} // namespace elysium
 
 #endif // ELYSIUM_UINT256_EXTENSIONS_H

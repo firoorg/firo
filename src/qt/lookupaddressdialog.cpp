@@ -43,7 +43,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 MPQRImageWidget::MPQRImageWidget(QWidget *parent):
     QLabel(parent), contextMenu(0)

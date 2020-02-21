@@ -22,7 +22,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
-using namespace exodus;
+using namespace elysium;
 
 std::map<uint32_t, int64_t> distributionThresholds;
 
@@ -147,7 +147,7 @@ void CExodusFeeCache::RollBackCache(int block)
     assert(pdb);
     for (uint8_t ecosystem = 1; ecosystem <= 2; ecosystem++) {
         uint32_t startPropertyId = (ecosystem == 1) ? 1 : TEST_ECO_PROPERTY_1;
-        for (uint32_t propertyId = startPropertyId; propertyId < exodus::_my_sps->peekNextSPID(ecosystem); propertyId++) {
+        for (uint32_t propertyId = startPropertyId; propertyId < elysium::_my_sps->peekNextSPID(ecosystem); propertyId++) {
             const std::string key = strprintf("%010d", propertyId);
             std::set<feeCacheItem> sCacheHistoryItems = GetCacheHistory(propertyId);
             if (!sCacheHistoryItems.empty()) {

@@ -41,7 +41,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 namespace {
 
 struct MintAdded
@@ -711,4 +711,4 @@ BOOST_AUTO_TEST_CASE(delete_both_mint_and_spend)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

@@ -24,7 +24,7 @@
 #include <QWidget>
 
 using std::string;
-using namespace exodus;
+using namespace elysium;
 
 LookupTXDialog::LookupTXDialog(QWidget *parent) :
     QDialog(parent),

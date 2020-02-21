@@ -3,7 +3,7 @@
 
 #include "uint256.h"
 
-namespace exodus
+namespace elysium
 {
 /** Checks if a given block should be consensus hashed. */
 bool ShouldConsensusHashBlock(int block);
@@ -17,6 +17,6 @@ uint256 GetMetaDExHash(const uint32_t propertyId = 0);
 /** Obtains a hash of the balances for a specific property. */
 uint256 GetBalancesHash(const uint32_t hashPropertyId);
 
-}
+} // namespace elysium
 
 #endif // ELYSIUM_CONSENSUSHASH_H

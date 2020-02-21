@@ -20,7 +20,7 @@ class CTransaction;
 
 #include <inttypes.h>
 
-using exodus::strTransactionType;
+using elysium::strTransactionType;
 
 enum TransactionType {
     ELYSIUM_TYPE_SIMPLE_SEND                 =  0,
@@ -75,7 +75,7 @@ private:
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;
 
-    boost::optional<exodus::PacketClass> packetClass;
+    boost::optional<elysium::PacketClass> packetClass;
 
     std::string sender;
     std::string receiver;
@@ -135,11 +135,11 @@ private:
 
     // Sigma
     SigmaStatus sigmaStatus;
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> mints;
+    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> mints;
     uint8_t denomination;
     uint32_t group;
     uint16_t groupSize;
-    std::unique_ptr<exodus::SigmaProof> spend;
+    std::unique_ptr<elysium::SigmaProof> spend;
 
     std::array<uint8_t, 33> sigmaECDSAPubkey;
     std::array<uint8_t, 64> sigmaECDSASignature;
@@ -257,7 +257,7 @@ public:
     uint8_t getEarlyBirdBonus() const { return early_bird; }
     uint8_t getIssuerBonus() const { return percentage; }
     bool isRpcOnly() const { return rpcOnly; }
-    const boost::optional<exodus::PacketClass>& getPacketClass() const { return packetClass; }
+    const boost::optional<elysium::PacketClass>& getPacketClass() const { return packetClass; }
     uint16_t getAlertType() const { return alert_type; }
     uint32_t getAlertExpiry() const { return alert_expiry; }
     std::string getAlertMessage() const { return alert_text; }
@@ -268,11 +268,11 @@ public:
     uint32_t getDistributionProperty() const { return distribution_property; }
 
     /** Sigma */
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> const & getMints() const { return mints; }
+    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> const & getMints() const { return mints; }
     uint8_t getDenomination() const { return denomination; }
     uint32_t getGroup() const { return group; }
     uint16_t getGroupSize() const { return groupSize; }
-    const exodus::SigmaProof *getSpend() const { return spend.get(); }
+    const elysium::SigmaProof *getSpend() const { return spend.get(); }
     const std::array<uint8_t, 33> &getSigmaECDSAPublicKey() const { return sigmaECDSAPubkey; }
     const std::array<uint8_t, 64> &getSigmaECDSASignature() const { return sigmaECDSASignature; }
 
@@ -348,7 +348,7 @@ public:
         unsigned int idx,
         unsigned char *p,
         unsigned int size,
-        const boost::optional<exodus::PacketClass>& packetClass,
+        const boost::optional<elysium::PacketClass>& packetClass,
         uint64_t txf,
         const boost::optional<CAmount>& referenceAmount);
 

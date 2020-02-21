@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <vector>
 
-namespace exodus {
+namespace elysium {
 namespace {
 
 struct SigmaDatabaseFixture : TestingSetup
@@ -102,4 +102,4 @@ BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

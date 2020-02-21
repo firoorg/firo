@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace exodus
+namespace elysium
 {
 // Converts strings to 64 bit wide interger.
 // Divisible and indivisible amounts are accepted.

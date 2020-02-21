@@ -26,7 +26,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 LookupSPDialog::LookupSPDialog(QWidget *parent) :
     QDialog(parent),

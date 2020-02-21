@@ -23,7 +23,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const a
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 class TestCoinSigner : public CoinSigner
 {
@@ -81,4 +81,4 @@ BOOST_AUTO_TEST_CASE(ecdsasign)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

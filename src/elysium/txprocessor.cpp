@@ -6,7 +6,7 @@
 
 #include "../base58.h"
 
-namespace exodus {
+namespace elysium {
 
 TxProcessor *txProcessor;
 

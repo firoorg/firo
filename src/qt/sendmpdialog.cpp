@@ -46,7 +46,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 SendMPDialog::SendMPDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),

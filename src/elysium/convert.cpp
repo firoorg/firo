@@ -3,7 +3,7 @@
 #include <cmath>
 #include <stdint.h>
 
-namespace exodus
+namespace elysium
 {
 
 // TODO: move to seperate file with checks
@@ -55,4 +55,4 @@ void swapByteOrder64(uint64_t& ull)
           (ull << 56);
 }
 
-} // namespace exodus
+} // namespace elysium

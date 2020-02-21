@@ -25,7 +25,7 @@ void RequireSaneDExFee(const std::string& address, uint32_t propertyId);
 void RequireHeightInChain(int blockHeight);
 void RequireSigmaStatus(SigmaStatus status);
 
-namespace exodus {
+namespace elysium {
 
 void RequireSigma(PropertyId property);
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);

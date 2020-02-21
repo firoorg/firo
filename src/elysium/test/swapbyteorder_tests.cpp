@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-using namespace exodus;
+using namespace elysium;
 
 BOOST_FIXTURE_TEST_SUITE(exodus_swapbyteorder_tests, BasicTestingSetup)
 

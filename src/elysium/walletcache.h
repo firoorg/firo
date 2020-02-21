@@ -5,7 +5,7 @@ class uint256;
 
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 //! Global vector of Exodus transactions in the wallet
 extern std::vector<uint256> walletTXIDCache;

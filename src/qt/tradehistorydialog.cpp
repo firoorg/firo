@@ -60,7 +60,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 bool hideInactiveTrades = false;
 

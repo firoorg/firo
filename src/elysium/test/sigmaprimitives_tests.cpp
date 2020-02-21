@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_sigmaprimitives_tests, TestingSetup)
 
@@ -138,4 +138,4 @@ BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

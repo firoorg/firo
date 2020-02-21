@@ -102,7 +102,7 @@ public:
     void saveOffer(std::ofstream& file, SHA256_CTX* shaCtx) const;
 };
 
-namespace exodus
+namespace elysium
 {
 struct MetaDEx_compare
 {

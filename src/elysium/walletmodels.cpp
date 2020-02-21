@@ -1,6 +1,6 @@
 #include "walletmodels.h"
 
-namespace exodus {
+namespace elysium {
 
 // SigmaMintChainState Implementation.
 
@@ -91,4 +91,4 @@ SigmaSpend::SigmaSpend(const SigmaMintId& mint, SigmaMintGroup group, size_t gro
 {
 }
 
-} // namespace exodus
+} // namespace elysium

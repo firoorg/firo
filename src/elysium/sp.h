@@ -25,11 +25,11 @@
 #include <stddef.h>
 #include <stdio.h>
 
-namespace exodus {
+namespace elysium {
 
 constexpr size_t MAX_DENOMINATIONS = std::numeric_limits<uint8_t>::max();
 
-} // namespace exodus
+} // namespace elysium
 
 /** LevelDB based storage for currencies, smart properties and tokens.
  *
@@ -93,7 +93,7 @@ public:
         uint256 update_block;
         bool fixed;
         bool manual;
-        exodus::SigmaStatus sigmaStatus;
+        elysium::SigmaStatus sigmaStatus;
         std::vector<int64_t> denominations;
 
         // For crowdsale properties:
@@ -141,7 +141,7 @@ public:
                     READWRITE(sigmaStatus);
                 } catch (std::ios_base::failure&) {
                     // Assume it is EOF due to no other better way to check.
-                    sigmaStatus = static_cast<uint8_t>(exodus::SigmaStatus::SoftDisabled);
+                    sigmaStatus = static_cast<uint8_t>(elysium::SigmaStatus::SoftDisabled);
                 }
 
                 try {
@@ -154,7 +154,7 @@ public:
                 READWRITE(denominations);
             }
 
-            this->sigmaStatus = static_cast<exodus::SigmaStatus>(sigmaStatus);
+            this->sigmaStatus = static_cast<elysium::SigmaStatus>(sigmaStatus);
         }
 
         bool isDivisible() const;
@@ -242,7 +242,7 @@ public:
     void saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std::string& addr) const;
 };
 
-namespace exodus {
+namespace elysium {
 
 typedef std::map<std::string, CMPCrowd> CrowdMap;
 
@@ -305,11 +305,11 @@ int64_t SumDenominationsValue(PropertyId property, Denomination begin, Denominat
     return amount;
 }
 
-} // namespace exodus
+} // namespace elysium
 
 namespace std {
 
-using namespace exodus;
+using namespace elysium;
 
 string to_string(SigmaStatus status);
 

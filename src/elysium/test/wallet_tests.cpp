@@ -35,7 +35,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const b
 
 } // namespace std
 
-namespace exodus {
+namespace elysium {
 
 struct WalletTestingSetup : ::WalletTestingSetup
 {

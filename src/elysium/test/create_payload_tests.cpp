@@ -11,7 +11,7 @@
 
 #include <inttypes.h>
 
-namespace exodus {
+namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(exodus_create_payload_tests, BasicTestingSetup)
 
@@ -497,7 +497,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_mint)
     std::string data = "40a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100";
     std::string data2 = "7cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000";
 
-    exodus::SigmaPublicKey publicKey, publicKey2;
+    elysium::SigmaPublicKey publicKey, publicKey2;
     CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> publicKey;
     CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> publicKey2;
 
@@ -533,7 +533,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_mint_no_mints)
 
 BOOST_AUTO_TEST_CASE(payload_create_simple_mint_exceed_limit)
 {
-    std::vector<std::pair<uint8_t, exodus::SigmaPublicKey>> pubs;
+    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> pubs;
     pubs.resize(ELYSIUM_MAX_SIMPLE_MINTS + 1);
 
     // Simple mint [type 1026, version 0]
@@ -608,4 +608,4 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace exodus
+} // namespace elysium

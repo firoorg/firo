@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace exodus
+namespace elysium
 {
 /** A structure to represent a feature activation
  */

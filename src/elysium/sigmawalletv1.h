@@ -8,7 +8,7 @@
 #include "coinsigner.h"
 #include "sigmawallet.h"
 
-namespace exodus {
+namespace elysium {
 
 typedef std::array<uint8_t, 32> ECDSAPrivateKey;
 
