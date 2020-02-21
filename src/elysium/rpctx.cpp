@@ -3,7 +3,7 @@
 #include "createpayload.h"
 #include "dex.h"
 #include "errors.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "pending.h"
 #include "rpcrequirements.h"
 #include "rpcvalues.h"

@@ -1,7 +1,7 @@
 #include "rpcrequirements.h"
 
 #include "dex.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "rules.h"
 #include "sp.h"
 #include "utilsbitcoin.h"

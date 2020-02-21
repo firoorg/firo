@@ -2,7 +2,7 @@
 #define ZCOIN_ELYSIUM_WALLET_H
 
 #include "coinsigner.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "property.h"
 #include "sigmaprimitives.h"
 #include "sigmawalletv0.h"

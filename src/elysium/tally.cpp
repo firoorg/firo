@@ -1,7 +1,7 @@
 #include "elysium/tally.h"
 
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 
 #include <stdint.h>
 #include <map>

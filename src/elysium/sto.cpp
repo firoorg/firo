@@ -1,6 +1,6 @@
 #include "sto.h"
 
-#include "exodus.h"
+#include "elysium.h"
 #include "log.h"
 #include "tally.h"
 #include "uint256_extensions.h"

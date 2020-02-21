@@ -1,6 +1,6 @@
 #include "../createtx.h"
 #include "../errors.h"
-#include "../exodus.h"
+#include "../elysium.h"
 #include "../packetencoder.h"
 #include "../utilsbitcoin.h"
 #include "../wallettxs.h"

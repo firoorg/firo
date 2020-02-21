@@ -36,11 +36,11 @@
 
 #include "znode-sync.h"
 #include "znodelist.h"
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 #include "zc2sigmapage.h"
 
 #ifdef ENABLE_ELYSIUM
-#include "../elysium/exodus.h"
+#include "../elysium/elysium.h"
 #endif
 
 #include <iostream>

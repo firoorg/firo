@@ -12,7 +12,7 @@ ELYSIUM_H = \
   elysium/log.h \
   elysium/mdex.h \
   elysium/notifications.h \
-  elysium/exodus.h \
+  elysium/elysium.h \
   elysium/packetencoder.h \
   elysium/parse_string.h \
   elysium/pending.h \
@@ -55,7 +55,7 @@ ELYSIUM_CPP = \
   elysium/log.cpp \
   elysium/mdex.cpp \
   elysium/notifications.cpp \
-  elysium/exodus.cpp \
+  elysium/elysium.cpp \
   elysium/packetencoder.cpp \
   elysium/parse_string.cpp \
   elysium/pending.cpp \

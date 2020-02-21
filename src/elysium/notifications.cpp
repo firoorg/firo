@@ -1,7 +1,7 @@
 #include "elysium/notifications.h"
 
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/rules.h"
 #include "elysium/utilsbitcoin.h"
 #include "elysium/version.h"

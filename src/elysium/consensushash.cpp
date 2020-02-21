@@ -8,7 +8,7 @@
 #include "elysium/dex.h"
 #include "elysium/mdex.h"
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/parse_string.h"
 #include "elysium/sp.h"
 

@@ -1,7 +1,7 @@
 #include "elysium/rpcrawtx.h"
 
 #include "elysium/createtx.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/rpc.h"
 #include "elysium/rpctxobject.h"
 #include "elysium/rpcvalues.h"

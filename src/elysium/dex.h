@@ -2,7 +2,7 @@
 #define ELYSIUM_DEX_H
 
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/tx.h"
 
 #include "amount.h"

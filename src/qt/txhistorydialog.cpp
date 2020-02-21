@@ -5,7 +5,7 @@
 #include "txhistorydialog.h"
 #include "ui_txhistorydialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "clientmodel.h"
 #include "guiutil.h"
@@ -13,7 +13,7 @@
 #include "platformstyle.h"
 
 #include "elysium/fetchwallettx.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/rpc.h"
 #include "elysium/rpctxobject.h"

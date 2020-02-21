@@ -16,7 +16,7 @@
 #include "log.h"
 #include "mdex.h"
 #include "notifications.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "rpcrequirements.h"
 #include "rpctx.h"
 #include "rpctxobject.h"

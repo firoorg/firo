@@ -9,7 +9,7 @@
 #include "elysium/dex.h"
 #include "elysium/errors.h"
 #include "elysium/mdex.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/rpctxobject.h"
 #include "elysium/sp.h"

@@ -31,7 +31,7 @@
 #include "wallet/wallet.h"
 
 #ifdef ENABLE_ELYSIUM
-#include "../elysium/exodus.h"
+#include "../elysium/elysium.h"
 #endif
 
 #include <boost/filesystem.hpp>

@@ -34,7 +34,7 @@
 #include "sendmpdialog.h"
 #include "txhistorydialog.h"
 
-#include "../elysium/exodus.h"
+#include "../elysium/elysium.h"
 #endif
 
 #include <QAction>

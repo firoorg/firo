@@ -5,7 +5,7 @@
 #include "tradehistorydialog.h"
 #include "ui_tradehistorydialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "guiutil.h"
 #include "ui_interface.h"
@@ -15,7 +15,7 @@
 
 #include "elysium/fetchwallettx.h"
 #include "elysium/mdex.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/rpc.h"
 #include "elysium/rpctxobject.h"

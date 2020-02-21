@@ -2,7 +2,7 @@
 #include "elysium/dex.h"
 #include "elysium/mdex.h"
 #include "elysium/sp.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/rules.h"
 #include "elysium/tally.h"
 

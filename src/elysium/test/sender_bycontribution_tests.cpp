@@ -1,6 +1,6 @@
 #include "elysium/test/utils_tx.h"
 
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/script.h"
 #include "elysium/tx.h"
 

@@ -5,7 +5,7 @@
 #include "metadexdialog.h"
 #include "ui_metadexdialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "clientmodel.h"
 #include "walletmodel.h"
@@ -13,7 +13,7 @@
 #include "elysium/createpayload.h"
 #include "elysium/errors.h"
 #include "elysium/mdex.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/parse_string.h"
 #include "elysium/pending.h"
 #include "elysium/rules.h"

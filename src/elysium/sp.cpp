@@ -1,7 +1,7 @@
 #include "sp.h"
 
 #include "log.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "packetencoder.h"
 #include "uint256_extensions.h"
 #include "utilsbitcoin.h"

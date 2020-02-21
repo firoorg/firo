@@ -1,5 +1,5 @@
 #include "../createpayload.h"
-#include "../exodus.h"
+#include "../elysium.h"
 
 #include "../../test/test_bitcoin.h"
 #include "../../utilstrencodings.h"

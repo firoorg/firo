@@ -5,7 +5,7 @@
 #include "sendmpdialog.h"
 #include "ui_sendmpdialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "clientmodel.h"
 #include "walletmodel.h"

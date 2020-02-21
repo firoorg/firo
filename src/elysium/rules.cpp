@@ -3,7 +3,7 @@
 #include "activation.h"
 #include "consensushash.h"
 #include "log.h"
-#include "exodus.h"
+#include "elysium.h"
 #include "notifications.h"
 #include "tx.h"
 #include "utilsbitcoin.h"

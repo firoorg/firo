@@ -9,7 +9,7 @@
 #include "walletmodel.h"
 #include "guiutil.h"
 
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/sp.h"
 #include "elysium/tally.h"
 #include "elysium/wallettxs.h"

@@ -1,8 +1,8 @@
 /**
  * @file utils.cpp
  *
- * This file serves to seperate utility functions from the main exodus.cpp
- * and exodus.h files.
+ * This file serves to seperate utility functions from the main elysium.cpp
+ * and elysium.h files.
  */
 
 #include "elysium/utils.h"

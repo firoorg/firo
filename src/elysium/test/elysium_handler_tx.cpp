@@ -2,7 +2,7 @@
 #include "../createpayload.h"
 #include "../createtx.h"
 #include "../errors.h"
-#include "../exodus.h"
+#include "../elysium.h"
 #include "../tx.h"
 #include "../utilsbitcoin.h"
 #include "../wallettxs.h"

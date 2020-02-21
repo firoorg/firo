@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 
 enum MPRPCErrorCode
 {

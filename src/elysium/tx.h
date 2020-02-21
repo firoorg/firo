@@ -5,7 +5,7 @@ class CMPMetaDEx;
 class CMPOffer;
 class CTransaction;
 
-#include "exodus.h"
+#include "elysium.h"
 #include "packetencoder.h"
 #include "sp.h"
 

@@ -3,7 +3,7 @@
 #include "elysium/errors.h"
 #include "elysium/fees.h"
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/rules.h"
 #include "elysium/sp.h"
 #include "elysium/tx.h"

@@ -6,7 +6,7 @@
 
 #include "elysium/fees.h"
 
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/log.h"
 #include "elysium/rules.h"
 #include "elysium/sp.h"

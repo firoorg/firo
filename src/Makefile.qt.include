@@ -282,7 +282,7 @@ BITCOIN_QT_H = \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
-  qt/exodus_qtutils.h \
+  qt/elysium_qtutils.h \
   qt/zc2sigmapage.h \
   qt/zc2sigmamodel.h
 
@@ -386,7 +386,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/splashscreen.cpp \
   qt/trafficgraphwidget.cpp \
   qt/utilitydialog.cpp \
-  qt/exodus_qtutils.cpp
+  qt/elysium_qtutils.cpp
 
 BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 

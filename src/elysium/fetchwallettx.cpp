@@ -8,7 +8,7 @@
 #include "elysium/fetchwallettx.h"
 
 #include "elysium/log.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/utilsbitcoin.h"
 

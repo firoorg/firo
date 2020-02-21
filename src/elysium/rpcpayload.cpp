@@ -3,7 +3,7 @@
 #include "elysium/createpayload.h"
 #include "elysium/rpcvalues.h"
 #include "elysium/rpcrequirements.h"
-#include "elysium/exodus.h"
+#include "elysium/elysium.h"
 #include "elysium/sp.h"
 #include "elysium/tx.h"
 

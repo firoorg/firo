@@ -9,7 +9,7 @@
 #include "elysium/rpc.h"
 #include "elysium/rpctxobject.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "uint256.h"
 
