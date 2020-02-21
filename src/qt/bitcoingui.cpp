@@ -1221,7 +1221,7 @@ void BitcoinGUI::setElysiumPendingStatus(bool pending)
     } else {
         labelElysiumPendingIcon->show();
         labelElysiumPendingText->show();
-        labelElysiumPendingIcon->setPixmap(QIcon(":/icons/exodus_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelElysiumPendingIcon->setPixmap(QIcon(":/icons/elysium_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelElysiumPendingIcon->setToolTip(tr("You have Elysium transactions awaiting confirmation."));
     }
 }

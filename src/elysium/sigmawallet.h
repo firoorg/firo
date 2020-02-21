@@ -90,20 +90,20 @@ protected:
     virtual SigmaPrivateKey GeneratePrivateKey(uint512 const &seed) = 0;
 
     // DB
-    virtual bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const = 0;
-    virtual bool EraseExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) = 0;
-    virtual bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const = 0;
+    virtual bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const = 0;
+    virtual bool EraseElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) = 0;
+    virtual bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const = 0;
 
-    virtual bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const = 0;
-    virtual bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
-    virtual bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
+    virtual bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const = 0;
+    virtual bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
+    virtual bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
 
-    virtual bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
+    virtual bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
+    virtual bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
 
-    virtual void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
+    virtual void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
 
     // Helper
     std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db) const;
@@ -142,7 +142,7 @@ public:
     template<class Output>
     Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        ListExodusMints([&](const SigmaMintId& id, const SigmaMint &m) {
+        ListElysiumMints([&](const SigmaMintId& id, const SigmaMint &m) {
             *output++ = std::make_pair(id, m);
         }, db);
 

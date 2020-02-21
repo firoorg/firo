@@ -83,59 +83,59 @@ public:
         return SigmaWalletV1::GeneratePrivateKey(seed);
     }
 
-    bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint)
+    bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint)
     {
-        return SigmaWalletV1::WriteExodusMint(id, mint);
+        return SigmaWalletV1::WriteElysiumMint(id, mint);
     }
 
-    bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint) const
+    bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint) const
     {
-        return SigmaWalletV1::ReadExodusMint(id, mint);
+        return SigmaWalletV1::ReadElysiumMint(id, mint);
     }
 
-    bool EraseExodusMint(SigmaMintId const &id)
+    bool EraseElysiumMint(SigmaMintId const &id)
     {
-        return SigmaWalletV1::EraseExodusMint(id);
+        return SigmaWalletV1::EraseElysiumMint(id);
     }
 
-    bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
+    bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV1::HasExodusMint(id);
+        return SigmaWalletV1::HasElysiumMint(id);
     }
 
-    bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId)
+    bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId)
     {
-        return SigmaWalletV1::WriteExodusMintId(hash, mintId);
+        return SigmaWalletV1::WriteElysiumMintId(hash, mintId);
     }
 
-    bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
+    bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV1::ReadExodusMintId(hash, mintId);
+        return SigmaWalletV1::ReadElysiumMintId(hash, mintId);
     }
 
-    bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr)
+    bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV1::EraseExodusMintId(hash);
+        return SigmaWalletV1::EraseElysiumMintId(hash);
     }
 
-    bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const
+    bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV1::HasExodusMintId(hash);
+        return SigmaWalletV1::HasElysiumMintId(hash);
     }
 
-    bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints)
+    bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints)
     {
-        return SigmaWalletV1::WriteExodusMintPool(mints);
+        return SigmaWalletV1::WriteElysiumMintPool(mints);
     }
 
-    bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
+    bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV1::ReadExodusMintPool(mints);
+        return SigmaWalletV1::ReadElysiumMintPool(mints);
     }
 
-    void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
+    void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
     {
-        return SigmaWalletV1::ListExodusMints(inserter);
+        return SigmaWalletV1::ListElysiumMints(inserter);
     }
 };
 
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_CASE(writemint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteExodusMint(id, mint));
+    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMint(id, mint));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmint)
@@ -276,8 +276,8 @@ BOOST_AUTO_TEST_CASE(read_nonexistmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasExodusMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadExodusMint(id, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMint(id));
+    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmint)
@@ -287,10 +287,10 @@ BOOST_AUTO_TEST_CASE(read_existmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteExodusMint(id, mint);
+    wallet->WriteElysiumMint(id, mint);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasExodusMint(id));
-    BOOST_CHECK_EQUAL(true, wallet->ReadExodusMint(id, data));
+    BOOST_CHECK_EQUAL(true, wallet->HasElysiumMint(id));
+    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMint(id, data));
     BOOST_CHECK_EQUAL(mint, data);
 }
 
@@ -301,11 +301,11 @@ BOOST_AUTO_TEST_CASE(read_erasedmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteExodusMint(id, mint);
-    wallet->EraseExodusMint(id);
+    wallet->WriteElysiumMint(id, mint);
+    wallet->EraseElysiumMint(id);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasExodusMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadExodusMint(id, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMint(id));
+    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(write_mintid)
@@ -315,7 +315,7 @@ BOOST_AUTO_TEST_CASE(write_mintid)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteExodusMintId(mint.serialId, id));
+    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMintId(mint.serialId, id));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmintid)
@@ -326,8 +326,8 @@ BOOST_AUTO_TEST_CASE(read_nonexistmintid)
 
     SigmaMintId data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasExodusMintId(mint.seedId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadExodusMintId(mint.seedId, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMintId(mint.seedId));
+    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMintId(mint.seedId, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmintid)
@@ -338,10 +338,10 @@ BOOST_AUTO_TEST_CASE(read_existmintid)
 
     SigmaMintId data;
 
-    wallet->WriteExodusMintId(mint.serialId, id);
+    wallet->WriteElysiumMintId(mint.serialId, id);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasExodusMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(true, wallet->ReadExodusMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(true, wallet->HasElysiumMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMintId(mint.serialId, data));
     BOOST_CHECK_EQUAL(id, data);
 }
 
@@ -353,11 +353,11 @@ BOOST_AUTO_TEST_CASE(read_erasedmintid)
 
     SigmaMintId data;
 
-    wallet->WriteExodusMintId(mint.serialId, id);
-    wallet->EraseExodusMintId(mint.serialId);
+    wallet->WriteElysiumMintId(mint.serialId, id);
+    wallet->EraseElysiumMintId(mint.serialId);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasExodusMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadExodusMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMintId(mint.serialId, data));
 }
 
 BOOST_AUTO_TEST_CASE(writemintpool)
@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE(writemintpool)
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteExodusMintPool(mintPool));
+    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMintPool(mintPool));
 }
 
 BOOST_AUTO_TEST_CASE(readmintpool)
@@ -375,10 +375,10 @@ BOOST_AUTO_TEST_CASE(readmintpool)
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    wallet->WriteExodusMintPool(mintPool);
+    wallet->WriteElysiumMintPool(mintPool);
 
     std::vector<MintPoolEntry> data;
-    BOOST_CHECK_EQUAL(true, wallet->ReadExodusMintPool(data));
+    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMintPool(data));
     BOOST_CHECK(mintPool == data);
     BOOST_CHECK(std::is_permutation(mintPool.begin(), mintPool.end(), data.begin()));
 }
@@ -386,7 +386,7 @@ BOOST_AUTO_TEST_CASE(readmintpool)
 BOOST_AUTO_TEST_CASE(listelysiummints_nomints)
 {
     size_t counter = 0;
-    wallet->ListExodusMints([&](SigmaMintId const&, SigmaMint const&) {
+    wallet->ListElysiumMints([&](SigmaMintId const&, SigmaMint const&) {
         counter++;
     });
 
@@ -404,11 +404,11 @@ BOOST_AUTO_TEST_CASE(listelysiummints_withsomemints)
 
         mints.push_back(std::make_pair(id, mint));
 
-        wallet->WriteExodusMint(id, mint);
+        wallet->WriteElysiumMint(id, mint);
     }
 
     std::vector<std::pair<SigmaMintId, SigmaMint>> data;
-    wallet->ListExodusMints([&](SigmaMintId &id, SigmaMint &mint) {
+    wallet->ListElysiumMints([&](SigmaMintId &id, SigmaMint &mint) {
         data.push_back(std::make_pair(id, mint));
     });
 

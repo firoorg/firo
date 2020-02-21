@@ -140,11 +140,11 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
 // Mint Updating
 void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
 {
-    if (!WriteExodusMint(id, mint)) {
+    if (!WriteElysiumMint(id, mint)) {
         throw std::runtime_error("fail to write hdmint");
     }
 
-    if (!WriteExodusMintId(mint.serialId, id)) {
+    if (!WriteElysiumMintId(mint.serialId, id)) {
         throw std::runtime_error("fail to record id");
     }
 
@@ -202,7 +202,7 @@ SigmaMint SigmaWallet::UpdateMint(SigmaMintId const &id, std::function<void(Sigm
     auto m = GetMint(id);
     modifier(m);
 
-    if (!WriteExodusMint(id, m)) {
+    if (!WriteElysiumMint(id, m)) {
         throw std::runtime_error("fail to update mint");
     }
 
@@ -222,7 +222,7 @@ void SigmaWallet::ClearMintsChainState()
         m.second.chainState = SigmaMintChainState();
         m.second.spendTx = uint256();
 
-        if (!WriteExodusMint(m.first, m.second, &db)) {
+        if (!WriteElysiumMint(m.first, m.second, &db)) {
             throw std::runtime_error("Failed to write " + walletFile);
         }
     }
@@ -297,19 +297,19 @@ void SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
 // Mint querying
 bool SigmaWallet::HasMint(SigmaMintId const &id) const
 {
-    return HasExodusMint(id);
+    return HasElysiumMint(id);
 }
 
 bool SigmaWallet::HasMint(secp_primitives::Scalar const &serial) const
 {
     auto id = GetSerialId(serial);
-    return HasExodusMintId(id);
+    return HasElysiumMintId(id);
 }
 
 SigmaMint SigmaWallet::GetMint(SigmaMintId const &id) const
 {
     SigmaMint m;
-    if (!ReadExodusMint(id, m)) {
+    if (!ReadElysiumMint(id, m)) {
         throw std::runtime_error("fail to read hdmint");
     }
 
@@ -325,7 +325,7 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 {
     SigmaMintId id;
     auto serialHash = GetSerialId(serial);
-    if (!ReadExodusMintId(serialHash, id)) {
+    if (!ReadElysiumMintId(serialHash, id)) {
         throw std::runtime_error("fail to read id");
     }
 
@@ -357,7 +357,7 @@ void SigmaWallet::RemoveInvalidMintPoolEntries() // Remove MintPool entry that i
 void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
 {
     SigmaMint mint;
-    if (!ReadExodusMint(id, mint)) {
+    if (!ReadElysiumMint(id, mint)) {
         throw std::runtime_error("no mint data in wallet");
     }
 
@@ -371,7 +371,7 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
     mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
     SaveMintPool();
 
-    if (!EraseExodusMint(id)) {
+    if (!EraseElysiumMint(id)) {
         throw std::runtime_error("fail to erase mint from wallet");
     }
 }
@@ -431,7 +431,7 @@ void SigmaWallet::LoadMintPool()
     mintPool.clear();
 
     std::vector<MintPoolEntry> mintPoolData;
-    if (ReadExodusMintPool(mintPoolData)) {
+    if (ReadElysiumMintPool(mintPoolData)) {
         for (auto &entry : mintPoolData) {
             mintPool.insert(std::move(entry));
         }
@@ -449,7 +449,7 @@ void SigmaWallet::SaveMintPool()
         mintPoolData.push_back(entry);
     }
 
-    if (!WriteExodusMintPool(mintPoolData)) {
+    if (!WriteElysiumMintPool(mintPoolData)) {
         throw std::runtime_error("fail to save mint pool to DB");
     }
 }

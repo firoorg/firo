@@ -201,7 +201,7 @@ Data embedding with OP_RETURN
 
 Omni Core 0.0.10 contains support for Class C transactions which move the data encoding from bare-multisig data outputs to an `OP_RETURN` output. `OP_RETURN` outputs carry no output value and can be immediately pruned.
 
-In addition to migrating data encoding to `OP_RETURN`, the requirement to send an output to the Exodus address has also been removed with Class C. Instead the bytes `0x6f6d6e69` ("omni") are prefixed to the data payload to provide marker identification.
+In addition to migrating data encoding to `OP_RETURN`, the requirement to send an output to the Elysium address has also been removed with Class C. Instead the bytes `0x6f6d6e69` ("omni") are prefixed to the data payload to provide marker identification.
 
 This helps to address a common criticism of systems that store data on the Bitcoin blockchain; "UTXO bloat". Since Class C transactions no longer store the data in spendable outputs, there is no need to store them in the UTXO set, and since the outputs are not stored in the UTXO set, Class C transactions do not contribute to its growth.
 
@@ -350,7 +350,7 @@ The following categories are available:
 - `dex`: Log additional information about DEx transactions
 - `tokens`: Log additional information about input selection
 - `spec`: Warn about non-sequential sequence numbers in Class B transactions
-- `exo`: Log additional information about actions involving the Exodus address
+- `ely`: Log additional information about actions involving the Elysium address
 - `tally`: Log before/after values when balances are updated
 - `sp`: Log additional information about actions involving smart property updates
 - `sto`: Log additional information about Send To Owners calculations
@@ -490,7 +490,7 @@ The following list includes relevant pull requests merged into this release:
 - #161 Don't spam log about non-sequential seqence numbers
 - #163 Prepare deactivation of "grant tokens" side effects
 - #164 Add hidden RPC command to activate features
-- #158 Trigger UI updates after DEx payments and Exodus purchases
+- #158 Trigger UI updates after DEx payments and Elysium purchases
 - #173 Fix/add missing fields for transaction retrieval via RPC
 - #177 Sanitize RPC responses and replace non-UTF-8 compliant characters
 - #178 Fix Omni transaction count value passed into block end handler

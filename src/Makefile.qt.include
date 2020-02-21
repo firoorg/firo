@@ -335,11 +335,11 @@ RES_ICONS = \
   qt/res/icons/meta_partcancelled.png \
   qt/res/icons/meta_partfilled.png \
   qt/res/icons/meta_pending.png \
-  qt/res/icons/exodus_in.png \
-  qt/res/icons/exodus_inout.png \
-  qt/res/icons/exodus_invalid.png \
-  qt/res/icons/exodus_out.png \
-  qt/res/icons/exodus_hourglass.png \
+  qt/res/icons/elysium_in.png \
+  qt/res/icons/elysium_inout.png \
+  qt/res/icons/elysium_invalid.png \
+  qt/res/icons/elysium_out.png \
+  qt/res/icons/elysium_hourglass.png \
   qt/res/icons/open.png \
   qt/res/icons/overview.png \
   qt/res/icons/quit.png \

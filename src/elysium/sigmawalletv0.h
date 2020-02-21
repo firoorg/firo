@@ -18,20 +18,20 @@ protected:
     uint32_t ChangeIndex();
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
 
-    bool WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
-    bool ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const;
-    bool EraseExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr);
-    bool HasExodusMint(SigmaMintId const &id, CWalletDB *db = nullptr) const;
+    bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
+    bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const;
+    bool EraseElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr);
+    bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const;
 
-    bool WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr);
-    bool ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const;
-    bool EraseExodusMintId(uint160 const &hash, CWalletDB *db = nullptr);
-    bool HasExodusMintId(uint160 const &hash, CWalletDB *db = nullptr) const;
+    bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr);
+    bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const;
+    bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr);
+    bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const;
 
-    bool WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
-    bool ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
+    bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
+    bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
 
-    void ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
+    void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
 
 public:
     using SigmaWallet::GeneratePrivateKey;

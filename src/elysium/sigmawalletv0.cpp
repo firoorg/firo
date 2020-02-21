@@ -34,70 +34,70 @@ SigmaPrivateKey SigmaWalletV0::GeneratePrivateKey(uint512 const &seed)
     return priv;
 }
 
-bool SigmaWalletV0::WriteExodusMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db)
+bool SigmaWalletV0::WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->WriteExodusMint(id, mint);
+    return db->WriteElysiumMint(id, mint);
 }
 
-bool SigmaWalletV0::ReadExodusMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db) const
+bool SigmaWalletV0::ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db) const
 {
     auto local = EnsureDBConnection(db);
-    return db->ReadExodusMint(id, mint);
+    return db->ReadElysiumMint(id, mint);
 }
 
-bool SigmaWalletV0::EraseExodusMint(SigmaMintId const &id, CWalletDB *db)
+bool SigmaWalletV0::EraseElysiumMint(SigmaMintId const &id, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->EraseExodusMint(id);
+    return db->EraseElysiumMint(id);
 }
 
-bool SigmaWalletV0::HasExodusMint(SigmaMintId const &id, CWalletDB *db) const
+bool SigmaWalletV0::HasElysiumMint(SigmaMintId const &id, CWalletDB *db) const
 {
     auto local = EnsureDBConnection(db);
-    return db->HasExodusMint(id);
+    return db->HasElysiumMint(id);
 }
 
-bool SigmaWalletV0::WriteExodusMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db)
+bool SigmaWalletV0::WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->WriteExodusMintID(hash, mintId);
+    return db->WriteElysiumMintID(hash, mintId);
 }
 
-bool SigmaWalletV0::ReadExodusMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db) const
+bool SigmaWalletV0::ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db) const
 {
     auto local = EnsureDBConnection(db);
-    return db->ReadExodusMintID(hash, mintId);
+    return db->ReadElysiumMintID(hash, mintId);
 }
 
-bool SigmaWalletV0::EraseExodusMintId(uint160 const &hash, CWalletDB *db)
+bool SigmaWalletV0::EraseElysiumMintId(uint160 const &hash, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->EraseExodusMintID(hash);
+    return db->EraseElysiumMintId(hash);
 }
 
-bool SigmaWalletV0::HasExodusMintId(uint160 const &hash, CWalletDB *db) const
+bool SigmaWalletV0::HasElysiumMintId(uint160 const &hash, CWalletDB *db) const
 {
     auto local = EnsureDBConnection(db);
-    return db->HasExodusMintID(hash);
+    return db->HasElysiumMintId(hash);
 }
 
-bool SigmaWalletV0::WriteExodusMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db)
+bool SigmaWalletV0::WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->WriteExodusMintPool(mints);
+    return db->WriteElysiumMintPool(mints);
 }
 
-bool SigmaWalletV0::ReadExodusMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db)
+bool SigmaWalletV0::ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->ReadExodusMintPool(mints);
+    return db->ReadElysiumMintPool(mints);
 }
 
-void SigmaWalletV0::ListExodusMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter, CWalletDB *db)
+void SigmaWalletV0::ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    db->ListExodusMints<SigmaMintId, SigmaMint>(inserter);
+    db->ListElysiumMints<SigmaMintId, SigmaMint>(inserter);
 }
 
 }
