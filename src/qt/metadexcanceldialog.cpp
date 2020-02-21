@@ -11,14 +11,14 @@
 #include "ui_interface.h"
 #include "walletmodel.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/errors.h"
-#include "exodus/mdex.h"
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
-#include "exodus/pending.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/wallettxs.h"
+#include "elysium/createpayload.h"
+#include "elysium/errors.h"
+#include "elysium/mdex.h"
+#include "elysium/exodus.h"
+#include "elysium/sp.h"
+#include "elysium/pending.h"
+#include "elysium/utilsbitcoin.h"
+#include "elysium/wallettxs.h"
 
 #include <stdint.h>
 #include <map>

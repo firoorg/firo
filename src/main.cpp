@@ -62,7 +62,7 @@
 #include "sigma/remint.h"
 
 #ifdef ENABLE_ELYSIUM
-#include "exodus/exodus.h"
+#include "elysium/exodus.h"
 #endif
 
 #include <atomic>

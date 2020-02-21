@@ -46,7 +46,7 @@
 #endif
 
 #ifdef ENABLE_ELYSIUM
-#include "exodus/exodus.h"
+#include "elysium/exodus.h"
 #endif
 
 #include <stdint.h>

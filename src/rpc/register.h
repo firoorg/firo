@@ -12,7 +12,7 @@
 #include "util.h"
 
 #ifdef ENABLE_ELYSIUM
-#include "../exodus/exodus.h"
+#include "../elysium/exodus.h"
 #endif
 
 /** These are in one header file to avoid creating tons of single-function

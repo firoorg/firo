@@ -715,5 +715,5 @@ check-local:
 endif
 
 if ENABLE_ELYSIUM
-include Makefile.exodus.include
+include Makefile.elysium.include
 endif

@@ -5,9 +5,9 @@
 #include "lookuptxdialog.h"
 #include "ui_lookuptxdialog.h"
 
-#include "exodus/errors.h"
-#include "exodus/rpc.h"
-#include "exodus/rpctxobject.h"
+#include "elysium/errors.h"
+#include "elysium/rpc.h"
+#include "elysium/rpctxobject.h"
 
 #include "exodus_qtutils.h"
 

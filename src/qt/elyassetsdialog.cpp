@@ -9,10 +9,10 @@
 #include "walletmodel.h"
 #include "guiutil.h"
 
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
-#include "exodus/tally.h"
-#include "exodus/wallettxs.h"
+#include "elysium/exodus.h"
+#include "elysium/sp.h"
+#include "elysium/tally.h"
+#include "elysium/wallettxs.h"
 
 #include "amount.h"
 #include "sync.h"

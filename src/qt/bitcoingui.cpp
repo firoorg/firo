@@ -40,7 +40,7 @@
 #include "zc2sigmapage.h"
 
 #ifdef ENABLE_ELYSIUM
-#include "../exodus/exodus.h"
+#include "../elysium/exodus.h"
 #endif
 
 #include <iostream>

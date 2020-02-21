@@ -7,9 +7,9 @@
 
 #include "guiutil.h"
 
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
-#include "exodus/wallettxs.h"
+#include "elysium/exodus.h"
+#include "elysium/sp.h"
+#include "elysium/wallettxs.h"
 
 #include "base58.h"
 

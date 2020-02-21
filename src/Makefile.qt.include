@@ -425,7 +425,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/zc2sigmapage.cpp \
   qt/zc2sigmamodel.cpp
 
-ZCOIN_QT_EXODUS_CPP = \
+ZCOIN_QT_ELYSIUM_CPP = \
   qt/elyassetsdialog.cpp \
   qt/lookupaddressdialog.cpp \
   qt/lookupspdialog.cpp \
@@ -444,7 +444,7 @@ if ENABLE_WALLET
 BITCOIN_QT_CPP += $(BITCOIN_QT_WALLET_CPP)
 endif
 if ENABLE_ELYSIUM
-BITCOIN_QT_CPP += $(ZCOIN_QT_EXODUS_CPP)
+BITCOIN_QT_CPP += $(ZCOIN_QT_ELYSIUM_CPP)
 endif
 
 RES_IMAGES = \
