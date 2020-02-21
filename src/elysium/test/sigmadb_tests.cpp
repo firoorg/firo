@@ -178,7 +178,7 @@ std::vector<SigmaPublicKey> GetFirstN(
 
 } // empty namespace
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmadb_tests, SigmaDbTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sigmadb_tests, SigmaDbTestingSetup)
 
 BOOST_AUTO_TEST_CASE(record_one_coin)
 {

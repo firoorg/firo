@@ -66,22 +66,22 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     PrintToLog("Loading smart property database: %s\n", status.ToString());
 
     // special cases for constant SPs ELYSIUM and TELYSIUM
-    implied_exodus.issuer = GetSystemAddress().ToString();
-    implied_exodus.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
-    implied_exodus.num_tokens = 700000;
-    implied_exodus.category = "N/A";
-    implied_exodus.subcategory = "N/A";
-    implied_exodus.name = "Exodus";
-    implied_exodus.url = "https://www.zcoin.io";
-    implied_exodus.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
-    implied_texodus.issuer = GetSystemAddress().ToString();
-    implied_texodus.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
-    implied_texodus.num_tokens = 700000;
-    implied_texodus.category = "N/A";
-    implied_texodus.subcategory = "N/A";
-    implied_texodus.name = "Test Exodus";
-    implied_texodus.url = "https://www.zcoin.io";
-    implied_texodus.data = "Test Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
+    implied_elysium.issuer = GetSystemAddress().ToString();
+    implied_elysium.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
+    implied_elysium.num_tokens = 700000;
+    implied_elysium.category = "N/A";
+    implied_elysium.subcategory = "N/A";
+    implied_elysium.name = "Elysium";
+    implied_elysium.url = "https://www.zcoin.io";
+    implied_elysium.data = "Elysium serve as the binding between Zcoin, smart properties and contracts created on the Elysium Layer.";
+    implied_telysium.issuer = GetSystemAddress().ToString();
+    implied_telysium.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
+    implied_telysium.num_tokens = 700000;
+    implied_telysium.category = "N/A";
+    implied_telysium.subcategory = "N/A";
+    implied_telysium.name = "Test Elysium";
+    implied_telysium.url = "https://www.zcoin.io";
+    implied_telysium.data = "Test Elysium serve as the binding between Zcoin, smart properties and contracts created on the Elysium Layer.";
 
     init();
 }
@@ -231,10 +231,10 @@ bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 {
     // special cases for constant SPs ELYSIUM and TELYSIUM
     if (ELYSIUM_PROPERTY_ELYSIUM == propertyId) {
-        info = implied_exodus;
+        info = implied_elysium;
         return true;
     } else if (ELYSIUM_PROPERTY_TELYSIUM == propertyId) {
-        info = implied_texodus;
+        info = implied_telysium;
         return true;
     }
 

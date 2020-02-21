@@ -26,7 +26,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const s
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_script_extraction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_script_extraction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(extract_pubkey_test)
 {

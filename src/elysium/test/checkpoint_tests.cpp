@@ -30,7 +30,7 @@ extern void clear_all_state();
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_checkpoint_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_checkpoint_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(consensus_string_tally)
 {

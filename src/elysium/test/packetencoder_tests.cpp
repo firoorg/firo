@@ -18,7 +18,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const C
 
 namespace elysium {
 
-BOOST_AUTO_TEST_SUITE(exodus_packetencoder_tests)
+BOOST_AUTO_TEST_SUITE(elysium_packetencoder_tests)
 
 BOOST_AUTO_TEST_CASE(key_generator)
 {

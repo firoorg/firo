@@ -59,7 +59,7 @@ extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
 /** Flag to indicate, whether the Exodus log file should be reopened. */
-extern std::atomic<bool> fReopenExodusLog;
+extern std::atomic<bool> fReopenElysiumLog;
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;

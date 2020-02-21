@@ -29,9 +29,9 @@ struct PrevTxsEntry
 };
 
 // TODO:
-// CMutableTransaction tx = ExodusTxBuilder().addInput(input).addOpReturn(data).build();
+// CMutableTransaction tx = ElysiumTxBuilder().addInput(input).addOpReturn(data).build();
 // ... currently doesn't work, because addInput() returns a reference to a TxBuilder,
-// but not to an ExodusTxBuilder.
+// but not to an ElysiumTxBuilder.
 
 /**
  * Builder to create transactions.
@@ -128,7 +128,7 @@ protected:
 /**
  * Builder to create Exodus transactions.
  *
- * The ExodusTxBuilder class is an extension of the TxBuilder, with additional
+ * The ElysiumTxBuilder class is an extension of the TxBuilder, with additional
  * methods to build Exodus transactions. Payloads can be embedded with class B
  * (bare-multisig) or class C (op-return) encoding.
  *
@@ -139,32 +139,32 @@ protected:
  *
  * @code
  *   // add a bare-multisig encoded payload to an existing transaction:
- *   CMutableTransaction modifiedTx = ExodusTxBuilder(basisTx)
+ *   CMutableTransaction modifiedTx = ElysiumTxBuilder(basisTx)
  *           .addMultisig(payload, obfuscationSeed, redeemingPubKey)
  *           .build();
  * @endcode
  */
-class ExodusTxBuilder: public TxBuilder
+class ElysiumTxBuilder: public TxBuilder
 {
 public:
     /**
      * Creates a new Exodus transaction builder.
      */
-    ExodusTxBuilder();
+    ElysiumTxBuilder();
 
     /**
      * Creates a new Exodus transaction builder to extend a transaction.
      *
      * @param transactionIn The transaction used to build upon
      */
-    ExodusTxBuilder(const CMutableTransaction& transactionIn);
+    ElysiumTxBuilder(const CMutableTransaction& transactionIn);
 
     /**
      * Adds a collection of previous outputs as inputs to the transaction.
      *
      * @param outPoint The transaction outpoint to add
      */
-    ExodusTxBuilder& addInputs(const std::vector<PrevTxsEntry>& prevTxs);
+    ElysiumTxBuilder& addInputs(const std::vector<PrevTxsEntry>& prevTxs);
 
     /**
      * Adds an output for the reference address.
@@ -174,7 +174,7 @@ public:
      * @param destination The reference address
      * @param value       The optional reference amount
      */
-    ExodusTxBuilder& addReference(const std::string& destination, int64_t value = 0);
+    ElysiumTxBuilder& addReference(const std::string& destination, int64_t value = 0);
 
     /**
      * Embeds a payload with class C (op-return) encoding.
@@ -183,7 +183,7 @@ public:
      *
      * @param data The payload to embed
      */
-    ExodusTxBuilder& addOpReturn(const std::vector<unsigned char>& data);
+    ElysiumTxBuilder& addOpReturn(const std::vector<unsigned char>& data);
 
     /**
      * Embeds a payload with class B (bare-multisig) encoding.
@@ -194,7 +194,7 @@ public:
      * @param seed   The address of the sender, used as seed for obfuscation
      * @param pubKey A public key that may be used to redeem the multisig dust
      */
-    ExodusTxBuilder& addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey);
+    ElysiumTxBuilder& addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey);
 
     /**
      * Adds an output for change.
@@ -213,7 +213,7 @@ public:
      * @param txFee       The desired transaction fees
      * @param position    The position of the change output (default: first position)
      */
-    ExodusTxBuilder& addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position = 0);
+    ElysiumTxBuilder& addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position = 0);
 };
 
 /**

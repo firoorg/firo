@@ -17,7 +17,7 @@
 #include <string>
 
 //
-// Exodus version information are also to be defined in configure.ac.
+// Elysium version information are also to be defined in configure.ac.
 //
 // During the configuration, this information are used for other places.
 //
@@ -39,15 +39,15 @@ const int ELYSIUM_VERSION_PATCH = 0;
 //#define ELYSIUM_VERSION_BUILD 0
 const int ELYSIUM_VERSION_BUILD = 0;
 
-//! Exodus client version
+//! Elysium client version
 static const int ELYSIUM_VERSION =
                     +100000000000 * ELYSIUM_VERSION_MAJOR
                     +    10000000 * ELYSIUM_VERSION_MINOR
                     +        1000 * ELYSIUM_VERSION_PATCH
                     +           1 * ELYSIUM_VERSION_BUILD;
 
-//! Returns formatted Exodus version, e.g. "1.2.0"
-const std::string ExodusVersion();
+//! Returns formatted Elysium version, e.g. "1.2.0"
+const std::string ElysiumVersion();
 
 //! Returns formatted Bitcoin Core version, e.g. "0.10", "0.9.3"
 const std::string ZcoinCoreVersion();

@@ -7,7 +7,7 @@
 
 namespace elysium {
 
-BOOST_AUTO_TEST_SUITE(exodus_property_tests)
+BOOST_AUTO_TEST_SUITE(elysium_property_tests)
 
 BOOST_AUTO_TEST_CASE(sigma_status_is_enabled_flag)
 {

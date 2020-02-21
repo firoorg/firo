@@ -9,7 +9,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_strtoint64_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_strtoint64_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(strtoint64_invidisible)
 {

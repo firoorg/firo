@@ -216,7 +216,7 @@ struct SigmaWalletTestingSetup : WalletTestingSetup
 
 } // unnamed namespace
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmawallet_tests, SigmaWalletTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sigmawallet_tests, SigmaWalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(verify_mint_pool_have_been_generened)
 {

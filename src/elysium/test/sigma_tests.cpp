@@ -45,7 +45,7 @@ std::vector<SigmaPublicKey> CreateMints(size_t n)
 
 } // unnamed namespace
 
-BOOST_AUTO_TEST_SUITE(exodus_sigma_tests)
+BOOST_AUTO_TEST_SUITE(elysium_sigma_tests)
 
 BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
 {

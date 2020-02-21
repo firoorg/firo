@@ -41,7 +41,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
 {
     WalletTestingSetup()
     {
-        sigmaDb = new SigmaDatabase(pathTemp / "exodus_sigma_tests", true, 10);
+        sigmaDb = new SigmaDatabase(pathTemp / "elysium_sigma_tests", true, 10);
         wallet = new Wallet(pwalletMain->strWalletFile);
         wallet->ReloadMasterKey();
     }
@@ -59,7 +59,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(exodus_wallet_tests, WalletTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_wallet_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_create_one)
 {

@@ -32,7 +32,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_build_tx_tests, ZerocoinTestingSetup200)
+BOOST_FIXTURE_TEST_SUITE(elysium_build_tx_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
 {

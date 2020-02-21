@@ -8,7 +8,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_rounduint64_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_rounduint64_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(rounduint64_simple)
 {

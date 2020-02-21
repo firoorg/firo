@@ -18,7 +18,7 @@
 // Is resetted to a norm value in each test
 extern unsigned nMaxDatacarrierBytes;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_encoding_c_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_encoding_c_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(class_c_marker)
 {

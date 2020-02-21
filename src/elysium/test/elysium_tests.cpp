@@ -12,9 +12,9 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_exodus_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_elysium_tests, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(exodus_mints_overflow)
+BOOST_AUTO_TEST_CASE(elysium_mints_overflow)
 {
     _my_sps = new CMPSPInfo(pathTemp / "MP_spinfo_test", false);
 

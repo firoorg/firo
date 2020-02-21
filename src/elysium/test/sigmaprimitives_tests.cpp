@@ -9,7 +9,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmaprimitives_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sigmaprimitives_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(params)
 {

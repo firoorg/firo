@@ -421,7 +421,7 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         PrintToLog("WARNING!!! AS OF BLOCK %d THIS CLIENT WILL BE OUT OF CONSENSUS AND WILL AUTOMATICALLY SHUTDOWN.\n", activationBlock);
         std::string alertText = strprintf("Your client must be updated and will shutdown at block %d (unsupported feature %d ('%s') activated)\n",
                                           activationBlock, featureId, featureName);
-        AddAlert("exodus", ALERT_BLOCK_EXPIRY, activationBlock, alertText);
+        AddAlert("elysium", ALERT_BLOCK_EXPIRY, activationBlock, alertText);
         AlertNotify(alertText);
     }
 
@@ -494,7 +494,7 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
     PrintToLog("Feature deactivation of ID %d processed. %s has been disabled.\n", featureId, featureName);
 
     std::string alertText = strprintf("An emergency deactivation of feature ID %d (%s) has occurred.", featureId, featureName);
-    AddAlert("exodus", ALERT_BLOCK_EXPIRY, transactionBlock + 1024, alertText);
+    AddAlert("elysium", ALERT_BLOCK_EXPIRY, transactionBlock + 1024, alertText);
     AlertNotify(alertText);
 
     return true;

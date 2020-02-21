@@ -1,4 +1,4 @@
-// Exodus Protocol transaction code
+// Elysium Protocol transaction code
 
 #include "elysium/tx.h"
 
@@ -912,9 +912,9 @@ bool CMPTransaction::interpret_CreateDenomination()
 /** Tx 1026 */
 bool CMPTransaction::interpret_SimpleMint()
 {
-    constexpr unsigned exodusMintSize = 35;
+    constexpr unsigned elysiumMintSize = 35;
 
-    if (raw.size() < 9 + exodusMintSize) {
+    if (raw.size() < 9 + elysiumMintSize) {
         return false;
     }
 
@@ -924,7 +924,7 @@ bool CMPTransaction::interpret_SimpleMint()
     uint8_t mintAmount;
     memcpy(&mintAmount, &raw[8], 1);
 
-    if (raw.size() != 9 + exodusMintSize * mintAmount) {
+    if (raw.size() != 9 + elysiumMintSize * mintAmount) {
         return false;
     }
 
@@ -1614,7 +1614,7 @@ int CMPTransaction::logicMath_MetaDExTrade()
     }
 
     if (!IsFeatureActivated(FEATURE_TRADEALLPAIRS, block)) {
-        // Trading non-Exodus pairs is not allowed before trading all pairs is activated
+        // Trading non-Elysium pairs is not allowed before trading all pairs is activated
         if ((property != ELYSIUM_PROPERTY_ELYSIUM) && (desired_property != ELYSIUM_PROPERTY_ELYSIUM) &&
             (property != ELYSIUM_PROPERTY_TELYSIUM) && (desired_property != ELYSIUM_PROPERTY_TELYSIUM)) {
             PrintToLog("%s(): rejected: one side of a trade [%d, %d] must be ELYSIUM or TELYSIUM\n", __func__, property, desired_property);

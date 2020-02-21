@@ -181,7 +181,7 @@ struct SigmaWalletV0TestingSetup : WalletTestingSetup
 
 } // unnamed namespace
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sigmawalletv0_tests, SigmaWalletV0TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sigmawalletv0_tests, SigmaWalletV0TestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_private_key)
 {
@@ -326,7 +326,7 @@ BOOST_AUTO_TEST_CASE(readmintpool)
     BOOST_CHECK(std::is_permutation(mintPool.begin(), mintPool.end(), data.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(listexodusmints_nomints)
+BOOST_AUTO_TEST_CASE(listelysiummints_nomints)
 {
     size_t counter = 0;
     wallet->ListExodusMints([&](SigmaMintId const&, SigmaMint const&) {
@@ -336,7 +336,7 @@ BOOST_AUTO_TEST_CASE(listexodusmints_nomints)
     BOOST_CHECK_EQUAL(0, counter);
 }
 
-BOOST_AUTO_TEST_CASE(listexodusmints_withsomemints)
+BOOST_AUTO_TEST_CASE(listelysiummints_withsomemints)
 {
     std::vector<std::pair<SigmaMintId, SigmaMint>> mints;
     for (size_t i = 0; i < 10; i++)

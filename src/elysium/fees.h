@@ -15,18 +15,18 @@ typedef std::pair<std::string, int64_t> feeHistoryItem;
 
 /** LevelDB based storage for the MetaDEx fee cache
  */
-class CExodusFeeCache : public CDBBase
+class CElysiumFeeCache : public CDBBase
 {
 public:
-    CExodusFeeCache(const boost::filesystem::path& path, bool fWipe)
+    CElysiumFeeCache(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
         PrintToLog("Loading fee cache database: %s\n", status.ToString());
     }
 
-    virtual ~CExodusFeeCache()
+    virtual ~CElysiumFeeCache()
     {
-        if (elysium_debug_fees) PrintToLog("CExodusFeeCache closed\n");
+        if (elysium_debug_fees) PrintToLog("CElysiumFeeCache closed\n");
     }
 
     // Show Fee Cache DB statistics
@@ -58,18 +58,18 @@ public:
 
 /** LevelDB based storage for the MetaDEx fee distributions
  */
-class CExodusFeeHistory : public CDBBase
+class CElysiumFeeHistory : public CDBBase
 {
 public:
-    CExodusFeeHistory(const boost::filesystem::path& path, bool fWipe)
+    CElysiumFeeHistory(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
         PrintToLog("Loading fee history database: %s\n", status.ToString());
     }
 
-    virtual ~CExodusFeeHistory()
+    virtual ~CElysiumFeeHistory()
     {
-        if (elysium_debug_fees) PrintToLog("CExodusFeeHistory closed\n");
+        if (elysium_debug_fees) PrintToLog("CElysiumFeeHistory closed\n");
     }
 
     // Show Fee History DB statistics
@@ -94,8 +94,8 @@ public:
 
 namespace elysium
 {
-    extern CExodusFeeCache *p_feecache;
-    extern CExodusFeeHistory *p_feehistory;
+    extern CElysiumFeeCache *p_feecache;
+    extern CElysiumFeeHistory *p_feehistory;
 }
 
 #endif // ELYSIUM_FEES_H

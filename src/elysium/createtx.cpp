@@ -109,19 +109,19 @@ CMutableTransaction TxBuilder::build()
 }
 
 /** Creates a new Exodus transaction builder. */
-ExodusTxBuilder::ExodusTxBuilder()
+ElysiumTxBuilder::ElysiumTxBuilder()
   : TxBuilder()
 {
 }
 
 /** Creates a new Exodus transaction builder to extend a transaction. */
-ExodusTxBuilder::ExodusTxBuilder(const CMutableTransaction& transactionIn)
+ElysiumTxBuilder::ElysiumTxBuilder(const CMutableTransaction& transactionIn)
   : TxBuilder(transactionIn)
 {
 }
 
 /** Adds a collection of previous outputs as inputs to the transaction. */
-ExodusTxBuilder& ExodusTxBuilder::addInputs(const std::vector<PrevTxsEntry>& prevTxs)
+ElysiumTxBuilder& ElysiumTxBuilder::addInputs(const std::vector<PrevTxsEntry>& prevTxs)
 {
     for (std::vector<PrevTxsEntry>::const_iterator it = prevTxs.begin();
             it != prevTxs.end(); ++it) {
@@ -132,7 +132,7 @@ ExodusTxBuilder& ExodusTxBuilder::addInputs(const std::vector<PrevTxsEntry>& pre
 }
 
 /** Adds an output for the reference address. */
-ExodusTxBuilder& ExodusTxBuilder::addReference(const std::string& destination, int64_t value)
+ElysiumTxBuilder& ElysiumTxBuilder::addReference(const std::string& destination, int64_t value)
 {
     CBitcoinAddress addr(destination);
     CScript scriptPubKey = GetScriptForDestination(addr.Get());
@@ -140,29 +140,29 @@ ExodusTxBuilder& ExodusTxBuilder::addReference(const std::string& destination, i
     int64_t minValue = GetDustThreshold(scriptPubKey);
     value = std::max(minValue, value);
 
-    return (ExodusTxBuilder&) TxBuilder::addOutput(scriptPubKey, value);
+    return (ElysiumTxBuilder&) TxBuilder::addOutput(scriptPubKey, value);
 }
 
 /** Embeds a payload with class C (op-return) encoding. */
-ExodusTxBuilder& ExodusTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
+ElysiumTxBuilder& ElysiumTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
 {
     transaction.vout.push_back(elysium::EncodeClassC(data.begin(), data.end()));
     return *this;
 }
 
 /** Embeds a payload with class B (bare-multisig) encoding. */
-ExodusTxBuilder& ExodusTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
+ElysiumTxBuilder& ElysiumTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
 {
     elysium::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
     return *this;
 }
 
 /** Adds an output for change. */
-ExodusTxBuilder& ExodusTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
+ElysiumTxBuilder& ElysiumTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
 {
     CBitcoinAddress addr(destination);
 
-    return (ExodusTxBuilder&) TxBuilder::addChange(addr.Get(), view, txFee, position);
+    return (ElysiumTxBuilder&) TxBuilder::addChange(addr.Get(), view, txFee, position);
 }
 
 /** Adds previous transaction outputs to coins view. */

@@ -38,7 +38,7 @@
     vector.insert(vector.end(), reinterpret_cast<unsigned char *>(&(value)),\
     reinterpret_cast<unsigned char *>(&(value)) + sizeof((value)));
 
-BOOST_FIXTURE_TEST_SUITE(exodus_handler_tx_tests, ZerocoinTestingSetup200)
+BOOST_FIXTURE_TEST_SUITE(elysium_handler_tx_tests, ZerocoinTestingSetup200)
 
 static std::vector<unsigned char> createMockSpendPayload()
 {
@@ -63,7 +63,7 @@ CBlock getHeighestBlock()
     return block;
 }
 
-BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx)
+BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx)
 {
     pwalletMain->SetBroadcastTransactions(true);
     std::string fromAddress = CBitcoinAddress(pubkey.GetID()).ToString();
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx)
     BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx_with_spend)
+BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     std::string fromAddress = CBitcoinAddress(pubkey.GetID()).ToString();
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_normal_tx_with_spend)
     BOOST_CHECK_EQUAL(0, ParseTransaction(exodusTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_non_spend)
+BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_non_spend)
     BOOST_CHECK_EQUAL(0, ParseTransaction(sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_parse_sigma_tx_with_spend)
+BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
     CreateAndProcessEmptyBlocks(200, scriptPubKey);

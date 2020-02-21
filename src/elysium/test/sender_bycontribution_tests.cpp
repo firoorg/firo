@@ -21,7 +21,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sender_bycontribution_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sender_bycontribution_tests, BasicTestingSetup)
 
 // Forward declarations
 static CTransaction TxClassB(const std::vector<CTxOut>& txInputs);

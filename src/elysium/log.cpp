@@ -85,7 +85,7 @@ static boost::once_flag debugLogInitFlag = BOOST_ONCE_INIT;
 static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
 /** Flag to indicate, whether the Exodus log file should be reopened. */
-extern std::atomic<bool> fReopenExodusLog;
+extern std::atomic<bool> fReopenElysiumLog;
 
 /**
  * @return The current timestamp in the format: 2009-01-03 18:15:05
@@ -133,7 +133,7 @@ static int ConsolePrint(const std::string& str)
 static boost::filesystem::path GetLogPath()
 {
     boost::filesystem::path pathLogFile;
-    std::string strLogPath = GetArg("-omnilogfile", "");
+    std::string strLogPath = GetArg("-elysiumlogfile", "");
 
     if (!strLogPath.empty()) {
         pathLogFile = boost::filesystem::path(strLogPath);
@@ -194,8 +194,8 @@ int LogFilePrint(const std::string& str)
         boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
 
         // Reopen the log file, if requested
-        if (fReopenExodusLog) {
-        	fReopenExodusLog = false;
+        if (fReopenElysiumLog) {
+        	fReopenElysiumLog = false;
             boost::filesystem::path pathDebug = GetLogPath();
             if (freopen(pathDebug.string().c_str(), "a", fileout) != NULL) {
                 setbuf(fileout, NULL); // Unbuffered

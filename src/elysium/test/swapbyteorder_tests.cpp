@@ -8,7 +8,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_swapbyteorder_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_swapbyteorder_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(swapbyteorder_cycle)
 {

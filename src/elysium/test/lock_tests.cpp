@@ -28,7 +28,7 @@ static void plusOneThread(int nIterations)
     }
 }
 
-BOOST_FIXTURE_TEST_SUITE(exodus_lock_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_lock_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(multithread_locking)
 {

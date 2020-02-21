@@ -28,7 +28,7 @@ struct SpTestingSetup : public TestChain100Setup
     CMPSPInfo db;
 };
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sp_tests, SpTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sp_tests, SpTestingSetup)
 
 BOOST_AUTO_TEST_CASE(not_exist_sp)
 {

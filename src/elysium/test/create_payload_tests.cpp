@@ -13,7 +13,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_create_payload_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_create_payload_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(payload_simple_send)
 {
@@ -449,7 +449,7 @@ BOOST_AUTO_TEST_CASE(payload_feature_activation)
     BOOST_CHECK_EQUAL(HexStr(vch), "fffffffe00010005a550000003e7");
 }
 
-BOOST_AUTO_TEST_CASE(payload_exodus_alert_block)
+BOOST_AUTO_TEST_CASE(payload_elysium_alert_block)
 {
     // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_block)
     BOOST_CHECK_EQUAL(HexStr(vch), "ffffffff0001000493e07465737400");
 }
 
-BOOST_AUTO_TEST_CASE(payload_exodus_alert_blockexpiry)
+BOOST_AUTO_TEST_CASE(payload_elysium_alert_blockexpiry)
 {
     // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(
@@ -471,7 +471,7 @@ BOOST_AUTO_TEST_CASE(payload_exodus_alert_blockexpiry)
     BOOST_CHECK_EQUAL(HexStr(vch), "ffffffff000255cd76b67465737400");
 }
 
-BOOST_AUTO_TEST_CASE(payload_exodus_alert_minclient)
+BOOST_AUTO_TEST_CASE(payload_elysium_alert_minclient)
 {
     // Exodus Core client notification [type 65535, version 65535]
     std::vector<unsigned char> vch = CreatePayload_ExodusAlert(

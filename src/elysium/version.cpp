@@ -20,8 +20,8 @@ extern const int ELYSIUM_VERSION_MINOR;
 extern const int ELYSIUM_VERSION_PATCH;
 extern const int ELYSIUM_VERSION_BUILD;
 
-//! Returns formatted Exodus version, e.g. "1.2.0" or "1.3.4.1"
-const std::string ExodusVersion()
+//! Returns formatted Elysium version, e.g. "1.2.0" or "1.3.4.1"
+const std::string ElysiumVersion()
 {
     if (ELYSIUM_VERSION_BUILD) {
         return strprintf("%d.%d.%d.%d",

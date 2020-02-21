@@ -7,7 +7,7 @@ class uint256;
 
 namespace elysium
 {
-//! Global vector of Exodus transactions in the wallet
+//! Global vector of Elysium transactions in the wallet
 extern std::vector<uint256> walletTXIDCache;
 
 /** Adds a txid to the wallet txid cache, performing duplicate detection */

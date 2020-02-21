@@ -133,7 +133,7 @@ UniValue elysium_createrawtx_opreturn(const UniValue& params, bool fHelp)
     std::vector<unsigned char> payload = ParseHexV(params[1], "payload");
 
     // extend the transaction
-    tx = ExodusTxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
             .addOpReturn(payload)
             .build();
 
@@ -172,7 +172,7 @@ UniValue elysium_createrawtx_multisig(const UniValue& params, bool fHelp)
     CPubKey redeemKey = ParsePubKeyOrAddress(params[3]);
 
     // extend the transaction
-    tx = ExodusTxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
             .addMultisig(payload, obfuscationSeed, redeemKey)
             .build();
 
@@ -207,7 +207,7 @@ UniValue elysium_createrawtx_input(const UniValue& params, bool fHelp)
     uint32_t nOut = ParseOutputIndex(params[2]);
 
     // extend the transaction
-    tx = ExodusTxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
             .addInput(txid, nOut)
             .build();
 
@@ -244,7 +244,7 @@ UniValue elysium_createrawtx_reference(const UniValue& params, bool fHelp)
     int64_t amount = (params.size() > 2) ? AmountFromValue(params[2]) : 0;
 
     // extend the transaction
-    tx = ExodusTxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
             .addReference(destination, amount)
             .build();
 
@@ -307,7 +307,7 @@ UniValue elysium_createrawtx_change(const UniValue& params, bool fHelp)
     InputsToView(prevTxsParsed, viewTemp);
 
     // extend the transaction
-    tx = ExodusTxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
             .addChange(destination, viewTemp, txFee, nOut)
             .build();
 

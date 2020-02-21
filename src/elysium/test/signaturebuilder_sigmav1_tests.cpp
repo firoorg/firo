@@ -59,7 +59,7 @@ public:
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(exodus_signaturebuilder_sigmav1_tests, SignatureBuilderSigmaV1Setup)
+BOOST_FIXTURE_TEST_SUITE(elysium_signaturebuilder_sigmav1_tests, SignatureBuilderSigmaV1Setup)
 
 BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 {

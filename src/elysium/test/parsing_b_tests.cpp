@@ -25,7 +25,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_parsing_b_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_parsing_b_tests, BasicTestingSetup)
 
 /** Creates a dummy transaction with the given inputs and outputs. */
 static CTransaction TxClassB(const std::vector<CTxOut>& txInputs, const std::vector<CTxOut>& txOuts)

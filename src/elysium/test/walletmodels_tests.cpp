@@ -33,7 +33,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const b
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_walletmodels_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_walletmodels_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_mint_chainstate_default)
 {

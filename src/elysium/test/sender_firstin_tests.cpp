@@ -24,7 +24,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_sender_firstin_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_sender_firstin_tests, BasicTestingSetup)
 
 /** Creates a dummy class C transaction with the given inputs. */
 static CTransaction TxClassC(const std::vector<CTxOut>& txInputs)

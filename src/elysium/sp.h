@@ -163,8 +163,8 @@ public:
 
 private:
     // implied version of ELYSIUM and TELYSIUM so they don't hit the leveldb
-    Entry implied_exodus;
-    Entry implied_texodus;
+    Entry implied_elysium;
+    Entry implied_telysium;
 
     uint32_t next_spid;
     uint32_t next_test_spid;

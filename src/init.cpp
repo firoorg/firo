@@ -327,7 +327,7 @@ void HandleSIGTERM(int) {
 
 void HandleSIGHUP(int) {
     fReopenDebugLog = true;
-    fReopenExodusLog = true;
+    fReopenElysiumLog = true;
 }
 
 bool static Bind(const CService &addr, unsigned int flags) {
@@ -1885,7 +1885,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
 
         uiInterface.InitMessage(_("Parsing Elysium transactions..."));
-        exodus_init();
+        elysium_init();
 
         // Elysium code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();

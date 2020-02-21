@@ -13,7 +13,7 @@ extern int64_t calculateDExPurchase(const int64_t amountOffered, const int64_t a
 
 using elysium::calculateDExPurchase;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_dex_purchase_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_dex_purchase_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(purchase_amount_exact)
 {

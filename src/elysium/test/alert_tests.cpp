@@ -18,7 +18,7 @@ using namespace elysium;
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_alert_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_alert_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(alert_positive_authorization)
 {

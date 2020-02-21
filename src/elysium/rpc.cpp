@@ -2059,7 +2059,7 @@ UniValue elysium_getinfo(const UniValue& params, bool fHelp)
 
     // provide the Elysium and Zcoin version
     infoResponse.push_back(Pair("elysiumversion_int", ELYSIUM_VERSION));
-    infoResponse.push_back(Pair("elysiumversion", ExodusVersion()));
+    infoResponse.push_back(Pair("elysiumversion", ElysiumVersion()));
     infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
 
     // provide the current block details
@@ -2082,7 +2082,7 @@ UniValue elysium_getinfo(const UniValue& params, bool fHelp)
 
     // handle alerts
     UniValue alerts(UniValue::VARR);
-    std::vector<AlertData> exodusAlerts = GetExodusAlerts();
+    std::vector<AlertData> exodusAlerts = GetElysiumAlerts();
     for (std::vector<AlertData>::iterator it = exodusAlerts.begin(); it != exodusAlerts.end(); it++) {
         AlertData alert = *it;
         UniValue alertResponse(UniValue::VOBJ);

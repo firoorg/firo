@@ -18,7 +18,7 @@
 
 #include <inttypes.h>
 
-BOOST_FIXTURE_TEST_SUITE(exodus_encoding_b_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_encoding_b_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(class_b_empty)
 {

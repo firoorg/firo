@@ -10,7 +10,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_uint256_extensions_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_uint256_extensions_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(uint256_from_uint64_t)
 {

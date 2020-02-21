@@ -68,12 +68,12 @@ constexpr uint16_t FEATURE_STOV1 = 10;
 constexpr uint16_t FEATURE_FREEZENOTICE = 14;
 
 /**
- * Feature identifier to activate sigma on exodus.
+ * Feature identifier to activate sigma on elysium.
  **/
 constexpr uint16_t FEATURE_SIGMA = 15;
 
 /**
- * Feature indentifier to activate sigma spend v1 on exodus.
+ * Feature indentifier to activate sigma spend v1 on elysium.
  **/
 constexpr uint16_t FEATURE_SIGMA_SPENDV1 = 16;
 
@@ -105,7 +105,7 @@ struct ConsensusCheckpoint
 
 // TODO: rename allcaps variable names
 // TODO: remove remaining global heights
-// TODO: add Exodus addresses to params
+// TODO: add Elysium addresses to params
 
 /**
  * Base class for consensus parameters.
@@ -114,7 +114,7 @@ class CConsensusParams
 {
 public:
     /**
-     * First block of the Exodus feature.
+     * First block of the Elysium feature.
      **/
     int GENESIS_BLOCK;
 

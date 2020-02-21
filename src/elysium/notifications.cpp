@@ -20,8 +20,8 @@
 namespace elysium
 {
 
-//! Vector of currently active Exodus alerts
-std::vector<AlertData> currentExodusAlerts;
+//! Vector of currently active Elysium alerts
+std::vector<AlertData> currentElysiumAlerts;
 
 /**
  * Deletes previously broadcast alerts from sender from the alerts vector
@@ -30,12 +30,12 @@ std::vector<AlertData> currentExodusAlerts;
  */
 void DeleteAlerts(const std::string& sender)
 {
-    for (std::vector<AlertData>::iterator it = currentExodusAlerts.begin(); it != currentExodusAlerts.end(); ) {
+    for (std::vector<AlertData>::iterator it = currentElysiumAlerts.begin(); it != currentElysiumAlerts.end(); ) {
         AlertData alert = *it;
         if (sender == alert.alert_sender) {
             PrintToLog("Removing deleted alert (from:%s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                 alert.alert_type, alert.alert_expiry, alert.alert_message);
-            it = currentExodusAlerts.erase(it);
+            it = currentElysiumAlerts.erase(it);
             uiInterface.ElysiumStateChanged();
         } else {
             it++;
@@ -50,7 +50,7 @@ void DeleteAlerts(const std::string& sender)
  */
 void ClearAlerts()
 {
-    currentExodusAlerts.clear();
+    currentElysiumAlerts.clear();
     uiInterface.ElysiumStateChanged();
 }
 
@@ -67,17 +67,17 @@ void AddAlert(const std::string& sender, uint16_t alertType, uint32_t alertExpir
     newAlert.alert_message = alertMessage;
 
     // very basic sanity checks for broadcast alerts to catch malformed packets
-    if (sender != "exodus" && (alertType < ALERT_BLOCK_EXPIRY || alertType > ALERT_CLIENT_VERSION_EXPIRY)) {
+    if (sender != "elysium" && (alertType < ALERT_BLOCK_EXPIRY || alertType > ALERT_CLIENT_VERSION_EXPIRY)) {
         PrintToLog("New alert REJECTED (alert type not recognized): %s, %d, %d, %s\n", sender, alertType, alertExpiry, alertMessage);
         return;
     }
 
-    currentExodusAlerts.push_back(newAlert);
+    currentElysiumAlerts.push_back(newAlert);
     PrintToLog("New alert added: %s, %d, %d, %s\n", sender, alertType, alertExpiry, alertMessage);
 }
 
 /**
- * Determines whether the sender is an authorized source for Exodus Core alerts.
+ * Determines whether the sender is an authorized source for Elysium Core alerts.
  *
  * The option "-elysiumalertallowsender=source" can be used to whitelist additional sources,
  * and the option "-elysiumalertignoresender=source" can be used to ignore a source.
@@ -122,18 +122,18 @@ bool CheckAlertAuthorization(const std::string& sender)
 /**
  * Alerts including meta data.
  */
-std::vector<AlertData> GetExodusAlerts()
+std::vector<AlertData> GetElysiumAlerts()
 {
-    return currentExodusAlerts;
+    return currentElysiumAlerts;
 }
 
 /**
  * Human readable alert messages.
  */
-std::vector<std::string> GetExodusAlertMessages()
+std::vector<std::string> GetElysiumAlertMessages()
 {
     std::vector<std::string> vstr;
-    for (std::vector<AlertData>::iterator it = currentExodusAlerts.begin(); it != currentExodusAlerts.end(); it++) {
+    for (std::vector<AlertData>::iterator it = currentElysiumAlerts.begin(); it != currentElysiumAlerts.end(); it++) {
         vstr.push_back((*it).alert_message);
     }
     return vstr;
@@ -144,14 +144,14 @@ std::vector<std::string> GetExodusAlertMessages()
  */
 bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
 {
-    for (std::vector<AlertData>::iterator it = currentExodusAlerts.begin(); it != currentExodusAlerts.end(); ) {
+    for (std::vector<AlertData>::iterator it = currentElysiumAlerts.begin(); it != currentElysiumAlerts.end(); ) {
         AlertData alert = *it;
         switch (alert.alert_type) {
             case ALERT_BLOCK_EXPIRY:
                 if (curBlock >= alert.alert_expiry) {
                     PrintToLog("Expiring alert (from %s: type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
-                    it = currentExodusAlerts.erase(it);
+                    it = currentElysiumAlerts.erase(it);
                     uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
@@ -161,7 +161,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                 if (curTime > alert.alert_expiry) {
                     PrintToLog("Expiring alert (from %s: type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
-                    it = currentExodusAlerts.erase(it);
+                    it = currentElysiumAlerts.erase(it);
                     uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
@@ -171,7 +171,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                 if (ELYSIUM_VERSION > alert.alert_expiry) {
                     PrintToLog("Expiring alert (form: %s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
-                    it = currentExodusAlerts.erase(it);
+                    it = currentElysiumAlerts.erase(it);
                     uiInterface.ElysiumStateChanged();
                 } else {
                     it++;
@@ -180,7 +180,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
             default: // unrecognized alert type
                     PrintToLog("Removing invalid alert (from:%s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
-                    it = currentExodusAlerts.erase(it);
+                    it = currentElysiumAlerts.erase(it);
                     uiInterface.ElysiumStateChanged();
             break;
         }

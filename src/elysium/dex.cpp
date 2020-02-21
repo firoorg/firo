@@ -94,7 +94,7 @@ namespace legacy
  * Legacy calculation of Master Core 0.0.9.
  *
  * @see:
- * https://github.com/mastercoin-MSC/exodus/blob/mscore-0.0.9/src/exodus_dex.cpp#L439-L449
+ * https://github.com/mastercoin-MSC/exodus/blob/mscore-0.0.9/src/elysium_dex.cpp#L439-L449
  */
 static int64_t calculateDesiredBTC(const int64_t amountOffered, const int64_t amountDesired, const int64_t amountAvailable)
 {
@@ -390,7 +390,7 @@ namespace legacy
  * Legacy calculation of Master Core 0.0.9.
  *
  * @see:
- * https://github.com/mastercoin-MSC/exodus/blob/mscore-0.0.9/src/exodus_dex.cpp#L660-L668
+ * https://github.com/mastercoin-MSC/exodus/blob/mscore-0.0.9/src/elysium_dex.cpp#L660-L668
  */
 static int64_t calculateDExPurchase(const int64_t amountOffered, const int64_t amountDesired, const int64_t amountPaid)
 {

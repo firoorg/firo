@@ -43,7 +43,7 @@ constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 // maximum size of string fields
 #define SP_STRING_FIELD_LEN 256
 
-// Exodus Transaction (Packet) Version
+// Elysium Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
 
@@ -99,7 +99,7 @@ std::string FormatByType(int64_t amount, uint16_t propertyType);
 //! Used to indicate, whether to automatically commit created transactions
 extern bool autoCommit;
 
-/** LevelDB based storage for storing Exodus transaction data.  This will become the new master database, holding serialized Exodus transactions.
+/** LevelDB based storage for storing Elysium transaction data.  This will become the new master database, holding serialized Elysium transactions.
  *  Note, intention is to consolidate and clean up data storage
  */
 class CElysiumTransactionDB : public CDBBase
@@ -247,10 +247,10 @@ int64_t getUserFrozenMPbalance(const std::string& address, uint32_t propertyId);
 
 bool isElysiumEnabled();
 
-/** Global handler to initialize Exodus Core. */
-int exodus_init();
+/** Global handler to initialize Elysium Core. */
+int elysium_init();
 
-/** Global handler to shut down Exodus Core. */
+/** Global handler to shut down Elysium Core. */
 int elysium_shutdown();
 
 /** Global handler to total wallet balances. */
@@ -272,7 +272,7 @@ extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;
 extern CMPTradeList *t_tradelistdb;
 extern CMPSTOList *s_stolistdb;
-extern CElysiumTransactionDB *p_ExodusTXDB;
+extern CElysiumTransactionDB *p_ElysiumTXDB;
 
 // TODO: move, rename
 extern CCoinsView viewDummy;

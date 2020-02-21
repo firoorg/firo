@@ -39,9 +39,9 @@ void ClearAlerts();
 void AddAlert(const std::string& sender, uint16_t alertType, uint32_t alertExpiry, const std::string& alertMessage);
 
 /** Alert string including meta data. */
-std::vector<AlertData> GetExodusAlerts();
+std::vector<AlertData> GetElysiumAlerts();
 /** Human readable alert messages. */
-std::vector<std::string> GetExodusAlertMessages();
+std::vector<std::string> GetElysiumAlertMessages();
 
 /** Expires any alerts that need expiring. */
 bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime);

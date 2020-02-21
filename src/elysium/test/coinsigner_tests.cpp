@@ -37,7 +37,7 @@ public:
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(exodus_coinsigner_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_coinsigner_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(construct_withvalid_keysize)
 {

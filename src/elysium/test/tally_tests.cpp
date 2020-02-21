@@ -6,7 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(exodus_tally_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_tally_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(empty_tally)
 {

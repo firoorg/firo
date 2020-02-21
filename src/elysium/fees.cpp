@@ -27,13 +27,13 @@ using namespace elysium;
 std::map<uint32_t, int64_t> distributionThresholds;
 
 // Returns the distribution threshold for a property
-int64_t CExodusFeeCache::GetDistributionThreshold(const uint32_t &propertyId)
+int64_t CElysiumFeeCache::GetDistributionThreshold(const uint32_t &propertyId)
 {
     return distributionThresholds[propertyId];
 }
 
 // Sets the distribution thresholds to total tokens for a property / ELYSIUM_FEE_THRESHOLD
-void CExodusFeeCache::UpdateDistributionThresholds(uint32_t propertyId)
+void CElysiumFeeCache::UpdateDistributionThresholds(uint32_t propertyId)
 {
     int64_t distributionThreshold = getTotalTokens(propertyId) / ELYSIUM_FEE_THRESHOLD;
     if (distributionThreshold <= 0) {
@@ -44,7 +44,7 @@ void CExodusFeeCache::UpdateDistributionThresholds(uint32_t propertyId)
 }
 
 // Gets the current amount of the fee cache for a property
-int64_t CExodusFeeCache::GetCachedAmount(const uint32_t &propertyId)
+int64_t CElysiumFeeCache::GetCachedAmount(const uint32_t &propertyId)
 {
     assert(pdb);
     // Get the fee history, set is sorted by block so last entry is most recent
@@ -60,7 +60,7 @@ int64_t CExodusFeeCache::GetCachedAmount(const uint32_t &propertyId)
 }
 
 // Zeros a property in the fee cache
-void CExodusFeeCache::ClearCache(const uint32_t &propertyId, int block)
+void CElysiumFeeCache::ClearCache(const uint32_t &propertyId, int block)
 {
     if (elysium_debug_fees) PrintToLog("ClearCache starting (block %d, property ID %d)...\n", block, propertyId);
     const std::string key = strprintf("%010d", propertyId);
@@ -89,7 +89,7 @@ void CExodusFeeCache::ClearCache(const uint32_t &propertyId, int block)
 }
 
 // Adds a fee to the cache (eg on a completed trade)
-void CExodusFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_t &amount)
+void CElysiumFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_t &amount)
 {
     if (elysium_debug_fees) PrintToLog("Starting AddFee for prop %d (block %d amount %d)...\n", propertyId, block, amount);
 
@@ -142,7 +142,7 @@ void CExodusFeeCache::AddFee(const uint32_t &propertyId, int block, const int64_
 }
 
 // Rolls back the cache to an earlier state (eg in event of a reorg) - block is *inclusive* (ie entries=block will get deleted)
-void CExodusFeeCache::RollBackCache(int block)
+void CElysiumFeeCache::RollBackCache(int block)
 {
     assert(pdb);
     for (uint8_t ecosystem = 1; ecosystem <= 2; ecosystem++) {
@@ -171,7 +171,7 @@ void CExodusFeeCache::RollBackCache(int block)
 }
 
 // Evaluates fee caches for the property against threshold and executes distribution if threshold met
-void CExodusFeeCache::EvalCache(const uint32_t &propertyId, int block)
+void CElysiumFeeCache::EvalCache(const uint32_t &propertyId, int block)
 {
     if (GetCachedAmount(propertyId) >= distributionThresholds[propertyId]) {
         DistributeCache(propertyId, block);
@@ -179,7 +179,7 @@ void CExodusFeeCache::EvalCache(const uint32_t &propertyId, int block)
 }
 
 // Performs distribution of fees
-void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
+void CElysiumFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 {
     LOCK(cs_main);
 
@@ -222,7 +222,7 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 }
 
 // Prunes entries over MAX_STATE_HISTORY blocks old from the entry for a property
-void CExodusFeeCache::PruneCache(const uint32_t &propertyId, int block)
+void CElysiumFeeCache::PruneCache(const uint32_t &propertyId, int block)
 {
     if (elysium_debug_fees) PrintToLog("Starting PruneCache for prop %d block %d...\n", propertyId, block);
     assert(pdb);
@@ -269,13 +269,13 @@ void CExodusFeeCache::PruneCache(const uint32_t &propertyId, int block)
 }
 
 // Show Fee Cache DB statistics
-void CExodusFeeCache::printStats()
+void CElysiumFeeCache::printStats()
 {
-    PrintToLog("CExodusFeeCache stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
+    PrintToLog("CElysiumFeeCache stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
 }
 
 // Show Fee Cache DB records
-void CExodusFeeCache::printAll()
+void CElysiumFeeCache::printAll()
 {
     int count = 0;
     leveldb::Iterator* it = NewIterator();
@@ -287,7 +287,7 @@ void CExodusFeeCache::printAll()
 }
 
 // Return a set containing fee cache history items
-std::set<feeCacheItem> CExodusFeeCache::GetCacheHistory(const uint32_t &propertyId)
+std::set<feeCacheItem> CElysiumFeeCache::GetCacheHistory(const uint32_t &propertyId)
 {
     assert(pdb);
 
@@ -319,13 +319,13 @@ std::set<feeCacheItem> CExodusFeeCache::GetCacheHistory(const uint32_t &property
 }
 
 // Show Fee History DB statistics
-void CExodusFeeHistory::printStats()
+void CElysiumFeeHistory::printStats()
 {
-    PrintToLog("CExodusFeeHistory stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
+    PrintToLog("CElysiumFeeHistory stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
 }
 
 // Show Fee History DB records
-void CExodusFeeHistory::printAll()
+void CElysiumFeeHistory::printAll()
 {
     int count = 0;
     leveldb::Iterator* it = NewIterator();
@@ -338,7 +338,7 @@ void CExodusFeeHistory::printAll()
 }
 
 // Count Fee History DB records
-int CExodusFeeHistory::CountRecords()
+int CElysiumFeeHistory::CountRecords()
 {
     // No faster way to count than to iterate - "There is no way to implement Count more efficiently inside leveldb than outside."
     int count = 0;
@@ -351,7 +351,7 @@ int CExodusFeeHistory::CountRecords()
 }
 
 // Roll back history in event of reorg, block is inclusive
-void CExodusFeeHistory::RollBackHistory(int block)
+void CElysiumFeeHistory::RollBackHistory(int block)
 {
     assert(pdb);
 
@@ -376,7 +376,7 @@ void CExodusFeeHistory::RollBackHistory(int block)
 }
 
 // Retrieve fee distributions for a property
-std::set<int> CExodusFeeHistory::GetDistributionsForProperty(const uint32_t &propertyId)
+std::set<int> CElysiumFeeHistory::GetDistributionsForProperty(const uint32_t &propertyId)
 {
     assert(pdb);
 
@@ -403,7 +403,7 @@ std::set<int> CExodusFeeHistory::GetDistributionsForProperty(const uint32_t &pro
 }
 
 // Populate data about a fee distribution
-bool CExodusFeeHistory::GetDistributionData(int id, uint32_t *propertyId, int *block, int64_t *total)
+bool CElysiumFeeHistory::GetDistributionData(int id, uint32_t *propertyId, int *block, int64_t *total)
 {
     assert(pdb);
 
@@ -428,7 +428,7 @@ bool CExodusFeeHistory::GetDistributionData(int id, uint32_t *propertyId, int *b
 }
 
 // Retrieve the recipients for a fee distribution
-std::set<feeHistoryItem> CExodusFeeHistory::GetFeeDistribution(int id)
+std::set<feeHistoryItem> CElysiumFeeHistory::GetFeeDistribution(int id)
 {
     assert(pdb);
 
@@ -465,7 +465,7 @@ std::set<feeHistoryItem> CExodusFeeHistory::GetFeeDistribution(int id)
 }
 
 // Record a fee distribution
-void CExodusFeeHistory::RecordFeeDistribution(const uint32_t &propertyId, int block, int64_t total, std::set<feeHistoryItem> feeRecipients)
+void CElysiumFeeHistory::RecordFeeDistribution(const uint32_t &propertyId, int block, int64_t total, std::set<feeHistoryItem> feeRecipients)
 {
     assert(pdb);
 

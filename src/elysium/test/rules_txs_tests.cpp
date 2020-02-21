@@ -14,7 +14,7 @@ namespace elysium {
 const int MAX_BLOCK = std::numeric_limits<int>::max();
 const int MAX_VERSION = std::numeric_limits<uint16_t>::max();
 
-BOOST_FIXTURE_TEST_SUITE(exodus_rules_txs_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_rules_txs_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(simple_send_restrictions)
 {

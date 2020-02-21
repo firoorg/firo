@@ -114,11 +114,11 @@ std::set<std::pair<std::string,uint32_t> > setFrozenAddresses;
 bool autoCommit = true;
 
 //! Number of "Dev ELYSIUM" of the last processed block
-static int64_t exodus_prev = 0;
+static int64_t elysium_prev = 0;
 
 static boost::filesystem::path MPPersistencePath;
 
-static int exodusInitialized = 0;
+static int elysiumInitialized = 0;
 
 static int reorgRecoveryMode = 0;
 static int reorgRecoveryMaxHeight = 0;
@@ -126,9 +126,9 @@ static int reorgRecoveryMaxHeight = 0;
 CMPTxList *elysium::p_txlistdb;
 CMPTradeList *elysium::t_tradelistdb;
 CMPSTOList *elysium::s_stolistdb;
-CElysiumTransactionDB *elysium::p_ExodusTXDB;
-CExodusFeeCache *elysium::p_feecache;
-CExodusFeeHistory *elysium::p_feehistory;
+CElysiumTransactionDB *elysium::p_ElysiumTXDB;
+CElysiumFeeCache *elysium::p_feecache;
+CElysiumFeeHistory *elysium::p_feehistory;
 
 // indicate whether persistence is enabled at this point, or not
 // used to write/read files, for breakout mode, debugging, etc.
@@ -511,11 +511,11 @@ bool elysium::update_tally_map(const std::string& who, uint32_t propertyId, int6
 /**
  * Calculates and updates the "development mastercoins".
  *
- * For every 10 ELYSIUM sold during the Exodus period, 1 additional "Dev ELYSIUM" was generated,
- * which are being awarded to the Exodus address slowly over the years.
+ * For every 10 ELYSIUM sold during the Elysium period, 1 additional "Dev ELYSIUM" was generated,
+ * which are being awarded to the Elysium address slowly over the years.
  *
  * @see The "Dev ELYSIUM" specification:
- * https://github.com/ExodusLayer/spec#development-mastercoins-dev-elysium-previously-reward-mastercoins
+ * https://github.com/ElysiumLayer/spec#development-mastercoins-dev-elysium-previously-reward-mastercoins
  *
  * Note:
  * If timestamps are out of order, then previously vested "Dev ELYSIUM" are not voided.
@@ -523,44 +523,44 @@ bool elysium::update_tally_map(const std::string& who, uint32_t propertyId, int6
  * @param nTime  The timestamp of the block to update the "Dev ELYSIUM" for
  * @return The number of "Dev ELYSIUM" generated
  */
-static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
+static int64_t calculate_and_update_develysium(unsigned int nTime, int block)
 {
     // do nothing if before end of fundraiser
     if (nTime < 1377993874) return 0;
 
-    // taken mainly from exodus_validate.py: def get_available_reward(height, c)
-    int64_t devexodus = 0;
-    int64_t exodus_delta = 0;
+    // taken mainly from elysium_validate.py: def get_available_reward(height, c)
+    int64_t develysium = 0;
+    int64_t elysium_delta = 0;
     // spec constants:
     const int64_t all_reward = 5631623576222;
     const double seconds_in_one_year = 31556926;
-    const double seconds_passed = nTime - 1377993874; // exodus bootstrap deadline
+    const double seconds_passed = nTime - 1377993874; // elysium bootstrap deadline
     const double years = seconds_passed / seconds_in_one_year;
     const double part_available = 1 - pow(0.5, years);
     const double available_reward = all_reward * part_available;
 
-    devexodus = rounduint64(available_reward);
-    exodus_delta = devexodus - exodus_prev;
+    develysium = rounduint64(available_reward);
+    elysium_delta = develysium - elysium_prev;
 
-    if (elysium_debug_ely) PrintToLog("devexodus=%d, exodus_prev=%d, exodus_delta=%d\n", devexodus, exodus_prev, exodus_delta);
+    if (elysium_debug_ely) PrintToLog("develysium=%d, elysium_prev=%d, elysium_delta=%d\n", develysium, elysium_prev, elysium_delta);
 
     // skip if a block's timestamp is older than that of a previous one!
-    if (0 > exodus_delta) return 0;
+    if (0 > elysium_delta) return 0;
 
-    // sanity check that devexodus isn't an impossible value
-    if (devexodus > all_reward || 0 > devexodus) {
-        PrintToLog("%s(): ERROR: insane number of Dev ELYSIUM (nTime=%d, exodus_prev=%d, devexodus=%d)\n", __func__, nTime, exodus_prev, devexodus);
+    // sanity check that develysium isn't an impossible value
+    if (develysium > all_reward || 0 > develysium) {
+        PrintToLog("%s(): ERROR: insane number of Dev ELYSIUM (nTime=%d, elysium_prev=%d, develysium=%d)\n", __func__, nTime, elysium_prev, develysium);
         return 0;
     }
 
-    if (exodus_delta > 0) {
-        update_tally_map(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, exodus_delta, BALANCE);
-        exodus_prev = devexodus;
+    if (elysium_delta > 0) {
+        update_tally_map(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, elysium_delta, BALANCE);
+        elysium_prev = develysium;
     }
 
     NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block);
 
-    return exodus_delta;
+    return elysium_delta;
 }
 
 uint32_t elysium::GetNextPropertyId(bool maineco)
@@ -582,7 +582,7 @@ void NotifyTotalTokensChanged(uint32_t propertyId, int block)
 void CheckWalletUpdate(bool forceUpdate)
 {
     if (!WalletCacheUpdate()) {
-        // no balance changes were detected that affect wallet addresses, signal a generic change to overall Exodus state
+        // no balance changes were detected that affect wallet addresses, signal a generic change to overall Elysium state
         if (!forceUpdate) {
             uiInterface.ElysiumStateChanged();
             return;
@@ -591,7 +591,7 @@ void CheckWalletUpdate(bool forceUpdate)
 #ifdef ENABLE_WALLET
     LOCK(cs_main);
 
-    // balance changes were found in the wallet, update the global totals and signal a Exodus balance change
+    // balance changes were found in the wallet, update the global totals and signal a Elysium balance change
     global_balance_money.clear();
     global_balance_reserved.clear();
 
@@ -616,7 +616,7 @@ void CheckWalletUpdate(bool forceUpdate)
             global_balance_reserved[propertyId] += getMPbalance(address, propertyId, ACCEPT_RESERVE);
         }
     }
-    // signal an Exodus balance change
+    // signal an Elysium balance change
     uiInterface.ElysiumBalanceChanged();
 #endif
 }
@@ -683,7 +683,7 @@ static bool FillTxInputCache(const CTransaction& tx)
 }
 
 // idx is position within the block, 0-based
-// int exodus_tx_push(const CTransaction &wtx, int nBlock, unsigned int idx)
+// int elysium_tx_push(const CTransaction &wtx, int nBlock, unsigned int idx)
 // INPUT: bRPConly -- set to true to avoid moving funds; to be called from various RPC calls like this
 // RETURNS: 0 if parsed a MP TX
 // RETURNS: < 0 if a non-MP-TX or invalid
@@ -699,10 +699,10 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     mp_tx.Set(wtx.GetHash(), nBlock, idx, nTime);
 
     // ### CLASS IDENTIFICATION AND MARKER CHECK ###
-    auto exodusClass = DeterminePacketClass(wtx, nBlock);
+    auto elysiumClass = DeterminePacketClass(wtx, nBlock);
 
-    if (!exodusClass) {
-        return -1; // No Exodus/Exodus marker, thus not a valid Exodus transaction
+    if (!elysiumClass) {
+        return -1; // No Elysium/Elysium marker, thus not a valid Elysium transaction
     }
 
     if (!bRPConly || elysium_debug_parser_readonly) {
@@ -725,7 +725,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     assert(view.HaveInputs(wtx));
 
-    if (*exodusClass != PacketClass::C) {
+    if (*elysiumClass != PacketClass::C) {
         if (inputMode != InputMode::NORMAL) {
             PrintToLog("%s() ERROR: other input than normal is not allowed when packet class is not C\n", __func__, wtx.GetHash().GetHex());
             return -101;
@@ -879,7 +879,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
     }
 
-    if (*exodusClass == PacketClass::B) {
+    if (*elysiumClass == PacketClass::B) {
         // ### CLASS B SPECIFC PARSING ###
         std::vector<std::vector<unsigned char>> multisig_script_data;
 
@@ -968,7 +968,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
             payload.insert(payload.end(), packets[m] + 1, packets[m] + CLASS_B_CHUNK_SIZE);
         }
-    } else if (*exodusClass == PacketClass::C) {
+    } else if (*elysiumClass == PacketClass::C) {
         // ### CLASS C SPECIFIC PARSING ###
         std::vector<std::vector<unsigned char>> op_return_script_data;
 
@@ -1039,7 +1039,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         idx,
         payload.data(),
         payload.size(),
-        exodusClass,
+        elysiumClass,
         inAll - outAll,
         referenceAmount
     );
@@ -1061,7 +1061,7 @@ int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTr
  * The progress is printed to the console, written to the debug log file, and
  * the RPC status, as well as the splash screen progress label, are updated.
  *
- * @see exodus_initial_scan()
+ * @see elysium_initial_scan()
  */
 class ProgressReporter
 {
@@ -1149,7 +1149,7 @@ public:
  * @param nFirstBlock[in]  The index of the first block to scan
  * @return An exit code, indicating success or failure
  */
-static int exodus_initial_scan(int nFirstBlock)
+static int elysium_initial_scan(int nFirstBlock)
 {
     int nTimeBetweenProgressReports = GetArg("-elysiumprogressfrequency", 30);  // seconds
     int64_t nNow = GetTime();
@@ -1217,7 +1217,7 @@ static int exodus_initial_scan(int nFirstBlock)
     return 0;
 }
 
-int input_exodus_balances_string(const std::string& s)
+int input_elysium_balances_string(const std::string& s)
 {
     // "address=propertybalancedata"
     std::vector<std::string> addrData;
@@ -1330,21 +1330,21 @@ int input_mp_accepts_string(const string &s)
   }
 }
 
-// exodus_prev
+// elysium_prev
 int input_globals_state_string(const string &s)
 {
-  uint64_t exodusPrev;
+  uint64_t elysiumPrev;
   unsigned int nextSPID, nextTestSPID;
   std::vector<std::string> vstr;
   boost::split(vstr, s, boost::is_any_of(" ,="), token_compress_on);
   if (3 != vstr.size()) return -1;
 
   int i = 0;
-  exodusPrev = boost::lexical_cast<uint64_t>(vstr[i++]);
+  elysiumPrev = boost::lexical_cast<uint64_t>(vstr[i++]);
   nextSPID = boost::lexical_cast<unsigned int>(vstr[i++]);
   nextTestSPID = boost::lexical_cast<unsigned int>(vstr[i++]);
 
-  exodus_prev = exodusPrev;
+  elysium_prev = elysiumPrev;
   _my_sps->init(nextSPID, nextTestSPID);
   return 0;
 }
@@ -1425,7 +1425,7 @@ int input_mp_mdexorder_string(const std::string& s)
     return 0;
 }
 
-static int exodus_file_load(const string &filename, int what, bool verifyHash = false)
+static int elysium_file_load(const string &filename, int what, bool verifyHash = false)
 {
   int lines = 0;
   int (*inputLineFunc)(const string &) = NULL;
@@ -1437,7 +1437,7 @@ static int exodus_file_load(const string &filename, int what, bool verifyHash = 
   {
     case FILETYPE_BALANCES:
       mp_tally_map.clear();
-      inputLineFunc = input_exodus_balances_string;
+      inputLineFunc = input_elysium_balances_string;
       break;
 
     case FILETYPE_OFFERS:
@@ -1622,7 +1622,7 @@ static int load_most_relevant_state()
       for (int i = 0; i < NUM_FILETYPES; ++i) {
         boost::filesystem::path path = MPPersistencePath / strprintf("%s-%s.dat", statePrefix[i], curTip->GetBlockHash().ToString());
         const std::string strFile = path.string();
-        success = exodus_file_load(strFile, i, true);
+        success = elysium_file_load(strFile, i, true);
         if (success < 0) {
           break;
         }
@@ -1657,7 +1657,7 @@ static int load_most_relevant_state()
   return res;
 }
 
-static int write_exodus_balances(std::ofstream& file, SHA256_CTX* shaCtx)
+static int write_elysium_balances(std::ofstream& file, SHA256_CTX* shaCtx)
 {
     std::unordered_map<std::string, CMPTally>::iterator iter;
     for (iter = mp_tally_map.begin(); iter != mp_tally_map.end(); ++iter) {
@@ -1755,7 +1755,7 @@ static int write_globals_state(ofstream &file, SHA256_CTX *shaCtx)
   unsigned int nextSPID = _my_sps->peekNextSPID(ELYSIUM_PROPERTY_ELYSIUM);
   unsigned int nextTestSPID = _my_sps->peekNextSPID(ELYSIUM_PROPERTY_TELYSIUM);
   std::string lineOut = strprintf("%d,%d,%d",
-    exodus_prev,
+    elysium_prev,
     nextSPID,
     nextTestSPID);
 
@@ -1794,7 +1794,7 @@ static int write_state_file( CBlockIndex const *pBlockIndex, int what )
 
   switch(what) {
   case FILETYPE_BALANCES:
-    result = write_exodus_balances(file, &shaCtx);
+    result = write_elysium_balances(file, &shaCtx);
     break;
 
   case FILETYPE_OFFERS:
@@ -1939,11 +1939,11 @@ void clear_all_state()
     sigmaDb->Clear();
     s_stolistdb->Clear();
     t_tradelistdb->Clear();
-    p_ExodusTXDB->Clear();
+    p_ElysiumTXDB->Clear();
     p_feecache->Clear();
     p_feehistory->Clear();
     assert(p_txlistdb->setDBVersion() == DB_VERSION); // new set of databases, set DB version
-    exodus_prev = 0;
+    elysium_prev = 0;
 
     // Clear wallet state
 #ifdef ENABLE_WALLET
@@ -1954,20 +1954,20 @@ void clear_all_state()
 }
 
 /**
- * Global handler to initialize Exodus Core.
+ * Global handler to initialize Elysium Core.
  *
  * @return An exit code, indicating success or failure
  */
-int exodus_init()
+int elysium_init()
 {
     LOCK(cs_main);
 
-    if (exodusInitialized) {
+    if (elysiumInitialized) {
         // nothing to do
         return 0;
     }
 
-    PrintToLog("\nInitializing Exodus v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
+    PrintToLog("\nInitializing Elysium v%s [%s]\n", ElysiumVersion(), Params().NetworkIDString());
     PrintToLog("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
     InitDebugLogLevels();
@@ -1976,7 +1976,7 @@ int exodus_init()
     // check for --autocommit option and set transaction commit flag accordingly
     if (!GetBoolArg("-autocommit", true)) {
         PrintToLog("Process was started with --autocommit set to false. "
-                "Created Exodus transactions will not be committed to wallet or broadcast.\n");
+                "Created Elysium transactions will not be committed to wallet or broadcast.\n");
         autoCommit = false;
     }
 
@@ -1990,15 +1990,15 @@ int exodus_init()
             boost::filesystem::path tradePath = GetDataDir() / "MP_tradelist";
             boost::filesystem::path spPath = GetDataDir() / "MP_spinfo";
             boost::filesystem::path stoPath = GetDataDir() / "MP_stolist";
-            boost::filesystem::path exodusTXDBPath = GetDataDir() / "Exodus_TXDB";
-            boost::filesystem::path feesPath = GetDataDir() / "ELYSIUM_feecache";
-            boost::filesystem::path feeHistoryPath = GetDataDir() / "ELYSIUM_feehistory";
+            boost::filesystem::path elysiumTXDBPath = GetDataDir() / "Exodus_TXDB";
+            boost::filesystem::path feesPath = GetDataDir() / "Exodus_feecache";
+            boost::filesystem::path feeHistoryPath = GetDataDir() / "Exodus_feehistory";
             if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath);
             if (boost::filesystem::exists(txlistPath)) boost::filesystem::remove_all(txlistPath);
             if (boost::filesystem::exists(tradePath)) boost::filesystem::remove_all(tradePath);
             if (boost::filesystem::exists(spPath)) boost::filesystem::remove_all(spPath);
             if (boost::filesystem::exists(stoPath)) boost::filesystem::remove_all(stoPath);
-            if (boost::filesystem::exists(exodusTXDBPath)) boost::filesystem::remove_all(exodusTXDBPath);
+            if (boost::filesystem::exists(elysiumTXDBPath)) boost::filesystem::remove_all(elysiumTXDBPath);
             if (boost::filesystem::exists(feesPath)) boost::filesystem::remove_all(feesPath);
             if (boost::filesystem::exists(feeHistoryPath)) boost::filesystem::remove_all(feeHistoryPath);
             PrintToLog("Success clearing persistence files in datadir %s\n", GetDataDir().string());
@@ -2013,9 +2013,9 @@ int exodus_init()
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
     sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
-    p_ExodusTXDB = new CElysiumTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
-    p_feecache = new CExodusFeeCache(GetDataDir() / "ELYSIUM_feecache", fReindex);
-    p_feehistory = new CExodusFeeHistory(GetDataDir() / "ELYSIUM_feehistory", fReindex);
+    p_ElysiumTXDB = new CElysiumTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
+    p_feecache = new CElysiumFeeCache(GetDataDir() / "Exodus_feecache", fReindex);
+    p_feehistory = new CElysiumFeeHistory(GetDataDir() / "Exodus_feehistory", fReindex);
 
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
@@ -2036,7 +2036,7 @@ int exodus_init()
 
     bool wrongDBVersion = (p_txlistdb->getDBVersion() != DB_VERSION);
 
-    ++exodusInitialized;
+    ++elysiumInitialized;
 
     nWaterlineBlock = load_most_relevant_state();
     bool noPreviousState = (nWaterlineBlock <= 0);
@@ -2067,17 +2067,17 @@ int exodus_init()
 
     if (nWaterlineBlock < snapshotHeight) {
         nWaterlineBlock = snapshotHeight;
-        exodus_prev = 0;
+        elysium_prev = 0;
     }
 
     // advance the waterline so that we start on the next unaccounted for block
     nWaterlineBlock += 1;
 
-    // collect the real Exodus balances available at the snapshot time
+    // collect the real Elysium balances available at the snapshot time
     // redundant? do we need to show it both pre-parse and post-parse?  if so let's label the printfs accordingly
     if (elysium_debug_ely) {
-        int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
-        PrintToLog("Exodus balance at start: %s\n", FormatDivisibleMP(exodus_balance));
+        int64_t elysium_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
+        PrintToLog("Elysium balance at start: %s\n", FormatDivisibleMP(elysium_balance));
     }
 
     // load feature activation messages from txlistdb and process them accordingly
@@ -2096,12 +2096,12 @@ int exodus_init()
     }
 
     // initial scan
-    exodus_initial_scan(nWaterlineBlock);
+    elysium_initial_scan(nWaterlineBlock);
 
-    // display Exodus balance
-    int64_t exodus_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
+    // display Elysium balance
+    int64_t elysium_balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
 
-    PrintToLog("Elysium balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
+    PrintToLog("Elysium balance after initialization: %s\n", FormatDivisibleMP(elysium_balance));
     PrintToLog("Elysium initialization completed\n");
 
     return 0;
@@ -2128,13 +2128,13 @@ int elysium_shutdown()
     delete t_tradelistdb; t_tradelistdb = nullptr;
     delete s_stolistdb; s_stolistdb = nullptr;
     delete _my_sps; _my_sps = nullptr;
-    delete p_ExodusTXDB; p_ExodusTXDB = nullptr;
+    delete p_ElysiumTXDB; p_ElysiumTXDB = nullptr;
     delete p_feecache; p_feecache = nullptr;
     delete p_feehistory; p_feehistory = nullptr;
 
-    exodusInitialized = 0;
+    elysiumInitialized = 0;
 
-    PrintToLog("\nExodus Core shutdown completed\n");
+    PrintToLog("\nElysium Core shutdown completed\n");
     PrintToLog("Shutdown time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
     return 0;
@@ -2143,14 +2143,14 @@ int elysium_shutdown()
 /**
  * This handler is called for every new transaction that comes in (actually in block parsing loop).
  *
- * @return True, if the transaction was an Exodus purchase, DEx payment or a valid Exodus transaction
+ * @return True, if the transaction was an Elysium purchase, DEx payment or a valid Elysium transaction
  */
 bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
     LOCK(cs_main);
 
-    if (!exodusInitialized) {
-        exodus_init();
+    if (!elysiumInitialized) {
+        elysium_init();
     }
 
     // clear pending, if any
@@ -2180,7 +2180,7 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
         if (interp_ret != PKT_ERROR - 2) {
             bool bValid = (0 <= interp_ret);
             p_txlistdb->recordTX(tx.GetHash(), bValid, nBlock, mp_obj.getType(), mp_obj.getNewAmount());
-            p_ExodusTXDB->RecordTransaction(tx.GetHash(), idx, interp_ret);
+            p_ElysiumTXDB->RecordTransaction(tx.GetHash(), idx, interp_ret);
         }
         fFoundTx |= (interp_ret == 0);
     }
@@ -2201,7 +2201,7 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
  */
 bool elysium::UseEncodingClassC(size_t nDataSize)
 {
-    size_t nTotalSize = nDataSize + magic.size(); // Marker "exodus"
+    size_t nTotalSize = nDataSize + magic.size(); // Marker "elysium"
     bool fDataEnabled = GetBoolArg("-datacarrier", true);
     int nBlockNow = GetHeight();
     if (!IsAllowedOutputType(TX_NULL_DATA, nBlockNow)) {
@@ -2210,7 +2210,7 @@ bool elysium::UseEncodingClassC(size_t nDataSize)
     return nTotalSize <= nMaxDatacarrierBytes && fDataEnabled;
 }
 
-// This function requests the wallet create an Exodus transaction using the supplied parameters and payload
+// This function requests the wallet create an Elysium transaction using the supplied parameters and payload
 int elysium::WalletTxBuilder(
     const std::string& senderAddress,
     const std::string& receiverAddress,
@@ -2372,10 +2372,10 @@ std::vector<std::string> CElysiumTransactionDB::FetchTransactionDetails(const ui
             vTransactionDetails.push_back(vStr[0]);
             vTransactionDetails.push_back(vStr[1]);
         } else {
-            PrintToLog("ERROR: Entry (%s) found in ExodusTXDB with unexpected number of attributes!\n", txid.GetHex());
+            PrintToLog("ERROR: Entry (%s) found in ElysiumTXDB with unexpected number of attributes!\n", txid.GetHex());
         }
     } else {
-        PrintToLog("ERROR: Entry (%s) could not be loaded from ExodusTXDB!\n", txid.GetHex());
+        PrintToLog("ERROR: Entry (%s) could not be loaded from ElysiumTXDB!\n", txid.GetHex());
     }
 
     return vTransactionDetails;
@@ -2471,7 +2471,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             txtype != ELYSIUM_TYPE_ENABLE_FREEZING && txtype != ELYSIUM_TYPE_DISABLE_FREEZING) continue;
         if (atoi(vstr[0]) != 1) continue; // invalid, ignore
         uint256 txid = uint256S(it->key().ToString());
-        int txPosition = p_ExodusTXDB->FetchTransactionPosition(txid);
+        int txPosition = p_ElysiumTXDB->FetchTransactionPosition(txid);
         std::string sortKey = strprintf("%06d%010d", atoi(vstr[1]), txPosition);
         loadOrder.push_back(std::make_pair(sortKey, txid));
     }
@@ -2598,7 +2598,7 @@ void CMPTxList::LoadActivations(int blockHeight)
 
     // This alert never expires as long as custom activations are used
     if (mapArgs.count("-elysiumactivationallowsender") || mapArgs.count("-elysiumactivationignoresender")) {
-        AddAlert("exodus", ALERT_CLIENT_VERSION_EXPIRY, std::numeric_limits<uint32_t>::max(),
+        AddAlert("elysium", ALERT_CLIENT_VERSION_EXPIRY, std::numeric_limits<uint32_t>::max(),
                  "Authorization for feature activation has been modified.  Data provided by this client should not be trusted.");
     }
 }
@@ -3741,7 +3741,7 @@ int elysium_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 
         if (nWaterlineBlock < nBlockPrev) {
             // scan from the block after the best active block to catch up to the active chain
-            exodus_initial_scan(nWaterlineBlock + 1);
+            elysium_initial_scan(nWaterlineBlock + 1);
         }
     }
 
@@ -3761,16 +3761,16 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
 {
     LOCK(cs_main);
 
-    if (!exodusInitialized) {
-        exodus_init();
+    if (!elysiumInitialized) {
+        elysium_init();
     }
 
     // for every new received block must do:
     // 1) remove expired entries from the accept list (per spec accept entries are
     //    valid until their blocklimit expiration; because the customer can keep
     //    paying BTC for the offer in several installments)
-    // 2) update the amount in the Exodus address
-    int64_t devexodus = 0;
+    // 2) update the amount in the Elysium address
+    int64_t develysium = 0;
     unsigned int how_many_erased = eraseExpiredAccepts(nBlockNow);
 
     if (how_many_erased) {
@@ -3778,12 +3778,12 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
             __FUNCTION__, how_many_erased, nBlockNow, __LINE__, __FILE__);
     }
 
-    // calculate devexodus as of this block and update the Exodus' balance
-    devexodus = calculate_and_update_devexodus(pBlockIndex->GetBlockTime(), nBlockNow);
+    // calculate develysium as of this block and update the Elysium' balance
+    develysium = calculate_and_update_develysium(pBlockIndex->GetBlockTime(), nBlockNow);
 
     if (elysium_debug_ely) {
         int64_t balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
-        PrintToLog("devexodus for block %d: %d, Exodus balance: %d\n", nBlockNow, devexodus, FormatDivisibleMP(balance));
+        PrintToLog("develysium for block %d: %d, Elysium balance: %d\n", nBlockNow, develysium, FormatDivisibleMP(balance));
     }
 
     // check the alert status, do we need to do anything else here?

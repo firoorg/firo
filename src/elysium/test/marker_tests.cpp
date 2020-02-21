@@ -15,7 +15,7 @@
 
 namespace elysium {
 
-BOOST_FIXTURE_TEST_SUITE(exodus_marker_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_marker_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(class_no_marker)
 {

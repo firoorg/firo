@@ -12,7 +12,7 @@
 
 using namespace elysium;
 
-BOOST_FIXTURE_TEST_SUITE(exodus_output_restriction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_output_restriction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(input_nonstandard)
 {

@@ -8,7 +8,7 @@
 #include <limits>
 #include <utility>
 
-BOOST_FIXTURE_TEST_SUITE(exodus_crowdsale_participation_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_crowdsale_participation_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(overpayment_close)
 {

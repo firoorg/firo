@@ -39,8 +39,8 @@ using namespace elysium;
 /**
  * Function to standardize RPC output for transactions into a JSON object in either basic or extended mode.
  *
- * Use basic mode for generic calls (e.g. exodus_gettransaction/exodus_listtransaction etc.)
- * Use extended mode for transaction specific calls (e.g. exodus_getsto, exodus_gettrade etc.)
+ * Use basic mode for generic calls (e.g. elysium_gettransaction/elysium_listtransaction etc.)
+ * Use extended mode for transaction specific calls (e.g. elysium_getsto, elysium_gettrade etc.)
  *
  * DEx payments and the extended mode are only available for confirmed transactions.
  */
@@ -118,7 +118,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     if (confirmations > 0) {
         LOCK(cs_main);
         valid = getValidMPTX(txid);
-        positionInBlock = p_ExodusTXDB->FetchTransactionPosition(txid);
+        positionInBlock = p_ElysiumTXDB->FetchTransactionPosition(txid);
     }
 
     // populate some initial info for the transaction
@@ -144,7 +144,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     if (confirmations != 0 && !blockHash.IsNull()) {
         txobj.push_back(Pair("valid", valid));
         if (!valid) {
-            txobj.push_back(Pair("invalidreason", p_ExodusTXDB->FetchInvalidReason(txid)));
+            txobj.push_back(Pair("invalidreason", p_ElysiumTXDB->FetchInvalidReason(txid)));
         }
         txobj.push_back(Pair("blockhash", blockHash.GetHex()));
         txobj.push_back(Pair("blocktime", blockTime));
