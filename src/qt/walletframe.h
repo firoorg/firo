@@ -57,7 +57,7 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     /** Switch to ElyAssets page */
     void gotoElyAssetsPage();
     /** Switch to utility page */

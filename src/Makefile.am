@@ -714,6 +714,6 @@ check-local:
 	$(error Please rerun configure with tests enabling flag)
 endif
 
-if ENABLE_EXODUS
+if ENABLE_ELYSIUM
 include Makefile.exodus.include
 endif

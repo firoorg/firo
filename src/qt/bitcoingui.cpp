@@ -39,7 +39,7 @@
 #include "exodus_qtutils.h"
 #include "zc2sigmapage.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "../exodus/exodus.h"
 #endif
 
@@ -102,7 +102,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     progressDialog(0),
     appMenuBar(0),
     overviewAction(0),
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     elyAssetsAction(0),
     toolboxAction(0),
 #endif
@@ -365,7 +365,7 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(znodeAction);
 #endif
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     bool elysiumEnabled = isElysiumEnabled();
 
     if (elysiumEnabled) {
@@ -403,7 +403,7 @@ void BitcoinGUI::createActions()
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
         connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
         connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(gotoElyAssetsPage()));
@@ -549,7 +549,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
         if (isElysiumEnabled()) {
             toolbar->addAction(elyAssetsAction);
             toolbar->addAction(toolboxAction);
@@ -670,7 +670,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
         elyAssetsAction->setEnabled(enabled);
         toolboxAction->setEnabled(enabled);
@@ -792,7 +792,7 @@ void BitcoinGUI::gotoOverviewPage()
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void BitcoinGUI::gotoElyAssetsPage()
 {
     elyAssetsAction->setChecked(true);
@@ -806,7 +806,7 @@ void BitcoinGUI::gotoHistoryPage()
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void BitcoinGUI::gotoElysiumHistoryTab()
 {
     historyAction->setChecked(true);
@@ -820,7 +820,7 @@ void BitcoinGUI::gotoBitcoinHistoryTab()
     if (walletFrame) walletFrame->gotoBitcoinHistoryTab();
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void BitcoinGUI::gotoToolboxPage()
 {
     toolboxAction->setChecked(true);

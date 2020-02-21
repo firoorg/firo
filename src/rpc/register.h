@@ -11,7 +11,7 @@
 
 #include "util.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "../exodus/exodus.h"
 #endif
 
@@ -49,7 +49,7 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
         RegisterExodusDataRetrievalRPCCommands(tableRPC);
         RegisterElysiumPayloadCreationRPCCommands(tableRPC);

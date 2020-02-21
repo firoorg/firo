@@ -27,7 +27,7 @@
 
 #include "ui_interface.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "lookupaddressdialog.h"
 #include "lookupspdialog.h"
 #include "lookuptxdialog.h"
@@ -54,7 +54,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     clientModel(0),
     walletModel(0),
     overviewPage(0),
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     elysiumTransactionsView(0),
     transactionTabs(0),
     sendElysiumView(0),
@@ -68,7 +68,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 {
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     elyAssetsPage = new ElyAssetsDialog();
 #endif
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
@@ -78,20 +78,20 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sigmaPage = new QWidget(this);
     zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     toolboxPage = new QWidget(this);
 #endif
     znodeListPage = new ZnodeList(platformStyle);
 
     setupTransactionPage();
     setupSendCoinPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     setupToolboxPage();
 #endif
     setupSigmaPage();
 
     addWidget(overviewPage);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     addWidget(elyAssetsPage);
 #endif
     addWidget(transactionsPage);
@@ -100,7 +100,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
     addWidget(zc2SigmaPage);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     addWidget(toolboxPage);
 #endif
     addWidget(znodeListPage);
@@ -145,7 +145,7 @@ void WalletView::setupTransactionPage()
     zcoinTransactionsView = new QWidget();
     zcoinTransactionsView->setLayout(zcoinLayout);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     // Create tabs for transaction categories
     if (isElysiumEnabled()) {
         elysiumTransactionsView = new TXHistoryDialog();
@@ -159,7 +159,7 @@ void WalletView::setupTransactionPage()
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (transactionTabs) {
         pageLayout->addWidget(transactionTabs);
     } else
@@ -175,7 +175,7 @@ void WalletView::setupSendCoinPage()
 
     connect(sendZcoinView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     // Create tab for coin type
     if (isElysiumEnabled()) {
         sendElysiumView = new SendMPDialog(platformStyle);
@@ -189,7 +189,7 @@ void WalletView::setupSendCoinPage()
     // Set layout for send coin page
     auto pageLayout = new QVBoxLayout();
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (sendCoinsTabs) {
         pageLayout->addWidget(sendCoinsTabs);
     } else
@@ -216,7 +216,7 @@ void WalletView::setupSigmaPage()
     }
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletView::setupToolboxPage()
 {
     // Create tools widget
@@ -264,7 +264,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     elyAssetsPage->setClientModel(clientModel);
 #endif
     if (pwalletMain->IsHDSeedAvailable()) {
@@ -272,7 +272,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     }
     zc2SigmaPage->setClientModel(clientModel);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (elysiumTransactionsView) {
         elysiumTransactionsView->setClientModel(clientModel);
     }
@@ -301,7 +301,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     znodeListPage->setWalletModel(walletModel);
     sendZcoinView->setModel(walletModel);
     zc2SigmaPage->setWalletModel(walletModel);
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
 
     if (elysiumTransactionsView) {
@@ -359,7 +359,7 @@ void WalletView::gotoOverviewPage()
     setCurrentWidget(overviewPage);
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletView::gotoElyAssetsPage()
 {
     setCurrentWidget(elyAssetsPage);
@@ -371,7 +371,7 @@ void WalletView::gotoHistoryPage()
     setCurrentWidget(transactionsPage);
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletView::gotoElysiumHistoryTab()
 {
     if (!transactionTabs) {
@@ -387,14 +387,14 @@ void WalletView::gotoBitcoinHistoryTab()
 {
     setCurrentWidget(transactionsPage);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (transactionTabs) {
         transactionTabs->setCurrentIndex(0);
     }
 #endif
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletView::focusElysiumTransaction(const uint256& txid)
 {
     if (!elysiumTransactionsView) {
@@ -442,7 +442,7 @@ void WalletView::gotoZc2SigmaPage()
     }
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletView::gotoToolboxPage()
 {
     setCurrentWidget(toolboxPage);
@@ -484,7 +484,7 @@ void WalletView::gotoVerifyMessageTab(QString addr)
 
 bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 {
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (sendCoinsTabs) {
         sendCoinsTabs->setCurrentIndex(0);
     }

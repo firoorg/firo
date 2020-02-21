@@ -15,7 +15,7 @@ pipeline {
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
                 dir('dist') {
-                    sh './configure --enable-exodus --enable-tests'
+                    sh './configure --enable-elysium --enable-tests'
                     sh 'make -j6'
                 }
             }

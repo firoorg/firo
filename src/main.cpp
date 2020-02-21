@@ -61,7 +61,7 @@
 #include "sigma/coinspend.h"
 #include "sigma/remint.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "exodus/exodus.h"
 #endif
 
@@ -3498,7 +3498,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     }
 #endif
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     //! Elysium: begin block disconnect notification
     auto fElysium = isElysiumEnabled();
 
@@ -3514,7 +3514,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
         SyncWithWallets(tx, pindexDelete->pprev, NULL);
     }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     //! Elysium: end of block disconnect notification
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
@@ -3580,7 +3580,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001,
              nTimeChainState * 0.000001);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     bool fElysium = isElysiumEnabled();
 
     //! Elysium: transaction position within the block
@@ -3617,7 +3617,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     const CTransaction &tx, pblock->vtx) {
         SyncWithWallets(tx, pindexNew, pblock);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
         //! Elysium: new confirmed transaction notification
         if (fElysium) {
             LogPrint("handler", "Elysium handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
@@ -3642,7 +3642,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     }
 #endif
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     //! Elysium: end of block connect notification
     if (fElysium) {
         LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);

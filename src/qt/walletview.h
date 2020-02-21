@@ -13,7 +13,7 @@
 #include "znodelist.h"
 #include "sigmadialog.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "elyassetsdialog.h"
 #endif
 
@@ -78,7 +78,7 @@ public:
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     void setupToolboxPage();
 #endif
     void setupSigmaPage();
@@ -88,7 +88,7 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     ElyAssetsDialog *elyAssetsPage;
     QWidget *toolboxPage;
     TXHistoryDialog *elysiumTransactionsView;
@@ -121,7 +121,7 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     /** Switch to ExoAssets page */
     void gotoElyAssetsPage();
     /** Switch to utility page */

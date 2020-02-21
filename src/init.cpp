@@ -45,7 +45,7 @@
 #include "wallet/wallet.h"
 #endif
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "exodus/exodus.h"
 #endif
 
@@ -280,7 +280,7 @@ void Shutdown() {
         pblocktree = NULL;
     }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
         exodus_shutdown();
     }
@@ -671,7 +671,7 @@ std::string HelpMessage(HelpMessageMode mode) {
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     strUsage += HelpMessageGroup("Elysium options:");
     strUsage += HelpMessageOpt("-elysium", "Enable Elysium");
     strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Elysium transactions");
@@ -1847,7 +1847,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // ********************************************************* Step 8.5: load exodus
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them

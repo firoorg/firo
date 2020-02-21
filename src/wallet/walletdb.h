@@ -298,7 +298,7 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 
 private:
     template<typename K, typename V, typename InsertF>

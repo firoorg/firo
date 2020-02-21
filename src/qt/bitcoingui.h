@@ -93,7 +93,7 @@ private:
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     QAction *elyAssetsAction;
     QAction *toolboxAction;
 #endif
@@ -196,7 +196,7 @@ private Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     /** Switch to ElyAssets page */
     void gotoElyAssetsPage();
     /** Switch to utility page */

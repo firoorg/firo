@@ -30,7 +30,7 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 #include "../exodus/exodus.h"
 #endif
 
@@ -117,7 +117,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     exodus_shutdown();
 #endif
     threadGroup.interrupt_all();
