@@ -84,7 +84,7 @@ static boost::once_flag debugLogInitFlag = BOOST_ONCE_INIT;
  */
 static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
-/** Flag to indicate, whether the Exodus log file should be reopened. */
+/** Flag to indicate, whether the Elysium log file should be reopened. */
 extern std::atomic<bool> fReopenElysiumLog;
 
 /**
@@ -127,7 +127,7 @@ static int ConsolePrint(const std::string& str)
 /**
  * Returns path for debug log file.
  *
- * The log file can be specified via startup option "--omnilogfile=/path/to/exodus.log",
+ * The log file can be specified via startup option "--elysiumlogfile=/path/to/exodus.log",
  * and if none is provided, then the client's datadir is used as default location.
  */
 static boost::filesystem::path GetLogPath()
