@@ -62,4 +62,4 @@ jobs:
       run: |
         ./autogen.sh
         ./configure --enable-exodus
-        make -j$(nproc)
+        make -j$(sysctl -n hw.activecpu)
