@@ -17,6 +17,8 @@
 #include "bls.hpp"
 #include "test-utils.hpp"
 
+#include <array>
+#include <thread>
 using std::string;
 using std::vector;
 using std::cout;
@@ -188,8 +190,81 @@ TEST_CASE("Key generation") {
 
         PrivateKey sk = PrivateKey::FromSeed(seed, sizeof(seed));
         PublicKey pk = sk.GetPublicKey();
-        REQUIRE(relic::core_get()->code == STS_OK);
+        REQUIRE(core_get()->code == STS_OK);
         REQUIRE(pk.GetFingerprint() == 0xddad59bb);
+    }
+}
+
+TEST_CASE("Error handling") {
+    SECTION("Should throw on a bad private key") {
+        uint8_t seed[32];
+        getRandomSeed(seed);
+        PrivateKey sk1 = PrivateKey::FromSeed(seed, 32);
+        uint8_t* skData = Util::SecAlloc<uint8_t>(
+                Signature::SIGNATURE_SIZE);
+        sk1.Serialize(skData);
+        skData[0] = 255;
+        REQUIRE_THROWS(PrivateKey::FromBytes(skData));
+
+        Util::SecFree(skData);
+    }
+
+    SECTION("Should throw on a bad public key") {
+        uint8_t buf[PublicKey::PUBLIC_KEY_SIZE] = {0};
+        std::set<int> invalid = {1, 2, 3, 4};
+
+        for (int i = 0; i < 10; i++) {
+            buf[0] = (uint8_t)i;
+            try {
+                PublicKey::FromBytes(buf);
+                REQUIRE(invalid.count(i) == 0);
+            } catch (std::string& s) {
+                REQUIRE(invalid.count(i) != 0);
+            }
+        }
+    }
+
+    SECTION("Should throw on a bad signature") {
+        uint8_t buf[Signature::SIGNATURE_SIZE] = {0};
+        std::set<int> invalid = {0, 1, 2, 3, 5, 6, 7, 8};
+
+        for (int i = 0; i < 10; i++) {
+            buf[0] = (uint8_t)i;
+            try {
+                Signature::FromBytes(buf);
+                REQUIRE(invalid.count(i) == 0);
+            } catch (std::string& s) {
+                REQUIRE(invalid.count(i) != 0);
+            }
+        }
+    }
+
+    SECTION("Error handling should be thread safe") {
+        core_get()->code = 10;
+        REQUIRE(core_get()->code == 10);
+
+        ctx_t* ctx1 = core_get();
+        bool ctxError = false;
+
+        // spawn a thread and make sure it uses a different context
+        std::thread([&]() {
+            if (ctx1 == core_get()) {
+                ctxError = true;
+            }
+            if (core_get()->code != STS_OK) {
+                ctxError = true;
+            }
+            // this should not modify the code of the main thread
+            core_get()->code = 1;
+        }).join();
+
+        REQUIRE(!ctxError);
+
+        // other thread should not modify code
+        REQUIRE(core_get()->code == 10);
+
+        // reset so that future test cases don't fail
+        core_get()->code = STS_OK;
     }
 }
 
@@ -239,10 +314,10 @@ TEST_CASE("Signatures") {
 
         // Hashing to g1
         uint8_t mapMsg[0] = {};
-        relic::g1_t result;
+        g1_t result;
         uint8_t buf[49];
-        relic::ep_map(result, mapMsg, 0);
-        relic::g1_write_bin(buf, 49, result, 1);
+        ep_map(result, mapMsg, 0);
+        g1_write_bin(buf, 49, result, 1);
         REQUIRE(Util::HexStr(buf + 1, 48) == "12fc5ad5a2fbe9d4b6eb0bc16d530e5f263b6d59cbaf26c3f2831962924aa588ab84d46cc80d3a433ce064adb307f256");
     }
 
@@ -333,19 +408,6 @@ TEST_CASE("Signatures") {
 
         InsecureSignature sig3 = InsecureSignature::FromBytes(sigData);
         REQUIRE(Signature::FromInsecureSig(sig3) == sig2);
-    }
-
-    SECTION("Should throw on a bad private key") {
-        uint8_t seed[32];
-        getRandomSeed(seed);
-        PrivateKey sk1 = PrivateKey::FromSeed(seed, 32);
-        uint8_t* skData = Util::SecAlloc<uint8_t>(
-                Signature::SIGNATURE_SIZE);
-        sk1.Serialize(skData);
-        skData[0] = 255;
-        REQUIRE_THROWS(PrivateKey::FromBytes(skData));
-
-        Util::SecFree(skData);
     }
 
     SECTION("Should not validate a bad sig") {
@@ -1343,6 +1405,85 @@ TEST_CASE("AggregationInfo") {
                 privateKeysList, pubKeysList);
 
         Signature aggSig3 = aggSk.Sign(msg, sizeof(msg));
+    }
+}
+
+TEST_CASE("Threshold Signatures") {
+    SECTION("Secret Key Shares") {
+        size_t m = 3;
+        size_t n = 5;
+
+        std::vector<PrivateKey> sks;
+        std::vector<PublicKey> pks;
+        std::vector<InsecureSignature> sigs;
+        std::vector<std::array<uint8_t, BLS::ID_SIZE>> ids(n);
+        std::vector<PrivateKey> skShares;
+        std::vector<PublicKey> pkShares;
+        std::vector<InsecureSignature> sigShares;
+
+        uint8_t hash[32];
+        getRandomSeed(hash);
+
+        for (size_t i = 0; i < n; i++) {
+            getRandomSeed(ids[i].data());
+        }
+
+        for (size_t i = 0; i < m; i++) {
+            uint8_t buf[32];
+            getRandomSeed(buf);
+
+            PrivateKey sk = PrivateKey::FromSeed(buf, 32);
+            sks.push_back(sk);
+            pks.push_back(sk.GetPublicKey());
+            sigs.push_back(sk.SignInsecurePrehashed(hash));
+            ASSERT(sigs.back().Verify({hash}, {sk.GetPublicKey()}));
+        }
+
+        InsecureSignature sig = sks[0].SignInsecurePrehashed(hash);
+        REQUIRE(sig.Verify({hash}, {pks[0]}));
+
+        for (size_t i = 0; i < n; i++) {
+            PrivateKey skShare = BLS::PrivateKeyShare(sks, ids[i].data());
+            PublicKey pkShare = BLS::PublicKeyShare(pks, ids[i].data());
+            InsecureSignature sigShare1 = BLS::SignatureShare(sigs, ids[i].data());
+            REQUIRE(skShare.GetPublicKey() == pkShare);
+
+            InsecureSignature sigShare2 = skShare.SignInsecurePrehashed(hash);
+            REQUIRE(sigShare1 == sigShare2);
+            REQUIRE(sigShare1.Verify({hash}, {pkShare}));
+
+            skShares.push_back(skShare);
+            pkShares.push_back(pkShare);
+            sigShares.push_back(sigShare1);
+        }
+
+        std::vector<PrivateKey> rsks;
+        std::vector<PublicKey> rpks;
+        std::vector<InsecureSignature> rsigs;
+        std::vector<const uint8_t*> rids;
+        for (size_t i = 0; i < 2; i++) {
+            rsks.push_back(skShares[i]);
+            rpks.push_back(pkShares[i]);
+            rsigs.push_back(sigShares[i]);
+            rids.push_back(ids[i].data());
+        }
+        PrivateKey recSk = BLS::RecoverPrivateKey(rsks, rids);
+        PublicKey recPk = BLS::RecoverPublicKey(rpks, rids);
+        InsecureSignature recSig = BLS::RecoverSig(rsigs, rids);
+        REQUIRE(recSk != sks[0]);
+        REQUIRE(recPk != pks[0]);
+        REQUIRE(recSig != sig);
+
+        rsks.push_back(skShares[2]);
+        rpks.push_back(pkShares[2]);
+        rsigs.push_back(sigShares[2]);
+        rids.push_back(ids[2].data());
+        recSk = BLS::RecoverPrivateKey(rsks, rids);
+        recPk = BLS::RecoverPublicKey(rpks, rids);
+        recSig = BLS::RecoverSig(rsigs, rids);
+        REQUIRE(recSk == sks[0]);
+        REQUIRE(recPk == pks[0]);
+        REQUIRE(recSig == sig);
     }
 }
 

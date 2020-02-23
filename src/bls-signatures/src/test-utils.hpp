@@ -43,7 +43,7 @@ void endStopwatch(string testName,
 }
 
 void getRandomSeed(uint8_t* seed) {
-    relic::bn_t r;
+    bn_t r;
     bn_new(r);
     bn_rand(r, BN_POS, 256);
     bn_write_bin(seed, 32, r);

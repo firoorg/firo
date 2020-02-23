@@ -3,5 +3,5 @@
 set -e
 mkdir -p build
 cd build
-cmake ../ -DWSIZE=64
+cmake ../ -DWSIZE=64 
 

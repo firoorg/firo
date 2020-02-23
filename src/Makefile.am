@@ -75,6 +75,8 @@ $(TOR_LIBS): tor.timestamp
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
 
+DEPENDENCIES_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signatures/contrib/relic/include
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
@@ -152,6 +154,15 @@ BITCOIN_CORE_H = \
   checkpoints.h \
   checkqueue.h \
   clientversion.h \
+  ctpl.h \
+  cxxtimer.hpp \
+  evo/cbtx.h \
+  evo/deterministicmns.h \
+  evo/evodb.h \
+  evo/mnauth.h \
+  evo/providertx.h \
+  evo/simplifiedmns.h \
+  evo/specialtx.h \
   coins.h \
   compat.h \
   compat/byteswap.h \
@@ -266,7 +277,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between zcoind and zcoin-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(DEPENDENCIES_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
@@ -275,6 +286,26 @@ libbitcoin_server_a_SOURCES = \
   blockencodings.cpp \
   chain.cpp \
   checkpoints.cpp \
+  evo/cbtx.cpp \
+  evo/deterministicmns.cpp \
+  evo/evodb.cpp \
+  evo/mnauth.cpp \
+  evo/providertx.cpp \
+  evo/simplifiedmns.cpp \
+  evo/specialtx.cpp \
+  llmq/quorums.cpp \
+  llmq/quorums_blockprocessor.cpp \
+  llmq/quorums_commitment.cpp \
+  llmq/quorums_chainlocks.cpp \
+  llmq/quorums_debug.cpp \
+  llmq/quorums_dkgsessionhandler.cpp \
+  llmq/quorums_dkgsessionmgr.cpp \
+  llmq/quorums_dkgsession.cpp \
+  llmq/quorums_init.cpp \
+  llmq/quorums_instantsend.cpp \
+  llmq/quorums_signing.cpp \
+  llmq/quorums_signing_shares.cpp \
+  llmq/quorums_utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
@@ -298,6 +329,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/rawtransaction.cpp \
   rpc/rpcznode.cpp \
   rpc/server.cpp \
+  rpc/rpcevo.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
   timedata.cpp \
@@ -381,12 +413,14 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha512.h
 
 # consensus: shared between all executables that validate any consensus rules.
-libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
+libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(DEPENDENCIES_INCLUDES) $(PIC_FLAGS)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
+  bls/bls.cpp \
+  bls/bls.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \
@@ -471,6 +505,11 @@ libbitcoin_common_a_SOURCES = \
 libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
+  bls/bls_batchverifier.h \
+  bls/bls_ies.cpp \
+  bls/bls_ies.h \
+  bls/bls_worker.cpp \
+  bls/bls_worker.h \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
@@ -641,7 +680,7 @@ endif
 
 libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
 libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
+libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include $(DEPENDENCIES_INCLUDES) -DBUILD_BITCOIN_INTERNAL
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif

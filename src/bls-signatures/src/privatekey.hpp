@@ -25,6 +25,8 @@
 #include "signature.hpp"
 namespace bls {
 class PrivateKey {
+ template <typename T> friend struct PolyOps;
+ friend class BLS;
  public:
     // Private keys are represented as 32 byte field elements. Note that
     // not all 32 byte integers are valid keys, the private key must be
@@ -71,19 +73,20 @@ class PrivateKey {
     Signature Sign(const uint8_t *msg, size_t len) const;
     Signature SignPrehashed(const uint8_t *hash) const;
 
- private:
+ public:
     // Don't allow public construction, force static methods
-    PrivateKey() {}
+    PrivateKey();
+ private:
 
     // Multiply private key with n
-    PrivateKey Mul(const relic::bn_t n) const;
+    PrivateKey Mul(const bn_t n) const;
 
     // Allocate memory for private key
     void AllocateKeyData();
 
  private:
     // The actual byte data
-    relic::bn_t *keydata{nullptr};
+    bn_t *keydata{nullptr};
 };
 } // end namespace bls
 

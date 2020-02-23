@@ -21,7 +21,6 @@ namespace bls {
 
 ExtendedPublicKey ExtendedPublicKey::FromBytes(
         const uint8_t* serialized) {
-    BLS::AssertInitialized();
     uint32_t version = Util::FourBytesToInt(serialized);
     uint32_t depth = serialized[4];
     uint32_t parentFingerprint = Util::FourBytesToInt(serialized + 5);
@@ -36,7 +35,6 @@ ExtendedPublicKey ExtendedPublicKey::FromBytes(
 }
 
 ExtendedPublicKey ExtendedPublicKey::PublicChild(uint32_t i) const {
-    BLS::AssertInitialized();
     // Hardened children have i >= 2^31. Non-hardened have i < 2^31
     uint32_t cmp = (1 << 31);
     if (i >= cmp) {
@@ -63,13 +61,13 @@ ExtendedPublicKey ExtendedPublicKey::PublicChild(uint32_t i) const {
     hmacInput[inputLen - 1] = 0;
     Util::IntToFourBytes(hmacInput + PublicKey::PUBLIC_KEY_SIZE, i);
 
-    relic::md_hmac(ILeft, hmacInput, inputLen,
+    md_hmac(ILeft, hmacInput, inputLen,
                     hmacKey, ChainCode::CHAIN_CODE_SIZE);
 
     // Change 1 byte to generate a different sequence for chaincode
     hmacInput[inputLen - 1] = 1;
 
-    relic::md_hmac(IRight, hmacInput, inputLen,
+    md_hmac(IRight, hmacInput, inputLen,
                     hmacKey, ChainCode::CHAIN_CODE_SIZE);
 
     PrivateKey leftSk = PrivateKey::FromBytes(ILeft, true);
@@ -109,7 +107,6 @@ PublicKey ExtendedPublicKey::GetPublicKey() const {
 
 // Comparator implementation.
 bool operator==(ExtendedPublicKey const &a,  ExtendedPublicKey const &b) {
-    BLS::AssertInitialized();
     return (a.GetPublicKey() == b.GetPublicKey() &&
             a.GetChainCode() == b.GetChainCode());
 }
@@ -119,12 +116,10 @@ bool operator!=(ExtendedPublicKey const&a,  ExtendedPublicKey const&b) {
 }
 
 std::ostream &operator<<(std::ostream &os, ExtendedPublicKey const &a) {
-    BLS::AssertInitialized();
     return os << a.GetPublicKey() << a.GetChainCode();
 }
 
 void ExtendedPublicKey::Serialize(uint8_t *buffer) const {
-    BLS::AssertInitialized();
     Util::IntToFourBytes(buffer, version);
     buffer[4] = depth;
     Util::IntToFourBytes(buffer + 5, parentFingerprint);

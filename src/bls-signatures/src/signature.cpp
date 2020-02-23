@@ -21,11 +21,8 @@
 #include "bls.hpp"
 
 using std::string;
-using relic::bn_t;
-using relic::fp_t;
 namespace bls {
 InsecureSignature InsecureSignature::FromBytes(const uint8_t *data) {
-    BLS::AssertInitialized();
     InsecureSignature sigObj = InsecureSignature();
     uint8_t uncompressed[SIGNATURE_SIZE + 1];
     std::memcpy(uncompressed + 1, data, SIGNATURE_SIZE);
@@ -35,25 +32,23 @@ InsecureSignature InsecureSignature::FromBytes(const uint8_t *data) {
     } else {
         uncompressed[0] = 0x02;   // Insert extra byte for Y=0
     }
-    relic::g2_read_bin(sigObj.sig, uncompressed, SIGNATURE_SIZE + 1);
+    g2_read_bin(sigObj.sig, uncompressed, SIGNATURE_SIZE + 1);
+    BLS::CheckRelicErrors();
     return sigObj;
 }
 
-InsecureSignature InsecureSignature::FromG2(const relic::g2_t* element) {
-    BLS::AssertInitialized();
+InsecureSignature InsecureSignature::FromG2(const g2_t* element) {
     InsecureSignature sigObj = InsecureSignature();
-    relic::g2_copy(sigObj.sig, *(relic::g2_t*)element);
+    g2_copy(sigObj.sig, *(g2_t*)element);
     return sigObj;
 }
 
 InsecureSignature::InsecureSignature() {
-    BLS::AssertInitialized();
     g2_set_infty(sig);
 }
 
 InsecureSignature::InsecureSignature(const InsecureSignature &signature) {
-    BLS::AssertInitialized();
-    g2_copy(sig, *(relic::g2_t*)&signature.sig);
+    g2_copy(sig, *(g2_t*)&signature.sig);
 }
 
 bool InsecureSignature::Verify(const std::vector<const uint8_t*>& hashes,
@@ -62,16 +57,16 @@ bool InsecureSignature::Verify(const std::vector<const uint8_t*>& hashes,
         throw std::string("hashes and pubKeys vectors must be of same size and non-empty");
     }
 
-    relic::g1_t *pubKeysNative = new relic::g1_t[hashes.size() + 1];
-    relic::g2_t *mappedHashes = new relic::g2_t[hashes.size() + 1];
+    g1_t *pubKeysNative = new g1_t[hashes.size() + 1];
+    g2_t *mappedHashes = new g2_t[hashes.size() + 1];
 
-    relic::g2_copy(mappedHashes[0], *(relic::g2_t*)&sig);
-    relic::g1_get_gen(pubKeysNative[0]);
-    relic::bn_t ordMinus1;
-    relic::bn_new(ordMinus1);
-    relic::g1_get_ord(ordMinus1);
-    relic::bn_sub_dig(ordMinus1, ordMinus1, 1);
-    relic::g1_mul(pubKeysNative[0], pubKeysNative[0], ordMinus1);
+    g2_copy(mappedHashes[0], *(g2_t*)&sig);
+    g1_get_gen(pubKeysNative[0]);
+    bn_t ordMinus1;
+    bn_new(ordMinus1);
+    g1_get_ord(ordMinus1);
+    bn_sub_dig(ordMinus1, ordMinus1, 1);
+    g1_mul(pubKeysNative[0], pubKeysNative[0], ordMinus1);
 
     for (size_t i = 0; i < hashes.size(); i++) {
         g2_map(mappedHashes[i + 1], hashes[i], BLS::MESSAGE_HASH_LEN, 0);
@@ -87,23 +82,23 @@ bool InsecureSignature::Verify(const std::vector<const uint8_t*>& hashes,
 }
 
 bool InsecureSignature::VerifyNative(
-        relic::g1_t* pubKeys,
-        relic::g2_t* mappedHashes,
+        g1_t* pubKeys,
+        g2_t* mappedHashes,
         size_t len) {
-    relic::gt_t target, candidate;
+    gt_t target, candidate;
 
     // Target = 1
-    relic::fp12_zero(target);
-    relic::fp_set_dig(target[0][0][0], 1);
+    fp12_zero(target);
+    fp_set_dig(target[0][0][0], 1);
 
     // prod e(pubkey[i], hash[i]) * e(-1 * g1, aggSig)
     // Performs pubKeys.size() pairings
     pc_map_sim(candidate, pubKeys, mappedHashes, len);
 
     // 1 =? prod e(pubkey[i], hash[i]) * e(g1, aggSig)
-    if (relic::gt_cmp(target, candidate) != CMP_EQ ||
-        relic::core_get()->code != STS_OK) {
-        relic::core_get()->code = STS_OK;
+    if (gt_cmp(target, candidate) != CMP_EQ ||
+        core_get()->code != STS_OK) {
+        core_get()->code = STS_OK;
         return false;
     }
     BLS::CheckRelicErrors();
@@ -116,7 +111,7 @@ InsecureSignature InsecureSignature::Aggregate(const std::vector<InsecureSignatu
     }
     InsecureSignature result = sigs[0];
     for (size_t i = 1; i < sigs.size(); i++) {
-        g2_add(result.sig, result.sig, *(relic::g2_t*)&sigs[i].sig);
+        g2_add(result.sig, result.sig, *(g2_t*)&sigs[i].sig);
     }
     return result;
 }
@@ -128,18 +123,17 @@ InsecureSignature InsecureSignature::DivideBy(const std::vector<InsecureSignatur
 
     InsecureSignature tmpAgg = Aggregate(sigs);
     InsecureSignature result(*this);
-    relic::g2_sub(result.sig, result.sig, tmpAgg.sig);
+    g2_sub(result.sig, result.sig, tmpAgg.sig);
     return result;
 }
 
-InsecureSignature InsecureSignature::Exp(const relic::bn_t n) const {
+InsecureSignature InsecureSignature::Exp(const bn_t n) const {
     InsecureSignature result(*this);
     g2_mul(result.sig, result.sig, n);
     return result;
 }
 
 void InsecureSignature::Serialize(uint8_t* buffer) const {
-    BLS::AssertInitialized();
     CompressPoint(buffer, &sig);
 }
 
@@ -150,8 +144,7 @@ std::vector<uint8_t> InsecureSignature::Serialize() const {
 }
 
 bool operator==(InsecureSignature const &a, InsecureSignature const &b) {
-    BLS::AssertInitialized();
-    return g2_cmp(*(relic::g2_t*)&a.sig, *(relic::g2_t*)b.sig) == CMP_EQ;
+    return g2_cmp(*(g2_t*)&a.sig, *(g2_t*)b.sig) == CMP_EQ;
 }
 
 bool operator!=(InsecureSignature const &a, InsecureSignature const &b) {
@@ -159,21 +152,19 @@ bool operator!=(InsecureSignature const &a, InsecureSignature const &b) {
 }
 
 std::ostream &operator<<(std::ostream &os, InsecureSignature const &s) {
-    BLS::AssertInitialized();
     uint8_t data[InsecureSignature::SIGNATURE_SIZE];
     s.Serialize(data);
     return os << Util::HexStr(data, InsecureSignature::SIGNATURE_SIZE);
 }
 
 InsecureSignature& InsecureSignature::operator=(const InsecureSignature &rhs) {
-    BLS::AssertInitialized();
-    relic::g2_copy(sig, *(relic::g2_t*)&rhs.sig);
+    g2_copy(sig, *(g2_t*)&rhs.sig);
     return *this;
 }
 
-void InsecureSignature::CompressPoint(uint8_t* result, const relic::g2_t* point) {
+void InsecureSignature::CompressPoint(uint8_t* result, const g2_t* point) {
     uint8_t buffer[InsecureSignature::SIGNATURE_SIZE + 1];
-    g2_write_bin(buffer, InsecureSignature::SIGNATURE_SIZE + 1, *(relic::g2_t*)point, 1);
+    g2_write_bin(buffer, InsecureSignature::SIGNATURE_SIZE + 1, *(g2_t*)point, 1);
 
     if (buffer[0] == 0x03) {
         buffer[1] |= 0x80;
@@ -195,13 +186,13 @@ Signature Signature::FromBytes(const uint8_t *data, const AggregationInfo &info)
     return ret;
 }
 
-Signature Signature::FromG2(const relic::g2_t* element) {
+Signature Signature::FromG2(const g2_t* element) {
     Signature result;
     result.sig = InsecureSignature::FromG2(element);
     return result;
 }
 
-Signature Signature::FromG2(const relic::g2_t* element, const AggregationInfo& info) {
+Signature Signature::FromG2(const g2_t* element, const AggregationInfo& info) {
     Signature ret = FromG2(element);
     ret.SetAggregationInfo(info);
     return ret;
@@ -237,8 +228,11 @@ std::vector<uint8_t> Signature::Serialize() const {
     return sig.Serialize();
 }
 
+InsecureSignature Signature::GetInsecureSig() const {
+    return sig;
+}
+
 bool operator==(Signature const &a, Signature const &b) {
-    BLS::AssertInitialized();
     return a.sig == b.sig;
 }
 
@@ -247,7 +241,6 @@ bool operator!=(Signature const &a, Signature const &b) {
 }
 
 std::ostream &operator<<(std::ostream &os, Signature const &s) {
-    BLS::AssertInitialized();
     uint8_t data[InsecureSignature::SIGNATURE_SIZE];
     s.Serialize(data);
     return os << Util::HexStr(data, InsecureSignature::SIGNATURE_SIZE);
@@ -311,7 +304,7 @@ bool Signature::Verify() const {
         for (const auto &kv2 : dedupMap) {
             const PublicKey& pk = kv.second[kv2.second];
 
-            relic::bn_t exponent;
+            bn_t exponent;
             bn_new(exponent);
             try {
                 GetAggregationInfo()->GetExponent(&exponent, kv.first, pk);
@@ -337,7 +330,6 @@ bool Signature::Verify() const {
 
 Signature Signature::AggregateSigs(
         std::vector<Signature> const &sigs) {
-    BLS::AssertInitialized();
     std::vector<std::vector<PublicKey> > pubKeys;
     std::vector<std::vector<uint8_t*> > messageHashes;
 
@@ -410,9 +402,9 @@ Signature Signature::AggregateSigsSecure(
         return memcmp(sortKeys[a], sortKeys[b], BLS::MESSAGE_HASH_LEN + PublicKey::PUBLIC_KEY_SIZE) < 0;
     });
 
-    relic::bn_t* computedTs = new relic::bn_t[keysSorted.size()];
+    bn_t* computedTs = new bn_t[keysSorted.size()];
     for (size_t i = 0; i < keysSorted.size(); i++) {
-        relic::bn_new(computedTs[i]);
+        bn_new(computedTs[i]);
     }
     BLS::HashPubKeys(computedTs, keysSorted.size(), serPubKeys, keysSorted);
 
@@ -442,7 +434,6 @@ Signature Signature::AggregateSigsInternal(
         std::vector<Signature> const &sigs,
         std::vector<std::vector<PublicKey> > const &pubKeys,
         std::vector<std::vector<uint8_t*> > const &messageHashes) {
-    BLS::AssertInitialized();
     if (sigs.size() != pubKeys.size()
         || pubKeys.size() != messageHashes.size()) {
         throw std::string("Lengths of std::vectors must match.");
@@ -551,7 +542,7 @@ Signature Signature::AggregateSigsInternal(
         pubKeysSorted.push_back(PublicKey::FromBytes(sortKey
                                                         + BLS::MESSAGE_HASH_LEN));
     }
-    relic::bn_t* computedTs = new relic::bn_t[sigsSorted.size()];
+    bn_t* computedTs = new bn_t[sigsSorted.size()];
     for (size_t i = 0; i < sigsSorted.size(); i++) {
         bn_new(computedTs[i]);
     }
@@ -616,7 +607,7 @@ Signature Signature::AggregateSigsSimple(std::vector<Signature> const &sigs) {
 }
 
 Signature Signature::DivideBy(std::vector<Signature> const &divisorSigs) const {
-    relic::bn_t ord;
+    bn_t ord;
     g2_get_ord(ord);
 
     std::vector<uint8_t*> messageHashesToRemove;
@@ -632,14 +623,14 @@ Signature Signature::DivideBy(std::vector<Signature> const &divisorSigs) const {
         if (pks.size() != messageHashes.size()) {
             throw string("Invalid aggregation info.");
         }
-        relic::bn_t quotient;
+        bn_t quotient;
         for (size_t i = 0; i < pks.size(); i++) {
-            relic::bn_t divisor;
+            bn_t divisor;
             bn_new(divisor);
             divisorSig.GetAggregationInfo()->GetExponent(&divisor,
                     messageHashes[i],
                     pks[i]);
-            relic::bn_t dividend;
+            bn_t dividend;
             bn_new(dividend);
             try {
                 aggregationInfo.GetExponent(&dividend, messageHashes[i],
@@ -648,18 +639,18 @@ Signature Signature::DivideBy(std::vector<Signature> const &divisorSigs) const {
                 throw string("Signature is not a subset.");
             }
 
-            relic::bn_t inverted;
-            relic::fp_inv_exgcd_bn(inverted, divisor, ord);
+            bn_t inverted;
+            fp_inv_exgcd_bn(inverted, divisor, ord);
 
             if (i == 0) {
-                relic::bn_mul(quotient, dividend, inverted);
-                relic::bn_mod(quotient, quotient, ord);
+                bn_mul(quotient, dividend, inverted);
+                bn_mod(quotient, quotient, ord);
             } else {
-                relic::bn_t newQuotient;
-                relic::bn_mul(newQuotient, dividend, inverted);
-                relic::bn_mod(newQuotient, newQuotient, ord);
+                bn_t newQuotient;
+                bn_mul(newQuotient, dividend, inverted);
+                bn_mod(newQuotient, newQuotient, ord);
 
-                if (relic::bn_cmp(quotient, newQuotient) != CMP_EQ) {
+                if (bn_cmp(quotient, newQuotient) != CMP_EQ) {
                     throw string("Cannot divide by aggregate signature,"
                                  "msg/pk pairs are not unique");
                 }

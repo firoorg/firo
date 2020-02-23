@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <chrono>
+#include <array>
+
 #include "bls.hpp"
 #include "test-utils.hpp"
 
@@ -188,6 +190,118 @@ void benchDegenerateTree() {
                  start, numIters);
 }
 
+void benchShamir() {
+    size_t m = 51;
+    size_t n = 100;
+    double numIters = 100;
+
+    std::vector<PrivateKey> sks;
+    std::vector<PublicKey> pks;
+    std::vector<InsecureSignature> sigs;
+    std::vector<std::array<uint8_t, BLS::ID_SIZE>> ids(m);
+    std::vector<PrivateKey> skShares;
+    std::vector<PublicKey> pkShares;
+    std::vector<InsecureSignature> sigShares;
+
+    uint8_t message[32];
+    getRandomSeed(message);
+
+    for (size_t i = 0; i < m; i++) {
+        getRandomSeed(ids[i].data());
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        uint8_t buf[32];
+        getRandomSeed(buf);
+
+        PrivateKey sk = PrivateKey::FromSeed(buf, 32);
+        sks.push_back(sk);
+        pks.push_back(sk.GetPublicKey());
+        sigs.push_back(sk.SignInsecurePrehashed(message));
+    }
+
+    auto start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        BLS::PrivateKeyShare(sks, ids[i % m].data());
+    }
+    endStopwatch("Create private key share",
+                 start, numIters);
+
+    start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        BLS::PublicKeyShare(pks, ids[i % m].data());
+    }
+    endStopwatch("Create public key share",
+                 start, numIters);
+
+    start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        BLS::SignatureShare(sigs, ids[i % m].data());
+    }
+    endStopwatch("Create signature share",
+                 start, numIters);
+
+    for (size_t i = 0; i < m; i++) {
+        PrivateKey skShare = BLS::PrivateKeyShare(sks, ids[i].data());
+        PublicKey pkShare = BLS::PublicKeyShare(pks, ids[i].data());
+        InsecureSignature sigShare1 = BLS::SignatureShare(sigs, ids[i].data());
+
+        skShares.emplace_back(skShare);
+        pkShares.emplace_back(pkShare);
+        sigShares.emplace_back(sigShare1);
+    }
+
+    std::vector<PrivateKey> rsks;
+    std::vector<PublicKey> rpks;
+    std::vector<InsecureSignature> rsigs;
+    std::vector<const uint8_t*> rids;
+
+    auto prepare = [&](size_t i, int which) {
+        rsks.clear(); rpks.clear(); rsigs.clear(); rids.clear();
+        for (size_t j = 0; j < m; j++) {
+            switch (which) {
+                case 0:
+                    rsks.emplace_back(skShares[(i + j) % m]);
+                    break;
+                case 1:
+                    rpks.emplace_back(pkShares[(i + j) % m]);
+                    break;
+                case 2:
+                    rsigs.emplace_back(sigShares[(i + j) % m]);
+                    break;
+                default:
+                    ASSERT(false);
+            }
+            rids.emplace_back(ids[(i + j) % m].data());
+        }
+    };
+
+
+    start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        prepare(i, 0);
+        BLS::RecoverPrivateKey(rsks, rids);
+    }
+    endStopwatch("Recover private key",
+                 start, numIters);
+
+    start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        prepare(i, 1);
+        BLS::RecoverPublicKey(rpks, rids);
+    }
+    endStopwatch("Recover public key",
+                 start, numIters);
+
+    start = startStopwatch();
+    for (size_t i = 0; i < numIters; i++) {
+        prepare(i, 2);
+        BLS::RecoverSig(rsigs, rids);
+    }
+    endStopwatch("Recover signature",
+                 start, numIters);
+}
+
 int main(int argc, char* argv[]) {
     benchSigs();
     benchVerification();
@@ -195,4 +309,5 @@ int main(int argc, char* argv[]) {
     benchAggregateSigsSecure();
     benchAggregateSigsSimple();
     benchDegenerateTree();
+    benchShamir();
 }

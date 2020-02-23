@@ -24,10 +24,9 @@
 #include <gmp.h>
 #endif
 
-namespace relic {
-    #include "relic.h"
-    #include "relic_test.h"
-}
+
+#include "relic.h"
+#include "relic_test.h"
 
 #include "util.hpp"
 namespace bls {
@@ -51,7 +50,7 @@ class ChainCode {
     // Prevent direct construction, use static constructor
     ChainCode() {}
 
-    relic::bn_t chainCode;
+    bn_t chainCode;
 };
 } // end namespace bls
 

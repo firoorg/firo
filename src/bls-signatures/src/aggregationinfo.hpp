@@ -46,7 +46,7 @@ class AggregationInfo {
     static AggregationInfo FromVectors(
                 std::vector<PublicKey> const &pubKeys,
                 std::vector<uint8_t*> const &messageHashes,
-                std::vector<relic::bn_t*> const &exponents);
+                std::vector<bn_t*> const &exponents);
 
     // Merge two AggregationInfo objects into one.
     static AggregationInfo MergeInfos(std::vector<AggregationInfo>
@@ -60,7 +60,7 @@ class AggregationInfo {
                        std::vector<PublicKey> const &pubKeys);
 
     // Public accessors
-    void GetExponent(relic::bn_t *result, const uint8_t* messageHash,
+    void GetExponent(bn_t *result, const uint8_t* messageHash,
                      const PublicKey &pubkey) const;
     std::vector<PublicKey> GetPubKeys() const;
     std::vector<uint8_t*> GetMessageHashes() const;
@@ -79,7 +79,7 @@ class AggregationInfo {
  private:
     // This is the data structure that maps messages (32) and
     // public keys (48) to exponents (bn_t*).
-    typedef std::map<uint8_t*, relic::bn_t*,
+    typedef std::map<uint8_t*, bn_t*,
                      Util::BytesCompare80> AggregationTree;
 
     explicit AggregationInfo(const AggregationTree& tr,

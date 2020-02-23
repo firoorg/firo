@@ -31,6 +31,8 @@ class PublicKey {
  friend class InsecureSignature;
  friend class Signature;
  friend class ExtendedPublicKey;
+ template <typename T> friend struct PolyOps;
+ friend class BLS;
  public:
     static const size_t PUBLIC_KEY_SIZE = 48;
 
@@ -38,7 +40,7 @@ class PublicKey {
     static PublicKey FromBytes(const uint8_t* key);
 
     // Construct a public key from a native g1 element.
-    static PublicKey FromG1(const relic::g1_t* key);
+    static PublicKey FromG1(const g1_t* key);
 
     // Construct a public key from another public key.
     PublicKey(const PublicKey &pubKey);
@@ -60,18 +62,19 @@ class PublicKey {
     // Returns the first 4 bytes of the serialized pk
     uint32_t GetFingerprint() const;
 
- private:
+ public:
     // Don't allow public construction, force static methods
     PublicKey();
 
+ private:
     // Exponentiate public key with n
-    PublicKey Exp(const relic::bn_t n) const;
+    PublicKey Exp(const bn_t n) const;
 
-    static void CompressPoint(uint8_t* result, const relic::g1_t* point);
+    static void CompressPoint(uint8_t* result, const g1_t* point);
 
  private:
     // Public key group element
-    relic::g1_t q;
+    g1_t q;
 };
 
 } // end namespace bls

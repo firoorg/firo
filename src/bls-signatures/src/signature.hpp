@@ -34,6 +34,7 @@ namespace bls {
  */
 class InsecureSignature {
  friend class Signature;
+ template <typename T> friend struct PolyOps;
  public:
     static const size_t SIGNATURE_SIZE = 96;
 
@@ -41,7 +42,7 @@ class InsecureSignature {
     static InsecureSignature FromBytes(const uint8_t *data);
 
     // Initializes from native relic g2 element/
-    static InsecureSignature FromG2(const relic::g2_t* element);
+    static InsecureSignature FromG2(const g2_t* element);
 
     // Copy constructor. Deep copies contents.
     InsecureSignature(const InsecureSignature &signature);
@@ -65,26 +66,27 @@ class InsecureSignature {
     friend std::ostream &operator<<(std::ostream &os, InsecureSignature const &s);
     InsecureSignature& operator=(const InsecureSignature& rhs);
 
- private:
+ public:
     // Prevent public construction, force static method
     InsecureSignature();
+ private:
 
     // Exponentiate signature with n
-    InsecureSignature Exp(const relic::bn_t n) const;
+    InsecureSignature Exp(const bn_t n) const;
 
-    static void CompressPoint(uint8_t* result, const relic::g2_t* point);
+    static void CompressPoint(uint8_t* result, const g2_t* point);
 
     // Performs multipairing and checks that everything matches. This is an
     // internal method, only called from Verify. It should not be used
     // anywhere else.
     static bool VerifyNative(
-            relic::g1_t* pubKeys,
-            relic::g2_t* mappedHashes,
+            g1_t* pubKeys,
+            g2_t* mappedHashes,
             size_t len);
 
  private:
     // Signature group element
-    relic::g2_t sig;
+    g2_t sig;
 };
 
 /**
@@ -105,10 +107,10 @@ class Signature {
     static Signature FromBytes(const uint8_t *data, const AggregationInfo &info);
 
     // Initializes from native relic g2 element/
-    static Signature FromG2(const relic::g2_t* element);
+    static Signature FromG2(const g2_t* element);
 
     // Initializes from native relic g2 element with AggregationInfo/
-    static Signature FromG2(const relic::g2_t* element, const AggregationInfo &info);
+    static Signature FromG2(const g2_t* element, const AggregationInfo &info);
 
     // Initializes from insecure signature/
     static Signature FromInsecureSig(const InsecureSignature& sig);
@@ -149,6 +151,8 @@ class Signature {
     // the aggregation info.
     void Serialize(uint8_t* buffer) const;
     std::vector<uint8_t> Serialize() const;
+
+    InsecureSignature GetInsecureSig() const;
 
     friend bool operator==(Signature const &a, Signature const &b);
     friend bool operator!=(Signature const &a, Signature const &b);
