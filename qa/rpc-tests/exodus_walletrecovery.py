@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-import time
 import os
-import shutil
-from test_framework.authproxy import JSONRPCException
+from shutil import rmtree
 from test_framework.test_framework import ExodusTestFramework
 from test_framework.util import (
     assert_equal,
@@ -25,7 +23,7 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
 
     def clear_datadir(self, node = 0):
         datadir = self.get_datadir(node)
-        shutil.rmtree(datadir)
+        rmtree(datadir)
         os.mkdir(datadir)
 
     def connect_to_other(self, node = 0):
