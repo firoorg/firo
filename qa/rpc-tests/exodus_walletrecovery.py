@@ -10,24 +10,24 @@ from test_framework.util import (
     sync_blocks)
 
 class ExodusWalletRecoveryTest(ExodusTestFramework):
-    def get_datadir(self, node = 0):
+    def get_datadir(self, node):
         return os.path.join(self.options.tmpdir, f"node{node}", "regtest")
 
-    def get_walletfile(self, node = 0):
+    def get_walletfile(self, node):
         datadir = self.get_datadir(node)
         return os.path.join(datadir, "wallet.dat")
 
-    def load_wallet_content(self, node = 0):
+    def load_wallet_content(self, node):
         with open(self.get_walletfile(node), mode='rb') as f:
             return f.read()
 
-    def clear_datadir(self, node = 0):
+    def clear_datadir(self, node):
         datadir = self.get_datadir(node)
         rmtree(datadir)
         os.mkdir(datadir)
 
-    def connect_to_other(self, node = 0):
-        for i in range(0, 4):
+    def connect_to_other(self, node):
+        for i in range(0, len(self.nodes)):
             if i != node:
                 connect_nodes_bi(self.nodes, node, i)
 
@@ -37,7 +37,7 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
         fresh_wallet_content = self.load_wallet_content(0)
 
         self.nodes[0] = start_node(0, self.options.tmpdir, ["-exodus"])
-        self.connect_to_other()
+        self.connect_to_other(0)
 
         super().run_test()
 
@@ -82,7 +82,7 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
 
         # start and sync
         self.nodes[0] = start_node(0, self.options.tmpdir, ["-exodus"])
-        self.connect_to_other()
+        self.connect_to_other(0)
 
         sync_blocks(self.nodes)
 
