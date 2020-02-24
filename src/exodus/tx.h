@@ -269,6 +269,24 @@ public:
     uint32_t getGroup() const { return group; }
     uint16_t getGroupSize() const { return groupSize; }
     const exodus::SigmaProof *getSpend() const { return spend.get(); }
+    CAmount getMintAmount() const {
+        std::vector<uint8_t> denoms;
+        std::transform(
+            mints.begin(),
+            mints.end(),
+            std::back_inserter(denoms),
+            [] (std::pair<uint8_t, exodus::SigmaPublicKey> mint) -> uint8_t {
+                return mint.first;
+            });
+
+        return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
+    }
+
+    CAmount getSpendAmount() const {
+        std::vector<uint8_t> denoms = {getDenomination()};
+        return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
+    }
+
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

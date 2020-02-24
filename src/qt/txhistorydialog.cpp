@@ -303,23 +303,11 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (htxo.valid && type == EXODUS_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
 
         if (htxo.valid && type == EXODUS_TYPE_SIMPLE_SPEND) { // override amount for spend
-            auto denomination = mp_obj.getDenomination();
-            std::array<uint8_t, 1> denoms = {denomination};
-            amount = SumDenominationsValue(mp_obj.getProperty(), denoms.begin(), denoms.end());
+            amount = mp_obj.getSpendAmount();
         }
 
         if (htxo.valid && type == EXODUS_TYPE_SIMPLE_MINT) { // override amount for mint
-            auto mints = mp_obj.getMints();
-            std::vector<uint8_t> denoms;
-            std::transform(
-                mints.begin(),
-                mints.end(),
-                std::back_inserter(denoms),
-                [](std::pair<uint8_t, exodus::SigmaPublicKey> mint) -> uint8_t {
-                    return mint.first;
-                });
-
-            amount = SumDenominationsValue(mp_obj.getProperty(), denoms.begin(), denoms.end());
+            amount = mp_obj.getMintAmount();
         }
 
         std::string displayAmount = FormatShortMP(mp_obj.getProperty(), amount) + getTokenLabel(mp_obj.getProperty());
@@ -340,9 +328,13 @@ int TXHistoryDialog::PopulateHistoryMap()
             }
         }
 
-        // override - hide display amount for cancels and unknown transactions as we can't display amount/property as no prop exists
+        // override - hide display amount for transaction types below as we can't display amount/property as no prop exists
+        // - Unchanged balance sigma transactions
+        // - Cancels transactions
+        // - Unknown transactions
         if (type == EXODUS_TYPE_METADEX_CANCEL_PRICE || type == EXODUS_TYPE_METADEX_CANCEL_PAIR ||
-            type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || type == EXODUS_TYPE_SEND_ALL || htxo.txType == "Unknown") {
+            type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || type == EXODUS_TYPE_SEND_ALL ||
+            type == EXODUS_TYPE_CREATE_DENOMINATION || htxo.txType == "Unknown") {
             displayAmount = "N/A";
         }
 
@@ -353,11 +345,6 @@ int TXHistoryDialog::PopulateHistoryMap()
             LOCK(cs_main);
             s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
-        }
-
-        // override - hide display amount for denomination creation transactions
-        if (type == EXODUS_TYPE_CREATE_DENOMINATION) {
-            displayAmount = "N/A";
         }
 
         htxo.amount = displayAmount;
