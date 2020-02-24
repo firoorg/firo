@@ -176,7 +176,8 @@ testScripts = [
     'sigma_mintspend.py',
     'sigma_blocklimit.py',
     'hdmint_mempool_zap.py',
-    'sigma_zapwalletmints_unconf_trans.py'
+    'sigma_zapwalletmints_unconf_trans.py',
+    'znode_check_payments.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

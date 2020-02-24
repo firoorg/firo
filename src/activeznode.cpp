@@ -154,6 +154,15 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     bool fFoundLocal = false;
+    if(Params().NetworkIDString() == CBaseChainParams::REGTEST) {
+        std::string const & serv = GetArg("-externalip", "");
+        if(!serv.empty()) {
+            service = CService(serv.c_str());
+            fFoundLocal = true;
+        }
+
+    }
+    if(!fFoundLocal)
     {
         LOCK(cs_vNodes);
 

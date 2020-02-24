@@ -23,10 +23,13 @@ from .util import (
     sync_mempools,
     stop_nodes,
     stop_node,
+    start_node,
     enable_coverage,
     check_json_precision,
     initialize_chain_clean,
     PortSeed,
+    p2p_port,
+    connect_nodes
 )
 from .authproxy import JSONRPCException
 
@@ -267,3 +270,93 @@ class ExodusTestFramework(BitcoinTestFramework):
         actual.sort(key = mint_key_extractor)
 
         assert_equal(expected, actual)
+
+#
+# Znode tests support
+#
+
+ZNODE_COLLATERAL = 1000
+
+class ZnodeCollateral(object):
+    def __init__(self):
+        self.tx_id = None
+        self.n = -1
+
+    def __str__(self):
+        return self.tx_id + ": " + str(self.n)
+
+    def parse_collateral_output(self, target_address, tx_text, tx_id):
+        for vout in tx_text["vout"]:
+            if vout["value"] == ZNODE_COLLATERAL and vout["scriptPubKey"]["addresses"] == [target_address]:
+                self.tx_id = tx_id
+                self.n = vout["n"]
+        return self
+
+class ZnodeTestFramework(BitcoinTestFramework):
+    def __init__(self):
+        super().__init__()
+        self.znode_priv_keys = dict()
+
+    def setup_chain(self):
+        print("Initializing test directory "+self.options.tmpdir)
+        self.setup_clean_chain = True
+        super().setup_chain()
+
+    def write_master_znode_conf(self, znode, priv_key, collateral_tx_id, collateral_n, master_node=None):
+        if master_node is None:
+            master_node = 0
+
+        znode_conf = " ".join(["zn"+str(znode), "127.0.0.1:"+str(p2p_port(znode)), priv_key, collateral_tx_id, str(collateral_n)])
+
+        master_node_conf_filename = os.path.join(self.options.tmpdir, "node" + str(master_node), "regtest", "znode.conf")
+        with open(master_node_conf_filename, "a") as master_node_conf:
+            master_node_conf.write(znode_conf)
+            master_node_conf.write("\n")
+            master_node_conf.close()
+
+    def generate_znode_collateral(self, generator_node=None):
+        if generator_node is None:
+            generator_node = 0
+        curr_balance = self.nodes[generator_node].getbalance()
+        while curr_balance < ZNODE_COLLATERAL:
+            self.nodes[generator_node].generate(int((ZNODE_COLLATERAL - curr_balance) / 25))
+            curr_balance = self.nodes[generator_node].getbalance()
+        return curr_balance
+
+    def send_znode_collateral(self, znode, collateral_provider=None):
+        if collateral_provider is None:
+            collateral_provider = 0
+        znode_address = self.nodes[znode].getaccountaddress("Znode")
+        tx_id = self.nodes[collateral_provider].sendtoaddress(znode_address, ZNODE_COLLATERAL)
+        tx_text = self.nodes[collateral_provider].getrawtransaction(tx_id, 1)
+
+        collateral = ZnodeCollateral()
+        return collateral.parse_collateral_output(znode_address, tx_text, tx_id)
+
+    def configure_znode(self, znode, master_znode=None):
+        if master_znode is None:
+            master_znode = 0
+        self.znode_priv_keys[znode] = self.nodes[znode].znode("genkey")
+        stop_node(self.nodes[znode], znode)
+        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip=127.0.0.1:"+str(p2p_port(znode)), "-listen"])
+        connect_nodes(self.nodes[znode], znode)
+        for i in range(self.num_nodes):
+            if i != znode:
+                connect_nodes_bi(self.nodes, i, znode)
+
+    def generate_znode_privkey(self, znode, master_znode=None):
+        if master_znode is None:
+            master_znode = 0
+        self.znode_priv_keys[znode] = self.nodes[znode].znode("genkey")
+
+    def restart_as_znode(self, znode):
+        stop_node(self.nodes[znode], znode)
+        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip=127.0.0.1:"+str(p2p_port(znode)), "-listen"])
+        connect_nodes(self.nodes[znode], znode)
+        for i in range(self.num_nodes):
+            if i != znode:
+                connect_nodes_bi(self.nodes, i, znode)
+
+    def configure_znode(self, znode, master_znode=None ):
+        self.generate_znode_privkey(znode, master_znode)
+        self.restart_as_znode(znode)
