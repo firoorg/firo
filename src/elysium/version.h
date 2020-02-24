@@ -6,8 +6,6 @@
 #else
 #endif // HAVE_CONFIG_H
 
-//#if !defined(WINDRES_PREPROC)
-
 //
 // *-res.rc includes this file, but it cannot cope with real c++ code.
 // WINDRES_PREPROC is defined to indicate that its pre-processor is running.
@@ -40,7 +38,7 @@ const int ELYSIUM_VERSION_PATCH = 0;
 const int ELYSIUM_VERSION_BUILD = 0;
 
 //! Elysium client version
-static const int ELYSIUM_VERSION =
+static const int ELYSIUM_VERSION = // lgtm [cpp/unused-static-variable]
                     +100000000000 * ELYSIUM_VERSION_MAJOR
                     +    10000000 * ELYSIUM_VERSION_MINOR
                     +        1000 * ELYSIUM_VERSION_PATCH
@@ -51,8 +49,5 @@ const std::string ElysiumVersion();
 
 //! Returns formatted Bitcoin Core version, e.g. "0.10", "0.9.3"
 const std::string ZcoinCoreVersion();
-
-
-//#endif // WINDRES_PREPROC
 
 #endif // ELYSIUM_VERSION_H
