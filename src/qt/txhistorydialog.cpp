@@ -238,6 +238,11 @@ int TXHistoryDialog::PopulateHistoryMap()
                 pending.type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == EXODUS_TYPE_SEND_ALL) {
                 htxo.amount = "N/A";
             }
+
+            if (pending.type == EXODUS_TYPE_SIMPLE_SPEND) {
+                htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
+            }
+
             txHistoryMap.insert(std::make_pair(txHash, htxo));
             nProcessed++;
             continue;

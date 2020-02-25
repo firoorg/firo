@@ -9,6 +9,7 @@ class CTransaction;
 #include "packetencoder.h"
 #include "sp.h"
 
+#include <boost/compute/iterator/transform_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include "../uint256.h"
@@ -270,20 +271,15 @@ public:
     uint16_t getGroupSize() const { return groupSize; }
     const exodus::SigmaProof *getSpend() const { return spend.get(); }
     CAmount getMintAmount() const {
-        std::vector<uint8_t> denoms;
-        std::transform(
-            mints.begin(),
-            mints.end(),
-            std::back_inserter(denoms),
-            [] (std::pair<uint8_t, exodus::SigmaPublicKey> mint) -> uint8_t {
-                return mint.first;
-            });
+        auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, exodus::SigmaPublicKey> const &m) -> uint8_t {
+            return m.first;
+        });
 
-        return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
+        return SumDenominationsValue(getProperty(), itr, itr + mints.size());
     }
 
     CAmount getSpendAmount() const {
-        std::vector<uint8_t> denoms = {getDenomination()};
+        std::array<uint8_t, 1> denoms = {getDenomination()};
         return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
     }
 
