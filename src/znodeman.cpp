@@ -977,7 +977,8 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         BOOST_FOREACH(CZnode& mn, vZnodes) {
             if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
-            if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
+            if (Params().NetworkIDString() != CBaseChainParams::REGTEST)
+                if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
             if (mn.IsUpdateRequired()) continue; // do not send outdated znodes
 
             LogPrint("znode", "DSEG -- Sending Znode entry: znode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());

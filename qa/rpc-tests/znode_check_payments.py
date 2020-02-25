@@ -23,6 +23,7 @@ class ZnodeCheckPayments(ZnodeTestFramework):
 
         self.nodes[0].generate(10)
         sync_blocks(self.nodes)
+        time.sleep(10)
 
         self.generate_znode_privkey(1, 1)
         self.write_master_znode_conf(1, self.znode_priv_keys[1], collateral.tx_id, collateral.n, 1)
@@ -36,11 +37,12 @@ class ZnodeCheckPayments(ZnodeTestFramework):
         print(self.nodes[1].znode("start"))
         print(self.nodes[1].znode("status"))
         print(self.nodes[1].znode("debug"))
+        print(self.nodes[0].znsync("status"))
         print(self.nodes[0].znode("count", "all"))
         print(self.nodes[1].znode("count", "all"))
         print(self.nodes[3].znode("count", "all"))
 
-        for i in range(10):
+        for i in range(100):
             self.nodes[0].generate(1)
             time.sleep(10)
 
@@ -53,7 +55,7 @@ class ZnodeCheckPayments(ZnodeTestFramework):
         print(self.nodes[3].znsync("status"))
 
         print(self.nodes[1].znode("start"))
-        for i in range(10):
+        for i in range(100):
             self.nodes[0].generate(1)
             time.sleep(10)
 
