@@ -9,7 +9,7 @@ class CTransaction;
 #include "packetencoder.h"
 #include "sp.h"
 
-#include <boost/compute/iterator/transform_iterator.hpp>
+#include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include "../uint256.h"
