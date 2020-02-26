@@ -278,7 +278,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     CAmount nFees = 0;
 
     {
-        LOCK2(cs_main, mempool.cs);
+        LOCK(cs_main);
+        LOCK2(mnodeman.GetCS(), mempool.cs);
         pblock->nTime = nBlockTime;
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 

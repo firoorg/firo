@@ -42,36 +42,23 @@ class ZnodeCheckPayments(ZnodeTestFramework):
         print(self.nodes[1].znode("count", "all"))
         print(self.nodes[3].znode("count", "all"))
 
-        for i in range(100):
-            self.nodes[0].generate(1)
-            time.sleep(10)
+        for j in range (10):
+            for i in range(10):
+                time.sleep(10)
+            print(str(j))
+            print(self.nodes[0].znode("count", "all"))
 
         wait_to_sync_znodes(self.nodes[0])
         wait_to_sync_znodes(self.nodes[1])
         wait_to_sync_znodes(self.nodes[3])
 
-        print(self.nodes[0].znsync("status"))
-        print(self.nodes[1].znsync("status"))
-        print(self.nodes[3].znsync("status"))
-
-        print(self.nodes[1].znode("start"))
-        for i in range(100):
-            self.nodes[0].generate(1)
-            time.sleep(10)
-
-        print(self.nodes[1].znode("status"))
-
         print(self.nodes[0].znode("count", "all"))
         print(self.nodes[1].znode("count", "all"))
         print(self.nodes[3].znode("count", "all"))
-        print(self.nodes[1].znode("status"))
 
         assert_equal(1, 0)
 
-        print(self.nodes[1].getinfo());
         self.nodes[3].generate(10)
-        sync_blocks(self.nodes)
-        print(self.nodes[1].getinfo());
 
         assert_equal (1, 0)
 
