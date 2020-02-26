@@ -1761,7 +1761,7 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
         } else {
             PendingAdd(
                 txid,
-                toAddress,
+                "Spend",
                 EXODUS_TYPE_SIMPLE_SPEND,
                 propertyId,
                 GetDenominationValue(mint.property, mint.denomination),

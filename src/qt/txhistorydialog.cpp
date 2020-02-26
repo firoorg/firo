@@ -352,6 +352,11 @@ int TXHistoryDialog::PopulateHistoryMap()
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
         }
 
+        // Override - sigma spend address
+        if (type == EXODUS_TYPE_SIMPLE_SPEND) {
+            htxo.address = "Spend";
+        }
+
         htxo.amount = displayAmount;
         txHistoryMap.insert(std::make_pair(txHash, htxo));
         nProcessed++;
