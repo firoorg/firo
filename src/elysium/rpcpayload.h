@@ -19,7 +19,5 @@ UniValue elysium_createpayload_trade(const UniValue& params, bool fHelp);
 UniValue elysium_createpayload_canceltradesbyprice(const UniValue& params, bool fHelp);
 UniValue elysium_createpayload_canceltradesbypair(const UniValue& params, bool fHelp);
 UniValue elysium_createpayload_cancelalltrades(const UniValue& params, bool fHelp);
-UniValue elysium_createpayload_createdenomination(const UniValue& params, bool fHelp);
-UniValue elysium_createpayload_mintbypublickeys(const UniValue& params, bool fHelp);
 
 #endif // ELYSIUM_RPCPAYLOAD_H

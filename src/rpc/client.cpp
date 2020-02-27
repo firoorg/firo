@@ -271,10 +271,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_createpayload_canceltradesbypair", 0 },
 	{ "elysium_createpayload_canceltradesbypair", 1 },
 	{ "elysium_createpayload_cancelalltrades", 0 },
-	{ "elysium_createpayload_createdenomination", 0},
-    	{ "elysium_createpayload_mintbypublickeys", 0},
-    	{ "elysium_createpayload_mintbypublickeys", 1},
-    	{ "elysium_createpayload_mintbypublickeys", 2},
 
 	/* Elysium - backwards compatibility */
 	{ "getcrowdsale_MP", 0 },
