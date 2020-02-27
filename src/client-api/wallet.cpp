@@ -499,10 +499,10 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
         pendingLockCoins.clear();
         if (lockedList.getValues().size() > 0) {
-            ret.push_back(Pair("lockedcoins", lockedList));  
+            ret.push_back(Pair("lockedCoins", lockedList));
         }
         if (unlockedList.getValues().size() > 0) {
-            ret.push_back(Pair("unlockedcoins", unlockedList));  
+            ret.push_back(Pair("unlockedCoins", unlockedList));
         }
     }
 }
@@ -804,12 +804,12 @@ UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue uniLocked(UniValue::VSTR);
     UniValue uniUnLocked(UniValue::VSTR);
     LogPrintf("Locking coins\n");
-    if (!find_value(data, "lockedcoins").isNull()) {
-        uniLocked = find_value(data, "lockedcoins");
+    if (!find_value(data, "lockedCoins").isNull()) {
+        uniLocked = find_value(data, "lockedCoins");
     }
     LogPrintf("found lock coins\n");
-    if (!find_value(data, "unlockedcoins").isNull()) {
-        uniUnLocked = find_value(data, "unlockedcoins");
+    if (!find_value(data, "unlockedCoins").isNull()) {
+        uniUnLocked = find_value(data, "unlockedCoins");
     }
     LogPrintf("found unlock coins\n");
     std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());

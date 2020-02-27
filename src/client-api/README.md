@@ -41,6 +41,7 @@ A function with one or more operations.
 | [block](#block)                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
 | [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
 | [listMints](#listmints)           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
+| [lockCoin](#lockcoin)             | Lock/unlock specified UTXOs.  | 🔐 | – | – |
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
@@ -334,6 +335,28 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                 index: STRING
             },
             ...
+        ],
+        "lockedCoins": [ (VAR: pending locked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "unlockedCoins": [ (VAR: pending unlocked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
         ]
         meta: {
             status: 200
@@ -404,6 +427,26 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         },
         ...
     }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `lockCoin`:
+`create`:
+```
+    data: {
+        lockedCoins: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        unlockedCoins: STRING ("txid0|vout:txid1|vout...txidn|vout")
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
     meta:{
        status: 200
     }
@@ -1008,6 +1051,28 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                 index: STRING
             },
             ...
+        ],
+        "lockedCoins": [ (VAR: pending locked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "unlockedCoins": [ (VAR: pending unlocked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
         ]
         meta: {
             status: 200
@@ -1455,6 +1520,28 @@ Methods specific to the publisher.
         ...
     },
     "inputs": [
+        {
+            txid: STRING,
+            index: STRING
+        },
+        {
+            txid: STRING,
+            index: STRING
+        },
+        ...
+    ],
+    "lockedCoins": [ (VAR: pending locked coins)
+        {
+            txid: STRING,
+            index: STRING
+        },
+        {
+            txid: STRING,
+            index: STRING
+        },
+        ...
+    ],
+    "unlockedCoins": [ (VAR: pending unlocked coins)
         {
             txid: STRING,
             index: STRING
