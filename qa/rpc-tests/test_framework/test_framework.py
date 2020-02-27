@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import traceback
 import unittest
+import time
 
 from .util import (
     assert_equal,
@@ -29,7 +30,8 @@ from .util import (
     initialize_chain_clean,
     PortSeed,
     p2p_port,
-    connect_nodes
+    connect_nodes,
+    wait_to_sync_znodes
 )
 from .authproxy import JSONRPCException
 
@@ -329,9 +331,15 @@ class ZnodeTestFramework(BitcoinTestFramework):
         znode_address = self.nodes[znode].getaccountaddress("Znode")
         tx_id = self.nodes[collateral_provider].sendtoaddress(znode_address, ZNODE_COLLATERAL)
         tx_text = self.nodes[collateral_provider].getrawtransaction(tx_id, 1)
-
         collateral = ZnodeCollateral()
         return collateral.parse_collateral_output(znode_address, tx_text, tx_id)
+
+    def send_mature_znode_collateral(self, znode, collateral_provider=None):
+        result = self.send_znode_collateral(znode, collateral_provider)
+        self.nodes[0].generate(10)
+        sync_blocks(self.nodes)
+        time.sleep(3)
+        return result
 
     def configure_znode(self, znode, master_znode=None):
         if master_znode is None:
@@ -356,7 +364,21 @@ class ZnodeTestFramework(BitcoinTestFramework):
         for i in range(self.num_nodes):
             if i != znode:
                 connect_nodes_bi(self.nodes, i, znode)
+        for i in range(self.num_nodes):
+            wait_to_sync_znodes(self.nodes[i])
+
+    def znode_start(self, znode):
+        assert_equal("Znode successfully started", self.nodes[znode].znode("start"))
 
     def configure_znode(self, znode, master_znode=None ):
         self.generate_znode_privkey(znode, master_znode)
         self.restart_as_znode(znode)
+
+    def wait_znode_enabled(self, znode_to_wait_on, enabled_znode_number = 1, timeout = 10):
+        wait_to_sync_znodes(self.nodes[znode_to_wait_on])
+        for j in range (timeout):
+            if self.nodes[znode_to_wait_on].znode("count", "enabled") == enabled_znode_number:
+                return
+            print(self.nodes[znode_to_wait_on].znode("count", "all"))
+            time.sleep(1)
+        raise Exception("Cannot wait until znodes enabled")

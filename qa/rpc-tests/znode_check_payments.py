@@ -19,49 +19,20 @@ class ZnodeCheckPayments(ZnodeTestFramework):
         self.generate_znode_collateral()
         sync_blocks(self.nodes)
 
-        collateral = self.send_znode_collateral(1)
-
-        self.nodes[0].generate(10)
-        sync_blocks(self.nodes)
-        time.sleep(10)
+        collateral = self.send_mature_znode_collateral(1)
 
         self.generate_znode_privkey(1, 1)
         self.write_master_znode_conf(1, self.znode_priv_keys[1], collateral.tx_id, collateral.n, 1)
         self.restart_as_znode(1)
 
-        wait_to_sync_znodes(self.nodes[0])
-        wait_to_sync_znodes(self.nodes[1])
-        wait_to_sync_znodes(self.nodes[3])
+        self.znode_start(1)
 
+        self.wait_znode_enabled(0)
 
-        print(self.nodes[1].znode("start"))
-        print(self.nodes[1].znode("status"))
-        print(self.nodes[1].znode("debug"))
-        print(self.nodes[0].znsync("status"))
-        print(self.nodes[0].znode("count", "all"))
-        print(self.nodes[1].znode("count", "all"))
-        print(self.nodes[3].znode("count", "all"))
+        self.nodes[0].generate(1)
+        sync_blocks(self.nodes)
 
-        for j in range (10):
-            for i in range(10):
-                time.sleep(10)
-            print(str(j))
-            print(self.nodes[0].znode("count", "all"))
-
-        wait_to_sync_znodes(self.nodes[0])
-        wait_to_sync_znodes(self.nodes[1])
-        wait_to_sync_znodes(self.nodes[3])
-
-        print(self.nodes[0].znode("count", "all"))
-        print(self.nodes[1].znode("count", "all"))
-        print(self.nodes[3].znode("count", "all"))
-
-        assert_equal(1, 0)
-
-        self.nodes[3].generate(10)
-
-        assert_equal (1, 0)
-
+        assert_equal(15, self.nodes[1].getwalletinfo()["immature_balance"])
 
 if __name__ == '__main__':
     ZnodeCheckPayments().main()
