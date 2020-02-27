@@ -1653,7 +1653,7 @@ int CWalletTx::GetRequestCount() const {
 
 void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
                            list <COutputEntry> &listSent, CAmount &nFee, string &strSentAccount,
-                           const isminefilter &filter, bool checkChange) const {
+                           const isminefilter &filter, bool ignoreChange) const {
     nFee = 0;
     listReceived.clear();
     listSent.clear();
@@ -1683,7 +1683,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
         if(!IsSigmaSpend()){
             if (nDebit > 0) {
                 // Don't report 'change' txouts
-                if (checkChange && IsChange(static_cast<uint32_t>(i))) {
+                if (ignoreChange && IsChange(static_cast<uint32_t>(i))) {
                     continue;
                 }
             } else if (!(fIsMine & filter)){

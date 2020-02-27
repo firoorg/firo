@@ -796,7 +796,7 @@ void parseCoins(const std::string input, std::vector<COutPoint>& output)
     }
 }
 
-UniValue lockCoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     //Reading locked list
     LogPrintf("\n\n\n\n\n-------------------------------LOCK COINS---------------------------\n\n\n\n\n");
     LOCK(pwalletMain->cs_wallet);
@@ -840,7 +840,7 @@ static const CAPICommand commands[] =
     { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
-    { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  }    
+    { "wallet",             "lockCoins",       &lockcoins,               true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
