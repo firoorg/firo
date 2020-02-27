@@ -124,22 +124,22 @@ BOOST_AUTO_TEST_CASE(sigma_mint_create_multi)
 BOOST_AUTO_TEST_CASE(sigma_spend_create_no_spendable_mint)
 {
     // No any mints.
-    BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0, false), InsufficientFunds);
+    BOOST_CHECK_THROW(wallet->CreateSigmaSpendV1(3, 0, false), InsufficientFunds);
 
     // Different denomination and property type.
     auto mintId = wallet->CreateSigmaMint(3, 0);
 
-    BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 1, false), InsufficientFunds);
-    BOOST_CHECK_THROW(wallet->CreateSigmaSpend(4, 0, false), InsufficientFunds);
+    BOOST_CHECK_THROW(wallet->CreateSigmaSpendV1(3, 1, false), InsufficientFunds);
+    BOOST_CHECK_THROW(wallet->CreateSigmaSpendV1(4, 0, false), InsufficientFunds);
 
     // Pending mint.
-    BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0, false), InsufficientFunds);
+    BOOST_CHECK_THROW(wallet->CreateSigmaSpendV1(3, 0, false), InsufficientFunds);
 
     // Already spent.
     sigmaDb->RecordMint(3, 0, mintId.pubKey, 100);
     wallet->SetSigmaMintUsedTransaction(mintId, uint256S("890e968f9b65dbacd576100c9b1c446f06471ed27df845ab7a24931cb640b388"));
 
-    BOOST_CHECK_THROW(wallet->CreateSigmaSpend(3, 0, false), InsufficientFunds);
+    BOOST_CHECK_THROW(wallet->CreateSigmaSpendV1(3, 0, false), InsufficientFunds);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_spend_create_with_spendable_mints)
@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(sigma_spend_create_with_spendable_mints)
         sigmaDb->RecordMint(3, 0, mintid.pubKey, 100 + i);
     }
 
-    auto spend = wallet->CreateSigmaSpend(3, 0, false);
+    auto spend = wallet->CreateSigmaSpendV1(3, 0, false);
 
     BOOST_CHECK_EQUAL(spend.mint, expectedMintId);
     BOOST_CHECK_EQUAL(spend.group, 0);
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(sigma_spend_create_not_enough_anonimity)
     auto mintId = wallet->CreateSigmaMint(3, 0);
     sigmaDb->RecordMint(3, 0, mintId.pubKey, 100);
 
-    BOOST_CHECK_EXCEPTION(wallet->CreateSigmaSpend(3, 0, false), WalletError, [] (const WalletError& e) {
+    BOOST_CHECK_EXCEPTION(wallet->CreateSigmaSpendV1(3, 0, false), WalletError, [] (const WalletError& e) {
         return e.what() == std::string("Amount of coins in anonimity set is not enough to spend");
     });
 }
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(sigma_mint_listing_all)
     // List mints.
     std::unordered_map<SigmaMintId, SigmaMint> mints;
 
-    wallet->ListSigmaMints(std::inserter(mints, mints.begin()));
+    wallet->ListSigmaMintsV1(std::inserter(mints, mints.begin()));
 
     BOOST_CHECK_EQUAL(mints.size(), ids.size());
 

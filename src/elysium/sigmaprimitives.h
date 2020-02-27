@@ -12,7 +12,6 @@
 
 #include <GroupElement.h>
 #include <Scalar.h>
-#include <secp256k1.h>
 
 #include <boost/optional.hpp>
 

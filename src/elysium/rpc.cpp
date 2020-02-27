@@ -1920,7 +1920,7 @@ UniValue elysium_listmints(const UniValue& params, bool fHelp)
     // Get mints that meet criteria.
     std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+    wallet->ListSigmaMintsV1(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
         if (m.second.IsSpent() || !m.second.IsOnChain()) {
             return;
         }
@@ -1962,7 +1962,7 @@ UniValue elysium_listpendingmints(const UniValue& params, bool fHelp)
 
     std::vector<SigmaMint> mints;
 
-    wallet->ListSigmaMints(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
+    wallet->ListSigmaMintsV1(boost::make_function_output_iterator([&] (const std::pair<SigmaMintId, SigmaMint>& m) {
         if (m.second.IsOnChain()) {
             return;
         }

@@ -518,7 +518,7 @@ std::string GetFeatureName(uint16_t featureId)
         case FEATURE_STOV1: return "Cross-property Send To Owners";
         case FEATURE_FREEZENOTICE: return "Activate the waiting period for enabling freezing";
         case FEATURE_SIGMA: return "Activate Sigma transactions";
-        case FEATURE_SIGMA_SPENDV1: return "Activate Sigma spendv1 transactions";
+        case FEATURE_SIGMA_SPENDV1: return "Activate Sigma spend V1 transactions";
 
         default: return "Unknown feature";
     }

@@ -5,10 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_COINSIGNER_H
 #define ZCOIN_ELYSIUM_COINSIGNER_H
 
-#include "hash.h"
-
-#include "../libzerocoin/Zerocoin.h"
-#include "../sigma/openssl_context.h"
+#include <array>
 
 namespace elysium {
 

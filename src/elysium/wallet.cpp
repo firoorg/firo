@@ -81,14 +81,14 @@ void Wallet::ClearAllChainState()
     mintWalletV1.ClearMintsChainState();
 }
 
-SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding)
-{
-    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV1);
-}
-
-SigmaSpend Wallet::CreateLegacySigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding)
+SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
     return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV0);
+}
+
+SigmaSpend Wallet::CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding)
+{
+    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV1);
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, CoinVersion version)

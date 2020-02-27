@@ -1,9 +1,7 @@
 #include "sigmaprimitives.h"
 
 #include "../hash.h"
-#include "../libzerocoin/Zerocoin.h"
 #include "../sigma/sigma_primitives.h"
-#include "../sigma/openssl_context.h"
 
 #include <GroupElement.h>
 

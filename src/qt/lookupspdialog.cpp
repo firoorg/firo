@@ -323,7 +323,7 @@ void LookupSPDialog::updateDisplayedProperty()
     }
     else
     {
-       if (propertyId == 1) { tokenLabel = " Elysium"; } else { tokenLabel = " TElysium"; }
+       if (propertyId == 1) { tokenLabel = " ELYSIUM"; } else { tokenLabel = " TELYSIUM"; }
     }
     if (divisible) { strTotalTokens = FormatDivisibleMP(totalTokens); } else { strTotalTokens = FormatIndivisibleMP(totalTokens); }
     if (divisible) { strWalletTokens = FormatDivisibleMP(walletTokens); } else { strWalletTokens = FormatIndivisibleMP(walletTokens); }

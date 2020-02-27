@@ -1727,7 +1727,7 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
 
         bool fPadding = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock;
 
-        auto spend = wallet->CreateSigmaSpend(propertyId, denomination, fPadding);
+        auto spend = wallet->CreateSigmaSpendV1(propertyId, denomination, fPadding);
         auto signer = wallet->GetSigmaSigner(spend.mint);
         auto pubkey = signer.GetPublicKey();
 

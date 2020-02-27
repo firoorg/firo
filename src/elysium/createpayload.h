@@ -1,7 +1,6 @@
 #ifndef ZCOIN_ELYSIUM_CREATEPAYLOAD_H
 #define ZCOIN_ELYSIUM_CREATEPAYLOAD_H
 
-#include "coinsigner.h"
 #include "sp.h"
 #include "sigma.h"
 

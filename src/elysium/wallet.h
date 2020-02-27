@@ -56,22 +56,22 @@ public:
 
     void ClearAllChainState();
 
-    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding);
-    SigmaSpend CreateLegacySigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding);
+    SigmaSpend CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding);
+    SigmaSpend CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding);
 
     void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 
 public:
     template<class OutputIt>
-    void ListSigmaMints(OutputIt it)
+    void ListSigmaMintsV0(OutputIt it)
     {
-        mintWalletV1.ListMints(it);
+        mintWalletV0.ListMints(it);
     }
 
     template<class OutputIt>
-    void ListLegacySigmaMints(OutputIt it)
+    void ListSigmaMintsV1(OutputIt it)
     {
-        mintWalletV0.ListMints(it);
+        mintWalletV1.ListMints(it);
     }
 
     SigmaMint GetSigmaMint(const SigmaMintId& id);
