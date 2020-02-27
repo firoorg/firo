@@ -21,6 +21,7 @@
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
+std::map<COutPoint, bool> pendingLockCoins;
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coinControl").isNull()) return false;
@@ -248,7 +249,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     CBitcoinAddress addr;
     string addrStr;
 
-    wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter);
+    wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
 
     // Sent
     if ((!listSent.empty() || nFee != 0))
@@ -442,7 +443,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
         }
     }
 
-    if(getInputs){
+    if(getInputs && wtx.GetDepthInMainChain() >= 0){
         UniValue listInputs(UniValue::VARR);
         if (!find_value(ret, "inputs").isNull()) {
             listInputs = find_value(ret, "inputs");
@@ -471,14 +472,39 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
                 if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
                     continue;
-
                 entry.push_back(Pair("txid", outpoint.hash.ToString()));
                 entry.push_back(Pair("index", to_string(outpoint.n)));
                 listInputs.push_back(entry);
             }
         }
         ret.replace("inputs", listInputs);
-    }        
+    }
+
+    //update locked and unlocked coins
+    if (pendingLockCoins.size() > 0) {
+        UniValue lockedList(UniValue::VARR);
+        UniValue unlockedList(UniValue::VARR);
+        for(std::map<COutPoint, bool>::const_iterator it = pendingLockCoins.begin(); it != pendingLockCoins.end(); it++) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("txid", it->first.hash.ToString()));
+            entry.push_back(Pair("index", to_string(it->first.n)));
+            if (it->second) {
+                //locked = true
+                lockedList.push_back(entry);
+            } else {
+                //locked = false
+                unlockedList.push_back(entry);
+            }
+        }     
+
+        pendingLockCoins.clear();
+        if (lockedList.getValues().size() > 0) {
+            ret.push_back(Pair("lockedcoins", lockedList));  
+        }
+        if (unlockedList.getValues().size() > 0) {
+            ret.push_back(Pair("unlockedcoins", unlockedList));  
+        }
+    }
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
@@ -751,6 +777,61 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     return balanceObj;
 }
 
+void parseCoins(const std::string input, std::vector<COutPoint>& output) 
+{
+    std::vector<string> selectedKeys;
+    boost::split(selectedKeys, input, boost::is_any_of(":"));
+
+    for(size_t i = 0; i < selectedKeys.size(); i++) {
+        std::vector<string> splits;
+        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
+        if (splits.size() != 2) continue;
+
+        uint256 hash;
+        hash.SetHex(splits[0]);
+        UniValue idx(UniValue::VNUM);
+        idx.setNumStr(splits[1]);
+        COutPoint op(hash, idx.get_int());
+        output.push_back(op);
+    }
+}
+
+UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    //Reading locked list
+    LogPrintf("\n\n\n\n\n-------------------------------LOCK COINS---------------------------\n\n\n\n\n");
+    LOCK(pwalletMain->cs_wallet);
+    std::vector<COutPoint> lockedList, unlockedList;
+    UniValue uniLocked(UniValue::VSTR);
+    UniValue uniUnLocked(UniValue::VSTR);
+    LogPrintf("Locking coins\n");
+    if (!find_value(data, "lockedcoins").isNull()) {
+        uniLocked = find_value(data, "lockedcoins");
+    }
+    LogPrintf("found lock coins\n");
+    if (!find_value(data, "unlockedcoins").isNull()) {
+        uniUnLocked = find_value(data, "unlockedcoins");
+    }
+    LogPrintf("found unlock coins\n");
+    std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());
+    std::string unlocked = boost::algorithm::trim_copy(uniUnLocked.getValStr());
+
+    parseCoins(locked, lockedList);
+    parseCoins(unlocked, unlockedList);
+    LogPrintf("%s: locked list = %d", __func__, lockedList.size());
+    LogPrintf("%s: unlocked list = %d", __func__, unlockedList.size());
+    for(const COutPoint l: lockedList) {
+        pwalletMain->LockCoin(l);
+        pendingLockCoins[l] = true;
+    }
+    LogPrintf("locking coins\n");
+
+    for(const COutPoint l: unlockedList) {
+        pwalletMain->UnlockCoin(l);
+        pendingLockCoins[l] = false;
+    }
+    return true;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -758,8 +839,8 @@ static const CAPICommand commands[] =
     { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
-    { "wallet",             "balance",         &balance,                 true,      false,           false  }
-    
+    { "wallet",             "balance",         &balance,                 true,      false,           false  },
+    { "wallet",             "lockCoins",       &lockcoins,               true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
