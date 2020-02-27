@@ -408,7 +408,6 @@ void WalletView::focusElysiumTransaction(const uint256& txid)
 
 void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 {
-    std::cout << "focusBitcoinHistoryTab" << std::endl;
     gotoBitcoinHistoryTab();
     zcoinTransactionList->focusTransaction(idx);
 }

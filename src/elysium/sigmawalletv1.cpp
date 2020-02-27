@@ -46,7 +46,7 @@ void SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitiv
 
 uint32_t SigmaWalletV1::ChangeIndex()
 {
-    return BIP44_ELYSIUM_MINTV1_INDEX;
+    return BIP44_ELYSIUM_MINT_INDEX_V1;
 }
 
 SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(uint512 const &seed)
@@ -108,13 +108,13 @@ bool SigmaWalletV1::HasElysiumMint(SigmaMintId const &id, CWalletDB *db) const
 bool SigmaWalletV1::WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db)
 {
     auto local = EnsureDBConnection(db);
-    return db->WriteElysiumMintIDV1(hash, mintId);
+    return db->WriteElysiumMintIdV1(hash, mintId);
 }
 
 bool SigmaWalletV1::ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db) const
 {
     auto local = EnsureDBConnection(db);
-    return db->ReadElysiumMintIDV1(hash, mintId);
+    return db->ReadElysiumMintIdV1(hash, mintId);
 }
 
 bool SigmaWalletV1::EraseElysiumMintId(uint160 const &hash, CWalletDB *db)
