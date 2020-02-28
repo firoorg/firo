@@ -6,15 +6,15 @@ from test_framework.util import assert_equal, assert_raises_message
 class ElysiumCreatePayloadMintByPublicKeysTests(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
-        super().ensure_reach_sigmaactivated_block()
+        super().generate_until_sigma_activated(self.nodes[0])
 
-        sigma_propid = super().create_default_property("Sigma", sigma = True, amount = "1000000")
+        sigma_propid = super().create_default_property("Sigma", self.nodes[0], self.addrs[0], sigma = True, amount = "1000000")
         self.nodes[0].elysium_sendcreatedenomination(self.addrs[0], sigma_propid, "1")
         self.nodes[0].generate(10)
         self.nodes[0].elysium_sendcreatedenomination(self.addrs[0], sigma_propid, "2")
         self.nodes[0].generate(10)
 
-        nonsigma_propid = super().create_default_property("Non Sigma", sigma = False, amount = "1000000")
+        nonsigma_propid = super().create_default_property("Non Sigma", self.nodes[0], self.addrs[0], sigma = False, amount = "1000000")
 
         # prepare payload
         id1 = "52cd0023a3a40b91201d199f9f1623125371b20256957325bf210b5492a8eb9c0100"

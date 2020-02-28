@@ -6,15 +6,15 @@ from test_framework.util import assert_equal, assert_raises_message
 class ElysiumCreatePayloadCreateDenominationTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
-        super().ensure_reach_sigmaactivated_block()
+        super().generate_until_sigma_activated(self.nodes[0])
 
         existed_denom = "1"
 
-        sigma_propid = super().create_default_property("Sigma", sigma = True, amount = "1000000")
+        sigma_propid = super().create_default_property("Sigma", self.nodes[0], self.addrs[0], sigma = True, amount = "1000000")
         self.nodes[0].elysium_sendcreatedenomination(self.addrs[0], sigma_propid, existed_denom)
         self.nodes[0].generate(10)
 
-        nonsigma_propid = super().create_default_property("Non Sigma", sigma = False, amount = "1000000")
+        nonsigma_propid = super().create_default_property("Non Sigma", self.nodes[0], self.addrs[0], sigma = False, amount = "1000000")
 
         # create payload for non-sigma property should throw
         assert_raises_message(
