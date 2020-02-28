@@ -14,10 +14,10 @@
 std::vector<unsigned char> CreatePayload_SimpleSend(uint32_t propertyId, uint64_t amount);
 std::vector<unsigned char> CreatePayload_SimpleMint(uint32_t propertyId, const std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>>& mints);
 std::vector<unsigned char> CreatePayload_SimpleSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
-                                                    uint16_t groupSize, elysium::SigmaProof const &proof);
+                                                    uint16_t groupSize, elysium::SigmaProof const &proof, secp_primitives::Scalar const &serial);
 std::vector<unsigned char> CreatePayload_SimpleSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
                                                     uint16_t groupSize, elysium::SigmaProof const &proof,
-                                                    std::array<uint8_t, 64> const &signature, std::array<uint8_t, 33> const &pubkey);
+                                                    std::array<uint8_t, 64> const &signature, CPubKey const &pubkey);
 std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem);
 std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t amountForSale, uint64_t amountDesired, uint8_t timeLimit, uint64_t minFee, uint8_t subAction);
 std::vector<unsigned char> CreatePayload_DExAccept(uint32_t propertyId, uint64_t amount);

@@ -91,13 +91,13 @@ BOOST_FIXTURE_TEST_CASE(verify_spend, SigmaDatabaseFixture)
         sigmaDb->RecordMint(3, 0, mint, block);
     }
 
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size(), proof, false), true);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() - 1, proof, false), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() + 1, proof, false), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, sigmaDb->groupSize + 1, proof, false), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 1, 0, sigmaDb->groupSize, proof, false), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(4, 0, 0, sigmaDb->groupSize, proof, false), false);
-    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 1, sigmaDb->groupSize, proof, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size(), proof, key.serial, false), true);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() - 1, proof, key.serial, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, anonimitySet.size() + 1, proof, key.serial, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 0, sigmaDb->groupSize + 1, proof, key.serial, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 1, 0, sigmaDb->groupSize, proof, key.serial, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(4, 0, 0, sigmaDb->groupSize, proof, key.serial, false), false);
+    BOOST_CHECK_EQUAL(VerifySigmaSpend(3, 0, 1, sigmaDb->groupSize, proof, key.serial, false), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -109,8 +109,8 @@ BOOST_AUTO_TEST_CASE(proof)
 
     proof.Generate(key2, pubs.begin(), pubs.end(), false);
 
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end(), false), true);
-    BOOST_CHECK_EQUAL(proof.Verify(pubs.begin(), pubs.end() - 1, false), false);
+    BOOST_CHECK_EQUAL(proof.Verify(key2.serial, pubs.begin(), pubs.end(), false), true);
+    BOOST_CHECK_EQUAL(proof.Verify(key2.serial, pubs.begin(), pubs.end() - 1, false), false);
 }
 
 BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
@@ -132,8 +132,8 @@ BOOST_AUTO_TEST_CASE(spend_with_large_anonimity_group)
     validProof.Generate(key, pubs.begin() + 1, pubs.end(), false); // prove with 2 ^ 14 coins
     invalidProof.Generate(key, pubs.begin(), pubs.end(), false); // prove with 2 ^ 14 + 1 coins
 
-    BOOST_CHECK_EQUAL(validProof.Verify(pubs.begin() + 1, pubs.end(), false), true);
-    BOOST_CHECK_EQUAL(invalidProof.Verify(pubs.begin(), pubs.end(), false), false);
+    BOOST_CHECK_EQUAL(validProof.Verify(key.serial, pubs.begin() + 1, pubs.end(), false), true);
+    BOOST_CHECK_EQUAL(invalidProof.Verify(key.serial, pubs.begin(), pubs.end(), false), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

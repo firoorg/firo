@@ -607,10 +607,11 @@ std::vector<unsigned char> CreatePayload_SimpleMint(
     return payload;
 }
 
-// Legacy version
+// V0
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, elysium::SigmaProof const &proof)
+    uint16_t groupSize, elysium::SigmaProof const &proof,
+    secp_primitives::Scalar const &serial)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
@@ -629,17 +630,23 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     PUSH_BACK_BYTES(payload, groupSize);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << serial;
     serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     return payload;
 }
 
+// V1
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, elysium::SigmaProof const &proof,
-    std::array<uint8_t, 64> const &signature, std::array<uint8_t, 33> const &pubkey)
+    std::array<uint8_t, 64> const &signature, CPubKey const &pubkey)
 {
+    if (pubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
+        throw std::runtime_error("Publickey size is invalid");
+    }
+
     std::vector<unsigned char> payload;
     uint16_t messageVer = 1;
     uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SPEND;
@@ -656,10 +663,9 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     PUSH_BACK_BYTES(payload, group);
     PUSH_BACK_BYTES(payload, groupSize);
 
-    payload.insert(payload.end(), pubkey.begin(), pubkey.end());
-
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << proof.proof;
+    serialized.write(reinterpret_cast<const char*>(pubkey.begin()), pubkey.size());
+    serialized << proof;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
 
     payload.insert(payload.end(), signature.begin(), signature.end());

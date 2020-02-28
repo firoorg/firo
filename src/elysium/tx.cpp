@@ -856,19 +856,25 @@ bool CMPTransaction::interpret_SimpleSpend()
     );
 
     spend.reset(new SigmaProof(DefaultSigmaParams));
+    serial.reset(new secp_primitives::Scalar());
     try {
         if (version == MP_TX_PKT_V1) {
-            serialized.read(reinterpret_cast<char*>(sigmaECDSAPubkey.data()), sizeof(sigmaECDSAPubkey));
-            serialized >> spend->proof;
-            serialized.read(reinterpret_cast<char*>(sigmaECDSASignature.data()), sizeof(sigmaECDSASignature));
+            std::array<uint8_t, 33> pubkeyBuffer;
+            serialized.read(reinterpret_cast<char*>(pubkeyBuffer.data()), sizeof(pubkeyBuffer));
+            ecdsaPubkey.Set(pubkeyBuffer.begin(), pubkeyBuffer.end());
 
-            std::array<uint8_t, CSHA256::OUTPUT_SIZE> hash;
+            serialized >> *spend;
+            serialized.read(reinterpret_cast<char*>(ecdsaSignature.data()), sizeof(ecdsaSignature));
+
+            // Calculate serial.
+            uint256 hash;
             CSHA256()
-                .Write(sigmaECDSAPubkey.data(), sizeof(sigmaECDSAPubkey))
-                .Finalize(hash.data());
+                .Write(ecdsaPubkey.begin(), ecdsaPubkey.size())
+                .Finalize(hash.begin());
 
-            spend->serial.memberFromSeed(hash.begin());
+            serial->memberFromSeed(hash.begin());
         } else {
+            serialized >> *serial;
             serialized >> *spend;
         }
     } catch (std::ios_base::failure&) {

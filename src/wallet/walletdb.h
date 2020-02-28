@@ -369,7 +369,7 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListElysiumMintsV0(InsertF insertF)
     {
-        ListElysiumMints<K, V, InsertF>(string("exodus_mint"), insertF);
+        ListEntries<K, V, InsertF>(string("exodus_mint"), insertF);
     }
 
     // version 1
@@ -441,16 +441,21 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListElysiumMintsV1(InsertF insertF)
     {
-        ListElysiumMints<K, V, InsertF>(string("exodus_mint_v1"), insertF);
+        ListEntries<K, V, InsertF>(string("exodus_mint_v1"), insertF);
     }
 
+#endif
+
 private:
+    CWalletDB(const CWalletDB&);
+    void operator=(const CWalletDB&);
+
     template<typename K, typename V, typename InsertF>
-    void ListElysiumMints(string const &type, InsertF insertF)
+    void ListEntries(string const &prefix, InsertF insertF)
     {
         auto cursor = GetCursor();
         if (!cursor) {
-            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+            throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
         unsigned int flags = DB_SET_RANGE;
@@ -459,7 +464,7 @@ private:
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             if (flags == DB_SET_RANGE) {
-                ssKey << std::make_pair(type, K());
+                ssKey << std::make_pair(prefix, K());
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
@@ -476,7 +481,7 @@ private:
             // Unserialize
             std::string itemType;
             ssKey >> itemType;
-            if (itemType != type) {
+            if (itemType != prefix) {
                 break;
             }
 
@@ -491,12 +496,6 @@ private:
 
         cursor->close();
     }
-
-#endif
-
-private:
-    CWalletDB(const CWalletDB&);
-    void operator=(const CWalletDB&);
 
     bool WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry);
 };

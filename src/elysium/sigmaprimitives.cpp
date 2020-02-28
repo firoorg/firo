@@ -128,7 +128,7 @@ SigmaProof::SigmaProof(const SigmaParams& params) :
 
 bool SigmaProof::operator==(const SigmaProof& other) const
 {
-    return serial == other.serial;
+    return proof == other.proof;
 }
 
 bool SigmaProof::operator!=(const SigmaProof& other) const

@@ -56,6 +56,20 @@ public:
     std::vector<Exponent> f_;
     Exponent ZA_;
     Exponent ZC_;
+
+public:
+    bool operator==(R1Proof const &other) const {
+        return A_ == other.A_ &&
+            C_ == other.C_ &&
+            D_ == other.D_ &&
+            f_ == other.f_ &&
+            ZA_ == other.ZA_ &&
+            ZC_ == other.ZC_;
+    }
+
+    bool operator!=(R1Proof const &other) const {
+        return !(*this == other);
+    }
 };
 
 } // namespace sigma

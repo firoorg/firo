@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(getpublickey)
 
     BOOST_CHECK_EQUAL(
         "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
-        HexStr(pubkey));
+        HexStr(pubkey.begin(), pubkey.end()));
 }
 
 BOOST_AUTO_TEST_CASE(ecdsasign)

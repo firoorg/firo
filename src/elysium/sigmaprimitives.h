@@ -106,7 +106,6 @@ class SigmaProof
 {
 public:
     const SigmaParams& params;
-    secp_primitives::Scalar serial;
     sigma::SigmaPlusProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
 
 public:
@@ -124,8 +123,8 @@ public:
     bool operator!=(const SigmaProof& other) const;
 
 public:
-    template<typename PublicKey>
-    bool Verify(PublicKey first, PublicKey last, bool fPadding) const
+    template<typename PublicKey, typename Serial>
+    bool Verify(Serial serial, PublicKey first, PublicKey last, bool fPadding) const
     {
         // Create commitment set.
         auto gs = (params.g * serial).inverse();
@@ -187,7 +186,6 @@ public:
         );
 
         prover.proof(commits, *index, priv.randomness, fPadding, proof);
-        serial = priv.serial;
     }
 
 public:
@@ -196,7 +194,6 @@ public:
     template<typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(serial);
         READWRITE(proof);
     }
 };
@@ -259,7 +256,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const S
 
     buffer << p.proof;
 
-    return os << "{serial: " << p.serial.GetHex() << ", proof: " << HexStr(buffer.vch) << '}';
+    return os << HexStr(buffer.vch);
 }
 
 } // namespace std

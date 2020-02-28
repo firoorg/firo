@@ -25,9 +25,15 @@ class SigmaV1SignatureBuilder : SignatureBuilder
 {
 protected:
     CHashWriter hasher;
-    ECDSAPublicKey publicKey;
+    CPubKey publicKey;
 
 public:
+    SigmaV1SignatureBuilder(
+        CBitcoinAddress const &receiver,
+        int64_t referenceAmount,
+        SigmaProof const &proof,
+        CPubKey const &publicKey);
+
     SigmaV1SignatureBuilder(
         CBitcoinAddress const &receiver,
         int64_t referenceAmount,
@@ -38,7 +44,7 @@ public:
     ECDSASignature Sign(CoinSigner &signer);
     bool Verify(ECDSASignature const &signature);
 
-    ECDSAPublicKey const& PublicKey();
+    CPubKey const& PublicKey();
 };
 
 }

@@ -561,11 +561,12 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
     key2.Generate();
     anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
     spend.Generate(key1, anonimitySet.begin(), anonimitySet.end(), false);
+    buffer << key1.serial;
     buffer << spend;
 
     std::vector<unsigned char> payload;
     BOOST_CHECK_NO_THROW(
-        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend)
+        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, key1.serial)
     );
 
     BOOST_CHECK_EQUAL(
@@ -587,6 +588,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
 
     std::fill(signature.begin(), signature.end(), 0xFF);
     std::fill(publicKey.begin(), publicKey.end(), 0xFF);
+    publicKey[0] = 0x02; // Compressed
 
     key1.Generate();
     key2.Generate();
@@ -596,7 +598,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
 
     std::vector<unsigned char> payload;
     BOOST_CHECK_NO_THROW(
-        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, signature, publicKey)
+        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, signature, CPubKey(publicKey.begin(), publicKey.end()))
     );
 
     BOOST_CHECK_EQUAL(

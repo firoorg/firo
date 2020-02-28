@@ -155,6 +155,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     auto spend = tx.getSpend();
+    auto serial = tx.getSerial();
     auto denomination = tx.getDenomination();
     auto group = tx.getGroup();
     auto groupSize = tx.getGroupSize();
@@ -162,12 +163,18 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     bool const fPadding = block >= ::Params().GetConsensus().nSigmaPaddingBlock;
 
     assert(spend);
+    assert(serial);
+
+    if (!serial->isMember()) {
+        PrintToLog("%s() : Serial is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 907;
+    }
 
     // check signature
     if (version == MP_TX_PKT_V1) {
         CBitcoinAddress receiver(tx.getReceiver());
         int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
-        auto &publicKey = tx.getSigmaECDSAPublicKey();
+        auto &publicKey = tx.getECDSAPublicKey();
 
         SigmaV1SignatureBuilder sigVerifier(
             receiver,
@@ -175,7 +182,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
             *spend,
             publicKey);
 
-        if (!sigVerifier.Verify(tx.getSigmaECDSASignature())) {
+        if (!sigVerifier.Verify(tx.getECDSASignature())) {
             PrintToLog("%s(): rejected: signature is invalid\n", __func__);
             return PKT_ERROR_SIGMA - 907;
         }
@@ -183,8 +190,8 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
 
     // check serial in database
     uint256 spendTx;
-    if (sigmaDb->HasSpendSerial(property, denomination, spend->serial, spendTx)
-        || !VerifySigmaSpend(property, denomination, group, groupSize, *spend, fPadding)) {
+    if (sigmaDb->HasSpendSerial(property, denomination, *serial, spendTx)
+        || !VerifySigmaSpend(property, denomination, group, groupSize, *spend, *serial, fPadding)) {
         PrintToLog("%s(): rejected: spend is invalid\n", __func__);
         return PKT_ERROR_SIGMA - 907;
     }
@@ -205,7 +212,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
         return PKT_ERROR_SIGMA - 45;
     }
 
-    sigmaDb->RecordSpendSerial(property, denomination, spend->serial, block, tx.getHash());
+    sigmaDb->RecordSpendSerial(property, denomination, *serial, block, tx.getHash());
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
 
     return 0;

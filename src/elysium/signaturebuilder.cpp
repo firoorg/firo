@@ -20,8 +20,8 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     CBitcoinAddress const &receiver,
     int64_t referenceAmount,
     SigmaProof const &proof,
-    ECDSAPublicKey const &publicKey)
-        : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION)), publicKey(publicKey)
+    CPubKey const &publicKey)
+    : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION)), publicKey(publicKey)
 {
     // serialize payload
     CKeyID keyId;
@@ -37,12 +37,20 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
 
     // serial and proof
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << proof.serial;
-    serialized << proof.proof;
+    serialized << proof;
     std::vector<char> serializedData;
     serializedData.insert(serializedData.end(), serialized.begin(), serialized.end());
 
     hasher.write(serializedData.data(), serializedData.size());
+}
+
+SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
+    CBitcoinAddress const &receiver,
+    int64_t referenceAmount,
+    SigmaProof const &proof,
+    ECDSAPublicKey const &publicKey)
+    : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, CPubKey(publicKey.begin(), publicKey.end()))
+{
 }
 
 ECDSASignature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
@@ -61,7 +69,7 @@ bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
     if (1 != secp256k1_ec_pubkey_parse(
         OpenSSLContext::get_context(),
         &pubkey,
-        this->publicKey.data(),
+        this->publicKey.begin(),
         this->publicKey.size())) {
         throw std::runtime_error("Sigma spend failed due to unable to parse public key");
     }

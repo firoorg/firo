@@ -51,6 +51,20 @@ public:
     R1Proof<Exponent, GroupElement> r1Proof_;
     std::vector<GroupElement> Gk_;
     Exponent z_;
+
+public:
+    bool operator==(const SigmaPlusProof& other) const {
+        return n == other.n &&
+            m == other.m &&
+            B_ == other.B_ &&
+            r1Proof_ == other.r1Proof_ &&
+            Gk_ == other.Gk_ &&
+            z_ == other.z_;
+    }
+
+    bool operator!=(const SigmaPlusProof& other) const {
+        return !(*this == other);
+    }
 };
 
 } //namespace sigma

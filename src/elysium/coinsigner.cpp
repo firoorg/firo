@@ -14,7 +14,7 @@ CoinSigner::CoinSigner(ECDSAPrivateKey priv)
 {
 }
 
-ECDSAPublicKey CoinSigner::GetPublicKey() const
+CPubKey CoinSigner::GetPublicKey() const
 {
     secp256k1_pubkey pubkey;
     if(!secp256k1_ec_pubkey_create(
@@ -22,15 +22,23 @@ ECDSAPublicKey CoinSigner::GetPublicKey() const
         throw std::runtime_error("Unable to get public key.");
     }
 
-    ECDSAPublicKey compressedPubKey;
-    size_t len = sizeof(compressedPubKey);
+    CPubKey result;
+    size_t len = CPubKey::COMPRESSED_PUBLIC_KEY_SIZE;
     if (1 != secp256k1_ec_pubkey_serialize(
         OpenSSLContext::get_context(),
-        compressedPubKey.begin(), &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
+        (unsigned char*)result.begin(), &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
         throw std::runtime_error("Unable to serialize public key");
     }
 
-    return compressedPubKey;
+    if (result.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
+        throw std::runtime_error("Pubkey size is not equal to compressed");
+    }
+
+    if (!result.IsValid()) {
+        throw std::runtime_error("Public key is invalid");
+    }
+
+    return result;
 }
 
 ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const *end)
