@@ -62,6 +62,19 @@ struct CMainSignals {
      * disconnected block.*/
     boost::signals2::signal<void (const CTransaction &, const CBlockIndex *pindex, int posInBlock)> SyncTransaction;
     /** Notifies listeners of an updated transaction without new data (for now: a coinbase potentially becoming visible). */
+    /** Notifies listeners of an updated transaction lock without new data. */
+    boost::signals2::signal<void (const CTransaction &)> NotifyTransactionLock;
+    /** Notifies listeners of a ChainLock. */
+    boost::signals2::signal<void (const CBlockIndex* pindex)> NotifyChainLock;
+    /** Notifies listeners of a new governance vote. */
+    boost::signals2::signal<void (const CGovernanceVote &)> NotifyGovernanceVote;
+    /** Notifies listeners of a new governance object. */
+    boost::signals2::signal<void (const CGovernanceObject &)> NotifyGovernanceObject;
+    /** Notifies listeners of a attempted InstantSend double spend*/
+    boost::signals2::signal<void(const CTransaction &currentTx, const CTransaction &previousTx)> NotifyInstantSendDoubleSpendAttempt;
+    /** Notifies listeners that the MN list changed */
+    boost::signals2::signal<void(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff)> NotifyMasternodeListChanged;
+    /** Notifies listeners of an updated transaction without new data (for now: a coinbase potentially becoming visible). */
     boost::signals2::signal<void (const uint256 &)> UpdatedTransaction;
     /** Notifies listeners of a new active block chain. */
     boost::signals2::signal<void (const CBlockLocator &)> SetBestChain;
