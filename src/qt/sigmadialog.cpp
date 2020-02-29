@@ -630,7 +630,7 @@ void SigmaDialog::processPaymentCodeTransactions()
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
     std::string info = "";
-
+    
     if(walletTx->tx->vout.size() > recipients.size())
         info += "Change will be reminted";
 

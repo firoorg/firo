@@ -637,7 +637,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             CKey privKey;
 
             vector<unsigned char> pubKeyBytes;
-
+            
             if (!BIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
@@ -651,7 +651,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             }
 
 
-
+            
             wallet->GetKey(designatedPubKey.GetID(), privKey);
             CPubKey pubkey = toBip47Account.getNotificationKey().pubkey;
             vector<unsigned char> dataPriv(privKey.size());
@@ -663,7 +663,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             LogPrintf("Generate Secret Point\n");
             SecretPoint secretPoint(dataPriv, dataPub);
             LogPrintf("Generating Secret Point with \n privekey: %s\n pubkey: %s\n", HexStr(dataPriv), HexStr(dataPub));
-
+            
             vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
 
             LogPrintf("output: %s\n", newTx->tx->vin[0].prevout.hash.GetHex());
@@ -682,7 +682,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             vecSend.push_back(pcodeBlind);
 
             fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
-
+            
             if (!BIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
@@ -1464,7 +1464,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         } catch (...) {
             return TransactionCommitFailed;
         }
-
+        
         const CTransaction* t = (newTx->tx.get());
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *t;

@@ -4271,7 +4271,7 @@ UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request)
     if (!pwalletMain->mapWallet.count(hash))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
     const CWalletTx& wtx = pwalletMain->mapWallet[hash];
-    CTransaction tx = static_cast<CTransaction>(wtx);
+    CTransaction tx = *wtx.tx.get();
 
     if(pwalletMain->isNotificationTransaction(tx))
     {

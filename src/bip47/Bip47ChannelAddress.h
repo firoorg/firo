@@ -11,20 +11,13 @@ private:
     CExtPubKey ecKey ;
     
     std::vector<unsigned char> pubKey ;
-    std::vector<unsigned char> pubKeyHash ;
     
 public:
     Bip47ChannelAddress() ;
+    
     Bip47ChannelAddress(CExtPubKey &cKey, int child) ;
+    
     std::vector<unsigned char>& getPubKey() ;
-
-    std::vector<unsigned char>& getPubKeyHash() ;
-
-    String getAddressString() ;
-
-    String getPrivateKeyString() ;
-
-
 
     String getPath() ;
 };

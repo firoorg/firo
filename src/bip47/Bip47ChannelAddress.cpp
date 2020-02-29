@@ -18,20 +18,6 @@
         return pubKey;
     }
 
-    std::vector<unsigned char>& Bip47ChannelAddress::getPubKeyHash() {
-        return pubKeyHash;
-    }
-
-    String Bip47ChannelAddress::getAddressString() {
-        return String("");
-    }
-
-    String Bip47ChannelAddress::getPrivateKeyString() {
-        return String("");
-
-    }
-
-
     String Bip47ChannelAddress::getPath() {
         return strPath;
     }

@@ -221,8 +221,10 @@ public:
     }
 };
 
-AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent) :
-    QAbstractTableModel(parent),walletModel(parent),wallet(_wallet),priv(0)
+ZCoinTableModel::ZCoinTableModel(CWallet *wallet, WalletModel *parent): QAbstractTableModel(parent), walletModel(parent), wallet(wallet) {}
+
+AddressTableModel::AddressTableModel(CWallet *wallet, WalletModel *parent) :
+    ZCoinTableModel(wallet, parent),priv(0)
 {
     columns << tr("Label") << tr("Address");
     priv = new AddressTablePriv(wallet, this);
@@ -703,7 +705,7 @@ public:
 // PaymentCodeTableModel implementation
 
 PaymentCodeTableModel::PaymentCodeTableModel(CWallet *wallet, WalletModel *parent) :
-    QAbstractTableModel(parent),walletModel(parent),wallet(wallet),priv(0)
+    ZCoinTableModel(wallet, parent),priv(0)
 {
     columns << tr("Label") << tr("Payment Code");
     priv = new PaymentCodeTablePriv(wallet, this);
@@ -888,7 +890,7 @@ QString PaymentCodeTableModel::addRow(const QString &type, const QString &label,
 
     if(type == Send)
     {
-        if(!walletModel->validateAddress(address))
+        if(!walletModel->validatePaymentCode(address))
         {
             editStatus = INVALID_PAYMENTCODE;
             return QString();

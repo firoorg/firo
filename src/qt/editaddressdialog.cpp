@@ -49,12 +49,12 @@ EditAddressDialog::~EditAddressDialog()
     delete ui;
 }
 
-void EditAddressDialog::setModel(AddressTableModel *_model)
+void EditAddressDialog::setModel(ZCoinTableModel *_model)
 {
     this->model = _model;
     if(!_model)
         return;
-
+    
     mapper->setModel(_model);
     mapper->addMapping(ui->labelEdit, AddressTableModel::Label);
     mapper->addMapping(ui->addressEdit, AddressTableModel::Address);
@@ -63,6 +63,22 @@ void EditAddressDialog::setModel(AddressTableModel *_model)
 void EditAddressDialog::loadRow(int row)
 {
     mapper->setCurrentIndex(row);
+}
+
+void EditAddressDialog::setIsForAddress(bool val)
+{
+    if (mode != NewSendingAddress && mode != EditSendingAddress) return;
+    this->isForAddress = val;
+    if (!isForAddress) {
+        //adding payment
+        this->ui->label_2->setText("Payment Code");
+        this->ui->addressEdit->setPlaceholderText("Enter a Zcoin payment code");
+        if (mode == NewSendingAddress) {
+            setWindowTitle(tr("New sending payment code"));
+        } else {
+            setWindowTitle(tr("Eding sending payment code"));
+        }
+    } 
 }
 
 bool EditAddressDialog::saveCurrentRow()
@@ -74,10 +90,17 @@ bool EditAddressDialog::saveCurrentRow()
     {
     case NewReceivingAddress:
     case NewSendingAddress:
-        address = model->addRow(
-                mode == NewSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
-                ui->labelEdit->text(),
-                ui->addressEdit->text());
+        if (isForAddress) {
+            address = model->addRow(
+                    mode == NewSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
+                    ui->labelEdit->text(),
+                    ui->addressEdit->text());
+        } else {
+            address = model->addRow(
+                    mode == NewSendingAddress ? PaymentCodeTableModel::Send : PaymentCodeTableModel::Receive,
+                    ui->labelEdit->text(),
+                    ui->addressEdit->text());
+        }
         break;
     case EditReceivingAddress:
     case EditSendingAddress:
@@ -99,28 +122,38 @@ void EditAddressDialog::accept()
     {
         switch(model->getEditStatus())
         {
-        case AddressTableModel::OK:
+        case EditStatus::OK:
             // Failed with unknown reason. Just reject.
             break;
-        case AddressTableModel::NO_CHANGES:
+        case EditStatus::NO_CHANGES:
             // No changes were made during edit operation. Just reject.
             break;
-        case AddressTableModel::INVALID_ADDRESS:
+        case EditStatus::INVALID_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
                 tr("The entered address \"%1\" is not a valid Zcoin address.").arg(ui->addressEdit->text()),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
-        case AddressTableModel::DUPLICATE_ADDRESS:
+        case EditStatus::DUPLICATE_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
                 tr("The entered address \"%1\" is already in the address book.").arg(ui->addressEdit->text()),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
-        case AddressTableModel::WALLET_UNLOCK_FAILURE:
+        case EditStatus::INVALID_PAYMENTCODE:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered payment code \"%1\" is not a valid Zcoin payment code.").arg(ui->addressEdit->text()),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case EditStatus::DUPLICATE_PAYMENTCODE:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered payment code \"%1\" is already in the payment code book.").arg(ui->addressEdit->text()),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case EditStatus::WALLET_UNLOCK_FAILURE:
             QMessageBox::critical(this, windowTitle(),
                 tr("Could not unlock wallet."),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
-        case AddressTableModel::KEY_GENERATION_FAILURE:
+        case EditStatus::KEY_GENERATION_FAILURE:
             QMessageBox::critical(this, windowTitle(),
                 tr("New key generation failed."),
                 QMessageBox::Ok, QMessageBox::Ok);

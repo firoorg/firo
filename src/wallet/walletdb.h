@@ -343,16 +343,11 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-    //! write the bip47hdchain model (external chain child index counter)
-    bool WriteCBip47HDChain(const CBip47HDChain& bip47chain);
-    
     // @bip47 channel data write
     bool WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId);
     
     void ListBip47PaymentChannel(std::map <string, Bip47PaymentChannel> &mPchannels);
-    
-    bool WritePaymentChannelData();
-    
+
     /// Write destination data key,value tuple to database
     bool WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);
     bool WriteBip47SeedMaster(const vector<unsigned char> &seedmaster);
