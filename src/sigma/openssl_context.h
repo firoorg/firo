@@ -3,6 +3,7 @@
 
 #include <openssl/rand.h>
 #include <secp256k1.h>
+#include <stdexcept>
 
 // This class is created for creation of a global openSSL context.
 class OpenSSLContext {
