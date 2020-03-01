@@ -8,7 +8,7 @@
 #include "util.h"
 #include "core_io.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "znode.h"
 #include "utilstrencodings.h"
 
@@ -60,7 +60,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(vecVoteHashes);
     }
@@ -92,7 +92,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nBlockHeight);
         READWRITE(vecPayees);
     }
@@ -133,7 +133,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vinZnode);
         READWRITE(nBlockHeight);
         READWRITE(*(CScriptBase*)(&payee));
@@ -186,7 +186,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(mapZnodePaymentVotes);
         READWRITE(mapZnodeBlocks);
     }

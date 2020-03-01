@@ -8,9 +8,9 @@
 
 #include "amount.h"
 #include "base58.h"
-#include "coincontrol.h"
+#include "wallet/coincontrol.h"
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "pubkey.h"
 #include "script/standard.h"
 #include "sync.h"
@@ -237,8 +237,8 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                 continue;
             }
 
-            for (unsigned int n = 0; n < wtx.vout.size(); n++) {
-                const CTxOut& txOut = wtx.vout[n];
+            for (unsigned int n = 0; n < wtx.tx->vout.size(); n++) {
+                const CTxOut& txOut = wtx.tx->vout[n];
 
                 CTxDestination dest;
                 if (!CheckInput(txOut, nHeight, dest)) {

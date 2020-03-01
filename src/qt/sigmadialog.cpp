@@ -17,7 +17,7 @@
 #include "../sigma/coin.h"
 
 #include <qt/sigmacoincontroldialog.h>
-#include <coincontrol.h>
+#include <wallet/coincontrol.h>
 
 #include <QMessageBox>
 #include <QScrollBar>
@@ -348,7 +348,7 @@ void SigmaDialog::on_sendButton_clicked()
         CAmount realAmount = rcp.amount;
         CScript recipientScriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
 
-        for (auto const &out : walletTx->vout) {
+        for (auto const &out : walletTx->tx->vout) {
             if (out.scriptPubKey == recipientScriptPubKey) {
                 realAmount = out.nValue;
             }
@@ -411,7 +411,7 @@ void SigmaDialog::on_sendButton_clicked()
 
     std::string info = "";
 
-    if(walletTx->vout.size() > recipients.size())
+    if(walletTx->tx->vout.size() > recipients.size())
         info += "Change will be reminted";
 
     if(fChangeAddedToFee) {

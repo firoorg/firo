@@ -10,6 +10,10 @@
 #include "znodeman.h"
 #include "protocol.h"
 
+// TODO: upgrade to new dash, remove this hack
+#define vNodes (g_connman->vNodes)
+#define cs_vNodes (g_connman->cs_vNodes)
+
 extern CWallet *pwalletMain;
 
 // Keep track of the active Znode
@@ -204,7 +208,7 @@ void CActiveZnode::ManageStateInitial() {
 
     LogPrintf("CActiveZnode::ManageStateInitial -- Checking inbound connection to '%s'\n", service.ToString());
     //TODO
-    if (!ConnectNode(CAddress(service, NODE_NETWORK), NULL, false, true)) {
+    if (!g_connman->OpenMasternodeConnection(CAddress(service, NODE_NETWORK))) {
         nState = ACTIVE_ZNODE_NOT_CAPABLE;
         strNotCapableReason = "Could not connect to " + service.ToString();
         LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);

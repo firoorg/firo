@@ -14,7 +14,7 @@
 #include "wallet.h"
 
 #include "../init.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../rpc/server.h"
 #include "../sync.h"
 #include "../wallet/wallet.h"
@@ -33,9 +33,9 @@
 using std::runtime_error;
 using namespace exodus;
 
-UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
+UniValue exodus_sendrawtx(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 2 || params.size() > 5)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw runtime_error(
             "exodus_sendrawtx \"fromaddress\" \"rawtransaction\" ( \"referenceaddress\" \"redeemaddress\" \"referenceamount\" )\n"
             "\nBroadcasts a raw Exodus Layer transaction.\n"
@@ -52,11 +52,11 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
             + HelpExampleRpc("exodus_sendrawtx", "\"1MCHESTptvd2LnNp7wmr2sGTpRomteAkq8\", \"000000000000000100000000017d7840\", \"1EqTta1Rt8ixAA32DuC29oukbsSWU62qAV\"")
         );
 
-    std::string fromAddress = ParseAddress(params[0]);
-    std::vector<unsigned char> data = ParseHexV(params[1], "raw transaction");
-    std::string toAddress = (params.size() > 2) ? ParseAddressOrEmpty(params[2]): "";
-    std::string redeemAddress = (params.size() > 3) ? ParseAddressOrEmpty(params[3]): "";
-    int64_t referenceAmount = (params.size() > 4) ? ParseAmount(params[4], true): 0;
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::vector<unsigned char> data = ParseHexV(request.params[1], "raw transaction");
+    std::string toAddress = (request.params.size() > 2) ? ParseAddressOrEmpty(request.params[2]): "";
+    std::string redeemAddress = (request.params.size() > 3) ? ParseAddressOrEmpty(request.params[3]): "";
+    int64_t referenceAmount = (request.params.size() > 4) ? ParseAmount(request.params[4], true): 0;
 
     //some sanity checking of the data supplied?
     uint256 newTX;
@@ -75,9 +75,9 @@ UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_send(const UniValue& params, bool fHelp)
+UniValue exodus_send(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 4 || params.size() > 6)
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 6)
         throw runtime_error(
             "exodus_send \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"redeemaddress\" \"referenceamount\" )\n"
 
@@ -100,12 +100,12 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string toAddress = ParseAddress(params[1]);
-    uint32_t propertyId = ParsePropertyId(params[2]);
-    int64_t amount = ParseAmount(params[3], isPropertyDivisible(propertyId));
-    std::string redeemAddress = (params.size() > 4 && !ParseText(params[4]).empty()) ? ParseAddress(params[4]): "";
-    int64_t referenceAmount = (params.size() > 5) ? ParseAmount(params[5], true): 0;
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string toAddress = ParseAddress(request.params[1]);
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
+    int64_t amount = ParseAmount(request.params[3], isPropertyDivisible(propertyId));
+    std::string redeemAddress = (request.params.size() > 4 && !ParseText(request.params[4]).empty()) ? ParseAddress(request.params[4]): "";
+    int64_t referenceAmount = (request.params.size() > 5) ? ParseAmount(request.params[5], true): 0;
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -133,9 +133,9 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendall(const UniValue& params, bool fHelp)
+UniValue exodus_sendall(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 3 || params.size() > 5)
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
         throw runtime_error(
             "exodus_sendall \"fromaddress\" \"toaddress\" ecosystem ( \"redeemaddress\" \"referenceamount\" )\n"
 
@@ -157,11 +157,11 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string toAddress = ParseAddress(params[1]);
-    uint8_t ecosystem = ParseEcosystem(params[2]);
-    std::string redeemAddress = (params.size() > 3 && !ParseText(params[3]).empty()) ? ParseAddress(params[3]): "";
-    int64_t referenceAmount = (params.size() > 4) ? ParseAmount(params[4], true): 0;
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string toAddress = ParseAddress(request.params[1]);
+    uint8_t ecosystem = ParseEcosystem(request.params[2]);
+    std::string redeemAddress = (request.params.size() > 3 && !ParseText(request.params[3]).empty()) ? ParseAddress(request.params[3]): "";
+    int64_t referenceAmount = (request.params.size() > 4) ? ParseAmount(request.params[4], true): 0;
 
     // perform checks
     RequireSaneReferenceAmount(referenceAmount);
@@ -187,9 +187,9 @@ UniValue exodus_sendall(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
+UniValue exodus_senddexsell(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 7)
+    if (request.fHelp || request.params.size() != 7)
         throw runtime_error(
             "exodus_senddexsell \"fromaddress\" propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
 
@@ -214,20 +214,20 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyIdForSale = ParsePropertyId(params[1]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[1]);
     int64_t amountForSale = 0; // depending on action
     int64_t amountDesired = 0; // depending on action
     uint8_t paymentWindow = 0; // depending on action
     int64_t minAcceptFee = 0;  // depending on action
-    uint8_t action = ParseDExAction(params[6]);
+    uint8_t action = ParseDExAction(request.params[6]);
 
     // perform conversions
     if (action <= CMPTransaction::UPDATE) { // actions 3 permit zero values, skip check
-        amountForSale = ParseAmount(params[2], true); // TMSC/MSC is divisible
-        amountDesired = ParseAmount(params[3], true); // BTC is divisible
-        paymentWindow = ParseDExPaymentWindow(params[4]);
-        minAcceptFee = ParseDExFee(params[5]);
+        amountForSale = ParseAmount(request.params[2], true); // TMSC/MSC is divisible
+        amountDesired = ParseAmount(request.params[3], true); // BTC is divisible
+        paymentWindow = ParseDExPaymentWindow(request.params[4]);
+        minAcceptFee = ParseDExFee(request.params[5]);
     }
 
     // perform checks
@@ -276,9 +276,9 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
+UniValue exodus_senddexaccept(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 4 || params.size() > 5)
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5)
         throw runtime_error(
             "exodus_senddexaccept \"fromaddress\" \"toaddress\" propertyid \"amount\" ( override )\n"
 
@@ -300,11 +300,11 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string toAddress = ParseAddress(params[1]);
-    uint32_t propertyId = ParsePropertyId(params[2]);
-    int64_t amount = ParseAmount(params[3], true); // MSC/TMSC is divisible
-    bool override = (params.size() > 4) ? params[4].get_bool(): false;
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string toAddress = ParseAddress(request.params[1]);
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
+    int64_t amount = ParseAmount(request.params[3], true); // MSC/TMSC is divisible
+    bool override = (request.params.size() > 4) ? request.params[4].get_bool(): false;
 
     // perform checks
     RequirePrimaryToken(propertyId);
@@ -355,9 +355,9 @@ UniValue exodus_senddexaccept(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
+UniValue exodus_sendissuancecrowdsale(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 14)
+    if (request.fHelp || request.params.size() != 14)
         throw runtime_error(
             "exodus_sendissuancecrowdsale \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline ( earlybonus issuerpercentage )\n"
 
@@ -388,20 +388,20 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint8_t ecosystem = ParseEcosystem(params[1]);
-    uint16_t type = ParsePropertyType(params[2]);
-    uint32_t previousId = ParsePreviousPropertyId(params[3]);
-    std::string category = ParseText(params[4]);
-    std::string subcategory = ParseText(params[5]);
-    std::string name = ParseText(params[6]);
-    std::string url = ParseText(params[7]);
-    std::string data = ParseText(params[8]);
-    uint32_t propertyIdDesired = ParsePropertyId(params[9]);
-    int64_t numTokens = ParseAmount(params[10], type);
-    int64_t deadline = ParseDeadline(params[11]);
-    uint8_t earlyBonus = ParseEarlyBirdBonus(params[12]);
-    uint8_t issuerPercentage = ParseIssuerBonus(params[13]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[1]);
+    uint16_t type = ParsePropertyType(request.params[2]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[3]);
+    std::string category = ParseText(request.params[4]);
+    std::string subcategory = ParseText(request.params[5]);
+    std::string name = ParseText(request.params[6]);
+    std::string url = ParseText(request.params[7]);
+    std::string data = ParseText(request.params[8]);
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[9]);
+    int64_t numTokens = ParseAmount(request.params[10], type);
+    int64_t deadline = ParseDeadline(request.params[11]);
+    uint8_t earlyBonus = ParseEarlyBirdBonus(request.params[12]);
+    uint8_t issuerPercentage = ParseIssuerBonus(request.params[13]);
 
     // perform checks
     RequirePropertyName(name);
@@ -428,9 +428,9 @@ UniValue exodus_sendissuancecrowdsale(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
+UniValue exodus_sendissuancefixed(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 10 || params.size() > 11)
+    if (request.fHelp || request.params.size() < 10 || request.params.size() > 11)
         throw runtime_error(
             "exodus_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
 
@@ -458,20 +458,20 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint8_t ecosystem = ParseEcosystem(params[1]);
-    uint16_t type = ParsePropertyType(params[2]);
-    uint32_t previousId = ParsePreviousPropertyId(params[3]);
-    std::string category = ParseText(params[4]);
-    std::string subcategory = ParseText(params[5]);
-    std::string name = ParseText(params[6]);
-    std::string url = ParseText(params[7]);
-    std::string data = ParseText(params[8]);
-    int64_t amount = ParseAmount(params[9], type);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[1]);
+    uint16_t type = ParsePropertyType(request.params[2]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[3]);
+    std::string category = ParseText(request.params[4]);
+    std::string subcategory = ParseText(request.params[5]);
+    std::string name = ParseText(request.params[6]);
+    std::string url = ParseText(request.params[7]);
+    std::string data = ParseText(request.params[8]);
+    int64_t amount = ParseAmount(request.params[9], type);
     boost::optional<SigmaStatus> sigma;
 
-    if (params.size() > 10) {
-        sigma = static_cast<SigmaStatus>(params[10].get_int());
+    if (request.params.size() > 10) {
+        sigma = static_cast<SigmaStatus>(request.params[10].get_int());
     }
 
     // perform checks
@@ -521,9 +521,9 @@ UniValue exodus_sendissuancefixed(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
+UniValue exodus_sendissuancemanaged(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 9 || params.size() > 10)
+    if (request.fHelp || request.params.size() < 9 || request.params.size() > 10)
         throw runtime_error(
             "exodus_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
 
@@ -550,19 +550,19 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint8_t ecosystem = ParseEcosystem(params[1]);
-    uint16_t type = ParsePropertyType(params[2]);
-    uint32_t previousId = ParsePreviousPropertyId(params[3]);
-    std::string category = ParseText(params[4]);
-    std::string subcategory = ParseText(params[5]);
-    std::string name = ParseText(params[6]);
-    std::string url = ParseText(params[7]);
-    std::string data = ParseText(params[8]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[1]);
+    uint16_t type = ParsePropertyType(request.params[2]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[3]);
+    std::string category = ParseText(request.params[4]);
+    std::string subcategory = ParseText(request.params[5]);
+    std::string name = ParseText(request.params[6]);
+    std::string url = ParseText(request.params[7]);
+    std::string data = ParseText(request.params[8]);
     boost::optional<SigmaStatus> sigma;
 
-    if (params.size() > 9) {
-        sigma = static_cast<SigmaStatus>(params[9].get_int());
+    if (request.params.size() > 9) {
+        sigma = static_cast<SigmaStatus>(request.params[9].get_int());
     }
 
     // perform checks
@@ -611,9 +611,9 @@ UniValue exodus_sendissuancemanaged(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendsto(const UniValue& params, bool fHelp)
+UniValue exodus_sendsto(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 3 || params.size() > 5)
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
         throw runtime_error(
             "exodus_sendsto \"fromaddress\" propertyid \"amount\" ( \"redeemaddress\" distributionproperty )\n"
 
@@ -635,11 +635,11 @@ UniValue exodus_sendsto(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int64_t amount = ParseAmount(params[2], isPropertyDivisible(propertyId));
-    std::string redeemAddress = (params.size() > 3 && !ParseText(params[3]).empty()) ? ParseAddress(params[3]): "";
-    uint32_t distributionPropertyId = (params.size() > 4) ? ParsePropertyId(params[4]) : propertyId;
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+    std::string redeemAddress = (request.params.size() > 3 && !ParseText(request.params[3]).empty()) ? ParseAddress(request.params[3]): "";
+    uint32_t distributionPropertyId = (request.params.size() > 4) ? ParsePropertyId(request.params[4]) : propertyId;
 
     // perform checks
     RequireBalance(fromAddress, propertyId, amount);
@@ -665,9 +665,9 @@ UniValue exodus_sendsto(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
+UniValue exodus_sendgrant(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 4 || params.size() > 5)
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5)
         throw runtime_error(
             "exodus_sendgrant \"fromaddress\" \"toaddress\" propertyid \"amount\" ( \"memo\" )\n"
 
@@ -689,11 +689,11 @@ UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string toAddress = !ParseText(params[1]).empty() ? ParseAddress(params[1]): "";
-    uint32_t propertyId = ParsePropertyId(params[2]);
-    int64_t amount = ParseAmount(params[3], isPropertyDivisible(propertyId));
-    std::string memo = (params.size() > 4) ? ParseText(params[4]): "";
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string toAddress = !ParseText(request.params[1]).empty() ? ParseAddress(request.params[1]): "";
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
+    int64_t amount = ParseAmount(request.params[3], isPropertyDivisible(propertyId));
+    std::string memo = (request.params.size() > 4) ? ParseText(request.params[4]): "";
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -720,9 +720,9 @@ UniValue exodus_sendgrant(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
+UniValue exodus_sendrevoke(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 3 || params.size() > 4)
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4)
         throw runtime_error(
             "exodus_sendrevoke \"fromaddress\" propertyid \"amount\" ( \"memo\" )\n"
 
@@ -743,10 +743,10 @@ UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int64_t amount = ParseAmount(params[2], isPropertyDivisible(propertyId));
-    std::string memo = (params.size() > 3) ? ParseText(params[3]): "";
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+    std::string memo = (request.params.size() > 3) ? ParseText(request.params[3]): "";
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -774,9 +774,9 @@ UniValue exodus_sendrevoke(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendclosecrowdsale(const UniValue& params, bool fHelp)
+UniValue exodus_sendclosecrowdsale(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_sendclosecrowdsale \"fromaddress\" propertyid\n"
 
@@ -795,8 +795,8 @@ UniValue exodus_sendclosecrowdsale(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -824,9 +824,9 @@ UniValue exodus_sendclosecrowdsale(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue trade_MP(const UniValue& params, bool fHelp)
+UniValue trade_MP(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 6)
+    if (request.fHelp || request.params.size() != 6)
         throw runtime_error(
             "trade_MP \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\" action\n"
             "\nNote: this command is depreciated, and was replaced by:\n"
@@ -836,59 +836,61 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             " - sendcanceltradebypair_EXODUS\n"
         );
 
-    UniValue values(UniValue::VARR);
-    uint8_t action = ParseMetaDExAction(params[5]);
+    JSONRPCRequest newRequest;
+    newRequest.params = UniValue(UniValue::VARR);
+    UniValue &values = newRequest.params;
+    uint8_t action = ParseMetaDExAction(request.params[5]);
 
     // Forward to the new commands, based on action value
     switch (action) {
         case CMPTransaction::ADD:
         {
-            values.push_back(params[0]); // fromAddress
-            values.push_back(params[1]); // propertyIdForSale
-            values.push_back(params[2]); // amountForSale
-            values.push_back(params[3]); // propertyIdDesired
-            values.push_back(params[4]); // amountDesired
-            return exodus_sendtrade(values, fHelp);
+            values.push_back(request.params[0]); // fromAddress
+            values.push_back(request.params[1]); // propertyIdForSale
+            values.push_back(request.params[2]); // amountForSale
+            values.push_back(request.params[3]); // propertyIdDesired
+            values.push_back(request.params[4]); // amountDesired
+            return exodus_sendtrade(newRequest);
         }
         case CMPTransaction::CANCEL_AT_PRICE:
         {
-            values.push_back(params[0]); // fromAddress
-            values.push_back(params[1]); // propertyIdForSale
-            values.push_back(params[2]); // amountForSale
-            values.push_back(params[3]); // propertyIdDesired
-            values.push_back(params[4]); // amountDesired
-            return exodus_sendcanceltradesbyprice(values, fHelp);
+            values.push_back(request.params[0]); // fromAddress
+            values.push_back(request.params[1]); // propertyIdForSale
+            values.push_back(request.params[2]); // amountForSale
+            values.push_back(request.params[3]); // propertyIdDesired
+            values.push_back(request.params[4]); // amountDesired
+            return exodus_sendcanceltradesbyprice(newRequest);
         }
         case CMPTransaction::CANCEL_ALL_FOR_PAIR:
         {
-            values.push_back(params[0]); // fromAddress
-            values.push_back(params[1]); // propertyIdForSale
-            values.push_back(params[3]); // propertyIdDesired
-            return exodus_sendcanceltradesbypair(values, fHelp);
+            values.push_back(request.params[0]); // fromAddress
+            values.push_back(request.params[1]); // propertyIdForSale
+            values.push_back(request.params[3]); // propertyIdDesired
+            return exodus_sendcanceltradesbypair(newRequest);
         }
         case CMPTransaction::CANCEL_EVERYTHING:
         {
             uint8_t ecosystem = 0;
-            if (isMainEcosystemProperty(params[1].get_int64())
-                    && isMainEcosystemProperty(params[3].get_int64())) {
+            if (isMainEcosystemProperty(request.params[1].get_int64())
+                    && isMainEcosystemProperty(request.params[3].get_int64())) {
                 ecosystem = EXODUS_PROPERTY_EXODUS;
             }
-            if (isTestEcosystemProperty(params[1].get_int64())
-                    && isTestEcosystemProperty(params[3].get_int64())) {
+            if (isTestEcosystemProperty(request.params[1].get_int64())
+                    && isTestEcosystemProperty(request.params[3].get_int64())) {
                 ecosystem = EXODUS_PROPERTY_TEXODUS;
             }
-            values.push_back(params[0]); // fromAddress
+            values.push_back(request.params[0]); // fromAddress
             values.push_back(ecosystem);
-            return exodus_sendcancelalltrades(values, fHelp);
+            return exodus_sendcancelalltrades(newRequest);
         }
     }
 
     throw JSONRPCError(RPC_TYPE_ERROR, "Invalid action (1,2,3,4 only)");
 }
 
-UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
+UniValue exodus_sendtrade(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 5)
+    if (request.fHelp || request.params.size() != 5)
         throw runtime_error(
             "exodus_sendtrade \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
@@ -910,11 +912,11 @@ UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyIdForSale = ParsePropertyId(params[1]);
-    int64_t amountForSale = ParseAmount(params[2], isPropertyDivisible(propertyIdForSale));
-    uint32_t propertyIdDesired = ParsePropertyId(params[3]);
-    int64_t amountDesired = ParseAmount(params[4], isPropertyDivisible(propertyIdDesired));
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[1]);
+    int64_t amountForSale = ParseAmount(request.params[2], isPropertyDivisible(propertyIdForSale));
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[3]);
+    int64_t amountDesired = ParseAmount(request.params[4], isPropertyDivisible(propertyIdDesired));
 
     // perform checks
     RequireExistingProperty(propertyIdForSale);
@@ -944,9 +946,9 @@ UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
+UniValue exodus_sendcanceltradesbyprice(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 5)
+    if (request.fHelp || request.params.size() != 5)
         throw runtime_error(
             "exodus_sendcanceltradesbyprice \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
@@ -968,11 +970,11 @@ UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyIdForSale = ParsePropertyId(params[1]);
-    int64_t amountForSale = ParseAmount(params[2], isPropertyDivisible(propertyIdForSale));
-    uint32_t propertyIdDesired = ParsePropertyId(params[3]);
-    int64_t amountDesired = ParseAmount(params[4], isPropertyDivisible(propertyIdDesired));
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[1]);
+    int64_t amountForSale = ParseAmount(request.params[2], isPropertyDivisible(propertyIdForSale));
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[3]);
+    int64_t amountDesired = ParseAmount(request.params[4], isPropertyDivisible(propertyIdDesired));
 
     // perform checks
     RequireExistingProperty(propertyIdForSale);
@@ -1002,9 +1004,9 @@ UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
+UniValue exodus_sendcanceltradesbypair(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 3)
+    if (request.fHelp || request.params.size() != 3)
         throw runtime_error(
             "exodus_sendcanceltradesbypair \"fromaddress\" propertyidforsale propertiddesired\n"
 
@@ -1024,9 +1026,9 @@ UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyIdForSale = ParsePropertyId(params[1]);
-    uint32_t propertyIdDesired = ParsePropertyId(params[2]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[1]);
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[2]);
 
     // perform checks
     RequireExistingProperty(propertyIdForSale);
@@ -1056,9 +1058,9 @@ UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
+UniValue exodus_sendcancelalltrades(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_sendcancelalltrades \"fromaddress\" ecosystem\n"
 
@@ -1077,8 +1079,8 @@ UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint8_t ecosystem = ParseEcosystem(params[1]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[1]);
 
     // perform checks
     // TODO: check, if there are matching offers to cancel
@@ -1104,9 +1106,9 @@ UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
+UniValue exodus_sendchangeissuer(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 3)
+    if (request.fHelp || request.params.size() != 3)
         throw runtime_error(
             "exodus_sendchangeissuer \"fromaddress\" \"toaddress\" propertyid\n"
 
@@ -1126,9 +1128,9 @@ UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string toAddress = ParseAddress(params[1]);
-    uint32_t propertyId = ParsePropertyId(params[2]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string toAddress = ParseAddress(request.params[1]);
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1154,9 +1156,9 @@ UniValue exodus_sendchangeissuer(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
+UniValue exodus_sendenablefreezing(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_sendenablefreezing \"fromaddress\" propertyid\n"
 
@@ -1175,8 +1177,8 @@ UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1203,9 +1205,9 @@ UniValue exodus_sendenablefreezing(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
+UniValue exodus_senddisablefreezing(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_senddisablefreezing \"fromaddress\" propertyid\n"
 
@@ -1225,8 +1227,8 @@ UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1253,9 +1255,9 @@ UniValue exodus_senddisablefreezing(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
+UniValue exodus_sendfreeze(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "exodus_sendfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
             "\nFreeze an address for a centrally managed token.\n"
@@ -1273,10 +1275,10 @@ UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string refAddress = ParseAddress(params[1]);
-    uint32_t propertyId = ParsePropertyId(params[2]);
-    int64_t amount = ParseAmount(params[3], isPropertyDivisible(propertyId));
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string refAddress = ParseAddress(request.params[1]);
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
+    int64_t amount = ParseAmount(request.params[3], isPropertyDivisible(propertyId));
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1304,9 +1306,9 @@ UniValue exodus_sendfreeze(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
+UniValue exodus_sendunfreeze(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "exodus_sendunfreeze \"fromaddress\" \"toaddress\" propertyid amount \n"
             "\nUnfreezes an address for a centrally managed token.\n"
@@ -1324,10 +1326,10 @@ UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    std::string refAddress = ParseAddress(params[1]);
-    uint32_t propertyId = ParsePropertyId(params[2]);
-    int64_t amount = ParseAmount(params[3], isPropertyDivisible(propertyId));
+    std::string fromAddress = ParseAddress(request.params[0]);
+    std::string refAddress = ParseAddress(request.params[1]);
+    uint32_t propertyId = ParsePropertyId(request.params[2]);
+    int64_t amount = ParseAmount(request.params[3], isPropertyDivisible(propertyId));
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1355,9 +1357,9 @@ UniValue exodus_sendunfreeze(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
+UniValue exodus_sendactivation(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "exodus_sendactivation \"fromaddress\" featureid block minclientversion\n"
             "\nActivate a protocol feature.\n"
@@ -1375,10 +1377,10 @@ UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint16_t featureId = params[1].get_int();
-    uint32_t activationBlock = params[2].get_int();
-    uint32_t minClientVersion = params[3].get_int();
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint16_t featureId = request.params[1].get_int();
+    uint32_t activationBlock = request.params[2].get_int();
+    uint32_t minClientVersion = request.params[3].get_int();
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_ActivateFeature(featureId, activationBlock, minClientVersion);
@@ -1400,9 +1402,9 @@ UniValue exodus_sendactivation(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_senddeactivation(const UniValue& params, bool fHelp)
+UniValue exodus_senddeactivation(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "exodus_senddeactivation \"fromaddress\" featureid\n"
             "\nDeactivate a protocol feature.  For Emergency Use Only.\n"
@@ -1418,8 +1420,8 @@ UniValue exodus_senddeactivation(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint16_t featureId = params[1].get_int64();
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint16_t featureId = request.params[1].get_int64();
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_DeactivateFeature(featureId);
@@ -1441,9 +1443,9 @@ UniValue exodus_senddeactivation(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendalert(const UniValue& params, bool fHelp)
+UniValue exodus_sendalert(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "exodus_sendalert \"fromaddress\" alerttype expiryvalue typecheck versioncheck \"message\"\n"
             "\nCreates and broadcasts an Exodus Core alert.\n"
@@ -1461,18 +1463,18 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
         );
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    int64_t tempAlertType = params[1].get_int64();
+    std::string fromAddress = ParseAddress(request.params[0]);
+    int64_t tempAlertType = request.params[1].get_int64();
     if (tempAlertType < 1 || 65535 < tempAlertType) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Alert type is out of range");
     }
     uint16_t alertType = static_cast<uint16_t>(tempAlertType);
-    int64_t tempExpiryValue = params[2].get_int64();
+    int64_t tempExpiryValue = request.params[2].get_int64();
     if (tempExpiryValue < 1 || 4294967295LL < tempExpiryValue) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Expiry value is out of range");
     }
     uint32_t expiryValue = static_cast<uint32_t>(tempExpiryValue);
-    std::string alertMessage = ParseText(params[3]);
+    std::string alertMessage = ParseText(request.params[3]);
 
     // create a payload for the transaction
     std::vector<unsigned char> payload = CreatePayload_ExodusAlert(alertType, expiryValue, alertMessage);
@@ -1494,9 +1496,9 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
+UniValue exodus_sendcreatedenomination(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 3) {
+    if (request.fHelp || request.params.size() != 3) {
         throw std::runtime_error(
             "exodus_sendcreatedenomination \"fromaddress\" propertyid \"value\"\n"
             "\nCreate a new denomination for the given property.\n"
@@ -1513,9 +1515,9 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
     }
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int64_t value = ParseAmount(params[2], isPropertyDivisible(propertyId));
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    int64_t value = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -1557,9 +1559,9 @@ UniValue exodus_sendcreatedenomination(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendmint(const UniValue& params, bool fHelp)
+UniValue exodus_sendmint(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 3 || params.size() > 4) {
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
         throw std::runtime_error(
             "exodus_sendmint \"fromaddress\" propertyid {\"denomination\":amount,...} ( denomminconf )\n"
             "\nCreate mints.\n"
@@ -1581,12 +1583,12 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     }
 
     // obtain parameters & info
-    std::string fromAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    UniValue denominations = params[2].get_obj();
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    UniValue denominations = request.params[2].get_obj();
     int minConfirms = 6;
-    if (params.size() > 3) {
-        minConfirms = params[3].get_int();
+    if (request.params.size() > 3) {
+        minConfirms = request.params[3].get_int();
     }
 
     // perform checks
@@ -1680,9 +1682,9 @@ UniValue exodus_sendmint(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue exodus_sendspend(const UniValue& params, bool fHelp)
+UniValue exodus_sendspend(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 3 || params.size() > 4) {
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
         throw std::runtime_error(
             "exodus_sendspend \"toaddress\" propertyid denomination ( \"referenceamount\" )\n"
             "\nCreate spend.\n"
@@ -1700,10 +1702,10 @@ UniValue exodus_sendspend(const UniValue& params, bool fHelp)
     }
 
     // obtain parameters & info
-    auto toAddress = ParseAddress(params[0]);
-    auto propertyId = ParsePropertyId(params[1]);
-    auto denomination = ParseSigmaDenomination(params[2]);
-    auto referenceAmount = (params.size() > 3) ? ParseAmount(params[3], true): 0;
+    auto toAddress = ParseAddress(request.params[0]);
+    auto propertyId = ParsePropertyId(request.params[1]);
+    auto denomination = ParseSigmaDenomination(request.params[2]);
+    auto referenceAmount = (request.params.size() > 3) ? ParseAmount(request.params[3], true): 0;
 
     // perform checks
     RequireExistingProperty(propertyId);

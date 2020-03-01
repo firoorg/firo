@@ -227,11 +227,11 @@ int LogFilePrint(const std::string& str)
  */
 void InitDebugLogLevels()
 {
-    if (!mapArgs.count("-exodusdebug")) {
+    if (!IsArgSet("-exodusdebug")) {
         return;
     }
 
-    const std::vector<std::string>& debugLevels = mapMultiArgs["-exodusdebug"];
+    const std::vector<std::string>& debugLevels = mapMultiArgs.at("-exodusdebug");
 
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") exodus_debug_parser_data = true;

@@ -41,6 +41,12 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         enable_mocktime()
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
+    def log_point(self, point):
+        f = open('/tmp/out.txt', 'a')
+        print (point, file=f)
+        f.flush()
+        f.close();
+
     def run_test(self):
         getcontext().prec = 6
 
@@ -96,27 +102,27 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
-        
+
         #10. Restart with zapwallettxes=1
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-zapwallettxes=1"])
 
         #list of transactions should be same as initial after restart with flag
         transactions_after_zapwallettxes1 = self.nodes[0].listtransactions()
 
-        #11. Check all transactions shown properly as before restart 
+        #11. Check all transactions shown properly as before restart
         assert transactions_before == transactions_after_zapwallettxes1, \
             'List of transactions after restart with zapwallettxes=1 unexpectedly changed.'
-        
+
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
-        
+
         #12. Restart with zapwallettxes=2
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-zapwallettxes=2"])
-        
+
         #list of transactions should be same as initial after restart with flag
         transactions_after_zapwallettxes2 = self.nodes[0].listtransactions()
 
-        #13. Check all transactions shown properly as before restart 
+        #13. Check all transactions shown properly as before restart
         assert transactions_before == transactions_after_zapwallettxes2, \
             'List of transactions after restart with zapwallettxes=2 unexpectedly changed.'
 
@@ -125,8 +131,8 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         #14. Restart with rescan
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-rescan"])
-        
-        #15. Check all transactions shown properly as before restart 
+
+        #15. Check all transactions shown properly as before restart
         transactions_after_rescan = self.nodes[0].listtransactions()
 
         assert transactions_before == transactions_after_rescan, \
@@ -141,8 +147,10 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         #16. Restart with reindex
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex"])
 
-        while self.nodes[0].getinfo()["blocks"] != last_block_height:
+        tm = 0
+        while tm < 30 and self.nodes[0].getinfo()["blocks"] != last_block_height:
             time.sleep(1)
+            tm += 1
 
         #17. Check all transactions shown properly as before restart
         tx_before = sorted(transactions_before_reindex, key=lambda k: k['txid'], reverse=True)
@@ -158,7 +166,7 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex-chainstate"])
 
         time.sleep(5)
-        
+
         #19. Check all transactions shown properly as before restart
         tx_after_reindex_chainstate = sorted(self.nodes[0].listtransactions("*", 1000), key=lambda k: k['txid'], reverse=True)
 

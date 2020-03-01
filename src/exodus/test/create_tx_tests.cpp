@@ -3,7 +3,7 @@
 #include "base58.h"
 #include "coins.h"
 #include "core_io.h"
-#include "main.h"
+#include "validation.h"
 #include "primitives/transaction.h"
 #include "script/script.h"
 #include "script/standard.h"
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_from_existing)
     std::string rawTx("0100000001ea6f7b27245fb97eca56c942600b31102d42ef2cc04b3990e63fea9619e137110300000000"
         "ffffffff0141e40000000000001976a9140b15428b98e6a459cc2ffeed085153dc1bc8078188ac00000000");
 
-    CTransaction txBasis;
+    CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTx));
 
     CMutableTransaction tx = TxBuilder(txBasis).build();
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_output)
         "a9140e609a27d6389989a0fa7ffaac1ae8ad3e92650e88ac00000000");
     std::vector<unsigned char> script = ParseHex("76a9140e609a27d6389989a0fa7ffaac1ae8ad3e92650e88ac");
 
-    CTransaction txBasis;
+    CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTxBasis));
 
     CMutableTransaction tx = TxBuilder(txBasis)
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change_position)
 
     CBitcoinAddress addr("aBNKT8rnDdiTymZb5GjgoSrpuFt9c6E4V6");
 
-    CTransaction txBasis;
+    CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTxBasis));
 
     CCoinsView viewDummy;
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(exodustxbuilder_from_existing)
         "da45b5e3ae97ebc6e7ffffffff02d058ea05000000001976a914616cfeaf60ed1a4831dfa238f6e8c676e660aa9588ac00"
         "00000000000000166a146f6d6e6900000003000000260000001cede08a8000000000");
 
-    CTransaction txBasis;
+    CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTx));
 
     CMutableTransaction tx = ExodusTxBuilder(txBasis).build();

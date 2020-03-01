@@ -72,20 +72,15 @@ public:
         return os;
   }
 
-  size_t memoryRequired() const;
+  static constexpr size_t memoryRequired() { return serialize_size; }
   unsigned char* serialize() const;
   unsigned char* serialize(unsigned char* buffer) const;
   unsigned const char* deserialize(unsigned const char* buffer);
 
   // These functions are for READWRITE() in serialize.h
-  unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
-  {
-     return memoryRequired();
-  }
-
   template<typename Stream>
-  inline void Serialize(Stream& s, int nType, int nVersion) const {
-        int size = memoryRequired();
+  inline void Serialize(Stream& s) const {
+        constexpr int size = memoryRequired();
         unsigned char buffer[size];
         serialize(buffer);
         char* b = (char*)buffer;
@@ -93,8 +88,8 @@ public:
   }
 
   template<typename Stream>
-  inline void Unserialize(Stream& s, int nType, int nVersion) {
-        int size = memoryRequired();
+  inline void Unserialize(Stream& s) {
+        constexpr int size = memoryRequired();
         unsigned char buffer[size];
         char* b = (char*)buffer;
         s.read(b, size);

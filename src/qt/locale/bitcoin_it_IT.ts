@@ -41,9 +41,21 @@
         <source>&amp;Delete</source>
         <translation>Cancella</translation>
     </message>
+    <message>
+        <source>Choose the address to send coins to</source>
+        <translation>Scegli l'indirizzo a cui inviare denaro</translation>
+    </message>
+    <message>
+        <source>C&amp;hoose</source>
+        <translation>Scegli</translation>
+    </message>
     </context>
 <context>
     <name>AddressTableModel</name>
+    <message>
+        <source>Address</source>
+        <translation>Indirizzo</translation>
+    </message>
     </context>
 <context>
     <name>AskPassphraseDialog</name>
@@ -98,6 +110,9 @@
     <name>Intro</name>
     </context>
 <context>
+    <name>ModalOverlay</name>
+    </context>
+<context>
     <name>OpenURIDialog</name>
     </context>
 <context>
@@ -116,20 +131,23 @@
     <name>QObject</name>
     </context>
 <context>
+    <name>QObject::QObject</name>
+    </context>
+<context>
     <name>QRImageWidget</name>
     </context>
 <context>
     <name>RPCConsole</name>
-    <message>
-        <source>Ban Node for</source>
-        <translation>Nodo bannato per</translation>
-    </message>
     </context>
 <context>
     <name>ReceiveCoinsDialog</name>
     </context>
 <context>
     <name>ReceiveRequestDialog</name>
+    <message>
+        <source>Address</source>
+        <translation>Indirizzo</translation>
+    </message>
     </context>
 <context>
     <name>RecentRequestsTableModel</name>
@@ -166,6 +184,10 @@
     </context>
 <context>
     <name>TransactionView</name>
+    <message>
+        <source>Address</source>
+        <translation>Indirizzo</translation>
+    </message>
     </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>

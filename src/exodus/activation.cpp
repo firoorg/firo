@@ -11,7 +11,7 @@
 #include "exodus/log.h"
 #include "exodus/version.h"
 
-#include "main.h"
+#include "validation.h"
 #include "ui_interface.h"
 
 #include <boost/filesystem.hpp>
@@ -160,8 +160,8 @@ bool CheckActivationAuthorization(const std::string& sender)
     // use -exodusactivationallowsender for testing
 
     // Add manually whitelisted sources
-    if (mapArgs.count("-exodusactivationallowsender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusactivationallowsender"];
+    if (mapMultiArgs.count("-exodusactivationallowsender")) {
+        const std::vector<std::string> &sources = mapMultiArgs.at("-exodusactivationallowsender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.insert(*it);
@@ -169,8 +169,8 @@ bool CheckActivationAuthorization(const std::string& sender)
     }
 
     // Remove manually ignored sources
-    if (mapArgs.count("-exodusactivationignoresender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusactivationignoresender"];
+    if (mapMultiArgs.count("-exodusactivationignoresender")) {
+        const std::vector<std::string> &sources = mapMultiArgs.at("-exodusactivationignoresender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.erase(*it);
@@ -211,8 +211,8 @@ bool CheckDeactivationAuthorization(const std::string& sender)
     // use -exodusactivationallowsender for testing
 
     // Add manually whitelisted sources - custom sources affect both activation and deactivation
-    if (mapArgs.count("-exodusactivationallowsender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusactivationallowsender"];
+    if (mapMultiArgs.count("-exodusactivationallowsender")) {
+        const std::vector<std::string> &sources = mapMultiArgs.at("-exodusactivationallowsender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.insert(*it);
@@ -220,8 +220,8 @@ bool CheckDeactivationAuthorization(const std::string& sender)
     }
 
     // Remove manually ignored sources - custom sources affect both activation and deactivation
-    if (mapArgs.count("-exodusactivationignoresender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-exodusactivationignoresender"];
+    if (mapMultiArgs.count("-exodusactivationignoresender")) {
+        const std::vector<std::string> &sources = mapMultiArgs.at("-exodusactivationignoresender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.erase(*it);
