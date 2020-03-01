@@ -49,7 +49,21 @@ BOOST_AUTO_TEST_CASE(default_contruct_should_invalid)
 BOOST_AUTO_TEST_CASE(construct_and_get_data)
 {
     auto sig = Signature();
-    auto sigVec = sig.Data();
+    auto sigVec = sig.GetDER();
+
+    std::vector<unsigned char> expected;
+    expected.insert(expected.end(), rawSig.begin(), rawSig.end());
+    expected.push_back(0x00);
+    expected.push_back(0x00);
+
+    BOOST_CHECK_EQUAL(expected, sigVec);
+    BOOST_CHECK(sig.Valid());
+}
+
+BOOST_AUTO_TEST_CASE(construct_with64bytes)
+{
+    ECDSASignature sig(compact.data(), compact.size());
+    auto sigVec = sig.GetDER();
 
     std::vector<unsigned char> expected;
     expected.insert(expected.end(), rawSig.begin(), rawSig.end());
@@ -93,7 +107,7 @@ BOOST_AUTO_TEST_CASE(unserialize)
     expected.push_back(0x00);
     expected.push_back(0x00);
 
-    BOOST_CHECK_EQUAL(expected, sig.Data());
+    BOOST_CHECK_EQUAL(expected, sig.GetDER());
     BOOST_CHECK(sig.Valid());
 }
 

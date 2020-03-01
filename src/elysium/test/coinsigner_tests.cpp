@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(ecdsasign)
 
     BOOST_CHECK_EQUAL(
         "5b14bb77da666264fc571b6a3c7d2f7268be55abca0228d2c3f6daf0b7b554b11792d3203c8983f2db2e21dd93d070eaa7ebf31ffc71ef01bd5816cf42825254",
-        HexStr(sig));
+        HexStr(sig.GetCompact()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

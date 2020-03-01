@@ -16,7 +16,7 @@ public:
         CBitcoinAddress const &receiver,
         int64_t referenceAmount,
         SigmaProof const &proof,
-        ECDSAPublicKey publicKey)
+        CPubKey publicKey)
         : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, publicKey)
     {
     }
@@ -35,7 +35,7 @@ public:
     SigmaProof proof;
 
     ECDSAPrivateKey secret;
-    ECDSAPublicKey publicKey;
+    CPubKey publicKey;
 
 public:
     SignatureBuilderSigmaV1Setup()
@@ -49,7 +49,7 @@ public:
         std::fill(secret.begin(), secret.end(), 0x11);
 
         auto rawPublicKey = ParseHex("034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa");
-        std::copy(rawPublicKey.begin(), rawPublicKey.end(), publicKey.begin());
+        publicKey.Set(rawPublicKey.begin(), rawPublicKey.end());
     }
 
 public:
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(sign)
 
     BOOST_CHECK_EQUAL(
         "73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0",
-        HexStr(signature.begin(), signature.end()));
+        HexStr(signature.GetCompact()));
 }
 
 BOOST_AUTO_TEST_CASE(verify)
@@ -93,25 +93,24 @@ BOOST_AUTO_TEST_CASE(verify)
     auto validSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0");
     auto invalidSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a1");
 
-    std::copy(validSig.begin(), validSig.end(), signature.begin());
+    signature = ECDSASignature(validSig.data(), validSig.size());
     BOOST_CHECK_EQUAL(true, builder.Verify(signature));
 
     // invalid signature
     builder = TestSignatureSigmaV1Builder(address, 10, proof, publicKey);
-    std::copy(invalidSig.begin(), invalidSig.end(), signature.begin());
+    signature = ECDSASignature(invalidSig.data(), invalidSig.size());
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 
     // invalid content
-    std::copy(validSig.begin(), validSig.end(), signature.begin());
+    signature = ECDSASignature(validSig.data(), validSig.size());
     builder = TestSignatureSigmaV1Builder(CBitcoinAddress("aGXhTgKqDgdH9kHNTyg47TbwGfs54k2cQF"), 10, proof, publicKey);
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 
     builder = TestSignatureSigmaV1Builder(address, 11, proof, publicKey);
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 
-    ECDSAPublicKey otherPublicKey;
     auto rawPublicKey = ParseHex("0277d283f21eb4b02d8d0d39494821b8684fc7c9507d81485847f15ed92311e66e");
-    std::copy(rawPublicKey.begin(), rawPublicKey.end(), otherPublicKey.begin());
+    CPubKey otherPublicKey(rawPublicKey);
     builder = TestSignatureSigmaV1Builder(address, 11, proof, otherPublicKey);
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 }

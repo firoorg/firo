@@ -583,12 +583,14 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
     SigmaProof spend(params);
     CDataStream buffer(SER_DISK, CLIENT_VERSION);
 
-    std::array<uint8_t, 64> signature;
+    std::array<uint8_t, 64> rawSignature;
     std::array<uint8_t, 33> publicKey;
 
-    std::fill(signature.begin(), signature.end(), 0xFF);
+    std::fill(rawSignature.begin(), rawSignature.end(), 0x11);
     std::fill(publicKey.begin(), publicKey.end(), 0xFF);
     publicKey[0] = 0x02; // Compressed
+
+    ECDSASignature signature(rawSignature.begin(), rawSignature.size());
 
     key1.Generate();
     key2.Generate();
@@ -604,7 +606,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
     BOOST_CHECK_EQUAL(
         HexStr(payload),
         "000104000000000102000000030002" +
-        HexStr(publicKey) + HexStr(buffer.vch) + HexStr(signature)
+        HexStr(publicKey) + HexStr(buffer.vch) + HexStr(rawSignature)
     );
 }
 

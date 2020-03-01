@@ -864,7 +864,7 @@ bool CMPTransaction::interpret_SimpleSpend()
             ecdsaPubkey.Set(pubkeyBuffer.begin(), pubkeyBuffer.end());
 
             serialized >> *spend;
-            serialized.read(reinterpret_cast<char*>(ecdsaSignature.data()), sizeof(ecdsaSignature));
+            serialized >> ecdsaSignature;
 
             // Calculate serial.
             uint256 hash;

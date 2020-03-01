@@ -58,13 +58,7 @@ ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const 
         throw std::runtime_error("Unable to sign with ECDSA key.");
     }
 
-    ECDSASignature serializedSig;
-    if (1 != secp256k1_ecdsa_signature_serialize_compact(
-        OpenSSLContext::get_context(), serializedSig.data(), &sig)) {
-        throw std::runtime_error("Unable to serialize ecdsa signature.");
-    }
-
-    return serializedSig;
+    return ECDSASignature(sig);
 }
 
 } // namespace elysium

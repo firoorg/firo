@@ -641,7 +641,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, elysium::SigmaProof const &proof,
-    std::array<uint8_t, 64> const &signature, CPubKey const &pubkey)
+    ECDSASignature const &signature, CPubKey const &pubkey)
 {
     if (pubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
         throw std::runtime_error("Publickey size is invalid");
@@ -666,9 +666,8 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized.write(reinterpret_cast<const char*>(pubkey.begin()), pubkey.size());
     serialized << proof;
+    serialized << signature;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
-
-    payload.insert(payload.end(), signature.begin(), signature.end());
 
     return payload;
 }

@@ -44,15 +44,6 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     hasher.write(serializedData.data(), serializedData.size());
 }
 
-SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
-    CBitcoinAddress const &receiver,
-    int64_t referenceAmount,
-    SigmaProof const &proof,
-    ECDSAPublicKey const &publicKey)
-    : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, CPubKey(publicKey.begin(), publicKey.end()))
-{
-}
-
 ECDSASignature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
 {
     auto hash = hasher.GetHash();
@@ -62,26 +53,7 @@ ECDSASignature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
 bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
 {
     auto hash = hasher.GetHash();
-
-    secp256k1_pubkey pubkey;
-    secp256k1_ecdsa_signature parsedSignature;
-
-    if (1 != secp256k1_ec_pubkey_parse(
-        OpenSSLContext::get_context(),
-        &pubkey,
-        this->publicKey.begin(),
-        this->publicKey.size())) {
-        throw std::runtime_error("Sigma spend failed due to unable to parse public key");
-    }
-
-    if (1 != secp256k1_ecdsa_signature_parse_compact(
-        OpenSSLContext::get_context(),
-        &parsedSignature,
-        signature.data())) {
-        throw std::runtime_error("Sigma spend fail due to unable to parse signature");
-    }
-
-    return 1 == secp256k1_ecdsa_verify(OpenSSLContext::get_context(), &parsedSignature, hash.begin(), &pubkey);
+    return publicKey.Verify(hash, signature.GetDER());
 }
 
 }

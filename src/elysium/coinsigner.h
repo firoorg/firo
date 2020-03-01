@@ -5,6 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_COINSIGNER_H
 #define ZCOIN_ELYSIUM_COINSIGNER_H
 
+#include "ecdsasignature.h"
 #include "pubkey.h"
 
 #include <array>
@@ -12,8 +13,6 @@
 namespace elysium {
 
 typedef std::array<uint8_t, 32> ECDSAPrivateKey;
-typedef std::array<uint8_t, 33> ECDSAPublicKey;
-typedef std::array<uint8_t, 64> ECDSASignature;
 
 class CoinSigner
 {

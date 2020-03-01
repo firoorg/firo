@@ -34,12 +34,6 @@ public:
         SigmaProof const &proof,
         CPubKey const &publicKey);
 
-    SigmaV1SignatureBuilder(
-        CBitcoinAddress const &receiver,
-        int64_t referenceAmount,
-        SigmaProof const &proof,
-        ECDSAPublicKey const &publicKey);
-
 public:
     ECDSASignature Sign(CoinSigner &signer);
     bool Verify(ECDSASignature const &signature);
