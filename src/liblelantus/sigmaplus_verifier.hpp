@@ -174,7 +174,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
         const std::vector <GroupElement>& Qk = proofs[t].Qk;
         GroupElement term;
         Exponent x_k(uint64_t(1));
-        for (int k = 0; k < m; ++k)
+        for (std::size_t k = 0; k < m; ++k)
         {
             term += ((Gk[k] + Qk[k]) * (x_k.negate()));
             x_k *= x;

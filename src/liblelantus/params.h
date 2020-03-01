@@ -30,8 +30,8 @@ private:
     //sigma params
     GroupElement g_;
     std::vector<GroupElement> h_;
-    int m_;
     int n_;
+    int m_;
     //bulletproof params
     int _n;
     int max_m;
