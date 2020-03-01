@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SCHNORRVERIFIER_H
 #define ZCOIN_SCHNORRVERIFIER_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 namespace lelantus {
 
@@ -19,5 +19,5 @@ private:
 
 }//namespace lelantus
 
-#include "SchnorrVerifier.hpp"
+#include "schnorr_verifier.hpp"
 #endif //ZCOIN_SCHNORRVERIFIER_H

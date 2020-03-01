@@ -1,7 +1,7 @@
 #include <chrono>
 #include <ctime>
-#include <liblelantus/RangeProver.h>
-#include <liblelantus/RangeVerifier.h>
+#include "../range_prover.h"
+#include "../range_verifier.h"
 
 void test(uint64_t n, uint64_t m, secp_primitives::Scalar& v){
     secp_primitives::GroupElement g_gen, h_gen1, h_gen2;

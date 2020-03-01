@@ -1,5 +1,5 @@
-#include <liblelantus/SigmaPlusProver.h>
-#include <liblelantus/SigmaPlusVerifier.h>
+#include "../sigmaplus_prover.h"
+#include "../sigmaplus_verifier.h"
 #include <chrono>
 #include <ctime>
 #include <iostream>

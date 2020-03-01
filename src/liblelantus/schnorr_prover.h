@@ -1,7 +1,7 @@
 #ifndef ZCOINSCHNOORPROOVER_H
 #define ZCOINSCHNOORPROOVER_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 namespace lelantus {
 
@@ -19,6 +19,6 @@ private:
 
 }//namespace lelantus
 
-#include "SchnorrProver.hpp"
+#include "schnorr_prover.hpp"
 
 #endif //ZCOINSCHNOORPROOVER_H

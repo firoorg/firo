@@ -2,7 +2,7 @@
 #define ZCOIN_SIGMAPLUSPROOF_H
 
 #include <vector>
-#include "Params.h"
+#include "params.h"
 
 namespace lelantus {
 

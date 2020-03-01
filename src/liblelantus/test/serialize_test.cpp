@@ -1,5 +1,5 @@
-#include "../LelantusProver.h"
-#include "../LelantusVerifier.h"
+#include "../lelantus_prover.h"
+#include "../lelantus_verifier.h"
 
 #include <boost/test/unit_test.hpp>
 

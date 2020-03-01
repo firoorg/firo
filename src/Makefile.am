@@ -517,37 +517,37 @@ libbitcoin_util_a_SOURCES = \
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
-  liblelantus/LelantusPrimitives.h \
-  liblelantus/LelantusPrimitives.hpp \
-  liblelantus/LelantusProof.h \
-  liblelantus/LelantusProver.h \
-  liblelantus/LelantusProver.cpp \
-  liblelantus/LelantusVerifier.h \
-  liblelantus/LelantusVerifier.cpp \
-  liblelantus/SigmaPlusProof.h \
-  liblelantus/SigmaPlusProver.h \
-  liblelantus/SigmaPlusProver.hpp \
-  liblelantus/SigmaPlusVerifier.h \
-  liblelantus/SigmaPlusVerifier.hpp \
-  liblelantus/SchnorrProof.h \
-  liblelantus/SchnorrProver.h \
-  liblelantus/SchnorrProver.hpp \
-  liblelantus/SchnorrVerifier.h \
-  liblelantus/SchnorrVerifier.hpp \
-  liblelantus/InnerProductProof.h \
-  liblelantus/InnerProductProofVerifier.h \
-  liblelantus/InnerProductProofVerifier.hpp \
-  liblelantus/InnerProductProofGenerator.h \
-  liblelantus/InnerProductProofGenerator.hpp \
-  liblelantus/RangeProof.h \
-  liblelantus/RangeProver.h \
-  liblelantus/RangeProver.hpp \
-  liblelantus/RangeVerifier.h \
-  liblelantus/RangeVerifier.hpp \
-  liblelantus/Coin.h \
-  liblelantus/Coin.cpp \
-  liblelantus/Params.h \
-  liblelantus/Params.cpp
+  liblelantus/lelantus_primitives.h \
+  liblelantus/lelantus_primitives.hpp \
+  liblelantus/lelantus_proof.h \
+  liblelantus/lelantus_prover.h \
+  liblelantus/lelantus_prover.cpp \
+  liblelantus/lelantus_verifier.h \
+  liblelantus/lelantus_verifier.cpp \
+  liblelantus/sigmaplus_proof.h \
+  liblelantus/sigmaplus_prover.h \
+  liblelantus/sigmaplus_prover.hpp \
+  liblelantus/sigmaplus_verifier.h \
+  liblelantus/sigmaplus_verifier.hpp \
+  liblelantus/schnorr_proof.h \
+  liblelantus/schnorr_prover.h \
+  liblelantus/schnorr_prover.hpp \
+  liblelantus/schnorr_verifier.h \
+  liblelantus/schnorr_verifier.hpp \
+  liblelantus/innerproduct_proof.h \
+  liblelantus/innerproduct_proof_verifier.h \
+  liblelantus/innerproduct_proof_verifier.hpp \
+  liblelantus/innerproduct_proof_generator.h \
+  liblelantus/innerproduct_proof_generator.hpp \
+  liblelantus/range_proof.h \
+  liblelantus/range_prover.h \
+  liblelantus/range_prover.hpp \
+  liblelantus/range_verifier.h \
+  liblelantus/range_verifier.hpp \
+  liblelantus/coin.h \
+  liblelantus/coin.cpp \
+  liblelantus/params.h \
+  liblelantus/params.cpp
 
 libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
 libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror

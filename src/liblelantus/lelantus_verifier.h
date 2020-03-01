@@ -1,11 +1,11 @@
 #ifndef ZCOIN_LELANTUSVERIFIER_H
 #define ZCOIN_LELANTUSVERIFIER_H
 
-#include "SchnorrVerifier.h"
-#include "SigmaPlusVerifier.h"
-#include "RangeVerifier.h"
-#include "LelantusPrimitives.h"
-#include "Coin.h"
+#include "schnorr_verifier.h"
+#include "sigmaplus_verifier.h"
+#include "range_verifier.h"
+#include "lelantus_primitives.h"
+#include "coin.h"
 namespace lelantus {
 class LelantusVerifier {
 public:

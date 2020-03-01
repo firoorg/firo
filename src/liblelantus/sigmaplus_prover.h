@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMAPLUSPROVER_H
 #define ZCOIN_SIGMAPLUSPROVER_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 
 namespace lelantus {
@@ -55,6 +55,6 @@ private:
 
 }//namespace lelantus
 
-#include "SigmaPlusProver.hpp"
+#include "sigmaplus_prover.hpp"
 
 #endif //ZCOIN_SIGMAPLUSPROVER_H

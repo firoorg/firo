@@ -1,6 +1,6 @@
-#include "../SchnorrProof.h"
-#include "../SchnorrProver.h"
-#include "../SchnorrVerifier.h"
+#include "../schnorr_proof.h"
+#include "../schnorr_prover.h"
+#include "../schnorr_verifier.h"
 
 #include <boost/test/unit_test.hpp>
 

@@ -1,10 +1,10 @@
 #ifndef ZCOIN_LELANTUSPROVER_H
 #define ZCOIN_LELANTUSPROVER_H
 
-#include "SchnorrProver.h"
-#include "SigmaPlusProver.h"
-#include "RangeProver.h"
-#include "Coin.h"
+#include "schnorr_prover.h"
+#include "sigmaplus_prover.h"
+#include "range_prover.h"
+#include "coin.h"
 
 namespace lelantus {
 

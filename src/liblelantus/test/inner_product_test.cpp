@@ -1,5 +1,5 @@
-#include "../InnerProductProofGenerator.h"
-#include "../InnerProductProofVerifier.h"
+#include "../innerproduct_proof_generator.h"
+#include "../innerproduct_proof_verifier.h"
 
 #include <boost/test/unit_test.hpp>
 

@@ -1,9 +1,9 @@
 #ifndef ZCOIN_LELANTUSPROOF_H
 #define ZCOIN_LELANTUSPROOF_H
 
-#include "SchnorrProof.h"
-#include "RangeProof.h"
-#include "Params.h"
+#include "schnorr_proof.h"
+#include "range_proof.h"
+#include "params.h"
 
 using namespace secp_primitives;
 

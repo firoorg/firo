@@ -1,4 +1,4 @@
-#include "LelantusProver.h"
+#include "lelantus_prover.h"
 namespace lelantus {
 
 LelantusProver::LelantusProver(const Params* p) : params(p) {

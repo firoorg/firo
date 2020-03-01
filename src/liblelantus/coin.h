@@ -1,8 +1,8 @@
 #ifndef ZCOIN_LELANTUS_COIN_H
 #define ZCOIN_LELANTUS_COIN_H
 
-#include "LelantusPrimitives.h"
-#include "Params.h"
+#include "lelantus_primitives.h"
+#include "params.h"
 
 
 

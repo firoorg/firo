@@ -1,7 +1,7 @@
 #ifndef ZCOIN_INNER_PRODUCT_PROOF_VERIFIER_H
 #define ZCOIN_INNER_PRODUCT_PROOF_VERIFIER_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 namespace lelantus {
 
@@ -36,6 +36,6 @@ private:
 
 } // namespace lelantus
 
-#include "InnerProductProofVerifier.hpp"
+#include "innerproduct_proof_verifier.hpp"
 
 #endif //ZCOIN_INNER_PRODUCT_PROOF_VERIFIER_H

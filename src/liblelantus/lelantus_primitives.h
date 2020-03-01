@@ -4,11 +4,11 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <secp256k1/include/MultiExponent.h>
-#include "SigmaPlusProof.h"
-#include "LelantusProof.h"
-#include "SchnorrProof.h"
-#include "InnerProductProof.h"
-#include "RangeProof.h"
+#include "sigmaplus_proof.h"
+#include "lelantus_proof.h"
+#include "schnorr_proof.h"
+#include "innerproduct_proof.h"
+#include "range_proof.h"
 #include <algorithm>
 
 namespace lelantus {
@@ -89,6 +89,6 @@ public:
 
 }// namespace lelantus
 
-#include "LelantusPrimitives.hpp"
+#include "lelantus_primitives.hpp"
 
 #endif //ZCOIN_LELANTUSPRIMITIVES_H

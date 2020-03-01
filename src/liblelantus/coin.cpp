@@ -1,4 +1,4 @@
-#include "Coin.h"
+#include "coin.h"
 namespace lelantus {
 
 //class PublicCoin

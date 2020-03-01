@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SCHNORRPROOF_H
 #define ZCOIN_SCHNORRPROOF_H
 
-#include "Params.h"
+#include "params.h"
 
 namespace lelantus {
 

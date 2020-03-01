@@ -1,4 +1,4 @@
-#include "LelantusVerifier.h"
+#include "lelantus_verifier.h"
 
 namespace lelantus {
 

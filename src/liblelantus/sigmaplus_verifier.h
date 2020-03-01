@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMAPLUSVERIFIER_H
 #define ZCOIN_SIGMAPLUSVERIFIER_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 namespace lelantus {
 
@@ -45,6 +45,6 @@ private:
 
 } // namespace lelantus
 
-#include "SigmaPlusVerifier.hpp"
+#include "sigmaplus_verifier.hpp"
 
 #endif //ZCOIN_SIGMAPLUSVERIFIER_H

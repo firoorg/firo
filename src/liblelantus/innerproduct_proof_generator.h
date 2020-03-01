@@ -1,7 +1,7 @@
 #ifndef ZCOIN_INNERP_RODUCT_PROOF_GENERATOR_H
 #define ZCOIN_INNERP_RODUCT_PROOF_GENERATOR_H
 
-#include "LelantusPrimitives.h"
+#include "lelantus_primitives.h"
 
 namespace lelantus {
 
@@ -69,6 +69,6 @@ private:
 
 } // namespace lelantus
 
-#include "InnerProductProofGenerator.hpp"
+#include "innerproduct_proof_generator.hpp"
 
 #endif //ZCOIN_INNERP_RODUCT_PROOF_GENERATOR_H

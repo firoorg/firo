@@ -1,4 +1,4 @@
-#include "Params.h"
+#include "params.h"
 #include <iostream>
 namespace lelantus {
 

@@ -1,5 +1,5 @@
-#include "../RangeProver.h"
-#include "../RangeVerifier.h"
+#include "../range_prover.h"
+#include "../range_verifier.h"
 
 #include <boost/test/unit_test.hpp>
 
