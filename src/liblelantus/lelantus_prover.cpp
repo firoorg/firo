@@ -112,8 +112,8 @@ void LelantusProver::generate_bulletproofs(
         const std::vector <PrivateCoin>& Cout,
         RangeProof<Scalar, GroupElement>& bulletproofs){
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
-    int n = params->get_bulletproofs_n();
-    int m = Cout.size();
+    std::size_t n = params->get_bulletproofs_n();
+    std::size_t m = Cout.size();
 
     while(m & (m - 1))
         m++;
@@ -139,7 +139,7 @@ void LelantusProver::generate_bulletproofs(
     g_.reserve(n * m);
     h_.reserve(n * m);
 
-    for (int i = 0; i < n * m; ++i )
+    for (std::size_t i = 0; i < n * m; ++i )
     {
         g_.push_back(params->get_bulletproofs_g()[i]);
         h_.push_back(params->get_bulletproofs_h()[i]);

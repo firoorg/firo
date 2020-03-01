@@ -57,7 +57,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     std::size_t setSize = commits.size();
     assert(setSize > 0);
     LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(l, n_, m_, sigma);
-    for (int k = 0; k < m_; ++k)
+    for (std::size_t k = 0; k < m_; ++k)
     {
         Tk[k].randomize();
         Pk[k].randomize();
@@ -78,7 +78,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     //compute C
     std::vector<Exponent> c;
     c.resize(n_ * m_);
-    for (int i = 0; i < n_ * m_; ++i)
+    for (std::size_t i = 0; i < n_ * m_; ++i)
     {
         c[i] = (a[i] * (Exponent(uint64_t(1)) - (Exponent(uint64_t(2)) * sigma[i])));
     }

@@ -24,7 +24,7 @@ bool LelantusVerifier::verify(
     for (std::size_t i = 0; i < sigma_proofs.size(); ++i)
     {
         C_.reserve(c.size());
-        for (int j = 0; j < c.size(); ++j)
+        for (std::size_t j = 0; j < c.size(); ++j)
             C_.emplace_back(c[j].getValue());
         zV += sigma_proofs[i].zV_;
         zR += sigma_proofs[i].zR_;
@@ -34,8 +34,8 @@ bool LelantusVerifier::verify(
         return false;
 
     //range proof verification
-    int n = params->get_bulletproofs_n();
-    int m = Cout.size();
+    std::size_t n = params->get_bulletproofs_n();
+    std::size_t m = Cout.size();
 
     while(m & (m - 1))
         m++;
@@ -43,7 +43,7 @@ bool LelantusVerifier::verify(
     std::vector<GroupElement> g_, h_;
     g_.reserve(n * m);
     h_.reserve(n * m);
-    for (int i = 0; i < n * m; ++i )
+    for (std::size_t i = 0; i < n * m; ++i )
     {
         g_.push_back(params->get_bulletproofs_g()[i]);
         h_.push_back(params->get_bulletproofs_h()[i]);
@@ -76,7 +76,7 @@ bool LelantusVerifier::verify(
         GroupElement Comm_t;
         const std::vector<GroupElement>& Qk = sigma_proofs[t].Qk;
         Scalar x_k(uint64_t(1));
-        for (int k = 0; k < Qk.size(); ++k)
+        for (std::size_t k = 0; k < Qk.size(); ++k)
         {
             Comm_t += (Qk[k]) * x_k;
             x_k *= x;
