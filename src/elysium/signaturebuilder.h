@@ -17,8 +17,8 @@ namespace elysium {
 class SignatureBuilder
 {
 public:
-    virtual ECDSASignature Sign(CoinSigner &signer) = 0;
-    virtual bool Verify(ECDSASignature const &signature) = 0;
+    virtual Signature Sign(CoinSigner &signer) = 0;
+    virtual bool Verify(Signature const &signature) = 0;
 };
 
 class SigmaV1SignatureBuilder : SignatureBuilder
@@ -35,8 +35,8 @@ public:
         CPubKey const &publicKey);
 
 public:
-    ECDSASignature Sign(CoinSigner &signer);
-    bool Verify(ECDSASignature const &signature);
+    Signature Sign(CoinSigner &signer);
+    bool Verify(Signature const &signature);
 
     CPubKey const& PublicKey();
 };

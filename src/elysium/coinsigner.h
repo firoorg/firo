@@ -5,7 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_COINSIGNER_H
 #define ZCOIN_ELYSIUM_COINSIGNER_H
 
-#include "ecdsasignature.h"
+#include "signature.h"
 #include "key.h"
 #include "pubkey.h"
 
@@ -23,7 +23,7 @@ protected:
 
 public:
     CPubKey GetPublicKey() const;
-    ECDSASignature Sign(unsigned char const *start, unsigned char const *end);
+    Signature Sign(unsigned char const *start, unsigned char const *end);
 };
 
 } // namespace elysium

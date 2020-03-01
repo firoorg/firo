@@ -2,21 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "ecdsasignature.h"
+#include "signature.h"
 
 #include <stdexcept>
 
 namespace elysium {
 
-ECDSASignature::ECDSASignature() : valid(false)
+Signature::Signature() : valid(false)
 {
 }
 
-ECDSASignature::ECDSASignature(secp256k1_ecdsa_signature const &sig) : signature(sig), valid(true)
+Signature::Signature(secp256k1_ecdsa_signature const &sig) : signature(sig), valid(true)
 {
 }
 
-ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len) : valid(false)
+Signature::Signature(unsigned char const *signature, size_t len) : valid(false)
 {
     if (len >= 70 && len <= 72) {
         if (1 == secp256k1_ecdsa_signature_parse_der(
@@ -39,7 +39,7 @@ ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len) : val
     }
 }
 
-std::vector<unsigned char> ECDSASignature::GetCompact() const
+std::vector<unsigned char> Signature::GetCompact() const
 {
     std::vector<unsigned char> result;
     result.resize(SIGNATURE_COMPACT_SERIALIZED_SIZE);
@@ -54,7 +54,7 @@ std::vector<unsigned char> ECDSASignature::GetCompact() const
     return result;
 }
 
-std::vector<unsigned char> ECDSASignature::GetDER() const
+std::vector<unsigned char> Signature::GetDER() const
 {
     std::vector<unsigned char> result;
     result.resize(SIGNATURE_DER_SERIALIZED_SIZE);
@@ -71,7 +71,7 @@ std::vector<unsigned char> ECDSASignature::GetDER() const
     return result;
 }
 
-bool ECDSASignature::Valid() const
+bool Signature::Valid() const
 {
     return valid;
 }

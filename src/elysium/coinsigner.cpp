@@ -41,7 +41,7 @@ CPubKey CoinSigner::GetPublicKey() const
     return result;
 }
 
-ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const *end)
+Signature CoinSigner::Sign(unsigned char const *start, unsigned char const *end)
 {
     if (std::distance(start, end) != 32) {
         throw std::runtime_error("Payload to sign is invalid.");
@@ -53,7 +53,7 @@ ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const 
     std::vector<unsigned char> sig;
     key.Sign(hash, sig);
 
-    return ECDSASignature(sig.data(), sig.size());
+    return Signature(sig.data(), sig.size());
 }
 
 } // namespace elysium

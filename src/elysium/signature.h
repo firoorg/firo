@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_ECDSASIGNATURE_H
-#define ZCOIN_ELYSIUM_ECDSASIGNATURE_H
+#ifndef ZCOIN_ELYSIUM_SIGNATURE_H
+#define ZCOIN_ELYSIUM_SIGNATURE_H
 
 #include "../sigma/openssl_context.h"
 
@@ -14,7 +14,7 @@
 
 namespace elysium {
 
-class ECDSASignature
+class Signature
 {
 public:
     static size_t const SIGNATURE_DER_SERIALIZED_SIZE = 72;
@@ -25,9 +25,9 @@ private:
     bool valid;
 
 public:
-    ECDSASignature();
-    ECDSASignature(secp256k1_ecdsa_signature const &sig);
-    ECDSASignature(unsigned char const *signature, size_t len);
+    Signature();
+    Signature(secp256k1_ecdsa_signature const &sig);
+    Signature(unsigned char const *signature, size_t len);
 
 public:
     std::vector<unsigned char> GetCompact() const;
@@ -75,4 +75,4 @@ private:
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_ECDSASIGNATURE_H
+#endif // ZCOIN_ELYSIUM_SIGNATURE_H

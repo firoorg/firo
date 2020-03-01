@@ -44,13 +44,13 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     hasher.write(serializedData.data(), serializedData.size());
 }
 
-ECDSASignature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
+Signature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
 {
     auto hash = hasher.GetHash();
     return signer.Sign(hash.begin(), hash.end());
 }
 
-bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
+bool SigmaV1SignatureBuilder::Verify(Signature const &signature)
 {
     auto hash = hasher.GetHash();
     return publicKey.Verify(hash, signature.GetDER());

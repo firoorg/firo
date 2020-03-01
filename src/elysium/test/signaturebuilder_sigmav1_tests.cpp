@@ -91,20 +91,20 @@ BOOST_AUTO_TEST_CASE(sign)
 BOOST_AUTO_TEST_CASE(verify)
 {
     TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
-    ECDSASignature signature;
+    Signature signature;
     auto validSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0");
     auto invalidSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a1");
 
-    signature = ECDSASignature(validSig.data(), validSig.size());
+    signature = Signature(validSig.data(), validSig.size());
     BOOST_CHECK_EQUAL(true, builder.Verify(signature));
 
     // invalid signature
     builder = TestSignatureSigmaV1Builder(address, 10, proof, publicKey);
-    signature = ECDSASignature(invalidSig.data(), invalidSig.size());
+    signature = Signature(invalidSig.data(), invalidSig.size());
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 
     // invalid content
-    signature = ECDSASignature(validSig.data(), validSig.size());
+    signature = Signature(validSig.data(), validSig.size());
     builder = TestSignatureSigmaV1Builder(CBitcoinAddress("aGXhTgKqDgdH9kHNTyg47TbwGfs54k2cQF"), 10, proof, publicKey);
     BOOST_CHECK_EQUAL(false, builder.Verify(signature));
 
