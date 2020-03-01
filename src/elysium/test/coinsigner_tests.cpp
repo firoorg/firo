@@ -21,6 +21,12 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const a
     return os << '[' << boost::algorithm::join(strings, ", ") << ']';
 }
 
+template<typename Char, typename Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const CKey& key)
+{
+    return os << HexStr(key.begin(), key.end());
+}
+
 } // namespace std
 
 namespace elysium {
@@ -28,11 +34,11 @@ namespace elysium {
 class TestCoinSigner : public CoinSigner
 {
 public:
-    TestCoinSigner(ECDSAPrivateKey const &priv) : CoinSigner(priv)
+    TestCoinSigner(CKey const &priv) : CoinSigner(priv)
     {
     }
 
-    std::array<uint8_t, 32> const &GetKey() const {
+    CKey const &GetKey() const {
         return CoinSigner::key;
     }
 };
@@ -41,8 +47,11 @@ BOOST_FIXTURE_TEST_SUITE(elysium_coinsigner_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(construct_withvalid_keysize)
 {
-    ECDSAPrivateKey key;
-    std::fill(key.begin(), key.end(), 0xFF);
+    std::array<uint8_t, 32> rawKey;
+    std::fill(rawKey.begin(), rawKey.end(), 0xFF);
+
+    CKey key;
+    key.Set(rawKey.begin(), rawKey.end(), true);
 
     std::unique_ptr<TestCoinSigner> signer;
     BOOST_CHECK_NO_THROW(signer.reset(new TestCoinSigner(key)));
@@ -53,8 +62,11 @@ BOOST_AUTO_TEST_CASE(construct_withvalid_keysize)
 
 BOOST_AUTO_TEST_CASE(getpublickey)
 {
-    ECDSAPrivateKey key;
-    std::fill(key.begin(), key.end(), 0x11);
+    std::array<uint8_t, 32> rawKey;
+    std::fill(rawKey.begin(), rawKey.end(), 0x11);
+
+    CKey key;
+    key.Set(rawKey.begin(), rawKey.end(), true);
 
     TestCoinSigner signer(key);
     auto pubkey = signer.GetPublicKey();
@@ -66,8 +78,11 @@ BOOST_AUTO_TEST_CASE(getpublickey)
 
 BOOST_AUTO_TEST_CASE(ecdsasign)
 {
-    ECDSAPrivateKey key;
-    std::fill(key.begin(), key.end(), 0x11);
+    std::array<uint8_t, 32> rawKey;
+    std::fill(rawKey.begin(), rawKey.end(), 0x11);
+
+    CKey key;
+    key.Set(rawKey.begin(), rawKey.end(), true);
 
     TestCoinSigner signer(key);
     auto msg = ParseHex("6483023e2c7bdc9e719708f49d08f3b2c8da6f42347317543ac77bda6199f470");

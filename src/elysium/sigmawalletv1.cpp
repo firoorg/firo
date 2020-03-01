@@ -156,7 +156,10 @@ CoinSigner SigmaWalletV1::GetSigner(SigmaMintId const &id)
     GenerateSeed(mint.seedId, seed);
     GeneratePrivateKey(seed, ecdsaKey);
 
-    return CoinSigner(ecdsaKey);
+    CKey key;
+    key.Set(ecdsaKey.begin(), ecdsaKey.end(), true);
+
+    return CoinSigner(key);
 }
 
 }

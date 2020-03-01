@@ -34,7 +34,7 @@ public:
     CBitcoinAddress address;
     SigmaProof proof;
 
-    ECDSAPrivateKey secret;
+    CKey secret;
     CPubKey publicKey;
 
 public:
@@ -46,7 +46,9 @@ public:
 
         proof.Unserialize(ss, SER_NETWORK, PROTOCOL_VERSION);
 
-        std::fill(secret.begin(), secret.end(), 0x11);
+        std::array<uint8_t, 32> rawSecret;
+        std::fill(rawSecret.begin(), rawSecret.end(), 0x11);
+        secret.Set(rawSecret.begin(), rawSecret.end(), true);
 
         auto rawPublicKey = ParseHex("034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa");
         publicKey.Set(rawPublicKey.begin(), rawPublicKey.end());

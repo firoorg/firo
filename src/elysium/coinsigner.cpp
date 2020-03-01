@@ -9,7 +9,7 @@
 
 namespace elysium {
 
-CoinSigner::CoinSigner(ECDSAPrivateKey priv)
+CoinSigner::CoinSigner(CKey const &priv)
     : key(priv)
 {
 }
@@ -47,18 +47,13 @@ ECDSASignature CoinSigner::Sign(unsigned char const *start, unsigned char const 
         throw std::runtime_error("Payload to sign is invalid.");
     }
 
-    secp256k1_ecdsa_signature sig;
-    if (1 != secp256k1_ecdsa_sign(
-        OpenSSLContext::get_context(),
-        &sig,
-        start,
-        key.begin(),
-        nullptr,
-        nullptr)) {
-        throw std::runtime_error("Unable to sign with ECDSA key.");
-    }
+    uint256 hash;
+    std::copy(start, end, hash.begin());
 
-    return ECDSASignature(sig);
+    std::vector<unsigned char> sig;
+    key.Sign(hash, sig);
+
+    return ECDSASignature(sig.data(), sig.size());
 }
 
 } // namespace elysium
