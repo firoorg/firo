@@ -1,5 +1,5 @@
 #include "Params.h"
-
+#include <iostream>
 namespace lelantus {
 
     std::unique_ptr<Params> Params::instance;
@@ -7,12 +7,16 @@ Params* Params::get_default() {
     if(instance != nullptr)
         return instance.get();
     else {
-        //fixing generator G and H;
-       GroupElement g("9216064434961179932092223867844635691966339998754536116709681652691785432045",
-                      "33986433546870000256104618635743654523665060392313886665479090285075695067131");
-       //fixing n and m; N = n^m = 16,384
-       int n = 4;
-       int m = 7;
+       //fixing generator G;
+       GroupElement g;
+       unsigned char buff[32] = {0};
+       GroupElement base;
+       base.set_base_g();
+       base.sha256(buff);
+       g.generate(buff);
+       //fixing n and m; N = n^m = 65,536
+       int n = 16;
+       int m = 4;
        //fixing bulletproof params
        int _n = 64;
        int max_m = 16;
@@ -23,8 +27,13 @@ Params* Params::get_default() {
 }
 
 Params::Params(const GroupElement& g, int n, int m, int _n, int max_m):
-    n_(n), m_(m), g_(g), _n(_n), max_m(max_m){
-    //creating generator for sigma
+    g_(g),
+    n_(n),
+    m_(m),
+    _n(_n),
+    max_m(max_m)
+{
+    //creating generators for sigma
     this->h_.resize(n*m);
     unsigned char buff0[32] = {0};
     g.sha256(buff0);
@@ -35,7 +44,8 @@ Params::Params(const GroupElement& g, int n, int m, int _n, int max_m):
         h_[i - 1].sha256(buff);
         h_[i].generate(buff);
     }
-    //creating generator for bulletproofs
+
+    //creating generators for bulletproofs
     g_rangeProof.resize(_n * max_m);
     h_rangeProof.resize(_n * max_m);
     g_rangeProof[0].generate(buff0);
