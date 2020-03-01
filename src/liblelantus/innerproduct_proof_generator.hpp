@@ -30,7 +30,6 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof(
         const std::vector<Exponent>& b,
         const Exponent& x,
         InnerProductProof<Exponent, GroupElement>& proof_out) {
-    int n = a.size() / 2;
     const Exponent c = LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a, b, P_initial);
     u_ *= x;
@@ -109,14 +108,14 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::l(
     gens_h.reserve(h_.size() / 2 + 1);
     a.reserve(g_.size() / 2 + 1);
     b.reserve(h_.size() / 2 + 1);
-    for (int i = g_.size() / 2; i < g_.size(); ++i)
+    for (std::size_t i = g_.size() / 2; i < g_.size(); ++i)
     {
         gens_g.emplace_back(g_[i]);
         a.emplace_back(*a_start);
         a_start++;
     }
 
-    for (int i = 0; i < h_.size() / 2; ++i)
+    for (std::size_t i = 0; i < h_.size() / 2; ++i)
     {
         gens_h.emplace_back(h_[i]);
         b.emplace_back(*b_start);
@@ -142,14 +141,14 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
     a.reserve(g_.size() / 2 + 1);
     b.reserve(h_.size() / 2 + 1);
 
-    for (int i = 0; i < g_.size() / 2; ++i)
+    for (std::size_t i = 0; i < g_.size() / 2; ++i)
     {
         gens_g.emplace_back(g_[i]);
         a.emplace_back(*a_start);
         a_start++;
     }
 
-    for (int i = h_.size() / 2; i < h_.size(); ++i)
+    for (std::size_t i = h_.size() / 2; i < h_.size(); ++i)
     {
         gens_h.emplace_back(h_[i]);
         b.emplace_back(*b_start);
@@ -166,7 +165,7 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_pri
     Exponent x_inverse  = x.inverse();
     std::vector<Exponent> result;
     result.reserve(a.size() / 2);
-    for(int i = 0; i < a.size() / 2; ++i)
+    for(std::size_t i = 0; i < a.size() / 2; ++i)
     {
         result.push_back(a[i] * x + a[a.size() / 2 + i] * x_inverse);
     }
@@ -180,7 +179,7 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::b_pri
     Exponent x_inverse  = x.inverse();
     std::vector<Exponent> result;
     result.reserve(b.size() / 2);
-    for(int i = 0; i < b.size() / 2; ++i)
+    for(std::size_t i = 0; i < b.size() / 2; ++i)
     {
         result.push_back(b[i] * x_inverse + b[b.size() / 2 + i] * x);
     }

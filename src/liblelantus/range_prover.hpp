@@ -25,15 +25,15 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     uint64_t m = v.size();
     std::vector<std::vector<bool>> bits;
     bits.resize(m);
-    for (int i = 0; i < v.size(); i++)
+    for (std::size_t i = 0; i < v.size(); i++)
         v[i].get_bits(bits[i]);
 
     std::vector<Exponent> aL, aR;
     aL.reserve(n * m);
     aR.reserve(n * m);
-    for (int j = 0; j < m; ++j)
+    for (std::size_t j = 0; j < m; ++j)
     {
-        for (int i = 1; i <= n; ++i)
+        for (std::size_t i = 1; i <= n; ++i)
         {
             aL.push_back(uint64_t(bits[j][bits[j].size() - i]));
             aR.push_back(Exponent(uint64_t(bits[j][bits[j].size() - i])) - Exponent(uint64_t(1)));
@@ -47,7 +47,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     std::vector<Exponent> sL, sR;
     sL.resize(n * m);
     sR.resize(n * m);
-    for (int i = 0; i < n * m; ++i)
+    for (std::size_t i = 0; i < n * m; ++i)
     {
         sL[i].randomize();
         sR[i].randomize();
@@ -72,10 +72,10 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent z_j = z.square();
     Exponent z_sum1(uint64_t(0));
     Exponent z_sum2(uint64_t(0));
-    for (int j = 0; j < m; ++j)
+    for (std::size_t j = 0; j < m; ++j)
     {
         Exponent two_n(uint64_t(1));
-        for (int i = 0; i < n; ++i)
+        for (std::size_t i = 0; i < n; ++i)
         {
             int index = j * n + i;
             l_x[index].push_back(aL[index] - z);
@@ -93,7 +93,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     }
     //compute t1 and t2 coefficients
     Exponent t0, t1, t2;
-    for (int i = 0; i < n * m; ++i)
+    for (std::size_t i = 0; i < n * m; ++i)
     {
         t0 += l_x[i][0] * r_x[i][0];
         t1 += l_x[i][0] * r_x[i][1] + l_x[i][1] * r_x[i][0];
@@ -117,7 +117,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     std::vector<Exponent> r;
     l.reserve(n * m);
     r.reserve(n * m);
-    for (int i = 0; i < n * m; i++)
+    for (std::size_t i = 0; i < n * m; i++)
     {
         l.push_back(l_x[i][0] + l_x[i][1] * x);
         r.push_back(r_x[i][0] + r_x[i][1] * x);
@@ -131,7 +131,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     std::vector<GroupElement> h_prime;
     h_prime.reserve(h_.size());
     Exponent y_i(uint64_t(1));
-    for (int i = 0; i < h_.size(); ++i)
+    for (std::size_t i = 0; i < h_.size(); ++i)
     {
         h_prime.push_back(h_[i] * y_i.inverse());
         y_i *= y;

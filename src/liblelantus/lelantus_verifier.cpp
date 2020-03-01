@@ -21,7 +21,7 @@ bool LelantusVerifier::verify(
     Scalar zV, zR;
 
     std::vector<GroupElement> C_;
-    for (int i = 0; i < sigma_proofs.size(); ++i)
+    for (std::size_t i = 0; i < sigma_proofs.size(); ++i)
     {
         C_.reserve(c.size());
         for (int j = 0; j < c.size(); ++j)
@@ -50,10 +50,10 @@ bool LelantusVerifier::verify(
     }
     std::vector<GroupElement> V;
     V.reserve(m);
-    for (int i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i)
         V.push_back(Cout[i].getValue());
 
-    for (int i = Cout.size(); i < m; ++i)
+    for (std::size_t i = Cout.size(); i < m; ++i)
         V.push_back(GroupElement());
 
     RangeVerifier<Scalar, GroupElement> rangeVerifier(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
@@ -62,7 +62,7 @@ bool LelantusVerifier::verify(
 
     //schnorr proof verification
     GroupElement A;
-    for (int i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i)
         A += Cout[i].getValue();
     if(Cout.size() > 0)
         A *= x.exponent(params->get_m());
@@ -71,7 +71,7 @@ bool LelantusVerifier::verify(
     GroupElement B = (params->get_h0() * (Vin * x.exponent(params->get_m())))
                     + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h0(), zV, params->get_h1(), zR);
     GroupElement Comm;
-    for (int t = 0; t < sigma_proofs.size(); ++t)
+    for (std::size_t t = 0; t < sigma_proofs.size(); ++t)
     {
         GroupElement Comm_t;
         const std::vector<GroupElement>& Qk = sigma_proofs[t].Qk;

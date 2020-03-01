@@ -19,9 +19,9 @@ public:
         unsigned char* current = a_.serialize(buffer);
         current = b_.serialize(current);
         current = c_.serialize(current);
-        for (int i = 0; i < L_.size(); ++i)
+        for (std::size_t i = 0; i < L_.size(); ++i)
             current = L_[i].serialize(current);
-        for (int i = 0; i < R_.size(); ++i)
+        for (std::size_t i = 0; i < R_.size(); ++i)
             current = R_[i].serialize(current);
         return current;
     }

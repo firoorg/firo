@@ -45,7 +45,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     std::vector<Exponent> x_j, x_j_inv;
     x_j.resize(log_n);
     x_j_inv.reserve(log_n);
-    for (int i = 0; i < log_n; ++i)
+    for (std::size_t i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
         LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements_i, x_j[i]);
@@ -57,7 +57,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     //check line 97
     GroupElement V_z;
     Exponent z_m(uint64_t(1));
-    for (int j = 0; j < m; ++j)
+    for (std::size_t j = 0; j < m; ++j)
     {
         V_z += V[j] * (z_square_neg * z_m);
         z_m *= z;
@@ -77,7 +77,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
             uint64_t i = j * n + k;
             Exponent x_il(uint64_t(1));
             Exponent x_ir(uint64_t(1));
-            for (int j = 0; j < log_n; ++j)
+            for (std::size_t j = 0; j < log_n; ++j)
             {
                 if ((i >> j) & 1) {
                     x_il *= x_j[log_n - j - 1];
@@ -112,7 +112,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
              + proof.S * x_neg;
 
     std::vector<Exponent> x_j_sq_neg, x_j_sq_inv_neg;
-    for (int j = 0; j < log_n; ++j)
+    for (std::size_t j = 0; j < log_n; ++j)
     {
         x_j_sq_neg.push_back(x_j[j].square().negate());
         x_j_sq_inv_neg.push_back(x_j_inv[j].square().negate());
@@ -140,7 +140,7 @@ bool RangeVerifier<Exponent, GroupElement>::membership_checks(const RangeProof<E
        && proof.innerProductProof.c_.isMember())
         return false;
 
-    for (int i = 0; i < proof.innerProductProof.L_.size(); ++i)
+    for (std::size_t i = 0; i < proof.innerProductProof.L_.size(); ++i)
     {
         if (!(proof.innerProductProof.L_[i].isMember() && proof.innerProductProof.R_[i].isMember()))
             return false;

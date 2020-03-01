@@ -20,7 +20,7 @@ public:
 
     inline unsigned char* serialize(unsigned char* buffer) const {
         unsigned char* current = buffer;
-        for(int i = 0; i < sigma_proofs.size(); ++i)
+        for(std::size_t i = 0; i < sigma_proofs.size(); ++i)
             current = sigma_proofs[i].serialize(current);
         current = bulletproofs.serialize(current);
         return schnorrProof.serialize(current);

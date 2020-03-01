@@ -45,7 +45,7 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     {
         std::vector<uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
         Exponent f_i(uint64_t(1));
-        for (int j = 0; j < m; ++j)
+        for (std::size_t j = 0; j < m; ++j)
         {
             f_i *= f_[j*n + I[j]];
         }
@@ -59,7 +59,7 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     const std::vector <GroupElement>& Qk = proof.Qk;
     GroupElement t2;
     Exponent x_k(uint64_t(1));
-    for (int k = 0; k < m; ++k)
+    for (std::size_t k = 0; k < m; ++k)
     {
         t2 += ((Gk[k] + Qk[k] )* (x_k.negate()));
         x_k *= x;
@@ -117,7 +117,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
         for (int i = 0; i < N - 1; ++i)
         {
             Exponent f_i(uint64_t(1));
-            for (int j = 0; j < m; ++j)
+            for (std::size_t j = 0; j < m; ++j)
             {
                 f_i *= f_[t][j*n + I_[i][j]];
             }
@@ -149,9 +149,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
         }
 
         Exponent xj(uint64_t(1));;    // x^j
-        for (int j = 0; j < m; j++) {
+        for (std::size_t j = 0; j < m; j++) {
             Exponent fi_sum(uint64_t(0));
-            for (int i = I_[N - 1][j] + 1; i < n; i++)
+            for (std::size_t i = I_[N - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= x;
@@ -202,14 +202,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::membership_checks(const SigmaPlu
          proof.D_.isInfinity()))
         return false;
 
-    for (int i = 0; i < proof.f_.size(); i++)
+    for (std::size_t i = 0; i < proof.f_.size(); i++)
     {
         if (!proof.f_[i].isMember() || proof.f_[i].isZero())
             return false;
     }
     const std::vector <GroupElement>& Gk = proof.Gk_;
     const std::vector <GroupElement>& Qk = proof.Qk;
-    for (int k = 0; k < m; ++k)
+    for (std::size_t k = 0; k < m; ++k)
     {
         if (!(Gk[k].isMember() && Qk[k].isMember()))
             return false;
@@ -237,7 +237,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
     }
 
     f_.reserve(n * m);
-    for (int j = 0; j < m; ++j)
+    for (std::size_t j = 0; j < m; ++j)
     {
         f_.push_back(Exponent(uint64_t(0)));
         Exponent temp;
@@ -259,7 +259,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
         const std::vector<Exponent>& f_) const {
     std::vector<Exponent> f_plus_f_prime;
     f_plus_f_prime.reserve(f_.size());
-    for(int i = 0; i < f_.size(); i++)
+    for(std::size_t i = 0; i < f_.size(); i++)
         f_plus_f_prime.emplace_back(f_[i] + f_[i] * (x - f_[i]));
 
     GroupElement right;

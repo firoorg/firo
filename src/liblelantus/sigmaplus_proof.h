@@ -31,13 +31,13 @@ public:
         current = B_.serialize(current);
         current = C_.serialize(current);
         current = D_.serialize(current);
-        for(int i = 0; i < f_.size(); ++i)
+        for(std::size_t i = 0; i < f_.size(); ++i)
             current = f_[i].serialize(current);
         current = ZA_.serialize(current);
         current = ZC_.serialize(current);
-        for(int i = 0; i < Gk_.size(); ++i)
+        for(std::size_t i = 0; i < Gk_.size(); ++i)
             current = Gk_[i].serialize(current);
-        for(int i = 0; i < Qk.size(); ++i)
+        for(std::size_t i = 0; i < Qk.size(); ++i)
             current = Qk[i].serialize(current);
         current = zV_.serialize(current);
         return zR_.serialize(current);

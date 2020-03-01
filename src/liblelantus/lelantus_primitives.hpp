@@ -56,13 +56,13 @@ void LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(
         uint64_t n,
         uint64_t m,
         std::vector<Exponent>& out) {
-    int rem, nalNumber = 0;
-    int j = 0;
+    std::size_t rem = 0;
+    std::size_t j = 0;
 
     for (; num != 0; num /= n, j++)
     {
         rem = num % n;
-        for (int i = 0; i < n; ++i)
+        for (std::size_t i = 0; i < n; ++i)
         {
             if(i == rem)
                 out.push_back(Exponent(uint64_t(1)));
@@ -74,7 +74,7 @@ void LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(
     for (; j < m; j++)
     {
         out.push_back(Exponent(uint64_t(1)));
-        for (int i = 1; i < n; ++i)
+        for (std::size_t i = 1; i < n; ++i)
         {
             out.push_back(Exponent(uint64_t(0)));
         }
@@ -87,7 +87,7 @@ std::vector<uint64_t> LelantusPrimitives<Exponent, GroupElement>::convert_to_nal
         uint64_t n,
         uint64_t m) {
     std::vector<uint64_t> result;
-    uint64_t rem, nalNumber = 0;
+    uint64_t rem = 0;
     uint64_t j = 0;
     for (; num != 0; num /= n, j++)
     {
@@ -104,7 +104,7 @@ void  LelantusPrimitives<Exponent, GroupElement>::generate_Lelantus_challange(
         Exponent& result_out) {
     if (proofs.size() > 0) {
         std::vector<GroupElement> group_elements;
-        for (int i = 0; i < proofs.size(); ++i) {
+        for (std::size_t i = 0; i < proofs.size(); ++i) {
             group_elements.emplace_back(proofs[i].A_);
             group_elements.emplace_back(proofs[i].B_);
             group_elements.emplace_back(proofs[i].C_);
@@ -170,7 +170,7 @@ void LelantusPrimitives<Exponent, GroupElement>::g_prime(
         std::vector<GroupElement>& result){
     Exponent x_inverse = x.inverse();
     result.reserve(g_.size() / 2);
-    for (int i = 0; i < g_.size() / 2; ++i)
+    for (std::size_t i = 0; i < g_.size() / 2; ++i)
     {
         result.push_back(((g_[i] * x_inverse) + (g_[g_.size() / 2 + i] * x)));
     }
@@ -183,7 +183,7 @@ void LelantusPrimitives<Exponent, GroupElement>::h_prime(
         std::vector<GroupElement>& result) {
     Exponent x_inverse = x.inverse();
     result.reserve(h_.size() / 2);
-    for (int i = 0; i < h_.size() / 2; ++i)
+    for (std::size_t i = 0; i < h_.size() / 2; ++i)
     {
         result.push_back(((h_[i] * x) + (h_[h_.size() / 2 + i] * x_inverse)));
     }
@@ -208,9 +208,9 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
     Exponent z_j =  z.exponent(uint64_t(3));
     Exponent z_sum(uint64_t(0));
 
-    for(int j = 1; j <= m; ++j)
+    for(std::size_t j = 1; j <= m; ++j)
     {
-        for(int i = 0; i < n; ++i)
+        for(std::size_t i = 0; i < n; ++i)
         {
             y_ += y_n;
             y_n *= y;
@@ -219,7 +219,7 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
         z_j *= z;
     }
 
-    for(int i = 0; i < n; ++i)
+    for(std::size_t i = 0; i < n; ++i)
     {
         two += two_n;
         two_n *= uint64_t(2);

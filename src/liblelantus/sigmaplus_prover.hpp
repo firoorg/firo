@@ -65,9 +65,9 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     }
     LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, sigma, rB, proof_out.B_);
 
-    for (int j = 0; j < m_; ++j)
+    for (std::size_t j = 0; j < m_; ++j)
     {
-        for (int i = 1; i < n_; ++i)
+        for (std::size_t i = 1; i < n_; ++i)
         {
             a[j * n_ + i].randomize();
             a[j * n_] -= a[j * n_ + i];
@@ -86,7 +86,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     //compute D
     std::vector<Exponent> d;
     d.resize(n_ * m_);
-    for (int i = 0; i < n_ * m_; i++)
+    for (std::size_t i = 0; i < n_ * m_; i++)
     {
         d[i] = ((a[i].square()).negate());
     }
@@ -95,13 +95,13 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     std::size_t N = setSize;
     std::vector <std::vector<Exponent>> P_i_k;
     P_i_k.resize(N);
-    for (int i = 0; i < N - 1; ++i)
+    for (std::size_t i = 0; i < N - 1; ++i)
     {
         std::vector <Exponent>& coefficients = P_i_k[i];
         std::vector<uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(i, n_, m_);
         coefficients.push_back(a[I[0]]);
         coefficients.push_back(sigma[I[0]]);
-        for (int j = 1; j < m_; ++j) {
+        for (std::size_t j = 1; j < m_; ++j) {
             LelantusPrimitives<Exponent, GroupElement>::new_factor(sigma[j * n_ + I[j]], a[j * n_ + I[j]], coefficients);
         }
     }
@@ -137,10 +137,10 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
         LelantusPrimitives<Exponent, GroupElement>::new_factor(sigma[j * n_ + I[j]], a[j * n_ + I[j]], p_i_sum);
     }
 
-    for (int j = 0; j < m_; j++) {
+    for (std::size_t j = 0; j < m_; j++) {
         // \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i}x+a_{j,i})
         Exponent a_sum(uint64_t(0));
-        for (int i = I[j] + 1; i < n_; i++)
+        for (std::size_t i = I[j] + 1; i < n_; i++)
             a_sum += a[j * n_ + i];
         Exponent x_sum(uint64_t(lj[j] >= I[j]+1 ? 1 : 0));
 
@@ -149,7 +149,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
         LelantusPrimitives<Exponent, GroupElement>::new_factor(x_sum, a_sum, polynomial);
 
         // Multiply by x^j and add to the result
-        for (int k = 0; k < m_ - j; k++)
+        for (std::size_t k = 0; k < m_ - j; k++)
             p_i_sum[j + k] += polynomial[k];
     }
 
@@ -157,11 +157,11 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
 
     proof_out.Gk_.reserve(m_);
     proof_out.Qk.reserve(m_);
-    for (int k = 0; k < m_; ++k)
+    for (std::size_t k = 0; k < m_; ++k)
     {
         std::vector <Exponent> P_i;
         P_i.reserve(N);
-        for (int i = 0; i < N; ++i){
+        for (std::size_t i = 0; i < N; ++i){
             P_i.emplace_back(P_i_k[i][k]);
         }
         secp_primitives::MultiExponent mult(commits, P_i);
@@ -189,9 +189,9 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_response(
 
     //f
     proof_out.f_ .reserve(m_ * (n_ - 1));
-    for (int j = 0; j < m_; j++)
+    for (std::size_t j = 0; j < m_; j++)
     {
-        for (int i = 1; i < n_; i++)
+        for (std::size_t i = 1; i < n_; i++)
             proof_out.f_.emplace_back(sigma[(j * n_) + i] * x + a[(j * n_) + i]);
     }
     //zA, zC
@@ -203,7 +203,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_response(
     proof_out.zR_ = r * x.exponent(uint64_t(m_));
     Exponent sumV, sumR;
     Exponent x_k(uint64_t(1));
-    for (int k = 0; k < m_; ++k) {
+    for (std::size_t k = 0; k < m_; ++k) {
         sumV += (Pk[k] * x_k);
         sumR += (Tk[k] * x_k);
         x_k *= x;

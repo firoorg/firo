@@ -14,10 +14,10 @@ void LelantusProver::proof(
         const Scalar& f,
         LelantusProof& proof_out) {
     Scalar input = Vin;
-    for (int i = 0; i < Cin.size(); ++i)
+    for (std::size_t i = 0; i < Cin.size(); ++i)
         input += Cin[i].getPublicCoin().get_v();
     Scalar out = Vout;
-    for (int i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i)
         out += Cout[i].getPublicCoin().get_v();
     out += f;
 
@@ -32,7 +32,7 @@ void LelantusProver::proof(
     Scalar X_;
     Scalar So;
     Scalar Ro;
-    for (int i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i)
     {
         So += Cout[i].getSerialNumber();
         Ro += Cout[i].getRandomness();
@@ -40,7 +40,7 @@ void LelantusProver::proof(
     X_ = So * x_m;
     Scalar Y_;
     Scalar Ri;
-    for (int i = 0; i < Cin.size(); ++i)
+    for (std::size_t i = 0; i < Cin.size(); ++i)
     {
         Ri += Cin[i].getRandomness() * x_m + Yk_sum[i];
     }
@@ -78,7 +78,7 @@ void LelantusProver::generate_sigma_proofs(
         GroupElement gs = (params->get_g() * Cin[i].getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
-        for(int j = 0; j < c.size(); ++j)
+        for(unsigned int j = 0; j < c.size(); ++j)
             C_.emplace_back(c[j].getValue() + gs);
 
         rA[i].randomize();
@@ -121,14 +121,14 @@ void LelantusProver::generate_bulletproofs(
     v_s.reserve(m);
     serials.reserve(m);
     randoms.reserve(m);
-    for (int i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i)
     {
         v_s.push_back(Cout[i].getPublicCoin().get_v());
         serials.push_back(Cout[i].getSerialNumber());
         randoms.push_back(Cout[i].getRandomness());
     }
 
-    for (int i = Cout.size(); i < m; ++i)
+    for (std::size_t i = Cout.size(); i < m; ++i)
     {
         v_s.push_back(uint64_t(0));
         serials.push_back(uint64_t(0));
