@@ -123,7 +123,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
         mnodeman.mapSeenZnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
     // if it matches our Znode privkey...
-    if (fZNode && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode) {
         nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
         if (nProtocolVersion == PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
@@ -204,7 +204,7 @@ void CZnode::Check(bool fForce) {
     }
 
     int nActiveStatePrev = nActiveState;
-    bool fOurZnode = fZNode && activeZnode.pubKeyZnode == pubKeyZnode;
+    bool fOurZnode = fMasternodeMode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // znode doesn't meet payment protocol requirements ...
 /*    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
@@ -634,7 +634,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
     }
 
     // if ther was no znode broadcast recently or if it matches our Znode privkey...
-    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fZNode && pubKeyZnode == activeZnode.pubKeyZnode)) {
+    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode)) {
         // take the newest entry
         LogPrintf("CZnodeBroadcast::Update -- Got UPDATED Znode entry: addr=%s\n", addr.ToString());
         if (pmn->UpdateFromNewBroadcast((*this))) {
@@ -650,7 +650,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
 bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     // we are a znode with the same vin (i.e. already activated) and this mnb is ours (matches our Znode privkey)
     // so nothing to do here for us
-    if (fZNode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fMasternodeMode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
         return false;
     }
 

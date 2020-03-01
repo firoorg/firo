@@ -228,6 +228,10 @@ public:
 
     void RelayTransaction(const CTransaction& tx);
     void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
+    void RelayInvFiltered(CInv &inv, const CTransaction &relatedTx, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
+    // This overload will not update node filters,  so use it only for the cases when other messages will update related transaction data in filters
+    void RelayInvFiltered(CInv &inv, const uint256 &relatedTxHash, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
+    void RemoveAskFor(const uint256& hash);
 
     // Addrman functions
     size_t GetAddressCount() const;
@@ -267,6 +271,15 @@ public:
     bool AddNode(const std::string& node);
     bool RemoveAddedNode(const std::string& node);
     std::vector<AddedNodeInfo> GetAddedNodeInfo();
+
+    bool AddPendingMasternode(const CService& addr);
+    bool AddMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash, const std::set<uint256>& proTxHashes);
+    bool HasMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    std::set<uint256> GetMasternodeQuorums(Consensus::LLMQType llmqType);
+    // also returns QWATCH nodes
+    std::set<NodeId> GetMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+    void RemoveMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    bool IsMasternodeQuorumNode(const CNode* pnode);
 
     size_t GetNodeCount(NumConnections num);
     void GetNodeStats(std::vector<CNodeStats>& vstats);
@@ -719,6 +732,18 @@ public:
     CCriticalSection cs_feeFilter;
     CAmount lastSentFeeFilter;
     int64_t nextSendTimeFeeFilter;
+
+    // Challenge sent in VERSION to be answered with MNAUTH (only happens between MNs)
+    mutable CCriticalSection cs_mnauth;
+    uint256 sentMNAuthChallenge;
+    uint256 receivedMNAuthChallenge;
+    uint256 verifiedProRegTxHash;
+    uint256 verifiedPubKeyHash;
+
+    // If true, we will announce/send him plain recovered sigs (usually true for full nodes)
+    std::atomic<bool> fSendRecSigs{false};
+    // If true, we will send him all quorum related messages, even if he is not a member of our quorums
+    std::atomic<bool> qwatch{false};
 
     CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();

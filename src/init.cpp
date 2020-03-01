@@ -1985,17 +1985,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-znode", false);
+    fMasternodeMode = GetBoolArg("-znode", false);
 
-    LogPrintf("fZNode = %s\n", fZNode);
+    LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
 
-    if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
+    if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-    if (fZNode) {
+    if (fMasternodeMode) {
         LogPrintf("ZNODE:\n");
 
         if (!GetArg("-znodeaddr", "").empty()) {
@@ -2057,7 +2057,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // lite mode disables all Znode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
-    if (fZNode && fLiteMode) {
+    if (fMasternodeMode && fLiteMode) {
         return InitError("You can not start a znode in litemode");
     }
 
@@ -2143,7 +2143,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     mnpayments.CheckAndRemove();
                     instantsend.CheckAndRemove();
                 }
-                if (fZNode && (nTick % (60 * 5) == 0)) {
+                if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
                     mnodeman.DoFullVerificationStep();
                 }
             }

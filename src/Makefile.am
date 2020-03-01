@@ -140,6 +140,7 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   activeznode.h \
+  activemasternode.h \
   addressindex.h \
   spentindex.h \
   addrdb.h \
@@ -188,6 +189,7 @@ BITCOIN_CORE_H = \
   znode.h \
   znode-payments.h \
   znode-sync.h \
+  masternode-sync.h \
   znodeman.h \
   znodeconfig.h \
   mbstring.h \
@@ -362,12 +364,14 @@ libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
+  activemasternode.cpp \
   darksend.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
   instantx.cpp \
   znode-payments.cpp \
   znode-sync.cpp \
+  masternode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
   hdmint/mintpool.cpp \

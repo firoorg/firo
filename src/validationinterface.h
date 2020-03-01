@@ -19,6 +19,10 @@ class CReserveScript;
 class CTransaction;
 class CValidationInterface;
 class CValidationState;
+class CGovernanceVote;
+class CGovernanceObject;
+class CDeterministicMNList;
+class CDeterministicMNListDiff;
 class uint256;
 
 // These functions dispatch to one or all registered wallets

@@ -2926,9 +2926,9 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                     // Do not consider anything other than mints
                     found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
-                    found = !(fZNode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
+                    found = !(fMasternodeMode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
                 } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
-                    if (fZNode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
+                    if (fMasternodeMode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
                 } else if (nCoinType == ONLY_1000) {
                     found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
                 } else {

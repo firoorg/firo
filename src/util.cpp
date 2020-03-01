@@ -104,7 +104,7 @@ namespace boost {
 using namespace std;
 
 // znode fZnode
-bool fZNode = false;
+bool fMasternodeMode = false;
 bool fLiteMode = false;
 int nWalletBackups = 10;
 

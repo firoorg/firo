@@ -21,7 +21,7 @@ CActiveZnode activeZnode;
 
 void CActiveZnode::ManageState() {
     LogPrint("znode", "CActiveZnode::ManageState -- Start\n");
-    if (!fZNode) {
+    if (!fMasternodeMode) {
         LogPrint("znode", "CActiveZnode::ManageState -- Not a znode, returning\n");
         return;
     }

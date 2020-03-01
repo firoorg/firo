@@ -651,7 +651,7 @@ bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string
 
     // Only znodes should try to check znode rank for old votes - they need to pick the right winner for future blocks.
     // Regular clients (miners included) need to verify znode rank for future block votes only.
-    if (!fZNode && nBlockHeight < nValidationHeight) return true;
+    if (!fMasternodeMode && nBlockHeight < nValidationHeight) return true;
 
     int nRank = mnodeman.GetZnodeRank(vinZnode, nBlockHeight - 101, nMinRequiredProtocol, false);
 
@@ -682,7 +682,7 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
 
     // DETERMINE IF WE SHOULD BE VOTING FOR THE NEXT PAYEE
 
-    if (fLiteMode || !fZNode) {
+    if (fLiteMode || !fMasternodeMode) {
         return false;
     }
 

@@ -1241,7 +1241,7 @@ bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode
 void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
 {
     // only znodes can sign this, why would someone ask regular node?
-    if(!fZNode) {
+    if(!fMasternodeMode) {
         // do not ban, malicious node might be using my IP
         // and trying to confuse the node which tries to verify it
         return;
@@ -1601,7 +1601,7 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
         Add(mnb);
         znodeSync.AddedZnodeList();
         // if it matches our Znode privkey...
-        if(fZNode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
+        if(fMasternodeMode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
             mnb.nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
             if(mnb.nProtocolVersion == PROTOCOL_VERSION) {
                 // ... and PROTOCOL_VERSION, then we've been remotely activated ...
@@ -1636,7 +1636,7 @@ void CZnodeMan::UpdateLastPaid()
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a znode
     // (MNs should update this info on every block, so limited scan should be enough for them)
-    int nMaxBlocksToScanBack = (IsFirstRun || !fZNode) ? mnpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
+    int nMaxBlocksToScanBack = (IsFirstRun || !fMasternodeMode) ? mnpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
 
     LogPrint("mnpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
                              pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
@@ -1767,7 +1767,7 @@ void CZnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 
     CheckSameAddr();
 
-    if(fZNode) {
+    if(fMasternodeMode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
         UpdateLastPaid();
     }

@@ -36,7 +36,7 @@ UniValue privatesend(const JSONRPCRequest &request) {
             EnsureWalletIsUnlocked();
         }
 
-        if (fZNode)
+        if (fMasternodeMode)
             return "Mixing is not supported from znodes";
 
         fEnablePrivateSend = true;
@@ -220,7 +220,7 @@ UniValue znode(const JSONRPCRequest &request) {
     }
 
     if (strCommand == "start") {
-        if (!fZNode)
+        if (!fMasternodeMode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set znode=1 in the configuration");
 
         {
@@ -385,7 +385,7 @@ UniValue znode(const JSONRPCRequest &request) {
     }
 
     if (strCommand == "status") {
-        if (!fZNode)
+        if (!fMasternodeMode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a znode");
 
         UniValue mnObj(UniValue::VOBJ);

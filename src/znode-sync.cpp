@@ -304,7 +304,7 @@ void CZnodeSync::ProcessTick() {
         // they are temporary and should be considered unreliable for a sync process.
         // Inbound connection this early is most likely a "znode" connection
         // initialted from another node, so skip it too.
-        if (pnode->fZnode || (fZNode && pnode->fInbound)) continue;
+        if (pnode->fZnode || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
         if (Params().NetworkIDString() == CBaseChainParams::REGTEST) {

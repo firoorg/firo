@@ -16,6 +16,7 @@ class CBasicKeyStore;
 class CWallet;
 class uint256;
 class CBlockIndex;
+class CDeterministicMNList;
 
 /** General change type (added, updated, removed). */
 enum ChangeType

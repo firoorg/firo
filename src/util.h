@@ -41,7 +41,7 @@ public:
     /** Translate a message to the native language of the user. */
     boost::signals2::signal<std::string (const char* psz)> Translate;
 };
-extern bool fZNode;
+extern bool fMasternodeMode;
 extern bool fLiteMode;
 extern int nWalletBackups;
 
