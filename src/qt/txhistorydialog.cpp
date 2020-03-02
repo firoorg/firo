@@ -240,7 +240,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             }
 
             if (pending.type == EXODUS_TYPE_SIMPLE_SPEND) {
-                if (pending.dest.has_value() && IsMyAddress(pending.dest.get())) {
+                if (pending.dest && IsMyAddress(pending.dest.get())) {
                     htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
                 }
             }
