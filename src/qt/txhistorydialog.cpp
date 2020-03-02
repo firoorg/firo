@@ -240,7 +240,9 @@ int TXHistoryDialog::PopulateHistoryMap()
             }
 
             if (pending.type == EXODUS_TYPE_SIMPLE_SPEND) {
-                htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
+                if (pending.dest.has_value() && IsMyAddress(pending.dest.get())) {
+                    htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
+                }
             }
 
             txHistoryMap.insert(std::make_pair(txHash, htxo));
@@ -324,6 +326,13 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
 
+        if (type == EXODUS_TYPE_SIMPLE_SPEND) {
+            htxo.address = "Spend";
+            if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
+                displayAmount = "-" + displayAmount;
+            }
+        }
+
         // override - special case for property creation (getProperty cannot get ID as createdID not stored in obj)
         if (type == EXODUS_TYPE_CREATE_PROPERTY_FIXED || type == EXODUS_TYPE_CREATE_PROPERTY_VARIABLE || type == EXODUS_TYPE_CREATE_PROPERTY_MANUAL) {
             displayAmount = "N/A";
@@ -350,11 +359,6 @@ int TXHistoryDialog::PopulateHistoryMap()
             LOCK(cs_main);
             s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
-        }
-
-        // Override - sigma spend address
-        if (type == EXODUS_TYPE_SIMPLE_SPEND) {
-            htxo.address = "Spend";
         }
 
         htxo.amount = displayAmount;
