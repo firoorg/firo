@@ -45,6 +45,7 @@ public:
 public Q_SLOTS:
     void clear();
     void accept();
+    void reject();
     SendCoinsEntry* addEntry();
     void coinControlFeatureChanged(bool);
     void updateTabsAndLabels();
@@ -77,6 +78,7 @@ private Q_SLOTS:
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateAvailableToMintBalance(const CAmount& balance);
+    void updateMintableBalance();
     void updateCoins(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
 
 Q_SIGNALS:

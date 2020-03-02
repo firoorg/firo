@@ -128,8 +128,15 @@ struct Params {
     // The block number after which sigma are accepted.
     int nSigmaStartBlock;
 
+    int nSigmaPaddingBlock;
+
+    int nDisableUnpaddedSigmaBlock;
+
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;
+
+    // The block number when Bip39 was implemented in Zcoin
+    int nMnemonicBlock;
 
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
     int nZerocoinV2MintMempoolGracefulPeriod;

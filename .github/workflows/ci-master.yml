@@ -1,0 +1,65 @@
+name: Continuous Integration on Master
+on:
+  push:
+    branches:
+    - master
+jobs:
+  target-linux:
+    name: Target Linux
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt-get install -y ccache python3-zmq
+    - name: Build dependencies
+      run: make -C depends -j$(nproc) HOST=x86_64-unknown-linux-gnu
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --enable-exodus --enable-tests --with-comparison-tool=no --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu
+        make -j$(nproc)
+    - name: Unit Tests
+      run: make check
+    - name: RPC Tests
+      env:
+        TIMEOUT: 600
+      run: qa/pull-tester/rpc-tests.py -extended
+
+  target-windows:
+    name: Target Windows
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y ccache g++-mingw-w64-x86-64 mingw-w64-x86-64-dev
+    - name: Switch MinGW GCC and G++ to POSIX Threading
+      run: |
+        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+    - name: Build dependencies
+      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --disable-jni --enable-exodus --prefix=$(pwd)/depends/x86_64-w64-mingw32
+        make -j$(nproc)
+
+  target-macos:
+    name: Target macOS
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: brew install automake berkeley-db4 libtool boost miniupnpc pkg-config python qt libevent qrencode ccache
+    - name: Build Zcoin
+      run: |
+        ./autogen.sh
+        ./configure --enable-exodus
+        make -j$(sysctl -n hw.activecpu)

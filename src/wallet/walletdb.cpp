@@ -537,6 +537,7 @@ public:
     unsigned int nKeyMeta;
     bool fIsEncrypted;
     bool fAnyUnordered;
+    bool fUpgradeHDChain;
     int nFileVersion;
     vector <uint256> vWalletUpgrade;
 
@@ -544,6 +545,7 @@ public:
         nKeys = nCKeys = nKeyMeta = 0;
         fIsEncrypted = false;
         fAnyUnordered = false;
+        fUpgradeHDChain = false;
         nFileVersion = 0;
     }
 };
@@ -762,8 +764,17 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
         } else if (strType == "hdchain") {
             CHDChain chain;
             ssValue >> chain;
-            if (!pwallet->SetHDChain(chain, true)) {
+            if (!pwallet->SetHDChain(chain, true, wss.fUpgradeHDChain, false))
+            {
                 strErr = "Error reading wallet database: SetHDChain failed";
+                return false;
+            }
+        }
+        else if (strType == "mnemonic") {
+            MnemonicContainer mnContainer;
+            ssValue >> mnContainer;
+            if (!pwallet->SetMnemonicContainer(mnContainer, true)) {
+                strErr = "Error reading wallet database: SetMnemonicContainer failed";
                 return false;
             }
         }
@@ -880,6 +891,10 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
     {
         pwallet->wtxOrdered.insert(make_pair(entry.nOrderPos, CWallet::TxPair((CWalletTx *) 0, &entry)));
     }
+
+    // unencrypted wallets upgrading the wallet version get a new keypool here
+    if (wss.fUpgradeHDChain && !pwallet->IsLocked())
+        pwallet->NewKeyPool();
 
     return result;
 }
@@ -1295,6 +1310,11 @@ bool CWalletDB::EraseDestData(const std::string &address, const std::string &key
 bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     nWalletDBUpdated++;
     return Write(std::string("hdchain"), chain);
+}
+
+bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
+    nWalletDBUpdated++;
+    return Write(std::string("mnemonic"), mnContainer);
 }
 
 bool CWalletDB::ReadMintCount(int32_t& nCount)

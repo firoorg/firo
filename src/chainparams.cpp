@@ -253,6 +253,8 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
+        consensus.nSigmaPaddingBlock = ZC_SIGMA_PADDING_BLOCK;
+        consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_DISABLE_UNPADDED_BLOCK;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
@@ -270,6 +272,9 @@ public:
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 222400;
     }
 };
 
@@ -441,23 +446,28 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = ZC_SIGMA_TESTNET_STARTING_BLOCK;
+        consensus.nSigmaPaddingBlock = ZC_SIGMA_TESTNET_PADDING_BLOCK;
+        consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_TESTNET_DISABLE_UNPADDED_BLOCK;
         consensus.nOldSigmaBanBlock = 70416;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
-            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
-            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
-            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
-            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
-            consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
-            // Dandelion related values.
-            consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
-            consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
-            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
-            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
-            consensus.nDandelionFluff = DANDELION_FLUFF;
+        // Dandelion related values.
+        consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
+        consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
+        consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+        consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+        consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 111270;
     }
 };
 
@@ -595,23 +605,28 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = 400;
+        consensus.nSigmaPaddingBlock = 550;
+        consensus.nDisableUnpaddedSigmaBlock = 510;
         consensus.nOldSigmaBanBlock = 450;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
         consensus.nZerocoinV2SpendGracefulPeriod = 20;
-            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
-            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
-            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
-            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
-            consensus.nZerocoinToSigmaRemintWindowSize = 1000;
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
-            // Dandelion related values.
-            consensus.nDandelionEmbargoMinimum = 0;
-            consensus.nDandelionEmbargoAvgAdd = 1;
-            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
-            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
-            consensus.nDandelionFluff = DANDELION_FLUFF;
+        // Dandelion related values.
+        consensus.nDandelionEmbargoMinimum = 0;
+        consensus.nDandelionEmbargoAvgAdd = 1;
+        consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+        consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+        consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 0;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
