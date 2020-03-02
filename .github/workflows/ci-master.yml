@@ -19,7 +19,7 @@ jobs:
     - name: Build Zcoin
       run: |
         ./autogen.sh
-        ./configure --enable-exodus --enable-tests --with-comparison-tool=no --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu
+        ./configure --enable-elysium --enable-tests --with-comparison-tool=no --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu
         make -j$(nproc)
     - name: Unit Tests
       run: make check
@@ -47,7 +47,7 @@ jobs:
     - name: Build Zcoin
       run: |
         ./autogen.sh
-        ./configure --disable-jni --enable-exodus --prefix=$(pwd)/depends/x86_64-w64-mingw32
+        ./configure --disable-jni --enable-elysium --prefix=$(pwd)/depends/x86_64-w64-mingw32
         make -j$(nproc)
 
   target-macos:
@@ -61,5 +61,5 @@ jobs:
     - name: Build Zcoin
       run: |
         ./autogen.sh
-        ./configure --enable-exodus
+        ./configure --enable-elysium
         make -j$(sysctl -n hw.activecpu)
