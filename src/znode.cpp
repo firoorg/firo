@@ -269,7 +269,7 @@ void CZnode::Check(bool fForce) {
         }
     }
 
-    if (lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
         nActiveState = ZNODE_PRE_ENABLED;
         if (nActiveStatePrev != nActiveState) {
             LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());

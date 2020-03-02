@@ -693,7 +693,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), mn.GetCollateralAge(), nMnCount);
             continue;
         }*/
-        char* reasonStr = GetNotQualifyReason(mn, nBlockHeight, fFilterSigTime, nMnCount);
+        char* reasonStr = GetNotQualifyReason(mn, nBlockHeight, fFilterSigTime & (Params().NetworkIDString() != CBaseChainParams::REGTEST), nMnCount);
         if (reasonStr != NULL) {
             LogPrint("znodeman", "Znode, %s, addr(%s), qualify %s\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), reasonStr);
@@ -1029,7 +1029,8 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         BOOST_FOREACH(CZnode& mn, vZnodes) {
             if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
-            if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
+            if (Params().NetworkIDString() != CBaseChainParams::REGTEST)
+                if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
             if (mn.IsUpdateRequired()) continue; // do not send outdated znodes
 
             LogPrint("znode", "DSEG -- Sending Znode entry: znode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());
