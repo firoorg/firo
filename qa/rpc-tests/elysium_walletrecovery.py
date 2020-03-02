@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 from shutil import rmtree
-from test_framework.test_framework import ExodusTestFramework
+from test_framework.test_framework import ElysiumTestFramework
 from test_framework.util import (
     assert_equal,
     connect_nodes_bi,
@@ -9,7 +9,7 @@ from test_framework.util import (
     stop_node,
     sync_blocks)
 
-class ExodusWalletRecoveryTest(ExodusTestFramework):
+class ElysiumWalletRecoveryTest(ElysiumTestFramework):
     def get_datadir(self, node):
         return os.path.join(self.options.tmpdir, f"node{node}", "regtest")
 
@@ -36,7 +36,7 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
         stop_node(self.nodes[0], 0)
         fresh_wallet_content = self.load_wallet_content(0)
 
-        self.nodes[0] = start_node(0, self.options.tmpdir, ["-exodus"])
+        self.nodes[0] = start_node(0, self.options.tmpdir, ["-elysium"])
         self.connect_to_other(0)
 
         super().run_test()
@@ -49,17 +49,17 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
             sigma_start_block - self.nodes[0].getblockcount(),
             owner)
 
-        self.nodes[0].exodus_sendissuancefixed(
+        self.nodes[0].elysium_sendissuancefixed(
             owner, 1, 1, 0, '', '', 'Test Sigma', '', '', '3', 1)
 
         self.nodes[0].generate(10)
         sigmaProperty = 3
 
-        self.nodes[0].exodus_sendcreatedenomination(owner, sigmaProperty, '1')
+        self.nodes[0].elysium_sendcreatedenomination(owner, sigmaProperty, '1')
         self.nodes[0].generate(10)
 
         # generate two coins and spend one of them
-        self.nodes[0].exodus_sendmint(owner, sigmaProperty, {"0": 2})
+        self.nodes[0].elysium_sendmint(owner, sigmaProperty, {"0": 2})
         self.nodes[0].generate(10)
 
         for _ in range(10):
@@ -67,7 +67,7 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
 
         self.nodes[0].generate(10)
 
-        self.nodes[0].exodus_sendspend(owner, sigmaProperty, 0)
+        self.nodes[0].elysium_sendspend(owner, sigmaProperty, 0)
         self.nodes[0].generate(10)
 
         sync_blocks(self.nodes)
@@ -81,22 +81,22 @@ class ExodusWalletRecoveryTest(ExodusTestFramework):
             wf.write(fresh_wallet_content)
 
         # start and sync
-        self.nodes[0] = start_node(0, self.options.tmpdir, ["-exodus"])
+        self.nodes[0] = start_node(0, self.options.tmpdir, ["-elysium"])
         self.connect_to_other(0)
 
         sync_blocks(self.nodes)
 
         # verify state
-        unspents = self.nodes[0].exodus_listmints()
+        unspents = self.nodes[0].elysium_listmints()
         assert_equal(1, len(unspents))
-        assert_equal('2', self.nodes[0].exodus_getbalance(owner, sigmaProperty)['balance'])
+        assert_equal('2', self.nodes[0].elysium_getbalance(owner, sigmaProperty)['balance'])
 
-        self.nodes[0].exodus_sendspend(owner, sigmaProperty, 0)
+        self.nodes[0].elysium_sendspend(owner, sigmaProperty, 0)
         self.nodes[0].generate(10)
 
-        unspents = self.nodes[0].exodus_listmints()
+        unspents = self.nodes[0].elysium_listmints()
         assert_equal(0, len(unspents))
-        assert_equal('3', self.nodes[0].exodus_getbalance(owner, sigmaProperty)['balance'])
+        assert_equal('3', self.nodes[0].elysium_getbalance(owner, sigmaProperty)['balance'])
 
 if __name__ == '__main__':
-    ExodusWalletRecoveryTest().main()
+    ElysiumWalletRecoveryTest().main()
