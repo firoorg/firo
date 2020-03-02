@@ -751,3 +751,17 @@ def dumpprivkey_otac(node, address):
     if not otac_match:
         raise JSONRPCException(error_text)
     return node.dumpprivkey(address, otac_match.groups()[0])
+
+def get_znsync_status(node):
+    result = node.znsync("status")
+    return result['IsSynced']
+
+def wait_to_sync_znodes(node, fast_znsync=False):
+    while True:
+        synced = get_znsync_status(node)
+        if synced:
+            break
+        time.sleep(0.2)
+        if fast_znsync:
+            # skip mnsync states
+            node.znsync("next")

@@ -277,7 +277,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
 
     if (fLiteMode) return; // disable all Zcoin specific functionality
 
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET || Params().NetworkIDString() == CBaseChainParams::REGTEST);
 
     if (strCommand == NetMsgType::ZNODEPAYMENTSYNC) { //Znode Payments Request Sync
 

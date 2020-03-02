@@ -362,6 +362,8 @@ public:
      * Must be called while not holding the CZnodeMan::cs mutex
      */
     void NotifyZnodeUpdates();
+    
+    CCriticalSection & GetCS() {return cs;}
 
 };
 
