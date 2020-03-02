@@ -24,7 +24,7 @@ PendingMap my_pending;
  * Adds a transaction to the pending map using supplied parameters.
  */
 void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t type, uint32_t propertyId,
-    int64_t amount, bool fSubtract, boost::optional<std::string> receivingAddress)
+    int64_t amount, bool fSubtract, const boost::optional<std::string> &receivingAddress)
 {
     if (exodus_debug_pending) PrintToLog("%s(%s,%s,%d,%d,%d,%s)\n", __func__, txid.GetHex(), sendingAddress, type, propertyId, amount, fSubtract);
 
