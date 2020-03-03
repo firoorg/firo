@@ -83,15 +83,15 @@ void Wallet::ClearAllChainState()
 
 SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
-    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV0);
+    return CreateSigmaSpend(property, denomination, fPadding, SigmaMintVersion::V0);
 }
 
 SigmaSpend Wallet::CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
-    return CreateSigmaSpend(property, denomination, fPadding, CoinVersion::SigmaV1);
+    return CreateSigmaSpend(property, denomination, fPadding, SigmaMintVersion::V1);
 }
 
-SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, CoinVersion version)
+SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, SigmaMintVersion version)
 {
     LOCK(cs_main);
 
@@ -134,14 +134,12 @@ void Wallet::DeleteUnconfirmedSigmaMint(const SigmaMintId &id)
 
 bool Wallet::HasSigmaMint(const SigmaMintId& id)
 {
-    CoinVersion version;
-    return HasSigmaMint(id, version);
+    return GetSigmaMintVersion(id) != boost::none;
 }
 
 bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 {
-    CoinVersion version;
-    return HasSigmaMint(serial, version);
+    return GetSigmaMintVersion(serial) != boost::none;
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
@@ -155,7 +153,7 @@ CoinSigner Wallet::GetSigmaSigner(const SigmaMintId &id)
     return mintWalletV1.GetSigner(id);
 }
 
-boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination, CoinVersion version)
+boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination, SigmaMintVersion version)
 {
     // Get all spendable mints.
     std::vector<SigmaMint> spendables;
@@ -210,52 +208,48 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
     mintWallet.UpdateMintChainstate(id, state);
 }
 
-SigmaWallet& Wallet::GetMintWallet(CoinVersion version)
+SigmaWallet& Wallet::GetMintWallet(SigmaMintVersion version)
 {
     switch (version) {
-    case CoinVersion::SigmaV0:
+    case SigmaMintVersion::V0:
         return mintWalletV0;
-    case CoinVersion::SigmaV1:
+    case SigmaMintVersion::V1:
         return mintWalletV1;
     default:
-        throw new std::runtime_error("Coin version is not found.");
+        throw new std::invalid_argument("Coin version is not found.");
     }
 }
 
 SigmaWallet& Wallet::GetMintWallet(SigmaMintId const &id)
 {
-    CoinVersion version;
-    if (HasSigmaMint(id, version)) {
-        return GetMintWallet(version);
+    auto version = GetSigmaMintVersion(id);
+    if (version) {
+        return GetMintWallet(version.get());
     }
 
-    throw std::runtime_error("Sigma Mint Id is not found.");
+    throw std::invalid_argument("Sigma Mint Id is not found.");
 }
 
-bool Wallet::HasSigmaMint(const SigmaMintId& id, CoinVersion &version)
+boost::optional<Wallet::SigmaMintVersion> Wallet::GetSigmaMintVersion(const SigmaMintId& id)
 {
     if (mintWalletV0.HasMint(id)) {
-        version = CoinVersion::SigmaV0;
-        return true;
+        return SigmaMintVersion::V0;
     } else if (mintWalletV1.HasMint(id)) {
-        version = CoinVersion::SigmaV1;
-        return true;
+        return SigmaMintVersion::V1;
     }
 
-    return false;
+    return boost::none;
 }
 
-bool Wallet::HasSigmaMint(const secp_primitives::Scalar &scalar, CoinVersion &version)
+boost::optional<Wallet::SigmaMintVersion> Wallet::GetSigmaMintVersion(const secp_primitives::Scalar &scalar)
 {
     if (mintWalletV0.HasMint(scalar)) {
-        version = CoinVersion::SigmaV0;
-        return true;
+        return SigmaMintVersion::V0;
     } else if (mintWalletV1.HasMint(scalar)) {
-        version = CoinVersion::SigmaV1;
-        return true;
+        return SigmaMintVersion::V1;
     }
 
-    return false;
+    return boost::none;
 }
 
 void Wallet::OnSpendAdded(
@@ -264,14 +258,14 @@ void Wallet::OnSpendAdded(
     const secp_primitives::Scalar &serial,
     const uint256 &tx)
 {
-    CoinVersion version;
-    if (!HasSigmaMint(serial, version)) {
+    auto version = GetSigmaMintVersion(serial);
+    if (!version) {
         // the serial is not in wallet.
         return;
     }
 
     SigmaMintId id;
-    auto &mintWallet = GetMintWallet(version);
+    auto &mintWallet = GetMintWallet(version.get());
     try {
         id = mintWallet.GetMintId(serial);
     } catch (std::runtime_error const &e) {
@@ -286,13 +280,13 @@ void Wallet::OnSpendRemoved(
     SigmaDenomination denomination,
     const secp_primitives::Scalar &serial)
 {
-    CoinVersion version;
-    if (!HasSigmaMint(serial, version)) {
+    auto version = GetSigmaMintVersion(serial);
+    if (!version) {
         // the serial is not in wallet.
         return;
     }
 
-    auto &mintWallet = GetMintWallet(version);
+    auto &mintWallet = GetMintWallet(version.get());
     try {
         auto id = mintWallet.GetMintId(serial);
         SetSigmaMintUsedTransaction(id, uint256());

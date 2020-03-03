@@ -24,11 +24,10 @@ namespace elysium {
 class Wallet
 {
 protected:
-    enum class CoinVersion : uint8_t
+    enum class SigmaMintVersion : uint8_t
     {
-        Unknown,
-        SigmaV0,
-        SigmaV1
+        V0,
+        V1
     };
 
 public:
@@ -83,17 +82,16 @@ public:
 
 protected:
     boost::optional<SigmaMint> GetSpendableSigmaMint(
-        PropertyId property, SigmaDenomination denomination, CoinVersion version);
+        PropertyId property, SigmaDenomination denomination, SigmaMintVersion version);
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
 
-    SigmaWallet& GetMintWallet(CoinVersion version);
+    SigmaWallet& GetMintWallet(SigmaMintVersion version);
     SigmaWallet& GetMintWallet(SigmaMintId const &id);
-    SigmaWallet& GetMintWallet(secp_primitives::Scalar &serial);
 
-    bool HasSigmaMint(const SigmaMintId& id, CoinVersion &version);
-    bool HasSigmaMint(const secp_primitives::Scalar &scalar, CoinVersion &version);
+    boost::optional<SigmaMintVersion> GetSigmaMintVersion(const SigmaMintId& id);
+    boost::optional<SigmaMintVersion> GetSigmaMintVersion(const secp_primitives::Scalar &scalar);
 
-    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, CoinVersion version);
+    SigmaSpend CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, SigmaMintVersion version);
 
 private:
     void OnSpendAdded(
