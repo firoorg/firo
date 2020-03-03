@@ -268,16 +268,20 @@ class ElysiumTestFramework(BitcoinTestFramework):
 
         assert_equal(expected, actual)
 
-    def generate_until_sigma_activated(self, node):
+    def generate_until_sigma_activated(self, num_node):
+        node = self.nodes[num_node]
+
         self.sync_all()
         required_block = 550
-        current_block = self.nodes[0].getblockcount()
+        current_block = node.getblockcount()
         if current_block >= required_block:
             return []
 
         return node.generate(required_block - current_block)
 
-    def create_default_property(self, name, node, address, sigma = True, amount = None):
+    def create_default_property(self, name, num_node, address, sigma = True, amount = None):
+        node = self.nodes[num_node]
+
         sigma_status = 1 if sigma else 0
 
         if amount is None:
@@ -289,5 +293,5 @@ class ElysiumTestFramework(BitcoinTestFramework):
         self.sync_all()
 
         # get lastest id
-        properties = self.nodes[0].elysium_listproperties()
+        properties = node.elysium_listproperties()
         return max(map(lambda p: p["propertyid"], properties))
