@@ -832,6 +832,30 @@ UniValue lockCoins(Type type, const UniValue& data, const UniValue& auth, bool f
     return true;
 }
 
+UniValue showMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+
+    // add the base58check encoded extended master if the wallet uses HD
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    CKeyID masterKeyID = chain.masterKeyID;
+    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
+    {
+        if(mContainer.IsCrypted())
+        {
+            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
+        }
+
+        SecureString mnemonic;
+        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+        if(mContainer.GetMnemonic(mnemonic))
+            return std::string(mnemonic.begin(), mnemonic.end()).c_str();;
+    } 
+    return NullUniValue;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -840,7 +864,8 @@ static const CAPICommand commands[] =
     { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
-    { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  }    
+    { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  },    
+    { "wallet",             "showMnemonics",   &showMnemonics,               true,      true,           false  }    
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
