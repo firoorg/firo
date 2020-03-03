@@ -15,8 +15,6 @@ class CTransaction;
 #include "../uint256.h"
 #include "../utilstrencodings.h"
 
-#include <secp256k1/include/Scalar.h>
-
 #include <memory>
 #include <string>
 #include <vector>

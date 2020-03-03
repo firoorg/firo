@@ -451,7 +451,7 @@ private:
     void operator=(const CWalletDB&);
 
     template<typename K, typename V, typename InsertF>
-    void ListEntries(string const &prefix, InsertF insertF)
+    void ListEntries(std::string const &prefix, InsertF insertF)
     {
         auto cursor = GetCursor();
         if (!cursor) {
@@ -475,7 +475,7 @@ private:
                 break;
             } else if (ret != 0) {
                 cursor->close();
-                throw runtime_error(std::string(__func__)+" : error scanning DB");
+                throw std::runtime_error(std::string(__func__)+" : error scanning DB");
             }
 
             // Unserialize

@@ -644,7 +644,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     Signature const &signature, CPubKey const &pubkey)
 {
     if (pubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
-        throw std::runtime_error("Publickey size is invalid");
+        throw std::invalid_argument("Publickey size is invalid");
     }
 
     std::vector<unsigned char> payload;

@@ -860,7 +860,7 @@ bool CMPTransaction::interpret_SimpleSpend()
     try {
         if (version == MP_TX_PKT_V1) {
             std::array<uint8_t, 33> pubkeyBuffer;
-            serialized.read(reinterpret_cast<char*>(pubkeyBuffer.data()), sizeof(pubkeyBuffer));
+            serialized.read(reinterpret_cast<char*>(pubkeyBuffer.data()), pubkeyBuffer.size());
             ecdsaPubkey.Set(pubkeyBuffer.begin(), pubkeyBuffer.end());
 
             serialized >> *spend;
