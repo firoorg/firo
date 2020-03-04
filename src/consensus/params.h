@@ -159,7 +159,6 @@ struct Params {
     int64_t nChainStartTime;
     unsigned char nMinNFactor;
     unsigned char nMaxNFactor;
-    int nInstantSendKeepLock; // in blocks
     //int nBudgetPaymentsStartBlock;
     //int nBudgetPaymentsCycleBlocks;
     //int nBudgetPaymentsWindowBlocks;
@@ -168,6 +167,11 @@ struct Params {
     //int nZnodePaymentsIncreaseBlock;
     //int nZnodePaymentsIncreasePeriod; // in blocks
     //int nSuperblockStartBlock;
+
+    int nInstantSendConfirmationsRequired; // in blocks
+    int nInstantSendKeepLock; // in blocks
+    int nInstantSendSigsRequired;
+
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;
