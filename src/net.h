@@ -21,6 +21,8 @@
 #include "uint256.h"
 #include "threadinterrupt.h"
 #include "util.h"
+#include "consensus/params.h"
+
 
 #include <atomic>
 #include <deque>
@@ -419,6 +421,11 @@ private:
     CCriticalSection cs_vOneShots;
     std::vector<std::string> vAddedNodes;
     CCriticalSection cs_vAddedNodes;
+
+    std::vector<CService> vPendingMasternodes;
+    std::map<std::pair<Consensus::LLMQType, uint256>, std::set<uint256>> masternodeQuorumNodes; // protected by cs_vPendingMasternodes
+    mutable CCriticalSection cs_vPendingMasternodes;
+
 // TODO: remove this hack when dash version is upgraded
 public:
     std::vector<CNode*> vNodes;
@@ -714,6 +721,7 @@ public:
     std::vector<uint256> vInventoryBlockToSend;
     CCriticalSection cs_inventory;
     std::set<uint256> setAskFor;
+    std::vector<std::pair<int64_t, CInv>> vecAskFor;
     std::multimap<int64_t, CInv> mapAskFor;
     int64_t nNextInvSend;
     // Used for headers announcements - unfiltered blocks to relay
@@ -894,6 +902,7 @@ public:
     }
 
     void AskFor(const CInv& inv);
+    void RemoveAskFor(const uint256& hash);
 
     void CloseSocketDisconnect();
 

@@ -26,6 +26,9 @@
 #include "txmempool.h"
 #include "./consensus/validation.h"
 
+#include "instantx.h"
+#include "masternode-sync.h"
+#include "llmq/quorums_instantsend.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -3361,6 +3364,15 @@ void CNode::AskFor(const CInv& inv)
     else
         mapAlreadyAskedFor.insert(std::make_pair(inv.hash, nRequestTime));
     mapAskFor.insert(std::make_pair(nRequestTime, inv));
+}
+
+void CNode::RemoveAskFor(const uint256& hash)
+{
+    if (setAskFor.erase(hash)) {
+        vecAskFor.erase(std::remove_if(vecAskFor.begin(), vecAskFor.end(), [&](const std::pair<int64_t, CInv>& item) {
+            return item.second.hash == hash;
+        }), vecAskFor.end());
+    }
 }
 
 bool CConnman::NodeFullyConnected(const CNode* pnode)
