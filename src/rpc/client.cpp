@@ -144,6 +144,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getmintmetadata", 0 },
+    { "getusedcoinserials", 0 },
+    { "getlatestcoinids", 0 },
     /* Exodus - data retrieval calls */
 	{ "exodus_gettradehistoryforaddress", 1 },
 	{ "exodus_gettradehistoryforaddress", 2 },
