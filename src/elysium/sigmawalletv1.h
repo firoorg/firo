@@ -22,25 +22,31 @@ protected:
     void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial);
 
 protected:
-    uint32_t ChangeIndex();
+    uint32_t BIP44ChangeIndex() const;
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &ecdsaKeyOut);
 
-    // DB
-    bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
-    bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const;
-    bool EraseElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr);
-    bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const;
+    class WalletDB : public SigmaWallet::WalletDB
+    {
+    public:
+        WalletDB();
 
-    bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr);
-    bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const;
-    bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr);
-    bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const;
+    public:
+        bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);
+        bool ReadMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const;
+        bool EraseMint(SigmaMintId const &id, CWalletDB *db = nullptr);
+        bool HasMint(SigmaMintId const &id, CWalletDB *db = nullptr) const;
 
-    bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
-    bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
+        bool WriteMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr);
+        bool ReadMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const;
+        bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr);
+        bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const;
 
-    void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
+        bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
+        bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
+
+        void ListMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
+    };
 
 public:
     using SigmaWallet::GeneratePrivateKey;

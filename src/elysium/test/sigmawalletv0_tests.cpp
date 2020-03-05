@@ -72,59 +72,59 @@ public:
         return SigmaWalletV0::GeneratePrivateKey(seed);
     }
 
-    bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint)
+    bool WriteMint(SigmaMintId const &id, SigmaMint const &mint)
     {
-        return SigmaWalletV0::WriteElysiumMint(id, mint);
+        return walletDB->WriteMint(id, mint);
     }
 
-    bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint) const
+    bool ReadMint(SigmaMintId const &id, SigmaMint &mint) const
     {
-        return SigmaWalletV0::ReadElysiumMint(id, mint);
+        return walletDB->ReadMint(id, mint);
     }
 
-    bool EraseElysiumMint(SigmaMintId const &id)
+    bool EraseMint(SigmaMintId const &id)
     {
-        return SigmaWalletV0::EraseElysiumMint(id);
+        return walletDB->EraseMint(id);
     }
 
-    bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
+    bool HasMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::HasElysiumMint(id);
+        return walletDB->HasMint(id);
     }
 
-    bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId)
+    bool WriteMintId(uint160 const &hash, SigmaMintId const &mintId)
     {
-        return SigmaWalletV0::WriteElysiumMintId(hash, mintId);
+        return walletDB->WriteMintId(hash, mintId);
     }
 
-    bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
+    bool ReadMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::ReadElysiumMintId(hash, mintId);
+        return walletDB->ReadMintId(hash, mintId);
     }
 
-    bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr)
+    bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV0::EraseElysiumMintId(hash);
+        return walletDB->EraseMintId(hash);
     }
 
-    bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const
+    bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const
     {
-        return SigmaWalletV0::HasElysiumMintId(hash);
+        return walletDB->HasMintId(hash);
     }
 
-    bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints)
+    bool WriteMintPool(std::vector<MintPoolEntry> const &mints)
     {
-        return SigmaWalletV0::WriteElysiumMintPool(mints);
+        return walletDB->WriteMintPool(mints);
     }
 
-    bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
+    bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
     {
-        return SigmaWalletV0::ReadElysiumMintPool(mints);
+        return walletDB->ReadMintPool(mints);
     }
 
-    void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
+    void ListMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
     {
-        return SigmaWalletV0::ListElysiumMints(inserter);
+        return walletDB->ListMints(inserter);
     }
 };
 
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(writemint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMint(id, mint));
+    BOOST_CHECK_EQUAL(true, wallet->WriteMint(id, mint));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmint)
@@ -219,8 +219,8 @@ BOOST_AUTO_TEST_CASE(read_nonexistmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMint(id, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasMint(id));
+    BOOST_CHECK_EQUAL(false, wallet->ReadMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmint)
@@ -230,10 +230,10 @@ BOOST_AUTO_TEST_CASE(read_existmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteElysiumMint(id, mint);
+    wallet->WriteMint(id, mint);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasElysiumMint(id));
-    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMint(id, data));
+    BOOST_CHECK_EQUAL(true, wallet->HasMint(id));
+    BOOST_CHECK_EQUAL(true, wallet->ReadMint(id, data));
     BOOST_CHECK_EQUAL(mint, data);
 }
 
@@ -244,11 +244,11 @@ BOOST_AUTO_TEST_CASE(read_erasedmint)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteElysiumMint(id, mint);
-    wallet->EraseElysiumMint(id);
+    wallet->WriteMint(id, mint);
+    wallet->EraseMint(id);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMint(id, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasMint(id));
+    BOOST_CHECK_EQUAL(false, wallet->ReadMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(write_mintid)
@@ -258,7 +258,7 @@ BOOST_AUTO_TEST_CASE(write_mintid)
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMintId(mint.serialId, id));
+    BOOST_CHECK_EQUAL(true, wallet->WriteMintId(mint.serialId, id));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmintid)
@@ -269,8 +269,8 @@ BOOST_AUTO_TEST_CASE(read_nonexistmintid)
 
     SigmaMintId data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMintId(mint.seedId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMintId(mint.seedId, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasMintId(mint.seedId));
+    BOOST_CHECK_EQUAL(false, wallet->ReadMintId(mint.seedId, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmintid)
@@ -281,10 +281,10 @@ BOOST_AUTO_TEST_CASE(read_existmintid)
 
     SigmaMintId data;
 
-    wallet->WriteElysiumMintId(mint.serialId, id);
+    wallet->WriteMintId(mint.serialId, id);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasElysiumMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(true, wallet->HasMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(true, wallet->ReadMintId(mint.serialId, data));
     BOOST_CHECK_EQUAL(id, data);
 }
 
@@ -296,11 +296,11 @@ BOOST_AUTO_TEST_CASE(read_erasedmintid)
 
     SigmaMintId data;
 
-    wallet->WriteElysiumMintId(mint.serialId, id);
-    wallet->EraseElysiumMintId(mint.serialId);
+    wallet->WriteMintId(mint.serialId, id);
+    wallet->EraseMintId(mint.serialId);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasElysiumMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadElysiumMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(false, wallet->HasMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(false, wallet->ReadMintId(mint.serialId, data));
 }
 
 BOOST_AUTO_TEST_CASE(writemintpool)
@@ -309,7 +309,7 @@ BOOST_AUTO_TEST_CASE(writemintpool)
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteElysiumMintPool(mintPool));
+    BOOST_CHECK_EQUAL(true, wallet->WriteMintPool(mintPool));
 }
 
 BOOST_AUTO_TEST_CASE(readmintpool)
@@ -318,10 +318,10 @@ BOOST_AUTO_TEST_CASE(readmintpool)
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    wallet->WriteElysiumMintPool(mintPool);
+    wallet->WriteMintPool(mintPool);
 
     std::vector<MintPoolEntry> data;
-    BOOST_CHECK_EQUAL(true, wallet->ReadElysiumMintPool(data));
+    BOOST_CHECK_EQUAL(true, wallet->ReadMintPool(data));
     BOOST_CHECK(mintPool == data);
     BOOST_CHECK(std::is_permutation(mintPool.begin(), mintPool.end(), data.begin()));
 }
@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE(readmintpool)
 BOOST_AUTO_TEST_CASE(listelysiummints_nomints)
 {
     size_t counter = 0;
-    wallet->ListElysiumMints([&](SigmaMintId const&, SigmaMint const&) {
+    wallet->ListMints([&](SigmaMintId const&, SigmaMint const&) {
         counter++;
     });
 
@@ -347,11 +347,11 @@ BOOST_AUTO_TEST_CASE(listelysiummints_withsomemints)
 
         mints.push_back(std::make_pair(id, mint));
 
-        wallet->WriteElysiumMint(id, mint);
+        wallet->WriteMint(id, mint);
     }
 
     std::vector<std::pair<SigmaMintId, SigmaMint>> data;
-    wallet->ListElysiumMints([&](SigmaMintId &id, SigmaMint &mint) {
+    wallet->ListMints([&](SigmaMintId &id, SigmaMint &mint) {
         data.push_back(std::make_pair(id, mint));
     });
 

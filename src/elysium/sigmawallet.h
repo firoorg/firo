@@ -67,14 +67,44 @@ public:
         >
     > MintPool;
 
+protected:
+    class WalletDB {
+    public:
+        WalletDB(std::string const &walletFile);
+
+    public:
+        virtual bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
+        virtual bool ReadMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const = 0;
+        virtual bool EraseMint(SigmaMintId const &id, CWalletDB *db = nullptr) = 0;
+        virtual bool HasMint(SigmaMintId const &id, CWalletDB *db = nullptr) const = 0;
+
+        virtual bool WriteMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr) = 0;
+        virtual bool ReadMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const = 0;
+        virtual bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
+        virtual bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
+
+        virtual bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
+        virtual bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
+
+        virtual void ListMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
+
+    protected:
+        // Helper
+        std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db) const;
+
+        std::string walletFile;
+    };
+
+public:
     std::string walletFile;
+    std::unique_ptr<WalletDB> walletDB;
     MintPool mintPool;
     uint160 masterId;
 
     static constexpr unsigned MINTPOOL_CAPACITY = 20;
 
 public:
-    SigmaWallet();
+    SigmaWallet(WalletDB *walletDB);
 
 public:
     void ReloadMasterKey();
@@ -86,27 +116,8 @@ protected:
     uint32_t GetSeedIndex(CKeyID const &seedId);
 
 protected:
-    virtual uint32_t ChangeIndex() = 0;
+    virtual uint32_t BIP44ChangeIndex() const = 0;
     virtual SigmaPrivateKey GeneratePrivateKey(uint512 const &seed) = 0;
-
-    // DB
-    virtual bool WriteElysiumMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadElysiumMint(SigmaMintId const &id, SigmaMint &mint, CWalletDB *db = nullptr) const = 0;
-    virtual bool EraseElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) = 0;
-    virtual bool HasElysiumMint(SigmaMintId const &id, CWalletDB *db = nullptr) const = 0;
-
-    virtual bool WriteElysiumMintId(uint160 const &hash, SigmaMintId const &mintId, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadElysiumMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const = 0;
-    virtual bool EraseElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
-    virtual bool HasElysiumMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
-
-    virtual bool WriteElysiumMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
-    virtual bool ReadElysiumMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
-
-    virtual void ListElysiumMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
-
-    // Helper
-    std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db) const;
 
     // Mint updating
 public:
@@ -142,7 +153,7 @@ public:
     template<class Output>
     Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        ListElysiumMints([&](const SigmaMintId& id, const SigmaMint &m) {
+        walletDB->ListMints([&](const SigmaMintId& id, const SigmaMint &m) {
             *output++ = std::make_pair(id, m);
         }, db);
 
