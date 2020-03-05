@@ -473,21 +473,31 @@ bool SigmaWallet::RemoveFromMintPool(SigmaPublicKey const &publicKey)
     return false;
 }
 
+SigmaWallet::WalletDB::DBDeleter::DBDeleter(bool mustDelete) : mustDelete(mustDelete)
+{
+}
+
+void SigmaWallet::WalletDB::DBDeleter::operator()(CWalletDB *db)
+{
+    if (mustDelete) {
+        delete db;
+    }
+}
+
 SigmaWallet::WalletDB::WalletDB(std::string const &walletFile) : walletFile(walletFile)
 {
 }
 
 // Helper
-std::unique_ptr<CWalletDB> SigmaWallet::WalletDB::EnsureDBConnection(CWalletDB* &db) const
+std::unique_ptr<CWalletDB, SigmaWallet::WalletDB::DBDeleter> SigmaWallet::WalletDB::EnsureDBConnection(CWalletDB *db) const
 {
-    std::unique_ptr<CWalletDB> local;
-    if (db == nullptr)
-    {
+    bool mustDelete = db == nullptr;
+
+    if (!db) {
         db = new CWalletDB(walletFile);
-        local.reset(db);
     }
 
-    return local;
+    return std::unique_ptr<CWalletDB, SigmaWallet::WalletDB::DBDeleter>(db, DBDeleter(mustDelete));
 }
 
 } // namespace elysium

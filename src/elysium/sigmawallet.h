@@ -86,11 +86,22 @@ protected:
         virtual bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
         virtual bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
 
-        virtual void ListMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr) = 0;
+        virtual void ListMints(std::function<void(SigmaMintId&, SigmaMint&)> const&, CWalletDB *db = nullptr) = 0;
 
     protected:
         // Helper
-        std::unique_ptr<CWalletDB> EnsureDBConnection(CWalletDB* &db) const;
+        struct DBDeleter {
+        private:
+            bool mustDelete;
+
+        public:
+            DBDeleter(bool mustDelete);
+
+        public:
+            void operator()(CWalletDB* db);
+        };
+
+        std::unique_ptr<CWalletDB, DBDeleter> EnsureDBConnection(CWalletDB *db) const;
 
         std::string walletFile;
     };

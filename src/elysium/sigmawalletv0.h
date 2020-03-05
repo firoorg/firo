@@ -36,7 +36,7 @@ protected:
         bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
         bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
 
-        void ListMints(std::function<void(SigmaMintId&, SigmaMint&)>, CWalletDB *db = nullptr);
+        void ListMints(std::function<void(SigmaMintId&, SigmaMint&)> const&, CWalletDB *db = nullptr);
     };
 
 public:
