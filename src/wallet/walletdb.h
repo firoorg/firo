@@ -210,6 +210,9 @@ public:
     bool WriteBestBlock(const CBlockLocator& locator);
     bool ReadBestBlock(CBlockLocator& locator);
 
+    bool WriteShowMnemonicsWarning(bool shouldShow);
+    bool ReadShowMnemonicsWarning();
+
     bool WriteOrderPosNext(int64_t nOrderPosNext);
 
     bool WriteDefaultKey(const CPubKey& vchPubKey);

@@ -15,6 +15,7 @@
 #include "client-api/wallet.h"
 #include "coincontrol.h"
 #include "univalue.h"
+#include "wallet/bip39.h"
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 
@@ -49,6 +50,34 @@ bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
         cc.Select(op);
     }
     return true;
+}
+
+std::string ReadMnemonics() {
+    // add the base58check encoded extended master if the wallet uses HD
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    CKeyID masterKeyID = chain.masterKeyID;
+    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
+    {
+        if(mContainer.IsCrypted())
+        {
+            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
+        }
+
+        SecureString mnemonic;
+        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+        if(mContainer.GetMnemonic(mnemonic))
+            return std::string(mnemonic.begin(), mnemonic.end()).c_str();;
+    }
+    return "";
+}
+
+bool doesWalletHaveMnemonics() {
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    CKeyID masterKeyID = chain.masterKeyID;
+    return (!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39);
 }
 
 void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
@@ -533,6 +562,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     }
 
     ret.push_back(Pair("addresses", transactions));
+    ret.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
 
     return ret;
 }
@@ -837,23 +867,106 @@ UniValue showMnemonics(Type type, const UniValue& data, const UniValue& auth, bo
         return NullUniValue;
 
     // add the base58check encoded extended master if the wallet uses HD
-    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
-    const CHDChain& chain = pwalletMain->GetHDChain();
-    CKeyID masterKeyID = chain.masterKeyID;
-    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
-    {
-        if(mContainer.IsCrypted())
-        {
-            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
-        }
+    std::string memonics = ReadMnemonics();
+    return memonics;
+}
 
-        SecureString mnemonic;
-        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
-        if(mContainer.GetMnemonic(mnemonic))
-            return std::string(mnemonic.begin(), mnemonic.end()).c_str();;
-    } 
-    return NullUniValue;
+UniValue importMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    
+    std::string mnemonic = data.getValStr();
+    const char* str = mnemonic.c_str();
+    bool space = true;
+    int n = 0;
+
+    while (*str != '\0')
+    {
+        if (std::isspace(*str))
+        {
+            space = true;
+        }
+        else if (space)
+        {
+            n++;
+            space = false;
+        }
+        ++str;
+    }
+
+    if(n != 24) {
+        throw runtime_error("Wrong number of words. Please try again.");
+    }
+
+    if(mnemonic.empty()) {
+        throw runtime_error("Mnemonic can't be empty.");
+    }
+
+    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
+    if(!Mnemonic::mnemonic_check(secmnemonic)){
+        throw runtime_error("Invalid mnemmonics phrase.");
+    }
+    return true;
+}
+
+UniValue verifyMnemonicsWord(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    LogPrintf("%s: data 1", __func__);
+    std::string wordIndex = find_value(data, "wordindex").getValStr();
+        LogPrintf("%s: data 2", __func__);
+
+
+    std::vector<string> splits;
+    boost::split(splits, wordIndex, boost::is_any_of("-"));
+    if (splits.size() != 2) throw runtime_error("Incorrect word! split size, " + wordIndex);
+        LogPrintf("%s: data 3", __func__);
+    std::string word = splits[0];
+    int index = 0;
+    
+    ParseInt32(splits[1], &index);
+    LogPrintf("%s: data 4", __func__);
+
+    std::string memonics = ReadMnemonics();
+    LogPrintf("%s: data 5", __func__);
+
+    std::vector<string> words;
+    boost::split(words, memonics, boost::is_any_of(" "));
+    if (index >= words.size()) throw runtime_error("Incorrect word! word size");
+    LogPrintf("%s: data 6", __func__);
+
+    return (words[index] == word);
+}
+
+UniValue isMnemonicExist(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    return doesWalletHaveMnemonics();
+}
+
+UniValue writeShowMnemonicWarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    CWalletDB db(pwalletMain->strWalletFile);
+    UniValue temp(UniValue::VBOOL, data.getValStr());
+    bool shouldShow = temp.get_bool();
+    db.WriteShowMnemonicsWarning(shouldShow);
+    return true;
+}
+
+UniValue readShowMnemonicWarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    CWalletDB db(pwalletMain->strWalletFile);
+    return db.ReadShowMnemonicsWarning();
+}
+
+UniValue readWalletMnemonicWarningState(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("hasMnemonic", isMnemonicExist(type, data, auth, fHelp)));
+    ret.push_back(Pair("shouldShowWarning", readShowMnemonicWarning(type, data, auth, fHelp)));
+    LogPrintf("%s\n", __func__);
+    return ret;
 }
 
 static const CAPICommand commands[] =
@@ -865,7 +978,13 @@ static const CAPICommand commands[] =
     { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
     { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  },    
-    { "wallet",             "showMnemonics",   &showMnemonics,               true,      true,           false  }    
+    { "wallet",             "showMnemonics",   &showMnemonics,           true,      true,            false  },    
+    { "wallet",             "importMnemonics", &importMnemonics,         true,      true,            false  },    
+    { "wallet",             "verifyMnemonicsWord", &verifyMnemonicsWord,         true,      true,            false  },    
+    { "wallet",             "isMnemonicExist", &isMnemonicExist,         true,      false,            false  },    
+    { "wallet",             "writeShowMnemonicWarning", &writeShowMnemonicWarning,         true,      false,            false  },    
+    { "wallet",             "readShowMnemonicWarning", &readShowMnemonicWarning,         true,      false,            false  },    
+    { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  }    
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

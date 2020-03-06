@@ -97,6 +97,17 @@ bool CWalletDB::WriteCryptedKey(const CPubKey &vchPubKey,
     return true;
 }
 
+bool CWalletDB::WriteShowMnemonicsWarning(bool shouldShow) {
+    nWalletDBUpdated++;
+    return Write(std::string("mnemonicswarning"), shouldShow);
+}
+
+bool CWalletDB::ReadShowMnemonicsWarning() {
+    bool shouldShow = true;
+    if (!Read(std::string("mnemonicswarning"), shouldShow)) return true;
+    return shouldShow;
+}
+
 bool CWalletDB::WriteMasterKey(unsigned int nID, const CMasterKey &kMasterKey) {
     nWalletDBUpdated++;
     return Write(std::make_pair(std::string("mkey"), nID), kMasterKey, true);
