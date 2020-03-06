@@ -18,9 +18,9 @@ protected:
     uint32_t BIP44ChangeIndex() const;
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
 
-    class WalletDB : public SigmaWallet::WalletDB {
+    class Database : public SigmaWallet::Database {
     public:
-        WalletDB();
+        Database();
 
     public:
         bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);

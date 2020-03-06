@@ -26,10 +26,10 @@ protected:
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &ecdsaKeyOut);
 
-    class WalletDB : public SigmaWallet::WalletDB
+    class Database : public SigmaWallet::Database
     {
     public:
-        WalletDB();
+        Database();
 
     public:
         bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr);

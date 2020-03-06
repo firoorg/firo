@@ -45,9 +45,9 @@ bool SigmaWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) const
     return !(*this == another);
 }
 
-SigmaWallet::SigmaWallet(WalletDB *db) : walletFile(pwalletMain->strWalletFile)
+SigmaWallet::SigmaWallet(Database *database)
+    : walletFile(pwalletMain->strWalletFile), database(database)
 {
-    walletDB.reset(db);
 }
 
 void SigmaWallet::ReloadMasterKey()
@@ -141,11 +141,11 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
 // Mint Updating
 void SigmaWallet::WriteMint(SigmaMintId const &id, SigmaMint const &mint)
 {
-    if (!walletDB->WriteMint(id, mint)) {
+    if (!database->WriteMint(id, mint)) {
         throw std::runtime_error("fail to write hdmint");
     }
 
-    if (!walletDB->WriteMintId(mint.serialId, id)) {
+    if (!database->WriteMintId(mint.serialId, id)) {
         throw std::runtime_error("fail to record id");
     }
 
@@ -203,7 +203,7 @@ SigmaMint SigmaWallet::UpdateMint(SigmaMintId const &id, std::function<void(Sigm
     auto m = GetMint(id);
     modifier(m);
 
-    if (!walletDB->WriteMint(id, m)) {
+    if (!database->WriteMint(id, m)) {
         throw std::runtime_error("fail to update mint");
     }
 
@@ -223,7 +223,7 @@ void SigmaWallet::ClearMintsChainState()
         m.second.chainState = SigmaMintChainState();
         m.second.spendTx = uint256();
 
-        if (!walletDB->WriteMint(m.first, m.second, &db)) {
+        if (!database->WriteMint(m.first, m.second, &db)) {
             throw std::runtime_error("Failed to write " + walletFile);
         }
     }
@@ -298,19 +298,19 @@ void SigmaWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
 // Mint querying
 bool SigmaWallet::HasMint(SigmaMintId const &id) const
 {
-    return walletDB->HasMint(id);
+    return database->HasMint(id);
 }
 
 bool SigmaWallet::HasMint(secp_primitives::Scalar const &serial) const
 {
     auto id = GetSerialId(serial);
-    return walletDB->HasMintId(id);
+    return database->HasMintId(id);
 }
 
 SigmaMint SigmaWallet::GetMint(SigmaMintId const &id) const
 {
     SigmaMint m;
-    if (!walletDB->ReadMint(id, m)) {
+    if (!database->ReadMint(id, m)) {
         throw std::runtime_error("fail to read hdmint");
     }
 
@@ -326,7 +326,7 @@ SigmaMintId SigmaWallet::GetMintId(secp_primitives::Scalar const &serial) const
 {
     SigmaMintId id;
     auto serialHash = GetSerialId(serial);
-    if (!walletDB->ReadMintId(serialHash, id)) {
+    if (!database->ReadMintId(serialHash, id)) {
         throw std::runtime_error("fail to read id");
     }
 
@@ -358,7 +358,7 @@ void SigmaWallet::RemoveInvalidMintPoolEntries() // Remove MintPool entry that i
 void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
 {
     SigmaMint mint;
-    if (!walletDB->ReadMint(id, mint)) {
+    if (!database->ReadMint(id, mint)) {
         throw std::runtime_error("no mint data in wallet");
     }
 
@@ -372,7 +372,7 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
     mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
     SaveMintPool();
 
-    if (!walletDB->EraseMint(id)) {
+    if (!database->EraseMint(id)) {
         throw std::runtime_error("fail to erase mint from wallet");
     }
 }
@@ -432,7 +432,7 @@ void SigmaWallet::LoadMintPool()
     mintPool.clear();
 
     std::vector<MintPoolEntry> mintPoolData;
-    if (walletDB->ReadMintPool(mintPoolData)) {
+    if (database->ReadMintPool(mintPoolData)) {
         for (auto &entry : mintPoolData) {
             mintPool.insert(std::move(entry));
         }
@@ -450,7 +450,7 @@ void SigmaWallet::SaveMintPool()
         mintPoolData.push_back(entry);
     }
 
-    if (!walletDB->WriteMintPool(mintPoolData)) {
+    if (!database->WriteMintPool(mintPoolData)) {
         throw std::runtime_error("fail to save mint pool to DB");
     }
 }
@@ -473,31 +473,24 @@ bool SigmaWallet::RemoveFromMintPool(SigmaPublicKey const &publicKey)
     return false;
 }
 
-SigmaWallet::WalletDB::DBDeleter::DBDeleter(bool mustDelete) : mustDelete(mustDelete)
+SigmaWallet::Database::Connection::Connection(CWalletDB *db)
 {
-}
-
-void SigmaWallet::WalletDB::DBDeleter::operator()(CWalletDB *db)
-{
-    if (mustDelete) {
-        delete db;
+    if (db) {
+        this->db.db = db;
+        local = false;
+    } else {
+        new (this->db.local) CWalletDB(pwalletMain->strWalletFile);
+        local = true;
     }
 }
 
-SigmaWallet::WalletDB::WalletDB(std::string const &walletFile) : walletFile(walletFile)
+CWalletDB* SigmaWallet::Database::Connection::operator->() noexcept
 {
+    return local ? reinterpret_cast<CWalletDB*>(db.local) : db.db;
 }
 
-// Helper
-std::unique_ptr<CWalletDB, SigmaWallet::WalletDB::DBDeleter> SigmaWallet::WalletDB::EnsureDBConnection(CWalletDB *db) const
+SigmaWallet::Database::Database(std::string const &walletFile) : walletFile(walletFile)
 {
-    bool mustDelete = db == nullptr;
-
-    if (!db) {
-        db = new CWalletDB(walletFile);
-    }
-
-    return std::unique_ptr<CWalletDB, SigmaWallet::WalletDB::DBDeleter>(db, DBDeleter(mustDelete));
 }
 
 } // namespace elysium

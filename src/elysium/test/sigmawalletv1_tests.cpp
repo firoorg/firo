@@ -85,57 +85,57 @@ public:
 
     bool WriteMint(SigmaMintId const &id, SigmaMint const &mint)
     {
-        return walletDB->WriteMint(id, mint);
+        return database->WriteMint(id, mint);
     }
 
     bool ReadMint(SigmaMintId const &id, SigmaMint &mint) const
     {
-        return walletDB->ReadMint(id, mint);
+        return database->ReadMint(id, mint);
     }
 
     bool EraseMint(SigmaMintId const &id)
     {
-        return walletDB->EraseMint(id);
+        return database->EraseMint(id);
     }
 
     bool HasMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
     {
-        return walletDB->HasMint(id);
+        return database->HasMint(id);
     }
 
     bool WriteMintId(uint160 const &hash, SigmaMintId const &mintId)
     {
-        return walletDB->WriteMintId(hash, mintId);
+        return database->WriteMintId(hash, mintId);
     }
 
     bool ReadMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
     {
-        return walletDB->ReadMintId(hash, mintId);
+        return database->ReadMintId(hash, mintId);
     }
 
     bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr)
     {
-        return walletDB->EraseMintId(hash);
+        return database->EraseMintId(hash);
     }
 
     bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const
     {
-        return walletDB->HasMintId(hash);
+        return database->HasMintId(hash);
     }
 
     bool WriteMintPool(std::vector<MintPoolEntry> const &mints)
     {
-        return walletDB->WriteMintPool(mints);
+        return database->WriteMintPool(mints);
     }
 
     bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
     {
-        return walletDB->ReadMintPool(mints);
+        return database->ReadMintPool(mints);
     }
 
     void ListMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
     {
-        return walletDB->ListMints(inserter);
+        return database->ListMints(inserter);
     }
 };
 

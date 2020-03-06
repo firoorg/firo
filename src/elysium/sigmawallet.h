@@ -68,9 +68,9 @@ public:
     > MintPool;
 
 protected:
-    class WalletDB {
+    class Database {
     public:
-        WalletDB(std::string const &walletFile);
+        Database(std::string const &walletFile);
 
     public:
         virtual bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
@@ -90,32 +90,35 @@ protected:
 
     protected:
         // Helper
-        struct DBDeleter {
+        class Connection
+        {
+        public:
+            Connection(CWalletDB *db);
+
+        public:
+            CWalletDB* operator->() noexcept;
+
         private:
-            bool mustDelete;
-
-        public:
-            DBDeleter(bool mustDelete);
-
-        public:
-            void operator()(CWalletDB* db);
+            bool local;
+            union {
+                CWalletDB *db;
+                unsigned char local[sizeof(CWalletDB)];
+            } db;
         };
-
-        std::unique_ptr<CWalletDB, DBDeleter> EnsureDBConnection(CWalletDB *db) const;
 
         std::string walletFile;
     };
 
 public:
+    std::unique_ptr<Database> database;
     std::string walletFile;
-    std::unique_ptr<WalletDB> walletDB;
     MintPool mintPool;
     uint160 masterId;
 
     static constexpr unsigned MINTPOOL_CAPACITY = 20;
 
 public:
-    SigmaWallet(WalletDB *walletDB);
+    SigmaWallet(Database *database);
 
 public:
     void ReloadMasterKey();
@@ -164,7 +167,7 @@ public:
     template<class Output>
     Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        walletDB->ListMints([&](const SigmaMintId& id, const SigmaMint &m) {
+        database->ListMints([&](const SigmaMintId& id, const SigmaMint &m) {
             *output++ = std::make_pair(id, m);
         }, db);
 
