@@ -121,13 +121,17 @@ UniValue getinfo(const JSONRPCRequest& request)
 class DescribeAddressVisitor : public boost::static_visitor<UniValue>
 {
 public:
+    CWallet * const pwallet;
+
+    DescribeAddressVisitor(CWallet *_pwallet) : pwallet(_pwallet) {}
+
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
 
     UniValue operator()(const CKeyID &keyID) const {
         UniValue obj(UniValue::VOBJ);
         CPubKey vchPubKey;
         obj.push_back(Pair("isscript", false));
-        if (pwalletMain && pwalletMain->GetPubKey(keyID, vchPubKey)) {
+        if (pwallet && pwallet->GetPubKey(keyID, vchPubKey)) {
             obj.push_back(Pair("pubkey", HexStr(vchPubKey)));
             obj.push_back(Pair("iscompressed", vchPubKey.IsCompressed()));
         }
@@ -138,7 +142,7 @@ public:
         UniValue obj(UniValue::VOBJ);
         CScript subscript;
         obj.push_back(Pair("isscript", true));
-        if (pwalletMain && pwalletMain->GetCScript(scriptID, subscript)) {
+        if (pwallet && pwallet->GetCScript(scriptID, subscript)) {
             std::vector<CTxDestination> addresses;
             txnouttype whichType;
             int nRequired;
@@ -242,7 +246,7 @@ class CWallet;
 /**
  * Used by addmultisigaddress / createmultisig:
  */
-CScript _createmultisig_redeemScript(const UniValue& params)
+CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& params)
 {
     int nRequired = params[0].get_int();
     const UniValue& keys = params[1].get_array();
