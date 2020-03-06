@@ -689,3 +689,8 @@ def wait_to_sync_znodes(node, fast_znsync=False):
         if fast_znsync:
             # skip mnsync states
             node.znsync("next")
+
+def get_full_balance(node):
+    wallet_info = node.getwalletinfo()
+    return wallet_info["balance"] + wallet_info["immature_balance"] + wallet_info["unconfirmed_balance"]
+

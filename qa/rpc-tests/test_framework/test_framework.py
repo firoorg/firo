@@ -298,19 +298,25 @@ class ZnodeTestFramework(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.znode_priv_keys = dict()
+        self.num_nodes = 4
+        self.num_znodes = 3
 
     def setup_chain(self):
         print("Initializing test directory "+self.options.tmpdir)
         self.setup_clean_chain = True
         super().setup_chain()
 
-    def write_master_znode_conf(self, znode, priv_key, collateral_tx_id, collateral_n, master_node=None):
-        if master_node is None:
-            master_node = 0
+    def setup_network(self, split=False):
+        super().setup_network(split)
+        for i in range(self.num_nodes):
+            for j in range(i, self.num_nodes):
+                connect_nodes_bi(self.nodes, i, j)
 
-        znode_conf = " ".join(["zn"+str(znode), "127.0.0.1:"+str(p2p_port(znode)), priv_key, collateral_tx_id, str(collateral_n)])
+    def write_master_znode_conf(self, znode, collateral):
+        znode_service = get_znode_service(znode)
+        znode_conf = " ".join(["zn"+str(znode), znode_service, self.znode_priv_keys[znode], collateral.tx_id, str(collateral.n)])
 
-        master_node_conf_filename = os.path.join(self.options.tmpdir, "node" + str(master_node), "regtest", "znode.conf")
+        master_node_conf_filename = os.path.join(self.options.tmpdir, "node" + str(znode), "regtest", "znode.conf")
         with open(master_node_conf_filename, "a") as master_node_conf:
             master_node_conf.write(znode_conf)
             master_node_conf.write("\n")
@@ -318,7 +324,7 @@ class ZnodeTestFramework(BitcoinTestFramework):
 
     def generate_znode_collateral(self, generator_node=None):
         if generator_node is None:
-            generator_node = 0
+            generator_node = self.num_nodes - 1
         curr_balance = self.nodes[generator_node].getbalance()
         while curr_balance < ZNODE_COLLATERAL:
             self.nodes[generator_node].generate(int((ZNODE_COLLATERAL - curr_balance) / 25))
@@ -327,7 +333,7 @@ class ZnodeTestFramework(BitcoinTestFramework):
 
     def send_znode_collateral(self, znode, collateral_provider=None):
         if collateral_provider is None:
-            collateral_provider = 0
+            collateral_provider = self.num_nodes - 1
         znode_address = self.nodes[znode].getaccountaddress("Znode")
         tx_id = self.nodes[collateral_provider].sendtoaddress(znode_address, ZNODE_COLLATERAL)
         tx_text = self.nodes[collateral_provider].getrawtransaction(tx_id, 1)
@@ -335,31 +341,33 @@ class ZnodeTestFramework(BitcoinTestFramework):
         return collateral.parse_collateral_output(znode_address, tx_text, tx_id)
 
     def send_mature_znode_collateral(self, znode, collateral_provider=None):
+        if collateral_provider is None:
+            collateral_provider = self.num_nodes - 1
         result = self.send_znode_collateral(znode, collateral_provider)
-        self.nodes[0].generate(10)
+        self.nodes[collateral_provider].generate(10)
         sync_blocks(self.nodes)
         time.sleep(3)
         return result
 
     def configure_znode(self, znode, master_znode=None):
         if master_znode is None:
-            master_znode = 0
+            master_znode = self.num_nodes - 1
         self.znode_priv_keys[znode] = self.nodes[znode].znode("genkey")
         stop_node(self.nodes[znode], znode)
-        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip=127.0.0.1:"+str(p2p_port(znode)), "-listen"])
+        znode_service = get_znode_service(znode)
+        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip="+znode_service, "-listen"])
         connect_nodes(self.nodes[znode], znode)
         for i in range(self.num_nodes):
             if i != znode:
                 connect_nodes_bi(self.nodes, i, znode)
 
-    def generate_znode_privkey(self, znode, master_znode=None):
-        if master_znode is None:
-            master_znode = 0
+    def generate_znode_privkey(self, znode):
         self.znode_priv_keys[znode] = self.nodes[znode].znode("genkey")
 
     def restart_as_znode(self, znode):
         stop_node(self.nodes[znode], znode)
-        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip=127.0.0.1:"+str(p2p_port(znode)), "-listen"])
+        znode_service = get_znode_service(znode)
+        self.nodes[znode] = start_node(znode, self.options.tmpdir, ["-znode", "-znodeprivkey="+self.znode_priv_keys[znode], "-externalip="+znode_service, "-listen"])
         connect_nodes(self.nodes[znode], znode)
         for i in range(self.num_nodes):
             if i != znode:
@@ -374,7 +382,9 @@ class ZnodeTestFramework(BitcoinTestFramework):
         self.generate_znode_privkey(znode, master_znode)
         self.restart_as_znode(znode)
 
-    def wait_znode_enabled(self, znode_to_wait_on, enabled_znode_number = 1, timeout = 10):
+    def wait_znode_enabled(self, enabled_znode_number, znode_to_wait_on = None, timeout = 10):
+        if znode_to_wait_on is None:
+            znode_to_wait_on = self.num_nodes - 1
         wait_to_sync_znodes(self.nodes[znode_to_wait_on])
         for j in range (timeout):
             if self.nodes[znode_to_wait_on].znode("count", "enabled") == enabled_znode_number:
@@ -382,3 +392,18 @@ class ZnodeTestFramework(BitcoinTestFramework):
             print(self.nodes[znode_to_wait_on].znode("count", "all"))
             time.sleep(1)
         raise Exception("Cannot wait until znodes enabled")
+
+    def generate(self, blocks, generator_node=None):
+        if generator_node is None:
+            generator_node = self.num_nodes - 1
+        for b in range(blocks):
+            self.nodes[generator_node].generate(1)
+            sync_blocks(self.nodes)
+            time.sleep(3)
+
+
+def get_znode_service(znode):
+    znode_ip_str = "127.0.1." + str(znode + 1)
+    znode_port_str = str(p2p_port(znode))
+    return znode_ip_str + ":" + znode_port_str
+
