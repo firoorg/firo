@@ -44,6 +44,14 @@ public:
         return (Rw << 16) + Rz;
     }
 
+    uint32_t rand32(uint32_t nMax) {
+        return rand32() % nMax;
+    }
+
+    uint32_t operator()(uint32_t nMax) {
+        return rand32(nMax);
+    }
+
     uint32_t Rz;
     uint32_t Rw;
 };

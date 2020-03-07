@@ -568,7 +568,7 @@ std::string CService::ToStringIPPort(bool fUseGetnameinfo) const
     }
 }
 
-std::string CService::ToString(fUseGetnameinfo) const
+std::string CService::ToString(bool fUseGetnameinfo) const
 {
     return ToStringIPPort(fUseGetnameinfo);
 }

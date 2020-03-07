@@ -826,6 +826,7 @@ public:
     void UnlockCoin(const COutPoint& output);
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
+    void ListProTxCoins(std::vector<COutPoint>& vOutpts);
 
     // znode
     /// Get 1000 XZC output and keys which can be used for the Znode
