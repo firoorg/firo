@@ -1,5 +1,5 @@
-#ifndef ZCOIN_RANGEPROVER_H
-#define ZCOIN_RANGEPROVER_H
+#ifndef ZCOIN_LIBLELANTUS_RANGE_PROVER_H
+#define ZCOIN_LIBLELANTUS_RANGE_PROVER_H
 
 #include "innerproduct_proof_generator.h"
 
@@ -36,4 +36,4 @@ private:
 
 #include "range_prover.hpp"
 
-#endif //ZCOIN_RANGEPROVER_H
+#endif //ZCOIN_RANGE_PROVER_H

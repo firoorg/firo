@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SCHNORRVERIFIER_H
-#define ZCOIN_SCHNORRVERIFIER_H
+#ifndef ZCOIN_LIBLELANTUS_SCHNORR_VERIFIER_H
+#define ZCOIN_LIBLELANTUS_SCHNORR_VERIFIER_H
 
 #include "lelantus_primitives.h"
 
@@ -20,4 +20,4 @@ private:
 }//namespace lelantus
 
 #include "schnorr_verifier.hpp"
-#endif //ZCOIN_SCHNORRVERIFIER_H
+#endif //ZCOIN_LIBLELANTUS_SCHNORR_VERIFIER_H

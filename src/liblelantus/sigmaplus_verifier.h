@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMAPLUSVERIFIER_H
-#define ZCOIN_SIGMAPLUSVERIFIER_H
+#ifndef ZCOIN_LIBLELANTUS_SIGMAPLUS_VERIFIER_H
+#define ZCOIN_LIBLELANTUS_SIGMAPLUS_VERIFIER_H
 
 #include "lelantus_primitives.h"
 
@@ -47,4 +47,4 @@ private:
 
 #include "sigmaplus_verifier.hpp"
 
-#endif //ZCOIN_SIGMAPLUSVERIFIER_H
+#endif //ZCOIN_LIBLELANTUS_SIGMAPLUS_VERIFIER_H

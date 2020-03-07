@@ -22,7 +22,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         const std::vector<Exponent>& serialNumbers,
         const std::vector<Exponent>& randomness,
         RangeProof<Exponent, GroupElement>& proof_out) {
-    uint64_t m = v.size();
+    std::size_t m = v.size();
     std::vector<std::vector<bool>> bits;
     bits.resize(m);
     for (std::size_t i = 0; i < v.size(); i++)

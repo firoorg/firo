@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(serialize)
     for(int i = 0; i < N; ++i){
           secp_primitives::GroupElement coin;
           coin.randomize();
-          anonymity_set.push_back(lelantus::PublicCoin(coin, uint64_t(15)));
+          anonymity_set.push_back(lelantus::PublicCoin(coin));
      }
 
     secp_primitives::Scalar Vin(uint64_t(5));

@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SCHNORRPROOF_H
-#define ZCOIN_SCHNORRPROOF_H
+#ifndef ZCOIN_LIBLELANTUS_SCHNORR_PROOF_H
+#define ZCOIN_LIBLELANTUS_SCHNORR_PROOF_H
 
 #include "params.h"
 
@@ -8,20 +8,20 @@ namespace lelantus {
 template <class Exponent, class GroupElement>
 class SchnorrProof{
 public:
-    inline int memoryRequired() {
+    inline int memoryRequired() const {
         return u.memoryRequired()  + P1.memoryRequired() * 2;
     }
 
     inline unsigned char* serialize(unsigned char* buffer) const {
-        unsigned char* current = u.serialize(buffer);
-        current = P1.serialize(current);
-        return T1.serialize(current);
+        buffer = u.serialize(buffer);
+        buffer = P1.serialize(buffer);
+        return T1.serialize(buffer);
     }
 
     inline const unsigned char* deserialize(const unsigned char* buffer) {
-        const unsigned char* current = u.deserialize(buffer);
-        current = P1.deserialize(current);
-        return T1.deserialize(current);
+        buffer = u.deserialize(buffer);
+        buffer = P1.deserialize(buffer);
+        return T1.deserialize(buffer);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -39,4 +39,4 @@ public:
 };
 }//namespace lelantus
 
-#endif //ZCOIN_SCHNORRPROOF_H
+#endif //ZCOIN_LIBLELANTUS_SCHNORR_PROOF_H

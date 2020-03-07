@@ -40,7 +40,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     group_elements2.emplace_back(proof.T2);
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
 
-    uint64_t log_n = (int)(log(n * m) / log(2));
+    uint64_t log_n = (int)std::log2(n * m);
     const InnerProductProof<Exponent, GroupElement>& innerProductProof = proof.innerProductProof;
     std::vector<Exponent> x_j, x_j_inv;
     x_j.resize(log_n);

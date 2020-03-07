@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LELANTUSPROVER_H
-#define ZCOIN_LELANTUSPROVER_H
+#ifndef ZCOIN_LIBLELANTUS_LELANTUSPROVER_H
+#define ZCOIN_LIBLELANTUS_LELANTUSPROVER_H
 
 #include "schnorr_prover.h"
 #include "sigmaplus_prover.h"
@@ -11,9 +11,8 @@ namespace lelantus {
 class LelantusProver {
 public:
     LelantusProver(const Params* p);
-    //c is anonymity set of public coins
     void proof(
-            const std::vector <PublicCoin>& c,
+            const std::vector <PublicCoin>& anonymity_set,
             const Scalar& Vin,
             const std::vector <PrivateCoin>& Cin,
             const std::vector <uint64_t>& indexes,
@@ -40,4 +39,4 @@ private:
 };
 }// namespace lelantus
 
-#endif //ZCOIN_LELANTUSPROVER_H
+#endif //ZCOIN_LIBLELANTUS_LELANTUSPROVER_H

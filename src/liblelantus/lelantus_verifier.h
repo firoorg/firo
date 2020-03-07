@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LELANTUSVERIFIER_H
-#define ZCOIN_LELANTUSVERIFIER_H
+#ifndef ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
+#define ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
 
 #include "schnorr_verifier.h"
 #include "sigmaplus_verifier.h"
@@ -12,8 +12,33 @@ public:
     LelantusVerifier(const Params* p);
 
     bool verify(
-            const std::vector<PublicCoin>& c,
+            const std::vector<PublicCoin>& anonymity_set,
             const std::vector<Scalar>& Sin,
+            const Scalar& Vin,
+            const Scalar& Vout,
+            const Scalar f,
+            const std::vector<PublicCoin>& Cout,
+            const LelantusProof& proof);
+
+private:
+    bool verify_sigma(
+            const std::vector<PublicCoin>& anonymity_set,
+            const std::vector<Scalar>& Sin,
+            const Scalar& Vin,
+            const Scalar& Vout,
+            const Scalar f,
+            const std::vector<PublicCoin>& Cout,
+            const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
+            Scalar& x,
+            Scalar& zV,
+            Scalar& zR);
+    bool verify_rangeproof(
+            const std::vector<PublicCoin>& Cout,
+            const RangeProof<Scalar, GroupElement>& bulletproofs);
+    bool verify_schnorrproof(
+            const Scalar& x,
+            const Scalar& zV,
+            const Scalar& zR,
             const Scalar& Vin,
             const Scalar& Vout,
             const Scalar f,
@@ -26,4 +51,4 @@ private:
 };
 }// namespace lelantus
 
-#endif //ZCOIN_LELANTUSVERIFIER_H
+#endif //ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
