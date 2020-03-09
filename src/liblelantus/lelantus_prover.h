@@ -12,9 +12,9 @@ class LelantusProver {
 public:
     LelantusProver(const Params* p);
     void proof(
-            const std::vector <PublicCoin>& anonymity_set,
+            const std::vector<std::vector<PublicCoin>>& anonymity_sets,
             const Scalar& Vin,
-            const std::vector <PrivateCoin>& Cin,
+            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector <uint64_t>& indexes,
             const Scalar& Vout,
             const std::vector <PrivateCoin>& Cout,
@@ -23,8 +23,8 @@ public:
 
 private:
     void generate_sigma_proofs(
-            const std::vector<PublicCoin>& c,
-            const std::vector<PrivateCoin>& Cin,
+            const std::vector<std::vector<PublicCoin>>& c,
+            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector<uint64_t>& indexes,
             Scalar& x,
             std::vector<Scalar>& Yk_sum,

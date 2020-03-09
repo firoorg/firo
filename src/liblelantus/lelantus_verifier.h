@@ -12,8 +12,8 @@ public:
     LelantusVerifier(const Params* p);
 
     bool verify(
-            const std::vector<PublicCoin>& anonymity_set,
-            const std::vector<Scalar>& Sin,
+            const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+            const std::vector<std::vector<Scalar>>& Sin,
             const Scalar& Vin,
             const Scalar& Vout,
             const Scalar f,
@@ -22,8 +22,8 @@ public:
 
 private:
     bool verify_sigma(
-            const std::vector<PublicCoin>& anonymity_set,
-            const std::vector<Scalar>& Sin,
+            const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+            const std::vector<std::vector<Scalar>>& Sin,
             const Scalar& Vin,
             const Scalar& Vout,
             const Scalar f,

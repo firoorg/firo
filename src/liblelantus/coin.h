@@ -37,7 +37,6 @@ public:
         char* b = (char*)buffer;
         s.read(b, size);
         value.deserialize(buffer);
-        s.read(b, size);
     }
 
 private:

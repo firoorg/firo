@@ -6,15 +6,15 @@ LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
 }
 
 bool LelantusVerifier::verify(
-        const std::vector<PublicCoin>& anonymity_set,
-        const std::vector<Scalar>& Sin,
+        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<Scalar>>& Sin,
         const Scalar& Vin,
         const Scalar& Vout,
         const Scalar f,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
     Scalar x, zV, zR;
-    if(!(verify_sigma(anonymity_set, Sin, Vin, Vout, f, Cout, proof.sigma_proofs, x, zV, zR) &&
+    if(!(verify_sigma(anonymity_sets, Sin, Vin, Vout, f, Cout, proof.sigma_proofs, x, zV, zR) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;
@@ -22,8 +22,8 @@ bool LelantusVerifier::verify(
 }
 
 bool LelantusVerifier::verify_sigma(
-        const std::vector<PublicCoin>& anonymity_set,
-        const std::vector<Scalar>& Sin,
+        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<Scalar>>& Sin,
         const Scalar& Vin,
         const Scalar& Vout,
         const Scalar f,
@@ -38,17 +38,26 @@ bool LelantusVerifier::verify_sigma(
     SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
 
-    std::vector<GroupElement> C_;
-    for (std::size_t i = 0; i < sigma_proofs.size(); ++i) {
-        C_.reserve(anonymity_set.size());
-        for (std::size_t j = 0; j < anonymity_set.size(); ++j)
-            C_.emplace_back(anonymity_set[j].getValue());
-        zV += sigma_proofs[i].zV_;
-        zR += sigma_proofs[i].zR_;
-    }
+    if(Sin.size() != anonymity_sets.size())
+        throw ZerocoinException("Number of anonymity sets and number of vectors containing serial numbers must be equal");
 
-    if (!sigmaVerifier.batchverify(C_, x, Sin, sigma_proofs))
-        return false;
+    int t = 0;
+    for(std::size_t k = 0; k < Sin.size(); k++) {
+
+        std::vector<GroupElement> C_;
+        std::vector<SigmaPlusProof<Scalar, GroupElement>> sigma_proofs_k;
+        for (std::size_t i = 0; i < Sin[k].size(); ++i, ++t) {
+            C_.reserve(anonymity_sets[k].size());
+            for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
+                C_.emplace_back(anonymity_sets[k][j].getValue());
+            zV += sigma_proofs[t].zV_;
+            zR += sigma_proofs[t].zR_;
+            sigma_proofs_k.emplace_back(sigma_proofs[t]);
+        }
+
+        if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k))
+            return false;
+    }
     return true;
 }
 
