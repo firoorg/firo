@@ -94,6 +94,7 @@ protected:
         {
         public:
             Connection(CWalletDB *db);
+            ~Connection();
 
         public:
             CWalletDB* operator->() noexcept;
