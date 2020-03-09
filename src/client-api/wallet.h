@@ -13,3 +13,4 @@ UniValue StateSinceBlock(UniValue& ret, std::string block);
 UniValue StateBlock(UniValue& ret, std::string blockhash);
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc);
+bool doesWalletHaveMnemonics();

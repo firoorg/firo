@@ -564,6 +564,8 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     ret.push_back(Pair("addresses", transactions));
     ret.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
 
+    CWalletDB db(pwalletMain->strWalletFile);
+    ret.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     return ret;
 }
 
