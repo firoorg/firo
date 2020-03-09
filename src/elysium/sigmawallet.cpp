@@ -487,7 +487,7 @@ SigmaWallet::Database::Connection::Connection(CWalletDB *db)
 SigmaWallet::Database::Connection::~Connection()
 {
     if (local) {
-        reinterpret_cast<CWalletDB*>(db.local)->Close();
+        reinterpret_cast<CWalletDB*>(db.local)->~CWalletDB();
     }
 }
 
