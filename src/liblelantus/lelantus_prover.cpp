@@ -1,13 +1,14 @@
 #include "lelantus_prover.h"
+
 namespace lelantus {
 
 LelantusProver::LelantusProver(const Params* p) : params(p) {
 }
 
 void LelantusProver::proof(
-        const std::vector<PublicCoin>& c,
+        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
         const Scalar& Vin,
-        const std::vector<PrivateCoin>& Cin,
+        const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<uint64_t>& indexes,
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
@@ -15,19 +16,19 @@ void LelantusProver::proof(
         LelantusProof& proof_out) {
     Scalar input = Vin;
     for (std::size_t i = 0; i < Cin.size(); ++i)
-        input += Cin[i].getPublicCoin().get_v();
+        input += Cin[i].first.getV();
     Scalar out = Vout;
     for (std::size_t i = 0; i < Cout.size(); ++i)
-        out += Cout[i].getPublicCoin().get_v();
+        out += Cout[i].getV();
     out += f;
 
     if(input != out)
-        throw "Input and output are not equal";
+        throw ZerocoinException("Input and output are not equal");
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
-    generate_sigma_proofs(c, Cin, indexes, x, Yk_sum, proof_out.sigma_proofs);
-    Scalar x_m = x.exponent(params->get_m());
+    generate_sigma_proofs(anonymity_sets, Cin, indexes, x, Yk_sum, proof_out.sigma_proofs);
+    Scalar x_m = x.exponent(params->get_sigma_m());
     generate_bulletproofs(Cout, proof_out.bulletproofs);
     Scalar X_;
     Scalar So;
@@ -42,7 +43,7 @@ void LelantusProver::proof(
     Scalar Ri;
     for (std::size_t i = 0; i < Cin.size(); ++i)
     {
-        Ri += Cin[i].getRandomness() * x_m + Yk_sum[i];
+        Ri += Cin[i].first.getRandomness() * x_m + Yk_sum[i];
     }
     Y_ = Ro * x_m - Ri;
     SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h1());
@@ -51,15 +52,15 @@ void LelantusProver::proof(
 }
 
 void LelantusProver::generate_sigma_proofs(
-        const std::vector<PublicCoin>& c,
-        const std::vector<PrivateCoin>& Cin,
+        const std::vector<std::vector<PublicCoin>>& c,
+        const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<uint64_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
         std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs){
-    SigmaPlusProver<Scalar,GroupElement> sigmaProver(params->get_g(), params->get_h(), params->get_n(), params->get_m());
+    SigmaPlusProver<Scalar,GroupElement> sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
     sigma_proofs.resize(Cin.size());
-    int N = Cin.size();
+    std::size_t N = Cin.size();
     std::vector<Scalar> rA, rB, rC, rD;
     rA.resize(N);
     rB.resize(N);
@@ -73,37 +74,41 @@ void LelantusProver::generate_sigma_proofs(
     Yk.resize(N);
     std::vector<std::vector<Scalar>> a;
     a.resize(N);
-    for (int i = 0; i < N; ++i)
+    for (std::size_t i = 0; i < N; ++i)
     {
-        GroupElement gs = (params->get_g() * Cin[i].getSerialNumber().negate());
+        if(c.size() <= Cin[i].second)
+            throw ZerocoinException("No such anonymity set or id is not correct");
+
+        GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
-        for(unsigned int j = 0; j < c.size(); ++j)
-            C_.emplace_back(c[j].getValue() + gs);
+        for(std::size_t j = 0; j < c[Cin[i].second].size(); ++j)
+            C_.emplace_back(c[Cin[i].second][j].getValue() + gs);
 
         rA[i].randomize();
         rB[i].randomize();
         rC[i].randomize();
         rD[i].randomize();
-        Tk[i].resize(params->get_m());
-        Pk[i].resize(params->get_m());
-        Yk[i].resize(params->get_m());
-        a[i].resize(params->get_n() * params->get_m());
+        Tk[i].resize(params->get_sigma_m());
+        Pk[i].resize(params->get_sigma_m());
+        Yk[i].resize(params->get_sigma_m());
+        a[i].resize(params->get_sigma_n() * params->get_sigma_m());
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
 
     LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
 
-    for (int i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
         Scalar x_k(uint64_t(1));
-        for (int k = 0; k < params->get_m(); ++k) {
+        for (int k = 0; k < params->get_sigma_m(); ++k) {
             Yk_sum[i] += Yk[i][k] * x_k;
             x_k *= x;
         }
     }
-    for(int i = 0; i < N; ++i){
-        const Scalar& v = Cin[i].getPublicCoin().get_v();
-        const Scalar& r = Cin[i].getRandomness();
+
+    for(std::size_t i = 0; i < N; ++i){
+        const Scalar& v = Cin[i].first.getV();
+        const Scalar& r = Cin[i].first.getRandomness();
         sigmaProver.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v, r, Tk[i], Pk[i], x, sigma_proofs[i]);
     }
 }
@@ -123,17 +128,14 @@ void LelantusProver::generate_bulletproofs(
     randoms.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
-        v_s.push_back(Cout[i].getPublicCoin().get_v());
+        v_s.push_back(Cout[i].getV());
         serials.push_back(Cout[i].getSerialNumber());
         randoms.push_back(Cout[i].getRandomness());
     }
 
-    for (std::size_t i = Cout.size(); i < m; ++i)
-    {
-        v_s.push_back(uint64_t(0));
-        serials.push_back(uint64_t(0));
-        randoms.push_back(uint64_t(0));
-    }
+    v_s.resize(m);
+    serials.resize(m);
+    randoms.resize(m);
 
     std::vector<GroupElement> g_, h_;
     g_.reserve(n * m);

@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMAPLUSPROOF_H
-#define ZCOIN_SIGMAPLUSPROOF_H
+#ifndef ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H
+#define ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H
 
 #include <vector>
 #include "params.h"
@@ -26,42 +26,40 @@ public:
     }
 
     inline unsigned char* serialize(unsigned char* buffer) const {
-        unsigned char* current = buffer;
-        current = A_.serialize(current);
-        current = B_.serialize(current);
-        current = C_.serialize(current);
-        current = D_.serialize(current);
+        buffer = A_.serialize(buffer);
+        buffer = B_.serialize(buffer);
+        buffer = C_.serialize(buffer);
+        buffer = D_.serialize(buffer);
         for(std::size_t i = 0; i < f_.size(); ++i)
-            current = f_[i].serialize(current);
-        current = ZA_.serialize(current);
-        current = ZC_.serialize(current);
+            buffer = f_[i].serialize(buffer);
+        buffer = ZA_.serialize(buffer);
+        buffer = ZC_.serialize(buffer);
         for(std::size_t i = 0; i < Gk_.size(); ++i)
-            current = Gk_[i].serialize(current);
+            buffer = Gk_[i].serialize(buffer);
         for(std::size_t i = 0; i < Qk.size(); ++i)
-            current = Qk[i].serialize(current);
-        current = zV_.serialize(current);
-        return zR_.serialize(current);
+            buffer = Qk[i].serialize(buffer);
+        buffer = zV_.serialize(buffer);
+        return zR_.serialize(buffer);
     }
 
     inline const unsigned char* deserialize(const unsigned char* buffer, int n, int m) {
-        const unsigned char* current = buffer;
-        current = A_.deserialize(current);
-        current = B_.deserialize(current);
-        current = C_.deserialize(current);
-        current = D_.deserialize(current);
+        buffer = A_.deserialize(buffer);
+        buffer = B_.deserialize(buffer);
+        buffer = C_.deserialize(buffer);
+        buffer = D_.deserialize(buffer);
         f_.resize(m * (n - 1));
         for(int i = 0; i < m * (n - 1); ++i)
-            current = f_[i].deserialize(current);
-        current = ZA_.deserialize(current);
-        current = ZC_.deserialize(current);
+            buffer = f_[i].deserialize(buffer);
+        buffer = ZA_.deserialize(buffer);
+        buffer = ZC_.deserialize(buffer);
         Gk_.resize(m);
         Qk.resize(m);
         for(int i = 0; i < m; ++i)
-            current = Gk_[i].deserialize(current);
+            buffer = Gk_[i].deserialize(buffer);
         for(int i = 0; i < m; ++i)
-            current = Qk[i].deserialize(current);
-        current = zV_.deserialize(current);
-        return zR_.deserialize(current);
+            buffer = Qk[i].deserialize(buffer);
+        buffer = zV_.deserialize(buffer);
+        return zR_.deserialize(buffer);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -96,4 +94,4 @@ public:
 
 } //namespace lelantus
 
-#endif //ZCOIN_SIGMAPLUSPROOF_H
+#endif //ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H

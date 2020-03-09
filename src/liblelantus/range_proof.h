@@ -1,8 +1,8 @@
-#ifndef ZCOIN_RANGEPROOF_H
-#define ZCOIN_RANGEPROOF_H
+#ifndef ZCOIN_LIBLELANTUS_RANGEPROOF_H
+#define ZCOIN_LIBLELANTUS_RANGEPROOF_H
 
 #include "innerproduct_proof.h"
-#include <math.h>
+#include <cmath>
 
 namespace lelantus {
 
@@ -10,36 +10,34 @@ template<class Exponent, class GroupElement>
 class RangeProof{
 public:
 
-    inline int memoryRequired(int n, int m) {
-        int size = (int)(log(n * m) / log(2));
+    inline int memoryRequired(int n, int m) const {
+        int size = (int)std::log2(n * m);
         return A.memoryRequired() * 4
                + T_x1.memoryRequired() * 3
                + innerProductProof.memoryRequired(size);
     }
 
     inline unsigned char* serialize(unsigned char* buffer) const {
-        unsigned char* current = A.serialize(buffer);
-        current = S.serialize(current);
-        current = T1.serialize(current);
-        current = T2.serialize(current);
-        current = T_x1.serialize(current);
-        current = T_x2.serialize(current);
-        current = u.serialize(current);
-        current = innerProductProof.serialize(current);
-        return current;
+        buffer = A.serialize(buffer);
+        buffer = S.serialize(buffer);
+        buffer = T1.serialize(buffer);
+        buffer = T2.serialize(buffer);
+        buffer = T_x1.serialize(buffer);
+        buffer = T_x2.serialize(buffer);
+        buffer = u.serialize(buffer);
+        return innerProductProof.serialize(buffer);
     }
 
     inline const unsigned char* deserialize(const unsigned char* buffer, int n) {
-        int size = (int)(log(n) / log(2));
-        const unsigned char* current = A.deserialize(buffer);
-        current = S.deserialize(current);
-        current = T1.deserialize(current);
-        current = T2.deserialize(current);
-        current = T_x1.deserialize(current);
-        current = T_x2.deserialize(current);
-        current = u.deserialize(current);
-        current = innerProductProof.deserialize(current, size);
-        return current;
+        int size = (int)std::log2(n);
+        buffer = A.deserialize(buffer);
+        buffer = S.deserialize(buffer);
+        buffer = T1.deserialize(buffer);
+        buffer = T2.deserialize(buffer);
+        buffer = T_x1.deserialize(buffer);
+        buffer = T_x2.deserialize(buffer);
+        buffer = u.deserialize(buffer);
+        return innerProductProof.deserialize(buffer, size);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -67,4 +65,4 @@ public:
 };
 }//namespace lelantus
 
-#endif //ZCOIN_RANGEPROOF_H
+#endif //ZCOIN_LIBLELANTUS_RANGE_PROOF_H

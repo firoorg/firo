@@ -59,24 +59,16 @@ void LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(
     std::size_t rem = 0;
     std::size_t j = 0;
 
-    for (; num != 0; num /= n, j++)
+    for (j = 0; j < m; ++j)
     {
         rem = num % n;
+        num /= n;
         for (std::size_t i = 0; i < n; ++i)
         {
             if(i == rem)
                 out.push_back(Exponent(uint64_t(1)));
             else
                 out.push_back(Exponent(uint64_t(0)));
-        }
-    }
-
-    for (; j < m; j++)
-    {
-        out.push_back(Exponent(uint64_t(1)));
-        for (std::size_t i = 1; i < n; ++i)
-        {
-            out.push_back(Exponent(uint64_t(0)));
         }
     }
 }
@@ -88,10 +80,10 @@ std::vector<uint64_t> LelantusPrimitives<Exponent, GroupElement>::convert_to_nal
         uint64_t m) {
     std::vector<uint64_t> result;
     uint64_t rem = 0;
-    uint64_t j = 0;
-    for (; num != 0; num /= n, j++)
+    while (num != 0)
     {
         rem = num % n;
+        num /= n;
         result.push_back(rem);;
     }
     result.resize(m);
@@ -120,8 +112,8 @@ void  LelantusPrimitives<Exponent, GroupElement>::generate_Lelantus_challange(
 
 template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::new_factor(
-        Exponent x,
-        Exponent a,
+        const Exponent& x,
+        const Exponent& a,
         std::vector<Exponent>& coefficients) {
     std::size_t degree = coefficients.size();
     coefficients.push_back(x * coefficients[degree-1]);
@@ -208,7 +200,7 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
     Exponent z_j =  z.exponent(uint64_t(3));
     Exponent z_sum(uint64_t(0));
 
-    for(std::size_t j = 1; j <= m; ++j)
+    for(std::size_t j = 0; j < m; ++j)
     {
         for(std::size_t i = 0; i < n; ++i)
         {

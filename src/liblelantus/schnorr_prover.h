@@ -1,5 +1,5 @@
-#ifndef ZCOINSCHNOORPROOVER_H
-#define ZCOINSCHNOORPROOVER_H
+#ifndef ZCOIN_LIBLELANTUS_SCHNORR_PROOVER_H
+#define ZCOIN_LIBLELANTUS_SCHNORR_PROOVER_H
 
 #include "lelantus_primitives.h"
 
@@ -21,4 +21,4 @@ private:
 
 #include "schnorr_prover.hpp"
 
-#endif //ZCOINSCHNOORPROOVER_H
+#endif //ZCOIN_LIBLELANTUS_SCHNORR_PROOVER_H

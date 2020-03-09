@@ -8,21 +8,22 @@ BOOST_AUTO_TEST_SUITE(lelantus_serialize_tests)
 BOOST_AUTO_TEST_CASE(serialize)
 {
     auto params = lelantus::Params::get_default();
-    std::vector <lelantus::PublicCoin> anonymity_set;
+    std::vector <std::vector <lelantus::PublicCoin>> anonymity_sets;
     int N = 100;
 
-    std::vector <lelantus::PrivateCoin> Cin;
+    std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> Cin;
     secp_primitives::Scalar v1(uint64_t(5));
     lelantus::PrivateCoin input_coin1(params ,v1);
-    Cin.push_back(input_coin1);
+    Cin.emplace_back(std::make_pair(input_coin1, 0));
     std::vector <uint64_t> indexes;
     indexes.push_back(0);
-    anonymity_set.reserve(N);
-    anonymity_set.push_back(Cin[0].getPublicCoin());
+    anonymity_sets.resize(1);
+    anonymity_sets[0].reserve(N);
+    anonymity_sets[0].push_back(Cin[0].first.getPublicCoin());
     for(int i = 0; i < N; ++i){
           secp_primitives::GroupElement coin;
           coin.randomize();
-          anonymity_set.push_back(lelantus::PublicCoin(coin, uint64_t(15)));
+          anonymity_sets[0].emplace_back(lelantus::PublicCoin(coin));
      }
 
     secp_primitives::Scalar Vin(uint64_t(5));
@@ -35,7 +36,7 @@ BOOST_AUTO_TEST_CASE(serialize)
     lelantus::LelantusProof initial_proof;
 
     lelantus::LelantusProver prover(params);
-    prover.proof(anonymity_set, Vin, Cin, indexes, Vout, Cout, f,  initial_proof);
+    prover.proof(anonymity_sets, Vin, Cin, indexes, Vout, Cout, f,  initial_proof);
 
     unsigned char buffer [initial_proof.memoryRequired(1, params->get_bulletproofs_n(), 2)];
     initial_proof.serialize(buffer);

@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LELANTUSPRIMITIVES_H
-#define ZCOIN_LELANTUSPRIMITIVES_H
+#ifndef ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
+#define ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
 #include <vector>
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
@@ -49,7 +49,7 @@ public:
 
     static void generate_Lelantus_challange(const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs, Exponent& result_out);
 
-    static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
+    static void new_factor(const Exponent& x, const Exponent& a, std::vector<Exponent>& coefficients);
 //// functions for bulletproofs
     static void commit(
             const GroupElement& h,
@@ -91,4 +91,4 @@ public:
 
 #include "lelantus_primitives.hpp"
 
-#endif //ZCOIN_LELANTUSPRIMITIVES_H
+#endif //ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
