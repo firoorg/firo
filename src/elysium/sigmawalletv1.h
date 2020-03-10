@@ -10,21 +10,23 @@
 
 namespace elysium {
 
-typedef std::array<uint8_t, 32> ECDSAPrivateKey;
 
 class SigmaWalletV1 : public SigmaWallet
 {
+protected:
+    typedef std::array<uint8_t, 32> ECDSAPrivateKey;
+
 public:
     SigmaWalletV1();
 
 protected:
-    bool GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out);
-    void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial);
+    bool GetPublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out);
+    secp_primitives::Scalar GenerateSerial(secp256k1_pubkey const &pubkey);
 
 protected:
     uint32_t BIP44ChangeIndex() const;
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
-    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &ecdsaKeyOut);
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &key);
 
     class Database : public SigmaWallet::Database
     {

@@ -496,7 +496,7 @@ CWalletDB* SigmaWallet::Database::Connection::operator->() noexcept
     return local ? reinterpret_cast<CWalletDB*>(db.local) : db.db;
 }
 
-SigmaWallet::Database::Database(std::string const &walletFile) : walletFile(walletFile)
+SigmaWallet::Database::Database()
 {
 }
 

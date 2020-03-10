@@ -67,14 +67,14 @@ public:
 
 public:
     // Proxy
-    bool GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
+    bool GetPublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
     {
-        return SigmaWalletV1::GeneratePublicKey(priv, out);
+        return SigmaWalletV1::GetPublicKey(priv, out);
     }
 
-    void GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitives::Scalar &serial)
+    secp_primitives::Scalar GenerateSerial(secp256k1_pubkey const &pubkey)
     {
-        SigmaWalletV1::GenerateSerial(pubkey, serial);
+        return SigmaWalletV1::GenerateSerial(pubkey);
     }
 
     using SigmaWalletV1::GeneratePrivateKey;
@@ -218,14 +218,14 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
         key.randomness.GetHex());
 }
 
-BOOST_AUTO_TEST_CASE(generate_pubkey)
+BOOST_AUTO_TEST_CASE(get_pubkey)
 {
-    ECDSAPrivateKey priv;
+    std::array<uint8_t, 32> priv;
     auto rawSecret = ParseHex("c634aba3ff562690db4a52cb869d38a43e8d817eddbf68dfb9983af5e9c3e505");
     std::copy(rawSecret.begin(), rawSecret.end(), priv.begin());
 
     secp256k1_pubkey pubkey;
-    wallet->GeneratePublicKey(priv, pubkey);
+    wallet->GetPublicKey(priv, pubkey);
 
     std::array<uint8_t, 33> compressedPub;
 
@@ -254,8 +254,7 @@ BOOST_AUTO_TEST_CASE(generate_serial)
         rawPubkey.size()
     ));
 
-    secp_primitives::Scalar serial;
-    wallet->GenerateSerial(pubkey, serial);
+    auto serial = wallet->GenerateSerial(pubkey);
 
     BOOST_CHECK_EQUAL(
         std::string("b8394f96f9aedc8a00091bf2e4dc639eb54af823477afac4dd89db23657c5576"),

@@ -34,7 +34,7 @@ SigmaPrivateKey SigmaWalletV0::GeneratePrivateKey(uint512 const &seed)
     return priv;
 }
 
-SigmaWalletV0::Database::Database() : SigmaWallet::Database(pwalletMain->strWalletFile)
+SigmaWalletV0::Database::Database()
 {
 }
 

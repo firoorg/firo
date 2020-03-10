@@ -134,7 +134,7 @@ protected:
 
     class Database : public SigmaWallet::Database {
     public:
-        Database() : SigmaWallet::Database(pwalletMain->strWalletFile)
+        Database()
         {
         }
 

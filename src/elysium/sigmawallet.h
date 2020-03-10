@@ -70,7 +70,7 @@ public:
 protected:
     class Database {
     public:
-        Database(std::string const &walletFile);
+        Database();
 
     public:
         virtual bool WriteMint(SigmaMintId const &id, SigmaMint const &mint, CWalletDB *db = nullptr) = 0;
@@ -106,8 +106,6 @@ protected:
                 unsigned char local[sizeof(CWalletDB)];
             } db;
         };
-
-        std::string walletFile;
     };
 
 public:
