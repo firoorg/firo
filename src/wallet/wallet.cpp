@@ -7722,7 +7722,6 @@ bool CWallet::NewKeyPool() {
 bool CWallet::TopUpKeyPool(unsigned int kpSize) {
     {
         LOCK(cs_wallet);
-
         if (IsLocked())
             return false;
 
@@ -8293,6 +8292,147 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     return strUsage;
 }
 
+bool CWallet::ReInitializeWallet(std::string mnemonic, std::string pp) {
+    LogPrintf("InitLoadWallet()\n");
+    std::string walletFile = pwalletMain->strWalletFile;
+    if (pwalletMain) {
+        LOCK(pwalletMain->cs_wallet);
+        pwalletMain->setKeyPool.clear();
+    }
+    CWallet *walletInstance = new CWallet(walletFile);
+    pwalletMain = walletInstance;
+
+    DBErrors nLoadWalletRet = CWalletDB(walletFile, "w").LoadWallet(walletInstance);
+    if (nLoadWalletRet == DB_NEED_REWRITE) {
+        if (CDB::Rewrite(walletFile, "\x04pool")) {
+            LOCK(walletInstance->cs_wallet);
+            walletInstance->setKeyPool.clear();
+            // Note: can't top-up keypool here, because wallet is locked.
+            // User will be prompted to unlock wallet the next operation
+            // that requires a new key.
+        }
+    }
+    nLoadWalletRet = DB_LOAD_OK;
+    LogPrintf("Load done!\n");
+    if (nLoadWalletRet != DB_LOAD_OK) {
+        if (nLoadWalletRet == DB_CORRUPT)
+            return InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
+        else if (nLoadWalletRet == DB_NONCRITICAL_ERROR) {
+            InitWarning(strprintf(_("Error reading %s! All keys read correctly, but transaction data"
+                                            " or address book entries might be missing or incorrect."),
+                                  walletFile));
+        } else if (nLoadWalletRet == DB_TOO_NEW)
+            return InitError(strprintf(_("Error loading %s: Wallet requires newer version of %s"),
+                                       walletFile, _(PACKAGE_NAME)));
+        else if (nLoadWalletRet == DB_NEED_REWRITE) {
+            return InitError(
+                    strprintf(_("Wallet needed to be rewritten: restart %s to complete"), _(PACKAGE_NAME)));
+        } else
+            return InitError(strprintf(_("Error loading %s"), walletFile));
+    }
+
+    int nMaxVersion = 0;
+    LogPrintf("Performing wallet upgrade to %i\n", FEATURE_LATEST);
+    nMaxVersion = CLIENT_VERSION;
+    walletInstance->SetMinVersion(FEATURE_LATEST); // permanently upgrade the wallet immediately
+    if (nMaxVersion < walletInstance->GetVersion()) {
+        return InitError(_("Cannot downgrade wallet"));
+    }
+    walletInstance->SetMaxVersion(nMaxVersion);
+
+    if (pp.size() > 256) {
+        throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
+    }
+    // generate a new HD chain
+    CHDChain newHdChain;
+    MnemonicContainer mnContainer;
+
+    LogPrintf("CWallet::GenerateNewMnemonic -- Generating new MnemonicContainer\n");
+
+    std::string mnemonicPassphrase = pp;
+    //Use 24 words by default;
+    mnContainer.Set12Words(false);
+
+    SecureString secureMnemonic(mnemonic.begin(), mnemonic.end());
+    SecureString securePassphrase(mnemonicPassphrase.begin(), mnemonicPassphrase.end());
+
+    if (!mnContainer.SetMnemonic(secureMnemonic, securePassphrase))
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+    newHdChain.masterKeyID = CKeyID(Hash160(mnContainer.seed.begin(), mnContainer.seed.end()));
+
+    if (!walletInstance->SetHDChain(newHdChain, false))
+        throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
+
+    if (!walletInstance->SetMnemonicContainer(mnContainer, false))
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonicContainer failed");    
+    
+    walletInstance->SetMinVersion(FEATURE_HD);
+    /* set rescan to true.
+    * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
+    */
+    SoftSetBoolArg("-rescan", true);
+    bool fRecoverMnemonic = true;
+    CPubKey newDefaultKey;
+    if (walletInstance->GetKeyFromPool(newDefaultKey)) {
+        walletInstance->SetDefaultKey(newDefaultKey);
+        if (!walletInstance->SetAddressBook(walletInstance->vchDefaultKey.GetID(), "", "receive"))
+            return InitError(_("Cannot write default address") += "\n");
+    }
+
+    walletInstance->SetBestChain(chainActive.GetLocator());
+
+        // Check for the existence of the "persistent" folder, if found (from previous wallet), delete
+    boost::filesystem::path path = GetDataDir() / PERSISTENT_FILENAME;
+    if(boost::filesystem::exists(path)){
+        boost::filesystem::remove_all(path);
+    }
+
+    // Add files for persistent storage (client-api)
+    if(fApi)
+        CreatePersistentFiles();
+
+    if (pwalletMain->IsHDSeedAvailable()) {
+        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+    }
+
+#ifdef ENABLE_CLIENTAPI    
+    // Set API loaded before wallet sync and immediately notify
+    if(fApi){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+    }
+#endif
+
+    RegisterValidationInterface(walletInstance);
+
+    CBlockIndex *pindexRescan = chainActive.Tip();
+    pindexRescan = chainActive.Genesis();
+    if (chainActive.Tip() && chainActive.Tip() != pindexRescan) {
+        //We can't rescan beyond non-pruned blocks, stop and throw an error
+        //this might happen if a user uses a old wallet within a pruned node
+        // or if he ran -disablewallet for a longer time, then decided to re-enable
+        if (fPruneMode) {
+            CBlockIndex *block = chainActive.Tip();
+            while (block && block->pprev && (block->pprev->nStatus & BLOCK_HAVE_DATA) && block->pprev->nTx > 0 &&
+                   pindexRescan != block)
+                block = block->pprev;
+
+            if (pindexRescan != block)
+                return InitError(
+                        _("Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)"));
+        }
+
+        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight,
+                  pindexRescan->nHeight);
+        walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
+        walletInstance->SetBestChain(chainActive.GetLocator());
+        nWalletDBUpdated++;
+    }
+    walletInstance->SetBroadcastTransactions(DEFAULT_WALLETBROADCAST);
+
+    pwalletMain = walletInstance;
+    return true;
+}
 
 bool CWallet::InitLoadWallet() {
     LogPrintf("InitLoadWallet()\n");

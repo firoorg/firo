@@ -873,73 +873,6 @@ UniValue showMnemonics(Type type, const UniValue& data, const UniValue& auth, bo
     return memonics;
 }
 
-UniValue importMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (!EnsureWalletIsAvailable(false))
-        return NullUniValue;
-    
-    std::string mnemonic = data.getValStr();
-    const char* str = mnemonic.c_str();
-    bool space = true;
-    int n = 0;
-
-    while (*str != '\0')
-    {
-        if (std::isspace(*str))
-        {
-            space = true;
-        }
-        else if (space)
-        {
-            n++;
-            space = false;
-        }
-        ++str;
-    }
-
-    if(n != 24) {
-        throw runtime_error("Wrong number of words. Please try again.");
-    }
-
-    if(mnemonic.empty()) {
-        throw runtime_error("Mnemonic can't be empty.");
-    }
-
-    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
-    if(!Mnemonic::mnemonic_check(secmnemonic)){
-        throw runtime_error("Invalid mnemmonics phrase.");
-    }
-    return true;
-}
-
-UniValue verifyMnemonicsWord(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (!EnsureWalletIsAvailable(false))
-        return NullUniValue;
-    LogPrintf("%s: data 1", __func__);
-    std::string wordIndex = find_value(data, "wordindex").getValStr();
-        LogPrintf("%s: data 2", __func__);
-
-
-    std::vector<string> splits;
-    boost::split(splits, wordIndex, boost::is_any_of("-"));
-    if (splits.size() != 2) throw runtime_error("Incorrect word! split size, " + wordIndex);
-        LogPrintf("%s: data 3", __func__);
-    std::string word = splits[0];
-    int index = 0;
-    
-    ParseInt32(splits[1], &index);
-    LogPrintf("%s: data 4", __func__);
-
-    std::string memonics = ReadMnemonics();
-    LogPrintf("%s: data 5", __func__);
-
-    std::vector<string> words;
-    boost::split(words, memonics, boost::is_any_of(" "));
-    if (index >= words.size()) throw runtime_error("Incorrect word! word size");
-    LogPrintf("%s: data 6", __func__);
-
-    return (words[index] == word);
-}
-
 UniValue isMnemonicExist(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -971,6 +904,68 @@ UniValue readWalletMnemonicWarningState(Type type, const UniValue& data, const U
     return ret;
 }
 
+bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
+    const char* str = mnemonic.c_str();
+    bool space = true;
+    int n = 0;
+
+    while (*str != '\0')
+    {
+        if (std::isspace(*str))
+        {
+            space = true;
+        }
+        else if (space)
+        {
+            n++;
+            space = false;
+        }
+        ++str;
+    }
+
+    if(n != 24) {
+        failReason = "Wrong number of words. Please try again.";
+        return false;
+    }
+
+    if(mnemonic.empty()) {
+        failReason = "Mnemonic can't be empty.";
+        return false;
+    }
+
+    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
+    return Mnemonic::mnemonic_check(secmnemonic);
+}
+
+UniValue importMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (find_value(data, "mnemonic").isNull()) throw runtime_error("Mnemonic not found");
+    std::string mnemonic = find_value(data, "mnemonic").getValStr();
+    bool hasProtective = find_value(data, "protective").isNull();
+    std::string protective = "";
+    if (hasProtective) {
+        protective = find_value(data, "protective").getValStr();
+    }
+    std::string failReason;
+    if(!isMnemonicValid(mnemonic, failReason)){
+        throw runtime_error(failReason);
+    }
+
+    CWallet::ReInitializeWallet(mnemonic, protective);
+    return true;
+}
+
+UniValue verifyMnemonicValidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (find_value(data, "mnemonic").isNull()) return 'false';
+    std::string mnemonic = find_value(data, "mnemonic").getValStr();
+    std::string failReason = "Invalid mnemonic recovery phrase";
+    bool result = isMnemonicValid(mnemonic, failReason);
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("valid", result));
+    ret.push_back(Pair("reason", failReason));
+    LogPrintf("verifyMnemonicValidity:%s\n", result);
+    return ret;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -981,12 +976,12 @@ static const CAPICommand commands[] =
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
     { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  },    
     { "wallet",             "showMnemonics",   &showMnemonics,           true,      true,            false  },    
-    { "wallet",             "importMnemonics", &importMnemonics,         true,      true,            false  },    
-    { "wallet",             "verifyMnemonicsWord", &verifyMnemonicsWord,         true,      true,            false  },    
     { "wallet",             "isMnemonicExist", &isMnemonicExist,         true,      false,            false  },    
     { "wallet",             "writeShowMnemonicWarning", &writeShowMnemonicWarning,         true,      false,            false  },    
     { "wallet",             "readShowMnemonicWarning", &readShowMnemonicWarning,         true,      false,            false  },    
-    { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  }    
+    { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  },    
+    { "wallet",             "importMnemonics", &importMnemonics,         true,      false,            false  },   
+    { "wallet",             "verifyMnemonicValidity", &verifyMnemonicValidity,         false,      false,            false  }    
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
