@@ -937,23 +937,6 @@ bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
     return Mnemonic::mnemonic_check(secmnemonic);
 }
 
-UniValue importMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (find_value(data, "mnemonic").isNull()) throw runtime_error("Mnemonic not found");
-    std::string mnemonic = find_value(data, "mnemonic").getValStr();
-    bool hasProtective = find_value(data, "protective").isNull();
-    std::string protective = "";
-    if (hasProtective) {
-        protective = find_value(data, "protective").getValStr();
-    }
-    std::string failReason;
-    if(!isMnemonicValid(mnemonic, failReason)){
-        throw runtime_error(failReason);
-    }
-
-    CWallet::ReInitializeWallet(mnemonic, protective);
-    return true;
-}
-
 UniValue verifyMnemonicValidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (find_value(data, "mnemonic").isNull()) return 'false';
     std::string mnemonic = find_value(data, "mnemonic").getValStr();
@@ -980,7 +963,6 @@ static const CAPICommand commands[] =
     { "wallet",             "writeShowMnemonicWarning", &writeShowMnemonicWarning,         true,      false,            false  },    
     { "wallet",             "readShowMnemonicWarning", &readShowMnemonicWarning,         true,      false,            false  },    
     { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  },    
-    { "wallet",             "importMnemonics", &importMnemonics,         true,      false,            false  },   
     { "wallet",             "verifyMnemonicValidity", &verifyMnemonicValidity,         false,      false,            false  }    
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
