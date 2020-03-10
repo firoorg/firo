@@ -8,20 +8,22 @@
 
 namespace elysium {
 
-Signature::Signature() : valid(false)
+Signature::Signature() : valid(false), context(ECDSAContext::CreateSignContext())
 {
 }
 
-Signature::Signature(secp256k1_ecdsa_signature const &sig) : signature(sig), valid(true)
+Signature::Signature(secp256k1_ecdsa_signature const &sig)
+    : signature(sig), valid(true), context(ECDSAContext::CreateSignContext())
 {
 }
 
-Signature::Signature(unsigned char const *signature, size_t len) : valid(false)
+Signature::Signature(unsigned char const *signature, size_t len)
+    : valid(false), context(ECDSAContext::CreateSignContext())
 {
     if (len >= 70 && len <= 72) {
         if (1 == secp256k1_ecdsa_signature_parse_der(
-            Context(),
-            &(this->signature), 
+            context.Context(),
+            &(this->signature),
             signature,
             len))
         {
@@ -29,7 +31,7 @@ Signature::Signature(unsigned char const *signature, size_t len) : valid(false)
         }
     } else if (len == SIGNATURE_COMPACT_SERIALIZED_SIZE) {
         if (1 == secp256k1_ecdsa_signature_parse_compact(
-            Context(),
+            context.Context(),
             &(this->signature),
             signature)) {
             valid = true;
@@ -45,7 +47,7 @@ std::vector<unsigned char> Signature::GetCompact() const
     result.resize(SIGNATURE_COMPACT_SERIALIZED_SIZE);
 
     if (1 != secp256k1_ecdsa_signature_serialize_compact(
-        Context(),
+        context.Context(),
         result.data(),
         &signature)) {
         throw std::runtime_error("Serialized size is in valid");
@@ -61,7 +63,7 @@ std::vector<unsigned char> Signature::GetDER() const
 
     size_t outLen = SIGNATURE_DER_SERIALIZED_SIZE;
     if (1 != secp256k1_ecdsa_signature_serialize_der(
-        Context(),
+        context.Context(),
         result.data(),
         &outLen,
         &signature)) {

@@ -5,7 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_SIGNATURE_H
 #define ZCOIN_ELYSIUM_SIGNATURE_H
 
-#include "../sigma/openssl_context.h"
+#include "ecdsa_context.h"
 
 #include <secp256k1.h>
 
@@ -23,6 +23,7 @@ public:
 private:
     secp256k1_ecdsa_signature signature;
     bool valid;
+    ECDSAContext context;
 
 public:
     Signature();
@@ -56,7 +57,7 @@ public:
         std::array<uint8_t, SIGNATURE_COMPACT_SERIALIZED_SIZE> buffer;
         s.read(reinterpret_cast<char*>(buffer.begin()), sizeof(buffer));
         if (1 != secp256k1_ecdsa_signature_parse_compact(
-            Context(),
+            context.Context(),
             &signature,
             reinterpret_cast<const unsigned char*>(buffer.begin()))) {
             valid = false;
@@ -64,12 +65,6 @@ public:
         }
 
         valid = true;
-    }
-
-private:
-    static secp256k1_context *Context() 
-    {
-        return OpenSSLContext::get_context();
     }
 };
 

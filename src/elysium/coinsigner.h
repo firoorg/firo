@@ -5,6 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_COINSIGNER_H
 #define ZCOIN_ELYSIUM_COINSIGNER_H
 
+#include "ecdsa_context.h"
 #include "signature.h"
 #include "key.h"
 #include "pubkey.h"
@@ -20,6 +21,7 @@ public:
 
 protected:
     CKey key;
+    ECDSAContext context;
 
 public:
     CPubKey GetPublicKey() const;

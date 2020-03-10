@@ -4,21 +4,20 @@
 
 #include "sigmawalletv1.h"
 
-#include "../libzerocoin/Zerocoin.h"
-#include "../sigma/openssl_context.h"
 #include "../wallet/wallet.h"
 
 namespace elysium {
 
 SigmaWalletV1::SigmaWalletV1()
-    : SigmaWallet(new SigmaWalletV1::Database())
+    : SigmaWallet(new SigmaWalletV1::Database()),
+    context(ECDSAContext::CreateSignContext())
 {
 }
 
 bool SigmaWalletV1::GeneratePublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
 {
     return secp256k1_ec_pubkey_create(
-        OpenSSLContext::get_context(),
+        context.Context(),
         &out,
         priv.data());
 }
@@ -29,7 +28,7 @@ void SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pubkey, secp_primitiv
 
     size_t outSize = sizeof(compressedPub);
     secp256k1_ec_pubkey_serialize(
-        OpenSSLContext::get_context(),
+        context.Context(),
         compressedPub.begin(),
         &outSize,
         &pubkey,

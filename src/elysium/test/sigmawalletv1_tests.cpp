@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "../ecdsa_context.h"
 #include "../sigmadb.h"
 #include "../sigmawalletv1.h"
 #include "../walletmodels.h"
@@ -12,7 +13,6 @@
 #include "../../validationinterface.h"
 
 #include "../../rpc/server.h"
-#include "../../sigma/openssl_context.h"
 
 #include "../../wallet/db.h"
 #include "../../wallet/rpcwallet.h"
@@ -142,8 +142,11 @@ public:
 struct SigmaWalletV1TestingSetup : WalletTestingSetup
 {
     std::unique_ptr<TestSigmaWalletV1> wallet;
+    ECDSAContext context;
 
-    SigmaWalletV1TestingSetup() : wallet(new TestSigmaWalletV1())
+    SigmaWalletV1TestingSetup() :
+        wallet(new TestSigmaWalletV1()),
+        context(ECDSAContext::CreateSignContext())
     {
         wallet->ReloadMasterKey();
     }
@@ -228,7 +231,7 @@ BOOST_AUTO_TEST_CASE(generate_pubkey)
 
     size_t outSize = sizeof(compressedPub);
     secp256k1_ec_pubkey_serialize(
-        OpenSSLContext::get_context(),
+        context.Context(),
         compressedPub.begin(),
         &outSize,
         &pubkey,
@@ -245,7 +248,7 @@ BOOST_AUTO_TEST_CASE(generate_serial)
 
     secp256k1_pubkey pubkey;
     BOOST_CHECK(secp256k1_ec_pubkey_parse(
-        OpenSSLContext::get_context(),
+        context.Context(),
         &pubkey,
         rawPubkey.data(),
         rawPubkey.size()

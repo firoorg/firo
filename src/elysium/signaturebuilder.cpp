@@ -2,9 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "../libzerocoin/Zerocoin.h"
-#include "../sigma/openssl_context.h"
-
 #include "base58.h"
 
 #include <secp256k1/include/Scalar.h>

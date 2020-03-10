@@ -53,6 +53,9 @@ public:
 
 public:
     CoinSigner GetSigner(SigmaMintId const &id);
+
+private:
+    ECDSAContext context;
 };
 
 }

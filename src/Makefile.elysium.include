@@ -6,6 +6,7 @@ ELYSIUM_H = \
   elysium/createpayload.h \
   elysium/createtx.h \
   elysium/dex.h \
+  elysium/ecdsa_context.h \
   elysium/errors.h \
   elysium/fees.h \
   elysium/fetchwallettx.h \
@@ -51,6 +52,7 @@ ELYSIUM_CPP = \
   elysium/createpayload.cpp \
   elysium/createtx.cpp \
   elysium/dex.cpp \
+  elysium/ecdsa_context.cpp \
   elysium/fees.cpp \
   elysium/fetchwallettx.cpp \
   elysium/log.cpp \
