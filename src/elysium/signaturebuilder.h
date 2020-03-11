@@ -5,19 +5,20 @@
 #ifndef ZCOIN_ELYSIUM_SIGNATUREBUILDER_H
 #define ZCOIN_ELYSIUM_SIGNATUREBUILDER_H
 
-#include "base58.h"
-#include "coinsigner.h"
+#include "sigmaprimitives.h"
+#include "signature.h"
+
+#include "../base58.h"
+#include "../key.h"
 
 #include <secp256k1/include/Scalar.h>
-
-#include "sigmaprimitives.h"
 
 namespace elysium {
 
 class SignatureBuilder
 {
 public:
-    virtual Signature Sign(CoinSigner &signer) = 0;
+    virtual Signature Sign(CKey &signer) = 0;
     virtual bool Verify(Signature const &signature) = 0;
 };
 
@@ -35,7 +36,7 @@ public:
         CPubKey const &publicKey);
 
 public:
-    Signature Sign(CoinSigner &signer);
+    Signature Sign(CKey &key);
     bool Verify(Signature const &signature);
 
     CPubKey const& PublicKey();

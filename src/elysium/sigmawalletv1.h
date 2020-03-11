@@ -5,7 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_SIGMAWALLETV1_H
 #define ZCOIN_ELYSIUM_SIGMAWALLETV1_H
 
-#include "coinsigner.h"
+#include "ecdsa_context.h"
 #include "sigmawallet.h"
 
 namespace elysium {
@@ -54,7 +54,7 @@ public:
     using SigmaWallet::GeneratePrivateKey;
 
 public:
-    CoinSigner GetSigner(SigmaMintId const &id);
+    CKey GetKey(SigmaMintId const &id);
 
 private:
     ECDSAContext context;

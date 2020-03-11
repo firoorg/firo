@@ -1,6 +1,5 @@
 ELYSIUM_H = \
   elysium/activation.h \
-  elysium/coinsigner.h \
   elysium/consensushash.h \
   elysium/convert.h \
   elysium/createpayload.h \
@@ -46,7 +45,6 @@ ELYSIUM_H = \
 
 ELYSIUM_CPP = \
   elysium/activation.cpp \
-  elysium/coinsigner.cpp \
   elysium/consensushash.cpp \
   elysium/convert.cpp \
   elysium/createpayload.cpp \

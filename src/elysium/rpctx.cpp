@@ -1728,11 +1728,11 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
         bool fPadding = chainActive.Height() >= ::Params().GetConsensus().nSigmaPaddingBlock;
 
         auto spend = wallet->CreateSigmaSpendV1(propertyId, denomination, fPadding);
-        auto signer = wallet->GetSigmaSigner(spend.mint);
-        auto pubkey = signer.GetPublicKey();
+        auto key = wallet->GetSigmaSignatureKey(spend.mint);
+        auto pubkey = key.GetPubKey();
 
         SigmaV1SignatureBuilder sigBuilder(address, referenceAmount, spend.proof, pubkey);
-        auto signature = sigBuilder.Sign(signer);
+        auto signature = sigBuilder.Sign(key);
 
         SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof, pubkey);
         if (!sigVerifier.Verify(signature)) {

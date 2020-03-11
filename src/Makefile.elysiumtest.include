@@ -5,7 +5,6 @@ ELYSIUM_TEST_CPP = \
   elysium/test/alert_tests.cpp \
   elysium/test/build_tx_tests.cpp \
   elysium/test/checkpoint_tests.cpp \
-  elysium/test/coinsigner_tests.cpp \
   elysium/test/create_payload_tests.cpp \
   elysium/test/create_tx_tests.cpp \
   elysium/test/crowdsale_participation_tests.cpp \

@@ -148,9 +148,9 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
     return wallet.GetMint(id);
 }
 
-CoinSigner Wallet::GetSigmaSigner(const SigmaMintId &id)
+CKey Wallet::GetSigmaSignatureKey(const SigmaMintId &id)
 {
-    return mintWalletV1.GetSigner(id);
+    return mintWalletV1.GetKey(id);
 }
 
 boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination, SigmaMintVersion version)

@@ -1,7 +1,6 @@
 #ifndef ZCOIN_ELYSIUM_WALLET_H
 #define ZCOIN_ELYSIUM_WALLET_H
 
-#include "coinsigner.h"
 #include "elysium.h"
 #include "property.h"
 #include "sigmaprimitives.h"
@@ -74,7 +73,7 @@ public:
     }
 
     SigmaMint GetSigmaMint(const SigmaMintId& id);
-    CoinSigner GetSigmaSigner(const SigmaMintId &id);
+    CKey GetSigmaSignatureKey(const SigmaMintId &id);
     SigmaPrivateKey GetKey(const SigmaMint &mint);
 
     bool HasSigmaMint(const SigmaMintId& id);

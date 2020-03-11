@@ -55,9 +55,9 @@ public:
     }
 
 public:
-    CoinSigner GetCoinSigner()
+    CKey GetKey()
     {
-        return CoinSigner(secret);
+        return secret;
     }
 };
 
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 BOOST_AUTO_TEST_CASE(sign)
 {
     TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
-    auto signer = GetCoinSigner();
+    auto signer = GetKey();
 
     auto signature = builder.Sign(signer);
 

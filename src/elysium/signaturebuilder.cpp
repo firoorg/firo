@@ -2,14 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "base58.h"
-
-#include <secp256k1/include/Scalar.h>
-
 #include "convert.h"
-#include "coinsigner.h"
 #include "sigmaprimitives.h"
 #include "signaturebuilder.h"
+
+#include "../base58.h"
+
+#include <secp256k1/include/Scalar.h>
 
 namespace elysium {
 
@@ -41,10 +40,15 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     hasher.write(serializedData.data(), serializedData.size());
 }
 
-Signature SigmaV1SignatureBuilder::Sign(CoinSigner &signer)
+Signature SigmaV1SignatureBuilder::Sign(CKey &key)
 {
     auto hash = hasher.GetHash();
-    return signer.Sign(hash.begin(), hash.end());
+    std::vector<unsigned char> sig;
+    if (!key.Sign(hash, sig)) {
+        throw std::runtime_error("Fail to sign payload");
+    }
+
+    return Signature(sig.data(), sig.size());
 }
 
 bool SigmaV1SignatureBuilder::Verify(Signature const &signature)
