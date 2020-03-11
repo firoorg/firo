@@ -130,7 +130,7 @@ UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
 
 CAmount getLockUnspentAmount()
 {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CTransaction tx;
     uint256 hashBlock;
@@ -528,17 +528,17 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
         pendingLockCoins.clear();
         if (lockedList.getValues().size() > 0) {
-            ret.push_back(Pair("lockedcoins", lockedList));  
+            ret.push_back(Pair("lockedCoins", lockedList));
         }
         if (unlockedList.getValues().size() > 0) {
-            ret.push_back(Pair("unlockedcoins", unlockedList));  
+            ret.push_back(Pair("unlockedCoins", unlockedList));
         }
     }
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -571,7 +571,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 
 UniValue StateBlock(UniValue& ret, std::string blockhash){
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -627,7 +627,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (fHelp)
         return true;
@@ -709,7 +709,7 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
             "before being able to call any methods which require the wallet to be unlocked.\n"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but lockwallet was called.");
@@ -728,7 +728,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but unlockwallet was called.");
@@ -763,7 +763,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
@@ -836,12 +836,12 @@ UniValue lockCoins(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue uniLocked(UniValue::VSTR);
     UniValue uniUnLocked(UniValue::VSTR);
     LogPrintf("Locking coins\n");
-    if (!find_value(data, "lockedcoins").isNull()) {
-        uniLocked = find_value(data, "lockedcoins");
+    if (!find_value(data, "lockedCoins").isNull()) {
+        uniLocked = find_value(data, "lockedCoins");
     }
     LogPrintf("found lock coins\n");
-    if (!find_value(data, "unlockedcoins").isNull()) {
-        uniUnLocked = find_value(data, "unlockedcoins");
+    if (!find_value(data, "unlockedCoins").isNull()) {
+        uniUnLocked = find_value(data, "unlockedCoins");
     }
     LogPrintf("found unlock coins\n");
     std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());

@@ -192,6 +192,7 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
     g_apiSignals.PreCommand (*pcmd);
     try
     {
+        LOCK(pwalletMain->cs_wallet);
         // If this method requires passphrase, lock and unlock the wallet accordingly
         if(pcmd->authPassphrase && (pwalletMain && pwalletMain->IsCrypted())){
             if(request.auth.isNull()){

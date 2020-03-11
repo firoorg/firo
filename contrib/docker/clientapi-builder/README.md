@@ -25,19 +25,19 @@ cp src/zcoin-tx ../zcoin-client/assets/core/linux
 
 #### copy binaries
 ```
-cp src/zcoind ../zcoin-client/assets/core/win32
-cp src/zcoin-cli ../zcoin-client/assets/core/win32
-cp src/zcoin-tx ../zcoin-client/assets/core/win32
+cp src/zcoind.exe ../zcoin-client/assets/core/win32
+cp src/zcoin-cli.exe ../zcoin-client/assets/core/win32
+cp src/zcoin-tx.exe ../zcoin-client/assets/core/win32
 ```
 
 ### Build
 ```
-npm run build
+cd ../zcoin-client && npm run build
 ```
 
 ### Build Mac
 ```
-cd zcoin
+cd ../zcoin
 ```
 
 #### make Mac

@@ -41,6 +41,7 @@ A function with one or more operations.
 | [block](#block)                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
 | [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
 | [listMints](#listmints)           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
+| [lockCoin](#lockcoin)             | Lock/unlock specified UTXOs.  | 🔐 | – | – |
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
@@ -79,8 +80,21 @@ payload of the reply.
 ## Data Formats
 
 #### Guide
-VAR: variable return value.
+VAR: value being returned is dependant on the condition stated.
 OPTIONAL: not a necessary parameter to pass.
+
+#### Categories
+Transaction outputs are listed under particular categories. They are as follows:
+
+`coinbase` | `znode` | `mined` | `spendIn` | `receive` | `mint` | `send` | `spendOut`
+
+These categories are considered from the wallet perspective: the first five categories are considered the `receive` (ie. UTXO "into" the wallet) categories, while the latter three are considered the `send` (ie. UTXO "out of" the wallet) categories. As a result, in certain cases, the same UTXO can be listed under more than one category.
+
+As an example, if the wallet is to send a transaction containing at least one UTXO to itself, that UTXO will be listed under both the `send` and `receive` categories. It is the same UTXO however, and so the client should only consider the incoming case if eg. showing available UTXOs for Coin Control.
+
+Another example is a Sigma spend transaction to the wallet: the same output(s) will be labelled both a `spendIn` and `spendOut` UTXO.
+
+`mint` is a special case: it is considered a part of the `send` category but there is no value leaving the wallet. The reason for this labelling is so that in a Sigma spend-to-mint transaction, `mint` takes priority over the `spendOut` category.
 
 ### `apiStatus`
 `initial`:
@@ -107,6 +121,7 @@ OPTIONAL: not a necessary parameter to pass.
         connections: INT,
         devAuth: BOOL,
         synced: BOOL,
+        rescanning: BOOL,
         reindexing: BOOL,
         safeMode: BOOL,
         pid: INT,
@@ -219,7 +234,7 @@ OPTIONAL: not a necessary parameter to pass.
                         sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                    ...
+                    ... (For all used categories)
                 },
                 txids: {
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -233,7 +248,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -247,7 +265,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ...
@@ -263,7 +284,7 @@ OPTIONAL: not a necessary parameter to pass.
                         sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                    ...
+                    ... (For all used categories)
                 },
                 txids: {
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -277,7 +298,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -291,17 +315,53 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ...
                 }
             },
             ...
+        },
+        "inputs": [
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "lockedCoins": [ (VAR: pending locked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "unlockedCoins": [ (VAR: pending unlocked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ]
+        meta: {
+            status: 200
         }
-    }
-    meta: {
-        status: 200
     }
 ```
 
@@ -368,6 +428,26 @@ OPTIONAL: not a necessary parameter to pass.
         },
         ...
     }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `lockCoin`:
+`create`:
+```
+    data: {
+        lockedCoins: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        unlockedCoins: STRING ("txid0|vout:txid1|vout...txidn|vout")
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
     meta:{
        status: 200
     }
@@ -870,7 +950,7 @@ OPTIONAL: not a necessary parameter to pass.
                         sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                    ...
+                    ... (For all used categories)
                 },
                 txids: {
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -884,7 +964,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -898,7 +981,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ...
@@ -914,7 +1000,7 @@ OPTIONAL: not a necessary parameter to pass.
                         sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                         balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                     },
-                    ...
+                    ... (For all used categories)
                 },
                 txids: {
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -928,7 +1014,10 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -942,17 +1031,53 @@ OPTIONAL: not a necessary parameter to pass.
                             blockHash: STRING,
                             blockTime: INT(secs),                            
                             blockHeight: INT,
-                            txid: STRING
+                            txid: STRING,
+                            available: BOOL (VAR: category == "mint"),
+                            spendable: BOOL ((VAR: available == True),
+                            locked: BOOL ((VAR: spendable == True)
                         },
                     },
                     ...
                 }
             },
             ...
+        },
+        "inputs": [
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "lockedCoins": [ (VAR: pending locked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ],
+        "unlockedCoins": [ (VAR: pending unlocked coins)
+            {
+                txid: STRING,
+                index: STRING
+            },
+            {
+                txid: STRING,
+                index: STRING
+            },
+            ...
+        ]
+        meta: {
+            status: 200
         }
-    }
-    meta: {
-        status: 200
     }
 ```
 
@@ -1303,7 +1428,7 @@ Methods specific to the publisher.
                     sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                     balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                 },
-                ...
+                ... (For all used categories)
             },
             txids: {
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -1317,7 +1442,10 @@ Methods specific to the publisher.
                         blockHash: STRING,
                         blockTime: INT(secs),                            
                         blockHeight: INT,
-                        txid: STRING
+                        txid: STRING,
+                        available: BOOL (VAR: category == "mint"),
+                        spendable: BOOL ((VAR: available == True),
+                        locked: BOOL ((VAR: spendable == True)
                     },
                 },
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -1331,7 +1459,10 @@ Methods specific to the publisher.
                         blockHash: STRING,
                         blockTime: INT(secs),                            
                         blockHeight: INT,
-                        txid: STRING
+                        txid: STRING,
+                        available: BOOL (VAR: category == "mint"),
+                        spendable: BOOL ((VAR: available == True),
+                        locked: BOOL ((VAR: spendable == True)
                     },
                 },
                 ...
@@ -1347,7 +1478,7 @@ Methods specific to the publisher.
                     sent: INT, (VAR : category=="send"|"mint"|"spendOut")
                     balance: INT, (VAR: category=="mined"|"znode"|"receive"|"spendIn"|"mint")
                 },
-                ...
+                ... (For all used categories)
             },
             txids: {
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -1361,7 +1492,10 @@ Methods specific to the publisher.
                         blockHash: STRING,
                         blockTime: INT(secs),                            
                         blockHeight: INT,
-                        txid: STRING
+                        txid: STRING,
+                        available: BOOL (VAR: category == "mint"),
+                        spendable: BOOL ((VAR: available == True),
+                        locked: BOOL ((VAR: spendable == True)
                     },
                 },
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
@@ -1375,7 +1509,10 @@ Methods specific to the publisher.
                         blockHash: STRING,
                         blockTime: INT(secs),                            
                         blockHeight: INT,
-                        txid: STRING
+                        txid: STRING,
+                        available: BOOL (VAR: category == "mint"),
+                        spendable: BOOL ((VAR: available == True),
+                        locked: BOOL ((VAR: spendable == True)
                     },
                 },
                 ...
@@ -1384,6 +1521,28 @@ Methods specific to the publisher.
         ...
     },
     "inputs": [
+        {
+            txid: STRING,
+            index: STRING
+        },
+        {
+            txid: STRING,
+            index: STRING
+        },
+        ...
+    ],
+    "lockedCoins": [ (VAR: pending locked coins)
+        {
+            txid: STRING,
+            index: STRING
+        },
+        {
+            txid: STRING,
+            index: STRING
+        },
+        ...
+    ],
+    "unlockedCoins": [ (VAR: pending unlocked coins)
         {
             txid: STRING,
             index: STRING

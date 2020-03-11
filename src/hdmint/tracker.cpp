@@ -535,6 +535,7 @@ void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPool
  * @return void
  */
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -571,6 +572,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
  * @return void
  */
 void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials){
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -612,6 +614,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
  * @return void
  */
 void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins){
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -651,6 +654,7 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
  * @return void
  */
 void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials){
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
