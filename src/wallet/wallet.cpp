@@ -65,6 +65,7 @@ CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
 unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
 bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
+bool fRescanning = false;
 
 const char *DEFAULT_WALLET_DAT = "wallet.dat";
 
@@ -1809,6 +1810,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, b
     int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams &chainParams = Params();
+    fRescanning = true;
 
     CBlockIndex *pindex = pindexStart;
     {
@@ -1854,6 +1856,8 @@ int CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, b
         }
         ShowProgress(_("Rescanning..."), 100); // hide progress dialog in GUI
     }
+
+    fRescanning = false;
     return ret;
 }
 
@@ -8378,11 +8382,13 @@ bool CWallet::InitLoadWallet() {
                 // generate a new HD chain
                 walletInstance->GenerateNewMnemonic();
                 walletInstance->SetMinVersion(FEATURE_HD);
-                /* set rescan to true.
+                /* set rescan to true (if not using rich GUI: in that case, the GUI will pass the rescan flag itself).
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
-                SoftSetBoolArg("-rescan", true);
-                fRecoverMnemonic = true;
+                if(!fApi){
+                    SoftSetBoolArg("-rescan", true);
+                    fRecoverMnemonic = true;
+                }
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();

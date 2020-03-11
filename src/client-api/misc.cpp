@@ -170,6 +170,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
+    obj.push_back(Pair("rescanning",    fRescanning));
     obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
 

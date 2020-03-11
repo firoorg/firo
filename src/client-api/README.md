@@ -121,6 +121,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         connections: INT,
         devAuth: BOOL,
         synced: BOOL,
+        rescanning: BOOL,
         reindexing: BOOL,
         safeMode: BOOL,
         pid: INT,
