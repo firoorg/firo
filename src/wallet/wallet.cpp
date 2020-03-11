@@ -66,6 +66,7 @@ unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
 bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 bool fRescanning = false;
+bool fWalletInitialized = false;
 
 const char *DEFAULT_WALLET_DAT = "wallet.dat";
 
@@ -8369,7 +8370,7 @@ bool CWallet::InitLoadWallet() {
         }
         walletInstance->SetMaxVersion(nMaxVersion);
     }
-
+    fRecoverMnemonic = GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC);
     if (fFirstRun) {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && walletInstance->hdChain.masterKeyID.IsNull()) {
@@ -8385,7 +8386,6 @@ bool CWallet::InitLoadWallet() {
                  */
                 if(!fApi){
                     SoftSetBoolArg("-rescan", true);
-                    fRecoverMnemonic = true;
                 }
             }else{
             // generate a new master key
@@ -8540,6 +8540,7 @@ bool CWallet::InitLoadWallet() {
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     pwalletMain = walletInstance;
+    fWalletInitialized = true;
     return true;
 }
 
