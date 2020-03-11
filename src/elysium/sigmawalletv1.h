@@ -26,7 +26,7 @@ protected:
 protected:
     uint32_t BIP44ChangeIndex() const;
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed);
-    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &key);
+    SigmaPrivateKey GeneratePrivateKey(uint512 const &seed, ECDSAPrivateKey &signatureKey);
 
     class Database : public SigmaWallet::Database
     {

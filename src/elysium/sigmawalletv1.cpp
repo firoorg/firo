@@ -17,7 +17,7 @@ SigmaWalletV1::SigmaWalletV1()
 bool SigmaWalletV1::GetPublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
 {
     return 1 == secp256k1_ec_pubkey_create(
-        context.Context(),
+        context.Get(),
         &out,
         priv.data());
 }
@@ -28,7 +28,7 @@ secp_primitives::Scalar SigmaWalletV1::GenerateSerial(secp256k1_pubkey const &pu
 
     size_t outSize = compressedPub.size();
     secp256k1_ec_pubkey_serialize(
-        context.Context(),
+        context.Get(),
         compressedPub.data(),
         &outSize,
         &pubkey,
@@ -54,21 +54,21 @@ uint32_t SigmaWalletV1::BIP44ChangeIndex() const
 
 SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(uint512 const &seed)
 {
-    ECDSAPrivateKey key;
-    return GeneratePrivateKey(seed, key);
+    ECDSAPrivateKey signatureKey;
+    return GeneratePrivateKey(seed, signatureKey);
 }
 
 SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
-    uint512 const &seed, ECDSAPrivateKey &key)
+    uint512 const &seed, ECDSAPrivateKey &signatureKey)
 {
     // first 32 bytes as seed of ecdsa key and serial
-    std::copy(seed.begin(), seed.begin() + 32, key.begin());
+    std::copy(seed.begin(), seed.begin() + 32, signatureKey.begin());
 
     // hash until get valid private key
     secp256k1_pubkey pubkey;
     do {
-        CSHA256().Write(key.data(), key.size()).Finalize(key.data());
-    } while (!GetPublicKey(key, pubkey));
+        CSHA256().Write(signatureKey.data(), signatureKey.size()).Finalize(signatureKey.data());
+    } while (!GetPublicKey(signatureKey, pubkey));
 
     auto serial = GenerateSerial(pubkey);
 
@@ -85,13 +85,13 @@ CoinSigner SigmaWalletV1::GetSigner(SigmaMintId const &id)
 {
     auto mint = GetMint(id);
     uint512 seed;
-    ECDSAPrivateKey ecdsaKey;
+    ECDSAPrivateKey signatureKey;
 
     GenerateSeed(mint.seedId, seed);
-    GeneratePrivateKey(seed, ecdsaKey);
+    GeneratePrivateKey(seed, signatureKey);
 
     CKey key;
-    key.Set(ecdsaKey.begin(), ecdsaKey.end(), true);
+    key.Set(signatureKey.begin(), signatureKey.end(), true);
 
     return CoinSigner(key);
 }

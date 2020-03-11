@@ -14,12 +14,13 @@ ECDSAContext::ECDSAContext(unsigned int flags)
     std::array<uint8_t, 32> seed;
     GetRandBytes(seed.data(), seed.size());
     if (!secp256k1_context_randomize(context, seed.data())) {
+        secp256k1_context_destroy(context);
         throw std::runtime_error("Fail to randomize context");
     }
 }
 
 ECDSAContext::ECDSAContext(ECDSAContext const &context)
-    : context(secp256k1_context_clone(context.Context()))
+    : context(secp256k1_context_clone(context.Get()))
 {
 }
 
@@ -30,10 +31,7 @@ ECDSAContext::ECDSAContext(ECDSAContext &&context)
 
 ECDSAContext::~ECDSAContext()
 {
-    if (context != NULL) {
-        secp256k1_context_destroy(context);
-        context = NULL;
-    }
+    secp256k1_context_destroy(context);
 }
 
 ECDSAContext& ECDSAContext::operator=(ECDSAContext const &context)
@@ -47,7 +45,7 @@ ECDSAContext& ECDSAContext::operator=(ECDSAContext &&context)
     return *this;
 }
 
-secp256k1_context const *ECDSAContext::Context() const
+secp256k1_context const *ECDSAContext::Get() const
 {
     return context;
 }

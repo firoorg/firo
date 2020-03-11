@@ -21,7 +21,7 @@ public:
     ECDSAContext& operator=(ECDSAContext const &context);
     ECDSAContext& operator=(ECDSAContext &&context);
 
-    secp256k1_context const *Context() const;
+    secp256k1_context const *Get() const;
 
     static ECDSAContext CreateSignContext();
     static ECDSAContext CreateVerifyContext();

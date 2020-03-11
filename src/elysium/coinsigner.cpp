@@ -15,14 +15,14 @@ CPubKey CoinSigner::GetPublicKey() const
 {
     secp256k1_pubkey pubkey;
     if(!secp256k1_ec_pubkey_create(
-        context.Context(), &pubkey, key.begin())) {
+        context.Get(), &pubkey, key.begin())) {
         throw std::runtime_error("Unable to get public key.");
     }
 
     CPubKey result;
     size_t len = CPubKey::COMPRESSED_PUBLIC_KEY_SIZE;
     if (1 != secp256k1_ec_pubkey_serialize(
-        context.Context(),
+        context.Get(),
         (unsigned char*)result.begin(), &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
         throw std::runtime_error("Unable to serialize public key");
     }

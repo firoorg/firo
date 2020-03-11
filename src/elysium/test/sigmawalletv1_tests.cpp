@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE(get_pubkey)
 
     size_t outSize = sizeof(compressedPub);
     secp256k1_ec_pubkey_serialize(
-        context.Context(),
+        context.Get(),
         compressedPub.begin(),
         &outSize,
         &pubkey,
@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(generate_serial)
 
     secp256k1_pubkey pubkey;
     BOOST_CHECK(secp256k1_ec_pubkey_parse(
-        context.Context(),
+        context.Get(),
         &pubkey,
         rawPubkey.data(),
         rawPubkey.size()

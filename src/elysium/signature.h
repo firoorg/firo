@@ -57,7 +57,7 @@ public:
         std::array<uint8_t, SIGNATURE_COMPACT_SERIALIZED_SIZE> buffer;
         s.read(reinterpret_cast<char*>(buffer.begin()), sizeof(buffer));
         if (1 != secp256k1_ecdsa_signature_parse_compact(
-            context.Context(),
+            context.Get(),
             &signature,
             reinterpret_cast<const unsigned char*>(buffer.begin()))) {
             valid = false;
