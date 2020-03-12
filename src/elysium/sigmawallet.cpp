@@ -93,7 +93,12 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512 &seed)
     // HMAC-SHA512(key, count)
     // `count` is LE unsigned 32 bits integer
     std::array<unsigned char, CSHA512::OUTPUT_SIZE> result;
-    auto seedIndex = GetSeedIndex(seedId);
+    uint32_t change;
+    auto seedIndex = GetSeedIndex(seedId, change);
+
+    if (change != BIP44ChangeIndex()) {
+        throw std::invalid_argument("BIP44 Change of seed id is invalid");
+    }
 
     CHMAC_SHA512(key.begin(), key.size()).
         Write(reinterpret_cast<const unsigned char*>(&seedIndex), sizeof(seedIndex)).
@@ -106,10 +111,10 @@ uint32_t SigmaWallet::GenerateSeed(CKeyID const &seedId, uint512 &seed)
 
 namespace {
 
-uint32_t GetBIP44AddressIndex(std::string const &path)
+uint32_t GetBIP44AddressIndex(std::string const &path, uint32_t &change)
 {
     uint32_t index;
-    if (sscanf(path.data(), "m/44'/%*u'/%*u'/%*u/%u", &index) != 1) {
+    if (sscanf(path.data(), "m/44'/%*u'/%*u'/%u/%u", &change, &index) != 2) {
         throw std::runtime_error("Fail to match BIP44 path");
     }
 
@@ -118,7 +123,7 @@ uint32_t GetBIP44AddressIndex(std::string const &path)
 
 }
 
-uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
+uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId, uint32_t &change)
 {
     LOCK(pwalletMain->cs_wallet);
     auto it = pwalletMain->mapKeyMetadata.find(seedId);
@@ -129,13 +134,11 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId)
     // parse last index
     uint32_t addressIndex;
     try {
-        addressIndex = GetBIP44AddressIndex(it->second.hdKeypath);
+        return GetBIP44AddressIndex(it->second.hdKeypath, change);
     } catch (std::runtime_error const &e) {
         LogPrintf("%s : fail to get child from, %s\n", __func__, e.what());
         throw;
     }
-
-    return addressIndex;
 }
 
 // Mint Updating
@@ -368,7 +371,13 @@ void SigmaWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
 
     SigmaPublicKey pubKey(GeneratePrivateKey(mint.seedId), DefaultSigmaParams);
 
-    auto index = GetSeedIndex(mint.seedId);
+    uint32_t change;
+    auto index = GetSeedIndex(mint.seedId, change);
+
+    if (change != BIP44ChangeIndex()) {
+        throw std::invalid_argument("Try to delete invalid seed id mint");
+    }
+
     mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
     SaveMintPool();
 

@@ -8088,7 +8088,7 @@ bool CWallet::InitLoadWallet() {
     if (fFirstRun) {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && walletInstance->hdChain.masterKeyID.IsNull()) {
-            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) { 
+            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) {
                 if (GetArg("-mnemonicpassphrase", "").size() > 256) {
                     throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
                 }
