@@ -54,7 +54,7 @@ public:
     using SigmaWallet::GeneratePrivateKey;
 
 public:
-    CKey GetKey(SigmaMintId const &id);
+    CKey GetSignatureKey(SigmaMintId const &id);
 
 private:
     ECDSAContext context;

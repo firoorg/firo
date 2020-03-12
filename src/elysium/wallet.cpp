@@ -150,7 +150,7 @@ SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
 
 CKey Wallet::GetSigmaSignatureKey(const SigmaMintId &id)
 {
-    return mintWalletV1.GetKey(id);
+    return mintWalletV1.GetSignatureKey(id);
 }
 
 boost::optional<SigmaMint> Wallet::GetSpendableSigmaMint(PropertyId property, SigmaDenomination denomination, SigmaMintVersion version)
@@ -314,12 +314,11 @@ void Wallet::OnMintAdded(
 
         // 2. try to recover new mint
         SigmaMintChainState chainState(block, group, idx);
-        if (mintWalletV0.TryRecoverMint(id, chainState)) {
-            LogPrintf("%s : Found new legacy mint when try to recover\n", __func__);
-        }
 
         if (mintWalletV1.TryRecoverMint(id, chainState)) {
             LogPrintf("%s : Found new mint when try to recover\n", __func__);
+        } else if (mintWalletV0.TryRecoverMint(id, chainState)) {
+            LogPrintf("%s : Found new legacy mint when try to recover\n", __func__);
         }
     }
 }

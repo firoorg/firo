@@ -81,7 +81,7 @@ SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
     return SigmaPrivateKey(serial, randomness);
 }
 
-CKey SigmaWalletV1::GetKey(SigmaMintId const &id)
+CKey SigmaWalletV1::GetSignatureKey(SigmaMintId const &id)
 {
     auto mint = GetMint(id);
     uint512 seed;
