@@ -15,16 +15,15 @@ public:
     TestSignatureSigmaV1Builder(
         CBitcoinAddress const &receiver,
         int64_t referenceAmount,
-        SigmaProof const &proof,
-        CPubKey publicKey)
-        : SigmaV1SignatureBuilder(receiver, referenceAmount, proof, publicKey)
+        SigmaProof const &proof)
+        : SigmaV1SignatureBuilder(receiver, referenceAmount, proof)
     {
     }
 
 public:
     uint256 GetHash()
     {
-        return this->hasher.GetHash();
+        return hash;
     }
 };
 
@@ -68,7 +67,7 @@ BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
     std::unique_ptr<TestSignatureSigmaV1Builder> builder;
 
     BOOST_CHECK_NO_THROW(
-        builder.reset(new TestSignatureSigmaV1Builder(address, 10, proof, publicKey)));
+        builder.reset(new TestSignatureSigmaV1Builder(address, 10, proof)));
 
     auto hash = builder->GetHash();
     BOOST_CHECK_EQUAL(
@@ -78,7 +77,7 @@ BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 
 BOOST_AUTO_TEST_CASE(sign)
 {
-    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
+    TestSignatureSigmaV1Builder builder(address, 10, proof);
     auto signer = GetKey();
 
     auto signature = builder.Sign(signer);
@@ -92,31 +91,31 @@ BOOST_AUTO_TEST_CASE(verify)
 {
     auto context = ECDSAContext::CreateVerifyContext();
 
-    TestSignatureSigmaV1Builder builder(address, 10, proof, publicKey);
+    TestSignatureSigmaV1Builder builder(address, 10, proof);
     ECDSASignature signature;
     auto validSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0");
     auto invalidSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a1");
 
     signature = ECDSASignature(context, validSig.data(), validSig.size());
-    BOOST_CHECK_EQUAL(true, builder.Verify(signature));
+    BOOST_CHECK_EQUAL(true, builder.Verify(publicKey, signature));
 
     // invalid signature
-    builder = TestSignatureSigmaV1Builder(address, 10, proof, publicKey);
+    builder = TestSignatureSigmaV1Builder(address, 10, proof);
     signature = ECDSASignature(context, invalidSig.data(), invalidSig.size());
-    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+    BOOST_CHECK_EQUAL(false, builder.Verify(publicKey, signature));
 
     // invalid content
     signature = ECDSASignature(context, validSig.data(), validSig.size());
-    builder = TestSignatureSigmaV1Builder(CBitcoinAddress("aGXhTgKqDgdH9kHNTyg47TbwGfs54k2cQF"), 10, proof, publicKey);
-    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+    builder = TestSignatureSigmaV1Builder(CBitcoinAddress("aGXhTgKqDgdH9kHNTyg47TbwGfs54k2cQF"), 10, proof);
+    BOOST_CHECK_EQUAL(false, builder.Verify(publicKey, signature));
 
-    builder = TestSignatureSigmaV1Builder(address, 11, proof, publicKey);
-    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+    builder = TestSignatureSigmaV1Builder(address, 11, proof);
+    BOOST_CHECK_EQUAL(false, builder.Verify(publicKey, signature));
 
     auto rawPublicKey = ParseHex("0277d283f21eb4b02d8d0d39494821b8684fc7c9507d81485847f15ed92311e66e");
     CPubKey otherPublicKey(rawPublicKey);
-    builder = TestSignatureSigmaV1Builder(address, 11, proof, otherPublicKey);
-    BOOST_CHECK_EQUAL(false, builder.Verify(signature));
+    builder = TestSignatureSigmaV1Builder(address, 11, proof);
+    BOOST_CHECK_EQUAL(false, builder.Verify(otherPublicKey, signature));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

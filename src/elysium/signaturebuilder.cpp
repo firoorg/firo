@@ -8,20 +8,19 @@
 
 #include "../base58.h"
 
-#include <secp256k1/include/Scalar.h>
-
 namespace elysium {
 
 SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     CBitcoinAddress const &receiver,
     int64_t referenceAmount,
-    SigmaProof const &proof,
-    CPubKey const &publicKey)
-    : hasher(CHashWriter(SER_GETHASH, PROTOCOL_VERSION)), publicKey(publicKey)
+    SigmaProof const &proof)
 {
+    CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
+
     // serialize payload
-    CKeyID keyId;
-    if (!receiver.GetKeyID(keyId)) {
+    uint160 keyId;
+    AddressType type;
+    if (!receiver.GetIndexKey(keyId, type)) {
         throw std::runtime_error("Fail to get address key id.");
     }
 
@@ -38,11 +37,12 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     serializedData.insert(serializedData.end(), serialized.begin(), serialized.end());
 
     hasher.write(serializedData.data(), serializedData.size());
+
+    hash = hasher.GetHash();
 }
 
-ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key)
+ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key) const
 {
-    auto hash = hasher.GetHash();
     std::vector<unsigned char> sig;
     if (!key.Sign(hash, sig)) {
         throw std::runtime_error("Fail to sign payload");
@@ -51,10 +51,9 @@ ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key)
     return ECDSASignature(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
 }
 
-bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
+bool SigmaV1SignatureBuilder::Verify(CPubKey const &pubKey, ECDSASignature const &signature) const
 {
-    auto hash = hasher.GetHash();
-    return publicKey.Verify(hash, signature.GetDER(ECDSAContext::CreateVerifyContext()));
+    return pubKey.Verify(hash, signature.GetDER(ECDSAContext::CreateVerifyContext()));
 }
 
 }

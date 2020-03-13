@@ -1731,11 +1731,11 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
         auto key = wallet->GetSigmaSignatureKey(spend.mint);
         auto pubkey = key.GetPubKey();
 
-        SigmaV1SignatureBuilder sigBuilder(address, referenceAmount, spend.proof, pubkey);
+        SigmaV1SignatureBuilder sigBuilder(address, referenceAmount, spend.proof);
         auto signature = sigBuilder.Sign(key);
 
-        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof, pubkey);
-        if (!sigVerifier.Verify(signature)) {
+        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof);
+        if (!sigVerifier.Verify(pubkey, signature)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Fail to create valid signature to spend.");
         }
 

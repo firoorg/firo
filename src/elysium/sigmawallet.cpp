@@ -132,7 +132,6 @@ uint32_t SigmaWallet::GetSeedIndex(CKeyID const &seedId, uint32_t &change)
     }
 
     // parse last index
-    uint32_t addressIndex;
     try {
         return GetBIP44AddressIndex(it->second.hdKeypath, change);
     } catch (std::runtime_error const &e) {

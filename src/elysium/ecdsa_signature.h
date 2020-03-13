@@ -50,7 +50,7 @@ public:
     void Unserialize(Stream& s, int nType, int nVersion)
     {
         std::array<uint8_t, COMPACT_SIZE> buffer;
-        s.read(reinterpret_cast<char*>(buffer.data()), sizeof(buffer));
+        s.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
         if (1 != secp256k1_ecdsa_signature_parse_compact(
             ECDSAContext::CreateVerifyContext().Get(),
             &signature,

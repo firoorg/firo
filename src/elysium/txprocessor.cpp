@@ -165,24 +165,34 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     assert(spend);
     assert(serial);
 
-    if (!serial->isMember()) {
-        PrintToLog("%s() : Serial is invalid\n", __func__);
-        return PKT_ERROR_SIGMA - 907;
+    if (IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block)) {
+        if (!serial->isMember()) {
+            PrintToLog("%s() : Serial is invalid\n", __func__);
+            return PKT_ERROR_SIGMA - 907;
+        }
+    }
+
+    CBitcoinAddress receiver(tx.getReceiver());
+    if (!receiver.IsValid()) {
+        PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
+        return PKT_ERROR_SIGMA - 45;
     }
 
     // check signature
     if (version == MP_TX_PKT_V1) {
-        CBitcoinAddress receiver(tx.getReceiver());
-        int64_t referenceAmount = tx.getReferenceAmount().value_or(0);
+        int64_t referenceAmount = tx.getReferenceAmount().value();
         auto &publicKey = tx.getECDSAPublicKey();
+        if (!publicKey.IsFullyValid()) {
+            PrintToLog("%s(): rejected: signature public key is invalid\n", __func__);
+            return PKT_ERROR_SIGMA - 907;
+        }
 
         SigmaV1SignatureBuilder sigVerifier(
             receiver,
             referenceAmount,
-            *spend,
-            publicKey);
+            *spend);
 
-        if (!sigVerifier.Verify(tx.getECDSASignature())) {
+        if (!sigVerifier.Verify(publicKey, tx.getECDSASignature())) {
             PrintToLog("%s(): rejected: signature is invalid\n", __func__);
             return PKT_ERROR_SIGMA - 907;
         }
@@ -206,12 +216,6 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     }
 
     // subtract balance
-    CBitcoinAddress recvAddr(tx.getReceiver());
-    if (!recvAddr.IsValid()) {
-        PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
-        return PKT_ERROR_SIGMA - 45;
-    }
-
     sigmaDb->RecordSpendSerial(property, denomination, *serial, block, tx.getHash());
     assert(update_tally_map(tx.getReceiver(), property, amount, BALANCE));
 
