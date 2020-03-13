@@ -1,4 +1,4 @@
-#include "../signature.h"
+#include "../ecdsa_signature.h"
 
 #include "../../test/fixtures.h"
 
@@ -16,31 +16,31 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 
 using namespace elysium;
 
-class SignatureTestingSetup : public BasicTestingSetup
+class ECDSASignatureTestingSetup : public BasicTestingSetup
 {
 public:
     std::vector<unsigned char> rawSig;
     std::vector<unsigned char> compact;
 
 public:
-    SignatureTestingSetup()
+    ECDSASignatureTestingSetup()
     {
         rawSig = ParseHex("30440220741a563fc29ff077533d74a10940fc9a2a397c6f12bb482142d16d0bac2330ad0220698346e9dedd390c2691878336ced8f3f21452aa6346e677fdbf68a1094fbd94");
         compact = ParseHex("741a563fc29ff077533d74a10940fc9a2a397c6f12bb482142d16d0bac2330ad698346e9dedd390c2691878336ced8f3f21452aa6346e677fdbf68a1094fbd94");
     }
 
 public:
-    Signature GetSignature() const
+    ECDSASignature GetSignature() const
     {
-        return Signature(rawSig.data(), rawSig.size());
+        return ECDSASignature(rawSig.data(), rawSig.size());
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(elysium_signature, SignatureTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(elysium_ecdsa_signature, ECDSASignatureTestingSetup)
 
 BOOST_AUTO_TEST_CASE(default_contruct_should_invalid)
 {
-    Signature sig;
+    ECDSASignature sig;
     auto valid = sig.Valid();
 
     BOOST_CHECK(!valid);
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(construct_and_get_data)
 
 BOOST_AUTO_TEST_CASE(construct_with64bytes)
 {
-    Signature sig(compact.data(), compact.size());
+    ECDSASignature sig(compact.data(), compact.size());
     auto sigVec = sig.GetDER();
 
     std::vector<unsigned char> expected;
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(serialize)
 
 BOOST_AUTO_TEST_CASE(serialize_invalid)
 {
-    Signature sig;
+    ECDSASignature sig;
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(serialize_invalid)
 
 BOOST_AUTO_TEST_CASE(unserialize)
 {
-    Signature sig;
+    ECDSASignature sig;
 
     CDataStream ss(compact, SER_NETWORK, PROTOCOL_VERSION);
     ss >> sig;
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(unserialize_non_compact)
     shrinkedCompact.insert(shrinkedCompact.end(), compact.begin(), compact.end());
     shrinkedCompact.resize(shrinkedCompact.size() - 1);
 
-    Signature sig;
+    ECDSASignature sig;
     CDataStream ss(shrinkedCompact, SER_NETWORK, PROTOCOL_VERSION);
 
     BOOST_CHECK_THROW(ss >> sig, std::runtime_error);

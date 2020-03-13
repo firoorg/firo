@@ -40,7 +40,7 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     hasher.write(serializedData.data(), serializedData.size());
 }
 
-Signature SigmaV1SignatureBuilder::Sign(CKey &key)
+ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key)
 {
     auto hash = hasher.GetHash();
     std::vector<unsigned char> sig;
@@ -48,10 +48,10 @@ Signature SigmaV1SignatureBuilder::Sign(CKey &key)
         throw std::runtime_error("Fail to sign payload");
     }
 
-    return Signature(sig.data(), sig.size());
+    return ECDSASignature(sig.data(), sig.size());
 }
 
-bool SigmaV1SignatureBuilder::Verify(Signature const &signature)
+bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
 {
     auto hash = hasher.GetHash();
     return publicKey.Verify(hash, signature.GetDER());

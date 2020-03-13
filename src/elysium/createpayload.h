@@ -1,7 +1,7 @@
 #ifndef ZCOIN_ELYSIUM_CREATEPAYLOAD_H
 #define ZCOIN_ELYSIUM_CREATEPAYLOAD_H
 
-#include "signature.h"
+#include "ecdsa_signature.h"
 #include "sp.h"
 #include "sigma.h"
 
@@ -18,7 +18,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(uint32_t propertyId, uint8_
                                                     uint16_t groupSize, elysium::SigmaProof const &proof, secp_primitives::Scalar const &serial);
 std::vector<unsigned char> CreatePayload_SimpleSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,
                                                     uint16_t groupSize, elysium::SigmaProof const &proof,
-                                                    Signature const &signature, CPubKey const &pubkey);
+                                                    ECDSASignature const &signature, CPubKey const &pubkey);
 std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem);
 std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t amountForSale, uint64_t amountDesired, uint8_t timeLimit, uint64_t minFee, uint8_t subAction);
 std::vector<unsigned char> CreatePayload_DExAccept(uint32_t propertyId, uint64_t amount);

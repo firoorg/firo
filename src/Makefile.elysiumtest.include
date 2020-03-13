@@ -9,6 +9,7 @@ ELYSIUM_TEST_CPP = \
   elysium/test/create_tx_tests.cpp \
   elysium/test/crowdsale_participation_tests.cpp \
   elysium/test/dex_purchase_tests.cpp \
+  elysium/test/ecdsa_signature_tests.cpp \
   elysium/test/encoding_b_tests.cpp \
   elysium/test/encoding_c_tests.cpp \
   elysium/test/elysium_handler_tx.cpp \
@@ -29,7 +30,6 @@ ELYSIUM_TEST_CPP = \
   elysium/test/sigma_tests.cpp \
   elysium/test/sigmadb_tests.cpp \
   elysium/test/sigmaprimitives_tests.cpp \
-  elysium/test/signature_tests.cpp \
   elysium/test/signaturebuilder_sigmav1_tests.cpp \
   elysium/test/sp_tests.cpp \
   elysium/test/strtoint64_tests.cpp \

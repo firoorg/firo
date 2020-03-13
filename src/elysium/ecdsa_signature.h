@@ -14,7 +14,7 @@
 
 namespace elysium {
 
-class Signature
+class ECDSASignature
 {
 public:
     static size_t const SIGNATURE_DER_SERIALIZED_SIZE = 72;
@@ -26,9 +26,9 @@ private:
     ECDSAContext context;
 
 public:
-    Signature();
-    Signature(secp256k1_ecdsa_signature const &sig);
-    Signature(unsigned char const *signature, size_t len);
+    ECDSASignature();
+    ECDSASignature(secp256k1_ecdsa_signature const &sig);
+    ECDSASignature(unsigned char const *signature, size_t len);
 
 public:
     std::vector<unsigned char> GetCompact() const;

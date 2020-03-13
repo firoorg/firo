@@ -6,7 +6,7 @@
 #define ZCOIN_ELYSIUM_SIGNATUREBUILDER_H
 
 #include "sigmaprimitives.h"
-#include "signature.h"
+#include "ecdsa_signature.h"
 
 #include "../base58.h"
 #include "../key.h"
@@ -18,8 +18,8 @@ namespace elysium {
 class SignatureBuilder
 {
 public:
-    virtual Signature Sign(CKey &signer) = 0;
-    virtual bool Verify(Signature const &signature) = 0;
+    virtual ECDSASignature Sign(CKey &signer) = 0;
+    virtual bool Verify(ECDSASignature const &signature) = 0;
 };
 
 class SigmaV1SignatureBuilder : SignatureBuilder
@@ -36,8 +36,8 @@ public:
         CPubKey const &publicKey);
 
 public:
-    Signature Sign(CKey &key);
-    bool Verify(Signature const &signature);
+    ECDSASignature Sign(CKey &key);
+    bool Verify(ECDSASignature const &signature);
 
     CPubKey const& PublicKey();
 };

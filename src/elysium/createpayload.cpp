@@ -641,7 +641,7 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
 std::vector<unsigned char> CreatePayload_SimpleSpend(
     uint32_t propertyId, uint8_t denomination, uint32_t group,
     uint16_t groupSize, elysium::SigmaProof const &proof,
-    Signature const &signature, CPubKey const &pubkey)
+    ECDSASignature const &signature, CPubKey const &pubkey)
 {
     if (pubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
         throw std::invalid_argument("Publickey size is invalid");

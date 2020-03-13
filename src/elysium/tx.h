@@ -5,7 +5,7 @@ class CMPMetaDEx;
 class CMPOffer;
 class CTransaction;
 
-#include "signature.h"
+#include "ecdsa_signature.h"
 #include "elysium.h"
 #include "packetencoder.h"
 #include "sp.h"
@@ -144,7 +144,7 @@ private:
     std::unique_ptr<elysium::SigmaProof> spend;
 
     CPubKey ecdsaPubkey;
-    Signature ecdsaSignature;
+    ECDSASignature ecdsaSignature;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -277,7 +277,7 @@ public:
     const secp_primitives::Scalar *getSerial() const { return serial.get(); }
     const elysium::SigmaProof *getSpend() const { return spend.get(); }
     const CPubKey &getECDSAPublicKey() const { return ecdsaPubkey; }
-    const Signature &getECDSASignature() const { return ecdsaSignature; }
+    const ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
