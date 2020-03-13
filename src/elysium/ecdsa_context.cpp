@@ -11,12 +11,6 @@ namespace elysium {
 ECDSAContext::ECDSAContext(unsigned int flags)
     : context(secp256k1_context_create(flags))
 {
-    std::array<uint8_t, 32> seed;
-    GetRandBytes(seed.data(), seed.size());
-    if (!secp256k1_context_randomize(context, seed.data())) {
-        secp256k1_context_destroy(context);
-        throw std::runtime_error("Fail to randomize context");
-    }
 }
 
 ECDSAContext::ECDSAContext(ECDSAContext const &context)
@@ -52,12 +46,25 @@ secp256k1_context const *ECDSAContext::Get() const
 
 ECDSAContext ECDSAContext::CreateSignContext()
 {
-    return ECDSAContext(SECP256K1_CONTEXT_SIGN);
+    ECDSAContext context(SECP256K1_CONTEXT_SIGN);
+    context.Randomize();
+
+    return context;
 }
 
 ECDSAContext ECDSAContext::CreateVerifyContext()
 {
     return ECDSAContext(SECP256K1_CONTEXT_VERIFY);
+}
+
+void ECDSAContext::Randomize()
+{
+    std::array<uint8_t, 32> seed;
+    GetRandBytes(seed.data(), seed.size());
+    if (!secp256k1_context_randomize(context, seed.data())) {
+        secp256k1_context_destroy(context);
+        throw std::runtime_error("Fail to randomize context");
+    }
 }
 
 } // elysium

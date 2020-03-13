@@ -23,11 +23,11 @@ public:
 public:
     ECDSASignature();
     ECDSASignature(secp256k1_ecdsa_signature const &sig);
-    ECDSASignature(unsigned char const *signature, size_t len);
+    ECDSASignature(ECDSAContext const &context, unsigned char const *signature, size_t len);
 
 public:
-    std::vector<unsigned char> GetCompact() const;
-    std::vector<unsigned char> GetDER() const;
+    std::vector<unsigned char> GetCompact(ECDSAContext const &context) const;
+    std::vector<unsigned char> GetDER(ECDSAContext const &context) const;
     bool Valid() const;
 
     /** serialize as compact
@@ -39,7 +39,7 @@ public:
             throw std::runtime_error("ECDSA Signature is invalid");
         }
 
-        auto buffer = GetCompact();
+        auto buffer = GetCompact(ECDSAContext::CreateSignContext());
 
         s.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
     }
@@ -52,7 +52,7 @@ public:
         std::array<uint8_t, COMPACT_SIZE> buffer;
         s.read(reinterpret_cast<char*>(buffer.data()), sizeof(buffer));
         if (1 != secp256k1_ecdsa_signature_parse_compact(
-            context.Get(),
+            ECDSAContext::CreateVerifyContext().Get(),
             &signature,
             reinterpret_cast<const unsigned char*>(buffer.data()))) {
             valid = false;
@@ -65,7 +65,6 @@ public:
 private:
     secp256k1_ecdsa_signature signature;
     bool valid;
-    ECDSAContext context;
 };
 
 } // namespace elysium

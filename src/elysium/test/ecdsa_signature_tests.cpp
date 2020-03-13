@@ -21,9 +21,11 @@ class ECDSASignatureTestingSetup : public BasicTestingSetup
 public:
     std::vector<unsigned char> rawSig;
     std::vector<unsigned char> compact;
+    ECDSAContext context;
 
 public:
     ECDSASignatureTestingSetup()
+        : context(ECDSAContext::CreateVerifyContext())
     {
         rawSig = ParseHex("30440220741a563fc29ff077533d74a10940fc9a2a397c6f12bb482142d16d0bac2330ad0220698346e9dedd390c2691878336ced8f3f21452aa6346e677fdbf68a1094fbd94");
         compact = ParseHex("741a563fc29ff077533d74a10940fc9a2a397c6f12bb482142d16d0bac2330ad698346e9dedd390c2691878336ced8f3f21452aa6346e677fdbf68a1094fbd94");
@@ -32,7 +34,7 @@ public:
 public:
     ECDSASignature GetSignature() const
     {
-        return ECDSASignature(rawSig.data(), rawSig.size());
+        return ECDSASignature(ECDSAContext::CreateVerifyContext(), rawSig.data(), rawSig.size());
     }
 };
 
@@ -49,7 +51,7 @@ BOOST_AUTO_TEST_CASE(default_contruct_should_invalid)
 BOOST_AUTO_TEST_CASE(construct_and_get_data)
 {
     auto sig = GetSignature();
-    auto sigVec = sig.GetDER();
+    auto sigVec = sig.GetDER(context);
 
     std::vector<unsigned char> expected;
     expected.insert(expected.end(), rawSig.begin(), rawSig.end());
@@ -62,8 +64,8 @@ BOOST_AUTO_TEST_CASE(construct_and_get_data)
 
 BOOST_AUTO_TEST_CASE(construct_with64bytes)
 {
-    ECDSASignature sig(compact.data(), compact.size());
-    auto sigVec = sig.GetDER();
+    ECDSASignature sig(context, compact.data(), compact.size());
+    auto sigVec = sig.GetDER(context);
 
     std::vector<unsigned char> expected;
     expected.insert(expected.end(), rawSig.begin(), rawSig.end());
@@ -107,7 +109,7 @@ BOOST_AUTO_TEST_CASE(unserialize)
     expected.push_back(0x00);
     expected.push_back(0x00);
 
-    BOOST_CHECK_EQUAL(expected, sig.GetDER());
+    BOOST_CHECK_EQUAL(expected, sig.GetDER(context));
     BOOST_CHECK(sig.Valid());
 }
 

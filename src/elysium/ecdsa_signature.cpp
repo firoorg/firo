@@ -8,17 +8,17 @@
 
 namespace elysium {
 
-ECDSASignature::ECDSASignature() : valid(false), context(ECDSAContext::CreateSignContext())
+ECDSASignature::ECDSASignature() : valid(false)
 {
 }
 
 ECDSASignature::ECDSASignature(secp256k1_ecdsa_signature const &sig)
-    : signature(sig), valid(true), context(ECDSAContext::CreateSignContext())
+    : signature(sig), valid(true)
 {
 }
 
-ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len)
-    : valid(false), context(ECDSAContext::CreateSignContext())
+ECDSASignature::ECDSASignature(ECDSAContext const &context, unsigned char const *signature, size_t len)
+    : valid(false)
 {
     if (len >= 70 && len <= 72) {
         if (1 == secp256k1_ecdsa_signature_parse_der(
@@ -41,7 +41,7 @@ ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len)
     }
 }
 
-std::vector<unsigned char> ECDSASignature::GetCompact() const
+std::vector<unsigned char> ECDSASignature::GetCompact(ECDSAContext const &context) const
 {
     std::vector<unsigned char> result;
     result.resize(COMPACT_SIZE);
@@ -56,7 +56,7 @@ std::vector<unsigned char> ECDSASignature::GetCompact() const
     return result;
 }
 
-std::vector<unsigned char> ECDSASignature::GetDER() const
+std::vector<unsigned char> ECDSASignature::GetDER(ECDSAContext const &context) const
 {
     std::vector<unsigned char> result;
     result.resize(DER_SIZE);

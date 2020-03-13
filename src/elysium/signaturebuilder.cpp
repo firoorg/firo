@@ -48,13 +48,13 @@ ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key)
         throw std::runtime_error("Fail to sign payload");
     }
 
-    return ECDSASignature(sig.data(), sig.size());
+    return ECDSASignature(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
 }
 
 bool SigmaV1SignatureBuilder::Verify(ECDSASignature const &signature)
 {
     auto hash = hasher.GetHash();
-    return publicKey.Verify(hash, signature.GetDER());
+    return publicKey.Verify(hash, signature.GetDER(ECDSAContext::CreateVerifyContext()));
 }
 
 }

@@ -27,6 +27,9 @@ public:
     static ECDSAContext CreateVerifyContext();
 
 private:
+    void Randomize();
+
+private:
     secp256k1_context* context;
 };
 
