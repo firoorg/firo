@@ -26,8 +26,7 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
 
     hasher.write(reinterpret_cast<char*>(keyId.begin()), keyId.size());
 
-    // reference amount
-    elysium::swapByteOrder(referenceAmount);
+    // `LE` reference amount
     hasher.write(reinterpret_cast<char*>(&referenceAmount), sizeof(referenceAmount));
 
     // serial and proof

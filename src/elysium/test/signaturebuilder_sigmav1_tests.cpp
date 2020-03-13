@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(construct_withvalidkey_verify_hash)
 
     auto hash = builder->GetHash();
     BOOST_CHECK_EQUAL(
-        "a7964f36e60000c702d7bdcf6dfeb435b44c597817b7dd101037f5d48507f28a",
+        "e8ab0af8c1d15d5ff2ced260b4082ac01ade457da4c29dc2b8a97144b6b9c4c0",
         HexStr(hash.begin(), hash.end()));
 }
 
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(sign)
     auto signature = builder.Sign(signer);
 
     BOOST_CHECK_EQUAL(
-        "73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0",
+        "181dad1d268f03d0a38beb34f6efa4ed12cbd6d00b62fc1d6094fa33746cdd0f73b3baa4d9cf699886fd448c0cd0ae7d1447e533fd6b5394f8f4fcd3c009de37",
         HexStr(signature.GetCompact(ECDSAContext::CreateSignContext())));
 }
 
@@ -93,8 +93,8 @@ BOOST_AUTO_TEST_CASE(verify)
 
     TestSignatureSigmaV1Builder builder(address, 10, proof);
     ECDSASignature signature;
-    auto validSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a0");
-    auto invalidSig = ParseHex("73e041170bff8af09b344c02cd332b3f44137cf35643e36d3424dc01587a3c434dfb08b319ddb7d830e5b01df5d94920bd1de51ae5e3e7ae261cda32588d50a1");
+    auto validSig = ParseHex("181dad1d268f03d0a38beb34f6efa4ed12cbd6d00b62fc1d6094fa33746cdd0f73b3baa4d9cf699886fd448c0cd0ae7d1447e533fd6b5394f8f4fcd3c009de37");
+    auto invalidSig = ParseHex("181dad1d268f03d0a38beb34f6efa4ed12cbd6d00b62fc1d6094fa33746cdd0f73b3baa4d9cf699886fd448c0cd0ae7d1447e533fd6b5394f8f4fcd3c009de38");
 
     signature = ECDSASignature(context, validSig.data(), validSig.size());
     BOOST_CHECK_EQUAL(true, builder.Verify(publicKey, signature));
