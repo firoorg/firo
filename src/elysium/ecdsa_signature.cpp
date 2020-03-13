@@ -29,7 +29,7 @@ ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len)
         {
             valid = true;
         }
-    } else if (len == SIGNATURE_COMPACT_SERIALIZED_SIZE) {
+    } else if (len == COMPACT_SIZE) {
         if (1 == secp256k1_ecdsa_signature_parse_compact(
             context.Get(),
             &(this->signature),
@@ -44,7 +44,7 @@ ECDSASignature::ECDSASignature(unsigned char const *signature, size_t len)
 std::vector<unsigned char> ECDSASignature::GetCompact() const
 {
     std::vector<unsigned char> result;
-    result.resize(SIGNATURE_COMPACT_SERIALIZED_SIZE);
+    result.resize(COMPACT_SIZE);
 
     if (1 != secp256k1_ecdsa_signature_serialize_compact(
         context.Get(),
@@ -59,9 +59,9 @@ std::vector<unsigned char> ECDSASignature::GetCompact() const
 std::vector<unsigned char> ECDSASignature::GetDER() const
 {
     std::vector<unsigned char> result;
-    result.resize(SIGNATURE_DER_SERIALIZED_SIZE);
+    result.resize(DER_SIZE);
 
-    size_t outLen = SIGNATURE_DER_SERIALIZED_SIZE;
+    size_t outLen = DER_SIZE;
     if (1 != secp256k1_ecdsa_signature_serialize_der(
         context.Get(),
         result.data(),

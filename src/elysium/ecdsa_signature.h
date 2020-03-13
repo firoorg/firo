@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_SIGNATURE_H
-#define ZCOIN_ELYSIUM_SIGNATURE_H
+#ifndef ZCOIN_ELYSIUM_ECDSA_SIGNATURE_H
+#define ZCOIN_ELYSIUM_ECDSA_SIGNATURE_H
 
 #include "ecdsa_context.h"
 
@@ -17,13 +17,8 @@ namespace elysium {
 class ECDSASignature
 {
 public:
-    static size_t const SIGNATURE_DER_SERIALIZED_SIZE = 72;
-    static size_t const SIGNATURE_COMPACT_SERIALIZED_SIZE = 64;
-
-private:
-    secp256k1_ecdsa_signature signature;
-    bool valid;
-    ECDSAContext context;
+    static size_t constexpr DER_SIZE = 72;
+    static size_t constexpr COMPACT_SIZE = 64;
 
 public:
     ECDSASignature();
@@ -54,20 +49,25 @@ public:
     template<typename Stream>
     void Unserialize(Stream& s, int nType, int nVersion)
     {
-        std::array<uint8_t, SIGNATURE_COMPACT_SERIALIZED_SIZE> buffer;
-        s.read(reinterpret_cast<char*>(buffer.begin()), sizeof(buffer));
+        std::array<uint8_t, COMPACT_SIZE> buffer;
+        s.read(reinterpret_cast<char*>(buffer.data()), sizeof(buffer));
         if (1 != secp256k1_ecdsa_signature_parse_compact(
             context.Get(),
             &signature,
-            reinterpret_cast<const unsigned char*>(buffer.begin()))) {
+            reinterpret_cast<const unsigned char*>(buffer.data()))) {
             valid = false;
             throw std::runtime_error("Fail to parse compacted serialized data");
         }
 
         valid = true;
     }
+
+private:
+    secp256k1_ecdsa_signature signature;
+    bool valid;
+    ECDSAContext context;
 };
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_SIGNATURE_H
+#endif // ZCOIN_ELYSIUM_ECDSA_SIGNATURE_H
