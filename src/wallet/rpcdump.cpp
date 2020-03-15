@@ -194,10 +194,10 @@ void ImportScript(CWallet * const pwallet, const CScript& script, const string& 
     }
 }
 
-void ImportAddress(CWallet *pwallet, const CBitcoinAddress& address, const string& strLabel)
+void ImportAddress(CWallet * const pwallet, const CBitcoinAddress& address, const string& strLabel)
 {
     CScript script = GetScriptForDestination(address.Get());
-    ImportScript(script, strLabel, false);
+    ImportScript(pwallet, script, strLabel, false);
     // add to address book or update label
     if (address.IsValid())
         pwallet->SetAddressBook(address.Get(), strLabel, "receive");
@@ -892,7 +892,7 @@ UniValue dumpwallet_zcoin(const JSONRPCRequest& request)
     return dumpwallet(newRequest);
 }
 
-UniValue ProcessImport(const UniValue& data, const int64_t timestamp)
+UniValue ProcessImport(CWallet *pwallet, const UniValue& data, const int64_t timestamp)
 {
     try {
         bool success = false;

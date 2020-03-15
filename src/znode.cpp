@@ -177,10 +177,8 @@ void CZnode::Check(bool fForce) {
         TRY_LOCK(cs_main, lockMain);
         if (!lockMain) return;
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        Coin coin;
+        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
             nActiveState = ZNODE_OUTPOINT_SPENT;
             LogPrint("znode", "CZnode::Check -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return;
@@ -667,18 +665,16 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
             return false;
         }
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        Coin coin;
+        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (coins.vout[vin.prevout.n].nValue != ZNODE_COIN_REQUIRED * COIN) {
+        if (coin.out.nValue != ZNODE_COIN_REQUIRED * COIN) {
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO should have 1000 XZC, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nZnodeMinimumConfirmations) {
+        if (chainActive.Height() - coin.nHeight + 1 < Params().GetConsensus().nZnodeMinimumConfirmations) {
             LogPrintf("CZnodeBroadcast::CheckOutpoint -- Znode UTXO must have at least %d confirmations, znode=%s\n",
                       Params().GetConsensus().nZnodeMinimumConfirmations, vin.prevout.ToStringShort());
             // maybe we miss few blocks, let this mnb to be checked again later

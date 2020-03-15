@@ -96,7 +96,7 @@ void EnsureWalletIsUnlocked(CWallet * const pwallet)
     }
 }
 
-bool ValidMultiMint(const UniValue& data){
+bool ValidMultiMint(CWallet * const pwallet, const UniValue& data){
     vector<string> keys = data.getKeys();
     CAmount totalValue = 0;
     int totalInputs = 0;
@@ -207,7 +207,7 @@ UniValue getnewaddress(const JSONRPCRequest& request)
 }
 
 
-CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew=false)
 {
     CPubKey pubKey;
     if (!pwallet->GetAccountPubkey(pubKey, strAccount, bForceNew)) {
@@ -425,7 +425,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
     return ret;
 }
 
-static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
+static void SendMoney(CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
 {
     CAmount curBalance = pwallet->GetBalance();
 
@@ -1102,7 +1102,7 @@ UniValue sendmany(const JSONRPCRequest& request)
 }
 
 // Defined in rpc/misc.cpp
-extern CScript _createmultisig_redeemScript(const UniValue& params);
+extern CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& params);
 
 UniValue addmultisigaddress(const JSONRPCRequest& request)
 {
@@ -1157,7 +1157,10 @@ UniValue addmultisigaddress(const JSONRPCRequest& request)
 class Witnessifier : public boost::static_visitor<bool>
 {
 public:
+    CWallet * const pwallet;
     CScriptID result;
+
+    Witnessifier(CWallet *_pwallet) : pwallet(_pwallet) {}
 
     bool operator()(const CNoDestination &dest) const { return false; }
 
@@ -1259,7 +1262,7 @@ struct tallyitem
     }
 };
 
-UniValue ListReceived(const UniValue& params, bool fByAccounts)
+UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByAccounts)
 {
     // Minimum confirmations
     int nMinDepth = 1;
@@ -1466,7 +1469,7 @@ static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitc
         entry.push_back(Pair("address", addr.ToString()));
 }
 
-void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
+void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
 {
     CAmount nFee;
     string strSentAccount;
@@ -2870,15 +2873,20 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
 }
 
 UniValue regeneratemintpool(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
-        if (request.fHelp || request.params.size() > 0)
-	        throw runtime_error(
-       	        	"regeneratemintpool\n"
-       		        "\nIf issues exist with the keys that map to mintpool entries in the DB, this function corrects them.\n"
-                    "\nExamples:\n"
-                    + HelpExampleCli("regeneratemintpool", "")
-                    + HelpExampleRpc("regeneratemintpool", "")
-                );
+    if (request.fHelp || request.params.size() > 0)
+        throw runtime_error(
+                "regeneratemintpool\n"
+                "\nIf issues exist with the keys that map to mintpool entries in the DB, this function corrects them.\n"
+                "\nExamples:\n"
+                + HelpExampleCli("regeneratemintpool", "")
+                + HelpExampleRpc("regeneratemintpool", "")
+            );
+
     if (pwallet->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -2931,6 +2939,11 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
 // zerocoin section
 
 UniValue listunspentmintzerocoins(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
                 "listunspentmintzerocoins [minconf=1] [maxconf=9999999] \n"
@@ -2987,6 +3000,11 @@ UniValue listunspentmintzerocoins(const JSONRPCRequest& request) {
 }
 
 UniValue listunspentsigmamints(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 2)
         throw runtime_error(
                 "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
@@ -3066,7 +3084,7 @@ UniValue mint(const JSONRPCRequest& request)
             + HelpExampleRpc("mint", "0.15")
         );
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
     EnsureSigmaWalletIsAvailable();
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
@@ -3114,6 +3132,11 @@ UniValue mint(const JSONRPCRequest& request)
 
 UniValue mintzerocoin(const JSONRPCRequest& request)
 {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
 
@@ -3197,6 +3220,11 @@ UniValue mintzerocoin(const JSONRPCRequest& request)
 
 UniValue mintmanyzerocoin(const JSONRPCRequest& request)
 {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() == 0 || request.params.size() % 2 != 0 || request.params.size() > 10)
         throw runtime_error(
                 "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
@@ -3222,7 +3250,7 @@ UniValue mintmanyzerocoin(const JSONRPCRequest& request)
         sendTo.push_back(Pair(denomination, stoi(amount)));
     }
 
-    if(!ValidMultiMint(sendTo)){
+    if(!ValidMultiMint(pwallet, sendTo)){
         throw JSONRPCError(RPC_WALLET_ERROR, "Insufficient funds/mint inputs out of range");
     }
 
@@ -3314,6 +3342,10 @@ UniValue mintmanyzerocoin(const JSONRPCRequest& request)
 }
 
 UniValue spendzerocoin(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
@@ -3361,7 +3393,7 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
 			 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
     }
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     // Wallet comments
     CWalletTx wtx;
@@ -3381,6 +3413,10 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
 }
 
 UniValue spendallzerocoin(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() >= 1)
         throw runtime_error(
@@ -3402,6 +3438,10 @@ UniValue spendallzerocoin(const JSONRPCRequest& request) {
 }
 
 UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
         if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
@@ -3485,7 +3525,7 @@ UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
         thirdPartyAddress = addressStr;
     }
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     // Wallet comments
     CWalletTx wtx;
@@ -3511,6 +3551,11 @@ UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
 }
 
 UniValue spendmany(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw std::runtime_error(
                 "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
@@ -3601,7 +3646,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
         vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
     }
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     CAmount nFeeRequired = 0;
 
@@ -3619,6 +3664,11 @@ UniValue spendmany(const JSONRPCRequest& request) {
 }
 
 UniValue resetmintzerocoin(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "resetmintzerocoin"
@@ -3646,7 +3696,10 @@ UniValue resetmintzerocoin(const JSONRPCRequest& request) {
 }
 
 UniValue resetsigmamint(const JSONRPCRequest& request) {
-
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
     if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "resetsigmamint"
@@ -3672,6 +3725,11 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
 }
 
 UniValue listmintzerocoins(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
                 "listmintzerocoins <all>(false/true)\n"
@@ -3708,6 +3766,10 @@ UniValue listmintzerocoins(const JSONRPCRequest& request) {
 }
 
 UniValue listsigmamints(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
@@ -3725,7 +3787,7 @@ UniValue listsigmamints(const JSONRPCRequest& request) {
     }
 
     // Mint secret data encrypted in wallet
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwallet->strWalletFile);
@@ -3751,6 +3813,11 @@ UniValue listsigmamints(const JSONRPCRequest& request) {
 
 
 UniValue listpubcoins(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
                 "listpubcoins <all>(1/10/25/50/100)\n"
@@ -3788,6 +3855,10 @@ UniValue listpubcoins(const JSONRPCRequest& request) {
 }
 
 UniValue listsigmapubcoins(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     std::string help_message =
         "listsigmapubcoins <all>(0.05/0.1/0.5/1/10/25/100)\n"
@@ -3811,7 +3882,7 @@ UniValue listsigmapubcoins(const JSONRPCRequest& request) {
     }
 
     // Mint secret data encrypted in wallet
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwallet->strWalletFile);
@@ -3842,6 +3913,11 @@ UniValue listsigmapubcoins(const JSONRPCRequest& request) {
 }
 
 UniValue setmintzerocoinstatus(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
                 "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
@@ -3906,6 +3982,10 @@ UniValue setmintzerocoinstatus(const JSONRPCRequest& request) {
 }
 
 UniValue setsigmamintstatus(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
@@ -3922,7 +4002,7 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
     bool fStatus = true;
     fStatus = request.params[1].get_bool();
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwallet->strWalletFile);
@@ -3984,6 +4064,10 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
 }
 
 UniValue listsigmaspends(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
@@ -4095,6 +4179,11 @@ UniValue listsigmaspends(const JSONRPCRequest& request) {
 }
 
 UniValue listspendzerocoins(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
                 "listspendzerocoins\n"
@@ -4169,6 +4258,10 @@ UniValue listspendzerocoins(const JSONRPCRequest& request) {
 }
 
 UniValue remintzerocointosigma(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
@@ -4196,7 +4289,7 @@ UniValue remintzerocointosigma(const JSONRPCRequest& request) {
             throw runtime_error("Incorrect denomination\n");
     }
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
     std::string stringError;
     CWalletTx wtx;
 
@@ -4207,6 +4300,11 @@ UniValue remintzerocointosigma(const JSONRPCRequest& request) {
 }
 
 UniValue removetxmempool(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
                 "removetxmempool <txid>\n"
@@ -4235,6 +4333,11 @@ UniValue removetxmempool(const JSONRPCRequest& request) {
 }
 
 UniValue removetxwallet(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error("removetxwallet <txid>\n" + HelpRequiringPassphrase());
 
@@ -4266,7 +4369,7 @@ extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 // calculation, but we should be able to refactor after priority is removed).
 // NOTE: this requires that all inputs must be in mapWallet (eg the tx should
 // be IsAllFromMe).
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx)
+int64_t CalculateMaximumSignedTxSize(CWallet * const pwallet, const CTransaction &tx)
 {
     CMutableTransaction txNew(tx);
     std::vector<pair<CWalletTx *, unsigned int>> vCoins;
@@ -4288,7 +4391,8 @@ int64_t CalculateMaximumSignedTxSize(const CTransaction &tx)
 
 UniValue bumpfee(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp)) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
         return NullUniValue;
     }
 
@@ -4341,7 +4445,7 @@ UniValue bumpfee(const JSONRPCRequest& request)
 
     // retrieve the original tx from the wallet
     LOCK2(cs_main, pwallet->cs_wallet);
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
     if (!pwallet->mapWallet.count(hash)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
     }
@@ -4394,7 +4498,7 @@ UniValue bumpfee(const JSONRPCRequest& request)
 
     // Calculate the expected size of the new transaction.
     int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
-    const int64_t maxNewTxSize = CalculateMaximumSignedTxSize(*wtx.tx);
+    const int64_t maxNewTxSize = CalculateMaximumSignedTxSize(pwallet, *wtx.tx);
 
     // optional parameters
     bool specifiedConfirmTarget = false;
