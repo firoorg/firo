@@ -16,8 +16,11 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "netmessagemaker.h"
 
 #include <boost/lexical_cast.hpp>
+
+#define cs_vNodes (g_connman->cs_vNodes)
 
 int nPrivateSendRounds = DEFAULT_PRIVATESEND_ROUNDS;
 int nPrivateSendAmount = DEFAULT_PRIVATESEND_AMOUNT;
@@ -283,8 +286,6 @@ bool CDarksendPool::IsInputScriptSigValid(const CTxIn &txin) {
 bool CDarksendPool::IsCollateralValid(const CTransaction &txCollateral) {
     return true;
 }
-
-
 //
 // Add a clients transaction to the pool
 //
@@ -553,6 +554,15 @@ std::string CDarksendPool::GetMessageByID(PoolMessage nMessageID) {
 }
 
 bool CDarkSendSigner::IsVinAssociatedWithPubkey(const CTxIn &txin, const CPubKey &pubkey) {
+    CScript payee;
+    payee = GetScriptForDestination(pubkey.GetID());
+
+    CTransactionRef tx;
+    uint256 hash;
+    if (GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
+        BOOST_FOREACH(CTxOut out, tx->vout)
+        if (out.nValue == ZNODE_COIN_REQUIRED * COIN && out.scriptPubKey == payee) return true;
+    }
     return false;
 }
 

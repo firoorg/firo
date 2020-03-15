@@ -3584,6 +3584,28 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                 }
             }
         }
+
+        // vInventoryToSend from dash
+        vector<CInv> vInvWait;
+        {
+            LOCK(pto->cs_inventory);
+            vInv.reserve(std::min<size_t>(1000, pto->vInventoryToSend.size()));
+            vInvWait.reserve(pto->vInventoryToSend.size());
+            BOOST_FOREACH(const CInv& inv, pto->vInventoryToSend)
+            {
+                pto->filterInventoryKnown.insert(inv.hash);
+
+                LogPrint("net", "SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
+                vInv.push_back(inv);
+                if (vInv.size() >= 1000)
+                {
+                    LogPrint("net", "SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
+                    connman.PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
+                    vInv.clear();
+                }
+            }
+            pto->vInventoryToSend = vInvWait;
+        }
         
         if (!vInv.empty())
             connman.PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
