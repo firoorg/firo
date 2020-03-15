@@ -14,6 +14,7 @@
 #include "darksend.h"
 #include "util.h"
 #include "net.h"
+#include "netbase.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -474,8 +475,8 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     }
 
     // TODO: upgrade dash
-    /*
-    CService service = CService(strService);
+
+    CService service = LookupNumeric(strService.c_str());
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if (service.GetPort() != mainnetDefaultPort) {
@@ -489,9 +490,7 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
         return false;
     }
 
-    return Create(txin, CService(strService), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);*/
-
-    return false;
+    return Create(txin, LookupNumeric(strService.c_str()), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);
 }
 
 bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet) {
