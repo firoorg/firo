@@ -8,6 +8,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
+#include "core_io.h"
 #include "consensus/validation.h"
 #include "validation.h"
 #include "policy/policy.h"

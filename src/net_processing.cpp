@@ -2006,7 +2006,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::deque<COutPoint> vWorkQueue;
         std::vector<uint256> vEraseQueue;
 
-        std::shared_ptr<const CTxLockRequest> ptxLockRequest;
+        CTxLockRequest txLockRequest;
         int nInvType = MSG_TX;
         CTransactionRef ptx;
 
@@ -2014,9 +2014,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (strCommand == NetMsgType::TX) {
             vRecv >> ptx;
         } else if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            vRecv >> ptxLockRequest;
-            ptx = MakeTransactionRef(*ptxLockRequest);
+            vRecv >> txLockRequest;
+            ptx = txLockRequest.tx;
             nInvType = MSG_TXLOCK_REQUEST;
+            /*if (llmq::IsNewInstantSendEnabled()) {
+                // the new system does not require explicit lock requests
+                // changing the inv type to MSG_TX also results in re-broadcasting the TX as normal TX
+                nInvType = MSG_TX;
+            }*/
         }
 
         const CTransaction& tx = *ptx;
@@ -2026,10 +2031,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            if (!instantsend.ProcessTxLockRequest(*ptxLockRequest)) {
+            /*if (!instantsend.ProcessTxLockRequest(*ptxLockRequest, g_connman)) {
                 LogPrint("instantsend", "TXLOCKREQUEST -- failed %s\n", ptxLockRequest->GetHash().ToString());
                 return false;
-            }
+            }*/
         }
 
         LOCK(cs_main);
@@ -2989,7 +2994,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             //probably one the extensions
             mnodeman.ProcessMessage(pfrom, command, vRecv);
             mnpayments.ProcessMessage(pfrom, command, vRecv);
-            instantsend.ProcessMessage(pfrom, command, vRecv);
             sporkManager.ProcessSpork(pfrom, command, vRecv);
             znodeSync.ProcessMessage(pfrom, command, vRecv);
         } else {

@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activemasternode.h"
-#include "governance.h"
+//#include "governance.h"
 #include "init.h"
 #include "validation.h"
 #include "masternode-payments.h"
@@ -64,10 +64,10 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             break;
         case(MASTERNODE_SYNC_WAITING):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
-            nCurrentAsset = MASTERNODE_SYNC_GOVERNANCE;
+            nCurrentAsset = MASTERNODE_SYNC_FINISHED;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
-        case(MASTERNODE_SYNC_GOVERNANCE):
+/*        case(MASTERNODE_SYNC_GOVERNANCE):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
@@ -77,7 +77,7 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
-            break;
+            break;*/
     }
     nTriedPeerCount = 0;
     nTimeAssetSyncStarted = GetTime();
@@ -146,7 +146,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     // gradually request the rest of the votes after sync finished
     if(IsSynced()) {
         std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
-        governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
+        //governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
         connman.ReleaseNodeVector(vNodesCopy);
         return;
     }
@@ -166,7 +166,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         // they are temporary and should be considered unreliable for a sync process.
         // Inbound connection this early is most likely a "masternode" connection
         // initiated from another node, so skip it too.
-        if(pnode->fMasternode || (fMasternodeMode && pnode->fInbound)) continue;
+        if(pnode->fZnode || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
@@ -174,10 +174,10 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
             if (nCurrentAsset == MASTERNODE_SYNC_WAITING) {
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
                 SwitchToNextAsset(connman);
-            } else if (nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
+            } /*else if (nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
                 SendGovernanceSyncRequest(pnode, connman);
                 SwitchToNextAsset(connman);
-            }
+            }*/
             connman.ReleaseNodeVector(vNodesCopy);
             return;
         }
@@ -220,6 +220,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
+            /*
             if(nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
                 LogPrint("gobject", "CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTimeLastBumped %lld GetTime() %lld diff %lld\n", nTick, nCurrentAsset, nTimeLastBumped, GetTime(), GetTime() - nTimeLastBumped);
 
@@ -278,6 +279,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 connman.ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
             }
+            */
         }
     }
     // looped through all nodes, release them
@@ -286,7 +288,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
 void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode, CConnman& connman)
 {
-    CNetMsgMaker msgMaker(pnode->GetSendVersion());
+/*    CNetMsgMaker msgMaker(pnode->GetSendVersion());
 
     if(pnode->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
         CBloomFilter filter;
@@ -297,6 +299,7 @@ void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode, CConnman& connman)
     else {
         connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, uint256()));
     }
+*/
 }
 
 void CMasternodeSync::AcceptedBlockHeader(const CBlockIndex *pindexNew)

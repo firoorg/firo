@@ -97,7 +97,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
         batch.Write(DB_BEST_BLOCK, hashBlock);
 
     bool ret = db.WriteBatch(batch);
-    LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
+    LogPrint("coindb", "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
     return ret;
 }
 
@@ -497,8 +497,8 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, vector<vector<u
 void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
         AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
 {
-    const CCoins* coins = view.AccessCoins(input.prevout.hash);
-    const CTxOut &prevout = coins->vout[input.prevout.n];
+    const Coin coin = view.AccessCoin(input.prevout);
+    const CTxOut &prevout = coin.out;
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
@@ -750,6 +750,8 @@ public:
         ::Unserialize(s, VARINT(nHeight));
     }
 };
+
+}
 
 /** Upgrade the database from older formats.
  *

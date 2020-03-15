@@ -171,7 +171,7 @@ struct Params {
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
     int nInstantSendSigsRequired;
-
+    int nInstantSendSigsTotal;
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;
