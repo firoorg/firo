@@ -36,4 +36,4 @@ private:
 
 #include "range_prover.hpp"
 
-#endif //ZCOIN_RANGE_PROVER_H
+#endif //ZCOIN_LIBLELANTUS_RANGE_PROVER_H

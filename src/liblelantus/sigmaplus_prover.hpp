@@ -63,8 +63,11 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
         Pk[k].randomize();
         Yk[k].randomize();
     }
+
+    //compute B
     LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, sigma, rB, proof_out.B_);
 
+    //compute A
     for (std::size_t j = 0; j < m_; ++j)
     {
         for (std::size_t i = 1; i < n_; ++i)
@@ -73,22 +76,25 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
             a[j * n_] -= a[j * n_ + i];
         }
     }
-    //compute A
     LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, a, rA, proof_out.A_);
+
     //compute C
     std::vector<Exponent> c;
     c.resize(n_ * m_);
+    Exponent one(uint64_t(1));
+    Exponent two(uint64_t(2));
     for (std::size_t i = 0; i < n_ * m_; ++i)
     {
-        c[i] = (a[i] * (Exponent(uint64_t(1)) - (Exponent(uint64_t(2)) * sigma[i])));
+        c[i] = a[i] * (one - two * sigma[i]);
     }
     LelantusPrimitives<Exponent, GroupElement>::commit(g_,h_, c, rC, proof_out.C_);
+
     //compute D
     std::vector<Exponent> d;
     d.resize(n_ * m_);
     for (std::size_t i = 0; i < n_ * m_; i++)
     {
-        d[i] = ((a[i].square()).negate());
+        d[i] = a[i].square().negate();
     }
     LelantusPrimitives<Exponent, GroupElement>::commit(g_,h_, d, rD, proof_out.D_);
 
@@ -128,7 +134,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
     std::vector<uint64_t> lj = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(l, n_, m_);
 
     std::vector<Exponent> p_i_sum;
-    p_i_sum.emplace_back(uint64_t(1));
+    p_i_sum.emplace_back(one);
     std::vector<std::vector<Exponent>> partial_p_s;
 
     // Pre-calculate product parts and calculate p_s(x) at the same time, put the latter into p_i_sum
@@ -188,7 +194,7 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_response(
         SigmaPlusProof<Exponent, GroupElement>& proof_out) {
 
     //f
-    proof_out.f_ .reserve(m_ * (n_ - 1));
+    proof_out.f_.reserve(m_ * (n_ - 1));
     for (std::size_t j = 0; j < m_; j++)
     {
         for (std::size_t i = 1; i < n_; i++)

@@ -40,14 +40,16 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
     Exponent x;
     std::vector<GroupElement> group_elements = {*itr_l, *itr_r};
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
+
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
     LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);
     std::vector<GroupElement> h_p;
     LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x, h_p);
+
     //Compute P prime
     GroupElement p_p = LelantusPrimitives<Exponent, GroupElement>::p_prime(P_, *itr_l, *itr_r, x);
-    return InnerProductProofVerifier(g_p, h_p, u_, p_p).verify_util(proof, ++itr_l, ++itr_r);
+    return InnerProductProofVerifier(g_p, h_p, u_, p_p).verify_util(proof, itr_l + 1, itr_r + 1);
 }
 
 template <class Exponent, class GroupElement>
@@ -61,20 +63,20 @@ template <class Exponent, class GroupElement>
 bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
         uint64_t n,
         const InnerProductProof<Exponent, GroupElement>& proof){
-    int log_n = proof.L_.size();
-    std::vector<Exponent> x_j, x_j_inv;
+    std::size_t log_n = proof.L_.size();
+    std::vector<Exponent> x_j;
     x_j.resize(log_n);
-    for (int i = 0; i < log_n; ++i)
+    for (std::size_t i = 0; i < log_n; ++i)
     {
         LelantusPrimitives<Exponent, GroupElement>::get_x(proof.L_[i], proof.R_[i], x_j[i]);
     }
     std::vector<Exponent> s, s_inv;
     s.resize(n);
     s_inv.resize(n);
-    for (uint64_t i = 0; i < n; ++i)
+    for (std::size_t i = 0; i < n; ++i)
     {
         Exponent x_i(uint64_t(1));
-        for (int j = 0; j < log_n; ++j)
+        for (std::size_t j = 0; j < log_n; ++j)
         {
             if((i >> j) & 1) {
                 x_i *= x_j[log_n - j - 1];
@@ -97,7 +99,7 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     GroupElement right = P_;
     GroupElement multi;
     Exponent two(uint64_t(2));
-    for (int j = 0; j < log_n; ++j)
+    for (std::size_t j = 0; j < log_n; ++j)
         multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].exponent(two).inverse()));
     right += multi;
     if(left != right)

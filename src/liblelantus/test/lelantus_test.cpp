@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     for(int i = 1; i < N; ++i){
           secp_primitives::GroupElement coin;
           coin.randomize();
-          anonymity_sets[0].emplace_back(lelantus::PublicCoin(coin));
+          anonymity_sets[0].emplace_back(coin);
      }
 
     secp_primitives::Scalar Vin(uint64_t(5));

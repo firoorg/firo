@@ -1,3 +1,5 @@
+#include "../libzerocoin/Zerocoin.h"
+
 namespace lelantus {
 
 template <class Exponent, class GroupElement>
@@ -44,38 +46,48 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
         const std::vector<Exponent>& b,
         InnerProductProof<Exponent, GroupElement>& proof_out) {
 
-    if(a.size() == 1 && b.size() == 1){ //Protocol 2 line 15
+    if(a.size() != b.size())
+        throw ZerocoinException("Sizes of a and b are not equal.");
+
+    if(a.size() == 1 && b.size() == 1) { //Protocol 2 line 15
         proof_out.a_ = a[0];
         proof_out.b_ = b[0];
         return;
     }
 
-    int n = a.size() / 2;
+    std::size_t n = a.size() / 2;
     // Computes cL then L
     Exponent cL = LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(a.begin() ,a.begin() + n, b.begin() + n,  b.end());
     GroupElement L;
     l(a.begin() ,a.begin() + n, b.begin() + n,  b.end(), cL, L);
-//    //Computes cR then R
+
+    //Computes cR then R
     Exponent cR = LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(a.begin() + n, a.end(), b.begin(), b.begin() + n);
     GroupElement R;
     r(a.begin() + n, a.end(), b.begin(), b.begin() + n, cR, R);
-//    //Push L and R
-    proof_out.L_.push_back(L);
-    proof_out.R_.push_back(R);
-//    //Get challenge x
+
+    //Push L and R
+    proof_out.L_.emplace_back(L);
+    proof_out.R_.emplace_back(R);
+
+    //Get challenge x
     Exponent x;
     std::vector<GroupElement> group_elements = {L, R};
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
-//    //Compute g prime and p prime
+
+    //Compute g prime and p prime
     std::vector<GroupElement> g_p;
     LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);
     std::vector<GroupElement> h_p;
     LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x, h_p);
-//    //Compute a prime and b prime
+
+    //Compute a prime and b prime
     std::vector<Exponent> a_p = a_prime(x, a);
     std::vector<Exponent> b_p = b_prime(x, b);
-//    //Compute P prime
+
+    //Compute P prime
     GroupElement p_p = LelantusPrimitives<Exponent, GroupElement>::p_prime(P_, L, R, x);
+
     // Recursive call of protocol 2
     InnerProductProoveGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
 }
@@ -101,26 +113,18 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::l(
         typename std::vector<Exponent>::const_iterator b_end,
         const Exponent& cL,
         GroupElement& result_out) {
-    GroupElement g, h;
     std::vector<Exponent> a, b;
     std::vector<GroupElement> gens_g, gens_h;
     gens_g.reserve(g_.size() / 2 + 1);
     gens_h.reserve(h_.size() / 2 + 1);
     a.reserve(g_.size() / 2 + 1);
     b.reserve(h_.size() / 2 + 1);
-    for (std::size_t i = g_.size() / 2; i < g_.size(); ++i)
-    {
-        gens_g.emplace_back(g_[i]);
-        a.emplace_back(*a_start);
-        a_start++;
-    }
 
-    for (std::size_t i = 0; i < h_.size() / 2; ++i)
-    {
-        gens_h.emplace_back(h_[i]);
-        b.emplace_back(*b_start);
-        b_start++;
-    }
+    gens_g.insert(gens_g.end(), g_.begin() + g_.size() / 2, g_.end());
+    a.insert(a.end(), a_start, a_start + g_.size() / 2);
+
+    gens_h.insert(gens_h.end(), h_.begin(), h_.begin() + h_.size() / 2);
+    b.insert(b.end(), b_start, b_start + h_.size() / 2);
 
     LelantusPrimitives<Exponent, GroupElement>::commit(u_, cL, gens_g, a, gens_h, b, result_out);
 }
@@ -133,7 +137,6 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
         typename std::vector<Exponent>::const_iterator b_end,
         const Exponent& cR,
         GroupElement& result_out) {
-    GroupElement g, h, ucR;
     std::vector<Exponent> a, b;
     std::vector<GroupElement> gens_g, gens_h;
     gens_g.reserve(g_.size() / 2 + 1);
@@ -141,19 +144,12 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
     a.reserve(g_.size() / 2 + 1);
     b.reserve(h_.size() / 2 + 1);
 
-    for (std::size_t i = 0; i < g_.size() / 2; ++i)
-    {
-        gens_g.emplace_back(g_[i]);
-        a.emplace_back(*a_start);
-        a_start++;
-    }
+    gens_g.insert(gens_g.end(), g_.begin(), g_.begin() + g_.size() / 2);
+    a.insert(a.end(), a_start, a_start + g_.size() / 2);
 
-    for (std::size_t i = h_.size() / 2; i < h_.size(); ++i)
-    {
-        gens_h.emplace_back(h_[i]);
-        b.emplace_back(*b_start);
-        b_start++;
-    }
+    gens_h.insert(gens_h.end(), h_.begin() + h_.size() / 2, h_.end());
+    b.insert(b.end(), b_start, b_start + h_.size() / 2);
+
     LelantusPrimitives<Exponent, GroupElement>::commit(u_, cR, gens_g, a, gens_h, b, result_out);
 }
 
@@ -167,9 +163,9 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_pri
     result.reserve(a.size() / 2);
     for(std::size_t i = 0; i < a.size() / 2; ++i)
     {
-        result.push_back(a[i] * x + a[a.size() / 2 + i] * x_inverse);
+        result.emplace_back(a[i] * x + a[a.size() / 2 + i] * x_inverse);
     }
-    return  result;
+    return result;
 }
 
 template <class Exponent, class GroupElement>
@@ -181,13 +177,13 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::b_pri
     result.reserve(b.size() / 2);
     for(std::size_t i = 0; i < b.size() / 2; ++i)
     {
-        result.push_back(b[i] * x_inverse + b[b.size() / 2 + i] * x);
+        result.emplace_back(b[i] * x_inverse + b[b.size() / 2 + i] * x);
     }
-    return  result;
+    return result;
 }
 
 template <class Exponent, class GroupElement>
-GroupElement InnerProductProoveGenerator<Exponent, GroupElement>::get_P(){
+const GroupElement& InnerProductProoveGenerator<Exponent, GroupElement>::get_P() {
     return P_initial;
 }
 } // namespace lelantus

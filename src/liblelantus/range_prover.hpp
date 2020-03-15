@@ -72,6 +72,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent z_j = z.square();
     Exponent z_sum1(uint64_t(0));
     Exponent z_sum2(uint64_t(0));
+    Exponent two(uint64_t(2));
     for (std::size_t j = 0; j < m; ++j)
     {
         Exponent two_n(uint64_t(1));
@@ -85,12 +86,13 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
             r_x[index].push_back(y_nm * sR[index]);
             //
             y_nm *= y;
-            two_n *= Exponent(uint64_t(2));
+            two_n *= two;
         }
         z_sum1 += z_j * randomness[j];
         z_sum2 += z_j * serialNumbers[j];
         z_j *= z;
     }
+
     //compute t1 and t2 coefficients
     Exponent t0, t1, t2;
     for (std::size_t i = 0; i < n * m; ++i)
@@ -99,6 +101,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         t1 += l_x[i][0] * r_x[i][1] + l_x[i][1] * r_x[i][0];
         t2 += l_x[i][1] * r_x[i][1];
     }
+
     //computing T11 T12 T21 T22;
     Exponent T_11, T_12, T_21, T_22;
     T_11.randomize();
@@ -112,6 +115,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     group_elements.emplace_back(proof_out.T1);
     group_elements.emplace_back(proof_out.T2);
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
+
     //computing l and r
     std::vector<Exponent> l;
     std::vector<Exponent> r;
@@ -130,15 +134,16 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     //compute h'
     std::vector<GroupElement> h_prime;
     h_prime.reserve(h_.size());
-    Exponent y_i(uint64_t(1));
+    Exponent y_i_inv(uint64_t(1));
+    Exponent y_inv = y.inverse();
     for (std::size_t i = 0; i < h_.size(); ++i)
     {
-        h_prime.push_back(h_[i] * y_i.inverse());
-        y_i *= y;
+        h_prime.push_back(h_[i] * y_i_inv);
+        y_i_inv *= y_inv;
     }
 
     InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime, g);
-    //   t^ is calculated inside inner product proof generation with name c
+    //t^ is calculated inside inner product proof generation with name c
     Exponent x_u;
     group_elements2.emplace_back(proof_out.T1);
     group_elements2.emplace_back(proof_out.T2);

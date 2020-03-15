@@ -9,6 +9,7 @@ template <class Exponent, class GroupElement>
 class InnerProductProofVerifier {
 
 public:
+    //g and h are being kept by reference, be sure it will not be modified from outside
     InnerProductProofVerifier(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,

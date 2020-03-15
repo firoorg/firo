@@ -167,17 +167,22 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     secp_primitives::MultiExponent mult(commits, f_i_t);
     GroupElement t1 = mult.get_multiple();
 
+    std::vector<Scalar> x_k_neg;
+    x_k_neg.reserve(m);
+    Scalar x_k(uint64_t(1));
+    for (uint64_t k = 0; k < m; ++k) {
+        x_k_neg.emplace_back(x_k.negate());
+        x_k *= x;
+    }
+
     GroupElement t2;
-    for (int t = 0; t < M; ++t)
-    {
+    for (int t = 0; t < M; ++t) {
         const std::vector <GroupElement>& Gk = proofs[t].Gk_;
         const std::vector <GroupElement>& Qk = proofs[t].Qk;
         GroupElement term;
-        Exponent x_k(uint64_t(1));
         for (std::size_t k = 0; k < m; ++k)
         {
-            term += ((Gk[k] + Qk[k]) * (x_k.negate()));
-            x_k *= x;
+            term += ((Gk[k] + Qk[k]) * x_k_neg[k]);
         }
         term *= y[t];
         t2 += term;

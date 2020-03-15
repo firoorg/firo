@@ -9,6 +9,7 @@ template <class Exponent, class GroupElement>
 class InnerProductProoveGenerator {
 
 public:
+    //g and h are being kept by reference, be sure it will not be modified from outside
     InnerProductProoveGenerator(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
@@ -20,7 +21,7 @@ public:
             const Exponent& x,
             InnerProductProof<Exponent, GroupElement>& proof_out);
 
-    GroupElement get_P();
+    const GroupElement& get_P();
 
 private:
 

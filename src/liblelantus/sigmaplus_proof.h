@@ -11,14 +11,14 @@ class SigmaPlusProof{
 public:
     SigmaPlusProof() = default;
 
-    inline int memoryRequired() const {
+    inline std::size_t memoryRequired() const {
         return B_.memoryRequired() * 4
                + ZA_.memoryRequired() * (f_.size() + 2)
                + B_.memoryRequired() * Gk_.size() * 2
                + zR_.memoryRequired() * 2;
     }
 
-    inline int memoryRequired(int n, int m) const {
+    inline std::size_t memoryRequired(int n, int m) const {
         return B_.memoryRequired() * 4
                + ZA_.memoryRequired() * (m*(n - 1) + 2)
                + B_.memoryRequired() * m * 2

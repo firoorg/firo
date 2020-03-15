@@ -21,6 +21,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     if(!membership_checks(proof))
         return false;
     uint64_t m = V.size();
+
     //computing challenges
     Exponent x, x_u, y, z;
 
@@ -40,12 +41,12 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     group_elements2.emplace_back(proof.T2);
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
 
-    uint64_t log_n = (int)std::log2(n * m);
+    auto log_n = (int)std::log2(n * m);
     const InnerProductProof<Exponent, GroupElement>& innerProductProof = proof.innerProductProof;
     std::vector<Exponent> x_j, x_j_inv;
     x_j.resize(log_n);
     x_j_inv.reserve(log_n);
-    for (std::size_t i = 0; i < log_n; ++i)
+    for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
         LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements_i, x_j[i]);
@@ -54,6 +55,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 
     Exponent z_square_neg = (z.square()).negate();
     Exponent delta = LelantusPrimitives<Exponent, GroupElement>::delta(y, z, n, m);
+
     //check line 97
     GroupElement V_z;
     Exponent z_m(uint64_t(1));
@@ -77,7 +79,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
             uint64_t i = j * n + k;
             Exponent x_il(uint64_t(1));
             Exponent x_ir(uint64_t(1));
-            for (std::size_t j = 0; j < log_n; ++j)
+            for (int j = 0; j < log_n; ++j)
             {
                 if ((i >> j) & 1) {
                     x_il *= x_j[log_n - j - 1];
@@ -112,7 +114,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
              + proof.S * x_neg;
 
     std::vector<Exponent> x_j_sq_neg, x_j_sq_inv_neg;
-    for (std::size_t j = 0; j < log_n; ++j)
+    for (int j = 0; j < log_n; ++j)
     {
         x_j_sq_neg.push_back(x_j[j].square().negate());
         x_j_sq_inv_neg.push_back(x_j_inv[j].square().negate());
@@ -131,18 +133,29 @@ bool RangeVerifier<Exponent, GroupElement>::membership_checks(const RangeProof<E
     if(!(proof.A.isMember()
          && proof.S.isMember()
          && proof.T1.isMember()
-         && proof.T1.isMember()
+         && proof.T2.isMember()
          && proof.T_x1.isMember()
          && proof.T_x2.isMember()
          && proof.u.isMember()
          && proof.innerProductProof.a_.isMember()
-         && proof.innerProductProof.b_.isMember())
-       && proof.innerProductProof.c_.isMember())
+         && proof.innerProductProof.b_.isMember()
+         && proof.innerProductProof.c_.isMember())
+         || proof.A.isInfinity()
+         || proof.S.isInfinity()
+         || proof.T1.isInfinity()
+         || proof.T2.isInfinity()
+         || proof.T_x1.isZero()
+         || proof.T_x2.isZero()
+         || proof.u.isZero()
+         || proof.innerProductProof.a_.isZero()
+         || proof.innerProductProof.b_.isZero()
+         || proof.innerProductProof.c_.isZero())
         return false;
 
     for (std::size_t i = 0; i < proof.innerProductProof.L_.size(); ++i)
     {
-        if (!(proof.innerProductProof.L_[i].isMember() && proof.innerProductProof.R_[i].isMember()))
+        if (!(proof.innerProductProof.L_[i].isMember() && proof.innerProductProof.R_[i].isMember())
+           || proof.innerProductProof.L_[i].isInfinity() || proof.innerProductProof.R_[i].isInfinity())
             return false;
     }
     return true;

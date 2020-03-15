@@ -1,4 +1,4 @@
-#include "../../crypto/sha256.h"
+#include "challange_generator.h"
 
 namespace lelantus {
 
@@ -8,16 +8,10 @@ void LelantusPrimitives<Exponent, GroupElement>::generate_challenge(
         Exponent& result_out) {
     if (group_elements.empty())
         throw std::runtime_error("Group elements empty while generating a challenge.");
-    CSHA256 hash;
-    std::vector<unsigned char> data(group_elements.size() * group_elements[0].memoryRequired());
-    unsigned char* current = data.data();
-    for (size_t i = 0; i < group_elements.size(); ++i) {
-        current = group_elements[i].serialize(current);
-    }
-    hash.Write(data.data(), data.size());
-    unsigned char result_data[CSHA256::OUTPUT_SIZE];
-    hash.Finalize(result_data);
-    result_out = result_data;
+
+    ChallengeGenerator<Exponent, GroupElement> challengeGenerator;
+    challengeGenerator.add(group_elements);
+    challengeGenerator.get_challenge(result_out);
 }
 
 template<class Exponent, class GroupElement>
@@ -27,7 +21,7 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
                                                         const Exponent& r,
                                                         GroupElement& result_out) {
     secp_primitives::MultiExponent mult(h, exp);
-    result_out += g * r + mult.get_multiple();
+    result_out = g * r + mult.get_multiple();
 }
 
 template<class Exponent, class GroupElement>
@@ -56,20 +50,20 @@ void LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(
         uint64_t n,
         uint64_t m,
         std::vector<Exponent>& out) {
-    std::size_t rem = 0;
-    std::size_t j = 0;
+    out.reserve(n * m);
+    Exponent one(uint64_t(1));
+    Exponent zero(uint64_t(0));
 
-    for (j = 0; j < m; ++j)
+    for (std::size_t j = 0; j < m; ++j)
     {
-        rem = num % n;
-        num /= n;
         for (std::size_t i = 0; i < n; ++i)
         {
-            if(i == rem)
-                out.push_back(Exponent(uint64_t(1)));
+            if(i == (num % n))
+                out.emplace_back(one);
             else
-                out.push_back(Exponent(uint64_t(0)));
+                out.emplace_back(zero);
         }
+        num /= n;
     }
 }
 
@@ -79,12 +73,11 @@ std::vector<uint64_t> LelantusPrimitives<Exponent, GroupElement>::convert_to_nal
         uint64_t n,
         uint64_t m) {
     std::vector<uint64_t> result;
-    uint64_t rem = 0;
+    result.reserve(m);
     while (num != 0)
     {
-        rem = num % n;
+        result.emplace_back(num % n);
         num /= n;
-        result.push_back(rem);;
     }
     result.resize(m);
     return result;
@@ -95,16 +88,17 @@ void  LelantusPrimitives<Exponent, GroupElement>::generate_Lelantus_challange(
         const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs,
         Exponent& result_out) {
     if (proofs.size() > 0) {
-        std::vector<GroupElement> group_elements;
+        ChallengeGenerator<Exponent, GroupElement> challengeGenerator;
         for (std::size_t i = 0; i < proofs.size(); ++i) {
-            group_elements.emplace_back(proofs[i].A_);
-            group_elements.emplace_back(proofs[i].B_);
-            group_elements.emplace_back(proofs[i].C_);
-            group_elements.emplace_back(proofs[i].D_);
-            group_elements.insert(group_elements.end(), proofs[i].Gk_.begin(), proofs[i].Gk_.end());
-            group_elements.insert(group_elements.end(), proofs[i].Qk.begin(), proofs[i].Qk.end());
+            challengeGenerator.add(proofs[i].A_);
+            challengeGenerator.add(proofs[i].B_);
+            challengeGenerator.add(proofs[i].C_);
+            challengeGenerator.add(proofs[i].D_);
+            challengeGenerator.add(proofs[i].Gk_);
+            challengeGenerator.add(proofs[i].Qk);
         }
-        LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, result_out);
+
+        challengeGenerator.get_challenge(result_out);
     }
     else
         result_out = uint64_t(1);
@@ -194,7 +188,8 @@ GroupElement LelantusPrimitives<Exponent, GroupElement>::p_prime(
 template <class Exponent, class GroupElement>
 Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n,  uint64_t m){
     Exponent y_;
-    Exponent two;
+    Exponent two_;
+    Exponent two(uint64_t(2));
     Exponent y_n(uint64_t(1));
     Exponent two_n(uint64_t(1));
     Exponent z_j =  z.exponent(uint64_t(3));
@@ -213,11 +208,11 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
 
     for(std::size_t i = 0; i < n; ++i)
     {
-        two += two_n;
-        two_n *= uint64_t(2);
+        two_ += two_n;
+        two_n *= two;
     }
 
-    return (z - z.square()) * y_ - z_sum * two;
+    return (z - z.square()) * y_ - z_sum * two_;
 }
 
 }//namespace lelantus

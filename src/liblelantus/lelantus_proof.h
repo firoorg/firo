@@ -12,7 +12,7 @@ namespace lelantus {
 class LelantusProof {
 public:
     //n is the number of input coins, bulletproof_n is number of output coins,
-    inline int memoryRequired(int n, int bulletproof_n, int bulletproof_m) const {
+    inline std::size_t memoryRequired(int n, int bulletproof_n, int bulletproof_m) const {
         return  sigma_proofs[0].memoryRequired() * n
                 + bulletproofs.memoryRequired(bulletproof_n, bulletproof_m)
                 + schnorrProof.memoryRequired();

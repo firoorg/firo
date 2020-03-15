@@ -11,7 +11,7 @@ template <class Exponent, class GroupElement>
 class InnerProductProof {
 public:
 
-    inline int memoryRequired(int size) const {
+    inline std::size_t memoryRequired(int size) const {
         return a_.memoryRequired() * 3 + 34 * 2 * size;
     }
 

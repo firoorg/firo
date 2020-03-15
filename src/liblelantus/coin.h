@@ -68,6 +68,7 @@ private:
     unsigned int version = 0;
 
 private:
+    void randomize();
     void mintCoin(const Scalar& v);
 };
 

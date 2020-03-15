@@ -17,7 +17,8 @@ bool SchnorrVerifier<Exponent, GroupElement>::verify(
     const Exponent P1 = proof.P1;
     const Exponent T1 = proof.T1;
 
-    if(!(u.isMember()) || !(y.isMember()) || !(P1.isMember()) || !(T1.isMember()))
+    if(!(u.isMember() && y.isMember() && P1.isMember() && T1.isMember()) ||
+        u.isInfinity() || y.isInfinity() || P1.isZero() || T1.isZero())
         return false;
 
     GroupElement right = y * c + g_ * P1 + h_ * T1;
