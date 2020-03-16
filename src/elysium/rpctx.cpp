@@ -1734,8 +1734,7 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
         SigmaV1SignatureBuilder sigBuilder(address, referenceAmount, spend.proof);
         auto signature = sigBuilder.Sign(key);
 
-        SigmaV1SignatureBuilder sigVerifier(address, referenceAmount, spend.proof);
-        if (!sigVerifier.Verify(pubkey, signature)) {
+        if (!sigBuilder.Verify(pubkey, signature)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Fail to create valid signature to spend.");
         }
 
