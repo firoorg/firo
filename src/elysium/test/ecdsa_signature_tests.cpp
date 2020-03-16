@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(serialize_invalid)
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 
-    BOOST_CHECK_THROW(ss << sig, std::runtime_error);
+    BOOST_CHECK_THROW(ss << sig, std::logic_error);
 }
 
 BOOST_AUTO_TEST_CASE(unserialize)

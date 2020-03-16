@@ -46,6 +46,10 @@ ECDSASignature ECDSASignature::Parse(ECDSAContext const &context, unsigned char 
 
 std::vector<unsigned char> ECDSASignature::GetCompact(ECDSAContext const &context) const
 {
+    if (!Valid()) {
+        throw std::logic_error("Signature is invalid.");
+    }
+
     std::vector<unsigned char> result;
     result.resize(COMPACT_SIZE);
 
@@ -61,6 +65,10 @@ std::vector<unsigned char> ECDSASignature::GetCompact(ECDSAContext const &contex
 
 std::vector<unsigned char> ECDSASignature::GetDER(ECDSAContext const &context) const
 {
+    if (!Valid()) {
+        throw std::logic_error("Signature is invalid.");
+    }
+
     std::vector<unsigned char> result;
     result.resize(DER_SIZE);
 

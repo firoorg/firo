@@ -38,7 +38,7 @@ public:
     void Serialize(Stream& s, int nType, int nVersion) const
     {
         if (!Valid()) {
-            throw std::runtime_error("ECDSA Signature is invalid");
+            throw std::logic_error("ECDSA Signature is invalid");
         }
 
         auto buffer = GetCompact(ECDSAContext::CreateSignContext());
