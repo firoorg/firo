@@ -107,9 +107,11 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     data: { 
         version: INT,
         protocolVersion: INT,
+        walletinitialized: BOOL,
         walletVersion: INT, (VAR: Wallet initialized)
-        walletLock: BOOL,  (VAR: Wallet initialized)
-        unlockedUntil: INT, (VAR : wallet is unlocked)
+        walletLock: BOOL, (VAR: Wallet initialized)
+        shouldShowWarning: BOOL, (VAR: Wallet initialized)
+        unlockedUntil: INT,
         Znode: {
             localCount: INT,
             totalCount: INT,
@@ -122,6 +124,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         devAuth: BOOL,
         synced: BOOL,
         rescanning: BOOL,
+        hasMnemonic: BOOL,
         reindexing: BOOL,
         safeMode: BOOL,
         pid: INT,
