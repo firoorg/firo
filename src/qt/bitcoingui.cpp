@@ -593,7 +593,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         setNumBlocks(_clientModel->getNumBlocks(), _clientModel->getLastBlockDate(), _clientModel->getVerificationProgress(NULL), false);
         connect(_clientModel, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(setNumBlocks(int,QDateTime,double,bool)));
 
-        connect(clientModel, SIGNAL(additionalDataSyncProgressChanged(int, double)), this, SLOT(setAdditionalDataSyncProgress(int, double)));
+        connect(clientModel, SIGNAL(additionalDataSyncProgressChanged(double)), this, SLOT(setAdditionalDataSyncProgress(double)));
 
         // Receive and report messages from client model
         connect(_clientModel, SIGNAL(message(QString,QString,unsigned int)), this, SLOT(message(QString,QString,unsigned int)));
@@ -1046,7 +1046,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 }
 
 
-void BitcoinGUI::setAdditionalDataSyncProgress(int count, double nSyncProgress)
+void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 {
     if(!clientModel)
         return;
@@ -1055,7 +1055,10 @@ void BitcoinGUI::setAdditionalDataSyncProgress(int count, double nSyncProgress)
     statusBar()->clearMessage();
 
     QString tooltip;
-    tooltip = tr("Processed %n block(s) of transaction history.", "", count);
+
+    // Set icon state: spinning if catching up, tick otherwise
+    QString strSyncStatus;
+    tooltip = tr("Up to date") + QString(".<br>") + tooltip;
 
     // Set icon state: spinning if catching up, tick otherwise
 
