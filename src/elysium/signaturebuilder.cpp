@@ -2,7 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "convert.h"
 #include "sigmaprimitives.h"
 #include "signaturebuilder.h"
 
@@ -21,7 +20,7 @@ SigmaV1SignatureBuilder::SigmaV1SignatureBuilder(
     uint160 keyId;
     AddressType type;
     if (!receiver.GetIndexKey(keyId, type)) {
-        throw std::runtime_error("Fail to get address key id.");
+        throw std::invalid_argument("Fail to get address key id.");
     }
 
     hasher.write(reinterpret_cast<char*>(keyId.begin()), keyId.size());
@@ -47,7 +46,7 @@ ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key) const
         throw std::runtime_error("Fail to sign payload");
     }
 
-    return ECDSASignature(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
+    return ECDSASignature::Parse(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
 }
 
 bool SigmaV1SignatureBuilder::Verify(CPubKey const &pubKey, ECDSASignature const &signature) const

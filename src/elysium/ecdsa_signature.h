@@ -23,7 +23,9 @@ public:
 public:
     ECDSASignature();
     ECDSASignature(secp256k1_ecdsa_signature const &sig);
-    ECDSASignature(ECDSAContext const &context, unsigned char const *signature, size_t len);
+
+public:
+    static ECDSASignature Parse(ECDSAContext const &context, unsigned char const *signature, size_t len);
 
 public:
     std::vector<unsigned char> GetCompact(ECDSAContext const &context) const;

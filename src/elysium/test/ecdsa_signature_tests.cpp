@@ -34,7 +34,7 @@ public:
 public:
     ECDSASignature GetSignature() const
     {
-        return ECDSASignature(ECDSAContext::CreateVerifyContext(), rawSig.data(), rawSig.size());
+        return ECDSASignature::Parse(ECDSAContext::CreateVerifyContext(), rawSig.data(), rawSig.size());
     }
 };
 
@@ -62,9 +62,9 @@ BOOST_AUTO_TEST_CASE(construct_and_get_data)
     BOOST_CHECK(sig.Valid());
 }
 
-BOOST_AUTO_TEST_CASE(construct_with64bytes)
+BOOST_AUTO_TEST_CASE(parse_with64bytes)
 {
-    ECDSASignature sig(context, compact.data(), compact.size());
+    auto sig = ECDSASignature::Parse(context, compact.data(), compact.size());
     auto sigVec = sig.GetDER(context);
 
     std::vector<unsigned char> expected;
