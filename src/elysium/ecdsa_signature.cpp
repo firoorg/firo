@@ -19,29 +19,28 @@ ECDSASignature::ECDSASignature(secp256k1_ecdsa_signature const &sig)
 
 ECDSASignature ECDSASignature::Parse(ECDSAContext const &context, unsigned char const *signature, size_t len)
 {
-    ECDSASignature sig;
+    secp256k1_ecdsa_signature sig;
 
     if (len >= 70 && len <= 72) {
-        if (1 == secp256k1_ecdsa_signature_parse_der(
+        if (1 != secp256k1_ecdsa_signature_parse_der(
             context.Get(),
-            &(sig.signature),
+            &sig,
             signature,
-            len))
-        {
-            sig.valid = true;
+            len)) {
+            throw std::invalid_argument("DER Signature is invalid");
         }
     } else if (len == COMPACT_SIZE) {
-        if (1 == secp256k1_ecdsa_signature_parse_compact(
+        if (1 != secp256k1_ecdsa_signature_parse_compact(
             context.Get(),
-            &(sig.signature),
+            &sig,
             signature)) {
-            sig.valid = true;
+            throw std::invalid_argument("Compact Signature is invalid");
         }
     } else {
         throw std::invalid_argument("Signature encoding type is not supported");
     }
 
-    return sig;
+    return ECDSASignature(sig);
 }
 
 std::vector<unsigned char> ECDSASignature::GetCompact(ECDSAContext const &context) const
