@@ -8,6 +8,8 @@ from test_framework.util import *
 # Description: a very straightforward check of Znode operability
 # 1. Start several nodes
 # 2. Mine blocks and check the reward comes to the proper nodes
+# 3. Shut down a node and make sure no more reward
+# 5+6n formula is explained at the bottom of the file
 
 class ZnodeCheckPayments(ZnodeTestFramework):
     def __init__(self):
@@ -55,6 +57,24 @@ class ZnodeCheckPayments(ZnodeTestFramework):
 
         assert_equal(1000 + 15, get_full_balance(self.nodes[3]))
 
+# Spend Znode output
+        generator_address = self.nodes[self.num_nodes - 1].getaccountaddress("")
+        znode_output = self.nodes[3].listlockunspent()
+        print(self.nodes[3].lockunspent(True, znode_output))
+        self.nodes[3].sendtoaddress(generator_address, 1000, "", "", True)
+
+        self.generate(6) #The Znode has been scheduled already, need one run for the schedule to get updated
+
+        assert_equal(1000 + 15 - 1000 + 15, get_full_balance(self.nodes[3]))
+
+        self.generate(2*6)
+
+        assert_equal(30, get_full_balance(self.nodes[3]))
+
+        for zn in range(self.num_znodes):
+            assert_equal(1000 + 8*15, get_full_balance(self.nodes[zn]))
 
 if __name__ == '__main__':
     ZnodeCheckPayments().main()
+
+#

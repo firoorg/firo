@@ -399,7 +399,7 @@ class ZnodeTestFramework(BitcoinTestFramework):
         for b in range(blocks):
             self.nodes[generator_node].generate(1)
             sync_blocks(self.nodes)
-            time.sleep(3)
+            time.sleep(1)
 
 
 def get_znode_service(znode):
