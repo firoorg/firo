@@ -45,6 +45,7 @@ BITCOIN_TESTS =\
   sigma/test/primitives_tests.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
+  liblelantus/test/coin_tests.cpp \
   liblelantus/test/inner_product_test.cpp \
   liblelantus/test/range_proof_test.cpp \
   liblelantus/test/schnorr_test.cpp \
