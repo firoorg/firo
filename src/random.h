@@ -110,10 +110,27 @@ public:
 
     /** Generate a random boolean. */
     bool randbool() { return randbits(1); }
-    
+
     uint32_t operator()(uint32_t nMax) {
-        return rand32(nMax);
+        return (uint32_t)randrange(nMax);
     }
 };
+
+/* Number of random bytes returned by GetOSRand.
+ * When changing this constant make sure to change all call sites, and make
+ * sure that the underlying OS APIs for all platforms support the number.
+ * (many cap out at 256 bytes).
+ */
+static const ssize_t NUM_OS_RANDOM_BYTES = 32;
+
+/** Get 32 bytes of system entropy. Do not use this in application code: use
+ * GetStrongRandBytes instead.
+ */
+void GetOSRand(unsigned char *ent32);
+
+/** Check that OS randomness is available and returning the requested number
+ * of bytes.
+ */
+bool Random_SanityCheck();
 
 #endif // BITCOIN_RANDOM_H

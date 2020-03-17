@@ -92,7 +92,7 @@ static void RandAddSeedPerfmon()
 }
 
 /** Get 32 bytes of system entropy. */
-static void GetOSRand(unsigned char *ent32)
+void GetOSRand(unsigned char *ent32)
 {
 #ifdef WIN32
     HCRYPTPROV hProvider;

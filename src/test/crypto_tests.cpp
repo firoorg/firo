@@ -188,6 +188,19 @@ void TestAES256CBC(const std::string &hexkey, const std::string &hexiv, bool pad
     }
 }
 
+void TestChaCha20(const std::string &hexkey, uint64_t nonce, uint64_t seek, const std::string& hexout)
+{
+    std::vector<unsigned char> key = ParseHex(hexkey);
+    ChaCha20 rng(key.data(), key.size());
+    rng.SetIV(nonce);
+    rng.Seek(seek);
+    std::vector<unsigned char> out = ParseHex(hexout);
+    std::vector<unsigned char> outres;
+    outres.resize(out.size());
+    rng.Output(outres.data(), outres.size());
+    BOOST_CHECK(out == outres);
+}
+
 std::string LongTestString(void) {
     std::string ret;
     for (int i=0; i<200000; i++) {
