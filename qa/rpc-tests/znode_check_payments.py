@@ -77,4 +77,6 @@ class ZnodeCheckPayments(ZnodeTestFramework):
 if __name__ == '__main__':
     ZnodeCheckPayments().main()
 
-#
+# 5+6n formula
+# Let's say we are starting 3 Znodes at once. The first full round when all Znodes are payed finishes in 5 blocks. All
+# the subsequent runs will take 6 blocks.
