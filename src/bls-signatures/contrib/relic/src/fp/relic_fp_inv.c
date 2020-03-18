@@ -436,6 +436,12 @@ void fp_inv_sim(fp_t *c, const fp_t *a, int n) {
 void fp_inv_exgcd_bn(bn_t c, const bn_t u, const bn_t p) {
 	bn_t v, g1, g2, q, r;
 
+	bn_null(v);
+	bn_null(g1);
+	bn_null(g2);
+	bn_null(q);
+	bn_null(r);
+
 	TRY {
 		bn_new(v);
 		bn_new(g1);
@@ -471,4 +477,11 @@ void fp_inv_exgcd_bn(bn_t c, const bn_t u, const bn_t p) {
 	CATCH_ANY {
 		THROW(ERR_CAUGHT);
 	}
+	FINALLY {
+		bn_free(v);
+		bn_free(g1);
+		bn_free(g2);
+		bn_free(q);
+		bn_free(r);
+	};
 }

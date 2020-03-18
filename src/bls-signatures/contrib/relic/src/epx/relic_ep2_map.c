@@ -90,6 +90,15 @@ void ep2_sw_encode(ep2_t p, fp2_t t) {
 		if (parity) {
 			ep2_neg(p, p);
 		}
+		fp2_free(nt);
+		fp2_free(w);
+		fp2_free(b);
+		bn_free(s_n3);
+		bn_free(s_n3m1o2);
+		fp2_free(x1);
+		fp2_free(x2);
+		fp2_free(x3);
+		fp2_free(rhs);
 		return;
 	}
 
@@ -174,7 +183,7 @@ void ep2_sw_encode(ep2_t p, fp2_t t) {
 		ep2_neg(p, p);
 	}
 
-	fp_free(nt);
+	fp2_free(nt);
 	fp2_free(w);
 	fp2_free(b);
 	bn_free(s_n3);
@@ -183,6 +192,10 @@ void ep2_sw_encode(ep2_t p, fp2_t t) {
 	fp2_free(x2);
 	fp2_free(x3);
 	fp2_free(rhs);
+
+	fp2_free(s_n3p);
+	fp2_free(s_n3m1o2p);
+	fp2_free(ny);
 }
 
 
@@ -301,6 +314,32 @@ void ep2_mul_cof_b12(ep2_t r, ep2_t p) {
 /*============================================================================*/
 
 void ep2_map(ep2_t p, const uint8_t *msg, int len, int performHash) {
+	bn_t t00;
+	bn_t t01;
+	bn_t t10;
+	bn_t t11;
+	fp_t t00p;
+	fp_t t01p;
+	fp_t t10p;
+	fp_t t11p;
+	fp2_t t0p;
+	fp2_t t1p;
+	ep2_t p0;
+	ep2_t p1;
+
+	bn_null(t00);
+	bn_null(t01);
+	bn_null(t10);
+	bn_null(t11);
+	fp_null(t00p);
+	fp_null(t01p);
+	fp_null(t10p);
+	fp_null(t11p);
+	fp2_null(t0p);
+	fp2_null(t1p);
+	ep2_null(p1);
+	ep2_null(p0);
+
 	TRY {
 		uint8_t input[MD_LEN + 8];
 		if (performHash) {
@@ -319,19 +358,6 @@ void ep2_map(ep2_t p, const uint8_t *msg, int len, int performHash) {
 		input[MD_LEN + 4] = 0x5f; // _
 		input[MD_LEN + 5] = 0x63; // c
 		input[MD_LEN + 6] = 0x30; // 0
-
-		bn_t t00;
-		bn_t t01;
-		bn_t t10;
-		bn_t t11;
-		fp_t t00p;
-		fp_t t01p;
-		fp_t t10p;
-		fp_t t11p;
-		fp2_t t0p;
-		fp2_t t1p;
-		ep2_t p0;
-		ep2_t p1;
 
 		bn_new(t00);
 		bn_new(t01);
@@ -425,7 +451,7 @@ void ep2_map(ep2_t p, const uint8_t *msg, int len, int performHash) {
 				} else {
 					ep2_mul(p, p0, x);
 				}
-				bn_free(k);
+				bn_free(x);
 				break;
 			}
 		}
@@ -434,8 +460,6 @@ void ep2_map(ep2_t p, const uint8_t *msg, int len, int performHash) {
 		THROW(ERR_CAUGHT);
 	}
 	FINALLY {
-		ep_free(p0);
-		ep_free(p1);
 		fp2_free(t0p);
 		fp2_free(t1p);
 		fp_free(t00p);

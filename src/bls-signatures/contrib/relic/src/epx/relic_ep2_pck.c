@@ -64,9 +64,13 @@ void ep2_pck(ep2_t r, ep2_t p) {
 
 int ep2_upk(ep2_t r, ep2_t p) {
 	fp2_t t;
+	bn_t halfQ;
+	bn_t yValue;
 	int result = 0;
 
 	fp2_null(t);
+	bn_null(halfQ);
+	bn_null(yValue);
 
 	TRY {
 		fp2_new(t);
@@ -79,15 +83,11 @@ int ep2_upk(ep2_t r, ep2_t p) {
 		if (result) {
 			/* Verify whether the y coordinate is the larger one, matches the
 			 * compressed y-coordinate. */
-			bn_t halfQ;
-			bn_null(halfQ);
 			bn_new(halfQ);
 			halfQ->used = FP_DIGS;
 			dv_copy(halfQ->dp, fp_prime_get(), FP_DIGS);
 			bn_hlv(halfQ, halfQ);
 
-			bn_t yValue;
-			bn_null(yValue);
 			bn_new(yValue);
 			fp_prime_back(yValue, t[1]);
 

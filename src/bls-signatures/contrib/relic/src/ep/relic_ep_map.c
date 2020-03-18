@@ -159,6 +159,14 @@ void ep_sw_encode(ep_t p, fp_t t) {
 /*============================================================================*/
 
 void ep_map(ep_t p, const uint8_t *msg, int len) {
+	bn_t t0;
+	bn_t t1;
+	fp_t t0p;
+	fp_t t1p;
+	ep_t p0;
+	ep_t p1;
+	bn_t k;
+
 	TRY {
 		uint8_t input[MD_LEN + 5];
 		md_map(input, msg, len);
@@ -168,14 +176,6 @@ void ep_map(ep_t p, const uint8_t *msg, int len) {
 		input[MD_LEN + 1] = 0x31;
 		input[MD_LEN + 2] = 0x5f;
 		input[MD_LEN + 3] = 0x30;
-
-		bn_t t0;
-		bn_t t1;
-		fp_t t0p;
-		fp_t t1p;
-		ep_t p0;
-		ep_t p1;
-		bn_t k;
 
 		fp_new(t0p);
 		fp_new(t1p);

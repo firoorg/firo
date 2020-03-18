@@ -395,10 +395,10 @@ set(LABEL "" CACHE STRING "Build label")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 file(GLOB includes "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
-install(FILES ${includes} DESTINATION include/${RELIC})
+install(FILES ${includes} DESTINATION include)
 file(GLOB includes "${CMAKE_CURRENT_SOURCE_DIR}/include/low/*.h")
-install(FILES ${includes} DESTINATION include/${RELIC}/low)
-install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/" DESTINATION include/${RELIC})
+install(FILES ${includes} DESTINATION include/low)
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/" DESTINATION include)
 
 install(FILES cmake/relic-config.cmake DESTINATION cmake/)
 
