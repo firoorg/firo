@@ -54,6 +54,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 namespace elysium {
 
 using MintPoolEntry = SigmaWallet::MintPoolEntry;
+
 namespace {
 
 class TestSigmaWalletV0 : public SigmaWalletV0
@@ -67,64 +68,15 @@ public:
 public:
     // Proxy
     using SigmaWalletV0::GeneratePrivateKey;
+
     SigmaPrivateKey GeneratePrivateKey(uint512 const &seed)
     {
         return SigmaWalletV0::GeneratePrivateKey(seed);
     }
 
-    bool WriteMint(SigmaMintId const &id, SigmaMint const &mint)
+    SigmaWallet::Database* GetDB()
     {
-        return database->WriteMint(id, mint);
-    }
-
-    bool ReadMint(SigmaMintId const &id, SigmaMint &mint) const
-    {
-        return database->ReadMint(id, mint);
-    }
-
-    bool EraseMint(SigmaMintId const &id)
-    {
-        return database->EraseMint(id);
-    }
-
-    bool HasMint(SigmaMintId const &id, CWalletDB *db = nullptr) const
-    {
-        return database->HasMint(id);
-    }
-
-    bool WriteMintId(uint160 const &hash, SigmaMintId const &mintId)
-    {
-        return database->WriteMintId(hash, mintId);
-    }
-
-    bool ReadMintId(uint160 const &hash, SigmaMintId &mintId, CWalletDB *db = nullptr) const
-    {
-        return database->ReadMintId(hash, mintId);
-    }
-
-    bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr)
-    {
-        return database->EraseMintId(hash);
-    }
-
-    bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const
-    {
-        return database->HasMintId(hash);
-    }
-
-    bool WriteMintPool(std::vector<MintPoolEntry> const &mints)
-    {
-        return database->WriteMintPool(mints);
-    }
-
-    bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr)
-    {
-        return database->ReadMintPool(mints);
-    }
-
-    void ListMints(std::function<void(SigmaMintId&, SigmaMint&)> inserter)
-    {
-        return database->ListMints(inserter);
+        return this->database.get();
     }
 };
 
@@ -164,17 +116,14 @@ struct SigmaWalletV0TestingSetup : WalletTestingSetup
     template<class Output>
     bool PopulateMintEntries(PropertyId propId, SigmaDenomination denom, size_t amount, Output output)
     {
-        for (size_t i = 0; i < amount; i++)
-        {
+        for (size_t i = 0; i < amount; i++) {
             SigmaMintId id;
             SigmaMint mint;
             std::tie(id, mint) = GenerateMint(propId, denom);
 
-            SigmaMintId data;
-
             auto key = GetKey(mint.seedId);
 
-            output++ = MintPoolEntry(key.second, mint.seedId, i);
+            *output++ = MintPoolEntry(key.second, mint.seedId, i);
         }
     }
 };
@@ -204,154 +153,175 @@ BOOST_AUTO_TEST_CASE(generate_private_key)
 
 BOOST_AUTO_TEST_CASE(writemint)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
-    SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteMint(id, mint));
+    BOOST_CHECK_EQUAL(true, db->WriteMint(id, mint));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmint)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadMint(id, data));
+    BOOST_CHECK_EQUAL(false, db->HasMint(id));
+    BOOST_CHECK_EQUAL(false, db->ReadMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmint)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteMint(id, mint);
+    db->WriteMint(id, mint);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasMint(id));
-    BOOST_CHECK_EQUAL(true, wallet->ReadMint(id, data));
+    BOOST_CHECK_EQUAL(true, db->HasMint(id));
+    BOOST_CHECK_EQUAL(true, db->ReadMint(id, data));
     BOOST_CHECK_EQUAL(mint, data);
 }
 
 BOOST_AUTO_TEST_CASE(read_erasedmint)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
     SigmaMint data;
 
-    wallet->WriteMint(id, mint);
-    wallet->EraseMint(id);
+    db->WriteMint(id, mint);
+    db->EraseMint(id);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasMint(id));
-    BOOST_CHECK_EQUAL(false, wallet->ReadMint(id, data));
+    BOOST_CHECK_EQUAL(false, db->HasMint(id));
+    BOOST_CHECK_EQUAL(false, db->ReadMint(id, data));
 }
 
 BOOST_AUTO_TEST_CASE(write_mintid)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
-    SigmaMint data;
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteMintId(mint.serialId, id));
+    BOOST_CHECK_EQUAL(true, db->WriteMintId(mint.serialId, id));
 }
 
 BOOST_AUTO_TEST_CASE(read_nonexistmintid)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
 
     SigmaMintId data;
 
-    BOOST_CHECK_EQUAL(false, wallet->HasMintId(mint.seedId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadMintId(mint.seedId, data));
+    BOOST_CHECK_EQUAL(false, db->HasMintId(mint.seedId));
+    BOOST_CHECK_EQUAL(false, db->ReadMintId(mint.seedId, data));
 }
 
 BOOST_AUTO_TEST_CASE(read_existmintid)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
 
     SigmaMintId data;
 
-    wallet->WriteMintId(mint.serialId, id);
+    db->WriteMintId(mint.serialId, id);
 
-    BOOST_CHECK_EQUAL(true, wallet->HasMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(true, wallet->ReadMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(true, db->HasMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(true, db->ReadMintId(mint.serialId, data));
     BOOST_CHECK_EQUAL(id, data);
 }
 
 BOOST_AUTO_TEST_CASE(read_erasedmintid)
 {
+    auto db = wallet->GetDB();
+
     SigmaMintId id;
     SigmaMint mint;
     std::tie(id, mint) = GenerateMint(3, 0);
 
     SigmaMintId data;
 
-    wallet->WriteMintId(mint.serialId, id);
-    wallet->EraseMintId(mint.serialId);
+    db->WriteMintId(mint.serialId, id);
+    db->EraseMintId(mint.serialId);
 
-    BOOST_CHECK_EQUAL(false, wallet->HasMintId(mint.serialId));
-    BOOST_CHECK_EQUAL(false, wallet->ReadMintId(mint.serialId, data));
+    BOOST_CHECK_EQUAL(false, db->HasMintId(mint.serialId));
+    BOOST_CHECK_EQUAL(false, db->ReadMintId(mint.serialId, data));
 }
 
 BOOST_AUTO_TEST_CASE(writemintpool)
 {
+    auto db = wallet->GetDB();
+
     std::vector<MintPoolEntry> mintPool;
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    BOOST_CHECK_EQUAL(true, wallet->WriteMintPool(mintPool));
+    BOOST_CHECK_EQUAL(true, db->WriteMintPool(mintPool));
 }
 
 BOOST_AUTO_TEST_CASE(readmintpool)
 {
+    auto db = wallet->GetDB();
+
     std::vector<MintPoolEntry> mintPool;
 
     PopulateMintEntries(3, 0, 10, std::back_inserter(mintPool));
 
-    wallet->WriteMintPool(mintPool);
+    db->WriteMintPool(mintPool);
 
     std::vector<MintPoolEntry> data;
-    BOOST_CHECK_EQUAL(true, wallet->ReadMintPool(data));
+    BOOST_CHECK_EQUAL(true, db->ReadMintPool(data));
     BOOST_CHECK(mintPool == data);
     BOOST_CHECK(std::is_permutation(mintPool.begin(), mintPool.end(), data.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(listelysiummints_nomints)
+BOOST_AUTO_TEST_CASE(listmints_nomints)
 {
+    auto db = wallet->GetDB();
+
     size_t counter = 0;
-    wallet->ListMints([&](SigmaMintId const&, SigmaMint const&) {
+    db->ListMints([&](SigmaMintId const&, SigmaMint const&) {
         counter++;
     });
 
     BOOST_CHECK_EQUAL(0, counter);
 }
 
-BOOST_AUTO_TEST_CASE(listelysiummints_withsomemints)
+BOOST_AUTO_TEST_CASE(listmints_withsomemints)
 {
+    auto db = wallet->GetDB();
+
     std::vector<std::pair<SigmaMintId, SigmaMint>> mints;
-    for (size_t i = 0; i < 10; i++)
-    {
+    for (size_t i = 0; i < 10; i++) {
         SigmaMintId id;
         SigmaMint mint;
         std::tie(id, mint) = GenerateMint(3, 0);
 
         mints.push_back(std::make_pair(id, mint));
 
-        wallet->WriteMint(id, mint);
+        db->WriteMint(id, mint);
     }
 
     std::vector<std::pair<SigmaMintId, SigmaMint>> data;
-    wallet->ListMints([&](SigmaMintId &id, SigmaMint &mint) {
+    db->ListMints([&](SigmaMintId &id, SigmaMint &mint) {
         data.push_back(std::make_pair(id, mint));
     });
 

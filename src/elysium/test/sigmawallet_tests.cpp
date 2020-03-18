@@ -54,6 +54,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 namespace elysium {
 
 using MintPoolEntry = SigmaWallet::MintPoolEntry;
+
 namespace {
 
 class TestSigmaWallet : public SigmaWallet
@@ -72,11 +73,6 @@ public:
     SigmaPrivateKey GeneratePrivateKeyFromSeed(uint512 const &seed)
     {
         return GeneratePrivateKey(seed);
-    }
-
-    std::array<uint8_t, 64> Sign(SigmaMintId const &id, unsigned char const *payload, size_t payloadSize)
-    {
-        return std::array<uint8_t, 64>();
     }
 
     void LoadMintPool()

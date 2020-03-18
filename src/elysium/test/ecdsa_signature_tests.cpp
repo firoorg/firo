@@ -14,7 +14,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const v
 
 } // namespace std
 
-using namespace elysium;
+namespace elysium {
 
 class ECDSASignatureTestingSetup : public BasicTestingSetup
 {
@@ -34,7 +34,7 @@ public:
 public:
     ECDSASignature GetSignature() const
     {
-        return ECDSASignature::Parse(ECDSAContext::CreateVerifyContext(), rawSig.data(), rawSig.size());
+        return ECDSASignature::Parse(context, rawSig.data(), rawSig.size());
     }
 };
 
@@ -126,3 +126,5 @@ BOOST_AUTO_TEST_CASE(unserialize_non_compact)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace elysium
