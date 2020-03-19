@@ -31,12 +31,9 @@ public:
         }
     }
 
-    std::vector<GroupElement> GenerateGroupElements(size_t size) {
-        std::vector<GroupElement> gs;
-        GenerateGroupElements(size, std::back_inserter(gs));
-
-        return gs;
-    }
+    std::vector<GroupElement> GenerateGroupElements(size_t size);
+    std::vector<GroupElement> RandomizeGroupElements(size_t size);
+    std::vector<Scalar> RandomizeScalars(size_t size);
 };
 
 } // namespace lelantus

@@ -50,6 +50,7 @@ BITCOIN_TESTS =\
   liblelantus/test/inner_product_test.cpp \
   liblelantus/test/lelantus_primitives_tests.cpp \
   liblelantus/test/lelantus_test.cpp \
+  liblelantus/test/lelantus_test_fixture.cpp \
   liblelantus/test/lelantus_test_fixture.h \
   liblelantus/test/range_proof_test.cpp \
   liblelantus/test/schnorr_test.cpp \
