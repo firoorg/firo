@@ -1,3 +1,5 @@
+#include "lelantus_test_fixture.h"
+
 #include "../lelantus_primitives.h"
 
 #include "../../test/test_bitcoin.h"
@@ -10,47 +12,7 @@ namespace lelantus {
 
 typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
 
-class TestPrimitives
-{
-public:
-    TestPrimitives()
-    {
-    }
-
-public:
-    template<class Output>
-    void GenerateGroupElements(size_t size, Output output) {
-
-        std::array<uint8_t, 32> seed;
-        std::fill(seed.begin(), seed.end(), 0);
-
-        for (size_t i = 0; i != size; i++) {
-            // 'LE'
-            std::copy(
-                reinterpret_cast<unsigned char*>(&i),
-                reinterpret_cast<unsigned char*>(&i) + sizeof(i),
-                seed.begin());
-
-            GroupElement e;
-            e.generate(seed.begin());
-
-            if (!e.isMember() || e.isInfinity()) {
-                throw std::runtime_error("Fail to generate group elements");
-            }
-
-            *output++ = e;
-        }
-    }
-
-    std::vector<GroupElement> GenerateGroupElements(size_t size) {
-        std::vector<GroupElement> gs;
-        GenerateGroupElements(size, std::back_inserter(gs));
-
-        return gs;
-    }
-};
-
-BOOST_FIXTURE_TEST_SUITE(lelantus_primitives_tests, TestPrimitives)
+BOOST_FIXTURE_TEST_SUITE(lelantus_primitives_tests, LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_challenge)
 {
