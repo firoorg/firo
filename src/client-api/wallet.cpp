@@ -616,6 +616,21 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();
 
     StateSinceBlock(ret, genesisBlock);
+    LOCK(pwalletMain->cs_wallet);
+    //read address book
+    UniValue addressBook(UniValue::VARR);
+    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
+        CBitcoinAddress addr;
+        if (addr.Set(it->first)) {
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("address", addr.ToString()));
+            item.push_back(Pair("label", it->second.name));
+            item.push_back(Pair("purpose", it->second.purpose));
+            addressBook.push_back(item);
+        }
+    }
+
+    ret.replace("addressbook", addressBook);
 
     return ret;
 }
@@ -949,6 +964,60 @@ UniValue verifyMnemonicValidity(Type type, const UniValue& data, const UniValue&
     return ret;
 }
 
+UniValue readAddressBook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    UniValue addressBook(UniValue::VARR);
+    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
+        CBitcoinAddress addr;
+        if (addr.Set(it->first)) {
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("address", addr.ToString()));
+            item.push_back(Pair("label", it->second.name));
+            item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
+            addressBook.push_back(item);
+        }
+    }
+    return addressBook;
+}
+
+UniValue editAddressBook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    if (find_value(data, "action").isNull()) throw runtime_error("Action not found");
+    std::string action = find_value(data, "action").getValStr();
+    if (action != "add" && action != "edit" && action != "delete") throw runtime_error("Invalid action");
+    if (find_value(data, "address").isNull()) throw runtime_error("Address not found");
+    std::string address = find_value(data, "address").getValStr();
+
+    CTxDestination inputAddress = CBitcoinAddress(address).Get();
+    // Refuse to set invalid address, set error status and return false
+    if(boost::get<CNoDestination>(&inputAddress)) {
+        throw runtime_error("Invalid address");    
+    }
+
+    if (action != "delete") {
+        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) throw runtime_error("Label or purpose not found");
+        if (action == "add") {
+            pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+        } else {
+            if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) throw runtime_error("New updated address or label not found");
+            std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
+            CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
+            if(boost::get<CNoDestination>(&updatedAddress)) {
+                throw runtime_error("Invalid updated address");    
+            }
+            pwalletMain->DelAddressBook(inputAddress);
+            pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
+        }
+    } else {
+        pwalletMain->DelAddressBook(inputAddress);
+    }
+    return true;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -963,7 +1032,9 @@ static const CAPICommand commands[] =
     { "wallet",             "writeShowMnemonicWarning", &writeShowMnemonicWarning,         true,      false,            false  },    
     { "wallet",             "readShowMnemonicWarning", &readShowMnemonicWarning,         true,      false,            false  },    
     { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  },    
-    { "wallet",             "verifyMnemonicValidity", &verifyMnemonicValidity,         false,      false,            false  }    
+    { "wallet",             "verifyMnemonicValidity", &verifyMnemonicValidity,         false,      false,            false  },    
+    { "wallet",             "readAddressBook", &readAddressBook,         false,      false,            false  },    
+    { "wallet",             "editAddressBook", &editAddressBook,         false,      false,            false  }    
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
