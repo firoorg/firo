@@ -4,7 +4,9 @@
 
 #include "activemasternode.h"
 #include "consensus/validation.h"
-#include "governance-classes.h"
+//#include "governance-classes.h"
+#include "base58.h"
+#include "script/standard.h"
 #include "init.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
@@ -22,6 +24,7 @@
 CMasternodePayments mnpayments;
 
 bool IsOldBudgetBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string& strErrorRet) {
+    /*
     const Consensus::Params& consensusParams = Params().GetConsensus();
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
 
@@ -62,6 +65,8 @@ bool IsOldBudgetBlockValueValid(const CBlock& block, int nBlockHeight, CAmount b
                                 nBlockHeight, block.vtx[0]->GetValueOut(), blockReward);
     }
     return isBlockRewardValueMet;
+    */
+   return true;
 }
 
 /**
@@ -80,6 +85,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
     const Consensus::Params& consensusParams = Params().GetConsensus();
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
 
+    /*
     strErrorRet = "";
 
     if (nBlockHeight < consensusParams.nBudgetPaymentsStartBlock) {
@@ -158,6 +164,9 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 
     // we got a valid superblock
     return true;
+    */
+
+   return isBlockRewardValueMet;
 }
 
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
@@ -173,6 +182,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
+    /*
     if(nBlockHeight < consensusParams.nSuperblockStartBlock) {
         // NOTE: old budget system is disabled since 12.1 and we should never enter this branch
         // anymore when sync is finished (on mainnet). We have no old budget data but these blocks
@@ -201,6 +211,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
         // should NOT allow superblocks at all, when superblocks are disabled
         LogPrint("gobject", "%s -- Superblocks are disabled, no superblocks allowed\n", __func__);
     }
+    */
 
     // Check for correct masternode payment
     if(mnpayments.IsTransactionValid(txNew, nBlockHeight, blockReward)) {
@@ -214,6 +225,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet)
 {
+    /*
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
     if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED) &&
@@ -221,6 +233,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
             LogPrint("gobject", "%s -- triggered superblock creation at height %d\n", __func__, nBlockHeight);
             CSuperblockManager::GetSuperblockPayments(nBlockHeight, voutSuperblockPaymentsRet);
     }
+    */
 
     if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
         LogPrint("mnpayments", "%s -- no masternode to pay (MN list probably empty)\n", __func__);
@@ -251,9 +264,11 @@ std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCP
             assert(false);
         strPayee = CBitcoinAddress(dest).ToString();
     }
+    /*
     if (CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
         strPayee += ", " + CSuperblockManager::GetRequiredPaymentsString(nBlockHeight);
     }
+    */
     return strPayee;
 }
 

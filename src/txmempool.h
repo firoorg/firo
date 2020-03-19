@@ -126,7 +126,7 @@ public:
      * Fast calculation of lower bound of current priority as update
      * from entry priority. Only inputs that were originally in-chain will age.
      */
-    double GetPriority(unsigned int currentHeight) const;
+    double GetPriority(unsigned int currentHeight) const { return 0.0; }
     const CAmount& GetFee() const { return nFee; }
     size_t GetTxSize() const;
     size_t GetTxWeight() const { return nTxWeight; }

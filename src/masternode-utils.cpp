@@ -7,7 +7,7 @@
 #include "init.h"
 #include "masternode-sync.h"
 #ifdef ENABLE_WALLET
-#include "privatesend-client.h"
+//#include "privatesend-client.h"
 #endif
 #include "validation.h"
 
@@ -67,13 +67,14 @@ bool CMasternodeUtils::GetMasternodeRank(const COutPoint& outpoint, int& nRankRe
 
 void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
 {
+    /*
     std::vector<CDeterministicMNCPtr> vecDmns; // will be empty when no wallet
 #ifdef ENABLE_WALLET
     privateSendClient.GetMixingMasternodesInfo(vecDmns);
 #endif // ENABLE_WALLET
 
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
-        if (pnode->fMasternode && !connman.IsMasternodeQuorumNode(pnode)) {
+        if (pnode->fZnode && !connman.IsMasternodeQuorumNode(pnode)) {
 #ifdef ENABLE_WALLET
             bool fFound = false;
             for (const auto& dmn : vecDmns) {
@@ -88,6 +89,7 @@ void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
             pnode->fDisconnect = true;
         }
     });
+    */
 }
 
 void CMasternodeUtils::DoMaintenance(CConnman& connman)

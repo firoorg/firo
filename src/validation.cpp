@@ -1534,6 +1534,11 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     return nSubsidy;
 }
 
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
+{
+    return blockValue*3/10; // 30%
+}
+
 bool IsInitialBlockDownload() {
 //    const CChainParams &chainParams = Params();
     // Once this function has returned false, it must remain false.

@@ -309,6 +309,9 @@ libbitcoin_server_a_SOURCES = \
   llmq/quorums_signing.cpp \
   llmq/quorums_signing_shares.cpp \
   llmq/quorums_utils.cpp \
+  masternode-payments.cpp \
+  masternode-sync.cpp \
+  masternode-utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
@@ -316,6 +319,7 @@ libbitcoin_server_a_SOURCES = \
   threadinterrupt.cpp \
   merkleblock.cpp \
   miner.cpp \
+  messagesigner.cpp \
   net.cpp \
   netfulfilledman.cpp \
   net_processing.cpp \
