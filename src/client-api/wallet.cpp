@@ -538,8 +538,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
 
-    LOCK(pwalletMain->cs_wallet);
-
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
 
@@ -570,8 +568,6 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 }
 
 UniValue StateBlock(UniValue& ret, std::string blockhash){
-
-    LOCK(pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -641,8 +637,6 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
     // if already encrypted, it checks for a `newpassphrase` field, and updates the passphrase accordingly.
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
-
-    LOCK(pwalletMain->cs_wallet);
 
     if (fHelp)
         return true;
@@ -724,8 +718,6 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
             "before being able to call any methods which require the wallet to be unlocked.\n"
         );
 
-    LOCK(pwalletMain->cs_wallet);
-
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but lockwallet was called.");
 
@@ -742,8 +734,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
-
-    LOCK(pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but unlockwallet was called.");
@@ -777,8 +767,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
-
-    LOCK(pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
