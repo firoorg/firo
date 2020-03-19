@@ -16,9 +16,9 @@
 #include <iomanip>
 #include <univalue.h>
 
-void EnsureWalletIsUnlocked();
-
 UniValue privatesend(const JSONRPCRequest &request) {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "privatesend \"command\"\n"
@@ -32,8 +32,8 @@ UniValue privatesend(const JSONRPCRequest &request) {
 
     if (request.params[0].get_str() == "start") {
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         if (fMasternodeMode)
@@ -59,6 +59,8 @@ UniValue privatesend(const JSONRPCRequest &request) {
 }
 
 UniValue getpoolinfo(const JSONRPCRequest &request) {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "getpoolinfo\n"
@@ -76,9 +78,9 @@ UniValue getpoolinfo(const JSONRPCRequest &request) {
         obj.push_back(Pair("addr", darkSendPool.pSubmittedToZnode->addr.ToString()));
     }
 
-    if (pwalletMain) {
-        obj.push_back(Pair("keys_left", pwalletMain->nKeysLeftSinceAutoBackup));
-        obj.push_back(Pair("warnings", pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
+    if (pwallet) {
+        obj.push_back(Pair("keys_left", pwallet->nKeysLeftSinceAutoBackup));
+        obj.push_back(Pair("warnings", pwallet->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
                                        ? "WARNING: keypool is almost depleted!" : ""));
     }
 
@@ -87,6 +89,8 @@ UniValue getpoolinfo(const JSONRPCRequest &request) {
 
 
 UniValue znode(const JSONRPCRequest &request) {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+
     std::string strCommand;
     if (request.params.size() >= 1) {
         strCommand = request.params[0].get_str();
@@ -212,7 +216,7 @@ UniValue znode(const JSONRPCRequest &request) {
         CPubKey pubkey;
         CKey key;
 
-        if (!pwalletMain || !pwalletMain->GetZnodeVinAndKeys(vin, pubkey, key))
+        if (!pwallet || !pwallet->GetZnodeVinAndKeys(vin, pubkey, key))
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "Missing znode input, please look at the documentation for instructions on znode creation");
 
@@ -224,8 +228,8 @@ UniValue znode(const JSONRPCRequest &request) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set znode=1 in the configuration");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         if (activeZnode.nState != ACTIVE_ZNODE_STARTED) {
@@ -241,8 +245,8 @@ UniValue znode(const JSONRPCRequest &request) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         std::string strAlias = request.params[1].get_str();
@@ -286,8 +290,8 @@ UniValue znode(const JSONRPCRequest &request) {
 
     if (strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled") {
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         if ((strCommand == "start-missing" || strCommand == "start-disabled") &&
@@ -372,7 +376,7 @@ UniValue znode(const JSONRPCRequest &request) {
     if (strCommand == "outputs") {
         // Find possible candidates
         std::vector <COutput> vPossibleCoins;
-        pwalletMain->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
+        pwallet->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
 
         UniValue obj(UniValue::VOBJ);
         BOOST_FOREACH(COutput & out, vPossibleCoins)
@@ -586,6 +590,8 @@ bool DecodeHexVecMnb(std::vector <CZnodeBroadcast> &vecMnb, std::string strHexMn
 }
 
 UniValue znodebroadcast(const JSONRPCRequest &request) {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+
     std::string strCommand;
     if (request.params.size() >= 1)
         strCommand = request.params[0].get_str();
@@ -613,8 +619,8 @@ UniValue znodebroadcast(const JSONRPCRequest &request) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         bool fFound = false;
@@ -663,8 +669,8 @@ UniValue znodebroadcast(const JSONRPCRequest &request) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Wait for reindex and/or import to finish");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         std::vector <CZnodeConfig::CZnodeEntry> mnEntries;

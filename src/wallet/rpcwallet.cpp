@@ -3073,7 +3073,7 @@ UniValue mint(const JSONRPCRequest& request)
         throw std::runtime_error(
             "mint amount\n"
             "\nAutomatically choose denominations to mint by amount."
-            + HelpRequiringPassphrase() + "\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.05\n"
             "\nResult:\n"
@@ -3138,7 +3138,7 @@ UniValue mintzerocoin(const JSONRPCRequest& request)
     }
 
     if (request.fHelp || request.params.size() != 1)
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase(pwallet));
 
     EnsureZerocoinMintIsAllowed();
 
@@ -3228,7 +3228,7 @@ UniValue mintmanyzerocoin(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() == 0 || request.params.size() % 2 != 0 || request.params.size() > 10)
         throw runtime_error(
                 "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
-                + HelpRequiringPassphrase()
+                + HelpRequiringPassphrase(pwallet)
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                 + "Specify each denomination followed by the number of them to mint, for all denominations desired.\n"
                 + "Total amount for all must be less than " + to_string(ZC_MINT_LIMIT) + ".  \n"
@@ -3350,7 +3350,7 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
                 "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n"
-                + HelpRequiringPassphrase() +
+                + HelpRequiringPassphrase(pwallet) +
 				"\nArguments:\n"
 				"1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
 				"2. \"zcoinaddress\"  (string, optional) The Zcoin address to send to third party.\n"
@@ -3446,7 +3446,7 @@ UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
         if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
                 "spendmanyzerocoin \"{\"address\":\"<third party address or blank for internal>\", \"denominations\": [{\"value\":(1,10,25,50,100), \"amount\":<>}, {\"value\":(1,10,25,50,100), \"amount\":<>},...]}\"\n"
-                + HelpRequiringPassphrase()
+                + HelpRequiringPassphrase(pwallet)
                 + "\nSpend multiple zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                 "\nArguments:\n"
                 "1. \"address: \"             (object, required) A string specifying the address to send to. If left blank, will spend to a wallet address. \n"
@@ -3560,7 +3560,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
         throw std::runtime_error(
                 "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
                 "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
-                + HelpRequiringPassphrase() + "\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nArguments:\n"
                 "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
                 "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
@@ -3672,7 +3672,7 @@ UniValue resetmintzerocoin(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "resetmintzerocoin"
-                + HelpRequiringPassphrase());
+                + HelpRequiringPassphrase(pwallet));
 
     list <CZerocoinEntry> listPubcoin;
     CWalletDB walletdb(pwallet->strWalletFile);
@@ -3703,7 +3703,7 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "resetsigmamint"
-                + HelpRequiringPassphrase());
+                + HelpRequiringPassphrase(pwallet));
 
     EnsureSigmaWalletIsAvailable();
 
@@ -4266,7 +4266,7 @@ UniValue remintzerocointosigma(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "remintzerocointosigma <denomination>(1,10,25,50,100)\n"
-            +HelpRequiringPassphrase() +
+            +HelpRequiringPassphrase(pwallet) +
             "\nConvert zerocoin mint to sigma mint.\n"
             "\nArguments:\n"
             "1. \"denomination\"          (integer, required) existing zerocoin mint denomination\n"
@@ -4308,7 +4308,7 @@ UniValue removetxmempool(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
                 "removetxmempool <txid>\n"
-                + HelpRequiringPassphrase());
+                + HelpRequiringPassphrase(pwallet));
 
     uint256 hash;
     hash.SetHex(request.params[0].get_str());
@@ -4339,7 +4339,7 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     }
 
     if (request.fHelp || request.params.size() != 1)
-        throw runtime_error("removetxwallet <txid>\n" + HelpRequiringPassphrase());
+        throw runtime_error("removetxwallet <txid>\n" + HelpRequiringPassphrase(pwallet));
 
     uint256 hash;
     hash.SetHex(request.params[0].get_str());

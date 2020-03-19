@@ -501,6 +501,7 @@ libbitcoin_common_a_SOURCES = \
   netaddress.cpp \
   netbase.cpp \
   protocol.cpp \
+  saltedhasher.cpp \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
