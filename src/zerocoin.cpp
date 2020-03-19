@@ -657,7 +657,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                 if (!znodeSync.IsSynced()) {
                     validZnodePayment = true;
                 } else {
-                    validZnodePayment = mnpayments.IsTransactionValid(tx, nHeight, fMTP);
+                    validZnodePayment = znpayments.IsTransactionValid(tx, nHeight, fMTP);
                 }
             } else {
                 validZnodePayment = total_payment_tx <= 1;

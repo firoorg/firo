@@ -206,12 +206,12 @@ void CZnode::Check(bool fForce) {
     bool fOurZnode = fMasternodeMode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // znode doesn't meet payment protocol requirements ...
-/*    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+/*    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
 
     // znode doesn't meet payment protocol requirements ...
-    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode && (nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1 || nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2));
 
@@ -410,10 +410,10 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
     LOCK(cs_mapZnodeBlocks);
 
     for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
-//        LogPrintf("mnpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", mnpayments.mapZnodeBlocks.count(BlockReading->nHeight));
-//        LogPrintf("mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
-        if (mnpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
-            mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
+//        LogPrintf("znpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", znpayments.mapZnodeBlocks.count(BlockReading->nHeight));
+//        LogPrintf("znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
+        if (znpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
+            znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
             // LogPrintf("i=%s, BlockReading->nHeight=%s\n", i, BlockReading->nHeight);
             CBlock block;
             if (!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
@@ -440,8 +440,8 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
         BlockReading = BlockReading->pprev;
     }
 
-    // Last payment for this znode wasn't found in latest mnpayments blocks
-    // or it was found in mnpayments blocks but wasn't found in the blockchain.
+    // Last payment for this znode wasn't found in latest znpayments blocks
+    // or it was found in znpayments blocks but wasn't found in the blockchain.
     // LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
 }
 
@@ -556,7 +556,7 @@ bool CZnodeBroadcast::SimpleCheck(int &nDos) {
         nActiveState = ZNODE_EXPIRED;
     }
 
-    if (nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+    if (nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
         LogPrintf("CZnodeBroadcast::SimpleCheck -- ignoring outdated Znode: znode=%s  nProtocolVersion=%d\n", vin.prevout.ToStringShort(), nProtocolVersion);
         return false;
     }

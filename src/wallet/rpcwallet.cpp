@@ -1537,7 +1537,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const strin
                     int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
                     CScript payee;
 
-                    mnpayments.GetBlockPayee(txHeight, payee);
+                    znpayments.GetBlockPayee(txHeight, payee);
                     //compare address of payee to addr.
                     CTxDestination payeeDest;
                     ExtractDestination(payee, payeeDest);

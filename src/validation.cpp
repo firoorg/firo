@@ -2423,11 +2423,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // to recognize that block is actually invalid.
     // TODO: resync data (both ways?) and try to reprocess this block later.
     std::string strError = "";
-    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
+    if (!IsZnodeBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
         return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
-    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
+    if (!IsZnodeBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
@@ -2697,7 +2697,7 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
     mnodeman.UpdatedBlockTip(chainActive.Tip());
-    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    znpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
 
     // New best block

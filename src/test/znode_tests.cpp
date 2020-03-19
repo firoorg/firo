@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
     CZnodeBlockPayees payees;
     payees.vecPayees.push_back(payee1);
 
-    mnpayments.mapZnodeBlocks[after_block] = payees;
+    znpayments.mapZnodeBlocks[after_block] = payees;
 
     b.fChecked = false;
     b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
     for(size_t i =0; i < 8; ++i)
         payee2.AddVoteHash(uint256());
 
-    mnpayments.mapZnodeBlocks[after_block].vecPayees.insert(mnpayments.mapZnodeBlocks[after_block].vecPayees.begin(), payee2);
+    znpayments.mapZnodeBlocks[after_block].vecPayees.insert(znpayments.mapZnodeBlocks[after_block].vecPayees.begin(), payee2);
 
     txCopy.vout[1].scriptPubKey = payee1.GetPayee();
     b.vtx[0] = MakeTransactionRef(txCopy);
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
     BOOST_CHECK(false == CheckBlock(b, state, chainparams.GetConsensus()));
     BOOST_CHECK(true == CheckTransaction(*b.vtx[0], state, true, tx.GetHash(), false, after_block));
 
-    mnpayments.mapZnodeBlocks[before_block] = payees;
+    znpayments.mapZnodeBlocks[before_block] = payees;
 
     b.fChecked = false;
     b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);

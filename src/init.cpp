@@ -255,7 +255,7 @@ void Shutdown()
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    flatdb2.Dump(mnpayments);
+    flatdb2.Dump(znpayments);
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     flatdb4.Dump(netfulfilledman);
     
@@ -2087,7 +2087,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (mnodeman.size()) {
             uiInterface.InitMessage(_("Loading Znode payment cache..."));
             CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-            if (!flatdb2.Load(mnpayments)) {
+            if (!flatdb2.Load(znpayments)) {
                 return InitError("Failed to load znode payments cache from znpayments.dat");
             }
         } else {
@@ -2110,7 +2110,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    znpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
     // governance.UpdatedBlockTip(chainActive.Tip());
 
@@ -2146,7 +2146,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 if (nTick % 60 == 0) {
                     mnodeman.ProcessZnodeConnections();
                     mnodeman.CheckAndRemove();
-                    mnpayments.CheckAndRemove();
+                    znpayments.CheckAndRemove();
                     instantsend.CheckAndRemove();
                 }
                 if (fMasternodeMode && (nTick % (60 * 5) == 0)) {

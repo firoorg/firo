@@ -956,12 +956,12 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return mapSporks.count(inv.hash);
 
     case MSG_ZNODE_PAYMENT_VOTE:
-        return mnpayments.mapZnodePaymentVotes.count(inv.hash);
+        return znpayments.mapZnodePaymentVotes.count(inv.hash);
 
     case MSG_ZNODE_PAYMENT_BLOCK:
     {
         BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-        return mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.find(mi->second->nHeight) != mnpayments.mapZnodeBlocks.end();
+        return mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.find(mi->second->nHeight) != znpayments.mapZnodeBlocks.end();
     }
 
     case MSG_ZNODE_ANNOUNCE:
@@ -1247,10 +1247,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
-                    if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
+                    if(znpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnpayments.mapZnodePaymentVotes[inv.hash];
+                        ss << znpayments.mapZnodePaymentVotes[inv.hash];
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
                         pushed = true;
                     }
@@ -1259,14 +1259,14 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                     LOCK(cs_mapZnodeBlocks);
-                    if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
-                        BOOST_FOREACH(CZnodePayee& payee, mnpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
+                    if (mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CZnodePayee& payee, znpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
-                                if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                if(znpayments.HasVerifiedPaymentVote(hash)) {
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
-                                    ss << mnpayments.mapZnodePaymentVotes[hash];
+                                    ss << znpayments.mapZnodePaymentVotes[hash];
                                     connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
                                 }
                             }
@@ -2993,7 +2993,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             //probably one the extensions
             mnodeman.ProcessMessage(pfrom, command, vRecv);
-            mnpayments.ProcessMessage(pfrom, command, vRecv);
+            znpayments.ProcessMessage(pfrom, command, vRecv);
             sporkManager.ProcessSpork(pfrom, command, vRecv);
             znodeSync.ProcessMessage(pfrom, command, vRecv);
         } else {

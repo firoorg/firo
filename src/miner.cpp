@@ -772,7 +772,7 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
     if (nHeight >= params.nZnodePaymentsStartBlock) {
         CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
         coinbaseTx.vout[0].nValue -= znodePayment;
-        FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+        FillZnodeBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
     }
 }
 
