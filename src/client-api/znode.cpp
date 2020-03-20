@@ -188,7 +188,6 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             UniValue nodes(UniValue::VOBJ);
 
             int fIndex = 0;
-            LOCK(pwalletMain->cs_wallet);
             BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
                 const std::string& txHash = mne.getTxHash();
                 const std::string& outputIndex = mne.getOutputIndex();

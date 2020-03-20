@@ -36,7 +36,6 @@ bool createSigmaMintAPITransaction(const UniValue& data,
     if (!sigma::IsSigmaAllowed()) {
         throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
-    AssertLockHeld(pwalletMain->cs_wallet);
     sigma::Params* sigmaParams = sigma::Params::get_default();
     if (zwalletMain) {
         zwalletMain->ResetCount(); // Reset count to original
@@ -141,7 +140,6 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     if (!sigma::IsSigmaAllowed()) {
         throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
-    AssertLockHeld(pwalletMain->cs_wallet);
     UniValue outputs(UniValue::VARR);
     outputs = find_value(data, "outputs").get_array();
     std::string label = find_value(data, "label").get_str();
@@ -256,8 +254,6 @@ UniValue minttxfee(Type type, const UniValue& data, const UniValue& auth, bool f
     CWalletTx wtx;
     int64_t nFeeRequired = 0;
 
-    LOCK(pwalletMain->cs_wallet);
-
     createSigmaMintAPITransaction(data, vecSend, privCoins, vHdMints);
 
     string strError = pwalletMain->GetSigmaMintFee(vecSend, privCoins, vHdMints, wtx, nFeeRequired);
@@ -277,8 +273,6 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     vector<CHDMint> vHdMints;
     CWalletTx wtx;
 
-    LOCK(pwalletMain->cs_wallet);
-
     createSigmaMintAPITransaction(data, vecSend, privCoins, vHdMints);
 
     string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vHdMints, wtx);
@@ -297,8 +291,6 @@ UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, boo
     std::vector<CSigmaEntry> coins;
     std::vector<CHDMint> changes;
     UniValue txMetadataEntry(UniValue::VOBJ);
-
-    LOCK(pwalletMain->cs_wallet);
 
     createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry, true);
 
@@ -322,8 +314,6 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
     if(txMetadataData.empty()){
         UniValue txMetadataData(UniValue::VOBJ);
     }
-
-    LOCK(pwalletMain->cs_wallet);
 
     switch(type){
         case Create: {

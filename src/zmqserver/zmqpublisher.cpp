@@ -212,7 +212,6 @@ bool CZMQConnectionsEvent::NotifyConnections()
 
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
-    LOCK(pwalletMain->cs_wallet);
     CWalletTx wtx(pwalletMain, transaction);
     CAmount nFee;
     string strSentAccount;
@@ -238,7 +237,6 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
-    LOCK(pwalletMain->cs_wallet);
     // We always publish on an update to wallet tx's
     if(topic=="address"){
         CBlock block;
