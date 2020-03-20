@@ -233,6 +233,9 @@ test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 #
 
+test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS)
+EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
+
 # test_bitcoin_fuzzy binary #
 test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
 test_test_bitcoin_fuzzy_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -250,6 +253,9 @@ test_test_bitcoin_fuzzy_LDADD = \
 
 test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
+
+test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS)
+EXTRA_test_test_bitcoin__fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
 
