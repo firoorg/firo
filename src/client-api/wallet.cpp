@@ -926,6 +926,7 @@ bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
 UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (find_value(data, "mnemonic").isNull()) return 'false';
     std::string mnemonic = find_value(data, "mnemonic").getValStr();
+    boost::trim(mnemonic);
     std::string failReason = "Invalid mnemonic recovery phrase";
     bool result = isMnemonicValid(mnemonic, failReason);
     UniValue ret(UniValue::VOBJ);
