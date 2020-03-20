@@ -243,6 +243,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -260,6 +261,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -293,6 +295,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -310,6 +313,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -959,6 +963,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -976,6 +981,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -1009,6 +1015,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -1026,6 +1033,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
                     ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                         STRING: (txid): {
                             address: STRING,
+                            isChange: BOOL,
                             category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                             amount: INT,
                             fee: INT(sats),
@@ -1437,6 +1445,7 @@ Methods specific to the publisher.
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                     STRING: (txid): {
                         address: STRING,
+                        isChange: BOOL,
                         category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                         amount: INT,
                         fee: INT(sats),
@@ -1454,6 +1463,7 @@ Methods specific to the publisher.
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                     STRING: (txid): {
                         address: STRING,
+                        isChange: BOOL,
                         category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                         amount: INT,
                         fee: INT(sats),
@@ -1487,6 +1497,7 @@ Methods specific to the publisher.
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                     STRING: (txid): {
                         address: STRING,
+                        isChange: BOOL,
                         category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                         amount: INT,
                         fee: INT(sats),
@@ -1504,6 +1515,7 @@ Methods specific to the publisher.
                 ["mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"][1..n]: (category + vout_index) {
                     STRING: (txid): {
                         address: STRING,
+                        isChange: BOOL,
                         category: STRING("mined"|"send"|"receive"|"znode"|"spendIn"|"spendOut"|"mint"),
                         amount: INT,
                         fee: INT(sats),

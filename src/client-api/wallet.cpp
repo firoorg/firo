@@ -56,7 +56,6 @@ std::string ReadMnemonics() {
     // add the base58check encoded extended master if the wallet uses HD
     MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
     const CHDChain& chain = pwalletMain->GetHDChain();
-    CKeyID masterKeyID = chain.masterKeyID;
     if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
     {
         if(mContainer.IsCrypted())
@@ -76,7 +75,6 @@ std::string ReadMnemonics() {
 bool doesWalletHaveMnemonics() {
     MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
     const CHDChain& chain = pwalletMain->GetHDChain();
-    CKeyID masterKeyID = chain.masterKeyID;
     return (!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39);
 }
 
@@ -313,6 +311,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             string category;
             string voutIndex = to_string(s.vout);
+
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
             
             // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
             if(wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
@@ -409,6 +409,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             uint256 txid = wtx.GetHash();
             string category;
             string voutIndex = to_string(r.vout);
+
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
 
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
