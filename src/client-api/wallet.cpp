@@ -56,7 +56,6 @@ std::string ReadMnemonics() {
     // add the base58check encoded extended master if the wallet uses HD
     MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
     const CHDChain& chain = pwalletMain->GetHDChain();
-    CKeyID masterKeyID = chain.masterKeyID;
     if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
     {
         if(mContainer.IsCrypted())
@@ -76,8 +75,20 @@ std::string ReadMnemonics() {
 bool doesWalletHaveMnemonics() {
     MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
     const CHDChain& chain = pwalletMain->GetHDChain();
-    CKeyID masterKeyID = chain.masterKeyID;
     return (!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39);
+}
+
+bool readShowMnemonicWarning() {
+    if (!EnsureWalletIsAvailable(false))
+        return false;
+    CWalletDB db(pwalletMain->strWalletFile);
+    return db.ReadShowMnemonicsWarning();
+}
+
+bool isMnemonicExist() {
+    if (!EnsureWalletIsAvailable(false))
+        return false;
+    return doesWalletHaveMnemonics();
 }
 
 void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
@@ -300,6 +311,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             string category;
             string voutIndex = to_string(s.vout);
+
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
             
             // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
             if(wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
@@ -396,6 +409,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             uint256 txid = wtx.GetHash();
             string category;
             string voutIndex = to_string(r.vout);
+
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
 
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
@@ -560,10 +575,6 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     }
 
     ret.push_back(Pair("addresses", transactions));
-    ret.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
-
-    CWalletDB db(pwalletMain->strWalletFile);
-    ret.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     return ret;
 }
 
@@ -831,7 +842,7 @@ void parseCoins(const std::string input, std::vector<COutPoint>& output)
     }
 }
 
-UniValue lockCoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     //Reading locked list
     LogPrintf("\n\n\n\n\n-------------------------------LOCK COINS---------------------------\n\n\n\n\n");
     LOCK(pwalletMain->cs_wallet);
@@ -867,7 +878,7 @@ UniValue lockCoins(Type type, const UniValue& data, const UniValue& auth, bool f
     return true;
 }
 
-UniValue showMnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue showmnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
@@ -876,13 +887,7 @@ UniValue showMnemonics(Type type, const UniValue& data, const UniValue& auth, bo
     return memonics;
 }
 
-UniValue isMnemonicExist(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (!EnsureWalletIsAvailable(false))
-        return NullUniValue;
-    return doesWalletHaveMnemonics();
-}
-
-UniValue writeShowMnemonicWarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue writeshowmnemonicwarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
     CWalletDB db(pwalletMain->strWalletFile);
@@ -892,17 +897,10 @@ UniValue writeShowMnemonicWarning(Type type, const UniValue& data, const UniValu
     return true;
 }
 
-UniValue readShowMnemonicWarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (!EnsureWalletIsAvailable(false))
-        return NullUniValue;
-    CWalletDB db(pwalletMain->strWalletFile);
-    return db.ReadShowMnemonicsWarning();
-}
-
-UniValue readWalletMnemonicWarningState(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue readwalletmnemonicwarningstate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("hasMnemonic", isMnemonicExist(type, data, auth, fHelp)));
-    ret.push_back(Pair("shouldShowWarning", readShowMnemonicWarning(type, data, auth, fHelp)));
+    ret.push_back(Pair("hasMnemonic", isMnemonicExist()));
+    ret.push_back(Pair("shouldShowWarning", readShowMnemonicWarning()));
     LogPrintf("%s\n", __func__);
     return ret;
 }
@@ -940,7 +938,7 @@ bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
     return Mnemonic::mnemonic_check(secmnemonic);
 }
 
-UniValue verifyMnemonicValidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (find_value(data, "mnemonic").isNull()) return 'false';
     std::string mnemonic = find_value(data, "mnemonic").getValStr();
     std::string failReason = "Invalid mnemonic recovery phrase";
@@ -1007,22 +1005,20 @@ UniValue editAddressBook(Type type, const UniValue& data, const UniValue& auth, 
 }
 
 static const CAPICommand commands[] =
-{ //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
-  //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "wallet",             "lockWallet",      &lockwallet,              true,      false,           false  },
-    { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
-    { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
-    { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
-    { "wallet",             "balance",         &balance,                 true,      false,           false  },
-    { "wallet",             "lockCoins",       &lockCoins,               true,      false,           false  },    
-    { "wallet",             "showMnemonics",   &showMnemonics,           true,      true,            false  },    
-    { "wallet",             "isMnemonicExist", &isMnemonicExist,         true,      false,            false  },    
-    { "wallet",             "writeShowMnemonicWarning", &writeShowMnemonicWarning,         true,      false,            false  },    
-    { "wallet",             "readShowMnemonicWarning", &readShowMnemonicWarning,         true,      false,            false  },    
-    { "wallet",             "readWalletMnemonicWarningState", &readWalletMnemonicWarningState,         true,      false,            false  },    
-    { "wallet",             "verifyMnemonicValidity", &verifyMnemonicValidity,         false,      false,            false  },    
-    { "wallet",             "readAddressBook", &readAddressBook,         false,      false,            false  },    
-    { "wallet",             "editAddressBook", &editAddressBook,         false,      false,            false  }    
+{ //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
+  //  --------------------- ------------                      ----------------                 --------   --------------   --------
+    { "wallet",             "lockWallet",                     &lockwallet,                     true,      false,           false  },
+    { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
+    { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
+    { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
+    { "wallet",             "balance",                        &balance,                        true,      false,           false  },
+    { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },
+    { "wallet",             "writeShowMnemonicWarning",       &writeshowmnemonicwarning,       true,      false,           false  },
+    { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },
+    { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
+    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         false,     false,           false  },
+    { "wallet",             "readAddressBook",                &readAddressBook,                false,     false,           false  },    
+    { "wallet",             "editAddressBook",                &editAddressBook,                false,     false,           false  }  
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
