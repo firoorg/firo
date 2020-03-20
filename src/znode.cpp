@@ -18,6 +18,30 @@
 
 #include <boost/lexical_cast.hpp>
 
+CZnodeTimings::CZnodeTimings()
+{
+    if(Params().GetConsensus().IsRegtest()) {
+        minMnp = Regtest::ZnodeMinMnpSeconds;
+        newStartRequired = Regtest::ZnodeNewStartRequiredSeconds;
+    } else {
+        minMnp = Mainnet::ZnodeMinMnpSeconds;
+        newStartRequired = Mainnet::ZnodeNewStartRequiredSeconds;
+    }
+}
+
+CZnodeTimings & CZnodeTimings::Inst() {
+    static CZnodeTimings inst;
+    return inst;
+}
+
+int CZnodeTimings::MinMnpSeconds() {
+    return Inst().minMnp;
+}
+
+int CZnodeTimings::NewStartRequiredSeconds() {
+    return Inst().newStartRequired;
+}
+
 
 CZnode::CZnode() :
         vin(),

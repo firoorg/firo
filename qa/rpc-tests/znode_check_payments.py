@@ -60,7 +60,7 @@ class ZnodeCheckPayments(ZnodeTestFramework):
 # Spend Znode output
         generator_address = self.nodes[self.num_nodes - 1].getaccountaddress("")
         znode_output = self.nodes[3].listlockunspent()
-        print(self.nodes[3].lockunspent(True, znode_output))
+        self.nodes[3].lockunspent(True, znode_output)
         self.nodes[3].sendtoaddress(generator_address, 1000, "", "", True)
 
         self.generate(6) #The Znode has been scheduled already, need one run for the schedule to get updated

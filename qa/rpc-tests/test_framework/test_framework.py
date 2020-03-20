@@ -413,7 +413,6 @@ class ZnodeTestFramework(BitcoinTestFramework):
         for j in range (timeout):
             if self.nodes[znode_to_wait_on].znode("count", "enabled") == enabled_znode_number:
                 return
-            print(self.nodes[znode_to_wait_on].znode("count", "all"))
             time.sleep(1)
         raise Exception("Cannot wait until znodes enabled")
 
