@@ -623,21 +623,6 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();
 
     StateSinceBlock(ret, genesisBlock);
-    LOCK(pwalletMain->cs_wallet);
-    //read address book
-    UniValue addressBook(UniValue::VARR);
-    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
-        CBitcoinAddress addr;
-        if (addr.Set(it->first)) {
-            UniValue item(UniValue::VOBJ);
-            item.push_back(Pair("address", addr.ToString()));
-            item.push_back(Pair("label", it->second.name));
-            item.push_back(Pair("purpose", it->second.purpose));
-            addressBook.push_back(item);
-        }
-    }
-
-    ret.replace("addressbook", addressBook);
 
     return ret;
 }
@@ -844,27 +829,21 @@ void parseCoins(const std::string input, std::vector<COutPoint>& output)
 
 UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     //Reading locked list
-    LogPrintf("\n\n\n\n\n-------------------------------LOCK COINS---------------------------\n\n\n\n\n");
     LOCK(pwalletMain->cs_wallet);
     std::vector<COutPoint> lockedList, unlockedList;
     UniValue uniLocked(UniValue::VSTR);
     UniValue uniUnLocked(UniValue::VSTR);
-    LogPrintf("Locking coins\n");
     if (!find_value(data, "lockedCoins").isNull()) {
         uniLocked = find_value(data, "lockedCoins");
     }
-    LogPrintf("found lock coins\n");
     if (!find_value(data, "unlockedCoins").isNull()) {
         uniUnLocked = find_value(data, "unlockedCoins");
     }
-    LogPrintf("found unlock coins\n");
     std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());
     std::string unlocked = boost::algorithm::trim_copy(uniUnLocked.getValStr());
 
     parseCoins(locked, lockedList);
     parseCoins(unlocked, unlockedList);
-    LogPrintf("%s: locked list = %d", __func__, lockedList.size());
-    LogPrintf("%s: unlocked list = %d", __func__, unlockedList.size());
     for(const COutPoint l: lockedList) {
         pwalletMain->LockCoin(l);
         pendingLockCoins[l] = true;
@@ -946,18 +925,18 @@ UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue&
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("valid", result));
     ret.push_back(Pair("reason", failReason));
-    LogPrintf("verifyMnemonicValidity:%s\n", result);
     return ret;
 }
 
-UniValue readAddressBook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
     LOCK(pwalletMain->cs_wallet);
     UniValue addressBook(UniValue::VARR);
     for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
         CBitcoinAddress addr;
-        if (addr.Set(it->first)) {
+        if (addr.Set(it->first)) 
+        {
             UniValue item(UniValue::VOBJ);
             item.push_back(Pair("address", addr.ToString()));
             item.push_back(Pair("label", it->second.name));
@@ -968,32 +947,51 @@ UniValue readAddressBook(Type type, const UniValue& data, const UniValue& auth, 
     return addressBook;
 }
 
-UniValue editAddressBook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
     LOCK(pwalletMain->cs_wallet);
-    if (find_value(data, "action").isNull()) throw runtime_error("Action not found");
+    if (find_value(data, "action").isNull()) 
+    {
+        return "Action not found";
+    }
     std::string action = find_value(data, "action").getValStr();
-    if (action != "add" && action != "edit" && action != "delete") throw runtime_error("Invalid action");
-    if (find_value(data, "address").isNull()) throw runtime_error("Address not found");
+    if (action != "add" && action != "edit" && action != "delete") 
+    {
+        return "Invalid action";
+    }
+    if (find_value(data, "address").isNull()) 
+    {
+        return "Address not found";
+    }
     std::string address = find_value(data, "address").getValStr();
 
     CTxDestination inputAddress = CBitcoinAddress(address).Get();
     // Refuse to set invalid address, set error status and return false
-    if(boost::get<CNoDestination>(&inputAddress)) {
-        throw runtime_error("Invalid address");    
+    if(boost::get<CNoDestination>(&inputAddress)) 
+    {
+        return "Invalid address";    
     }
 
-    if (action != "delete") {
-        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) throw runtime_error("Label or purpose not found");
-        if (action == "add") {
+    if (action != "delete") 
+    {
+        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) 
+        {
+            return "Label or purpose not found";
+        }
+        if (action == "add") 
+        {
             pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
-        } else {
-            if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) throw runtime_error("New updated address or label not found");
+        } 
+        else {
+            if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
+                return "New updated address or label not found";
+            }
             std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
             CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
-            if(boost::get<CNoDestination>(&updatedAddress)) {
-                throw runtime_error("Invalid updated address");    
+            if(boost::get<CNoDestination>(&updatedAddress)) 
+            {
+                return "Invalid updated address";    
             }
             pwalletMain->DelAddressBook(inputAddress);
             pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
@@ -1001,7 +999,7 @@ UniValue editAddressBook(Type type, const UniValue& data, const UniValue& auth, 
     } else {
         pwalletMain->DelAddressBook(inputAddress);
     }
-    return true;
+    return "success";
 }
 
 static const CAPICommand commands[] =
@@ -1017,8 +1015,8 @@ static const CAPICommand commands[] =
     { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },
     { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
     { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         false,     false,           false  },
-    { "wallet",             "readAddressBook",                &readAddressBook,                false,     false,           false  },    
-    { "wallet",             "editAddressBook",                &editAddressBook,                false,     false,           false  }  
+    { "wallet",             "readAddressBook",                &readaddressbook,                false,     false,           false  },    
+    { "wallet",             "editAddressBook",                &editaddressbook,                false,     false,           false  }  
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
