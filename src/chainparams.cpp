@@ -385,22 +385,23 @@ public:
          * nNonce: 1620571
          */
         std::vector<unsigned char> extraNonce(4);
-        extraNonce[0] = 0x08;
+        extraNonce[0] = 0x09;
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 3564781, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 3577337, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock ==
-                uint256S("0x1e3487fdb1a7d46dac3e8f3e58339c6eff54abf6aef353485f3ed64250a35e89"));
+                uint256S("0xaa22adcc12becaf436027ffe62a8fb21b234c58c23865291e5dc52cf53f64fca"));
         assert(genesis.hashMerkleRoot ==
-                uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+                uint256S("0xf70dba2d976778b985de7b5503ede884988d78fbb998d6969e4f676b40b9a741"));
         vFixedSeeds.clear();
         vSeeds.clear();
         // zcoin test seeds
 
-        vSeeds.push_back(CDNSSeedData("SIGMA1", "sigma1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("SIGMA2", "sigma2.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("EVO1", "evo1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("EVO2", "evo2.zcoin.io", false));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
