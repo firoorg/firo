@@ -415,7 +415,9 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     LogPrintf("%s: Creating mint object.. \n", __func__);
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
-    dMint.SetDenomination(denom);
+    int64_t amount;
+    DenominationToInteger(denom, amount);
+    dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
 
     // Check if this is also already spent
@@ -763,7 +765,9 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         }
     }
 
-    dMint.SetDenomination(denom);
+    int64_t amount;
+    DenominationToInteger(denom, amount);
+    dMint.SetAmount(amount);
 
     LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
              dMint.GetPubCoinHash().ToString(),
@@ -820,6 +824,8 @@ bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& d
         }
     }
 
+    dMint.SetAmount(coin.getV());
+
     LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
               dMint.GetPubCoinHash().ToString(),
               get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
@@ -839,13 +845,16 @@ bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& d
  */
 bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma)
 {
+    sigma::CoinDenomination denom;
+    IntegerToDenomination(dMint.GetAmount(), denom);
+
     //Generate the coin
-    sigma::PrivateCoin coin(sigma::Params::get_default(), dMint.GetDenomination().get(), false);
+    sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
     CHDMint dMintDummy;
     CKeyID seedId = dMint.GetSeedId();
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    GenerateMint(dMint.GetDenomination().get(), coin, dMintDummy, mintPoolEntry, true);
+    GenerateMint(denom, coin, dMintDummy, mintPoolEntry, true);
 
     //Fill in the sigmamint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
@@ -857,7 +866,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma)
     if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
-    sigma.set_denomination(dMint.GetDenomination().get());
+    sigma.set_denomination(denom);
     sigma.randomness = coin.getRandomness();
     sigma.serialNumber = bnSerial;
     sigma.IsUsed = dMint.IsUsed();

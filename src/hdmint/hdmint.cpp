@@ -42,7 +42,7 @@ void CHDMint::SetNull()
     txid.SetNull();
     nHeight = -1;
     nId = -1;
-    denom = 0;
+    amount = 0;
     isUsed = false;
 }
 
@@ -53,6 +53,6 @@ void CHDMint::SetNull()
  */
 std::string CHDMint::ToString() const
 {
-    return strprintf(" HDMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   hashPubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
-    nCount, seedId.ToString(), hashSerial.GetHex(), GetPubCoinHash().GetHex(), txid.GetHex(), nHeight, nId, denom, isUsed);
+    return strprintf(" HDMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   hashPubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   amount=%d\n   isUsed=%d\n",
+    nCount, seedId.ToString(), hashSerial.GetHex(), GetPubCoinHash().GetHex(), txid.GetHex(), nHeight, nId, amount, isUsed);
 }

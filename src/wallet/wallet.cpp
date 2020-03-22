@@ -2517,7 +2517,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     EnsureMintWalletAvailable();
 
     // Generate and store secrets deterministically in the following function.
-    CHDMint dMint;  //TODO(levon) this is a temp solution, CHDMint has member denom which is not needed for lelantus, fix it
+    CHDMint dMint;
     zwalletMain->GenerateLelantusMint(coin, dMint);
 
     // Get a copy of the 'public' portion of the coin. You should
@@ -4521,7 +4521,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         zwalletMain->GetTracker().Add(hdMint, true);
         NotifyZerocoinChanged(this,
             hdMint.GetPubcoinValue().GetHex(),
-            "New (" + std::to_string(hdMint.GetDenominationValue()) + " mint)",
+            "New (" + std::to_string(hdMint.GetAmount()) + " mint)",
             CT_NEW);
     }
 
@@ -6579,7 +6579,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
         zwalletMain->GetTracker().Add(dMint, true);
         NotifyZerocoinChanged(this,
              dMint.GetPubcoinValue().GetHex(),
-            "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
+            "New (" + std::to_string(dMint.GetAmount()) + " mint)",
             CT_NEW);
     }
 
@@ -6643,15 +6643,14 @@ std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
 
     //update mints with full transaction hash and then database them
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    //TODO(levon) implement this part
-//    for (CHDMint dMint : vDMints) {
-//        dMint.SetTxHash(wtxNew.GetHash());
-//        zwalletMain->GetTracker().Add(dMint, true);
-//        NotifyZerocoinChanged(this,
-//             dMint.GetPubcoinValue().GetHex(),
-//            "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
-//            CT_NEW);
-//    }
+    for (CHDMint dMint : vDMints) {
+        dMint.SetTxHash(wtxNew.GetHash());
+//        zwalletMain->GetTracker().Add(dMint, true);     //TODO(levon) implement this part
+        NotifyZerocoinChanged(this,
+             dMint.GetPubcoinValue().GetHex(),
+            "New (" + std::to_string(dMint.GetAmount()) + " mint)",
+            CT_NEW);
+    }
 
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
@@ -7108,7 +7107,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         // raise event
         NotifyZerocoinChanged(this,
             change.GetPubcoinValue().GetHex(),
-            "New (" + std::to_string(change.GetDenominationValue()) + " mint)",
+            "New (" + std::to_string(change.GetAmount()) + " mint)",
             CT_NEW);
     }
 

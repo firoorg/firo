@@ -36,12 +36,12 @@ size_t PublicCoin::GetSerializeSize(int nType, int nVersion) const {
 }
 
 //class PrivateCoin
-PrivateCoin::PrivateCoin(const Params* p, uint64_t v):
+PrivateCoin::PrivateCoin(const Params* p, const uint64_t& v):
     params(p) {
         this->mintCoin(v);
 }
 
-PrivateCoin::PrivateCoin(const Params* p,const Scalar& serial, uint64_t v, const Scalar& random, int version_) :
+PrivateCoin::PrivateCoin(const Params* p,const Scalar& serial, const uint64_t& v, const Scalar& random, int version_) :
         params(p),
         serialNumber(serial),
         value(v),
@@ -109,7 +109,7 @@ void PrivateCoin::setSerialNumber(const Scalar& n){
     serialNumber = n;
 }
 
-void PrivateCoin::setV(uint64_t n){
+void PrivateCoin::setV(const uint64_t& n){
     value = n;
 }
 
@@ -117,7 +117,7 @@ void PrivateCoin::setVersion(unsigned int nVersion){
     version = nVersion;
 }
 
-void PrivateCoin::mintCoin(uint64_t v){
+void PrivateCoin::mintCoin(const uint64_t& v){
     serialNumber.randomize();
     randomness.randomize();
     value = v;

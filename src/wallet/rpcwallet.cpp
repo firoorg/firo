@@ -3052,7 +3052,7 @@ UniValue mintlelantus(const JSONRPCRequest& request)
     const auto& lelantusParams = lelantus::Params::get_default();
     lelantus::PrivateCoin privCoin(lelantusParams, nAmount);
 
-    CHDMint vDMint; //TODO(levon) this is a temp solution, CHDMint has member denom which is not needed for lelantus, fix it
+    CHDMint vDMint;
     auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, vDMint);
 
     CWalletTx wtx;

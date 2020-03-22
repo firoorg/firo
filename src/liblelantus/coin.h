@@ -46,10 +46,10 @@ private:
 class PrivateCoin {
 public:
 
-    PrivateCoin(const Params* p, uint64_t v);
+    PrivateCoin(const Params* p, const uint64_t& v);
     PrivateCoin(const Params* p,
             const Scalar& serial,
-            uint64_t v,
+            const uint64_t& v,
             const Scalar& random,
             int version_);
 
@@ -63,7 +63,7 @@ public:
     void setPublicCoin(const PublicCoin& p);
     void setRandomness(const Scalar& n);
     void setSerialNumber(const Scalar& n);
-    void setV(uint64_t n);
+    void setV(const uint64_t& n);
     void setVersion(unsigned int nVersion);
     const unsigned char* getEcdsaSeckey() const;
 
@@ -85,7 +85,7 @@ private:
 
 
 private:
-    void mintCoin(uint64_t v);
+    void mintCoin(const uint64_t& v);
 };
 
 }// namespace lelantus

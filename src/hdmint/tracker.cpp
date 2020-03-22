@@ -226,7 +226,9 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         // get coin id & height
         int height, id;
         if(meta.nHeight<0 || meta.nId <= 0){
-            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination().get()));
+            sigma::CoinDenomination denom;
+            IntegerToDenomination(dMint.GetAmount(), denom);
+            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), denom));
         }
         else{
             height = meta.nHeight;
@@ -236,7 +238,9 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         dMint.SetHeight(height);
         dMint.SetId(id);
         dMint.SetUsed(meta.isUsed);
-        dMint.SetDenomination(meta.denom);
+        int64_t amount;
+        DenominationToInteger(meta.denom, amount);
+        dMint.SetAmount(amount);
 
         if (!walletdb.WriteHDMint(dMint))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
@@ -244,7 +248,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         pwalletMain->NotifyZerocoinChanged(
             pwalletMain,
             dMint.GetPubcoinValue().GetHex(),
-            std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
+            std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
             CT_UPDATED);
     } else {
         CSigmaEntry sigma;
@@ -292,7 +296,9 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
     meta.txid = dMint.GetTxHash();
     meta.isUsed = dMint.IsUsed();
     meta.hashSerial = dMint.GetSerialHash();
-    meta.denom = dMint.GetDenomination().get();
+    sigma::CoinDenomination denom;
+    IntegerToDenomination(dMint.GetAmount(), denom);
+    meta.denom = denom;
     meta.isArchived = isArchived;
     meta.isDeterministic = true;
     meta.isSeedCorrect = true;
@@ -301,7 +307,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
     pwalletMain->NotifyZerocoinChanged(
         pwalletMain,
         dMint.GetPubcoinValue().GetHex(),
-        std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
+        std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
         CT_UPDATED);
 
     if (isNew)
