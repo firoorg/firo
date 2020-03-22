@@ -33,7 +33,6 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     n_rangeProof(n_rangeProof_),
     max_m_rangeProof(max_m_rangeProof_)
 {
-    LOCK(cs_params);
 
     //creating generators for sigma
     this->h_sigma.resize(n_sigma * m_sigma);

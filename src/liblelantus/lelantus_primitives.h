@@ -1,6 +1,6 @@
 #ifndef ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
 #define ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
-#include <vector>
+
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <secp256k1/include/MultiExponent.h>
@@ -9,6 +9,10 @@
 #include "schnorr_proof.h"
 #include "innerproduct_proof.h"
 #include "range_proof.h"
+
+#include "../libzerocoin/Zerocoin.h"
+
+#include <vector>
 #include <algorithm>
 
 namespace lelantus {

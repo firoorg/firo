@@ -4,8 +4,6 @@
 #include <secp256k1/include/GroupElement.h>
 #include <serialize.h>
 
-#include "sync.h"
-
 using namespace secp_primitives;
 
 namespace lelantus {
@@ -23,7 +21,6 @@ public:
     int get_sigma_m() const;
     int get_bulletproofs_n() const;
 
-    mutable CCriticalSection cs_params;
 
 private:
     Params(const GroupElement& g_sigma_, int n, int m, int n_rangeProof_, int max_m_rangeProof_);

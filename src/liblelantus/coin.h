@@ -4,7 +4,7 @@
 #include "lelantus_primitives.h"
 #include "params.h"
 
-#include "../libzerocoin/Zerocoin.h"
+
 
 namespace lelantus {
 

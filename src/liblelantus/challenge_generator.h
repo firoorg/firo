@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LELANTUS_CHALLANGE_GENERATOR_H
-#define ZCOIN_LELANTUS_CHALLANGE_GENERATOR_H
+#ifndef ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H
+#define ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H
 
 #include "../../crypto/sha256.h"
 
@@ -9,16 +9,18 @@ template<class Exponent, class GroupElement>
 class ChallengeGenerator {
 
 public:
+    ChallengeGenerator();
     void add(const GroupElement& group_element);
     void add(const std::vector<GroupElement>& group_elements);
     void get_challenge(Exponent& result_out);
 
 private:
     CSHA256 hash;
+    std::vector<unsigned char> data;
 };
 
 }// namespace lelantus
 
-#include "challange_generator.hpp"
+#include "challenge_generator.hpp"
 
-#endif //ZCOIN_LELANTUS_CHALLANGE_GENERATOR_H
+#endif //ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H

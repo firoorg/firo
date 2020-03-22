@@ -1,8 +1,12 @@
 namespace lelantus {
 
 template<class Exponent, class GroupElement>
+ChallengeGenerator<Exponent, GroupElement>::ChallengeGenerator() {
+    data.resize(GroupElement::serialize_size);
+}
+
+template<class Exponent, class GroupElement>
 void ChallengeGenerator<Exponent, GroupElement>::add(const GroupElement& group_element) {
-    std::vector<unsigned char> data(group_element.memoryRequired());
     group_element.serialize(data.data());
     hash.Write(data.data(), data.size());
 }

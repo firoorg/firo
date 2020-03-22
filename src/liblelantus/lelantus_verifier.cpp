@@ -14,7 +14,7 @@ bool LelantusVerifier::verify(
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
     Scalar x, zV, zR;
-    if(!(verify_sigma(anonymity_sets, Sin, Vin, Vout, f, Cout, proof.sigma_proofs, x, zV, zR) &&
+    if(!(verify_sigma(anonymity_sets, Sin, Vin, Vout, f, proof.sigma_proofs, x, zV, zR) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;
@@ -27,7 +27,6 @@ bool LelantusVerifier::verify_sigma(
         const Scalar& Vin,
         const Scalar& Vout,
         const Scalar f,
-        const std::vector<PublicCoin>& Cout,
         const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
         Scalar& x,
         Scalar& zV,
@@ -74,10 +73,9 @@ bool LelantusVerifier::verify_rangeproof(
     std::vector<GroupElement> g_, h_;
     g_.reserve(n * m);
     h_.reserve(n * m);
-    for (std::size_t i = 0; i < n * m; ++i) {
-        g_.push_back(params->get_bulletproofs_g()[i]);
-        h_.push_back(params->get_bulletproofs_h()[i]);
-    }
+    g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
+    h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
+
     std::vector<GroupElement> V;
     V.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i)

@@ -517,8 +517,8 @@ libbitcoin_util_a_SOURCES = \
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
 liblelantus_a_SOURCES = \
-  liblelantus/challange_generator.h \
-  liblelantus/challange_generator.hpp \
+  liblelantus/challenge_generator.h \
+  liblelantus/challenge_generator.hpp \
   liblelantus/lelantus_primitives.h \
   liblelantus/lelantus_primitives.hpp \
   liblelantus/lelantus_proof.h \

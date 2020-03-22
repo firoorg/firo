@@ -27,7 +27,6 @@ private:
             const Scalar& Vin,
             const Scalar& Vout,
             const Scalar f,
-            const std::vector<PublicCoin>& Cout,
             const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
             Scalar& x,
             Scalar& zV,

@@ -123,6 +123,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     secp_primitives::MultiExponent R(innerProductProof.R_, x_j_sq_inv_neg);
     left_ += L.get_multiple() + R.get_multiple();
 
+    //checking whether the result is equal to 1 (in elliptic curve it is infinity)
     if(!left_.isInfinity())
         return false;
     return true;

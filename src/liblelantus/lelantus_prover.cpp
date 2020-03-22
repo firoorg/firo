@@ -153,11 +153,9 @@ void LelantusProver::generate_bulletproofs(
     g_.reserve(n * m);
     h_.reserve(n * m);
 
-    for (std::size_t i = 0; i < n * m; ++i )
-    {
-        g_.push_back(params->get_bulletproofs_g()[i]);
-        h_.push_back(params->get_bulletproofs_h()[i]);
-    }
+
+    g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
+    h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
     RangeProver<Scalar, GroupElement> rangeProver(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
     rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);

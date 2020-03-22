@@ -1,4 +1,4 @@
-#include "challange_generator.h"
+#include "challenge_generator.h"
 
 namespace lelantus {
 
@@ -109,6 +109,9 @@ void LelantusPrimitives<Exponent, GroupElement>::new_factor(
         const Exponent& x,
         const Exponent& a,
         std::vector<Exponent>& coefficients) {
+    if(coefficients.empty())
+        throw ZerocoinException("Coefficients if empty.");
+
     std::size_t degree = coefficients.size();
     coefficients.push_back(x * coefficients[degree-1]);
     for (std::size_t d = degree-1; d >= 1; --d)
