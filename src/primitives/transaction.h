@@ -145,6 +145,7 @@ public:
     std::string ToString() const;
     bool IsZerocoinSpend() const;
     bool IsSigmaSpend() const;
+    bool IsLelantusJoinSplit() const;
     bool IsZerocoinRemint() const;
 };
 
@@ -418,6 +419,9 @@ public:
 
     bool IsSigmaSpend() const;
     bool IsSigmaMint() const;
+
+    bool IsLelantusJoinSplit() const;
+    bool IsLelantusMint() const;
 
     bool IsZerocoinRemint() const;
 

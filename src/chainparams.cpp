@@ -255,6 +255,7 @@ public:
         consensus.nSigmaPaddingBlock = ZC_SIGMA_PADDING_BLOCK;
         consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_DISABLE_UNPADDED_BLOCK;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
+        consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -441,6 +442,7 @@ public:
         consensus.nSigmaPaddingBlock = ZC_SIGMA_TESTNET_PADDING_BLOCK;
         consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_TESTNET_DISABLE_UNPADDED_BLOCK;
         consensus.nOldSigmaBanBlock = 70416;
+        consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -602,6 +604,7 @@ public:
         consensus.nSigmaPaddingBlock = 550;
         consensus.nDisableUnpaddedSigmaBlock = 510;
         consensus.nOldSigmaBanBlock = 450;
+        consensus.nLelantusStartBlock = 600;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;

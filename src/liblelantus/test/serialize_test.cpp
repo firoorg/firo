@@ -12,8 +12,7 @@ BOOST_AUTO_TEST_CASE(serialize)
     int N = 100;
 
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> Cin;
-    secp_primitives::Scalar v1(uint64_t(5));
-    lelantus::PrivateCoin input_coin1(params ,v1);
+    lelantus::PrivateCoin input_coin1(params, 5);
     Cin.emplace_back(std::make_pair(input_coin1, 0));
     std::vector <uint64_t> indexes;
     indexes.push_back(0);
@@ -29,8 +28,8 @@ BOOST_AUTO_TEST_CASE(serialize)
     secp_primitives::Scalar Vin(uint64_t(5));
     secp_primitives::Scalar Vout(uint64_t(6));
     std::vector <lelantus::PrivateCoin> Cout;
-    Cout.push_back(lelantus::PrivateCoin(params, secp_primitives::Scalar(uint64_t(2))));
-    Cout.push_back(lelantus::PrivateCoin(params, secp_primitives::Scalar(uint64_t(1))));
+    Cout.push_back(lelantus::PrivateCoin(params, 2));
+    Cout.push_back(lelantus::PrivateCoin(params, 1));
     secp_primitives::Scalar f(uint64_t(1));
 
     lelantus::LelantusProof initial_proof;

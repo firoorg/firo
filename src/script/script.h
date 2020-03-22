@@ -193,6 +193,10 @@ enum opcodetype
     OP_SIGMAMINT = 0xc3,
     OP_SIGMASPEND = 0xc4,
 
+    // lelantus params
+    OP_LELANTUSMINT = 0xc5,
+    OP_LELANTUSJOINSPLIT = 0xc6,
+
     // input for reminting zerocoin to sigma (v3)
     OP_ZEROCOINTOSIGMAREMINT = 0xc8
 };
@@ -567,7 +571,8 @@ public:
 
         opcodeRet = (opcodetype)opcode;
 
-        if (opcodeRet == opcodetype::OP_SIGMASPEND|| opcodeRet == opcodetype::OP_SIGMAMINT) {
+        if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
+            opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -658,6 +663,10 @@ public:
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
     bool IsSigmaMint() const;
     bool IsSigmaSpend() const;
+
+    // Checks if the script is lelantus mint/joinsplit or not.
+    bool IsLelantusMint() const;
+    bool IsLelantusJoinSplit() const;
 
     bool IsZerocoinRemint() const;
 

@@ -17,7 +17,7 @@ class Scalar final {
 public:
 
     Scalar();
-    // Constructor from interger.
+    // Constructor from integer.
     Scalar(uint64_t value);
 
     // Copy constructor

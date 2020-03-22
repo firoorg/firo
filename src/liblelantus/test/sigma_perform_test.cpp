@@ -23,7 +23,7 @@ void test( int N, int n, int index){
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[1], v, h_gens[0], r);
             commits.push_back(c);
 
         }

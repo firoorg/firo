@@ -46,29 +46,46 @@ private:
 class PrivateCoin {
 public:
 
-    PrivateCoin(const Params* p, const Scalar& v);
-    PrivateCoin(const Params* p,const Scalar& serial, const Scalar& v, const Scalar& random, int version_);
+    PrivateCoin(const Params* p, uint64_t v);
+    PrivateCoin(const Params* p,
+            const Scalar& serial,
+            uint64_t v,
+            const Scalar& random,
+            int version_);
+
+    const Params * getParams() const;
     const PublicCoin& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;
-    const Scalar& getV() const;
+    uint64_t getV() const;
+    Scalar getVScalar() const;
     unsigned int getVersion() const;
     void setPublicCoin(const PublicCoin& p);
     void setRandomness(const Scalar& n);
     void setSerialNumber(const Scalar& n);
-    void setV(const Scalar& n);
+    void setV(uint64_t n);
     void setVersion(unsigned int nVersion);
+    const unsigned char* getEcdsaSeckey() const;
+
+    void setEcdsaSeckey(const std::vector<unsigned char> &seckey);
+    void setEcdsaSeckey(uint256 &seckey);
+
+    static Scalar serialNumberFromSerializedPublicKey(
+            const secp256k1_context *context,
+            secp256k1_pubkey *pubkey);
 
 private:
     const Params* params;
     PublicCoin publicCoin;
     Scalar serialNumber;
-    Scalar value;
+    uint64_t value;
     Scalar randomness;
     unsigned int version = 0;
+    unsigned char ecdsaSeckey[32];
+
 
 private:
-    void mintCoin(const Scalar& v);
+    void mintCoin(uint64_t v);
 };
 
 }// namespace lelantus

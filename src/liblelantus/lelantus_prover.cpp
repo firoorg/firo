@@ -46,7 +46,7 @@ void LelantusProver::proof(
         Ri += Cin[i].first.getRandomness() * x_m + Yk_sum[i];
     }
     Y_ = Ro * x_m - Ri;
-    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h1());
+    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h0());
     schnorrProver.proof(X_, Y_, proof_out.schnorrProof);
 
 }
@@ -147,7 +147,7 @@ void LelantusProver::generate_bulletproofs(
         h_.push_back(params->get_bulletproofs_h()[i]);
     }
 
-    RangeProver<Scalar, GroupElement> rangeProver(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
+    RangeProver<Scalar, GroupElement> rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
 
 }

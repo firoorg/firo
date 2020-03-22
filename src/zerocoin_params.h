@@ -53,6 +53,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // The block number after which old sigma clients are banned.
 #define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
+// Block after which lelantus mints are activated.
+#define ZC_LELANTUS_STARTING_BLOCK         250000 //TODO(levon) put real block numbers
+#define ZC_LELANTUS_TESTNET_STARTING_BLOCK 140000
+
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
 #define ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD  500

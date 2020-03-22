@@ -139,6 +139,9 @@ struct Params {
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;
 
+    // The block number after which lelantus is accepted.
+    int nLelantusStartBlock;
+
     // The block number when Bip39 was implemented in Zcoin
     int nMnemonicBlock;
 

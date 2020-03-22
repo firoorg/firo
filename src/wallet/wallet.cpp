@@ -23,6 +23,7 @@
 #include "../sigma/coin.h"
 #include "../sigma/remint.h"
 #include "../libzerocoin/SpendMetaData.h"
+#include "lelantus.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -2507,6 +2508,42 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     );
 
     return vecSend;
+}
+
+CRecipient CWallet::CreateLelantusMintRecipient(
+        lelantus::PrivateCoin& coin,
+        CHDMint& vDMint)
+{
+    EnsureMintWalletAvailable();
+
+    // Generate and store secrets deterministically in the following function.
+    CHDMint dMint;  //TODO(levon) this is a temp solution, CHDMint has member denom which is not needed for lelantus, fix it
+    zwalletMain->GenerateLelantusMint(coin, dMint);
+
+    // Get a copy of the 'public' portion of the coin. You should
+    // embed this into a Lelantus 'MINT' transaction along with a series of currency inputs
+    auto& pubCoin = coin.getPublicCoin();
+
+    if (!pubCoin.validate()) {
+        throw std::runtime_error("Unable to mint a lelantus coin.");
+    }
+
+    // Create script for coin
+    CScript script;
+    // opcode is inserted as 1 byte according to file script/script.h
+    script << OP_LELANTUSMINT;
+
+    // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+    std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+    script.insert(script.end(), vch.begin(), vch.end());
+
+    //generating schnorr proof
+    std::vector<unsigned char>  serializedSchnorrProof;
+    lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+    script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //TODO(levon) put comment about sizes
+
+    return {script, coin.getV(), false};
+
 }
 
 // coinsIn has to be sorted in descending order.
@@ -6545,6 +6582,76 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
+
+    // Update nCountNextUse in HDMint wallet database
+    zwalletMain->UpdateCountDB();
+
+    return "";
+}
+
+std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
+                                          const lelantus::PrivateCoin& privCoin,
+                                          const CHDMint& vDMints,
+                                          CWalletTx& wtxNew,
+                                          bool fAskFee,
+                                          const CCoinControl *coinControl) {
+    string strError;
+
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        strError = _("Error: Wallet locked, unable to create transaction!");
+        LogPrintf("MintLelantus() : %s", strError);
+        return strError;
+    }
+
+    uint64_t value = privCoin.getV();
+
+    if ((value + payTxFee.GetFeePerK()) > GetBalance())
+        return _("Insufficient funds");
+
+    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    CReserveKey reservekey(this);
+    int64_t nFeeRequired = 0;
+
+    int nChangePosRet = -1;
+    bool isSigmaMint = true;
+    std::vector<CRecipient> vecSend;
+    vecSend.emplace_back(recipient);
+    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, coinControl)) {
+        LogPrintf("nFeeRequired=%s\n", nFeeRequired);
+        if (value + nFeeRequired > GetBalance())
+            return strprintf(
+                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
+                    FormatMoney(nFeeRequired).c_str());
+        return strError;
+    }
+
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
+        LogPrintf("MintLelantus: returning aborted..\n");
+        return "ABORTED";
+    }
+
+    CValidationState state;
+    if (!CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {  //TODO(levon) add lelantus mint related checks  at validation.cpp AcceptToMemoryPoolWorker() function
+        return _(
+                "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    } else {
+        LogPrintf("CommitTransaction success!\n");
+    }
+
+
+    //update mints with full transaction hash and then database them
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    //TODO(levon) implement this part
+//    for (CHDMint dMint : vDMints) {
+//        dMint.SetTxHash(wtxNew.GetHash());
+//        zwalletMain->GetTracker().Add(dMint, true);
+//        NotifyZerocoinChanged(this,
+//             dMint.GetPubcoinValue().GetHex(),
+//            "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
+//            CT_NEW);
+//    }
 
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();

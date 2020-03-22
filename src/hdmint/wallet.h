@@ -33,7 +33,9 @@ public:
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
     bool GetHDMintFromMintPoolEntry(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
+    bool GetLelantusHDMintFromMintPoolEntry(lelantus::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
     bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
+    bool GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
     bool LoadMintPoolFromDB();
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma);
     bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
@@ -43,6 +45,8 @@ public:
     void GenerateMintPool(int32_t nIndex = 0);
     bool SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SeedToMint(const uint512& mintSeed, GroupElement& bnValue, sigma::PrivateCoin& coin);
+    bool SeedToLelantusMint(const uint512& mintSeed, lelantus::PrivateCoin& coin);
+
     // Count updating functions
     int32_t GetCount();
     CHDMintTracker& GetTracker() { return tracker; }

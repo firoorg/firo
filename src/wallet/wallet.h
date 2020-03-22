@@ -9,6 +9,7 @@
 #include "amount.h"
 #include "../libzerocoin/bitcoin_bignum/bignum.h"
 #include "../sigma/coin.h"
+#include "../liblelantus/coin.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -907,6 +908,9 @@ public:
         std::vector<sigma::PrivateCoin>& coins,
         vector<CHDMint>& vDMints);
 
+    static CRecipient CreateLelantusMintRecipient(
+        lelantus::PrivateCoin& coin,
+        CHDMint& vDMint);
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
@@ -1018,6 +1022,14 @@ public:
         CWalletTx &wtxNew,
         bool fAskFee=false,
         const CCoinControl *coinControl = NULL);
+
+    std::string MintAndStoreLelantus(
+            const CRecipient& recipient,
+            const lelantus::PrivateCoin& privCoin,
+            const CHDMint& vDMints,
+            CWalletTx& wtxNew,
+            bool fAskFee=false,
+            const CCoinControl *coinControl = NULL);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendSigma(std::string& thirdPartyaddress, sigma::CoinDenomination denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);

@@ -11,6 +11,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
@@ -483,6 +484,42 @@ bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, si
 }
 
 /**
+ * Convert a 512-bit mint seed into a mint.
+ *
+ * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ *
+ * @param mintSeed uint512 object of seed for mint
+ * @param coin reference to private coin. Is set in this function
+ * @return success
+ */
+bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::PrivateCoin& coin)
+{
+    //convert state seed into a seed for the private key
+    uint256 nSeedPrivKey = mintSeed.trim256();
+    nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
+    coin.setEcdsaSeckey(nSeedPrivKey);
+
+    // Create a key pair
+    secp256k1_pubkey pubkey;
+    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())){
+        return false;
+    }
+    // Hash the public key in the group to obtain a serial number
+    Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+
+    // hash randomness seed with Bottom 256 bits of mintSeed
+    Scalar randomness;
+    uint256 nSeedRandomness = ArithToUint512(UintToArith512(mintSeed) >> 256).trim256();
+    randomness.memberFromSeed(nSeedRandomness.begin());
+
+    uint64_t value = coin.getV();
+    //generating coin
+    coin = lelantus::PrivateCoin(coin.getParams(), serialNumber, value, randomness, LELANTUS_TX_VERSION_4);
+
+    return true;
+}
+
+/**
  * Get seed ID for the key used in mint generation.
  *
  * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
@@ -658,6 +695,27 @@ bool CHDMintWallet::GetHDMintFromMintPoolEntry(const sigma::CoinDenomination den
 }
 
 /**
+ * Gets a CHDMint object from a mintpool entry.
+ *
+ * @param coin reference to private coin object,should keep the value of coin
+ * @param dMint reference to CHDMint object
+ * @param mintPoolEntry mintpool data
+ * @return success
+ */
+bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(lelantus::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
+    uint512 mintSeed;
+    CreateMintSeed(mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
+
+    if(!SeedToLelantusMint(mintSeed, coin)){
+        return false;
+    }
+
+    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
+    dMint = CHDMint(get<2>(mintPoolEntry), get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
+    return true;
+}
+
+/**
  * Generate a CHDMint object, taking care of surrounding conditions.
  *
  * If the chain is not synced, do not proceed, unless fAllowUnsynced is set.
@@ -713,6 +771,62 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
     return true;
 }
+
+/**
+ * Generate a CHDMint object, taking care of surrounding conditions.
+ *
+ * If the chain is not synced, do not proceed, unless fAllowUnsynced is set.
+ * If passed the mintpool entry, we directly call GetHDMintFromMintPoolEntry and return.
+ * If not, we assume that this is a new mint being created.
+ * Following creation, verify the mint does not already exist, in-memory or on-chain. This is to prevent sync issues with the
+ * mint counter between copies of the same wallet. If it does, increment the count and repeat creation. Continue until an available
+ * mint is found.
+ *
+ * @param coin reference to private coin object, should keep the value of coin
+ * @param dMint reference to CHDMint object
+ * @param mintPoolEntry mintpool data
+ * @param fAllowUnsynced allow mint creation if chain is not synced (for tests)
+ * @return success
+ */
+bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
+{
+    if(!znodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
+        throw ZerocoinException("Unable to generate mint: Blockchain not yet synced.");
+
+    if(mintPoolEntry!=boost::none)
+        return GetLelantusHDMintFromMintPoolEntry(coin, dMint, mintPoolEntry.get());
+
+    CWalletDB walletdb(strWalletFile);
+//    lelantus::CLelantusState *lelantudState = lelantus::CLelantusState::GetState(); //TODO(levon)
+    while(true) {
+        if(hashSeedMaster.IsNull())
+            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
+        CKeyID seedId = GetMintSeedID(nCountNextUse);
+        mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
+        // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
+        UpdateCountLocal();
+
+        if(!GetLelantusHDMintFromMintPoolEntry(coin, dMint, mintPoolEntry.get()))
+            return false;
+
+        // New HDMint exists, try new count
+        if(walletdb.HasHDMint(dMint.GetPubcoinValue())
+//        || lelantudState->HasCoin(coin.getPublicCoin()) //TODO(levon)
+        ) {
+            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+        }else{
+            LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+            break;
+        }
+    }
+
+    LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
+              dMint.GetPubCoinHash().ToString(),
+              get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
+
+    return true;
+}
+
 
 /**
  * Regenerate a CSigmaEntry (ie. mint object with private data)

@@ -149,7 +149,9 @@ const char* GetOpName(opcodetype opcode)
     case OP_SIGMAMINT         : return "OP_SIGMAMINT";
     case OP_SIGMASPEND        : return "OP_SIGMASPEND";
     case OP_ZEROCOINTOSIGMAREMINT  : return "OP_ZEROCOINTOSIGMAREMINT";
-
+    // lelantus
+    case OP_LELANTUSMINT       : return "OP_LELANTUSMINT";
+    case OP_LELANTUSJOINSPLIT  : return "OP_LELANTUSJOINSPLIT";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -307,6 +309,16 @@ bool CScript::IsSigmaSpend() const {
 bool CScript::IsZerocoinRemint() const {
     return (this->size() > 0 &&
             (*this)[0] == OP_ZEROCOINTOSIGMAREMINT);
+}
+
+bool CScript::IsLelantusMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_LELANTUSMINT);
+}
+
+bool CScript::IsLelantusJoinSplit() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_LELANTUSJOINSPLIT);
 }
 
 bool CScript::HasCanonicalPushes() const

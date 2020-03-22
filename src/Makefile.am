@@ -112,14 +112,14 @@ $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
 EXTRA_LIBRARIES += \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBBITCOIN_UTIL) \
-  $(LIBLELANTUS) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_ZMQ) \
-  $(LIBZCOIN_SIGMA)
+  $(LIBZCOIN_SIGMA) \
+  $(LIBLELANTUS)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -256,6 +256,7 @@ BITCOIN_CORE_H = \
   hdmint/wallet.h \
   zerocoin.h \
   sigma.h \
+  lelantus.h \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
@@ -312,6 +313,7 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   zerocoin.cpp \
   sigma.cpp \
+  lelantus.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
@@ -343,6 +345,7 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
   sigma.cpp \
+  lelantus.cpp \
   wallet/crypter.cpp \
   wallet/bip39.cpp \
   wallet/mnemoniccontainer.cpp \
@@ -616,6 +619,7 @@ zcoind_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
   $(LIBZCOIN_SIGMA) \
+  $(LIBLELANTUS) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \

@@ -86,7 +86,7 @@ bool LelantusVerifier::verify_rangeproof(
     for (std::size_t i = Cout.size(); i < m; ++i)
         V.push_back(GroupElement());
 
-    RangeVerifier <Scalar, GroupElement> rangeVerifier(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
+    RangeVerifier <Scalar, GroupElement> rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     if (!rangeVerifier.verify_batch(V, bulletproofs))
         return false;
     return true;
@@ -106,10 +106,10 @@ bool LelantusVerifier::verify_schnorrproof(
         A += Cout[i].getValue();
     if(Cout.size() > 0)
         A *= x.exponent(params->get_sigma_m());
-    A += params->get_h0() * ((Vout + f) * x.exponent(params->get_sigma_m()));
+    A += params->get_h1() * ((Vout + f) * x.exponent(params->get_sigma_m()));
 
-    GroupElement B = (params->get_h0() * (Vin * x.exponent(params->get_sigma_m())))
-                     + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h0(), zV, params->get_h1(), zR);
+    GroupElement B = (params->get_h1() * (Vin * x.exponent(params->get_sigma_m())))
+                     + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h1(), zV, params->get_h0(), zR);
     GroupElement Comm;
     for (std::size_t t = 0; t < proof.sigma_proofs.size(); ++t)
     {
@@ -124,7 +124,7 @@ bool LelantusVerifier::verify_schnorrproof(
         Comm += Comm_t;
     }
     B += Comm;
-    SchnorrVerifier<Scalar, GroupElement> schnorrVerifier(params->get_g(), params->get_h1());
+    SchnorrVerifier<Scalar, GroupElement> schnorrVerifier(params->get_g(), params->get_h0());
     const SchnorrProof<Scalar, GroupElement>& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
     if(!schnorrVerifier.verify(Y, schnorrProof))

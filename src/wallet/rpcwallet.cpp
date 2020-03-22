@@ -13,6 +13,7 @@
 #include "validation.h"
 #include "zerocoin.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "../sigma/coinspend.h"
 #include "net.h"
 #include "policy/policy.h"
@@ -82,6 +83,13 @@ void EnsureSigmaWalletIsAvailable()
 {
     if (!zwalletMain) {
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
+    }
+}
+
+void EnsureLelantusWalletIsAvailable()
+{
+    if (!zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
 }
 
@@ -3006,6 +3014,57 @@ UniValue mint(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
+UniValue mintlelantus(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "mint amount\n"
+                + HelpRequiringPassphrase() + "\n"
+                "\nArguments:\n"
+                "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be not less than 0.05\n"
+                "\nResult:\n"
+                "\"transactionid\"  (string) The transaction id.\n"
+                "\nExamples:\n"
+                + HelpExampleCli("mint", "0.15")
+                + HelpExampleCli("mint", "100.9")
+                + HelpExampleRpc("mint", "0.15")
+        );
+
+    EnsureWalletIsUnlocked();
+    EnsureLelantusWalletIsAvailable();
+
+    // Ensure Lelantus mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    CAmount nAmount = AmountFromValue(request.params[0]);
+    LogPrintf("rpcWallet.mintlelantus() nAmount = %d \n", nAmount);
+
+    if (!lelantus::IsAvailableToMint(nAmount)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
+    }
+    const auto& lelantusParams = lelantus::Params::get_default();
+    lelantus::PrivateCoin privCoin(lelantusParams, nAmount);
+
+    CHDMint vDMint; //TODO(levon) this is a temp solution, CHDMint has member denom which is not needed for lelantus, fix it
+    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, vDMint);
+
+    CWalletTx wtx;
+
+    std::string strError = pwalletMain->MintAndStoreLelantus(recipient, privCoin, vDMint, wtx);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue mintzerocoin(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -4535,6 +4594,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
     { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
     { "wallet",             "mint",                     &mint,                     false },
+    { "wallet",             "mintlelantus",             &mintlelantus,             false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "mintmanyzerocoin",         &mintmanyzerocoin,         false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },

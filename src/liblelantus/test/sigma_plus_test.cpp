@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N)
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[1], v, h_gens[0], r);
             commits.push_back(c);
 
         }
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N_batch)
             indexes.push_back(i);
 
             secp_primitives::GroupElement c;
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[1], v, h_gens[0], r);
             commits.push_back(c);
         }
         else{

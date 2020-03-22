@@ -66,7 +66,7 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     }
 
     GroupElement left(t1 + t2);
-    if(left != LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], proof.zV_, h_[1], proof.zR_))
+    if(left != LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[1], proof.zV_, h_[0], proof.zR_))
         return false;
 
     return true;
@@ -112,7 +112,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
 
     for (int t = 0; t < M; ++t)
     {
-        right += (LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], proofs[t].zV_, h_[1], proofs[t].zR_)) * y[t];
+        right += (LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[1], proofs[t].zV_, h_[0], proofs[t].zR_)) * y[t];
         Exponent e;
         for (int i = 0; i < N - 1; ++i)
         {

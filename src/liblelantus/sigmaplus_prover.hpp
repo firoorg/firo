@@ -166,8 +166,8 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
         }
         secp_primitives::MultiExponent mult(commits, P_i);
         GroupElement c_k = mult.get_multiple();
-        proof_out.Gk_.emplace_back(c_k + h_[1] * Yk[k].negate());
-        proof_out.Qk.emplace_back(LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k], h_[1], Tk[k]) + h_[1] * Yk[k]);
+        proof_out.Gk_.emplace_back(c_k + h_[0] * Yk[k].negate());
+        proof_out.Qk.emplace_back(LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[1], Pk[k], h_[0], Tk[k]) + h_[0] * Yk[k]);
 
     }
 }
