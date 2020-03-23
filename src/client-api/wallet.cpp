@@ -829,27 +829,21 @@ void parseCoins(const std::string input, std::vector<COutPoint>& output)
 
 UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     //Reading locked list
-    LogPrintf("\n\n\n\n\n-------------------------------LOCK COINS---------------------------\n\n\n\n\n");
     LOCK(pwalletMain->cs_wallet);
     std::vector<COutPoint> lockedList, unlockedList;
     UniValue uniLocked(UniValue::VSTR);
     UniValue uniUnLocked(UniValue::VSTR);
-    LogPrintf("Locking coins\n");
     if (!find_value(data, "lockedCoins").isNull()) {
         uniLocked = find_value(data, "lockedCoins");
     }
-    LogPrintf("found lock coins\n");
     if (!find_value(data, "unlockedCoins").isNull()) {
         uniUnLocked = find_value(data, "unlockedCoins");
     }
-    LogPrintf("found unlock coins\n");
     std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());
     std::string unlocked = boost::algorithm::trim_copy(uniUnLocked.getValStr());
 
     parseCoins(locked, lockedList);
     parseCoins(unlocked, unlockedList);
-    LogPrintf("%s: locked list = %d", __func__, lockedList.size());
-    LogPrintf("%s: unlocked list = %d", __func__, unlockedList.size());
     for(const COutPoint l: lockedList) {
         pwalletMain->LockCoin(l);
         pendingLockCoins[l] = true;
@@ -924,7 +918,9 @@ bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
 }
 
 UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (find_value(data, "mnemonic").isNull()) return 'false';
+    if (find_value(data, "mnemonic").isNull()){
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
     std::string mnemonic = find_value(data, "mnemonic").getValStr();
     boost::trim(mnemonic);
     std::string failReason = "Invalid mnemonic recovery phrase";
@@ -932,8 +928,81 @@ UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue&
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("valid", result));
     ret.push_back(Pair("reason", failReason));
-    LogPrintf("verifyMnemonicValidity:%s\n", result);
     return ret;
+}
+
+UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    UniValue addressBook(UniValue::VARR);
+    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
+        CBitcoinAddress addr;
+        if (addr.Set(it->first)) 
+        {
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("address", addr.ToString()));
+            item.push_back(Pair("label", it->second.name));
+            item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
+            addressBook.push_back(item);
+        }
+    }
+    return addressBook;
+}
+
+UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    if (find_value(data, "action").isNull()) 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string action = find_value(data, "action").getValStr();
+    if (action != "add" && action != "edit" && action != "delete") 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    if (find_value(data, "address").isNull()) 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string address = find_value(data, "address").getValStr();
+
+    CTxDestination inputAddress = CBitcoinAddress(address).Get();
+    // Refuse to set invalid address, set error status and return false
+    if(boost::get<CNoDestination>(&inputAddress)) 
+    {
+       throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
+    }
+
+    if (action != "delete") 
+    {
+        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) 
+        {
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+        }
+        if (action == "add") 
+        {
+            pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+        } 
+        else {
+            if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+            }
+            std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
+            CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
+            if(boost::get<CNoDestination>(&updatedAddress)) 
+            {
+                throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
+            }
+            pwalletMain->DelAddressBook(inputAddress);
+            pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
+        }
+    } else {
+        pwalletMain->DelAddressBook(inputAddress);
+    }
+    return true;
 }
 
 static const CAPICommand commands[] =
@@ -948,7 +1017,9 @@ static const CAPICommand commands[] =
     { "wallet",             "writeShowMnemonicWarning",       &writeshowmnemonicwarning,       true,      false,           false  },
     { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },
     { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
-    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         false,     false,           false  }
+    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         false,     false,           false  },
+    { "wallet",             "readAddressBook",                &readaddressbook,                false,     false,           false  },    
+    { "wallet",             "editAddressBook",                &editaddressbook,                false,     false,           false  }  
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
