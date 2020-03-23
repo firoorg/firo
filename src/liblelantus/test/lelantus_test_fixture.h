@@ -8,7 +8,7 @@ namespace lelantus {
 class LelantusTestingSetup {
 public:
     template<class Output>
-    void GenerateGroupElements(size_t size, Output output) {
+    void GenerateGroupElements(size_t size, Output output) const {
 
         std::array<uint8_t, 32> seed;
         std::fill(seed.begin(), seed.end(), 0);
@@ -31,9 +31,9 @@ public:
         }
     }
 
-    std::vector<GroupElement> GenerateGroupElements(size_t size);
-    std::vector<GroupElement> RandomizeGroupElements(size_t size);
-    std::vector<Scalar> RandomizeScalars(size_t size);
+    std::vector<GroupElement> GenerateGroupElements(size_t size) const;
+    std::vector<GroupElement> RandomizeGroupElements(size_t size) const;
+    std::vector<Scalar> RandomizeScalars(size_t size) const;
 };
 
 } // namespace lelantus
