@@ -918,7 +918,9 @@ bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
 }
 
 UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (find_value(data, "mnemonic").isNull()) return 'false';
+    if (find_value(data, "mnemonic").isNull()){
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
     std::string mnemonic = find_value(data, "mnemonic").getValStr();
     std::string failReason = "Invalid mnemonic recovery phrase";
     bool result = isMnemonicValid(mnemonic, failReason);
@@ -953,16 +955,16 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     LOCK(pwalletMain->cs_wallet);
     if (find_value(data, "action").isNull()) 
     {
-        return "Action not found";
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
     std::string action = find_value(data, "action").getValStr();
     if (action != "add" && action != "edit" && action != "delete") 
     {
-        return "Invalid action";
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
     if (find_value(data, "address").isNull()) 
     {
-        return "Address not found";
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
     std::string address = find_value(data, "address").getValStr();
 
@@ -970,14 +972,14 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     // Refuse to set invalid address, set error status and return false
     if(boost::get<CNoDestination>(&inputAddress)) 
     {
-        return "Invalid address";    
+       throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
     }
 
     if (action != "delete") 
     {
         if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) 
         {
-            return "Label or purpose not found";
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
         }
         if (action == "add") 
         {
@@ -985,13 +987,13 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         } 
         else {
             if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
-                return "New updated address or label not found";
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
             }
             std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
             CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
             if(boost::get<CNoDestination>(&updatedAddress)) 
             {
-                return "Invalid updated address";    
+                throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
             }
             pwalletMain->DelAddressBook(inputAddress);
             pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
@@ -999,7 +1001,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     } else {
         pwalletMain->DelAddressBook(inputAddress);
     }
-    return "success";
+    return true;
 }
 
 static const CAPICommand commands[] =
