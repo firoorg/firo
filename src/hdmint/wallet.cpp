@@ -801,7 +801,7 @@ bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& d
         return GetLelantusHDMintFromMintPoolEntry(coin, dMint, mintPoolEntry.get());
 
     CWalletDB walletdb(strWalletFile);
-//    lelantus::CLelantusState *lelantudState = lelantus::CLelantusState::GetState(); //TODO(levon)
+    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     while(true) {
         if(hashSeedMaster.IsNull())
             throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
@@ -815,8 +815,7 @@ bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& d
 
         // New HDMint exists, try new count
         if(walletdb.HasHDMint(dMint.GetPubcoinValue())
-//        || lelantudState->HasCoin(coin.getPublicCoin()) //TODO(levon)
-        ) {
+        || lelantusState->HasCoin(coin.getPublicCoin())) {
             LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
         }else{
             LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));

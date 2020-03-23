@@ -3613,7 +3613,7 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
 
     BOOST_FOREACH(CMintMeta &mint, listMints) {
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), false, dMint)){
             continue;
         }
         dMint.SetUsed(false);
@@ -3889,7 +3889,7 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
             continue;
 
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), false, dMint)){
             continue;
         }
 

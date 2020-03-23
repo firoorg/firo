@@ -553,25 +553,35 @@ DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
     return DB_LOAD_OK;
 }
 
-bool CWalletDB::WriteHDMint(const CHDMint& dMint)
+bool CWalletDB::WriteHDMint(const CHDMint& dMint, bool isLelantus)
 {
     uint256 hash = dMint.GetPubCoinHash();
-    return Write(make_pair(std::string("hdmint"), hash), dMint, true);
+    std::string name;
+    if(!isLelantus)
+        name = "hdmint";
+    else
+        name = "hdmint_lelantus";
+    return Write(make_pair(name, hash), dMint, true);
 }
 
-bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
+bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint)
 {
-    return Read(make_pair(std::string("hdmint"), hashPubcoin), dMint);
+    std::string name;
+    if(!isLelantus)
+        name = "hdmint";
+    else
+        name = "hdmint_lelantus";
+    return Read(make_pair(name, hashPubcoin), dMint);
 }
 
 bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
     nWalletDBUpdateCounter++;
     uint256 hash = dMint.GetPubCoinHash();
-    return Erase(std::make_pair(std::string("hdmint"), hash));
+    return Erase(std::make_pair(std::string("hdmint"), hash)) || Erase(std::make_pair(std::string("hdmint_lelantus"), hash));
 }
 
 bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub)));
+    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub))) || Exists(std::make_pair(std::string("hdmint_lelantus"), primitives::GetPubCoinValueHash(pub)));
 }
 
 class CWalletScanState {
@@ -1662,12 +1672,12 @@ bool CWalletDB::ArchiveDeterministicOrphan(const CHDMint& dMint)
     return true;
 }
 
-bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint)
+bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint)
 {
     if (!Read(make_pair(string("dzco"), hashPubcoin), dMint))
         return error("%s: failed to retrieve deterministic mint from archive", __func__);
 
-    if (!WriteHDMint(dMint))
+    if (!WriteHDMint(dMint, isLelantus))
         return error("%s: failed to write deterministic mint", __func__);
 
     if (!Erase(make_pair(string("dzco"), dMint.GetPubCoinHash())))

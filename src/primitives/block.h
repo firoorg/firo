@@ -22,6 +22,11 @@ class CSigmaTxInfo;
 
 } // namespace sigma.
 
+namespace lelantus {
+class CLelantusTxInfo;
+
+} // namespace lelantus
+
 unsigned char GetNfactor(int64_t nTimestamp);
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,

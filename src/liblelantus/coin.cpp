@@ -31,7 +31,7 @@ bool PublicCoin::validate() const {
     return this->value.isMember() && !this->value.isInfinity();
 }
 
-size_t PublicCoin::GetSerializeSize(int nType, int nVersion) const {
+size_t PublicCoin::GetSerializeSize() const {
     return value.memoryRequired();
 }
 

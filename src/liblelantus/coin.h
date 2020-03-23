@@ -19,11 +19,11 @@ public:
     bool operator==(const PublicCoin& other) const;
     bool operator!=(const PublicCoin& other) const;
     bool validate() const;
-    size_t GetSerializeSize(int nType, int nVersion) const;
+    size_t GetSerializeSize() const;
 
     template<typename Stream>
-    inline void Serialize(Stream& s, int nType, int nVersion) const {
-        int size =  GetSerializeSize(nType, nVersion);
+    inline void Serialize(Stream& s) const {
+        int size =  GetSerializeSize();
         unsigned char buffer[size];
         value.serialize(buffer);
         char* b = (char*)buffer;
@@ -31,8 +31,8 @@ public:
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s, int nType, int nVersion) {
-        int size =  GetSerializeSize(nType, nVersion);
+    inline void Unserialize(Stream& s) {
+        int size =  GetSerializeSize();
         unsigned char buffer[size];
         char* b = (char*)buffer;
         s.read(b, size);

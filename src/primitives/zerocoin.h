@@ -37,6 +37,26 @@ private:
     mutable boost::optional<uint256> pubCoinValueHash;
 };
 
+struct CLelantusMintMeta
+{
+    int nHeight;
+    int nId;
+    GroupElement const & GetPubCoinValue() const;
+    void SetPubCoinValue(GroupElement const & other);
+    uint256 GetPubCoinValueHash() const;
+    uint256 hashSerial;
+    uint8_t nVersion;
+    uint64_t amount;
+    uint256 txid;
+    bool isUsed;
+    bool isArchived;
+    bool isDeterministic;
+    bool isSeedCorrect;
+private:
+    GroupElement pubCoinValue;
+    mutable boost::optional<uint256> pubCoinValueHash;
+};
+
 class CZerocoinEntry
 {
 private:

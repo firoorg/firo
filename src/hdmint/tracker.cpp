@@ -80,7 +80,7 @@ bool CHDMintTracker::Archive(CMintMeta& meta)
 
    CWalletDB walletdb(strWalletFile);
     CHDMint dMint;
-    if (!walletdb.ReadHDMint(hashPubcoin, dMint))
+    if (!walletdb.ReadHDMint(hashPubcoin, false, dMint))
         return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
     if (!walletdb.ArchiveDeterministicOrphan(dMint))
         return error("%s: failed to archive deterministic ophaned mint", __func__);
@@ -100,7 +100,7 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
     CWalletDB walletdb(strWalletFile);
     if (isDeterministic) {
         CHDMint dMint;
-        if (!walletdb.UnarchiveHDMint(hashPubcoin, dMint))
+        if (!walletdb.UnarchiveHDMint(hashPubcoin, false, dMint))
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(dMint, false);
     } else {
@@ -213,13 +213,13 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 
     if (meta.isDeterministic) {
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(hashPubcoin, dMint)) {
+        if (!walletdb.ReadHDMint(hashPubcoin, false, dMint)) {
             // Check archive just in case
             if (!meta.isArchived)
                 return error("%s: failed to read deterministic mint from database", __func__);
 
             // Unarchive this mint since it is being requested and updated
-            if (!walletdb.UnarchiveHDMint(hashPubcoin, dMint))
+            if (!walletdb.UnarchiveHDMint(hashPubcoin, false, dMint))
                 return error("%s: failed to unarchive deterministic mint from database", __func__);
         }
 
@@ -242,7 +242,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         DenominationToInteger(meta.denom, amount);
         dMint.SetAmount(amount);
 
-        if (!walletdb.WriteHDMint(dMint))
+        if (!walletdb.WriteHDMint(dMint, false))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
 
         pwalletMain->NotifyZerocoinChanged(
@@ -311,7 +311,32 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
         CT_UPDATED);
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteHDMint(dMint);
+        CWalletDB(strWalletFile).WriteHDMint(dMint, false);
+}
+
+void CHDMintTracker::AddLelantus(const CHDMint& dMint, bool isNew, bool isArchived)
+{
+    CLelantusMintMeta meta;
+    meta.SetPubCoinValue(dMint.GetPubcoinValue());
+    meta.nHeight = dMint.GetHeight();
+    meta.nId = dMint.GetId();
+    meta.txid = dMint.GetTxHash();
+    meta.isUsed = dMint.IsUsed();
+    meta.hashSerial = dMint.GetSerialHash();
+    meta.amount = dMint.GetAmount();
+    meta.isArchived = isArchived;
+    meta.isDeterministic = true;
+    meta.isSeedCorrect = true;
+    mapLelantusSerialHashes[meta.hashSerial] = meta;
+
+    pwalletMain->NotifyZerocoinChanged(
+            pwalletMain,
+            dMint.GetPubcoinValue().GetHex(),
+            std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
+            CT_UPDATED);
+
+    if (isNew)
+        CWalletDB(strWalletFile).WriteHDMint(dMint, true);
 }
 
 void CHDMintTracker::Add(const CSigmaEntry& sigma, bool isNew, bool isArchived)

@@ -18,6 +18,7 @@ private:
     bool fInitialized;
     std::string strWalletFile;
     std::map<uint256, CMintMeta> mapSerialHashes;
+    std::map<uint256, CLelantusMintMeta> mapLelantusSerialHashes;
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
     bool IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial);
     bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend=false);
@@ -26,6 +27,7 @@ public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
     void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
+    void AddLelantus(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     void Add(const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;

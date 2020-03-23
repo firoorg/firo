@@ -42,6 +42,7 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -535,7 +536,7 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 
 
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, CZerocoinTxInfo *zerocoinTxInfo, sigma::CSigmaTxInfo *sigmaTxInfo)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, CZerocoinTxInfo *zerocoinTxInfo, sigma::CSigmaTxInfo *sigmaTxInfo, lelantus::CLelantusTxInfo* lelantusTxInfo)
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
     // Basic checks that don't depend on any context
@@ -597,6 +598,11 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return false;
         }
 
+        if(tx.IsLelantusTransaction()) {
+            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, lelantusTxInfo))
+                return false;
+        }
+
         if (!CheckZerocoinTransaction(tx, state, Params().GetConsensus(), hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo))
             return false;
     }
@@ -641,7 +647,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool isCheckWalletTransaction, bool markZcoinSpendTransactionSerial)
 {
     bool fTestNet = Params().GetConsensus().IsTestnet();
-    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsZerocoinSpend()=%s, fTestNet=%s\n", ptx->IsZerocoinSpend() || ptx->IsSigmaSpend(), fTestNet);
+    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsZerocoinSpend()=%s, fTestNet=%s\n", ptx->IsZerocoinSpend() || ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
     
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
@@ -667,6 +673,16 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         if (!allow) {
             return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
+
+    if(tx.IsSigmaMint()) {
+        // Shows if sigma mints are allowed yet in the mempool.
+        bool allow = (chainActive.Height() <= consensus.nLelantusStartBlock);
+
+        if (!allow) {
+            return state.DoS(100, error("Sigma mints no more allowed in mempool"),
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
     }
@@ -712,6 +728,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     vector<Scalar> zcSpendSerialsV3;
     vector<GroupElement> zcMintPubcoinsV3;
+
+    //lelantus
+    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
+    vector<GroupElement> lelantusMintPubcoins;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
     if (tx.IsZerocoinSpend()) {
@@ -812,6 +832,23 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
             zcMintPubcoinsV3.push_back(pubCoinValue);
+        }
+    }
+
+    BOOST_FOREACH(const CTxOut &txout, tx.vout)
+    {
+        if (txout.scriptPubKey.IsLelantusMint()) {
+            GroupElement pubCoinValue;
+            try {
+               lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+            } catch (std::invalid_argument&) {
+                return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+            }
+            if (!lelantusState->CanAddMintToMempool(pubCoinValue)) {
+                LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            }
+            lelantusMintPubcoins.push_back(pubCoinValue);
         }
     }
 
@@ -1240,11 +1277,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
 #endif
     }
-    if(markZcoinSpendTransactionSerial)
+    if(markZcoinSpendTransactionSerial) {
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
+        lelantusState->AddMintsToMempool(lelantusMintPubcoins);
+    }
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        BOOST_FOREACH(const CTxOut &txout, tx.vout) //TODO(levon) figure out why we need to this again
         {
             if(txout.scriptPubKey.IsSigmaMint()){
                 GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
@@ -1254,6 +1293,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
             zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        }
+    }
+
+    if(tx.IsLelantusMint()) {
+        if (zwalletMain) {
+            LogPrintf("Updating mint state from Mempool..");
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(lelantusMintPubcoins); //TODO(levon) take a look inside this function
         }
     }
 #endif
@@ -2487,6 +2533,7 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
     // Erase conflicting zerocoin txs from the mempool
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         if (tx->IsZerocoinSpend() || tx->IsZerocoinRemint()) {
             BOOST_FOREACH(const CTxIn &txin, tx->vin)
@@ -2536,6 +2583,15 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
                     // nothing
                 }
                 sigmaState->RemoveMintFromMempool(pubCoinValue);
+            }
+            if (txout.scriptPubKey.IsLelantusMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument&) {
+                    // nothing
+                }
+                lelantusState->RemoveMintFromMempool(pubCoinValue);
             }
         }
     }

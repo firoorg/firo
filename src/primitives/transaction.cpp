@@ -217,6 +217,11 @@ bool CTransaction::IsZerocoinV3SigmaTransaction() const
     return IsSigmaSpend() || IsSigmaMint() || IsZerocoinRemint();
 }
 
+bool CTransaction::IsLelantusTransaction() const
+{
+    return IsLelantusMint() || IsLelantusJoinSplit();
+}
+
 bool CTransaction::IsZerocoinRemint() const
 {
     for (const CTxIn &txin: vin) {

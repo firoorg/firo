@@ -753,7 +753,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     BOOST_FOREACH(const CTxIn& txin, thisTx.tx->vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend()) {
+        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
@@ -6591,7 +6591,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
 
 std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
                                           const lelantus::PrivateCoin& privCoin,
-                                          const CHDMint& vDMints,
+                                          const CHDMint& dMint,
                                           CWalletTx& wtxNew,
                                           bool fAskFee,
                                           const CCoinControl *coinControl) {
@@ -6633,7 +6633,7 @@ std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
     }
 
     CValidationState state;
-    if (!CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {  //TODO(levon) add lelantus mint related checks  at validation.cpp AcceptToMemoryPoolWorker() function
+    if (!CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
         return _(
                 "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
     } else {
@@ -6643,17 +6643,16 @@ std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
 
     //update mints with full transaction hash and then database them
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    for (CHDMint dMint : vDMints) {
-        dMint.SetTxHash(wtxNew.GetHash());
-//        zwalletMain->GetTracker().Add(dMint, true);     //TODO(levon) implement this part
-        NotifyZerocoinChanged(this,
-             dMint.GetPubcoinValue().GetHex(),
-            "New (" + std::to_string(dMint.GetAmount()) + " mint)",
-            CT_NEW);
-    }
+    CHDMint dMintTmp = dMint;
+    dMintTmp.SetTxHash(wtxNew.GetHash());
+    zwalletMain->GetTracker().AddLelantus(dMintTmp, true);
+    NotifyZerocoinChanged(this,
+        dMintTmp.GetPubcoinValue().GetHex(),
+        "New (" + std::to_string(dMintTmp.GetAmount()) + " mint)",
+        CT_NEW);
 
     // Update nCountNextUse in HDMint wallet database
-    zwalletMain->UpdateCountDB();
+    zwalletMain->UpdateCountDB(); //TODO(levon) figure out with this
 
     return "";
 }
@@ -7132,7 +7131,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
     CWalletDB walletdb(strWalletFile);
      if (meta.isDeterministic) {
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), dMint))
+        if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), false, dMint))
             return error("%s: failed to read deterministic mint", __func__);
         if (!zwalletMain->RegenerateMint(dMint, zerocoin))
             return error("%s: failed to generate mint", __func__);

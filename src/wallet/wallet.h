@@ -1026,7 +1026,7 @@ public:
     std::string MintAndStoreLelantus(
             const CRecipient& recipient,
             const lelantus::PrivateCoin& privCoin,
-            const CHDMint& vDMints,
+            const CHDMint& dMint,
             CWalletTx& wtxNew,
             bool fAskFee=false,
             const CCoinControl *coinControl = NULL);

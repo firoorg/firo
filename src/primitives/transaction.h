@@ -414,6 +414,8 @@ public:
     // Returns true, if this is a V3 zerocoin mint or spend, made with sigma algorithm.
     bool IsZerocoinV3SigmaTransaction() const;
 
+    bool IsLelantusTransaction() const;
+
     bool IsZerocoinSpend() const;
     bool IsZerocoinMint() const;
 
