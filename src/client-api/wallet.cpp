@@ -927,7 +927,8 @@ UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue&
     bool result = isMnemonicValid(mnemonic, failReason);
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("valid", result));
-    ret.push_back(Pair("reason", failReason));
+    if(!result)
+        ret.push_back(Pair("reason", failReason));
     return ret;
 }
 
@@ -973,7 +974,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     // Refuse to set invalid address, set error status and return false
     if(boost::get<CNoDestination>(&inputAddress)) 
     {
-       throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
+       throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
     if (action != "delete") 
@@ -994,7 +995,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
             if(boost::get<CNoDestination>(&updatedAddress)) 
             {
-                throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address or key");
+                throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
             pwalletMain->DelAddressBook(inputAddress);
             pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
@@ -1017,9 +1018,9 @@ static const CAPICommand commands[] =
     { "wallet",             "writeShowMnemonicWarning",       &writeshowmnemonicwarning,       true,      false,           false  },
     { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },
     { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
-    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         false,     false,           false  },
-    { "wallet",             "readAddressBook",                &readaddressbook,                false,     false,           false  },    
-    { "wallet",             "editAddressBook",                &editaddressbook,                false,     false,           false  }  
+    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
+    { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
+    { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

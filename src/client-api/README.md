@@ -35,31 +35,37 @@ A function with one or more operations.
 
 | Collection     | Description      | Port   | Passphrase | Warmup Ok
 | :------------- | :--------------- | :----- | :--------- | :--------- |
-| [apiStatus](#apistatus)           | Initial status of core. | 👁  | – |   ✅   |
-| [backup](#backup)                 | Creates a zip file from wallet.dat and the `persistent/` folder, and stores in the filepath specified, as `zcoin_backup-{TIMESTAMP}.zip`.  | 🔐 | – |  – |
-| [balance](#balance)               | Coin balance of a number of different categories. | 🔐 | – | – |
-| [block](#block)                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
-| [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
-| [listMints](#listmints)           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
-| [lockCoin](#lockcoin)             | Lock/unlock specified UTXOs.  | 🔐 | – | – |
-| [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
-| [mint](#mint)                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
-| [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
-| [privateTxFee](#privatetxfee)     | Gets the transaction fee and inputs required for the private spend data passed. | 🔐 | - | – |
-| [rebroadcast](#rebroadcast)       | Rebroadcast a transaction from mempool. | 🔐 | - | - |
-| [rpc](#rpc)                       | Call an RPC command, or return a list of them. | 🔐 | - | - |
-| [sendPrivate](#sendprivate)       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
-| [sendZcoin](#sendzcoin)           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
-| [setPassphrase](#setpassphrase)   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
-| [setting](#setting)               | Interact with settings. | 🔐 | - | – |
-| [stateWallet](#statewallet)       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
-| [stop](#stop)                     | Stop the Zcoin daemon. | 🔐 | - | – |
-| [txFee](#txfee)                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
-| [unlockWallet](#unlockwallet)     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
-| [updateLabels](#updatelabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
-| [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
-| [znodeKey](#znodekey)             | Generate a new znode key. | 🔐 | - | – |
-| [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
+| [apiStatus](#apistatus)                                           | Initial status of core. | 👁  | – |   ✅   |
+| [backup](#backup)                                                 | Creates a zip file from wallet.dat and the `persistent/` folder, and stores in the filepath specified, as `zcoin_backup-{TIMESTAMP}.zip`.  | 🔐 | – |  – |
+| [balance](#balance)                                               | Coin balance of a number of different categories. | 🔐 | – | – |
+| [block](#block)                                                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
+| [blockchain](#blockchain)                                         | Information related to chain sync status and tip. | 🔐 | – | – |
+| [editAddressBook](#editaddressbook)                               | Make a change to the wallet address book. | 🔐 | - | - |
+| [listMints](#listmints)                                           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
+| [lockCoin](#lockcoin)                                             | Lock/unlock specified UTXOs.  | 🔐 | – | – |
+| [lockWallet](#lockwallet)                                         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
+| [mint](#mint)                                                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
+| [paymentRequest](#paymentrequest)                                 | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
+| [privateTxFee](#privatetxfee)                                     | Gets the transaction fee and inputs required for the private spend data passed. | 🔐 | - | – |
+| [readAddressBook](#readaddressbook)                               | Read the addresses from the wallet address book. | 🔐 | - | - |
+| [readWalletMnemonicWarningState](#readwalletmnemonicwarningstate) | Read mnemonic status from the wallet database. | 🔐 | - | - |
+| [rebroadcast](#rebroadcast)                                       | Rebroadcast a transaction from mempool. | 🔐 | - | - |
+| [rpc](#rpc)                                                       | Call an RPC command, or return a list of them. | 🔐 | - | - |
+| [sendPrivate](#sendprivate)                                       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
+| [sendZcoin](#sendzcoin)                                           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
+| [setPassphrase](#setpassphrase)                                   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
+| [setting](#setting)                                               | Interact with settings. | 🔐 | - | – |
+| [showMnemonics](#showmnemonics)                                   | Show the wallet mnemonic. | 🔐 | ✅ | – |
+| [stateWallet](#statewallet)                                       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
+| [stop](#stop)                                                     | Stop the Zcoin daemon. | 🔐 | - | – |
+| [txFee](#txfee)                                                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
+| [unlockWallet](#unlockwallet)                                     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
+| [updateLabels](#updatelabels)                                     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
+| [verifyMnemonicValidity](#verifymnemonicvalidity)                 | Verify mnemonic is valid. | 🔐 | – | – |
+| [writeShowMnemonicWarning](#writeshowmnemonicwarning)             | Write the wallet database entry to show the warning for mnemonics. | 🔐 | – | – |
+| [znodeControl](#znodecontrol)                                     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
+| [znodeKey](#znodekey)                                             | Generate a new znode key. | 🔐 | - | – |
+| [znodeList](#znodelist)                                           | list information related to all Znodes. | 🔐 | – | – |
 
 ## data
 to be passed with `type` to be performed on `collection`.
@@ -405,6 +411,28 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
+### `editAddressBook`
+`get`:
+```
+    data: {
+        "action": STRING ("add"|"edit"|"delete"),
+        "address": STRING,
+        "label": STRING (VAR: action != "delete")
+        "purpose": STRING (VAR: action != "delete")
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    }
+    meta:{
+        status: 200
+    }
+}
+```
+
 ### `listMints`:
 `None`:
 ```
@@ -648,6 +676,37 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     data: {
         inputs: INT,
         fee: INT(sats)
+    },
+    meta:{
+        status: 200
+    }
+}
+```
+
+### `readAddressBook`
+`none`:
+```
+    data: {
+    }
+```
+
+*Returns:*
+```
+{
+    data: {
+        [
+            {
+                "address": STRING,
+                "label": STRING,
+                "purpose": STRING
+            },
+            {
+                "address": STRING,
+                "label": STRING,
+                "purpose": STRING
+            },
+            ...
+        ]
     },
     meta:{
         status: 200
@@ -937,6 +996,23 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
+### `showMnemonics`
+```
+    data: {
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        STRING (mnemonics)
+    }
+    meta:{
+       status: 200
+    }
+}
+```
+
 ### `stateWallet`
 `initial`:
 ```
@@ -1173,6 +1249,44 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     }
 }
 ```
+
+### `verifyMnemonicValidity`
+```
+    data: {
+        "mnemonic": STRING
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        "valid": BOOL,
+        "reason": STRING, (VAR: valid==false)
+    }
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `writeShowMnemonicWarning`
+```
+    data: {
+        BOOL
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    }
+    meta:{
+       status: 200
+    }
+}
+```
+
 
 ### `znodeControl`
 `update`:
