@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(serialization)
 
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
-    GroupElement y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
 
     SchnorrProver<Scalar, GroupElement> prover(g, h);
     SchnorrProof<Scalar, GroupElement> proof;
@@ -56,15 +56,29 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
 BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
 {
-    GroupElement y;
-    y.randomize();
+    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
 
     SchnorrProver<Scalar, GroupElement> prover(g, h);
     SchnorrProof<Scalar, GroupElement> proof;
     prover.proof(P, T, proof);
 
+    GroupElement fakeY;
+    fakeY.randomize();
+
     SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
-    BOOST_CHECK(!verifier.verify(y ,proof));
+    BOOST_CHECK(!verifier.verify(fakeY, proof));
+
+    auto fakeProof = proof;
+    fakeProof.P1.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
+
+    fakeProof = proof;
+    fakeProof.T1.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
+
+    fakeProof = proof;
+    fakeProof.u.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
