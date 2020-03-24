@@ -185,7 +185,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     }
 
     if(!fDummy)
-        EnsureWalletIsUnlocked();
+        EnsureWalletIsUnlocked(pwalletMain);
 
     bool fChangeAddedToFee;
 
@@ -376,7 +376,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
 UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwalletMain);
 
     list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(true, false);
     UniValue results(UniValue::VOBJ);

@@ -117,7 +117,7 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
             else if (method == "start-all" || method == "start-missing") {
                 {
                     LOCK(pwalletMain->cs_wallet);
-                    EnsureWalletIsUnlocked();
+                    EnsureWalletIsUnlocked(pwalletMain);
                 }
 
                 if ((method == "start-missing") && !znodeSync.IsZnodeListSynced()) {

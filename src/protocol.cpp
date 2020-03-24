@@ -61,7 +61,26 @@ namespace NetMsgType {
     const char *SYNCSTATUSCOUNT="ssc";
     const char *MNVERIFY="mnv";
     const char *TXLOCKREQUEST="ix";
-
+    const char *MNGOVERNANCESYNC="govsync";
+    const char *MNGOVERNANCEOBJECT="govobj";
+    const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
+    const char *GETMNLISTDIFF="getmnlistd";
+    const char *MNLISTDIFF="mnlistdiff";
+    const char *QSENDRECSIGS="qsendrecsigs";
+    const char *QFCOMMITMENT="qfcommit";
+    const char *QCONTRIB="qcontrib";
+    const char *QCOMPLAINT="qcomplaint";
+    const char *QJUSTIFICATION="qjustify";
+    const char *QPCOMMITMENT="qpcommit";
+    const char *QWATCH="qwatch";
+    const char *QSIGSESANN="qsigsesann";
+    const char *QSIGSHARESINV="qsigsinv";
+    const char *QGETSIGSHARES="qgetsigs";
+    const char *QBSIGSHARES="qbsigs";
+    const char *QSIGREC="qsigrec";
+    const char *CLSIG="clsig";
+    const char *ISLOCK="islock";
+    const char *MNAUTH="mnauth";
 };
 
 /** All known message types. Keep this in the same order as the list of

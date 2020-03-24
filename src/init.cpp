@@ -192,9 +192,9 @@ class CCoinsViewErrorCatcher : public CCoinsViewBacked
 {
 public:
     CCoinsViewErrorCatcher(CCoinsView* view) : CCoinsViewBacked(view) {}
-    bool GetCoins(const uint256 &txid, CCoins &coins) const {
+    bool GetCoin(const COutPoint &outpoint, Coin &coin) const override {
         try {
-            return CCoinsViewBacked::GetCoins(txid, coins);
+            return CCoinsViewBacked::GetCoin(outpoint, coin);
         } catch(const std::runtime_error& e) {
             uiInterface.ThreadSafeMessageBox(_("Error reading from database, shutting down."), "", CClientUIInterface::MSG_ERROR);
             LogPrintf("Error reading from database: %s\n", e.what());
@@ -261,7 +261,7 @@ void Shutdown()
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    flatdb2.Dump(mnpayments);
+    flatdb2.Dump(znpayments);
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     flatdb4.Dump(netfulfilledman);
     
@@ -1752,6 +1752,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
                     if (fPruneMode)
                         CleanupBlockRevFiles();
+                } else {
+                    // If necessary, upgrade from older database format.
+                    if (!pcoinsdbview->Upgrade()) {
+                        strLoadError = _("Error upgrading chainstate database");
+                        break;
+                    }
                 }
 
                 if (!LoadBlockIndex(chainparams)) {
@@ -2037,17 +2043,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-znode", false);
+    fMasternodeMode = GetBoolArg("-znode", false);
 
-    LogPrintf("fZNode = %s\n", fZNode);
+    LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
 
-    if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
+    if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-    if (fZNode) {
+    if (fMasternodeMode) {
         LogPrintf("ZNODE:\n");
 
         if (!GetArg("-znodeaddr", "").empty()) {
@@ -2111,7 +2117,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // lite mode disables all Znode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
-    if (fZNode && fLiteMode) {
+    if (fMasternodeMode && fLiteMode) {
         return InitError("You can not start a znode in litemode");
     }
 
@@ -2135,7 +2141,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (mnodeman.size()) {
             uiInterface.InitMessage(_("Loading Znode payment cache..."));
             CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-            if (!flatdb2.Load(mnpayments)) {
+            if (!flatdb2.Load(znpayments)) {
                 return InitError("Failed to load znode payments cache from znpayments.dat");
             }
         } else {
@@ -2158,7 +2164,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    znpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
     // governance.UpdatedBlockTip(chainActive.Tip());
 
@@ -2194,10 +2200,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 if (nTick % 60 == 0) {
                     mnodeman.ProcessZnodeConnections();
                     mnodeman.CheckAndRemove();
-                    mnpayments.CheckAndRemove();
+                    znpayments.CheckAndRemove();
                     instantsend.CheckAndRemove();
                 }
-                if (fZNode && (nTick % (60 * 5) == 0)) {
+                if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
                     mnodeman.DoFullVerificationStep();
                 }
             }

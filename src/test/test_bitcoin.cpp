@@ -49,7 +49,8 @@
 #include "sigma.h"
 
 extern std::unique_ptr<CConnman> g_connman;
-FastRandomContext insecure_rand_ctx(true);
+uint256 insecure_rand_seed = GetRandHash();
+FastRandomContext insecure_rand_ctx(insecure_rand_seed);
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -221,7 +222,7 @@ CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CTransaction &txn, CTxMemPo
     // Hack to assume either it's completely dependent on other mempool txs or not at all
     CAmount inChainValue = pool && pool->HasNoInputsOf(txn) ? txn.GetValueOut() : 0;
 
-    return CTxMemPoolEntry(MakeTransactionRef(txn), nFee, nTime, dPriority, nHeight,
+    return CTxMemPoolEntry(MakeTransactionRef(txn), nFee, nTime, nHeight,
                            inChainValue, spendsCoinbase, sigOpCost, lp);
 }
 /*

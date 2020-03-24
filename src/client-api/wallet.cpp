@@ -470,7 +470,7 @@ UniValue StateBlock(UniValue& ret, std::string blockhash){
 
 UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     UniValue ret(UniValue::VOBJ);
@@ -486,7 +486,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
 {
     // encrypt's the wallet should be the wallet be unencrypted.
     // if already encrypted, it checks for a `newpassphrase` field, and updates the passphrase accordingly.
-    if (!EnsureWalletIsAvailable(fHelp))
+    if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -560,7 +560,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
 
 UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     if (pwalletMain->IsCrypted() && (data.size() != 0))
@@ -587,7 +587,7 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
 
 UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -622,7 +622,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 }
 
 UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);

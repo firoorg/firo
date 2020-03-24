@@ -132,6 +132,7 @@ BITCOIN_TESTS =\
   test/pmt_tests.cpp \
   test/prevector_tests.cpp \
   test/raii_event_tests.cpp \
+  test/random_tests.cpp \
   test/reverselock_tests.cpp \
   test/rpc_tests.cpp \
   test/sanity_tests.cpp \
@@ -234,6 +235,9 @@ if ENABLE_CLIENTAPI
 test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
+test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS)
+EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
+
 # test_bitcoin_fuzzy binary #
 test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
 test_test_bitcoin_fuzzy_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -254,6 +258,9 @@ test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 if ENABLE_CLIENTAPI
 test_test_bitcoin_fuzzy_LDADD += $(MINIZIP_LIBS)
 endif
+
+test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS)
+EXTRA_test_test_bitcoin_fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
 

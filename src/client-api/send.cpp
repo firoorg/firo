@@ -103,7 +103,7 @@ bool setTxFee(const UniValue& feeperkb){
 
 UniValue getNewAddress()
 {
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -252,7 +252,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     // first set the tx fee per kb, then return the total fee with addresses.   
-    if (!EnsureWalletIsAvailable(fHelp))
+    if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
 
     UniValue ret(UniValue::VOBJ);
@@ -401,7 +401,7 @@ UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, boo
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    if (!EnsureWalletIsAvailable(false))
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     UniValue paymentRequestUni(UniValue::VOBJ);

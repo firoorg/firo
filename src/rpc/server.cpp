@@ -174,11 +174,58 @@ vector<unsigned char> ParseHexO(const UniValue& o, string strKey)
     return ParseHexV(find_value(o, strKey), strKey);
 }
 
+int32_t ParseInt32V(const UniValue& v, const std::string &strName)
+{
+    std::string strNum = v.getValStr();
+    int32_t num;
+    if (!ParseInt32(strNum, &num))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 32bit integer (not '"+strNum+"')");
+    return num;
+}
+
+int64_t ParseInt64V(const UniValue& v, const std::string &strName)
+{
+    std::string strNum = v.getValStr();
+    int64_t num;
+    if (!ParseInt64(strNum, &num))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a 64bit integer (not '"+strNum+"')");
+    return num;
+}
+
+double ParseDoubleV(const UniValue& v, const std::string &strName)
+{
+    std::string strNum = v.getValStr();
+    double num;
+    if (!ParseDouble(strNum, &num))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be a be number (not '"+strNum+"')");
+    return num;
+}
+
+bool ParseBoolV(const UniValue& v, const std::string &strName)
+{
+    std::string strBool;
+    if (v.isBool())
+        return v.get_bool();
+    else if (v.isNum())
+        strBool = itostr(v.get_int());
+    else if (v.isStr())
+        strBool = v.get_str();
+
+    std::transform(strBool.begin(), strBool.end(), strBool.begin(), ::tolower);
+
+    if (strBool == "true" || strBool == "yes" || strBool == "1") {
+        return true;
+    } else if (strBool == "false" || strBool == "no" || strBool == "0") {
+        return false;
+    }
+    throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be true, false, yes, no, 1 or 0 (not '"+strBool+"')");
+}
+
 /**
  * Note: This interface may still be subject to change.
  */
 
-std::string CRPCTable::help(const std::string& strCommand) const
+std::string CRPCTable::help(const std::string& strCommand, const JSONRPCRequest& helpreq) const
 {
     string strRet;
     string category;
@@ -189,6 +236,10 @@ std::string CRPCTable::help(const std::string& strCommand) const
         vCommands.push_back(make_pair(mi->second->category + mi->first, mi->second));
     sort(vCommands.begin(), vCommands.end());
 
+    JSONRPCRequest jreq(helpreq);
+    jreq.fHelp = true;
+    jreq.params = UniValue();
+
     BOOST_FOREACH(const PAIRTYPE(string, const CRPCCommand*)& command, vCommands)
     {
         const CRPCCommand *pcmd = command.second;
@@ -198,10 +249,9 @@ std::string CRPCTable::help(const std::string& strCommand) const
             continue;
         if ((strCommand != "" || pcmd->category == "hidden") && strMethod != strCommand)
             continue;
+        jreq.strMethod = strMethod;
         try
         {
-            JSONRPCRequest jreq;
-            jreq.fHelp = true;
             rpcfn_type pfn = pcmd->actor;
             if (setDone.insert(pfn).second)
                 (*pfn)(jreq);
@@ -250,7 +300,7 @@ UniValue help(const JSONRPCRequest& jsonRequest)
     if (jsonRequest.params.size() > 0)
         strCommand = jsonRequest.params[0].get_str();
 
-    return tableRPC.help(strCommand);
+    return tableRPC.help(strCommand, jsonRequest);
 }
 
 

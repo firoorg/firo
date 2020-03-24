@@ -9,7 +9,7 @@
 #include "znode-payments.h"
 #include "znodeman.h"
 #include "protocol.h"
-#include "validationinterface.h"
+#include "netbase.h"
 
 // TODO: upgrade to new dash, remove this hack
 #define vNodes (g_connman->vNodes)
@@ -22,7 +22,7 @@ CActiveZnode activeZnode;
 
 void CActiveZnode::ManageState() {
     LogPrint("znode", "CActiveZnode::ManageState -- Start\n");
-    if (!fZNode) {
+    if (!fMasternodeMode) {
         LogPrint("znode", "CActiveZnode::ManageState -- Not a znode, returning\n");
         return;
     }
@@ -165,6 +165,15 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     bool fFoundLocal = false;
+    if(Params().NetworkIDString() == CBaseChainParams::REGTEST) {
+        std::string const & serv = GetArg("-externalip", "");
+        if(!serv.empty()) {
+            if (Lookup(serv.c_str(), service, 0, false))
+                fFoundLocal = true;
+        }
+
+    }
+    if(!fFoundLocal)
     {
         LOCK(cs_vNodes);
 

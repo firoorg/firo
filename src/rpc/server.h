@@ -157,7 +157,7 @@ private:
 public:
     CRPCTable();
     const CRPCCommand* operator[](const std::string& name) const;
-    std::string help(const std::string& name) const;
+    std::string help(const std::string& name, const JSONRPCRequest& helpreq) const;
 
     /**
      * Execute a method.
@@ -195,9 +195,18 @@ extern std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKe
 
 extern CAmount AmountFromValue(const UniValue& value);
 extern UniValue ValueFromAmount(const CAmount& amount);
-extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
 extern std::string HelpRequiringPassphrase();
 extern UniValue JSONRPCExecOne(const UniValue& req);
+
+extern int32_t ParseInt32V(const UniValue& v, const std::string &strName);
+extern int64_t ParseInt64V(const UniValue& v, const std::string &strName);
+extern double ParseDoubleV(const UniValue& v, const std::string &strName);
+extern bool ParseBoolV(const UniValue& v, const std::string &strName);
+
+extern CAmount AmountFromValue(const UniValue& value);
+extern UniValue ValueFromAmount(const CAmount& amount);
+extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
+
 extern std::string HelpExampleCli(const std::string& methodname, const std::string& args);
 extern std::string HelpExampleRpc(const std::string& methodname, const std::string& args);
 
@@ -213,8 +222,6 @@ extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
 extern UniValue znodebroadcast(const JSONRPCRequest &request);
 extern UniValue znsync(const JSONRPCRequest &request);
-
-extern void EnsureWalletIsUnlocked();
 
 bool StartRPC();
 void InterruptRPC();

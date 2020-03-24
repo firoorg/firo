@@ -732,6 +732,17 @@ void Misbehaving(NodeId pnode, int howmuch)
         LogPrintf("%s: %s peer=%d (%d -> %d)\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
 }
 
+// Requires cs_main.
+bool IsBanned(NodeId pnode)
+{
+    CNodeState *state = State(pnode);
+    if (state == NULL)
+        return false;
+    if (state->fShouldBan) {
+        return true;
+    }
+    return false;
+}
 
 
 
@@ -910,12 +921,11 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
                 recentRejects->reset();
             }
 
-            // Use pcoinsTip->HaveCoinsInCache as a quick approximation to exclude
-            // requesting or processing some txs which have already been included in a block
             return recentRejects->contains(inv.hash) ||
                    mempool.exists(inv.hash) ||
                    mapOrphanTransactions.count(inv.hash) ||
-                   pcoinsTip->HaveCoinsInCache(inv.hash);
+                   pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 0)) || // Best effort: only try output 0 and 1
+                   pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 1));
         }
     case MSG_BLOCK:
     case MSG_WITNESS_BLOCK:
@@ -946,12 +956,12 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return mapSporks.count(inv.hash);
 
     case MSG_ZNODE_PAYMENT_VOTE:
-        return mnpayments.mapZnodePaymentVotes.count(inv.hash);
+        return znpayments.mapZnodePaymentVotes.count(inv.hash);
 
     case MSG_ZNODE_PAYMENT_BLOCK:
     {
         BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-        return mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.find(mi->second->nHeight) != mnpayments.mapZnodeBlocks.end();
+        return mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.find(mi->second->nHeight) != znpayments.mapZnodeBlocks.end();
     }
 
     case MSG_ZNODE_ANNOUNCE:
@@ -1237,10 +1247,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
-                    if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
+                    if(znpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnpayments.mapZnodePaymentVotes[inv.hash];
+                        ss << znpayments.mapZnodePaymentVotes[inv.hash];
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
                         pushed = true;
                     }
@@ -1249,14 +1259,14 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                     LOCK(cs_mapZnodeBlocks);
-                    if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
-                        BOOST_FOREACH(CZnodePayee& payee, mnpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
+                    if (mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CZnodePayee& payee, znpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
-                                if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                if(znpayments.HasVerifiedPaymentVote(hash)) {
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
-                                    ss << mnpayments.mapZnodePaymentVotes[hash];
+                                    ss << znpayments.mapZnodePaymentVotes[hash];
                                     connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
                                 }
                             }
@@ -1996,7 +2006,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::deque<COutPoint> vWorkQueue;
         std::vector<uint256> vEraseQueue;
 
-        std::shared_ptr<const CTxLockRequest> ptxLockRequest;
+        CTxLockRequest txLockRequest;
         int nInvType = MSG_TX;
         CTransactionRef ptx;
 
@@ -2004,9 +2014,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (strCommand == NetMsgType::TX) {
             vRecv >> ptx;
         } else if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            vRecv >> ptxLockRequest;
-            ptx = MakeTransactionRef(*ptxLockRequest);
+            vRecv >> txLockRequest;
+            ptx = txLockRequest.tx;
             nInvType = MSG_TXLOCK_REQUEST;
+            /*if (llmq::IsNewInstantSendEnabled()) {
+                // the new system does not require explicit lock requests
+                // changing the inv type to MSG_TX also results in re-broadcasting the TX as normal TX
+                nInvType = MSG_TX;
+            }*/
         }
 
         const CTransaction& tx = *ptx;
@@ -2016,10 +2031,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            if (!instantsend.ProcessTxLockRequest(*ptxLockRequest)) {
+            /*if (!instantsend.ProcessTxLockRequest(*ptxLockRequest, g_connman)) {
                 LogPrint("instantsend", "TXLOCKREQUEST -- failed %s\n", ptxLockRequest->GetHash().ToString());
                 return false;
-            }
+            }*/
         }
 
         LOCK(cs_main);
@@ -2978,8 +2993,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             //probably one the extensions
             mnodeman.ProcessMessage(pfrom, command, vRecv);
-            mnpayments.ProcessMessage(pfrom, command, vRecv);
-            instantsend.ProcessMessage(pfrom, command, vRecv);
+            znpayments.ProcessMessage(pfrom, command, vRecv);
             sporkManager.ProcessSpork(pfrom, command, vRecv);
             znodeSync.ProcessMessage(pfrom, command, vRecv);
         } else {
@@ -3569,6 +3583,28 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     pto->filterInventoryKnown.insert(hash);
                 }
             }
+        }
+
+        // vInventoryToSend from dash
+        vector<CInv> vInvWait;
+        {
+            LOCK(pto->cs_inventory);
+            vInv.reserve(std::min<size_t>(1000, pto->vInventoryToSend.size()));
+            vInvWait.reserve(pto->vInventoryToSend.size());
+            BOOST_FOREACH(const CInv& inv, pto->vInventoryToSend)
+            {
+                pto->filterInventoryKnown.insert(inv.hash);
+
+                LogPrint("net", "SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
+                vInv.push_back(inv);
+                if (vInv.size() >= 1000)
+                {
+                    LogPrint("net", "SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
+                    connman.PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
+                    vInv.clear();
+                }
+            }
+            pto->vInventoryToSend = vInvWait;
         }
         
         if (!vInv.empty())

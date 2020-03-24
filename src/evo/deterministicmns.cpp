@@ -552,14 +552,15 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         uiInterface.NotifyMasternodeListChanged(newList);
     }
 
-    if (nHeight == consensusParams.DIP0003EnforcementHeight) {
+    // TODO: uncomment when DIP3 enforcement block hash is known
+    /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
         if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
             LogPrintf("CDeterministicMNManager::%s -- DIP3 enforcement block has wrong hash: hash=%s, expected=%s, nHeight=%d\n", __func__,
                     pindex->GetBlockHash().ToString(), consensusParams.DIP0003EnforcementHash.ToString(), nHeight);
             return _state.DoS(100, false, REJECT_INVALID, "bad-dip3-enf-block");
         }
         LogPrintf("CDeterministicMNManager::%s -- DIP3 is enforced now. nHeight=%d\n", __func__, nHeight);
-    }
+    }*/
 
     LOCK(cs);
     CleanupCache(nHeight);
@@ -636,7 +637,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         // this works on the previous block, so confirmation will happen one block after nMasternodeMinimumConfirmations
         // has been reached, but the block hash will then point to the block at nMasternodeMinimumConfirmations
         int nConfirmations = pindexPrev->nHeight - dmn->pdmnState->nRegisteredHeight;
-        if (nConfirmations >= Params().GetConsensus().nMasternodeMinimumConfirmations) {
+        if (nConfirmations >= Params().GetConsensus().nZnodeMinimumConfirmations) {
             CDeterministicMNState newState = *dmn->pdmnState;
             newState.UpdateConfirmedHash(dmn->proTxHash, pindexPrev->GetBlockHash());
             newList.UpdateMN(dmn->proTxHash, std::make_shared<CDeterministicMNState>(newState));

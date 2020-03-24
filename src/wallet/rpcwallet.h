@@ -11,15 +11,23 @@ extern int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
 class CRPCTable;
+class JSONRPCRequest;
 
 void RegisterWalletRPCCommands(CRPCTable &t);
 
-bool EnsureWalletIsAvailable(bool avoidException);
-
-void EnsureWalletIsUnlocked();
-
-CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false);
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew=false);
 
 vector<string> GetMyAccountNames();
+/**
+ * Figures out what wallet, if any, to use for a JSONRPCRequest.
+ *
+ * @param[in] request JSONRPCRequest that wishes to access a wallet
+ * @return NULL if no wallet should be used, or a pointer to the CWallet
+ */
+CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest&);
+
+std::string HelpRequiringPassphrase(CWallet *);
+void EnsureWalletIsUnlocked(CWallet *);
+bool EnsureWalletIsAvailable(CWallet *, bool avoidException);
 
 #endif //BITCOIN_WALLET_RPCWALLET_H
