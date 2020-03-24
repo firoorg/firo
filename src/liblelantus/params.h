@@ -3,6 +3,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <serialize.h>
+#include <sync.h>
 
 using namespace secp_primitives;
 
@@ -27,7 +28,9 @@ private:
 
 
 private:
-    static  std::unique_ptr<Params> instance;
+    static CCriticalSection cs_params;
+    static std::unique_ptr<Params> instance;
+
     //sigma params
     GroupElement g;
     std::vector<GroupElement> h_sigma;
