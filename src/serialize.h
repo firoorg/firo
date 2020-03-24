@@ -551,14 +551,14 @@ public:
     {
         vec.assign(size, false);
 
-        size_t last = -1;
+        int32_t last = -1;
         while(true) {
-            size_t offset = (size_t)ReadVarInt<Stream, uint32_t>(s);
+            uint32_t offset = ReadVarInt<Stream, uint32_t>(s);
             if (offset == 0) {
                 break;
             }
-            size_t idx = last + offset;
-            if (idx >= size) {
+            int32_t idx = last + offset;
+            if (idx >= (int32_t)size) {
                 throw std::ios_base::failure("out of bounds index");
             }
             if (last != -1 && idx <= last) {
