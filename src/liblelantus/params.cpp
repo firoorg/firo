@@ -2,14 +2,14 @@
 #include <iostream>
 namespace lelantus {
 
-    CCriticalSection Params::cs_params;
+    CCriticalSection Params::cs_instance;
     std::unique_ptr<Params> Params::instance;
 
 Params const* Params::get_default() {
     if (instance) {
         return instance.get();
     } else {
-        LOCK(cs_params);
+        LOCK(cs_instance);
         if (instance) {
             return instance.get();
         }

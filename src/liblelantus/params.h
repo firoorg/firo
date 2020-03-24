@@ -1,5 +1,6 @@
 #ifndef ZCOIN_LIBLELANTUS_PARAMS_H
 #define ZCOIN_LIBLELANTUS_PARAMS_H
+
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <serialize.h>
@@ -22,13 +23,11 @@ public:
     int get_sigma_m() const;
     int get_bulletproofs_n() const;
 
-
 private:
     Params(const GroupElement& g_sigma_, int n, int m, int n_rangeProof_, int max_m_rangeProof_);
 
-
 private:
-    static CCriticalSection cs_params;
+    static CCriticalSection cs_instance;
     static std::unique_ptr<Params> instance;
 
     //sigma params
@@ -36,6 +35,7 @@ private:
     std::vector<GroupElement> h_sigma;
     int n_sigma;
     int m_sigma;
+
     //bulletproof params
     int n_rangeProof;
     int max_m_rangeProof;
@@ -43,6 +43,6 @@ private:
     std::vector<GroupElement> h_rangeProof;
 };
 
-}//namespace lelantus
+} // namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_PARAMS_H
+#endif // ZCOIN_LIBLELANTUS_PARAMS_H
