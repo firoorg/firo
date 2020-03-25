@@ -12,6 +12,7 @@
 #include "base58.h"
 #include "client-api/send.h"
 #include "client-api/protocol.h"
+#include "wallet/coincontrol.h"
 #include <zerocoin.h>
 #include <sigma.h>
 #include <vector>
@@ -30,13 +31,11 @@ bool createSigmaMintAPITransaction(const UniValue& data,
                                    vector<CRecipient>& vecSend,
                                    vector<sigma::PrivateCoin>& privCoins,
                                    vector<CHDMint>& vHdMints){
-
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
         throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
-
     sigma::Params* sigmaParams = sigma::Params::get_default();
     if (zwalletMain) {
         zwalletMain->ResetCount(); // Reset count to original
@@ -141,11 +140,13 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     if (!sigma::IsSigmaAllowed()) {
         throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
-    LOCK2(cs_main, pwalletMain->cs_wallet);
     UniValue outputs(UniValue::VARR);
     outputs = find_value(data, "outputs").get_array();
     std::string label = find_value(data, "label").get_str();
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+
+    CCoinControl cc;
+    bool hasCoinControl = GetCoinControl(data, cc);
 
     std::set<CBitcoinAddress> setAddress;
     std::vector<CRecipient> vecSend;
@@ -191,7 +192,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
 
     try {
         // create transaction
-        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, NULL, fDummy);
+        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, hasCoinControl? (&cc):NULL, fDummy);
     }catch (const InsufficientFunds& e) {
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
     }
@@ -404,7 +405,7 @@ static const CAPICommand commands[] =
     { "sigma",              "mint",               &mint,                    true,      true,            false  },
     { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
     { "sigma",              "listMints",          &listmints,               true,      true,            false  },
-    { "sigma",              "mintTxFee",          &minttxfee,               true,      false,            false },
+    { "sigma",              "mintTxFee",          &minttxfee,               true,      false,           false  },
     { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  },
     { "sigma",              "mintStatus",         &mintstatus,              true,      false,           false  }
 };

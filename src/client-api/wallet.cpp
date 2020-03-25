@@ -12,12 +12,84 @@
 #include "client-api/send.h"
 #include "client-api/sigma.h"
 #include "client-api/protocol.h"
+#include "client-api/wallet.h"
+#include "wallet/coincontrol.h"
 #include "univalue.h"
+#include "wallet/bip39.h"
 #include <fstream>
+#include <boost/algorithm/string.hpp>
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
+std::map<COutPoint, bool> pendingLockCoins;
+
+bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
+    if (find_value(data, "coinControl").isNull()) return false;
+    UniValue uniValCC(UniValue::VOBJ);
+    uniValCC = find_value(data, "coinControl");
+    UniValue uniSelected(UniValue::VSTR);
+    uniSelected = find_value(uniValCC, "selected");
+
+    std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
+    if (selected.empty()) return false;
+
+    std::vector<string> selectedKeys;
+    boost::split(selectedKeys, selected, boost::is_any_of(":"));
+
+    for(size_t i = 0; i < selectedKeys.size(); i++) {
+        std::vector<string> splits;
+        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
+        if (splits.size() != 2) continue;
+
+        uint256 hash;
+        hash.SetHex(splits[0]);
+        UniValue idx(UniValue::VNUM);
+        idx.setNumStr(splits[1]);
+        COutPoint op(hash, idx.get_int());
+        cc.Select(op);
+    }
+    return true;
+}
+
+std::string ReadMnemonics() {
+    // add the base58check encoded extended master if the wallet uses HD
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    if(!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39)
+    {
+        if(mContainer.IsCrypted())
+        {
+            if(!pwalletMain->DecryptMnemonicContainer(mContainer))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt hd chain");
+        }
+
+        SecureString mnemonic;
+        //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+        if(mContainer.GetMnemonic(mnemonic))
+            return std::string(mnemonic.begin(), mnemonic.end()).c_str();;
+    }
+    return "";
+}
+
+bool doesWalletHaveMnemonics() {
+    MnemonicContainer mContainer = pwalletMain->GetMnemonicContainer();
+    const CHDChain& chain = pwalletMain->GetHDChain();
+    return (!mContainer.IsNull() && chain.nVersion >= CHDChain::VERSION_WITH_BIP39);
+}
+
+bool readShowMnemonicWarning() {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return false;
+    CWalletDB db(pwalletMain->strWalletFile);
+    return db.ReadShowMnemonicsWarning();
+}
+
+bool isMnemonicExist() {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return false;
+    return doesWalletHaveMnemonics();
+}
 
 void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
     auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
@@ -69,7 +141,7 @@ UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
 
 CAmount getLockUnspentAmount()
 {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(pwalletMain->cs_wallet);
 
     CTransactionRef tx;
     uint256 hashBlock;
@@ -153,8 +225,18 @@ UniValue setInitialTimestamp(string hash){
     TxTimestampOut << TxTimestampUni.write(4,0) << endl;
 
     return firstSeenAt;
+}
 
+void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry){
+    if (pwalletMain->IsSpent(outPoint.hash, outPoint.n) ||
+        (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) ||
+        wtx.GetDepthInMainChain() <= 0)
+        entry.push_back(Pair("spendable", false));
 
+    else{
+        entry.push_back(Pair("spendable", true));
+        entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n)));
+    }
 }
 
 UniValue getBlockHeight(const string strHash)
@@ -198,7 +280,7 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair(item.first, item.second));
 }
 
-void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter)
+void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs)
 {
     CAmount nFee;
     string strSentAccount;
@@ -207,11 +289,12 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     CBitcoinAddress addr;
     string addrStr;
 
-    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
+    wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
 
     // Sent
     if ((!listSent.empty() || nFee != 0))
     {
+
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {
             UniValue address(UniValue::VOBJ);         
@@ -228,21 +311,22 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             string category;
             string voutIndex = to_string(s.vout);
+
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
             
             // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
-            if(wtx.tx->vout[s.vout].scriptPubKey.IsZerocoinMint() ||
-               wtx.tx->vout[s.vout].scriptPubKey.IsSigmaMint()){
+            if(wtx.tx->vout[s.vout].scriptPubKey.IsSigmaMint()){
                 category = "mint";
                 addrStr = "MINT";
-                if(pwalletMain && wtx.tx->vout[s.vout].scriptPubKey.IsZerocoinMint()){
-                    bool isAvailable;
-                    if(!pwalletMain->IsMintFromTxOutAvailable(wtx.tx->vout[s.vout], isAvailable)){
-                        continue;
-                    }
-                    entry.push_back(Pair("available", isAvailable));
+                if(pwalletMain->IsSigmaMintFromTxOutAvailable(wtx.tx->vout[s.vout])){
+                    entry.push_back(Pair("available", true));
+                    COutPoint outPoint(wtx.GetHash(), s.vout);
+                    IsTxOutSpendable(wtx, outPoint, entry);
+                }else{
+                    entry.push_back(Pair("available", false));
                 }
             }
-            else if((wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend())){
+            else if((wtx.tx->IsSigmaSpend())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
@@ -326,6 +410,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string category;
             string voutIndex = to_string(r.vout);
 
+            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
+
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));
@@ -343,11 +429,10 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
                 }
             }
-            else if(wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend()){
+            else if(wtx.tx->IsSigmaSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
-            }
-            else {
+            } else {
                 category = "receive";
             }
             string categoryIndex = category + voutIndex;
@@ -356,6 +441,9 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
+
+            COutPoint outPoint(txid, r.vout);
+            IsTxOutSpendable(wtx, outPoint, entry);
 
             APIWalletTxToJSON(wtx, entry);
 
@@ -398,11 +486,72 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             ret.replace(addrStr, address);
         }
     }
+
+    if(getInputs && wtx.GetDepthInMainChain() >= 0){
+        UniValue listInputs(UniValue::VARR);
+        if (!find_value(ret, "inputs").isNull()) {
+            listInputs = find_value(ret, "inputs");
+        }
+        if (!wtx.tx->IsSigmaSpend()) {
+            BOOST_FOREACH(const CTxIn& in, wtx.tx->vin) {
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("txid", in.prevout.hash.ToString()));
+                entry.push_back(Pair("index", to_string(in.prevout.n)));
+                listInputs.push_back(entry);
+            }
+        }else {
+            COutPoint outpoint;
+            CMintMeta meta;
+            Scalar zcSpendSerial;
+            uint256 spentSerialHash;
+
+            BOOST_FOREACH(const CTxIn& in, wtx.tx->vin) {
+                UniValue entry(UniValue::VOBJ);
+
+                zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
+                spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
+
+                if(!zwalletMain->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
+                    continue;
+
+                if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
+                    continue;
+                entry.push_back(Pair("txid", outpoint.hash.ToString()));
+                entry.push_back(Pair("index", to_string(outpoint.n)));
+                listInputs.push_back(entry);
+            }
+        }
+        ret.replace("inputs", listInputs);
+    }
+
+    //update locked and unlocked coins
+    if (pendingLockCoins.size() > 0) {
+        UniValue lockedList(UniValue::VARR);
+        UniValue unlockedList(UniValue::VARR);
+        for(std::map<COutPoint, bool>::const_iterator it = pendingLockCoins.begin(); it != pendingLockCoins.end(); it++) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("txid", it->first.hash.ToString()));
+            entry.push_back(Pair("index", to_string(it->first.n)));
+            if (it->second) {
+                //locked = true
+                lockedList.push_back(entry);
+            } else {
+                //locked = false
+                unlockedList.push_back(entry);
+            }
+        }     
+
+        pendingLockCoins.clear();
+        if (lockedList.getValues().size() > 0) {
+            ret.push_back(Pair("lockedCoins", lockedList));
+        }
+        if (unlockedList.getValues().size() > 0) {
+            ret.push_back(Pair("unlockedCoins", unlockedList));
+        }
+    }
 }
 
 UniValue StateSinceBlock(UniValue& ret, std::string block){
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -417,23 +566,19 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
 
     UniValue transactions(UniValue::VOBJ);
-
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
     {
         CWalletTx tx = (*it).second;
 
         if (depth == -1 || tx.GetDepthInMainChain() <= depth)
-            ListAPITransactions(tx, transactions, filter);
+            ListAPITransactions(tx, transactions, filter, true);
     }
 
     ret.push_back(Pair("addresses", transactions));
-
     return ret;
 }
 
 UniValue StateBlock(UniValue& ret, std::string blockhash){
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
     isminefilter filter = ISMINE_SPENDABLE;
@@ -459,7 +604,7 @@ UniValue StateBlock(UniValue& ret, std::string blockhash){
     {
         const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
         if(wtx){
-            ListAPITransactions(*(wtx), transactions, filter);
+            ListAPITransactions(*(wtx), transactions, filter, true);
         }
     }
 
@@ -488,8 +633,6 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
     // if already encrypted, it checks for a `newpassphrase` field, and updates the passphrase accordingly.
     if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     if (fHelp)
         return true;
@@ -571,8 +714,6 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
             "before being able to call any methods which require the wallet to be unlocked.\n"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but lockwallet was called.");
 
@@ -589,8 +730,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     if (!pwalletMain->IsCrypted())
         throw JSONAPIError(API_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but unlockwallet was called.");
@@ -624,8 +763,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
@@ -671,15 +808,219 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     return balanceObj;
 }
 
+void parseCoins(const std::string input, std::vector<COutPoint>& output) 
+{
+    std::vector<string> selectedKeys;
+    boost::split(selectedKeys, input, boost::is_any_of(":"));
+
+    for(size_t i = 0; i < selectedKeys.size(); i++) {
+        std::vector<string> splits;
+        boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
+        if (splits.size() != 2) continue;
+
+        uint256 hash;
+        hash.SetHex(splits[0]);
+        UniValue idx(UniValue::VNUM);
+        idx.setNumStr(splits[1]);
+        COutPoint op(hash, idx.get_int());
+        output.push_back(op);
+    }
+}
+
+UniValue lockcoins(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    //Reading locked list
+    LOCK(pwalletMain->cs_wallet);
+    std::vector<COutPoint> lockedList, unlockedList;
+    UniValue uniLocked(UniValue::VSTR);
+    UniValue uniUnLocked(UniValue::VSTR);
+    if (!find_value(data, "lockedCoins").isNull()) {
+        uniLocked = find_value(data, "lockedCoins");
+    }
+    if (!find_value(data, "unlockedCoins").isNull()) {
+        uniUnLocked = find_value(data, "unlockedCoins");
+    }
+    std::string locked = boost::algorithm::trim_copy(uniLocked.getValStr());
+    std::string unlocked = boost::algorithm::trim_copy(uniUnLocked.getValStr());
+
+    parseCoins(locked, lockedList);
+    parseCoins(unlocked, unlockedList);
+    for(const COutPoint l: lockedList) {
+        pwalletMain->LockCoin(l);
+        pendingLockCoins[l] = true;
+    }
+    LogPrintf("locking coins\n");
+
+    for(const COutPoint l: unlockedList) {
+        pwalletMain->UnlockCoin(l);
+        pendingLockCoins[l] = false;
+    }
+    return true;
+}
+
+UniValue showmnemonics(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    // add the base58check encoded extended master if the wallet uses HD
+    std::string memonics = ReadMnemonics();
+    return memonics;
+}
+
+UniValue writeshowmnemonicwarning(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    CWalletDB db(pwalletMain->strWalletFile);
+    UniValue temp(UniValue::VBOOL, data.getValStr());
+    bool shouldShow = temp.get_bool();
+    db.WriteShowMnemonicsWarning(shouldShow);
+    return true;
+}
+
+UniValue readwalletmnemonicwarningstate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("hasMnemonic", isMnemonicExist()));
+    ret.push_back(Pair("shouldShowWarning", readShowMnemonicWarning()));
+    LogPrintf("%s\n", __func__);
+    return ret;
+}
+
+bool isMnemonicValid(std::string mnemonic, std::string& failReason) {
+    const char* str = mnemonic.c_str();
+    bool space = true;
+    int n = 0;
+
+    while (*str != '\0')
+    {
+        if (std::isspace(*str))
+        {
+            space = true;
+        }
+        else if (space)
+        {
+            n++;
+            space = false;
+        }
+        ++str;
+    }
+
+    if(n != 24) {
+        failReason = "Wrong number of words. Please try again.";
+        return false;
+    }
+
+    if(mnemonic.empty()) {
+        failReason = "Mnemonic can't be empty.";
+        return false;
+    }
+
+    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
+    return Mnemonic::mnemonic_check(secmnemonic);
+}
+
+UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (find_value(data, "mnemonic").isNull()){
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string mnemonic = find_value(data, "mnemonic").getValStr();
+    boost::trim(mnemonic);
+    std::string failReason = "Invalid mnemonic recovery phrase";
+    bool result = isMnemonicValid(mnemonic, failReason);
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("valid", result));
+    if(!result)
+        ret.push_back(Pair("reason", failReason));
+    return ret;
+}
+
+UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    UniValue addressBook(UniValue::VARR);
+    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
+        CBitcoinAddress addr;
+        if (addr.Set(it->first)) 
+        {
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("address", addr.ToString()));
+            item.push_back(Pair("label", it->second.name));
+            item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
+            addressBook.push_back(item);
+        }
+    }
+    return addressBook;
+}
+
+UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
+    if (find_value(data, "action").isNull()) 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string action = find_value(data, "action").getValStr();
+    if (action != "add" && action != "edit" && action != "delete") 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    if (find_value(data, "address").isNull()) 
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string address = find_value(data, "address").getValStr();
+
+    CTxDestination inputAddress = CBitcoinAddress(address).Get();
+    // Refuse to set invalid address, set error status and return false
+    if(boost::get<CNoDestination>(&inputAddress)) 
+    {
+       throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+
+    if (action != "delete") 
+    {
+        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) 
+        {
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+        }
+        if (action == "add") 
+        {
+            pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+        } 
+        else {
+            if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+            }
+            std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
+            CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
+            if(boost::get<CNoDestination>(&updatedAddress)) 
+            {
+                throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
+            }
+            pwalletMain->DelAddressBook(inputAddress);
+            pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
+        }
+    } else {
+        pwalletMain->DelAddressBook(inputAddress);
+    }
+    return true;
+}
+
 static const CAPICommand commands[] =
-{ //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
-  //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "wallet",             "lockWallet",      &lockwallet,              true,      false,           false  },
-    { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
-    { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
-    { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
-    { "wallet",             "balance",         &balance,                 true,      false,           false  }
-    
+{ //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
+  //  --------------------- ------------                      ----------------                 --------   --------------   --------
+    { "wallet",             "lockWallet",                     &lockwallet,                     true,      false,           false  },
+    { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
+    { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
+    { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
+    { "wallet",             "balance",                        &balance,                        true,      false,           false  },
+    { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },
+    { "wallet",             "writeShowMnemonicWarning",       &writeshowmnemonicwarning,       true,      false,           false  },
+    { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },
+    { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
+    { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
+    { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
+    { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

@@ -6,6 +6,13 @@ You must first pass the `--enable-clientapi` flag to  `configure` when building.
 Following that, to run with API enabled:
     - start `zcoind` with `clientapi=1` flag, either by passing via CLI or by putting into `zcoin.conf`.
 
+### Locations of paths to data directories for each OS
+```
+Windows (Registry): \Software\Zcoin\Zcoin_Client\Settings
+Linux: $HOME/.config/zcoin-client/zcoin-client.conf
+Mac: ~/Library/Preferences/io.Zcoin-Client.plist
+```
+
 ### Architecture 
 
 `src/clientapi` and `src/zmqserver` contains the main body of code for the project.

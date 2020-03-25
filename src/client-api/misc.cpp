@@ -8,6 +8,7 @@
 #include "util.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
+#include "client-api/wallet.h"
 #include "rpc/server.h"
 #include "rpc/client.h"
 #include "znode-sync.h"
@@ -157,6 +158,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         if(nWalletUnlockTime>0){
             obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
         }
+        obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
+        CWalletDB db(pwalletMain->strWalletFile);
+        obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
 
     UniValue znode(UniValue::VOBJ);
@@ -171,6 +175,8 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("connections",   (int)g_connman->vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
+    obj.push_back(Pair("rescanning",    fRescanning));
+    obj.push_back(Pair("walletinitialized",    fWalletInitialized));
     obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
 

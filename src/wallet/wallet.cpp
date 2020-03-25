@@ -65,6 +65,8 @@ unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
 bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 bool fWalletRbf = DEFAULT_WALLET_RBF;
+bool fRescanning = false;
+bool fWalletInitialized = false;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
 
@@ -1908,9 +1910,10 @@ int CWalletTx::GetRequestCount() const
     return nRequests;
 }
 
-void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
-                           list<COutputEntry>& listSent, CAmount& nFee, string& strSentAccount, const isminefilter& filter) const
-{
+
+void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
+                           list <COutputEntry> &listSent, CAmount &nFee, string &strSentAccount,
+                           const isminefilter &filter, bool ignoreChange) const {
     nFee = 0;
     listReceived.clear();
     listSent.clear();
@@ -1930,19 +1933,19 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
     }
 
     // Sent/received.
-    for (unsigned int i = 0; i < tx->vout.size(); ++i)
-    {
-        const CTxOut& txout = tx->vout[i];
+    for (unsigned int i = 0; i < tx->vout.size(); ++i) {
+        const CTxOut &txout = tx->vout[i];
         isminetype fIsMine = pwallet->IsMine(txout);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
 
-        if(!tx->IsZerocoinSpend() || !tx->IsSigmaSpend()){
+        if(!tx->IsSigmaSpend()){
             if (nDebit > 0) {
                 // Don't report 'change' txouts
-                if (IsChange(static_cast<uint32_t>(i)))
+                if (ignoreChange && IsChange(static_cast<uint32_t>(i))) {
                     continue;
+                }
             } else if (!(fIsMine & filter)){
                 continue;
             }
@@ -1951,23 +1954,74 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint())
-        {
+        if (txout.scriptPubKey.IsSigmaMint()) {
             address = CNoDestination();
-        }
-        else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable())
-        {
+        } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
             LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
-                     this->GetHash().ToString());
+                      this->GetHash().ToString());
             address = CNoDestination();
         }
 
-        COutputEntry output = {address, txout.nValue, (int)i};
+        COutputEntry output = {address, txout.nValue, (int) i};
 
         /// If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0 || ((tx->IsZerocoinSpend() || tx->IsSigmaSpend()) && fromMe)){
+        if (nDebit > 0 || (tx->IsSigmaSpend() && fromMe)){
             listSent.push_back(output);
         }
+
+        // If we are receiving the output, add it as a "received" entry
+        if (fIsMine & filter)
+            listReceived.push_back(output);
+    }
+
+}
+
+void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
+                           list <COutputEntry> &listSent, CAmount &nFee, string &strSentAccount,
+                           const isminefilter &filter) const {
+    nFee = 0;
+    listReceived.clear();
+    listSent.clear();
+    strSentAccount = strFromAccount;
+
+    // Compute fee:
+    CAmount nDebit = GetDebit(filter);
+    if (nDebit > 0) // debit>0 means we signed/sent this transaction
+    {
+        CAmount nValueOut = tx->GetValueOut();
+        nFee = nDebit - nValueOut;
+    }
+
+    // Sent/received.
+    for (unsigned int i = 0; i < tx->vout.size(); ++i) {
+        const CTxOut &txout = tx->vout[i];
+        isminetype fIsMine = pwallet->IsMine(txout);
+        // Only need to handle txouts if AT LEAST one of these is true:
+        //   1) they debit from us (sent)
+        //   2) the output is to us (received)
+        if (nDebit > 0) {
+            // Don't report 'change' txouts
+            if (IsChange(static_cast<uint32_t>(i)))
+                continue;
+        } else if (!(fIsMine & filter))
+            continue;
+
+        // In either case, we need to get the destination address
+        CTxDestination address;
+
+        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()) {
+            address = CNoDestination();
+        } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
+            LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
+                      this->GetHash().ToString());
+            address = CNoDestination();
+        }
+
+        COutputEntry output = {address, txout.nValue, (int) i};
+
+        // If we are debited by the transaction, add the output as a "sent" entry
+        if (nDebit > 0)
+            listSent.push_back(output);
 
         // If we are receiving the output, add it as a "received" entry
         if (fIsMine & filter)
@@ -2025,6 +2079,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
     CBlockIndex* ret = nullptr;
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
+    fRescanning = true;
 
     CBlockIndex* pindex = pindexStart;
     {
@@ -2068,6 +2123,8 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         }
         ShowProgress(_("Rescanning..."), 100); // hide progress dialog in GUI
     }
+
+    fRescanning = false;
     return ret;
 }
 
@@ -3063,6 +3120,34 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 
     pubKeyRet = keyRet.GetPubKey();
     return true;
+}
+
+// available implies a mature or unspent mint.
+bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsSigmaMint())
+        throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
+
+    if (!zwalletMain)
+        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    std::vector <CMintMeta> listMints;
+    listMints = zwalletMain->GetTracker().ListMints(true, true, false);
+    GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint))
+            continue;
+
+        if(pubCoinValue == dMint.GetPubcoinValue())
+            return true;
+    }
+
+    return false;
 }
 
 bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
@@ -7434,7 +7519,6 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 {
     {
         LOCK(cs_wallet);
-
         if (IsLocked())
             return false;
 
@@ -8117,7 +8201,8 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->SetMaxVersion(nMaxVersion);
     }
 
-    if (fFirstRun)
+    fRecoverMnemonic = GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC);
+    if (fFirstRun) 
     {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
@@ -8128,11 +8213,12 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
                 // generate a new HD chain
                 walletInstance->GenerateNewMnemonic();
                 walletInstance->SetMinVersion(FEATURE_HD);
-                /* set rescan to true.
+                /* set rescan to true (if not using rich GUI: in that case, the GUI will pass the rescan flag itself).
                  * if blockchain data is not present it has no effect, but it's needed for a mnemonic restore where chain data is present.
                  */
-                SoftSetBoolArg("-rescan", true);
-                fRecoverMnemonic = true;
+                if(!fApi){
+                    SoftSetBoolArg("-rescan", true);
+                }
             }else{
             // generate a new master key
             CPubKey masterPubKey = walletInstance->GenerateNewHDMasterKey();
@@ -8321,6 +8407,7 @@ bool CWallet::InitLoadWallet()
         return false;
     }
     pwalletMain = pwallet;
+    fWalletInitialized = true;
 
     return true;
 }
