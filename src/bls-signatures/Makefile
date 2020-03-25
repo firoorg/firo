@@ -6,6 +6,7 @@ build/libchiabls.a:
 
 .PHONY distdir: 
 	cp -r $(srcdir). $(distdir)
+	rm -rf $(distdir)/build/
 
 clean: 
 	$(MAKE) -C ./build/ clean
