@@ -3,10 +3,21 @@
 
 #include "../../test/test_bitcoin.h"
 
+#include "../lelantus_primitives.h"
+
+#include <secp256k1/include/MultiExponent.h>
+
 namespace lelantus {
 
 class LelantusTestingSetup {
+protected:
+    typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
+
 public:
+    GroupElement ComputeMultiExponent(std::vector<GroupElement> const &gs, std::vector<Scalar> const &s) const {
+        return secp_primitives::MultiExponent(gs, s).get_multiple();
+    }
+
     template<class Output>
     void GenerateGroupElements(size_t size, Output output) const {
 
