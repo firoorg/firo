@@ -122,13 +122,14 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
     // verify with fake P
     GroupElement fakeP;
     fakeP.randomize();
-    ProofVerifier invVerifier(gens_g, gens_h, u, fakeP);
 
-    BOOST_CHECK(!invVerifier.verify(x, proof));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof));
+    // BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof));
 
     // verify with fake proof
     auto verify = [&](Scalar const &_x, Proof const &_p) -> void {
         BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p));
+        // BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p));
     };
 
     auto fakeProof = proof;
