@@ -1,6 +1,6 @@
 #include "lelantus_test_fixture.h"
 
-#include "../challange_generator.h"
+#include "../challenge_generator.h"
 
 #include <GroupElement.h>
 #include <Scalar.h>
