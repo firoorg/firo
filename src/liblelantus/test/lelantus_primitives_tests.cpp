@@ -156,10 +156,19 @@ BOOST_AUTO_TEST_CASE(generate_lelantus_challange)
         out.GetHex());
 }
 
-// TODO(panu): implement a test for `new_factor`
-// BOOST_AUTO_TEST_CASE(new_factor)
-// {
-// }
+BOOST_AUTO_TEST_CASE(new_factor)
+{
+    std::vector<Scalar> coefs = {6, 5, 4, 3, 2, 1};
+    Scalar x = 2, a = 4;
+
+    std::vector<Scalar> expected = {24, 32, 26, 20, 14, 8, 2};
+
+    Primitives::new_factor(x, a, coefs);
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        expected.begin(), expected.end(),
+        coefs.begin(), coefs.end());
+}
 
 BOOST_AUTO_TEST_CASE(commit_two_generators)
 {
