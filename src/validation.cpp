@@ -1927,7 +1927,7 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
-enum DisconnectResult
+enum struct DisconnectResult
 {
     DISCONNECT_OK,      // All good.
     DISCONNECT_UNCLEAN, // Rolled back, but UTXO set was inconsistent with block.
@@ -1941,7 +1941,7 @@ enum DisconnectResult
  * @param out The out point that corresponds to the tx input.
  * @return A DisconnectResult as an int
  */
-int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
+DisconnectResult ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
 {
     bool fClean = true;
 
@@ -1956,12 +1956,12 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
             undo.nHeight = alternate.nHeight;
             undo.fCoinBase = alternate.fCoinBase;
         } else {
-            return DISCONNECT_FAILED; // adding output for transaction without known metadata
+            return DisconnectResult::DISCONNECT_FAILED; // adding output for transaction without known metadata
         }
     }
     view.AddCoin(out, std::move(undo), undo.fCoinBase);
 
-    return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
+    return fClean ? DisconnectResult::DISCONNECT_OK : DisconnectResult::DISCONNECT_UNCLEAN;
 }
 
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
@@ -1988,16 +1988,16 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     CDiskBlockPos pos = pindex->GetUndoPos();
     if (pos.IsNull()) {
         error("DisconnectBlock(): no undo data available");
-        return DISCONNECT_FAILED;
+        return DisconnectResult::DISCONNECT_FAILED;
     }
     if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash())) {
         error("DisconnectBlock(): failure reading undo data");
-        return DISCONNECT_FAILED;
+        return DisconnectResult::DISCONNECT_FAILED;
     }
 
     if (blockUndo.vtxundo.size() + 1 != block.vtx.size()) {
         error("DisconnectBlock(): block and undo data inconsistent");
-        return DISCONNECT_FAILED;
+        return DisconnectResult::DISCONNECT_FAILED;
     }
 
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
@@ -2029,13 +2029,13 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             CTxUndo &txundo = blockUndo.vtxundo[i-1];
             if (txundo.vprevout.size() != tx.vin.size()) {
                 error("DisconnectBlock(): transaction and undo data inconsistent");
-                return DISCONNECT_FAILED;
+                return DisconnectResult::DISCONNECT_FAILED;
             }
             for (unsigned int j = tx.vin.size(); j-- > 0;) {
                 const COutPoint &out = tx.vin[j].prevout;
-                int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
-                if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
-                fClean = fClean && res != DISCONNECT_UNCLEAN;
+                DisconnectResult res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+                if (res == DisconnectResult::DISCONNECT_FAILED) return DisconnectResult::DISCONNECT_FAILED;
+                fClean = fClean && res != DisconnectResult::DISCONNECT_UNCLEAN;
             }
             // At this point, all of txundo.vprevout should have been moved out.
         }
@@ -2057,17 +2057,17 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             if (!pblocktree->EraseAddressIndex(dbIndexHelper.getAddressIndex())) {
                 AbortNode(state, "Failed to delete address index");
                 error("Failed to delete address index");
-                return DISCONNECT_FAILED;
+                return DisconnectResult::DISCONNECT_FAILED;
             }
             if (!pblocktree->UpdateAddressUnspentIndex(dbIndexHelper.getAddressUnspentIndex())) {
                 AbortNode(state, "Failed to write address unspent index");
                 error("Failed to write address unspent index");
-                return DISCONNECT_FAILED;
+                return DisconnectResult::DISCONNECT_FAILED;
             }
             if (!pblocktree->AddTotalSupply(-(block.vtx[0]->GetValueOut() - nFees))) {
                 AbortNode(state, "Failed to write total supply");
                 error("Failed to write total supply");
-                return DISCONNECT_FAILED;
+                return DisconnectResult::DISCONNECT_FAILED;
             }
         }
     }
@@ -2075,7 +2075,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     if (pfClean)
         *pfClean = fClean;
 
-    return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
+    return fClean ? DisconnectResult::DISCONNECT_OK : DisconnectResult::DISCONNECT_UNCLEAN;
 }
 
 void static FlushBlockFile(bool fFinalize = false)
@@ -2785,7 +2785,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     int64_t nStart = GetTimeMicros();
     {
         CCoinsViewCache view(pcoinsTip);
-        if (!DisconnectBlock(block, state, pindexDelete, view))
+        if (DisconnectBlock(block, state, pindexDelete, view) != DisconnectResult::DISCONNECT_OK)
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
         bool flushed = view.Flush();
         assert(flushed);
@@ -4573,7 +4573,6 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     LOCK(cs_main);
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
-
     // Verify blocks in the best chain
     if (nCheckDepth <= 0)
         nCheckDepth = 1000000000; // suffices until the year 19000
@@ -4583,6 +4582,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     LogPrintf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CCoinsViewCache coins(coinsview);
     CBlockIndex* pindexState = chainActive.Tip();
+
     CBlockIndex* pindexFailure = NULL;
     int nGoodTransactions = 0;
     CValidationState state;
@@ -4626,11 +4626,11 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
         if (nCheckLevel >= 3 && pindex == pindexState && (coins.DynamicMemoryUsage() + pcoinsTip->DynamicMemoryUsage()) <= nCoinCacheUsage) {
             DisconnectResult res = DisconnectBlock(block, state, pindex, coins);
-            if (res == DISCONNECT_FAILED) {
+            if (res == DisconnectResult::DISCONNECT_FAILED) {
                 return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             }
             pindexState = pindex->pprev;
-            if (res == DISCONNECT_UNCLEAN) {
+            if (res == DisconnectResult::DISCONNECT_UNCLEAN) {
                 nGoodTransactions = 0;
                 pindexFailure = pindex;
             } else {

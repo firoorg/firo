@@ -15,5 +15,5 @@ clean:
 distclean:
 	rm -rf ./build/
 
-.PHONY check: all
+check: all
 	./build/src/runtest
