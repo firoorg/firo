@@ -24,9 +24,6 @@ private:
     bool verify_sigma(
             const std::vector<std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<Scalar>>& Sin,
-            const Scalar& Vin,
-            const Scalar& Vout,
-            const Scalar f,
             const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
             Scalar& x,
             Scalar& zV,

@@ -68,7 +68,8 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     x_j.resize(log_n);
     for (std::size_t i = 0; i < log_n; ++i)
     {
-        LelantusPrimitives<Exponent, GroupElement>::get_x(proof.L_[i], proof.R_[i], x_j[i]);
+        std::vector<GroupElement> group_elements = {proof.L_[i], proof.R_[i]};
+        LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x_j[i]);
     }
     std::vector<Exponent> s, s_inv;
     s.resize(n);
@@ -98,9 +99,8 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     left += g * proof.a_ +  h * proof.b_ + u_ * (proof.a_ * proof.b_);
     GroupElement right = P_;
     GroupElement multi;
-    Exponent two(uint64_t(2));
     for (std::size_t j = 0; j < log_n; ++j)
-        multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].exponent(two).inverse()));
+        multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].square().inverse()));
     right += multi;
     if(left != right)
         return false;

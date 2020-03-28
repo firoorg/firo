@@ -14,7 +14,7 @@ bool LelantusVerifier::verify(
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
     Scalar x, zV, zR;
-    if(!(verify_sigma(anonymity_sets, Sin, Vin, Vout, f, proof.sigma_proofs, x, zV, zR) &&
+    if(!(verify_sigma(anonymity_sets, Sin, proof.sigma_proofs, x, zV, zR) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;
@@ -24,9 +24,6 @@ bool LelantusVerifier::verify(
 bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<Scalar>>& Sin,
-        const Scalar& Vin,
-        const Scalar& Vout,
-        const Scalar f,
         const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
         Scalar& x,
         Scalar& zV,
@@ -44,11 +41,12 @@ bool LelantusVerifier::verify_sigma(
     for(std::size_t k = 0; k < Sin.size(); k++) {
 
         std::vector<GroupElement> C_;
+        C_.reserve(anonymity_sets[k].size());
+        for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
+            C_.emplace_back(anonymity_sets[k][j].getValue());
+
         std::vector<SigmaPlusProof<Scalar, GroupElement>> sigma_proofs_k;
         for (std::size_t i = 0; i < Sin[k].size(); ++i, ++t) {
-            C_.reserve(anonymity_sets[k].size());
-            for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
-                C_.emplace_back(anonymity_sets[k][j].getValue());
             zV += sigma_proofs[t].zV_;
             zR += sigma_proofs[t].zR_;
             sigma_proofs_k.emplace_back(sigma_proofs[t]);

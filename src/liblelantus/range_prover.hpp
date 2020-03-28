@@ -142,14 +142,14 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         y_i_inv *= y_inv;
     }
 
-    InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime, g);
+    InnerProductProofGenerator<Exponent, GroupElement> InnerProductProofGenerator(g_, h_prime, g);
     //t^ is calculated inside inner product proof generation with name c
     Exponent x_u;
     group_elements2.emplace_back(proof_out.T1);
     group_elements2.emplace_back(proof_out.T2);
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
 
-    innerProductProoveGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
+    InnerProductProofGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
 
 }
 

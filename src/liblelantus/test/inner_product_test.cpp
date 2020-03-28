@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     secp_primitives::Scalar x;
     x.randomize();
     //    //creating proof genertor
-    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g , gens_h, u_);
+    lelantus::InnerProductProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g , gens_h, u_);
 
     //////    //generating proof
     lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(fake_proof_notVerify)
     secp_primitives::Scalar x;
     x.randomize();
     //    //creating proof genertor
-    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g, gens_h, u_);
+    lelantus::InnerProductProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g, gens_h, u_);
 
     //////    //generating proof
     lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;

@@ -3,7 +3,7 @@
 namespace lelantus {
 
 template <class Exponent, class GroupElement>
-InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator(
+InnerProductProofGenerator<Exponent, GroupElement>::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u)
@@ -14,7 +14,7 @@ InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator
 }
 
 template <class Exponent, class GroupElement>
-InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator(
+InnerProductProofGenerator<Exponent, GroupElement>::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u,
@@ -27,7 +27,7 @@ InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator
 }
 
 template <class Exponent, class GroupElement>
-void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof(
+void InnerProductProofGenerator<Exponent, GroupElement>::generate_proof(
         const std::vector<Exponent>& a,
         const std::vector<Exponent>& b,
         const Exponent& x,
@@ -41,7 +41,7 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof(
 }
 
 template <class Exponent, class GroupElement>
-void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
+void InnerProductProofGenerator<Exponent, GroupElement>::generate_proof_util(
         const std::vector<Exponent>& a,
         const std::vector<Exponent>& b,
         InnerProductProof<Exponent, GroupElement>& proof_out) {
@@ -89,11 +89,11 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
     GroupElement p_p = LelantusPrimitives<Exponent, GroupElement>::p_prime(P_, L, R, x);
 
     // Recursive call of protocol 2
-    InnerProductProoveGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
+    InnerProductProofGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
 }
 
 template <class Exponent, class GroupElement>
-void InnerProductProoveGenerator<Exponent, GroupElement>::compute_P(
+void InnerProductProofGenerator<Exponent, GroupElement>::compute_P(
         const std::vector<Exponent>& a,
         const std::vector<Exponent>& b,
         GroupElement& result_out) {
@@ -106,7 +106,7 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::compute_P(
 }
 
 template <class Exponent, class GroupElement>
-void InnerProductProoveGenerator<Exponent, GroupElement>::l(
+void InnerProductProofGenerator<Exponent, GroupElement>::l(
         typename std::vector<Exponent>::const_iterator a_start,
         typename std::vector<Exponent>::const_iterator a_end,
         typename std::vector<Exponent>::const_iterator b_start,
@@ -130,7 +130,7 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::l(
 }
 
 template <class Exponent, class GroupElement>
-void InnerProductProoveGenerator<Exponent, GroupElement>::r(
+void InnerProductProofGenerator<Exponent, GroupElement>::r(
         typename std::vector<Exponent>::const_iterator a_start,
         typename std::vector<Exponent>::const_iterator a_end,
         typename std::vector<Exponent>::const_iterator b_start,
@@ -155,7 +155,7 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
 
 
 template <class Exponent, class GroupElement>
-std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_prime(
+std::vector<Exponent> InnerProductProofGenerator<Exponent, GroupElement>::a_prime(
         const Exponent& x,
         const std::vector<Exponent>& a){
     Exponent x_inverse  = x.inverse();
@@ -169,7 +169,7 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_pri
 }
 
 template <class Exponent, class GroupElement>
-std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::b_prime(
+std::vector<Exponent> InnerProductProofGenerator<Exponent, GroupElement>::b_prime(
         const Exponent& x,
         const std::vector<Exponent>& b) {
     Exponent x_inverse  = x.inverse();
@@ -183,7 +183,7 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::b_pri
 }
 
 template <class Exponent, class GroupElement>
-const GroupElement& InnerProductProoveGenerator<Exponent, GroupElement>::get_P() {
+const GroupElement& InnerProductProofGenerator<Exponent, GroupElement>::get_P() {
     return P_initial;
 }
 } // namespace lelantus
