@@ -262,14 +262,17 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
         const SigmaPlusProof<Exponent, GroupElement>& proof,
         const Exponent& x,
         const std::vector<Exponent>& f_) const {
+    Exponent c;
+    c.randomize();
+
     std::vector<Exponent> f_plus_f_prime;
     f_plus_f_prime.reserve(f_.size());
     for(std::size_t i = 0; i < f_.size(); i++)
-        f_plus_f_prime.emplace_back(f_[i] + f_[i] * (x - f_[i]));
+        f_plus_f_prime.emplace_back(f_[i] * c + f_[i] * (x - f_[i]));
 
     GroupElement right;
-    LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, f_plus_f_prime, proof.ZA_ + proof.ZC_, right);
-    if((proof.B_ * x + proof.A_ + proof.C_ * x + proof.D_) != right)
+    LelantusPrimitives<Exponent, GroupElement>::commit(g_, h_, f_plus_f_prime, proof.ZA_ * c + proof.ZC_, right);
+    if(((proof.B_ * x + proof.A_) * c + proof.C_ * x + proof.D_) != right)
         return false;
     return true;
 }
