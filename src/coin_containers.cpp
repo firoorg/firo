@@ -45,7 +45,6 @@ CSpendCoinInfo CSpendCoinInfo::make(CoinDenomination denomination,  int coinGrou
 
 } // namespace sigma
 
-
 namespace lelantus {
 
 std::size_t CPublicCoinHash::operator ()(const lelantus::PublicCoin& coin) const noexcept {
@@ -62,6 +61,5 @@ CMintedCoinInfo CMintedCoinInfo::make(int coinGroupId, int nHeight) {
     coinInfo.nHeight = nHeight;
     return coinInfo;
 }
-
 
 } //namespace lelantus

@@ -1,12 +1,12 @@
 #include "zerocoin.h"
 
 
-GroupElement const & CMintMeta::GetPubCoinValue() const {
+GroupElement const & MintMeta::GetPubCoinValue() const {
     return pubCoinValue;
 }
 
 
-void CMintMeta::SetPubCoinValue(GroupElement const & other) {
+void MintMeta::SetPubCoinValue(GroupElement const & other) {
     if (other == pubCoinValue)
         return;
     pubCoinValueHash.reset();
@@ -14,7 +14,7 @@ void CMintMeta::SetPubCoinValue(GroupElement const & other) {
 }
 
 
-uint256 CMintMeta::GetPubCoinValueHash() const {
+uint256 MintMeta::GetPubCoinValueHash() const {
     if(!pubCoinValueHash)
         pubCoinValueHash.reset(primitives::GetPubCoinValueHash(pubCoinValue));
     return *pubCoinValueHash;

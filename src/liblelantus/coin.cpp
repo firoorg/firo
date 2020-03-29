@@ -154,4 +154,4 @@ Scalar PrivateCoin::serialNumberFromSerializedPublicKey(
     return Scalar(hash);
 }
 
-}//namespace lelantus
+} //namespace lelantus

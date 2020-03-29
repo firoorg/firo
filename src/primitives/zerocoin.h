@@ -17,7 +17,7 @@
 #include "zerocoin_params.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
-struct CMintMeta
+struct MintMeta
 {
     int nHeight;
     int nId;
@@ -26,7 +26,6 @@ struct CMintMeta
     uint256 GetPubCoinValueHash() const;
     uint256 hashSerial;
     uint8_t nVersion;
-    sigma::CoinDenomination denom;
     uint256 txid;
     bool isUsed;
     bool isArchived;
@@ -37,24 +36,14 @@ private:
     mutable boost::optional<uint256> pubCoinValueHash;
 };
 
-struct CLelantusMintMeta
+struct CMintMeta : MintMeta
 {
-    int nHeight;
-    int nId;
-    GroupElement const & GetPubCoinValue() const;
-    void SetPubCoinValue(GroupElement const & other);
-    uint256 GetPubCoinValueHash() const;
-    uint256 hashSerial;
-    uint8_t nVersion;
+    sigma::CoinDenomination denom;
+};
+
+struct CLelantusMintMeta : MintMeta
+{
     uint64_t amount;
-    uint256 txid;
-    bool isUsed;
-    bool isArchived;
-    bool isDeterministic;
-    bool isSeedCorrect;
-private:
-    GroupElement pubCoinValue;
-    mutable boost::optional<uint256> pubCoinValueHash;
 };
 
 class CZerocoinEntry
