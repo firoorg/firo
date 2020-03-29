@@ -50,7 +50,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
         LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements_i, x_j[i]);
-        x_j_inv.push_back((x_j[i].inverse()));
+        x_j_inv.emplace_back((x_j[i].inverse()));
     }
 
     Exponent z_square_neg = (z.square()).negate();
@@ -65,18 +65,17 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
         z_m *= z;
     }
 
-    std::vector<Exponent> l, r;
-    l.resize(n * m);
-    r.resize(n * m);
+    std::vector<Exponent> l_r;
+    l_r.resize(n * m * 2);
     Exponent y_n_(uint64_t(1));
     Exponent two(uint64_t(2));
     Exponent z_j = z.square();
-    for (uint64_t j = 0; j < m ; ++j)
+    for (uint64_t t = 0; t < m ; ++t)
     {
         Exponent two_n_(uint64_t(1));
         for (uint64_t k = 0; k < n; ++k)
         {
-            uint64_t i = j * n + k;
+            uint64_t i = t * n + k;
             Exponent x_il(uint64_t(1));
             Exponent x_ir(uint64_t(1));
             for (int j = 0; j < log_n; ++j)
@@ -90,41 +89,56 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
                 }
 
             }
-            l[i] = x_il * innerProductProof.a_ + z;
-            r[i] = y_n_ * (x_ir * innerProductProof.b_ - (z_j * two_n_)) - z;
+            l_r[i] = x_il * innerProductProof.a_ + z;
+            l_r[n * m + i] = y_n_ * (x_ir * innerProductProof.b_ - (z_j * two_n_)) - z;
             y_n_ *= y_inv;
             two_n_ *= two;
         }
         z_j *= z;
     }
-    //check line 105
-    GroupElement left_;
+
+    //check lines  98 and 105
     Exponent c;
     c.randomize();
-    left_ += LelantusPrimitives<Exponent, GroupElement>::double_commit(g, (innerProductProof.c_ - delta) * c, h1, proof.T_x1 * c, h2, proof.T_x2 * c);
-    left_ += V_z * c + proof.T1 * x_neg * c + proof.T2 * ((x.square()).negate() * c);
 
-    secp_primitives::MultiExponent g_mult(g_, l);
-    secp_primitives::MultiExponent h_mult(h_, r);
-    left_ += g_mult.get_multiple() + h_mult.get_multiple();;
+    std::vector<GroupElement> points;
+    points.insert(points.end(), g_.begin(), g_.end());
+    points.insert(points.end(), h_.begin(), h_.end());
+    std::vector<Exponent> exponents(l_r);
 
-    left_ += g * (x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_))
-             + h1 * proof.u
-             + proof.A.inverse()
-             + proof.S * x_neg;
+    points.emplace_back(g);
+    exponents.emplace_back((innerProductProof.c_ - delta) * c + x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_));
+    points.emplace_back(h1);
+    exponents.emplace_back(proof.T_x1 * c + proof.u);
+    points.emplace_back(h2);
+    exponents.emplace_back(proof.T_x2 * c);
+    points.emplace_back(proof.A);
+    exponents.emplace_back(Exponent(uint64_t(1)).negate());
+    points.emplace_back(V_z);
+    exponents.emplace_back(c);
+    points.emplace_back(proof.T1);
+    exponents.emplace_back(x_neg * c);
+    points.emplace_back(proof.T2);
+    exponents.emplace_back((x.square()).negate() * c);
+    points.emplace_back(proof.S);
+    exponents.emplace_back(x_neg);
 
-    std::vector<Exponent> x_j_sq_neg, x_j_sq_inv_neg;
+    std::vector<Exponent> x_j_sq_neg;
+    x_j_sq_neg.resize(2 * log_n);
     for (int j = 0; j < log_n; ++j)
     {
-        x_j_sq_neg.push_back(x_j[j].square().negate());
-        x_j_sq_inv_neg.push_back(x_j_inv[j].square().negate());
+        x_j_sq_neg[j] = x_j[j].square().negate();
+        x_j_sq_neg[log_n + j] = x_j_inv[j].square().negate();
     }
-    secp_primitives::MultiExponent L(innerProductProof.L_, x_j_sq_neg);
-    secp_primitives::MultiExponent R(innerProductProof.R_, x_j_sq_inv_neg);
-    left_ += L.get_multiple() + R.get_multiple();
+
+    points.insert(points.end(), innerProductProof.L_.begin(), innerProductProof.L_.end());
+    points.insert(points.end(), innerProductProof.R_.begin(), innerProductProof.R_.end());
+    exponents.insert(exponents.end(), x_j_sq_neg.begin(), x_j_sq_neg.end());
+
+    secp_primitives::MultiExponent mult(points, exponents);
 
     //checking whether the result is equal to 1 (in elliptic curve it is infinity)
-    if(!left_.isInfinity())
+    if(!mult.get_multiple().isInfinity())
         return false;
     return true;
 }

@@ -35,8 +35,8 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     {
         for (std::size_t i = 1; i <= n; ++i)
         {
-            aL.push_back(uint64_t(bits[j][bits[j].size() - i]));
-            aR.push_back(Exponent(uint64_t(bits[j][bits[j].size() - i])) - Exponent(uint64_t(1)));
+            aL.emplace_back(uint64_t(bits[j][bits[j].size() - i]));
+            aR.emplace_back(Exponent(uint64_t(bits[j][bits[j].size() - i])) - Exponent(uint64_t(1)));
         }
     }
 
@@ -79,11 +79,11 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         for (std::size_t i = 0; i < n; ++i)
         {
             int index = j * n + i;
-            l_x[index].push_back(aL[index] - z);
-            l_x[index].push_back(sL[index]);
+            l_x[index].emplace_back(aL[index] - z);
+            l_x[index].emplace_back(sL[index]);
 
-            r_x[index].push_back(y_nm * (aR[index] + z) + z_j * two_n);
-            r_x[index].push_back(y_nm * sR[index]);
+            r_x[index].emplace_back(y_nm * (aR[index] + z) + z_j * two_n);
+            r_x[index].emplace_back(y_nm * sR[index]);
             //
             y_nm *= y;
             two_n *= two;
@@ -123,8 +123,8 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     r.reserve(n * m);
     for (std::size_t i = 0; i < n * m; i++)
     {
-        l.push_back(l_x[i][0] + l_x[i][1] * x);
-        r.push_back(r_x[i][0] + r_x[i][1] * x);
+        l.emplace_back(l_x[i][0] + l_x[i][1] * x);
+        r.emplace_back(r_x[i][0] + r_x[i][1] * x);
     }
 
     proof_out.T_x1 = T_12 * x.square() + T_11 * x + z_sum1;
@@ -138,7 +138,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent y_inv = y.inverse();
     for (std::size_t i = 0; i < h_.size(); ++i)
     {
-        h_prime.push_back(h_[i] * y_i_inv);
+        h_prime.emplace_back(h_[i] * y_i_inv);
         y_i_inv *= y_inv;
     }
 
