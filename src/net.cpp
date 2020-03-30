@@ -385,12 +385,12 @@ bool CConnman::CheckIncomingNonce(uint64_t nonce)
     return true;
 }
 
-CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure)
+CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool fAllowLocal)
 {
     if (pszDest == NULL) {
         // we clean znode connections in CZnodeMan::ProcessZnodeConnections()
         // so should be safe to skip this and connect to local Hot MN on CActiveZnode::ManageState()
-        if (IsLocal(addrConnect))
+        if (!fAllowLocal && IsLocal(addrConnect))
             return NULL;
         LOCK(cs_vNodes);
         // Look for an existing connection
@@ -2147,18 +2147,18 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     if (!fNetworkActive) {
         return false;
     }
+    bool fAllowLocal = fMasternodeMode;
     if (!pszDest) {
         // banned or exact match?
         if (IsBanned(addrConnect) || FindNode(addrConnect.ToStringIPPort()))
             return false;
         // local and not a connection to itself?
-        bool fAllowLocal = fMasternodeMode;
         if (!fAllowLocal && IsLocal(addrConnect))
             return false;
     } else if (FindNode(std::string(pszDest)))
         return false;
 
-    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure);
+    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, fMasternodeMode);
 
     if (!pnode)
         return false;

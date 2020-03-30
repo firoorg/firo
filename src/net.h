@@ -399,7 +399,8 @@ private:
     CNode* FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
-    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure);
+    // fAllowLocal flag is for legacy znodes only, remove it when network moves to evo znodes
+    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool fAllowLocal=false);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
     void DeleteNode(CNode* pnode);
