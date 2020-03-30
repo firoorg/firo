@@ -9,7 +9,7 @@ namespace lelantus {
 
 class InnerProductTests : public LelantusTestingSetup {
 public:
-    typedef InnerProductProoveGenerator<Scalar, GroupElement> ProofGenerator;
+    typedef InnerProductProofGenerator<Scalar, GroupElement> ProofGenerator;
     typedef InnerProductProofVerifier<Scalar, GroupElement> ProofVerifier;
     typedef InnerProductProof<Scalar, GroupElement> Proof;
 
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
 
     // verify
     BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof));
-    // BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
 }
 
 BOOST_AUTO_TEST_CASE(prove_verify)
@@ -85,7 +85,6 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     Scalar x;
     x.randomize();
-    lelantus::InnerProductProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g , gens_h, u_);
 
     // generating proofs
     Proof proof;
@@ -101,7 +100,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     // verify
     BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof));
-    // BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
 }
 
 BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
@@ -113,7 +112,6 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
 
     Scalar x;
     x.randomize();
-    lelantus::InnerProductProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g, gens_h, u_);
 
     // generating genertor
     Proof proof;
@@ -124,12 +122,12 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
     fakeP.randomize();
 
     BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof));
-    // BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof));
 
     // verify with fake proof
     auto verify = [&](Scalar const &_x, Proof const &_p) -> void {
         BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p));
-        // BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p));
     };
 
     auto fakeProof = proof;
