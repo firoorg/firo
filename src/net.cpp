@@ -2136,7 +2136,7 @@ void CConnman::ThreadOpenAddedConnections()
 }
 
 // if successful, this moves the passed grant to the constructed node
-bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound, const char *pszDest, bool fOneShot, bool fFeeler, bool fAddnode)
+bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound, const char *pszDest, bool fOneShot, bool fFeeler, bool fAddnode, bool fConnectToMasternode)
 {
     //
     // Initiate outbound network connection
@@ -2148,9 +2148,12 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return false;
     }
     if (!pszDest) {
-        if (IsLocal(addrConnect) ||
-            FindNode((CNetAddr)addrConnect) || IsBanned(addrConnect) ||
-            FindNode(addrConnect.ToStringIPPort()))
+        // banned or exact match?
+        if (IsBanned(addrConnect) || FindNode(addrConnect.ToStringIPPort()))
+            return false;
+        // local and not a connection to itself?
+        bool fAllowLocal = fMasternodeMode;
+        if (!fAllowLocal && IsLocal(addrConnect))
             return false;
     } else if (FindNode(std::string(pszDest)))
         return false;
@@ -2165,6 +2168,8 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         pnode->fOneShot = true;
     if (fFeeler)
         pnode->fFeeler = true;
+    if (fConnectToMasternode)
+        pnode->fZnode = true;
 
     // Martun: if dandelion is enabled, then send a special transaction
     // to the new peer to check, if the peer supports dandelion or not.
@@ -2198,7 +2203,7 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
 }
 
 bool CConnman::OpenMasternodeConnection(const CAddress &addrConnect) {
-    return OpenNetworkConnection(addrConnect, false, NULL, NULL, false, false, false /*, true*/);
+    return OpenNetworkConnection(addrConnect, false, NULL, NULL, false, false, false, true);
 }
 
 void CConnman::ThreadMessageHandler()
