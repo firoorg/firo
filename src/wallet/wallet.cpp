@@ -6652,7 +6652,7 @@ std::string CWallet::MintAndStoreLelantus(const CRecipient& recipient,
         CT_NEW);
 
     // Update nCountNextUse in HDMint wallet database
-    zwalletMain->UpdateCountDB(); //TODO(levon) figure out with this
+    zwalletMain->UpdateCountDB();
 
     return "";
 }

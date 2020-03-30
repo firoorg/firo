@@ -36,11 +36,13 @@ public:
     void Init();
     bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
     bool GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta);
+    bool GetLelantusMetaFromPubcoin(const uint256& hashPubcoin, CLelantusMintMeta& mMeta);
+
     std::vector<uint256> GetSerialHashes();
     void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
-    void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins);
+    void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins, bool isLelantus);
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
     list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);

@@ -1292,14 +1292,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3, false);
         }
     }
 
     if(tx.IsLelantusMint()) {
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(lelantusMintPubcoins); //TODO(levon) take a look inside this function
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(lelantusMintPubcoins, true);
         }
     }
 #endif

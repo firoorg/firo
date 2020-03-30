@@ -604,7 +604,7 @@ public:
         consensus.nSigmaPaddingBlock = 550;
         consensus.nDisableUnpaddedSigmaBlock = 510;
         consensus.nOldSigmaBanBlock = 450;
-        consensus.nLelantusStartBlock = 600;
+        consensus.nLelantusStartBlock = 1000;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;

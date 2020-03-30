@@ -242,10 +242,11 @@ public:
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+    std::map<int, vector<lelantus::PublicCoin>>  lelantusMintedPubCoins;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
-
+    std::unordered_map<Scalar, int> lelantusSpentSerials;
     void SetNull()
     {
         phashBlock = NULL;
@@ -273,9 +274,11 @@ public:
 
         mintedPubCoins.clear();
         sigmaMintedPubCoins.clear();
+        lelantusMintedPubCoins.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
         sigmaSpentSerials.clear();
+        lelantusSpentSerials.clear();
     }
 
     CBlockIndex()
@@ -480,6 +483,11 @@ public:
         if (!(s.GetType() & SER_GETHASH) && nHeight >= Params().GetConsensus().nSigmaStartBlock) {
             READWRITE(sigmaMintedPubCoins);
             READWRITE(sigmaSpentSerials);
+        }
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= Params().GetConsensus().nLelantusStartBlock) {
+            READWRITE(lelantusMintedPubCoins);
+            READWRITE(lelantusSpentSerials);
         }
 
         nDiskBlockVersion = nVersion;

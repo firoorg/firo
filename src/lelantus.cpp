@@ -215,7 +215,25 @@ CLelantusState::Containers::Containers(std::atomic<bool> & surgeCondition)
 : surgeCondition(surgeCondition)
 {}
 
+void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo) {
+    mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
+    mintMetaInfo[coinInfo.coinGroupId] += 1;
+    CheckSurgeCondition(coinInfo.coinGroupId);
+}
 
+void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin) {
+    mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
+    if (iter != mintedPubCoins.end()) {
+        mintMetaInfo[iter->second.coinGroupId] -= 1;
+        CMintedCoinInfo tmpMintInfo(iter->second);
+        mintedPubCoins.erase(iter);
+        CheckSurgeCondition(tmpMintInfo.coinGroupId);
+    }
+}
+
+mint_info_container const & CLelantusState::Containers::GetMints() const {
+    return mintedPubCoins;
+}
 
 std::unordered_map<Scalar, int> const & CLelantusState::Containers::GetSpends() const {
     return usedCoinSerials;
@@ -225,6 +243,29 @@ bool CLelantusState::Containers::IsSurgeCondition() const {
     return surgeCondition;
 }
 
+void CLelantusState::Containers::Reset() {
+    mintedPubCoins.clear();
+    usedCoinSerials.clear();
+    mintMetaInfo.clear();
+    spendMetaInfo.clear();
+    surgeCondition = false;
+}
+
+void CLelantusState::Containers::CheckSurgeCondition(int groupId) {
+    bool result = spendMetaInfo[groupId] > mintMetaInfo[groupId];
+    if( result ) {
+        std::ostringstream ostr;
+        ostr << "Turning sigma surge protection ON: groupId: " << groupId << '\n';
+        error(ostr.str().c_str());
+    }
+
+    for(metainfo_container_t::const_iterator smi = spendMetaInfo.begin(); smi != spendMetaInfo.end() && !result; ++smi) {
+        if(smi->second > mintMetaInfo[smi->first]) {
+            result = true;
+        }
+    }
+    surgeCondition = result;
+}
 
 /******************************************************************************/
 // CLelantusState
@@ -234,8 +275,91 @@ CLelantusState::CLelantusState()
 :containers(surgeCondition)
 {}
 
+bool CLelantusState::GetCoinGroupInfo(
+        int group_id,
+        LelantusCoinGroupInfo& result) {
+    if (coinGroups.count(group_id) == 0)
+        return false;
+
+    result = coinGroups[group_id];
+    return true;
+}
+
+bool CLelantusState::IsUsedCoinSerial(const Scalar &coinSerial) {
+    return containers.GetSpends().count(coinSerial) != 0;
+}
+
+bool CLelantusState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
+    for ( auto it = GetSpends().begin(); it != GetSpends().end(); ++it ){
+        if(primitives::GetSerialHash(it->first)==coinSerialHash){
+            coinSerial = it->first;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CLelantusState::HasCoin(const lelantus::PublicCoin& pubCoin) {
     return containers.GetMints().find(pubCoin) != containers.GetMints().end();
+}
+
+bool CLelantusState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
+    for ( auto it = GetMints().begin(); it != GetMints().end(); ++it ){
+        const lelantus::PublicCoin & pubCoin = (*it).first;
+        if(pubCoin.getValueHash()==pubCoinValueHash){
+            pubCoinValue = pubCoin.getValue();
+            return true;
+        }
+    }
+    return false;
+}
+
+int CLelantusState::GetCoinSetForSpend(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        uint256& blockHash_out,
+        std::vector<lelantus::PublicCoin>& coins_out) {
+
+    coins_out.clear();
+
+    if (coinGroups.count(coinGroupID) == 0)
+        return 0;
+
+    LelantusCoinGroupInfo coinGroup = coinGroups[coinGroupID];
+
+    int numberOfCoins = 0;
+    for (CBlockIndex *block = coinGroup.lastBlock;
+            ;
+            block = block->pprev) {
+        if (block->lelantusMintedPubCoins[coinGroupID].size() > 0) {
+            if (block->nHeight <= maxHeight) {
+                if (numberOfCoins == 0) {
+                    // latest block satisfying given conditions
+                    // remember block hash
+                    blockHash_out = block->GetBlockHash();
+                }
+                numberOfCoins += block->lelantusMintedPubCoins[coinGroupID].size();
+                coins_out.insert(coins_out.end(),
+                        block->lelantusMintedPubCoins[coinGroupID].begin(),
+                        block->lelantusMintedPubCoins[coinGroupID].end());
+            }
+        }
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
+    return numberOfCoins;
+}
+
+std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(
+        const lelantus::PublicCoin& pubCoin) {
+    auto coinIt = containers.GetMints().find(pubCoin);
+
+    if (coinIt != containers.GetMints().end()) {
+        return std::make_pair(coinIt->second.nHeight, coinIt->second.coinGroupId);
+    }
+    return std::make_pair(-1, -1);
 }
 
 void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
@@ -250,6 +374,14 @@ void CLelantusState::RemoveMintFromMempool(const GroupElement& pubCoin){
 
 bool CLelantusState::CanAddMintToMempool(const GroupElement& pubCoin){
     return mempoolMints.count(pubCoin) == 0;
+}
+
+void CLelantusState::Reset() {
+    coinGroups.clear();
+    latestCoinId = 0;
+    mempoolCoinSerials.clear();
+    mempoolMints.clear();
+    containers.Reset();
 }
 
 CLelantusState* CLelantusState::GetState() {
@@ -270,6 +402,14 @@ mint_info_container const & CLelantusState::GetMints() const {
 
 std::unordered_map<Scalar, int> const & CLelantusState::GetSpends() const {
     return containers.GetSpends();
+}
+
+std::unordered_map<int, CLelantusState::LelantusCoinGroupInfo> const & CLelantusState::GetCoinGroups() const {
+    return coinGroups;
+}
+
+std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & CLelantusState::GetMempoolCoinSerials() const {
+    return mempoolCoinSerials;
 }
 
 } // end of namespace lelantus.

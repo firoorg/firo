@@ -13,7 +13,6 @@
 #include <functional>
 #include "coin_containers.h"
 
-
 namespace lelantus {
 
 // Lelantus transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into index
@@ -74,22 +73,39 @@ public:
         int nCoins;
     };
 
-    struct pairhash {
-      public:
-        template <typename T, typename U>
-          std::size_t operator()(const std::pair<T, U> &x) const
-          {
-            return std::hash<T>()(x.first) ^ std::hash<U>()(x.second);
-          }
-    };
 public:
     CLelantusState();
 
+    // Query coin group with given denomination and id
+    bool GetCoinGroupInfo(int group_id, LelantusCoinGroupInfo &result);
+
+    // Query if the coin serial was previously used
+    bool IsUsedCoinSerial(const Scalar& coinSerial);
+        // Query if the hash of a coin serial was previously used. If so, store preimage in coinSerial param
+    bool IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash);
+
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const lelantus::PublicCoin& pubCoin);
+    // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
+    bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
+
+    // Given denomination and id returns latest accumulator value and corresponding block hash
+    // Do not take into account coins with height more than maxHeight
+    // Returns number of coins satisfying conditions
+    int GetCoinSetForSpend(
+        CChain *chain,
+        int maxHeight,
+        int id,
+        uint256& blockHash_out,
+        std::vector<lelantus::PublicCoin>& coins_out);
+
+    // Return height of mint transaction and id of minted coin
+    std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);
+
+    // Reset to initial values
+    void Reset();
 
     bool CanAddMintToMempool(const GroupElement& pubCoin);
-
 
     void AddMintsToMempool(const vector<GroupElement>& pubCoins);
     void RemoveMintFromMempool(const GroupElement& pubCoin);
@@ -100,18 +116,22 @@ public:
 
     mint_info_container const & GetMints() const;
     std::unordered_map<Scalar, int> const & GetSpends() const;
+    std::unordered_map<int, LelantusCoinGroupInfo> const & GetCoinGroups() const ;
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const;
 
     std::size_t GetTotalCoins() const { return GetMints().size(); }
 
     bool IsSurgeConditionDetected() const;
 
 private:
+    // Collection of coin groups. Map from id to LelantusCoinGroupInfo structure
+    std::unordered_map<int, LelantusCoinGroupInfo> coinGroups;
 
     // Latest anonymity set id;
     int latestCoinId;
 
     // serials of spends currently in the mempool mapped to tx hashes
-    std::unordered_map<Scalar, uint256> mempoolCoinSerials;
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
 
     std::unordered_set<GroupElement> mempoolMints;
 
@@ -120,18 +140,30 @@ private:
     struct Containers {
         Containers(std::atomic<bool> & surgeCondition);
 
+        void AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo);
+        void RemoveMint(lelantus::PublicCoin const & pubCoin);
+
+//        void AddSpend(Scalar const & serial, CSpendCoinInfo const & coinInfo);
+//        void RemoveSpend(Scalar const & serial);
+
+        void Reset();
+
         mint_info_container const & GetMints() const;
         std::unordered_map<Scalar, int> const & GetSpends() const;
         bool IsSurgeCondition() const;
     private:
         // Set of all minted pubCoin values, keyed by the public coin.
         // Used for checking if the given coin already exists.
-        std::unordered_map<lelantus::PublicCoin, CMintedCoinInfo, lelantus::CPublicCoinHash> mintedPubCoins;
+        mint_info_container mintedPubCoins;
         // Set of all used coin serials.
         std::unordered_map<Scalar, int> usedCoinSerials;
 
         std::atomic<bool> & surgeCondition;
-        
+
+        typedef std::map<int, size_t> metainfo_container_t;
+        metainfo_container_t mintMetaInfo, spendMetaInfo;
+
+        void CheckSurgeCondition(int groupId);
     };
 
     Containers containers;
