@@ -419,12 +419,16 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             break;
         }
         case Create: {     
-            UniValue newAddress = getNewAddress();
+            UniValue newAddress = "";
             if (!find_value(data, "address").isNull()) {
                 if (find_value(data, "address").get_str() != "") {
                     newAddress = find_value(data, "address");
                 }
             }
+
+            if(newAddress.get_str()=="")
+                newAddress = getNewAddress();
+
             milliseconds secs = duration_cast< milliseconds >(
                  system_clock::now().time_since_epoch()
             );
