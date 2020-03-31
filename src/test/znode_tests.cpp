@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
 
 
     ///////////////////////////////////////////////////////////////////////////
-    // Making znodes not synchronized and checking the functionality is disabled
+    // Removing the znode payment
     znodeSync.Reset();
     b.fChecked = false;
     b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);
