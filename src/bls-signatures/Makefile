@@ -9,7 +9,7 @@ build/libchiabls.a:
 	rm -rf $(distdir)/build/
 
 clean: 
-	$(MAKE) -C ./build/ clean
+	$(AM_V_at)$(MAKE) -C ./build/ clean
 	rm -f ./build/libchiabls.a
 	
 distclean:
@@ -17,3 +17,6 @@ distclean:
 
 check: all
 	./build/src/runtest
+
+install:
+	$(AM_V_at)$(MAKE) -C ./build/ install
