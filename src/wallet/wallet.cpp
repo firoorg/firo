@@ -3137,7 +3137,6 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 
 // available implies a mature or unspent mint.
 bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
-    LOCK(cs_wallet);
 
     if(!txout.scriptPubKey.IsSigmaMint())
         throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
@@ -3158,33 +3157,6 @@ bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
 
         if(pubCoinValue == dMint.GetPubcoinValue())
             return true;
-    }
-
-    return false;
-}
-
-bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
-    LOCK(cs_wallet);
-
-    if(!txout.scriptPubKey.IsZerocoinMint()){
-        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
-    }
-
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    CBigNum pubCoin;
-    CZerocoinEntry pubCoinItem;
-
-    vector<unsigned char> vchZeroMint;
-    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-    pubCoin.setvch(vchZeroMint);
-
-    if(walletdb.ReadZerocoinEntry(pubCoin, pubCoinItem)){
-        fIsAvailable = !(pubCoinItem.IsUsed ||
-                       (!pubCoinItem.IsUsed &&
-                        (pubCoinItem.randomness == 0 ||
-                         pubCoinItem.serialNumber == 0)));
-        return true;
     }
 
     return false;
@@ -8430,14 +8402,6 @@ bool CWallet::InitLoadWallet() {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
 
-#ifdef ENABLE_CLIENTAPI    
-    // Set API loaded before wallet sync and immediately notify
-    if(fApi){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-#endif
-
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
@@ -8451,7 +8415,17 @@ bool CWallet::InitLoadWallet() {
         else
             pindexRescan = chainActive.Genesis();
     }
-    if (chainActive.Tip() && chainActive.Tip() != pindexRescan) {
+    bool reindexing = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
+
+#ifdef ENABLE_CLIENTAPI
+        // Set API loaded before wallet sync (if not reindexing) and immediately notify
+        if(fApi && !reindexing){
+            SetAPIWarmupFinished();
+            GetMainSignals().NotifyAPIStatus();
+        }
+#endif
+
+    if (reindexing) {
         //We can't rescan beyond non-pruned blocks, stop and throw an error
         //this might happen if a user uses a old wallet within a pruned node
         // or if he ran -disablewallet for a longer time, then decided to re-enable
@@ -8536,6 +8510,11 @@ bool CWallet::InitLoadWallet() {
                 }
             }
         }
+    }
+
+    if(fApi && reindexing){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
     }
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 

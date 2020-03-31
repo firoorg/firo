@@ -935,10 +935,7 @@ public:
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false);
 
     bool IsSigmaMintFromTxOutAvailable(CTxOut txout);
-    /**
-     * Add zerocoin Mint and Spend function
-     */
-    bool IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable);
+
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
 
     bool GetTxInfoForPubcoin(const CZerocoinEntry &pubCoinItem, std::string& fTxid, unsigned int& fIndex) const;
