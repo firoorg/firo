@@ -155,7 +155,10 @@ test_conn_get_basic_teardown(const struct testcase_t *tc, void *arg)
   }
 
   if (!conn->marked_for_close) {
+    MOCK(tor_close_socket, fake_close_socket);
     connection_close_immediate(conn);
+    UNMOCK(tor_close_socket);
+
     if (CONN_IS_EDGE(conn)) {
       /* Suppress warnings about all the stuff we didn't do */
       TO_EDGE_CONN(conn)->edge_has_sent_end = 1;

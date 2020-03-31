@@ -259,7 +259,10 @@ test_e2e_rend_circuit_setup_legacy(void *arg)
   tt_ptr_op(TO_EDGE_CONN(conn)->on_circuit, OP_EQ, TO_CIRCUIT(or_circ));
 
  done:
+  MOCK(tor_close_socket, fake_close_socket);
   connection_free_minimal(conn);
+  UNMOCK(tor_close_socket);
+
   if (or_circ)
     tor_free(TO_CIRCUIT(or_circ)->n_chan);
   circuit_free_(TO_CIRCUIT(or_circ));
@@ -331,7 +334,10 @@ test_e2e_rend_circuit_setup(void *arg)
   tt_ptr_op(TO_EDGE_CONN(conn)->on_circuit, OP_EQ, TO_CIRCUIT(or_circ));
 
  done:
+  MOCK(tor_close_socket, fake_close_socket);
   connection_free_minimal(conn);
+  UNMOCK(tor_close_socket);
+
   if (or_circ)
     tor_free(TO_CIRCUIT(or_circ)->n_chan);
   circuit_free_(TO_CIRCUIT(or_circ));

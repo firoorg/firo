@@ -187,7 +187,7 @@ mock_tor_addr_lookup__fail_on_bad_addrs(const char *name,
 /*********** Helper funcs for making new connections/streams *****************/
 
 /* Helper for test_conn_get_connection() */
-static int
+int
 fake_close_socket(tor_socket_t sock)
 {
   (void)sock;

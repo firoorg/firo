@@ -2174,7 +2174,11 @@ test_export_client_circuit_id(void *arg)
  done:
   UNMOCK(connection_write_to_buf_impl_);
   circuit_free_(TO_CIRCUIT(or_circ));
+
+  MOCK(tor_close_socket, fake_close_socket);
   connection_free_minimal(conn);
+  UNMOCK(tor_close_socket);
+
   hs_service_free(service);
   tor_free(cp1);
   tor_free(cp2);
