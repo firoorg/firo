@@ -11,7 +11,7 @@ template <class Exponent, class GroupElement>
 class InnerProductProof {
 public:
 
-    inline std::size_t memoryRequired(int size) const {
+    inline std::size_t memoryRequired(std::size_t size) const {
         return a_.memoryRequired() * 3 + 34 * 2 * size;
     }
 
@@ -26,15 +26,15 @@ public:
         return buffer;
     }
 
-    inline const unsigned char* deserialize(const unsigned char* buffer, int size) {
+    inline const unsigned char* deserialize(const unsigned char* buffer, std::size_t size) {
         buffer = a_.deserialize(buffer);
         buffer = b_.deserialize(buffer);
         buffer = c_.deserialize(buffer);
         L_.resize(size);
-        for (int i = 0; i < size; ++i)
+        for (std::size_t i = 0; i < size; ++i)
             buffer = L_[i].deserialize(buffer);
         R_.resize(size);
-        for (int i = 0; i < size; ++i)
+        for (std::size_t i = 0; i < size; ++i)
             buffer = R_[i].deserialize(buffer);
         return buffer;
     }
