@@ -410,8 +410,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string category;
             string voutIndex = to_string(r.vout);
 
-            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
-
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));
@@ -435,6 +433,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             } else {
                 category = "receive";
             }
+
+            if(category=="mined"){
+                entry.push_back(Pair("isChange", false));
+            } else {
+                entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
+            }
+
             string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("txIndex", r.vout));
