@@ -662,6 +662,7 @@ public:
     // TODO these can all be removed in a future version
     bool UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
     void UpgradeDBIfNeeded();
+    static bool IsDIP3Active(int height);
 
 private:
     void CleanupCache(int nHeight);

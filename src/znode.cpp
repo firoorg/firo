@@ -306,6 +306,11 @@ void CZnode::Check(bool fForce) {
     }
 }
 
+bool CZnode::IsLegacyWindow(int height) {
+    const Consensus::Params& params = ::Params().GetConsensus();
+    return height < params.DIP0003EnforcementHeight;
+}
+
 bool CZnode::IsValidNetAddr() {
     return IsValidNetAddr(addr);
 }

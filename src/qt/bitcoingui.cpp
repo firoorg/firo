@@ -36,6 +36,8 @@
 #include "ui_interface.h"
 #include "util.h"
 
+#include "znode.h"
+#include "evo/deterministicmns.h"
 #include "znode-sync.h"
 #include "znodelist.h"
 #include "masternodelist.h"
@@ -636,6 +638,8 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
         checkZc2SigmaVisibility(clientModel->getNumBlocks());
+        checkLegacyZnodeVisibility(clientModel->getNumBlocks());
+        checkMasternodeVisibility(clientModel->getNumBlocks());
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -1064,6 +1068,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBar->setToolTip(tooltip);
 
     checkZc2SigmaVisibility(count);
+    checkLegacyZnodeVisibility(count);
+    checkMasternodeVisibility(count);
 }
 
 
@@ -1459,6 +1465,20 @@ void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
         if(show)
             zc2SigmaAction->setVisible(true);
     }
+}
+
+void BitcoinGUI::checkLegacyZnodeVisibility(int numBlocks) {
+    if(CZnode::IsLegacyWindow(numBlocks))
+        znodeAction->setVisible(true);
+    else
+        znodeAction->setVisible(false);
+}
+
+void BitcoinGUI::checkMasternodeVisibility(int numBlocks) {
+    if(CDeterministicMNManager::IsDIP3Active(numBlocks))
+        masternodeAction->setVisible(true);
+    else
+        masternodeAction->setVisible(false);
 }
 
 void BitcoinGUI::toggleNetworkActive()

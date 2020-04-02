@@ -801,6 +801,12 @@ void WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
     wallet->ListProTxCoins(vOutpts);
 }
 
+bool WalletModel::hasMasternode()
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    return wallet->HasMasternode();
+}
+
 void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests)
 {
     LOCK(wallet->cs_wallet);

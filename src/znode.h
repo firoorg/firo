@@ -303,6 +303,8 @@ public:
 
     bool IsValidForPayment();
 
+    static bool IsLegacyWindow(int height);
+
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 
