@@ -22,6 +22,7 @@ packages:
 - "ca-certificates"
 - "python"
 - "rename"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
