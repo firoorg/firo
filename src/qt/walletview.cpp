@@ -82,6 +82,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     toolboxPage = new QWidget(this);
 #endif
     znodeListPage = new ZnodeList(platformStyle);
+    masternodeListPage = new MasternodeList(platformStyle);
 
     setupTransactionPage();
     setupSendCoinPage();
@@ -104,6 +105,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(toolboxPage);
 #endif
     addWidget(znodeListPage);
+    addWidget(masternodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
@@ -426,6 +428,11 @@ void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 void WalletView::gotoZnodePage()
 {
     setCurrentWidget(znodeListPage);
+}
+
+void WalletView::gotoMasternodePage()
+{
+    setCurrentWidget(masternodeListPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

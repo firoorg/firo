@@ -38,6 +38,7 @@
 
 #include "znode-sync.h"
 #include "znodelist.h"
+#include "masternodelist.h"
 #include "exodus_qtutils.h"
 #include "zc2sigmapage.h"
 
@@ -133,6 +134,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     showHelpMessageAction(0),
     zc2SigmaAction(0),
     znodeAction(0),
+    masternodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -369,16 +371,24 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
-    znodeAction->setStatusTip(tr("Browse znodes"));
+    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes (Legacy)"), this);
+    znodeAction->setStatusTip(tr("Browse legacy Znodes"));
     znodeAction->setToolTip(znodeAction->statusTip());
     znodeAction->setCheckable(true);
+
+    masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
+    masternodeAction->setStatusTip(tr("Browse Znodes"));
+    masternodeAction->setToolTip(masternodeAction->statusTip());
+    masternodeAction->setCheckable(true);
 #ifdef Q_OS_MAC
     znodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
+    masternodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
 #else
     znodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    masternodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 #endif
     tabGroup->addAction(znodeAction);
+    tabGroup->addAction(masternodeAction);
 #endif
 
 #ifdef ENABLE_EXODUS
@@ -404,6 +414,8 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
+    connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -563,6 +575,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sigmaAction);
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
+        toolbar->addAction(masternodeAction);
 
 #ifdef ENABLE_EXODUS
         if (isExodusEnabled()) {
@@ -678,6 +691,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
+    masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -850,6 +864,13 @@ void BitcoinGUI::gotoZnodePage()
     QSettings settings;
     znodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoZnodePage();
+}
+
+void BitcoinGUI::gotoMasternodePage()
+{
+    QSettings settings;
+    masternodeAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoMasternodePage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
