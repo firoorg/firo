@@ -11,6 +11,9 @@
 
 static const int PROTOCOL_VERSION = 90030;
 
+//! legacy znode protocol version
+static const int LEGACY_ZNODES_PROTOCOL_VERSION = 90026;
+
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 90013;
 

@@ -830,7 +830,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     GetMainSignals().BlockFound(pblock->GetHash());
 
     // Process this block the same as if we had received it from another node
-    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(pblock), true, NULL))
+    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(pblock, [](const CBlock *){}), true, NULL))
         return error("ZcoinMiner: ProcessNewBlock, block not accepted");
 
     return true;

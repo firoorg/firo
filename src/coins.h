@@ -289,4 +289,12 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction& tx, int nHeight);
 //! Utility function to find any unspent output with a given txid.
 const Coin& AccessByTxid(const CCoinsViewCache& cache, const uint256& txid);
 
+
+template<class M>
+void ModifyCoin(CCoinsViewCache & view, const COutPoint &out, M modifier){
+    Coin coin = view.AccessCoin(out);
+    modifier(coin);
+    view.AddCoin(out, std::move(coin), true);
+}
+
 #endif // BITCOIN_COINS_H

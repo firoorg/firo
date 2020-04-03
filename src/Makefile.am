@@ -2,8 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-DIST_SUBDIRS = secp256k1 univalue tor
-SUBDIRS = tor
+DIST_SUBDIRS = secp256k1 univalue tor bls-signatures
+SUBDIRS = tor bls-signatures
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
@@ -191,6 +191,7 @@ BITCOIN_CORE_H = \
   znode.h \
   znode-payments.h \
   znode-sync.h \
+  masternode-utils.h \
   masternode-sync.h \
   znodeman.h \
   znodeconfig.h \
@@ -227,6 +228,8 @@ BITCOIN_CORE_H = \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
+  support/allocators/pooled_secure.h \
+  support/allocators/mt_pooled_secure.h \
   support/cleanse.h \
   support/events.h \
   support/lockedpool.h \
@@ -272,7 +275,81 @@ BITCOIN_CORE_H = \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
-  mtpstate.h
+  mtpstate.h \
+  messagesigner.h \
+  masternode-payments.h \
+  saltedhasher.h \
+  unordered_lru_cache.h \
+  llmq/quorums.h \
+  llmq/quorums_blockprocessor.h \
+  llmq/quorums_dkgsessionmgr.h \
+  llmq/quorums_commitment.h \
+  llmq/quorums_signing.h \
+  llmq/quorums_dkgsessionhandler.h \
+  llmq/quorums_dkgsession.h \
+  llmq/quorums_instantsend.h \
+  llmq/quorums_debug.h \
+  llmq/quorums_utils.h \
+  llmq/quorums_chainlocks.h\
+  llmq/quorums_init.h \
+  llmq/quorums_signing_shares.h \
+  immer/atom.hpp \
+  immer/set.hpp \
+  immer/box.hpp \
+  immer/flex_vector_transient.hpp \
+  immer/transience/no_transience_policy.hpp \
+  immer/transience/gc_transience_policy.hpp \
+  immer/map_transient.hpp \
+  immer/set_transient.hpp \
+  immer/flex_vector.hpp \
+  immer/refcount/enable_intrusive_ptr.hpp \
+  immer/refcount/no_refcount_policy.hpp \
+  immer/refcount/unsafe_refcount_policy.hpp \
+  immer/refcount/refcount_policy.hpp \
+  immer/memory_policy.hpp \
+  immer/config.hpp \
+  immer/array.hpp \
+  immer/vector.hpp \
+  immer/detail/arrays/no_capacity.hpp \
+  immer/detail/arrays/node.hpp \
+  immer/detail/arrays/with_capacity.hpp \
+  immer/detail/type_traits.hpp \
+  immer/detail/rbts/rbtree_iterator.hpp \
+  immer/detail/rbts/rbtree.hpp \
+  immer/detail/rbts/rrbtree.hpp \
+  immer/detail/rbts/visitor.hpp \
+  immer/detail/rbts/position.hpp \
+  immer/detail/rbts/bits.hpp \
+  immer/detail/rbts/node.hpp \
+  immer/detail/rbts/operations.hpp \
+  immer/detail/rbts/rrbtree_iterator.hpp \
+  immer/detail/combine_standard_layout.hpp \
+  immer/detail/ref_count_base.hpp \
+  immer/detail/hamts/champ_iterator.hpp \
+  immer/detail/hamts/champ.hpp \
+  immer/detail/hamts/bits.hpp \
+  immer/detail/hamts/node.hpp \
+  immer/detail/util.hpp \
+  immer/detail/iterator_facade.hpp \
+  immer/vector_transient.hpp \
+  immer/experimental/dvektor.hpp \
+  immer/experimental/detail/dvektor_impl.hpp \
+  immer/heap/free_list_heap.hpp \
+  immer/heap/tags.hpp \
+  immer/heap/debug_size_heap.hpp \
+  immer/heap/heap_policy.hpp \
+  immer/heap/gc_heap.hpp \
+  immer/heap/unsafe_free_list_heap.hpp \
+  immer/heap/split_heap.hpp \
+  immer/heap/identity_heap.hpp \
+  immer/heap/thread_local_free_list_heap.hpp \
+  immer/heap/malloc_heap.hpp \
+  immer/heap/cpp_heap.hpp \
+  immer/heap/free_list_node.hpp \
+  immer/heap/with_data.hpp \
+  immer/algorithm.hpp \
+  immer/array_transient.hpp \
+  immer/map.hpp
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -690,8 +767,8 @@ if GLIBC_BACK_COMPAT
   libbitcoinconsensus_la_SOURCES += compat/glibc_compat.cpp
 endif
 
-libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1) $(LIBBLSSIG_LIBS)
+libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(LIBBLSSIG_LIBS)
+libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
 libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include $(LIBBLSSIG_INCLUDES) -DBUILD_BITCOIN_INTERNAL
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 EXTRA_libbitcoinconsensus_la_DEPENDENCIES = $(LIBBLSSIG_LIBS)
@@ -737,7 +814,7 @@ clean-local:
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
 	-$(MAKE) -C tor clean
-	-$(MAKE) -C bls-signatures/build clean
+	-$(MAKE) -C bls-signatures clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
@@ -788,7 +865,3 @@ endif
 if ENABLE_EXODUS
 include Makefile.exodus.include
 endif
-
-bls-signatures/build/libchiabls.a: bls-signatures/CMakeLists.txt
-	$(AM_V_at)$(MAKE) -C bls-signatures/build 
-  

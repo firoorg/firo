@@ -91,13 +91,15 @@ UniValue exodus_decodetransaction(const JSONRPCRequest& request)
     UniValue txObj(UniValue::VOBJ);
     int populateResult = -3331;
     {
+        //TODO: The swaps below are temporarily commented out
+        throw std::runtime_error("Not implemented");
         LOCK2(cs_main, cs_tx_cache);
         // temporarily switch global coins view cache for transaction inputs
-        std::swap(view, viewTemp);
+//        std::swap(view, viewTemp);
         // then get the results
         populateResult = populateRPCTransactionObject(tx, uint256(), txObj, "", false, "", blockHeight);
         // and restore the original, unpolluted coins view cache
-        std::swap(viewTemp, view);
+//        std::swap(viewTemp, view);
     }
 
     if (populateResult != 0) PopulateFailure(populateResult);

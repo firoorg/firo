@@ -150,7 +150,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
     // if it matches our Znode privkey...
     if (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode) {
         nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
-        if (nProtocolVersion == PROTOCOL_VERSION) {
+        if (nProtocolVersion == LEGACY_ZNODES_PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
             activeZnode.ManageState();
         } else {
@@ -538,11 +538,7 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
     }
 
     int nHeight = chainActive.Height();
-    if (nHeight < ZC_MODULUS_V2_START_BLOCK) {
-        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, MIN_PEER_PROTO_VERSION);
-    } else {
-        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
-    }
+    mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, LEGACY_ZNODES_PROTOCOL_VERSION);
 
     if (!mnbRet.IsValidNetAddr()) {
         strErrorRet = strprintf("Invalid IP address, znode=%s", txin.prevout.ToStringShort());
