@@ -126,6 +126,27 @@ struct ZnodeTestingSetup : public TestingSetup {
 
 BOOST_FIXTURE_TEST_SUITE(znode_tests, ZnodeTestingSetup)
 
+namespace {
+    size_t FindZnodeOutput(CTransaction const & tx) {
+        static std::vector<CScript> const founders {
+            GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get()),
+            GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get()),
+            GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get()),
+            GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get()),
+            GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get()),
+        };
+
+        BOOST_CHECK(tx.IsCoinBase());
+        for(size_t i = 0; i < tx.vout.size(); ++i) {
+            CTxOut const & out = tx.vout[i];
+             if(std::find(founders.begin(), founders.end(), out.scriptPubKey) == founders.end()) {
+                if(out.nValue == GetZnodePayment(Params().GetConsensus(), false))
+                    return i;
+            }
+        }
+        throw std::runtime_error("Cannot find the Znode output");
+    }
+}
 BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
 {
 
@@ -177,20 +198,37 @@ BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
 
     ///////////////////////////////////////////////////////////////////////////
     // Paying to a completely wrong payee
+    size_t const znodeOutput = FindZnodeOutput(tx);
     CMutableTransaction txCopy = tx;
-    txCopy.vout[1].scriptPubKey = txCopy.vout[0].scriptPubKey;
+    txCopy.vout[znodeOutput].scriptPubKey = txCopy.vout[0].scriptPubKey;
     b.vtx[0] = MakeTransactionRef(txCopy);
     b.fChecked = false;
     b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);
     while (!CheckProofOfWork(b.GetHash(), b.nBits, chainparams.GetConsensus())){
         ++b.nNonce;
     }
-    BOOST_CHECK(false == CheckBlock(b, state, chainparams.GetConsensus()));
+    BOOST_CHECK(false == CheckBlock(b, state, chainparams.GetConsensus(), true, true, after_block));
     BOOST_CHECK(true == CheckTransaction(*b.vtx[0], state, true, tx.GetHash(), false, after_block));
 
 
     ///////////////////////////////////////////////////////////////////////////
     // Making znodes not synchronized and checking the functionality is disabled
+    CTxOut storedCopy = tx.vout[znodeOutput];
+    tx.vout.erase(tx.vout.begin() + znodeOutput);
+    b.fChecked = false;
+    b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);
+    while (!CheckProofOfWork(b.GetHash(), b.nBits, chainparams.GetConsensus())){
+        ++b.nNonce;
+    }
+
+    BOOST_CHECK(false == CheckBlock(b, state, chainparams.GetConsensus(), true, true, after_block));
+    BOOST_CHECK(true == CheckTransaction(*b.vtx[0], state, true, tx.GetHash(), false, after_block));
+
+    tx.vout.insert(tx.vout.begin() + znodeOutput, storedCopy);
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Removing the znode payment
     znodeSync.Reset();
     b.fChecked = false;
     b.hashMerkleRoot = BlockMerkleRoot(b, &mutated);

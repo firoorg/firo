@@ -165,6 +165,30 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     bool fFoundLocal = false;
+    {
+        LOCK(cs_vNodes);
+
+        // First try to find whatever local address is specified by externalip option
+        fFoundLocal = GetLocal(service) && CZnode::IsValidNetAddr(service);
+        if (!fFoundLocal) {
+            // nothing and no live connections, can't do anything for now
+            if (vNodes.empty()) {
+                nState = ACTIVE_ZNODE_NOT_CAPABLE;
+                strNotCapableReason = "Can't detect valid external address. Will retry when there are some connections available.";
+                LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+                return;
+            }
+            // We have some peers, let's try to find our local address from one of them
+            BOOST_FOREACH(CNode * pnode, vNodes)
+            {
+                if (pnode->fSuccessfullyConnected && pnode->addr.IsIPv4()) {
+                    fFoundLocal = GetLocal(service, &pnode->addr) && CZnode::IsValidNetAddr(service);
+                    if (fFoundLocal) break;
+                }
+            }
+        }
+    }
+        
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST) {
         std::string const & serv = GetArg("-externalip", "");
         if(!serv.empty()) {
