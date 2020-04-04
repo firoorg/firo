@@ -2109,7 +2109,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
             }
         } else {
-            return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
+            // TODO: uncomment when switch to evo znodes is done
+            //return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
         }
 
         // Create and register activeMasternodeManager, will init later in ThreadImport
