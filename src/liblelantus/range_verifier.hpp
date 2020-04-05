@@ -61,7 +61,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     for (std::size_t j = 0; j < m; ++j)
     {
         V_z += V[j] * (z_square_neg * z_m.pow);
-        z_m.go_next()
+        z_m.go_next();
     }
 
     std::vector<Exponent> l_r;
@@ -97,7 +97,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 
             }
             l_r[i] = x_il * innerProductProof.a_ + z;
-            l_r[n * m + i] = y_n_.pow * (x_ir * innerProductProof.b_ - (z_j * two_n[k])) - z;
+            l_r[n * m + i] = y_n_.pow * (x_ir * innerProductProof.b_ - (z_j.pow * two_n[k])) - z;
             y_n_.go_next();
         }
         z_j.go_next();

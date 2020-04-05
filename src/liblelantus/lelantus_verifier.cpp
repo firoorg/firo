@@ -108,10 +108,10 @@ bool LelantusVerifier::verify_schnorrproof(
                      + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h0(), zV, params->get_h1(), zR);
 
 
-    NthPower<Exponent> x_k(x);
-    std::vector<Exponent> x_ks;
-    x_ks.reserve(Qk.size());
-    for (std::size_t k = 0; k < Qk.size(); ++k)
+    NthPower<Scalar> x_k(x);
+    std::vector<Scalar> x_ks;
+    x_ks.reserve(params->get_sigma_m());
+    for (int k = 0; k < params->get_sigma_m(); ++k)
     {
         x_ks.emplace_back(x_k.pow);
         x_k.go_next();
