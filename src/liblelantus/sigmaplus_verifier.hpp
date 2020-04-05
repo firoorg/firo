@@ -77,13 +77,13 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         pow *= f_[j * n + I[j]];
     }
 
-    Exponent xj(uint64_t(1));;    // x^j
+    NthPower<Exponent> xj(x);
     for (int j = 0; j < m; j++) {
         Exponent fi_sum(uint64_t(0));
         for (int i = I[j] + 1; i < n; i++)
             fi_sum += f_[j*n + i];
-        pow += fi_sum * xj * f_part_product[m - j - 1];
-        xj *= x;
+        pow += fi_sum * xj.pow * f_part_product[m - j - 1];
+        xj.go_next();
     }
     f_i_.emplace_back(pow);
 
@@ -93,11 +93,11 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     const std::vector <GroupElement>& Gk = proof.Gk_;
     const std::vector <GroupElement>& Qk = proof.Qk;
     GroupElement t2;
-    Exponent x_k(uint64_t(1));
+    NthPower<Exponent> x_k(x);
     for (std::size_t k = 0; k < m; ++k)
     {
-        t2 += ((Gk[k] + Qk[k] )* (x_k.negate()));
-        x_k *= x;
+        t2 += ((Gk[k] + Qk[k] )* (x_k.pow.negate()));
+        x_k.go_next();
     }
 
     GroupElement left(t1 + t2);
@@ -183,13 +183,13 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
             pow *= f_[t][j * n + I_[N - 1][j]];
         }
 
-        Exponent xj(uint64_t(1));;    // x^j
+        NthPower<Exponent> xj(x);
         for (std::size_t j = 0; j < m; j++) {
             Exponent fi_sum(uint64_t(0));
             for (std::size_t i = I_[N - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
-            pow += fi_sum * xj * f_part_product[m - j - 1];
-            xj *= x;
+            pow += fi_sum * xj.pow * f_part_product[m - j - 1];
+            xj.go_next();
         }
 
         f_i_t[N - 1] += pow * y[t];
@@ -204,10 +204,10 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
 
     std::vector<Scalar> x_k_neg;
     x_k_neg.reserve(m);
-    Scalar x_k(uint64_t(1));
+    NthPower<Exponent> x_k(x);
     for (uint64_t k = 0; k < m; ++k) {
-        x_k_neg.emplace_back(x_k.negate());
-        x_k *= x;
+        x_k_neg.emplace_back(x_k.pow.negate());
+        x_k.go_next();
     }
 
     GroupElement t2;

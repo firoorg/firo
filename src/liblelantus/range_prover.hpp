@@ -67,30 +67,36 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     std::vector<std::vector<Exponent>> l_x, r_x;
     l_x.resize(n * m);
     r_x.resize(n * m);
-    Exponent y_nm(uint64_t(1));
-
-    Exponent z_j = z.square();
+    NthPower<Exponent> y_nm(y);
+    NthPower<Exponent> z_j(z, z.square());
     Exponent z_sum1(uint64_t(0));
     Exponent z_sum2(uint64_t(0));
-    Exponent two(uint64_t(2));
+
+    NthPower<Exponent> two_n_(uint64_t(2));
+    std::vector<Exponent> two_n;
+    two_n.reserve(n);
+    for (uint64_t k = 0; k < n; ++k)
+    {
+        two_n.emplace_back(two_n_.pow);
+        two_n_.go_next();
+    }
+
     for (std::size_t j = 0; j < m; ++j)
     {
-        Exponent two_n(uint64_t(1));
         for (std::size_t i = 0; i < n; ++i)
         {
             int index = j * n + i;
             l_x[index].emplace_back(aL[index] - z);
             l_x[index].emplace_back(sL[index]);
 
-            r_x[index].emplace_back(y_nm * (aR[index] + z) + z_j * two_n);
-            r_x[index].emplace_back(y_nm * sR[index]);
+            r_x[index].emplace_back(y_nm.pow * (aR[index] + z) + z_j.pow * two_n[i]);
+            r_x[index].emplace_back(y_nm.pow * sR[index]);
             //
-            y_nm *= y;
-            two_n *= two;
+            y_nm.go_next();
         }
-        z_sum1 += z_j * randomness[j];
-        z_sum2 += z_j * serialNumbers[j];
-        z_j *= z;
+        z_sum1 += z_j.pow * randomness[j];
+        z_sum2 += z_j.pow * serialNumbers[j];
+        z_j.go_next();
     }
 
     //compute t1 and t2 coefficients
@@ -134,12 +140,11 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     //compute h'
     std::vector<GroupElement> h_prime;
     h_prime.reserve(h_.size());
-    Exponent y_i_inv(uint64_t(1));
-    Exponent y_inv = y.inverse();
+    NthPower<Exponent> y_i_inv(y.inverse());
     for (std::size_t i = 0; i < h_.size(); ++i)
     {
-        h_prime.emplace_back(h_[i] * y_i_inv);
-        y_i_inv *= y_inv;
+        h_prime.emplace_back(h_[i] * y_i_inv.pow);
+        y_i_inv.go_next();
     }
 
     InnerProductProofGenerator<Exponent, GroupElement> InnerProductProofGenerator(g_, h_prime, g);

@@ -208,11 +208,12 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_response(
     proof_out.zV_ = v * x.exponent(uint64_t(m_));
     proof_out.zR_ = r * x.exponent(uint64_t(m_));
     Exponent sumV, sumR;
-    Exponent x_k(uint64_t(1));
+
+    NthPower<Exponent> x_k(x);
     for (std::size_t k = 0; k < m_; ++k) {
-        sumV += (Pk[k] * x_k);
-        sumR += (Tk[k] * x_k);
-        x_k *= x;
+        sumV += (Pk[k] * x_k.pow);
+        sumR += (Tk[k] * x_k.pow);
+        x_k.go_next();
     }
     proof_out.zV_ -= sumV;
     proof_out.zR_ -= sumR;

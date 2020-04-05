@@ -192,27 +192,26 @@ template <class Exponent, class GroupElement>
 Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n,  uint64_t m){
     Exponent y_;
     Exponent two_;
-    Exponent two(uint64_t(2));
-    Exponent y_n(uint64_t(1));
-    Exponent two_n(uint64_t(1));
-    Exponent z_j =  z.exponent(uint64_t(3));
+    NthPower<Exponent> y_n(y);
+    NthPower<Exponent> two_n(uint64_t(2));
+    NthPower<Exponent> z_j(z, z.exponent(uint64_t(3)));
     Exponent z_sum(uint64_t(0));
 
     for(std::size_t j = 0; j < m; ++j)
     {
         for(std::size_t i = 0; i < n; ++i)
         {
-            y_ += y_n;
-            y_n *= y;
+            y_ += y_n.pow;
+            y_n.go_next();
         }
-        z_sum += z_j;
-        z_j *= z;
+        z_sum += z_j.pow;
+        z_j.go_next();
     }
 
     for(std::size_t i = 0; i < n; ++i)
     {
-        two_ += two_n;
-        two_n *= two;
+        two_ += two_n.pow;
+        two_n.go_next();
     }
 
     return (z - z.square()) * y_ - z_sum * two_;

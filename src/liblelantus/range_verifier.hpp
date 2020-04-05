@@ -28,7 +28,6 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     std::vector<GroupElement> group_elements = {proof.A,proof.S};
     std::vector<GroupElement> group_elements2 = {proof.S,proof.A};
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, y);
-    Exponent y_inv =  y.inverse();
 
     LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, z);
 
@@ -58,21 +57,29 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 
     //check line 97
     GroupElement V_z;
-    Exponent z_m(uint64_t(1));
+    NthPower<Exponent> z_m(z);
     for (std::size_t j = 0; j < m; ++j)
     {
-        V_z += V[j] * (z_square_neg * z_m);
-        z_m *= z;
+        V_z += V[j] * (z_square_neg * z_m.pow);
+        z_m.go_next()
     }
 
     std::vector<Exponent> l_r;
     l_r.resize(n * m * 2);
-    Exponent y_n_(uint64_t(1));
-    Exponent two(uint64_t(2));
-    Exponent z_j = z.square();
+    NthPower<Exponent> y_n_(y.inverse());
+    NthPower<Exponent> z_j(z, z.square());
+
+    NthPower<Exponent> two_n_(uint64_t(2));
+    std::vector<Exponent> two_n;
+    two_n.reserve(n);
+    for (uint64_t k = 0; k < n; ++k)
+    {
+        two_n.emplace_back(two_n_.pow);
+        two_n_.go_next();
+    }
+
     for (uint64_t t = 0; t < m ; ++t)
     {
-        Exponent two_n_(uint64_t(1));
         for (uint64_t k = 0; k < n; ++k)
         {
             uint64_t i = t * n + k;
@@ -90,11 +97,10 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 
             }
             l_r[i] = x_il * innerProductProof.a_ + z;
-            l_r[n * m + i] = y_n_ * (x_ir * innerProductProof.b_ - (z_j * two_n_)) - z;
-            y_n_ *= y_inv;
-            two_n_ *= two;
+            l_r[n * m + i] = y_n_.pow * (x_ir * innerProductProof.b_ - (z_j * two_n[k])) - z;
+            y_n_.go_next();
         }
-        z_j *= z;
+        z_j.go_next();
     }
 
     //check lines  98 and 105

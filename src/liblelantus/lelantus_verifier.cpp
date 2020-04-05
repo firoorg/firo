@@ -106,16 +106,25 @@ bool LelantusVerifier::verify_schnorrproof(
 
     GroupElement B = (params->get_h0() * (Vin * x.exponent(params->get_sigma_m())))
                      + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h0(), zV, params->get_h1(), zR);
+
+
+    NthPower<Exponent> x_k(x);
+    std::vector<Exponent> x_ks;
+    x_ks.reserve(Qk.size());
+    for (std::size_t k = 0; k < Qk.size(); ++k)
+    {
+        x_ks.emplace_back(x_k.pow);
+        x_k.go_next();
+    }
+
     GroupElement Comm;
     for (std::size_t t = 0; t < proof.sigma_proofs.size(); ++t)
     {
         GroupElement Comm_t;
         const std::vector<GroupElement>& Qk = proof.sigma_proofs[t].Qk;
-        Scalar x_k(uint64_t(1));
         for (std::size_t k = 0; k < Qk.size(); ++k)
         {
-            Comm_t += (Qk[k]) * x_k;
-            x_k *= x;
+            Comm_t += (Qk[k]) * x_ks[k];
         }
         Comm += Comm_t;
     }

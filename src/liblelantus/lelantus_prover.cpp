@@ -106,10 +106,10 @@ void LelantusProver::generate_sigma_proofs(
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());
-    Scalar x_k(uint64_t(1));
+    NthPower<Exponent> x_k(x);
     for (int k = 0; k < params->get_sigma_m(); ++k) {
-        x_ks.emplace_back(x_k);
-        x_k *= x;
+        x_ks.emplace_back(x_k.pow);
+        x_k.go_next();
     }
 
     for (std::size_t i = 0; i < N; ++i) {
