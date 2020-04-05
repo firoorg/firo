@@ -419,6 +419,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/rpcznode.cpp \
   rpc/server.cpp \
   rpc/rpcevo.cpp \
+  rpc/rpcquorums.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
   timedata.cpp \
