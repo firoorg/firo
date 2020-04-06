@@ -2535,13 +2535,14 @@ CRecipient CWallet::CreateLelantusMintRecipient(
 
     // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
     std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-    script.insert(script.end(), vch.begin(), vch.end());
+    script.insert(script.end(), vch.begin(), vch.end()); //this uses 34 byte
 
-    //generating schnorr proof
+    // generating schnorr proof
     std::vector<unsigned char>  serializedSchnorrProof;
     lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
-    script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //TODO(levon) put comment about sizes
-
+    script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
+    
+    // overall Lelantus mint script size is 1 + 34 + 98 = 133 byte
     return {script, coin.getV(), false};
 
 }
