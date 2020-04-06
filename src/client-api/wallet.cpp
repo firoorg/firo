@@ -492,7 +492,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
         }
     }
 
-    if(getInputs && wtx.GetDepthInMainChain() >= 0){
+    if(getInputs && wtx.GetDepthInMainChain() >= 0 && (!wtx.IsCoinBase())){
         UniValue listInputs(UniValue::VARR);
         if (!find_value(ret, "inputs").isNull()) {
             listInputs = find_value(ret, "inputs");

@@ -220,6 +220,14 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
     isminefilter filter = ISMINE_ALL;
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
+    if(topic=="balance"){
+        // If synced, always publish, if not, every 1000 blocks (for better sync speed).
+        if(znodeSync.GetBlockchainSynced() || chainActive.Tip()->nHeight%1000==0)
+            Execute();
+        else
+            return true;
+    }
+
     if(listReceived.size() > 0 || listSent.size() > 0){
         UniValue requestData(UniValue::VOBJ);
         string encodedTx;
