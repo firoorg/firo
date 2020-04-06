@@ -22,6 +22,8 @@ private:
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
     bool IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial);
     bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend=false);
+    bool UpdateLelantusMetaStatus(const std::set<uint256>& setMempool, CLelantusMintMeta& mint, bool fSpend=false);
+
     std::set<uint256> GetMempoolTxids();
 public:
     CHDMintTracker(std::string strWalletFile);
@@ -30,8 +32,10 @@ public:
     void AddLelantus(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     void Add(const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
+    bool Archive(CLelantusMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
     bool HasSerialHash(const uint256& hashSerial) const;
+    bool HasLelantusSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mapSerialHashes.empty(); }
     void Init();
     bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
@@ -40,6 +44,7 @@ public:
 
     std::vector<uint256> GetSerialHashes();
     void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
+    void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CLelantusMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins, bool isLelantus);
@@ -50,6 +55,7 @@ public:
     void SetPubcoinNotUsed(const uint256& hashPubcoin);
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
     bool UpdateState(const CMintMeta& meta);
+    bool UpdateState(const CLelantusMintMeta& meta);
     void Clear();
 };
 

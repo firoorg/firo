@@ -4,6 +4,7 @@
 #include "amount.h"
 #include "chain.h"
 #include "liblelantus/coin.h"
+//#include "sigma/coinspend.h"
 #include "consensus/validation.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
@@ -57,6 +58,14 @@ bool CheckLelantusTransaction(
 	CLelantusTxInfo* lelantusTxInfo);
 
 /*
+ * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
+ */
+bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block);
+bool GetOutPoint(COutPoint& outPoint, const lelantus::PublicCoin &pubCoin);
+bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
+bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+
+/*
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
@@ -75,6 +84,12 @@ public:
 
 public:
     CLelantusState();
+
+    // Add mints in block, automatically assigning id to it
+    void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
+
+    // Add serial to the list of used ones
+    void AddSpend(const Scalar &serial, int coinGroupId);
 
     // Query coin group with given denomination and id
     bool GetCoinGroupInfo(int group_id, LelantusCoinGroupInfo &result);
@@ -105,10 +120,21 @@ public:
     // Reset to initial values
     void Reset();
 
+    // Check if there is a conflicting tx in the blockchain or mempool
+    bool CanAddSpendToMempool(const Scalar& coinSerial);
+
     bool CanAddMintToMempool(const GroupElement& pubCoin);
 
     void AddMintsToMempool(const vector<GroupElement>& pubCoins);
     void RemoveMintFromMempool(const GroupElement& pubCoin);
+
+    // Get conflicting tx hash by coin serial number
+    uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
+
+    // Remove spend from the mempool (usually as the result of adding tx to the block)
+    void RemoveSpendFromMempool(const Scalar& coinSerial);
+
+
 
     static CLelantusState* GetState();
 
@@ -143,8 +169,8 @@ private:
         void AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo);
         void RemoveMint(lelantus::PublicCoin const & pubCoin);
 
-//        void AddSpend(Scalar const & serial, CSpendCoinInfo const & coinInfo);
-//        void RemoveSpend(Scalar const & serial);
+        void AddSpend(Scalar const & serial, int coinGroupId);
+        void RemoveSpend(Scalar const & serial);
 
         void Reset();
 

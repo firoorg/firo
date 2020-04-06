@@ -2541,7 +2541,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     std::vector<unsigned char>  serializedSchnorrProof;
     lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
     script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
-    
+
     // overall Lelantus mint script size is 1 + 34 + 98 = 133 byte
     return {script, coin.getV(), false};
 

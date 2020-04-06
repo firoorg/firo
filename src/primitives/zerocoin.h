@@ -29,7 +29,6 @@ struct MintMeta
     uint256 txid;
     bool isUsed;
     bool isArchived;
-    bool isDeterministic;
     bool isSeedCorrect;
 private:
     GroupElement pubCoinValue;
@@ -38,6 +37,7 @@ private:
 
 struct CMintMeta : MintMeta
 {
+    bool isDeterministic;
     sigma::CoinDenomination denom;
 };
 

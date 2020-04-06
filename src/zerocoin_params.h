@@ -92,6 +92,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // limit of coins number per id in spend v3.0
 #define ZC_SPEND_V3_COINSPERID_LIMIT    16000
 
+// limit of coins number per id in Lelantus
+#define ZC_LELANTUS_MAX_MINT_NUM    65000
+#define ZC_LELANTUS_SET_START_SIZE  14000
+
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints

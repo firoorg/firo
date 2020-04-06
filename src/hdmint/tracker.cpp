@@ -14,6 +14,7 @@
 #include "libzerocoin/Zerocoin.h"
 #include "validation.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "txmempool.h"
 
 using namespace std;
@@ -31,6 +32,7 @@ CHDMintTracker::CHDMintTracker(std::string strWalletFile)
 {
     this->strWalletFile = strWalletFile;
     mapSerialHashes.clear();
+    mapLelantusSerialHashes.clear();
     mapPendingSpends.clear();
     fInitialized = false;
 }
@@ -45,6 +47,7 @@ CHDMintTracker::CHDMintTracker(std::string strWalletFile)
 CHDMintTracker::~CHDMintTracker()
 {
     mapSerialHashes.clear();
+    mapLelantusSerialHashes.clear();
     mapPendingSpends.clear();
 }
 
@@ -81,6 +84,24 @@ bool CHDMintTracker::Archive(CMintMeta& meta)
    CWalletDB walletdb(strWalletFile);
     CHDMint dMint;
     if (!walletdb.ReadHDMint(hashPubcoin, false, dMint))
+        return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
+    if (!walletdb.ArchiveDeterministicOrphan(dMint))
+        return error("%s: failed to archive deterministic ophaned mint", __func__);
+
+    LogPrintf("%s: archived pubcoinhash %s\n", __func__, hashPubcoin.GetHex());
+    return true;
+}
+
+bool CHDMintTracker::Archive(CLelantusMintMeta& meta)
+{
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
+
+    if (HasLelantusSerialHash(meta.hashSerial))
+        mapLelantusSerialHashes.at(meta.hashSerial).isArchived = true;
+
+    CWalletDB walletdb(strWalletFile);
+    CHDMint dMint;
+    if (!walletdb.ReadHDMint(hashPubcoin, true, dMint))
         return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
     if (!walletdb.ArchiveDeterministicOrphan(dMint))
         return error("%s: failed to archive deterministic ophaned mint", __func__);
@@ -216,6 +237,12 @@ bool CHDMintTracker::HasSerialHash(const uint256& hashSerial) const
     return it != mapSerialHashes.end();
 }
 
+bool CHDMintTracker::HasLelantusSerialHash(const uint256& hashSerial) const
+{
+    auto it = mapLelantusSerialHashes.find(hashSerial);
+    return it != mapLelantusSerialHashes.end();
+}
+
 /**
  * Update the tracker state
  * 
@@ -294,6 +321,51 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
     return true;
 }
 
+bool CHDMintTracker::UpdateState(const CLelantusMintMeta& meta)
+{
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
+    CWalletDB walletdb(strWalletFile);
+
+    CHDMint dMint;
+    if (!walletdb.ReadHDMint(hashPubcoin, true, dMint)) {
+        // Check archive just in case
+        if (!meta.isArchived)
+            return error("%s: failed to read Lelantus mint from database", __func__);
+
+        // Unarchive this mint since it is being requested and updated
+        if (!walletdb.UnarchiveHDMint(hashPubcoin, true, dMint))
+            return error("%s: failed to unarchive Lelantus mint from database", __func__);
+    }
+
+    // get coin id & height
+    int height, id;
+    if(meta.nHeight<0 || meta.nId <= 0){
+        std::tie(height, id) = lelantus::CLelantusState::GetState()->GetMintedCoinHeightAndId(lelantus::PublicCoin(dMint.GetPubcoinValue()));
+    }
+    else{
+        height = meta.nHeight;
+        id = meta.nId;
+    }
+
+    dMint.SetHeight(height);
+    dMint.SetId(id);
+    dMint.SetUsed(meta.isUsed);
+    dMint.SetAmount(meta.amount);
+
+    if (!walletdb.WriteHDMint(dMint, true))
+        return error("%s: failed to update Lelantus mint when writing to db", __func__);
+
+    pwalletMain->NotifyZerocoinChanged(
+            pwalletMain,
+            dMint.GetPubcoinValue().GetHex(),
+            std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
+            CT_UPDATED);
+
+    mapLelantusSerialHashes[meta.hashSerial] = meta;
+
+    return true;
+}
+
 /**
  * Add a mint object to memory.
  * 
@@ -344,7 +416,6 @@ void CHDMintTracker::AddLelantus(const CHDMint& dMint, bool isNew, bool isArchiv
     meta.hashSerial = dMint.GetSerialHash();
     meta.amount = dMint.GetAmount();
     meta.isArchived = isArchived;
-    meta.isDeterministic = true;
     meta.isSeedCorrect = true;
     mapLelantusSerialHashes[meta.hashSerial] = meta;
 
@@ -446,6 +517,10 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
                 if(mempoolHashSerial==hashSerial){
                     return true;
                 }
+            }
+
+            if (txin.IsLelantusJoinSplit()) {
+                //TODO(levon) implement in case of Lelantus joinsplit
             }
         }
     }
@@ -557,6 +632,102 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     return false;
 }
 
+bool CHDMintTracker::UpdateLelantusMetaStatus(const std::set<uint256>& setMempool, CLelantusMintMeta& mint, bool fSpend)
+{
+    uint256 hashPubcoin = mint.GetPubCoinValueHash();
+    //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
+    // If there is not a record of the block height, then look it up and assign it
+    COutPoint outPoint;
+    lelantus::PublicCoin pubCoin(mint.GetPubCoinValue());
+    bool isMintInChain = GetOutPoint(outPoint, pubCoin);
+    LogPrintf("UpdateLelantusMetaStatus : isMintInChain: %d\n", isMintInChain);
+    const uint256& txidMint = outPoint.hash;
+
+    //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
+    bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
+
+    // Mempool might hold pending spend
+    if(!isPendingSpend && fSpend)
+        isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
+
+    LogPrintf("UpdateLelantusMetaStatus : isPendingSpend: %d\n", isPendingSpend);
+
+    // See if there is a blockchain record of spending this mint
+    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
+    Scalar bnSerial;
+    bool isConfirmedSpend = lelantusState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
+    LogPrintf("UpdateLelantusMetaStatus : isConfirmedSpend: %d\n", isConfirmedSpend);
+
+    bool isUsed = isPendingSpend || isConfirmedSpend;
+
+    if ((mint.nHeight==-1) || (mint.nId==-1) || !isMintInChain || isUsed != mint.isUsed) {
+        CTransactionRef tx;
+        uint256 hashBlock;
+
+        // Txid will be marked 0 if there is no knowledge of the final tx hash yet
+        if (mint.txid.IsNull()) {
+            if (!isMintInChain) {
+                if(mint.nHeight>-1) mint.nHeight = -1;
+                if(mint.nId>-1) mint.nId = -1;
+                // still want to update this mint later if syncing. else ignore
+                if(IsInitialBlockDownload()){
+                    return true;
+                }
+                return false;
+            }
+            mint.txid = txidMint;
+        }
+
+        LogPrintf("UpdateLelantusMetaStatus : mint.txid = %d\n", mint.txid.GetHex());
+
+        if (setMempool.count(mint.txid)) {
+            if(mint.nHeight>-1) mint.nHeight = -1;
+            if(mint.nId>-1) mint.nId = -1;
+            return true;
+        }
+
+        // Check the transaction associated with this mint
+        if (!GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
+            LogPrintf("%s : Failed to find tx for mint txid=%s\n", __func__, mint.txid.GetHex());
+            mint.isArchived = true;
+            Archive(mint);
+            return true;
+        }
+
+        bool isUpdated = false;
+
+        // An orphan tx if hashblock is in mapBlockIndex but not in chain active
+        if (mapBlockIndex.count(hashBlock)) {
+            if(!chainActive.Contains(mapBlockIndex.at(hashBlock))) {
+                LogPrintf("%s : Found orphaned mint txid=%s\n", __func__, mint.txid.GetHex());
+                mint.isUsed = false;
+                mint.nHeight = 0;
+
+                return true;
+            } else if((mint.nHeight==-1) || (mint.nId<=0)) { // assign nHeight if not present
+                lelantus::PublicCoin pubcoin(mint.GetPubCoinValue());
+                auto MintedCoinHeightAndId = lelantusState->GetMintedCoinHeightAndId(pubcoin);
+                mint.nHeight = MintedCoinHeightAndId.first;
+                mint.nId = MintedCoinHeightAndId.second;
+                LogPrintf("%s : Set mint %s nHeight to %d\n", __func__, hashPubcoin.GetHex(), mint.nHeight);
+                LogPrintf("%s : Set mint %s nId to %d\n", __func__, hashPubcoin.GetHex(), mint.nId);
+                isUpdated = true;
+            }
+        }
+
+        // Check that the mint has correct used status
+        if (mint.isUsed != isUsed) {
+            LogPrintf("%s : Set mint %s isUsed to %d\n", __func__, hashPubcoin.GetHex(), isUsed);
+            mint.isUsed = isUsed;
+            isUpdated = true;
+        }
+
+        if(isUpdated) return true;
+    }
+
+    return false;
+}
+
 /**
  * Update mints found on-chain.
  * 
@@ -571,6 +742,16 @@ void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPool
 
     //overwrite any updates
     for (CMintMeta meta : updatedMeta)
+        UpdateState(meta);
+}
+
+void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CLelantusMintMeta>& updatedMeta){
+    if (mintPoolEntries.size() > 0) {
+        zwalletMain->SyncWithChain(false, mintPoolEntries);
+    }
+
+    //overwrite any updates
+    for (CLelantusMintMeta meta : updatedMeta)
         UpdateState(meta);
 }
 
@@ -690,7 +871,9 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
             }
 
             if(isLelantus) {
-                //TODO(levon) implement here
+                if(UpdateLelantusMetaStatus(setMempool, metaLelantus)){
+                    updatedLelantusMeta.emplace_back(metaLelantus);
+                }
             } else {
                 if(UpdateMetaStatus(setMempool, meta)){
                     updatedMeta.emplace_back(meta);
@@ -700,7 +883,10 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
         }
     }
 
-    UpdateFromBlock(mintPoolEntries, updatedMeta);
+    if(isLelantus)
+        UpdateFromBlock(mintPoolEntries, updatedLelantusMeta);
+    else
+        UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
 /**
