@@ -349,7 +349,6 @@ BOOST_AUTO_TEST_CASE(readmintpool)
     std::vector<MintPoolEntry> data;
     BOOST_CHECK_EQUAL(true, db->ReadMintPool(data));
     BOOST_CHECK(mintPool == data);
-    BOOST_CHECK(std::is_permutation(mintPool.begin(), mintPool.end(), data.begin()));
 }
 
 BOOST_AUTO_TEST_CASE(listmints_nomints)

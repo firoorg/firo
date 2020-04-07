@@ -65,6 +65,7 @@ public:
     }
 
 public:
+
     uint32_t BIP44ChangeIndex() const
     {
         return BIP44_ELYSIUM_MINT_INDEX_V0;

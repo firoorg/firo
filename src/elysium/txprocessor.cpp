@@ -166,7 +166,7 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     assert(serial);
 
     if (IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block)) {
-        if (!serial->isMember()) {
+        if (!serial->isMember() || serial->isZero()) {
             PrintToLog("%s() : Serial is invalid\n", __func__);
             return PKT_ERROR_SIGMA - 907;
         }

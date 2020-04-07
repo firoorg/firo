@@ -544,7 +544,7 @@ size_t SigmaDatabase::GetAnonimityGroup(
 
         auto pub = ParseMint(it->value().ToString());
 
-        if (!pub.commitment.isMember()) {
+        if (!pub.IsValid()) {
             throw std::runtime_error("GetAnonimityGroup() : coin is invalid");
         }
         insertF(pub);

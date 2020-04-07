@@ -26,7 +26,7 @@ SigmaParams::SigmaParams(const secp_primitives::GroupElement& g, unsigned m, uns
     m(m),
     n(n)
 {
-    if (!g.isMember() || m == 0 || n == 0) {
+    if (!g.isMember() || g.isInfinity() || m == 0 || n == 0) {
         throw std::invalid_argument("Invalid Sigma parameters");
     }
 
@@ -67,7 +67,8 @@ bool SigmaPrivateKey::operator!=(const SigmaPrivateKey& other) const
 
 bool SigmaPrivateKey::IsValid() const
 {
-    return serial.isMember() && randomness.isMember();
+    return serial.isMember() && randomness.isMember() &&
+        !serial.isZero() && !randomness.isZero();
 }
 
 void SigmaPrivateKey::Generate()
@@ -101,7 +102,7 @@ bool SigmaPublicKey::operator!=(const SigmaPublicKey& other) const
 
 bool SigmaPublicKey::IsValid() const
 {
-    return commitment.isMember();
+    return commitment.isMember() && !commitment.isInfinity();
 }
 
 void SigmaPublicKey::Generate(const SigmaPrivateKey& key, const SigmaParams& params)
