@@ -21,6 +21,10 @@ case $host_alias in
   ;;
 esac
 
+if test "x$enable_tests" == "xyes"
+then
+  cmake_osflags="$cmake_osflags -DENABLE_TESTS=1"
+fi
 
 set -e
 mkdir -p build
