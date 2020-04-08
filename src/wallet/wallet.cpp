@@ -8511,11 +8511,12 @@ bool CWallet::InitLoadWallet() {
             }
         }
     }
-
+#ifdef ENABLE_CLIENTAPI
     if(fApi && reindexing){
         SetAPIWarmupFinished();
         GetMainSignals().NotifyAPIStatus();
     }
+#endif
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     pwalletMain = walletInstance;
