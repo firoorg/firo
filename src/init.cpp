@@ -55,7 +55,21 @@ static CZMQReplierInterface* pzmqReplierInterface = NULL;
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
+
+#include "activemasternode.h"
+#include "flat-database.h"
+#include "instantx.h"
+#include "masternode-meta.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
+#include "masternode-utils.h"
+#include "messagesigner.h"
+#include "netfulfilledman.h"
+
 #include "warnings.h"
+
+#include "evo/deterministicmns.h"
+#include "llmq/quorums_init.h"
 
 #ifdef ENABLE_EXODUS
 #include "exodus/exodus.h"
@@ -222,6 +236,7 @@ void Interrupt(boost::thread_group& threadGroup)
 #endif
     InterruptREST();
     InterruptTorControl();
+    llmq::InterruptLLMQSystem();
     if (g_connman)
         g_connman->Interrupt();
     threadGroup.interrupt_all();
@@ -249,6 +264,7 @@ void Shutdown()
 #ifdef ENABLE_CLIENTAPI
     StopAPI();
 #endif
+    llmq::StopLLMQSystem();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -257,7 +273,6 @@ void Shutdown()
     zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
-
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
@@ -269,6 +284,24 @@ void Shutdown()
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
     g_connman.reset();
+
+   if (!fLiteMode) {
+        // STORE DATA CACHES INTO SERIALIZED DAT FILES
+        CFlatDB<CMasternodeMetaMan> flatdb1("evozncache.dat", "magicMasternodeCache");
+        flatdb1.Dump(mmetaman);
+/*        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
+        flatdb3.Dump(governance); */
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("evonetfulfilled.dat", "magicFulfilledCache");
+        flatdb4.Dump(netfulfilledman);
+        /*if(fEnableInstantSend)
+        {
+            CFlatDB<CInstantSend> flatdb5("instantsend.dat", "magicInstantSendCache");
+            flatdb5.Dump(instantsend);
+        }
+        CFlatDB<CSporkManager> flatdb6("sporks.dat", "magicSporkCache");
+        flatdb6.Dump(sporkManager);
+        */
+    }
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
@@ -1712,6 +1745,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 //    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
     nCoinCacheUsage = nTotalCache / 300;
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
+    int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
@@ -1730,8 +1764,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pcoinsTip;
                 delete pcoinsdbview;
                 delete pcoinscatcher;
+                llmq::DestroyLLMQSystem();
                 delete pblocktree;
+                delete evoDb;
 
+                evoDb = new CEvoDB(nEvoDbCache, false, fReindex || fReindexChainState);
+                deterministicMNManager = new CDeterministicMNManager(*evoDb);
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
                 if (!fReindex) {
@@ -1747,6 +1785,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+                llmq::InitLLMQSystem(*evoDb, &scheduler, false, fReindex || fReindexChainState);
+
                 if (fReindex) {
                     pblocktree->WriteReindexing(true);
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
@@ -1804,6 +1844,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     strLoadError = _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
                     break;
                 }
+
+                deterministicMNManager->UpgradeDBIfNeeded();
 
                 if (!fReindex && chainActive.Tip() != NULL) {
                     uiInterface.InitMessage(_("Rewinding blocks..."));
@@ -2053,6 +2095,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
+    // Legacy znode system
     if (fMasternodeMode) {
         LogPrintf("ZNODE:\n");
 
@@ -2098,6 +2141,43 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             GetMainSignals().UpdatedBalance();
     }
 
+    // evo znode system
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode."));
+    }
+
+    if(fMasternodeMode) {
+        LogPrintf("MASTERNODE:\n");
+
+        std::string strMasterNodeBLSPrivKey = GetArg("-masternodeblsprivkey", "");
+        if(!strMasterNodeBLSPrivKey.empty()) {
+            auto binKey = ParseHex(strMasterNodeBLSPrivKey);
+            CBLSSecretKey keyOperator;
+            keyOperator.SetBuf(binKey);
+            if (keyOperator.IsValid()) {
+                activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
+                activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
+                LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
+            } else {
+                return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
+            }
+        } else {
+            // TODO: uncomment when switch to evo znodes is done
+            //return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
+        }
+
+        // Create and register activeMasternodeManager, will init later in ThreadImport
+        activeMasternodeManager = new CActiveMasternodeManager();
+        RegisterValidationInterface(activeMasternodeManager);
+    }
+
+    if (activeMasternodeInfo.blsKeyOperator == nullptr) {
+        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>();
+    }
+    if (activeMasternodeInfo.blsPubKeyOperator == nullptr) {
+        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
+    }
+
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
@@ -2131,7 +2211,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    if (GetBoolArg("-persistentznodestate", true)) {
+    bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
+
+    if (!fIgnoreCacheFiles) {
+        // Legacy znodes cache
         uiInterface.InitMessage(_("Loading znode cache..."));
         CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
         if (!flatdb1.Load(mnodeman)) {
@@ -2153,9 +2236,63 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         flatdb4.Load(netfulfilledman);
     }
 
-    // if (!flatdb4.Load(netfulfilledman)) {
-    //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
-    // }
+    if (!fIgnoreCacheFiles) {
+        // Evo znode cache
+        boost::filesystem::path pathDB = GetDataDir();
+        std::string strDBName;
+
+        strDBName = "evozncache.dat";
+        uiInterface.InitMessage(_("Loading masternode cache..."));
+        CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
+        if(!flatdb1.Load(mmetaman)) {
+            return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
+        }
+
+        /*
+        strDBName = "governance.dat";
+        uiInterface.InitMessage(_("Loading governance cache..."));
+        CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
+        if(!flatdb3.Load(governance)) {
+            return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());
+        }
+        governance.InitOnLoad();
+        */
+
+        strDBName = "evonetfulfilled.dat";
+        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+        CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
+        if(!flatdb4.Load(netfulfilledman)) {
+            return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
+        }
+
+        /*
+        if(fEnableInstantSend)
+        {
+            strDBName = "instantsend.dat";
+            uiInterface.InitMessage(_("Loading InstantSend data cache..."));
+            CFlatDB<CInstantSend> flatdb5(strDBName, "magicInstantSendCache");
+            if(!flatdb5.Load(instantsend)) {
+                return InitError(_("Failed to load InstantSend data cache from") + "\n" + (pathDB / strDBName).string());
+            }
+        }
+        */
+    }
+
+    // ********************************************************* Step 10d: schedule Dash-specific tasks
+
+    if (!fLiteMode) {
+        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60 * 1000);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1 * 1000);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1 * 1000);
+
+        /*
+        scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5 * 1000);
+
+        scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60 * 1000);
+        */
+    }
+
+    llmq::StartLLMQSystem();
 
     // ********************************************************* Step 11c: update block tip in Zcoin modules
 

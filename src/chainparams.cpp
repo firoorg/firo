@@ -64,6 +64,81 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
                               extraNonce);
 }
 
+// this one is for testing only
+static Consensus::LLMQParams llmq5_60 = {
+        .type = Consensus::LLMQ_5_60,
+        .name = "llmq_5_60",
+        .size = 5,
+        .minSize = 3,
+        .threshold = 3,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 8,
+
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+
+        .keepOldConnections = 3,
+};
+
+static Consensus::LLMQParams llmq50_60 = {
+        .type = Consensus::LLMQ_50_60,
+        .name = "llmq_50_60",
+        .size = 50,
+        .minSize = 40,
+        .threshold = 30,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 40,
+
+        .signingActiveQuorumCount = 24, // a full day worth of LLMQs
+
+        .keepOldConnections = 25,
+};
+
+static Consensus::LLMQParams llmq400_60 = {
+        .type = Consensus::LLMQ_400_60,
+        .name = "llmq_400_60",
+        .size = 400,
+        .minSize = 300,
+        .threshold = 240,
+
+        .dkgInterval = 24 * 12, // one DKG every 12 hours
+        .dkgPhaseBlocks = 4,
+        .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 28,
+        .dkgBadVotesThreshold = 300,
+
+        .signingActiveQuorumCount = 4, // two days worth of LLMQs
+
+        .keepOldConnections = 5,
+};
+
+// Used for deployment and min-proto-version signalling, so it needs a higher threshold
+static Consensus::LLMQParams llmq400_85 = {
+        .type = Consensus::LLMQ_400_85,
+        .name = "llmq_400_85",
+        .size = 400,
+        .minSize = 350,
+        .threshold = 340,
+
+        .dkgInterval = 24 * 24, // one DKG every 24 hours
+        .dkgPhaseBlocks = 4,
+        .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 48, // give it a larger mining window to make sure it is mined
+        .dkgBadVotesThreshold = 300,
+
+        .signingActiveQuorumCount = 4, // two days worth of LLMQs
+
+        .keepOldConnections = 5,
+};
+
+
 /**
  * Main network
  */
@@ -151,6 +226,16 @@ public:
         // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         // consensus.nBudgetPaymentsWindowBlocks = 100;
 
+        // evo znodes
+        consensus.DIP0003Height = INT_MAX;
+        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0008Height = INT_MAX;
+
+        // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
+        consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
+        consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
         consensus.nDifficultyAdjustStartBlock = 0;
@@ -221,6 +306,7 @@ public:
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
+        fAllowMultiplePorts = false;
 
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
@@ -346,7 +432,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
         consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
-        consensus.nDontAllowDupTxsStartBlock = 18825;
+        consensus.nDontAllowDupTxsStartBlock = 1;
 
         // Znode params testnet
         consensus.nZnodePaymentsStartBlock = 2200;
@@ -358,6 +444,16 @@ public:
         //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
+        // evo znodes
+        consensus.DIP0003Height = INT_MAX;
+        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0008Height = INT_MAX;
+
+        // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
+        consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
+        consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 100;
@@ -366,7 +462,7 @@ public:
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;
 
-        consensus.nDisableZerocoinStartBlock = 50500;
+        consensus.nDisableZerocoinStartBlock = 1;
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
@@ -414,7 +510,7 @@ public:
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
         fMineBlocksOnDemand = false;
-
+        fAllowMultiplePorts = true;
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
@@ -438,10 +534,11 @@ public:
         consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaStartBlock = ZC_SIGMA_TESTNET_STARTING_BLOCK;
-        consensus.nSigmaPaddingBlock = ZC_SIGMA_TESTNET_PADDING_BLOCK;
-        consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_TESTNET_DISABLE_UNPADDED_BLOCK;
-        consensus.nOldSigmaBanBlock = 70416;
+        consensus.nSigmaStartBlock = 1;
+        consensus.nSigmaPaddingBlock = 1;
+        consensus.nDisableUnpaddedSigmaBlock = 1;
+        consensus.nOldSigmaBanBlock = 1;
+
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -450,7 +547,7 @@ public:
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
-        consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+        consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
@@ -460,7 +557,7 @@ public:
         consensus.nDandelionFluff = DANDELION_FLUFF;
 
         // Bip39
-        consensus.nMnemonicBlock = 111270;
+        consensus.nMnemonicBlock = 1;
     }
 };
 
@@ -528,6 +625,16 @@ public:
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
         consensus.nDontAllowDupTxsStartBlock = 1;
 
+        // evo znodes
+        consensus.DIP0003Height = INT_MAX;
+        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0008Height = INT_MAX;
+
+        // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
+        consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
+        consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 5000;
@@ -571,6 +678,7 @@ public:
         fDefaultConsistencyChecks = true;
         fRequireStandard = false;
         fMineBlocksOnDemand = true;
+        fAllowMultiplePorts = true;
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of

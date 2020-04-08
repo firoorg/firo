@@ -196,7 +196,6 @@ BITCOIN_CORE_H = \
   znode-payments.h \
   znode-sync.h \
   masternode-utils.h \
-  masternode-sync.h \
   znodeman.h \
   znodeconfig.h \
   mbstring.h \
@@ -276,7 +275,9 @@ BITCOIN_CORE_H = \
   addresstype.h \
   mtpstate.h \
   messagesigner.h \
+  masternode-meta.h \
   masternode-payments.h \
+  masternode-sync.h \
   saltedhasher.h \
   unordered_lru_cache.h \
   llmq/quorums.h \
@@ -387,6 +388,7 @@ libbitcoin_server_a_SOURCES = \
   llmq/quorums_signing.cpp \
   llmq/quorums_signing_shares.cpp \
   llmq/quorums_utils.cpp \
+  masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
   masternode-utils.cpp \
@@ -417,6 +419,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/rpcznode.cpp \
   rpc/server.cpp \
   rpc/rpcevo.cpp \
+  rpc/rpcquorums.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
   timedata.cpp \
