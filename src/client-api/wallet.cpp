@@ -313,9 +313,16 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string voutIndex = to_string(s.vout);
 
             entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
-            
-            // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
-            if(wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
+
+            // Zerocoin is deprecated, leaving here to correctly display historical transactions.
+            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
+                category = "mint";
+                addrStr = "MINT";
+                entry.push_back(Pair("available", false));
+                entry.push_back(Pair("spendable", false));
+            }
+            else if(wtx.vout[s.vout].scriptPubKey.IsSigmaMint()){
+                // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
                 category = "mint";
                 addrStr = "MINT";
                 if(pwalletMain->IsSigmaMintFromTxOutAvailable(wtx.vout[s.vout])){
@@ -326,7 +333,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", false));
                 }
             }
-            else if((wtx.IsSigmaSpend())){
+            else if((wtx.IsSigmaSpend() || wtx.IsZerocoinSpend())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
@@ -427,7 +434,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
                 }
             }
-            else if(wtx.IsSigmaSpend()){
+            else if(wtx.IsSigmaSpend() || wtx.IsZerocoinSpend()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             } else {
@@ -492,7 +499,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
         }
     }
 
-    if(getInputs && wtx.GetDepthInMainChain() >= 0 && (!wtx.IsCoinBase())){
+    if(getInputs && wtx.GetDepthInMainChain() >= 0 &&
+      (!wtx.IsCoinBase() && !wtx.IsZerocoinMint() && !wtx.IsZerocoinSpend())){
         UniValue listInputs(UniValue::VARR);
         if (!find_value(ret, "inputs").isNull()) {
             listInputs = find_value(ret, "inputs");
