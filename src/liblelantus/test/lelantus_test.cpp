@@ -87,39 +87,38 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin, Vout, f, Cout_Public, proof));
 }
 
-// TODO(panu): enable this test later
-// BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
-// {
-//     size_t N = 100;
+BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
+{
+    size_t N = 100;
 
-//     PrivateCoin input1(params ,2), input2(params, 2), input3(params, 1);
-//     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {
-//         {input1, 0}, {input2, 0}, {input3, 1}
-//     };
+    PrivateCoin input1(params ,2), input2(params, 2), input3(params, 1);
+    std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {
+        {input1, 0}, {input2, 0}, {input3, 1}
+    };
 
-//     std::vector <uint64_t> indexes = {0, 1, 0};
+    std::vector <uint64_t> indexes = {0, 1, 0};
 
-//     auto anonymity_sets = GenerateAnonymitySets({N, N});
-//     anonymity_sets[0][0] = Cin[0].first.getPublicCoin();
-//     anonymity_sets[0][1] = Cin[1].first.getPublicCoin();
-//     anonymity_sets[1][0] = Cin[2].first.getPublicCoin();
+    auto anonymity_sets = GenerateAnonymitySets({N, N});
+    anonymity_sets[0][0] = Cin[0].first.getPublicCoin();
+    anonymity_sets[0][1] = Cin[1].first.getPublicCoin();
+    anonymity_sets[1][0] = Cin[2].first.getPublicCoin();
 
-//     Scalar Vin(5), Vout(6), f(1);
-//     std::vector<PrivateCoin> Cout = {{params, 2}, {params, 1}};
+    Scalar Vin(5), Vout(6), f(1);
+    std::vector<PrivateCoin> Cout = {{params, 2}, {params, 1}};
 
-//     LelantusProof proof;
+    LelantusProof proof;
 
-//     LelantusProver prover(params);
-//     prover.proof(anonymity_sets, Vin, Cin, indexes, Vout, Cout, f,  proof);
+    LelantusProver prover(params);
+    prover.proof(anonymity_sets, Vin, Cin, indexes, Vout, Cout, f,  proof);
 
-//     auto Sin = ExtractSerials(anonymity_sets.size(), Cin);
-//     auto Cout_Public = ExtractPublicCoins(Cout);
+    auto Sin = ExtractSerials(anonymity_sets.size(), Cin);
+    auto Cout_Public = ExtractPublicCoins(Cout);
 
-//     lelantus::LelantusVerifier verifier(params);
-//     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin, Vout, f, Cout_Public, proof));
-//     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin + 1, Vout + 1, f, Cout_Public, proof));
-//     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin, Vout + f, Scalar(uint64_t(0)), Cout_Public, proof));
-// }
+    lelantus::LelantusVerifier verifier(params);
+    BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin, Vout, f, Cout_Public, proof));
+    BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin + 1, Vout + 1, f, Cout_Public, proof));
+    BOOST_CHECK(verifier.verify(anonymity_sets, Sin, Vin, Vout + f, Scalar(uint64_t(0)), Cout_Public, proof));
+}
 
 BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
 {
@@ -167,57 +166,56 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
     BOOST_CHECK(!verifier.verify(anonymitySets, Sin, newVin, Vout, f, publicCoins, proof));
 }
 
-// TODO(panu): enable this test later
-// BOOST_AUTO_TEST_CASE(other_fail_to_validate)
-// {
-//     size_t N = 100;
+BOOST_AUTO_TEST_CASE(other_fail_to_validate)
+{
+    size_t N = 100;
 
-//     // Input
-//     PrivateCoin p1(params, 1), p2(params, 2);
-//     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {{p1, 0}, {p2, 0}};
+    // Input
+    PrivateCoin p1(params, 1), p2(params, 2);
+    std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {{p1, 0}, {p2, 0}};
 
-//     std::vector<uint64_t> indexs = {0, 1};
+    std::vector<uint64_t> indexs = {0, 1};
 
-//     auto anonymitySets = GenerateAnonymitySets({N});
-//     anonymitySets[0][0] = Cin[0].first.getPublicCoin();
-//     anonymitySets[0][1] = Cin[1].first.getPublicCoin();
+    auto anonymitySets = GenerateAnonymitySets({N});
+    anonymitySets[0][0] = Cin[0].first.getPublicCoin();
+    anonymitySets[0][1] = Cin[1].first.getPublicCoin();
 
-//     Scalar Vin(4);
+    Scalar Vin(4);
 
-//     // Output
-//     std::vector<PrivateCoin> Cout = {{params, 1}, {params, 2}};
-//     Scalar Vout(3);
-//     Scalar f(1);
+    // Output
+    std::vector<PrivateCoin> Cout = {{params, 1}, {params, 2}};
+    Scalar Vout(3);
+    Scalar f(1);
 
-//     // Proof
-//     LelantusProof proof;
+    // Proof
+    LelantusProof proof;
 
-//     // Should be prevent from prover
-//     LelantusProver prover(params);
-//     prover.proof(anonymitySets, Vin, Cin, indexs, Vout, Cout, f, proof);
+    // Should be prevent from prover
+    LelantusProver prover(params);
+    prover.proof(anonymitySets, Vin, Cin, indexs, Vout, Cout, f, proof);
 
-//     // Verify
-//     auto Sin = ExtractSerials(anonymitySets.size(), Cin);
-//     auto publicCoins = ExtractPublicCoins(Cout);
+    // Verify
+    auto Sin = ExtractSerials(anonymitySets.size(), Cin);
+    auto publicCoins = ExtractPublicCoins(Cout);
 
-//     LelantusVerifier verifier(params);
+    LelantusVerifier verifier(params);
 
-//     BOOST_CHECK(verifier.verify(anonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(verifier.verify(anonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
 
-//     // Invalid group
-//     auto invalidAnonymitySets = anonymitySets;
-//     invalidAnonymitySets[0].pop_back();
-//     BOOST_CHECK(!verifier.verify(invalidAnonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
+    // Invalid group
+    auto invalidAnonymitySets = anonymitySets;
+    invalidAnonymitySets[0].pop_back();
+    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
 
-//     invalidAnonymitySets = anonymitySets;
-//     invalidAnonymitySets[0].push_back(PrivateCoin(params, 1).getPublicCoin());
-//     BOOST_CHECK(!verifier.verify(invalidAnonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
+    invalidAnonymitySets = anonymitySets;
+    invalidAnonymitySets[0].push_back(PrivateCoin(params, 1).getPublicCoin());
+    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, Sin, Vin, Vout, f, publicCoins, proof));
 
-//     // Invalid serial
-//     auto invalidSin = Sin;
-//     invalidSin[0][1].randomize();
-//     BOOST_CHECK(!verifier.verify(anonymitySets, invalidSin, Vin, Vout, f, publicCoins, proof));
-// }
+    // Invalid serial
+    auto invalidSin = Sin;
+    invalidSin[0][1].randomize();
+    BOOST_CHECK(!verifier.verify(anonymitySets, invalidSin, Vin, Vout, f, publicCoins, proof));
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

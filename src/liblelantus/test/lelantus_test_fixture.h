@@ -42,6 +42,7 @@ public:
         }
     }
 
+    // Generate group elements deterministically
     std::vector<GroupElement> GenerateGroupElements(size_t size) const;
     std::vector<GroupElement> RandomizeGroupElements(size_t size) const;
     std::vector<Scalar> RandomizeScalars(size_t size) const;

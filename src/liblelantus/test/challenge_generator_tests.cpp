@@ -24,6 +24,7 @@ BOOST_AUTO_TEST_CASE(no_input)
 
     generator.get_challenge(out);
 
+    // hash of empty
     BOOST_CHECK_EQUAL(
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         out.GetHex());
@@ -39,6 +40,7 @@ BOOST_AUTO_TEST_CASE(add_one_at_a_time)
     Scalar out;
     generator.get_challenge(out);
 
+    // hash of gs[0] and gs[1]
     BOOST_CHECK_EQUAL(
         "e89ba7cb6379a9b940ed9ed3cda18e0f2177019938fbac57e38e5e541e080fc3",
         out.GetHex());
@@ -53,6 +55,7 @@ BOOST_AUTO_TEST_CASE(add_bulk)
     Scalar out;
     generator.get_challenge(out);
 
+    // hash of gs[0] and gs[1]
     BOOST_CHECK_EQUAL(
         "e89ba7cb6379a9b940ed9ed3cda18e0f2177019938fbac57e38e5e541e080fc3",
         out.GetHex());

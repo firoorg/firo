@@ -97,7 +97,10 @@ BOOST_AUTO_TEST_CASE(publiccoin_hash)
 
     PublicCoin coin(r);
 
-    BOOST_CHECK(r.isMember() && !r.isInfinity());
+    BOOST_CHECK(coin.validate());
+
+    // double hash of 7ed851c84a73fce904dc38fd709836dba446d875846522d4f016bba815a21fc10000
+    // the result of generated group element using 32 bytes of 0 as seed
     BOOST_CHECK_EQUAL(
         "c3ca472773e3334f057875b8268dabd16dcda3d2b4cad3e924ff8c31affacf67",
         coin.getValueHash().GetHex());
