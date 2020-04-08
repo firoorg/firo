@@ -65,7 +65,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Zcoin
       run: |
-        ./configure --disable-jni --enable-exodus --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
+        ./configure --disable-jni --enable-elysium --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
         make -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Run Unit Tests
@@ -135,7 +135,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Zcoin
       run: |
-        ./configure --disable-jni --enable-exodus --prefix=$(realpath depends/x86_64-w64-mingw32)
+        ./configure --disable-jni --enable-elysium --prefix=$(realpath depends/x86_64-w64-mingw32)
         make -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
@@ -172,7 +172,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Zcoin
       run: |
-        ./configure --disable-jni --enable-exodus --prefix=$(grealpath depends/x86_64-apple-darwin*)
+        ./configure --disable-jni --enable-elysium --prefix=$(grealpath depends/x86_64-apple-darwin*)
         make -j$(sysctl -n hw.activecpu)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
