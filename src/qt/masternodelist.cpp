@@ -63,9 +63,6 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     ui->tableWidgetMasternodesDIP3->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    if(walletModel->hasMasternode())
-        ui->checkBoxMyMasternodesOnly->setChecked(true);
-
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
     contextMenuDIP3 = new QMenu();
@@ -98,6 +95,8 @@ void MasternodeList::setClientModel(ClientModel* model)
 void MasternodeList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
+    if(walletModel->hasMasternode())
+        ui->checkBoxMyMasternodesOnly->setChecked(true);
 }
 
 void MasternodeList::showContextMenuDIP3(const QPoint& point)

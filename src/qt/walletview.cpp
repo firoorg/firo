@@ -272,6 +272,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
+    masternodeListPage->setClientModel(clientModel);
 #ifdef ENABLE_EXODUS
     exoAssetsPage->setClientModel(clientModel);
 #endif
@@ -309,6 +310,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(_walletModel);
+    masternodeListPage->setWalletModel(_walletModel);
     sendZcoinView->setModel(_walletModel);
     zc2SigmaPage->setWalletModel(_walletModel);
 #ifdef ENABLE_EXODUS
