@@ -1,140 +1,261 @@
 #include "../sigmaplus_prover.h"
 #include "../sigmaplus_verifier.h"
 
+#include "lelantus_test_fixture.h"
+
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(lelantus_sigma_tests)
+namespace lelantus {
+
+class SigmaPlusTests : public LelantusTestingSetup {
+public:
+    struct Secret {
+    public:
+        Secret(int l) : l(l) {
+            s.randomize();
+            v.randomize();
+            r.randomize();
+        }
+
+    public:
+        int l;
+        Scalar s, v, r;
+    };
+
+public:
+    typedef SigmaPlusProver<Scalar, GroupElement> Prover;
+    typedef SigmaPlusProof<Scalar, GroupElement> Proof;
+    typedef SigmaPlusVerifier<Scalar, GroupElement> Verifier;
+
+public:
+    SigmaPlusTests() {}
+
+public:
+    void GenerateParams(int _N, int _n, int _m = 0) {
+        N = _N;
+        n = _n;
+        m = _m;
+        if (!m) {
+            if (n <= 1) {
+                throw std::logic_error("Try to get value of m from invalid n");
+            }
+
+            m = std::round(log(N) / log(n));
+        }
+
+        h_gens = RandomizeGroupElements(n * m);
+        g.randomize();
+    }
+
+    void GenerateBatchProof(
+        Prover &prover,
+        std::vector<GroupElement> const &coins,
+        int l,
+        Scalar const &s,
+        Scalar const &v,
+        Scalar const &r,
+        Scalar const &x,
+        Proof &proof
+    ) {
+        auto gs = g * s.negate();
+        std::vector<GroupElement> commits(coins.begin(), coins.end());
+        for (auto &c : commits) {
+            c += gs;
+        }
+
+        Scalar rA, rB, rC, rD;
+        rA.randomize();
+        rB.randomize();
+        rC.randomize();
+        rD.randomize();
+
+        std::vector<Scalar> sigma;
+        std::vector<Scalar> Tk, Pk, Yk;
+        Tk.resize(m);
+        Pk.resize(m);
+        Yk.resize(m);
+
+        std::vector<Scalar> a;
+        a.resize(n * m);
+
+        prover.sigma_commit(
+            commits, l, rA, rB, rC, rD, a, Tk, Pk, Yk, sigma, proof);
+
+        prover.sigma_response(
+            sigma, a, rA, rB, rC, rD, v, r, Tk, Pk, x, proof);
+    }
+
+public:
+    int N;
+    int n;
+    int m;
+
+    std::vector<GroupElement> h_gens;
+    GroupElement g;
+};
+
+BOOST_FIXTURE_TEST_SUITE(lelantus_sigma_tests, SigmaPlusTests)
 
 BOOST_AUTO_TEST_CASE(one_out_of_N)
 {
-    int N = 16;
-    int n = 4;
-    int index = 0;
+    GenerateParams(16, 4);
 
-    int m = (int)(log(N) / log(n));;
+    Prover prover(g, h_gens, n, m);
 
-    secp_primitives::GroupElement g;
-    g.randomize();
-    std::vector<secp_primitives::GroupElement> h_gens;
-    h_gens.resize(n * m);
-    for(int i = 0; i < n * m; ++i ){
-        h_gens[i].randomize();
+    auto commits = RandomizeGroupElements(N);
+
+    // tests indexs
+    for (auto index : {0, 3, 15}) {
+        Scalar s, v, r;
+        s.randomize();
+        v.randomize();
+        r.randomize();
+
+        commits[index] = Primitives::double_commit(
+            g, uint64_t(0), h_gens[0], v, h_gens[1], r);
+
+        Proof proof;
+        prover.proof(commits, index, v, r, proof);
+
+        Verifier verifier(g, h_gens, n, m);
+        BOOST_CHECK(verifier.verify(commits, proof));
+
+        // clear generated commitment
+        commits[index].randomize();
     }
-    secp_primitives::Scalar v, r;
-    v.randomize();
-    r.randomize();
-    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+}
 
-    std::vector<secp_primitives::GroupElement> commits;
-    for(int i = 0; i < N; ++i){
-        if(i == index){
-            secp_primitives::GroupElement c;
-            secp_primitives::Scalar zero(uint64_t(0));
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
-            commits.push_back(c);
+BOOST_AUTO_TEST_CASE(one_out_of_N_with_other_groups)
+{
+    GenerateParams(16, 4);
 
-        }
-        else{
-            commits.push_back(secp_primitives::GroupElement());
-            commits[i].randomize();
-        }
-    }
+    Prover prover(g, h_gens, n, m);
+    auto commits = RandomizeGroupElements(N);
 
-    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    Secret s(0);
+    commits[0] = Primitives::double_commit(g, uint64_t(0), h_gens[0], s.v, h_gens[1], s.r);
 
-    prover.proof(commits, index, v, r, proof);
+    Proof proof;
+    prover.proof(commits, 0, s.v, s.r, proof);
 
-    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    Verifier verifier(g, h_gens, n, m);
     BOOST_CHECK(verifier.verify(commits, proof));
 
+    // test with invalid commits
+    auto test = [&](std::vector<GroupElement> const &cs) -> void {
+        BOOST_CHECK(!verifier.verify(cs, proof));
+    };
+
+    // extra member
+    auto anotherCommits = commits;
+    anotherCommits.emplace_back();
+    anotherCommits.back().randomize();
+    test(anotherCommits);
+
+    // remove last member
+    anotherCommits = commits;
+    anotherCommits.pop_back();
+    test(anotherCommits);
+
+    // change itself
+    anotherCommits = commits;
+    anotherCommits[0].randomize();
+    test(anotherCommits);
+
+    // change other
+    anotherCommits = commits;
+    anotherCommits[1].randomize();
+    test(anotherCommits);
+
+    // swap some coins
+    anotherCommits = commits;
+    std::swap(anotherCommits[1], anotherCommits[2]);
+    test(anotherCommits);
 }
 
 BOOST_AUTO_TEST_CASE(one_out_of_N_batch)
 {
-    int N = 16;
-    int n = 4;
-    int m = (int)(log(N) / log(n));;
+    GenerateParams(16, 4);
 
-    secp_primitives::GroupElement g;
-    g.randomize();
-    std::vector<secp_primitives::GroupElement> h_gens;
-    h_gens.resize(n * m);
-    for(int i = 0; i < n * m; ++i ){
-        h_gens[i].randomize();
+    auto commits = RandomizeGroupElements(N);
+
+    // Generate
+    std::vector<Secret> secrets;
+
+    for (auto index : {1, 3, 5, 9, 15}) {
+        secrets.emplace_back(index);
+
+        auto &s = secrets.back();
+
+        commits[index] = Primitives::double_commit(
+            g, s.s, h_gens[0], s.v, h_gens[1], s.r);
     }
 
-    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    Prover prover(g, h_gens, n, m);
+    std::vector<Proof> proofs;
+    std::vector<Scalar> serials;
 
-    std::vector<secp_primitives::GroupElement> commits;
-    std::vector<secp_primitives::Scalar> serials;
-    std::vector<secp_primitives::Scalar> v_;
-    std::vector<secp_primitives::Scalar> r_;
-    std::vector<int> indexes;
-    for(int i = 0; i < N; ++i){
-        if(i % 2){
-            secp_primitives::Scalar s, r;
-            s.randomize();
-            serials.push_back(s);
-            r.randomize();
-            r_.push_back(r);
-            secp_primitives::Scalar v(1);
-            v_.push_back(v);
-            indexes.push_back(i);
+    Scalar x;
+    x.randomize();
 
-            secp_primitives::GroupElement c;
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[0], v, h_gens[1], r);
-            commits.push_back(c);
-        }
-        else{
-            commits.push_back(secp_primitives::GroupElement());
-            commits[i].randomize();
-        }
+    for (auto const &s : secrets) {
+        proofs.emplace_back();
+        serials.push_back(s.s);
+        GenerateBatchProof(
+            prover, commits, s.l, s.s, s.v, s.r, x, proofs.back());
     }
 
-    std::vector<lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement>> proofs;
-    proofs.reserve(serials.size());
+    Verifier verifier(g, h_gens, n, m);
+    BOOST_CHECK(verifier.batchverify(commits, x, serials, proofs));
 
-
-    std::vector<secp_primitives::Scalar> rA, rB, rC, rD;
-    rA.resize(N);
-    rB.resize(N);
-    rC.resize(N);
-    rD.resize(N);
-    std::vector<std::vector<secp_primitives::Scalar>> sigma;
-    sigma.resize(N);
-    std::vector<std::vector<secp_primitives::Scalar>> Tk, Pk, Yk;
-    Tk.resize(N);
-    Pk.resize(N);
-    Yk.resize(N);
-    std::vector<std::vector<secp_primitives::Scalar>> a;
-    a.resize(N);
-    for(int i = 0; i < serials.size(); ++i){
-        lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
-        proofs.push_back(proof);
-        std::vector<secp_primitives::GroupElement> commits_;
-        secp_primitives::GroupElement gs = g * serials[i].negate();
-        for(int j = 0; j < commits.size(); ++j){
-            GroupElement c_ = commits[j] + gs ;
-            commits_.push_back(c_);
-        }
-        rA[i].randomize();
-        rB[i].randomize();
-        rC[i].randomize();
-        rD[i].randomize();
-        Tk[i].resize(m);
-        Pk[i].resize(m);
-        Yk[i].resize(m);
-        a[i].resize(n * m);
-        prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], proofs[i]);
-    }
-    secp_primitives::Scalar x;
-    lelantus::LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(proofs, x);
-
-    for(int i = 0; i < serials.size(); ++i)
-        prover.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v_[i], r_[i], Tk[i], Pk[i], x, proofs[i]);
-
-    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    // verify subset of valid proofs should success also
+    serials.pop_back();
+    proofs.pop_back();
     BOOST_CHECK(verifier.batchverify(commits, x, serials, proofs));
 }
 
+BOOST_AUTO_TEST_CASE(one_out_of_N_batch_with_some_invalid_proof)
+{
+    GenerateParams(16, 4);
+
+    auto commits = RandomizeGroupElements(N);
+
+    // Generate
+    std::vector<Secret> secrets;
+
+    for (auto index : {1, 3}) {
+        secrets.emplace_back(index);
+
+        auto &s = secrets.back();
+
+        commits[index] = Primitives::double_commit(
+            g, s.s, h_gens[0], s.v, h_gens[1], s.r);
+    }
+
+    Prover prover(g, h_gens, n, m);
+    std::vector<Proof> proofs;
+    std::vector<Scalar> serials;
+
+    Scalar x;
+    x.randomize();
+
+    for (auto const &s : secrets) {
+        proofs.emplace_back();
+        serials.push_back(s.s);
+        GenerateBatchProof(
+            prover, commits, s.l, s.s, s.v, s.r, x, proofs.back());
+    }
+
+    // Add an invalid
+    proofs.push_back(proofs.back());
+
+    serials.emplace_back(serials.back());
+    serials.back().randomize();
+
+    Verifier verifier(g, h_gens, n, m);
+    BOOST_CHECK(!verifier.batchverify(commits, x, serials, proofs));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace lelantus

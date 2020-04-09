@@ -4,39 +4,83 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(lelantus_schnorr_proof_tests)
+namespace lelantus {
+
+class SchnorrProofTests {
+public:
+    SchnorrProofTests()
+    {
+        g.randomize();
+        h.randomize();
+        P.randomize();
+        T.randomize();
+    }
+
+public:
+    GroupElement g, h;
+    Scalar P, T;
+};
+
+BOOST_FIXTURE_TEST_SUITE(lelantus_schnorr_proof_tests, SchnorrProofTests)
+
+BOOST_AUTO_TEST_CASE(serialization)
+{
+    SchnorrProver<Scalar, GroupElement> prover(g, h);
+    SchnorrProof<Scalar, GroupElement> proof;
+    prover.proof(P, T, proof);
+
+    std::vector<unsigned char> buffer;
+    buffer.resize(proof.memoryRequired());
+
+    proof.serialize(buffer.data());
+
+    SchnorrProof<Scalar, GroupElement> deserialized;
+    deserialized.deserialize(buffer.data());
+
+    BOOST_CHECK(proof.u == deserialized.u);
+    BOOST_CHECK(proof.P1 == deserialized.P1);
+    BOOST_CHECK(proof.T1 == deserialized.T1);
+}
 
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
-    secp_primitives::GroupElement g, h;
-    g.randomize();
-    h.randomize();
-    secp_primitives::Scalar P, T;
-    P.randomize();
-    T.randomize();
-    secp_primitives::GroupElement y = lelantus::LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
-    lelantus::SchnorrProver<Scalar, GroupElement> prover(g, h);
-    lelantus::SchnorrProof<Scalar, GroupElement> proof;
+    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+
+    SchnorrProver<Scalar, GroupElement> prover(g, h);
+    SchnorrProof<Scalar, GroupElement> proof;
     prover.proof(P, T, proof);
-    lelantus::SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
+
+    SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
     BOOST_CHECK(verifier.verify(y ,proof));
 }
 
 BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
 {
-    secp_primitives::GroupElement g, h;
-    g.randomize();
-    h.randomize();
-    secp_primitives::Scalar P, T;
-    P.randomize();
-    T.randomize();
-    secp_primitives::GroupElement y;
-    y.randomize();
-    lelantus::SchnorrProver<Scalar, GroupElement> prover(g, h);
-    lelantus::SchnorrProof<Scalar, GroupElement> proof;
+    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+
+    SchnorrProver<Scalar, GroupElement> prover(g, h);
+    SchnorrProof<Scalar, GroupElement> proof;
     prover.proof(P, T, proof);
-    lelantus::SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
-    BOOST_CHECK(!verifier.verify(y ,proof));
+
+    GroupElement fakeY;
+    fakeY.randomize();
+
+    SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
+    BOOST_CHECK(!verifier.verify(fakeY, proof));
+
+    auto fakeProof = proof;
+    fakeProof.P1.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
+
+    fakeProof = proof;
+    fakeProof.T1.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
+
+    fakeProof = proof;
+    fakeProof.u.randomize();
+    BOOST_CHECK(!verifier.verify(y, fakeProof));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace lelantus
