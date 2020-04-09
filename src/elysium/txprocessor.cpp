@@ -165,13 +165,6 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     assert(spend);
     assert(serial);
 
-    if (IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block)) {
-        if (!serial->isMember() || serial->isZero()) {
-            PrintToLog("%s() : Serial is invalid\n", __func__);
-            return PKT_ERROR_SIGMA - 907;
-        }
-    }
-
     CBitcoinAddress receiver(tx.getReceiver());
     if (!receiver.IsValid()) {
         PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
