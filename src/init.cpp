@@ -1722,8 +1722,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pblocktree;
                 delete evoDb;
 
-                evoDb = new CEvoDB(nEvoDbCache, false, fReindex || fReindexChainState);
-                deterministicMNManager = new CDeterministicMNManager(*evoDb);
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
                 if (!fReindex) {
@@ -1735,6 +1733,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                     }
                 }
+
+                evoDb = new CEvoDB(nEvoDbCache, false, fReindex || fReindexChainState);
+                deterministicMNManager = new CDeterministicMNManager(*evoDb);
 
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
