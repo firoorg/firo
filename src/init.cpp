@@ -327,6 +327,11 @@ void Shutdown()
         pcoinsdbview = NULL;
         delete pblocktree;
         pblocktree = NULL;
+        llmq::DestroyLLMQSystem();
+        delete deterministicMNManager;
+        deterministicMNManager = NULL;
+        delete evoDb;
+        evoDb = NULL;
     }
 
 #ifdef ENABLE_EXODUS
