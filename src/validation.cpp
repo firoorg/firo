@@ -2391,7 +2391,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
 
     set<uint256> txIds;
-    bool fTestNet = chainparams.GetConsensus().IsTestnet();
+    bool isMainNet = chainparams.GetConsensus().IsMain();
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
@@ -2401,7 +2401,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         const CTransaction &tx = *(block.vtx[i]);
 
         uint256 txHash = tx.GetHash();
-        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+        bool hasDuplicateInTheSameBlock = txIds.count(txHash) > 0;
+        if (hasDuplicateInTheSameBlock && (!isMainNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
             return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
                              REJECT_INVALID, "bad-txns-duplicatetxid");
         txIds.insert(txHash);
@@ -2467,7 +2468,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+        // Historically there were duplicate transactions in the block, they were allowed until block 66550
+        // Don't update coins for such a transaction
+        if (!hasDuplicateInTheSameBlock)
+            UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
 
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
