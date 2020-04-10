@@ -10,6 +10,7 @@
 #include "pubkey.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "evo/evodb.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -33,6 +34,7 @@ struct TestingSetup: public BasicTestingSetup {
     boost::filesystem::path pathTemp;
     boost::thread_group threadGroup;
     CConnman* connman;
+    std::shared_ptr<CEvoDB> pEvoDb;
 
     TestingSetup(const std::string& chainName = CBaseChainParams::MAIN, std::string suf = "");
     ~TestingSetup();
