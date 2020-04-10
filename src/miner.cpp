@@ -43,6 +43,15 @@
 #include <queue>
 #include <unistd.h>
 
+#include "masternode-payments.h"
+
+#include "evo/specialtx.h"
+#include "evo/cbtx.h"
+#include "evo/simplifiedmns.h"
+#include "evo/deterministicmns.h"
+
+#include "llmq/quorums_blockprocessor.h"
+
 using namespace std;
 #include <utility>
 
@@ -153,7 +162,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     int64_t nTimeStart = GetTimeMicros();
 
     // fMTP is always true currently
-    const Consensus::Params &params = Params().GetConsensus();
+    const Consensus::Params &params = chainparams.GetConsensus();
 
     resetBlock();
 
@@ -172,6 +181,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     CBlockIndex* pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
 
+    bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
+
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
@@ -185,6 +196,19 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                        ? nMedianTimePast
                        : pblock->GetBlockTime();
+
+    if (fDIP0003Active_context) {
+        for (auto& p : chainparams.GetConsensus().llmqs) {
+            CTransactionRef qcTx;
+            if (llmq::quorumBlockProcessor->GetMinableCommitmentTx(p.first, nHeight, qcTx)) {
+                pblock->vtx.emplace_back(qcTx);
+                pblocktemplate->vTxFees.emplace_back(0);
+                pblocktemplate->vTxSigOpsCost.emplace_back(0);
+                nBlockSize += qcTx->GetTotalSize();
+                ++nBlockTx;
+            }
+        }
+    }
 
     // Decide whether to include witness transactions
     // This is only needed in case the witness softfork activation is reverted
@@ -205,16 +229,67 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nLastBlockSize = nBlockSize;
     nLastBlockWeight = nBlockWeight;
 
+    CAmount nBlockSubsidy = GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
+
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
+    coinbaseTx.vout[0].nValue = nFees + nBlockSubsidy;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
     FillFoundersReward(coinbaseTx, fMTP);
+
+    if (fDIP0003Active_context) {
+        coinbaseTx.vin[0].scriptSig = CScript() << OP_RETURN;
+
+        coinbaseTx.nVersion = 3;
+        coinbaseTx.nType = TRANSACTION_COINBASE;
+
+        CCbTx cbTx;
+
+        /*
+        if (fDIP0008Active_context) {
+            cbTx.nVersion = 2;
+        } else {
+        */
+            cbTx.nVersion = 1;
+        /*
+        }
+        */
+
+        cbTx.nHeight = nHeight;
+
+        CValidationState state;
+        if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state)) {
+            throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
+        }
+        /*
+        if (fDIP0008Active_context) {
+            if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {
+                throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
+            }
+        }
+        */
+
+        SetTxPayload(coinbaseTx, cbTx);
+    }
+        
+    if (nHeight >= params.DIP0003EnforcementHeight) {
+        std::vector<CTxOut> mnPayments, sbPayments;
+        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, mnPayments, sbPayments);
+    }
+    else {
+        // Update coinbase transaction with additional info about znode and governance payments,
+        // get some info back to pass to getblocktemplate
+        if (nHeight >= params.nZnodePaymentsStartBlock) {
+            CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
+            coinbaseTx.vout[0].nValue -= znodePayment;
+            FillZnodeBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+        }
+    }
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -765,14 +840,6 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
             coinbaseTx.vout.push_back(CTxOut(3 * coin, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
             coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
         }
-    }
-
-    // Update coinbase transaction with additional info about znode and governance payments,
-    // get some info back to pass to getblocktemplate
-    if (nHeight >= params.nZnodePaymentsStartBlock) {
-        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
-        coinbaseTx.vout[0].nValue -= znodePayment;
-        FillZnodeBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
     }
 }
 
