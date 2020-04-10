@@ -1108,5 +1108,5 @@ void CDeterministicMNManager::UpgradeDBIfNeeded()
 bool CDeterministicMNManager::IsDIP3Active(int height)
 {
     const Consensus::Params& params = ::Params().GetConsensus();
-    return height < params.DIP0003Height;
+    return height >= params.DIP0003Height;
 }
