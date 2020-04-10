@@ -445,7 +445,7 @@ public:
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
         // evo znodes
-        consensus.DIP0003Height = INT_MAX;
+        consensus.DIP0003Height = 2950;
         consensus.DIP0003EnforcementHeight = INT_MAX;
         consensus.DIP0008Height = INT_MAX;
 

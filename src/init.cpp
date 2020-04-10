@@ -355,6 +355,10 @@ void Shutdown()
     }
 #endif
 
+    if (fMasternodeMode) {
+        UnregisterValidationInterface(activeMasternodeManager);
+    }
+
 #ifndef WIN32
     try {
         boost::filesystem::remove(GetPidFile());
@@ -800,12 +804,24 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }
+    }    
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+    if (fMasternodeMode) {
+        assert(activeMasternodeManager);
+        activeMasternodeManager->Init();
+    }
+
+#ifdef ENABLE_WALLET
+    // we can't do this before DIP3 is fully initialized
+    if (pwalletMain) {
+        pwalletMain->AutoLockMasternodeCollaterals();
+    }
+#endif
 
     if (!(GetBoolArg("-zapwallettxes", false) || GetBoolArg("-reindex", false))) {
         LoadMempool();
