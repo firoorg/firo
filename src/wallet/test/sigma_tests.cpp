@@ -571,7 +571,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     std::list<CSigmaSpendEntry> spends;
     CWalletDB db(pwalletMain->strWalletFile);
 
-    std::list<CHDMint> coinList = db.ListHDMints();
+    std::list<CHDMint> coinList = db.ListHDMints(false);
     BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
@@ -580,7 +580,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     pwalletMain->SpendSigma(recipients, tx, fee);
 
     coinList.clear();
-    coinList = db.ListHDMints();
+    coinList = db.ListHDMints(false);
     BOOST_CHECK(coinList.size() == 12);
     BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
         [](const CHDMint& coin){return !coin.IsUsed();}) == 10);
@@ -613,7 +613,7 @@ BOOST_AUTO_TEST_CASE(spend)
     std::list<CSigmaSpendEntry> spends;
     db.ListCoinSpendSerial(spends);
 
-    std::list<CHDMint> coins = db.ListHDMints();
+    std::list<CHDMint> coins = db.ListHDMints(false);
 
     BOOST_CHECK(selected.size() == 1);
     BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);

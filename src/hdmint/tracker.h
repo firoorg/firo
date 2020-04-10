@@ -51,6 +51,7 @@ public:
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
     list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
+    std::vector<CLelantusMintMeta> ListLelantusMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
     void SetPubcoinNotUsed(const uint256& hashPubcoin);
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);

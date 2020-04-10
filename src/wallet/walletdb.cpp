@@ -1105,7 +1105,7 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, vector<uint256>& vTxHashIn, ve
 
 DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
     // get list of HD Mints
-    std::list<CHDMint> vHDMints = ListHDMints();
+    std::list<CHDMint> vHDMints = ListHDMints(false);
 
     // get list of non HD Mints
     std::list <CSigmaEntry> sigmaEntries;
@@ -1122,6 +1122,20 @@ DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
     BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
     {
         if (!EraseSigmaEntry(sigmaEntry))
+            return DB_CORRUPT;
+    }
+
+    return DB_LOAD_OK;
+}
+
+DBErrors CWalletDB::ZapLelantusMints(CWallet *pwallet) {
+    // get list of HD Mints
+    std::list<CHDMint> lelantusHDMints = ListHDMints(true);
+
+    // erase each HD Mint
+    BOOST_FOREACH(CHDMint & hdMint, lelantusHDMints)
+    {
+        if (!EraseHDMint(hdMint))
             return DB_CORRUPT;
     }
 
@@ -1599,19 +1613,27 @@ std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
     return listPool;
 }
 
-std::list<CHDMint> CWalletDB::ListHDMints()
+std::list<CHDMint> CWalletDB::ListHDMints(bool isLelantus)
 {
     std::list<CHDMint> listMints;
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+
+    std::string mintName;
+
+    if(isLelantus)
+        mintName = "hdmint_lelantus";
+    else
+        mintName = "hdmint";
+
     bool setRange = true;
     for (;;)
     {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (setRange)
-            ssKey << make_pair(string("hdmint"), ArithToUint256(arith_uint256(0)));
+            ssKey << make_pair(mintName, ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
         setRange = false;
@@ -1626,7 +1648,7 @@ std::list<CHDMint> CWalletDB::ListHDMints()
         // Unserialize
         string strType;
         ssKey >> strType;
-        if (strType != "hdmint")
+        if (strType != mintName)
             break;
 
         uint256 hashPubcoin;

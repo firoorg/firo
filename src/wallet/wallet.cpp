@@ -7291,6 +7291,18 @@ DBErrors CWallet::ZapSigmaMints() {
     return DB_LOAD_OK;
 }
 
+DBErrors CWallet::ZapLelantusMints() {
+    if (!fFileBacked)
+        return DB_LOAD_OK;
+    DBErrors nZapLelantusMintRet = CWalletDB(strWalletFile, "cr+").ZapLelantusMints(this);
+    if (nZapLelantusMintRet != DB_LOAD_OK){
+        LogPrintf("Failed to remove Lelantus mints from CWalletDB");
+        return nZapLelantusMintRet;
+    }
+
+    return DB_LOAD_OK;
+}
+
 
 bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
 {
@@ -7964,7 +7976,8 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         CWallet *tempWallet = new CWallet(walletFile);
         DBErrors nZapMintRet = tempWallet->ZapSigmaMints();
-        if (nZapMintRet != DB_LOAD_OK) {
+        DBErrors nZapLelantusMintRet = tempWallet->ZapLelantusMints();
+        if (nZapMintRet != DB_LOAD_OK || nZapLelantusMintRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
             return NULL;
         }

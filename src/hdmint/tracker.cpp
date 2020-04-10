@@ -973,7 +973,7 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
         }
         LogPrint("zero", "%s: added %d sigmamints from DB\n", __func__, listMintsDB.size());
 
-        std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
+        std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints(false);
         for (auto& dMint : listDeterministicDB) {
             Add(dMint, false, false);
         }
@@ -1017,6 +1017,61 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
 
     //overwrite any updates
     for (CMintMeta& meta : vOverWrite)
+        UpdateState(meta);
+
+    return setMints;
+}
+
+std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
+{
+    std::vector<CLelantusMintMeta> setMints;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    CWalletDB walletdb(strWalletFile);
+    if (fLoad) {
+        std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints(true);
+        for (auto& dMint : listDeterministicDB) {
+            AddLelantus(dMint, false, false);
+        }
+        LogPrint("zero", "%s: added %d lelantus hdmint from DB\n", __func__, listDeterministicDB.size());
+    }
+
+    std::vector<CLelantusMintMeta> vOverWrite;
+    std::set<uint256> setMempool = GetMempoolTxids();
+    for (auto& it : mapLelantusSerialHashes) {
+        CLelantusMintMeta mint = it.second;
+
+        //This is only intended for unarchived coins
+        if (mint.isArchived)
+            continue;
+
+        // Update the metadata of the mints if requested
+        if (fUpdateStatus){
+            if(UpdateLelantusMetaStatus(setMempool, mint)) {
+                if (mint.isArchived)
+                    continue;
+
+                // Mint was updated, queue for overwrite
+                vOverWrite.emplace_back(mint);
+            }
+        }
+
+        if (fUnusedOnly && mint.isUsed)
+            continue;
+
+        if (fMatureOnly) {
+            // Not confirmed
+            if (!mint.nHeight || !(mint.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()))
+                continue;
+        }
+
+        if (!fWrongSeed && !mint.isSeedCorrect)
+            continue;
+
+        setMints.push_back(mint);
+    }
+
+    //overwrite any updates
+    for (CLelantusMintMeta& meta : vOverWrite)
         UpdateState(meta);
 
     return setMints;

@@ -1159,6 +1159,8 @@ public:
 
     // Remove all CSigmaEntry and CHDMint objects from WalletDB.
     DBErrors ZapSigmaMints();
+    // Remove all Lelantus HDMint objects from WalletDB
+    DBErrors ZapLelantusMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 
