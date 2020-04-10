@@ -91,6 +91,8 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         pwalletMain->LoadWallet(fFirstRun);
         pEvoDb = std::make_shared<CEvoDB>(1024 * 1024 * 16, true, true);
         evoDb = pEvoDb.get();
+        pDeterministicMNManager = std::make_shared<CDeterministicMNManager>(*evoDb);
+        deterministicMNManager = pDeterministicMNManager.get();
 
         InitBlockIndex(chainparams);
         {
