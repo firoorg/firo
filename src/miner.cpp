@@ -897,7 +897,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     GetMainSignals().BlockFound(pblock->GetHash());
 
     // Process this block the same as if we had received it from another node
-    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(pblock, [](const CBlock *){}), true, NULL))
+    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(new CBlock(*pblock)), true, NULL))
         return error("ZcoinMiner: ProcessNewBlock, block not accepted");
 
     return true;
@@ -936,6 +936,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
+                                chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight ||
                                 chainActive.Height() < params.nZnodePaymentsStartBlock ||
                                 mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
                     }

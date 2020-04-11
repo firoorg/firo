@@ -3875,10 +3875,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (nHeight == INT_MAX)
         nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
-    if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
-        return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
-    }
-
     for (CTransactionRef tx : block.vtx)
         // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
         if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
@@ -4067,6 +4063,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         if (!ContextualCheckTransaction(*tx, state, consensusParams, pindexPrev)) {
             return false;
         }
+    }
+
+    if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
+        return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
     }
 
     // Enforce rule that the coinbase starts with serialized block height
