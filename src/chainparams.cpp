@@ -83,6 +83,25 @@ static Consensus::LLMQParams llmq5_60 = {
         .keepOldConnections = 3,
 };
 
+// to use on testnet
+static Consensus::LLMQParams llmq10_70 = {
+        .type = Consensus::LLMQ_10_70,
+        .name = "llmq_10_70",
+        .size = 10,
+        .minSize = 8,
+        .threshold = 7,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 15,
+
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+
+        .keepOldConnections = 3,
+};
+
 static Consensus::LLMQParams llmq50_60 = {
         .type = Consensus::LLMQ_50_60,
         .name = "llmq_50_60",
@@ -450,6 +469,7 @@ public:
         consensus.DIP0008Height = INT_MAX;
 
         // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_10_70] = llmq10_70;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
