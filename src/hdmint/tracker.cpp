@@ -152,6 +152,16 @@ bool CHDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, CMintMeta& mMe
     return true;
 }
 
+bool CHDMintTracker::GetMetaFromSerial(const uint256 &hashSerial, CLelantusMintMeta& mMeta)
+{
+    auto it = mapLelantusSerialHashes.find(hashSerial);
+    if(it == mapLelantusSerialHashes.end())
+        return false;
+
+    mMeta = mapLelantusSerialHashes.at(hashSerial);
+    return true;
+}
+
 /**
  * Get a CMintMeta object from memory using mint pubcoin hash
  *
@@ -948,6 +958,19 @@ list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMa
         listPubcoin.push_back(entry);
     }
     return listPubcoin;
+}
+
+list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bool fMatureOnly){
+    list <CLelantusEntry> listCoin;
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CLelantusMintMeta> vecMists = ListLelantusMints(fUnusedOnly, fMatureOnly, false);
+    list<CLelantusMintMeta> listMints(vecMists.begin(), vecMists.end());
+    for (const CLelantusMintMeta& mint : listMints) {
+        CLelantusEntry entry;
+        pwalletMain->GetMint(mint.hashSerial, entry);
+        listCoin.push_back(entry);
+    }
+    return listCoin;
 }
 
 /**

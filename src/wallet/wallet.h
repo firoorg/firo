@@ -963,6 +963,7 @@ public:
      */
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
     void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl = NULL, bool sign = true);
@@ -1041,6 +1042,8 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
+
+    bool GetMint(const uint256& hashSerial, CLelantusEntry& mint) const;
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const std::vector<std::pair<std::string,int>>& denominationPairs,

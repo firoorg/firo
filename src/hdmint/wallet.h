@@ -38,6 +38,7 @@ public:
     bool GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
     bool LoadMintPoolFromDB();
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma);
+    bool RegenerateMint(const CHDMint& dMint, CLelantusEntry& sigma);
     bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
     bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);

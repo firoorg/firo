@@ -876,6 +876,37 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma)
     return true;
 }
 
+bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CLelantusEntry& lelantusEntry)
+{
+    //Generate the coin
+    lelantus::PrivateCoin coin(lelantus::Params::get_default(), dMint.GetAmount());
+    CHDMint dMintDummy;
+    CKeyID seedId = dMint.GetSeedId();
+    int32_t nCount = dMint.GetCount();
+    MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+    GenerateLelantusMint(coin, dMintDummy, mintPoolEntry, true);
+
+    //Fill in the lelantus object's details
+    GroupElement bnValue = coin.getPublicCoin().getValue();
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+        return error("%s: failed to correctly generate lelantus mint, pubcoin hash mismatch", __func__);
+    lelantusEntry.value = bnValue;
+
+    Scalar bnSerial = coin.getSerialNumber();
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+        return error("%s: failed to correctly generate lelantus mint, serial hash mismatch", __func__);
+
+    lelantusEntry.amount = dMint.GetAmount();
+    lelantusEntry.randomness = coin.getRandomness();
+    lelantusEntry.serialNumber = bnSerial;
+    lelantusEntry.IsUsed = dMint.IsUsed();
+    lelantusEntry.nHeight = dMint.GetHeight();
+    lelantusEntry.id = dMint.GetId();
+    lelantusEntry.ecdsaSecretKey = std::vector<unsigned char>(&coin.getEcdsaSeckey()[0],&coin.getEcdsaSeckey()[32]);
+
+    return true;
+}
+
 /**
  * Checks to see if serial passed is on-chain (ie. a check on whether the mint for the serial is spent)
  * 

@@ -3154,6 +3154,59 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
     }
 }
 
+void CWallet::ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
+    EnsureMintWalletAvailable();
+
+    vCoins.clear();
+    LOCK2(cs_main, cs_wallet);
+    list<CLelantusEntry> listOwnCoins;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listOwnCoins = zwalletMain->GetTracker().MintsAsLelantusEntries(true, false);
+    LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
+    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+//        LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        if (!CheckFinalTx(*pcoin)) {
+            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            continue;
+        }
+
+        if (fOnlyConfirmed && !pcoin->IsTrusted()) {
+            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted()\n", fOnlyConfirmed, !pcoin->IsTrusted());
+            continue;
+        }
+
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+            LogPrintf("Not trusted\n");
+            continue;
+        }
+
+        int nDepth = pcoin->GetDepthInMainChain();
+        if (nDepth < 0) {
+            LogPrintf("nDepth=%s\n", nDepth);
+            continue;
+        }
+        LogPrintf("pcoin->tx->vout.size()=%s\n", pcoin->tx->vout.size());
+
+        for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+            if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()) {
+                CTxOut txout = pcoin->tx->vout[i];
+                secp_primitives::GroupElement pubCoin;
+                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
+                LogPrintf("Pubcoin=%s\n", pubCoin.tostring());
+                // CHECKING PROCESS
+                BOOST_FOREACH(const CLelantusEntry& ownCoinItem, listOwnCoins) {
+                    if (ownCoinItem.value == pubCoin && ownCoinItem.IsUsed == false &&
+                        !ownCoinItem.randomness.isZero() && !ownCoinItem.serialNumber.isZero()) {
+                        vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
+                        LogPrintf("-->OK\n");
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,unsigned int> > >vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,
                                   vector<char>& vfBest, CAmount& nBest, int iterations = 1000)
 {
@@ -7143,6 +7196,30 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
     }
 
      return true;
+}
+
+bool CWallet::GetMint(const uint256& hashSerial, CLelantusEntry& mint) const
+{
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        return false;
+    }
+
+    CLelantusMintMeta meta;
+    if(!zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta))
+        return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
+
+    CWalletDB walletdb(strWalletFile);
+
+    CHDMint dMint;
+    if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), true, dMint))
+        return error("%s: failed to read deterministic Lelantus mint", __func__);
+    if (!zwalletMain->RegenerateMint(dMint, mint))
+        return error("%s: failed to generate Lelantus mint", __func__);
+
+    return true;
+
 }
 
 void CWallet::ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& entries) {

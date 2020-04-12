@@ -1449,10 +1449,10 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if (wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinRemint()) {
+            if (wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinRemint() || wtx.tx->IsLelantusJoinSplit()) {
                 entry.push_back(Pair("category", "spend"));
             }
-            else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint()) {
+            else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint()) {
                 entry.push_back(Pair("category", "mint"));
             }
             else {
@@ -2947,6 +2947,63 @@ UniValue listunspentsigmamints(const JSONRPCRequest& request) {
     return results;
 }
 
+UniValue listunspentlelantusmints(const JSONRPCRequest& request) {
+        throw runtime_error(
+                "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
+                "Returns array of unspent transaction outputs\n"
+                "with between minconf and maxconf (inclusive) confirmations.\n"
+                "Results are an array of Objects, each of which has:\n"
+                "{txid, vout, scriptPubKey, amount, confirmations}");
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    EnsureLelantusWalletIsAvailable();
+
+    RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
+
+    int nMinDepth = 1;
+    if (request.params.size() > 0)
+        nMinDepth = request.params[0].get_int();
+
+    int nMaxDepth = 9999999;
+    if (request.params.size() > 1)
+        nMaxDepth = request.params[1].get_int();
+//
+    UniValue results(UniValue::VARR);
+    vector <COutput> vecOutputs;
+    assert(pwalletMain != NULL);
+    pwalletMain->ListAvailableLelantusMintCoins(vecOutputs, false);
+    LogPrintf("vecOutputs.size()=%s\n", vecOutputs.size());
+    BOOST_FOREACH(const COutput &out, vecOutputs)
+    {
+        if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
+            continue;
+
+        int64_t nValue = out.tx->tx->vout[out.i].nValue;
+        const CScript &pk = out.tx->tx->vout[out.i].scriptPubKey;
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
+        entry.push_back(Pair("vout", out.i));
+        entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
+        if (pk.IsPayToScriptHash()) {
+            CTxDestination address;
+            if (ExtractDestination(pk, address)) {
+                const CScriptID &hash = boost::get<CScriptID>(address);
+                CScript redeemScript;
+                if (pwalletMain->GetCScript(hash, redeemScript))
+                    entry.push_back(Pair("redeemScript", HexStr(redeemScript.begin(), redeemScript.end())));
+            }
+        }
+        entry.push_back(Pair("amount", ValueFromAmount(nValue)));
+        entry.push_back(Pair("confirmations", out.nDepth));
+        results.push_back(entry);
+    }
+
+    return results;
+}
+
 UniValue mint(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp)) {
@@ -3624,6 +3681,32 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
+UniValue resetlelantusmint(const JSONRPCRequest& request) {
+
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+                "resetlelantusmint"
+                + HelpRequiringPassphrase());
+
+    EnsureLelantusWalletIsAvailable();
+
+    std::vector <CLelantusMintMeta> listMints;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false);
+
+    BOOST_FOREACH(const CLelantusMintMeta& mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), true, dMint)) {
+            continue;
+        }
+        dMint.SetUsed(false);
+        dMint.SetHeight(-1);
+        zwalletMain->GetTracker().AddLelantus(dMint, true);
+    }
+
+    return NullUniValue;
+}
+
 UniValue listmintzerocoins(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
@@ -3695,6 +3778,48 @@ UniValue listsigmamints(const JSONRPCRequest& request) {
             entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
             entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
             entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
+}
+
+UniValue listlelantusmints(const JSONRPCRequest& request) {
+
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+                "listlelantusmints <all>(false/true)\n"
+                "\nArguments:\n"
+                "1. <all> (boolean, optional) false (default) to return own listlelantusmints. true to return every listlelantusmints.\n"
+                "\nResults are an array of Objects, each of which has:\n"
+                "{id, IsUsed, amount, value, serialNumber, nHeight, randomness}");
+
+    EnsureLelantusWalletIsAvailable();
+
+    bool fAllStatus = false;
+    if (request.params.size() > 0) {
+        fAllStatus = request.params[0].get_bool();
+    }
+
+    // Mint secret data encrypted in wallet
+    EnsureWalletIsUnlocked();
+
+    list <CLelantusEntry> listCoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listCoin = zwalletMain->GetTracker().MintsAsLelantusEntries(false, false);
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(const CLelantusEntry &lelantusItem, listCoin) {
+        if (fAllStatus || lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0))) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", lelantusItem.id));
+            entry.push_back(Pair("IsUsed", lelantusItem.IsUsed));
+            entry.push_back(Pair("amount", lelantusItem.amount));
+            entry.push_back(Pair("value", lelantusItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", lelantusItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", lelantusItem.nHeight));
+            entry.push_back(Pair("randomness", lelantusItem.randomness.GetHex()));
             results.push_back(entry);
         }
     }
@@ -4593,6 +4718,7 @@ static const CRPCCommand commands[] =
 
     { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
     { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
+    { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false },
     { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintlelantus",             &mintlelantus,             false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
@@ -4602,12 +4728,14 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
     { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
+    { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false },
     { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
     { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
     { "wallet",             "listsigmamints",           &listsigmamints,           false },
     { "wallet",             "listpubcoins",             &listpubcoins,             false },
     { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
+    { "wallet",             "listlelantusmints",        &listlelantusmints,        false },
 
     { "wallet",             "setmininput",              &setmininput,              false },
     { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },

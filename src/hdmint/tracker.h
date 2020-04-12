@@ -39,6 +39,7 @@ public:
     bool IsEmpty() const { return mapSerialHashes.empty(); }
     void Init();
     bool GetMetaFromSerial(const uint256& hashSerial, CMintMeta& mMeta);
+    bool GetMetaFromSerial(const uint256& hashSerial, CLelantusMintMeta& mMeta);
     bool GetMetaFromPubcoin(const uint256& hashPubcoin, CMintMeta& mMeta);
     bool GetLelantusMetaFromPubcoin(const uint256& hashPubcoin, CLelantusMintMeta& mMeta);
 
@@ -50,6 +51,7 @@ public:
     void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins, bool isLelantus);
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
     list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
+    list<CLelantusEntry> MintsAsLelantusEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     std::vector<CLelantusMintMeta> ListLelantusMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
