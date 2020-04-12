@@ -244,12 +244,16 @@ public:
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
     void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
+    void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
+    bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);

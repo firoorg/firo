@@ -359,6 +359,39 @@ private:
     int64_t denomination;
 };
 
+class CLelantusSpendEntry
+{
+public:
+    Scalar coinSerial;
+    uint256 hashTx;
+    GroupElement pubCoin;
+    int id;
+//    int64_t amount;
+
+    CLelantusSpendEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        coinSerial = Scalar(uint64_t(0));
+        pubCoin = GroupElement();
+//        amount = 0;
+        id = 0;
+    }
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(coinSerial);
+        READWRITE(hashTx);
+        READWRITE(pubCoin);
+//        READWRITE(amount);
+        READWRITE(id);
+    }
+};
+
 namespace primitives {
 uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);

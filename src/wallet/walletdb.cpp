@@ -266,6 +266,10 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend)
     return Write(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
+bool CWalletDB::WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
+    return Write(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial), lelantusSpend, true);
+}
+
 bool CWalletDB::HasCoinSpendSerialEntry(const Bignum& serial) {
     return Exists(std::make_pair(std::string("zcserial"), serial));
 }
@@ -274,12 +278,20 @@ bool CWalletDB::HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial) {
     return Exists(std::make_pair(std::string("sigma_spend"), serial));
 }
 
+bool CWalletDB::HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial) {
+    return Exists(std::make_pair(std::string("lelantus_spend"), serial));
+}
+
 bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpend) {
     return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
 }
 
 bool CWalletDB::EraseCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend) {
     return Erase(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial));
+}
+
+bool CWalletDB::EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
+    return Erase(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial));
 }
 
 bool
@@ -472,6 +484,41 @@ void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendS
         CSigmaSpendEntry zerocoinSpendItem;
         ssValue >> zerocoinSpendItem;
         listCoinSpendSerial.push_back(zerocoinSpendItem);
+    }
+
+    pcursor->close();
+}
+
+void CWalletDB::ListLelantusSpendSerial(std::list <CLelantusSpendEntry>& listLelantusSpendSerial) {
+    Dbc *pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::ListLelantusSpendSerial() : cannot create DB cursor");
+    bool setRange = true;
+    while (true) {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << std::make_pair(std::string("lelantus_spend"), secp_primitives::Scalar());
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0) {
+            pcursor->close();
+            throw runtime_error("CWalletDB::ListLelantusSpendSerial() : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "lelantus_spend")
+            break;
+        Scalar value;
+        ssKey >> value;
+        CLelantusSpendEntry lelantusSpendItem;
+        ssValue >> lelantusSpendItem;
+        listLelantusSpendSerial.push_back(lelantusSpendItem);
     }
 
     pcursor->close();

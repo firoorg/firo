@@ -4061,6 +4061,79 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
     return results;
 }
 
+UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
+
+    if (request.fHelp || request.params.size() != 2)
+        throw runtime_error(
+                "setlelantusmintstatus \"coinserial\" <isused>(true/false)\n"
+                "Set lelantus mint IsUsed status to True or False\n"
+                "Results are an array of one or no Objects, each of which has:\n"
+                "{id, IsUsed, amount, value, serialNumber, nHeight, randomness}");
+
+    EnsureLelantusWalletIsAvailable();
+
+    Scalar coinSerial;
+    coinSerial.SetHex(request.params[0].get_str());
+
+    bool fStatus = true;
+    fStatus = request.params[1].get_bool();
+
+    EnsureWalletIsUnlocked();
+
+    std::vector <CLelantusMintMeta> listMints;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false);
+
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(const CLelantusMintMeta& mint, listMints) {
+        CLelantusEntry lelantusItem;
+        if(!pwalletMain->GetMint(mint.hashSerial, lelantusItem))
+            continue;
+
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), true, dMint)){
+            continue;
+        }
+
+        if (!lelantusItem.serialNumber.isZero()) {
+            LogPrintf("lelantusItem.serialNumber = %s\n", lelantusItem.serialNumber.GetHex());
+            if (lelantusItem.serialNumber == coinSerial) {
+                LogPrintf("setmintzerocoinstatus Found!\n");
+
+                const std::string& isUsedAmountStr =
+                        fStatus
+                        ? "Used (" + std::to_string((double)lelantusItem.amount / COIN) + " mint)"
+                        : "New (" + std::to_string((double)lelantusItem.amount / COIN) + " mint)";
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, lelantusItem.value.GetHex(), isUsedAmountStr, CT_UPDATED);
+
+                dMint.SetUsed(fStatus);
+                zwalletMain->GetTracker().AddLelantus(dMint, true);
+
+                if (!fStatus) {
+                    // erase lelantus spend entry
+                    CLelantusSpendEntry spendEntry;
+                    spendEntry.coinSerial = coinSerial;
+                    walletdb.EraseLelantusSpendSerialEntry(spendEntry);
+                }
+
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("id", lelantusItem.id));
+                entry.push_back(Pair("IsUsed", fStatus));
+                entry.push_back(Pair("amount", lelantusItem.amount));
+                entry.push_back(Pair("value", lelantusItem.value.GetHex()));
+                entry.push_back(Pair("serialNumber", lelantusItem.serialNumber.GetHex()));
+                entry.push_back(Pair("nHeight", lelantusItem.nHeight));
+                entry.push_back(Pair("randomness", lelantusItem.randomness.GetHex()));
+                results.push_back(entry);
+                break;
+            }
+        }
+    }
+
+    return results;
+}
+
 UniValue listsigmaspends(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
@@ -4731,6 +4804,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false },
     { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
     { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
+    { "wallet",             "setlelantusmintstatus",    &setlelantusmintstatus,    false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
     { "wallet",             "listsigmamints",           &listsigmamints,           false },
     { "wallet",             "listpubcoins",             &listpubcoins,             false },
