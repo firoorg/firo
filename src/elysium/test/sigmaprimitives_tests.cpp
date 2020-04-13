@@ -42,6 +42,24 @@ BOOST_AUTO_TEST_CASE(private_key)
     BOOST_CHECK_NE(key.randomness, randomness);
 }
 
+BOOST_AUTO_TEST_CASE(private_key_inf)
+{
+    Scalar inf;
+    Scalar s(1), r(2);
+
+    SigmaPrivateKey sr(s, r);
+    BOOST_CHECK(sr.IsMember());
+    BOOST_CHECK(sr.IsValid());
+
+    SigmaPrivateKey sinf(s, inf);
+    BOOST_CHECK(sinf.IsMember());
+    BOOST_CHECK(!sinf.IsValid());
+
+    SigmaPrivateKey infr(s, inf);
+    BOOST_CHECK(infr.IsMember());
+    BOOST_CHECK(!infr.IsValid());
+}
+
 BOOST_AUTO_TEST_CASE(private_key_hash)
 {
     SigmaPrivateKey key1, key2;

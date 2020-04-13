@@ -65,10 +65,14 @@ bool SigmaPrivateKey::operator!=(const SigmaPrivateKey& other) const
     return !(*this == other);
 }
 
+bool SigmaPrivateKey::IsMember() const
+{
+    return serial.isMember() && randomness.isMember();
+}
+
 bool SigmaPrivateKey::IsValid() const
 {
-    return serial.isMember() && randomness.isMember() &&
-        !serial.isZero() && !randomness.isZero();
+    return IsMember() && !serial.isZero() && !randomness.isZero();
 }
 
 void SigmaPrivateKey::Generate()
@@ -107,7 +111,7 @@ bool SigmaPublicKey::IsValid() const
 
 void SigmaPublicKey::Generate(const SigmaPrivateKey& key, const SigmaParams& params)
 {
-    if (!key.IsValid()) {
+    if (!key.IsMember()) {
         throw std::invalid_argument("The private key is not valid");
     }
 

@@ -64,21 +64,27 @@ SigmaPrivateKey SigmaWalletV1::GeneratePrivateKey(
     // first 32 bytes as seed of ecdsa key and serial
     std::copy(seed.begin(), seed.begin() + 32, signatureKey.begin());
 
+    SigmaPrivateKey key;
+
     // hash until get valid private key
-    secp256k1_pubkey pubkey;
     do {
-        CSHA256().Write(signatureKey.data(), signatureKey.size()).Finalize(signatureKey.data());
-    } while (!GetPublicKey(signatureKey, pubkey));
+        secp256k1_pubkey pubkey;
+        do {
+            CSHA256().Write(signatureKey.data(), signatureKey.size()).Finalize(signatureKey.data());
+        } while (!GetPublicKey(signatureKey, pubkey));
 
-    auto serial = GenerateSerial(pubkey);
+        auto serial = GenerateSerial(pubkey);
 
-    // last 32 bytes as seed of randomness
-    std::array<uint8_t, 32> randomnessSeed;
-    std::copy(seed.begin() + 32, seed.end(), randomnessSeed.begin());
-    secp_primitives::Scalar randomness;
-    randomness.memberFromSeed(randomnessSeed.data());
+        // last 32 bytes as seed of randomness
+        std::array<uint8_t, 32> randomnessSeed;
+        std::copy(seed.begin() + 32, seed.end(), randomnessSeed.begin());
+        secp_primitives::Scalar randomness;
+        randomness.memberFromSeed(randomnessSeed.data());
 
-    return SigmaPrivateKey(serial, randomness);
+        key = SigmaPrivateKey(serial, randomness);
+    } while (!key.IsValid());
+
+    return key;
 }
 
 CKey SigmaWalletV1::GetSignatureKey(SigmaMintId const &id)

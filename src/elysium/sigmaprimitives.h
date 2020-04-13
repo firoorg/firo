@@ -57,6 +57,7 @@ public:
     bool operator!=(const SigmaPrivateKey& other) const;
 
 public:
+    bool IsMember() const;
     bool IsValid() const;
 
 public:
@@ -151,7 +152,7 @@ public:
     template<typename PublicKey>
     void Generate(const SigmaPrivateKey& priv, PublicKey first, PublicKey last, bool fPadding)
     {
-        if (!priv.IsValid()) {
+        if (!priv.IsMember()) {
             throw std::invalid_argument("Private key is not valid");
         }
 
