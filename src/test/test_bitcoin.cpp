@@ -47,6 +47,7 @@
 #include <boost/thread.hpp>
 #include "zerocoin.h"
 #include "sigma.h"
+#include "evo/evodb.h"
 
 extern std::unique_ptr<CConnman> g_connman;
 uint256 insecure_rand_seed = GetRandHash();
@@ -54,6 +55,7 @@ FastRandomContext insecure_rand_ctx(insecure_rand_seed);
 
 extern bool fPrintToConsole;
 extern void noui_connect();
+extern CEvoDB* evoDb;
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
@@ -95,6 +97,11 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         pwalletMain = new CWallet(string("wallet_test.dat"));
         static bool fFirstRun = true;
         pwalletMain->LoadWallet(fFirstRun);
+        pEvoDb = std::make_shared<CEvoDB>(1024 * 1024 * 16, true, true);
+        evoDb = pEvoDb.get();
+        pDeterministicMNManager = std::make_shared<CDeterministicMNManager>(*evoDb);
+        deterministicMNManager = pDeterministicMNManager.get();
+
         InitBlockIndex(chainparams);
         {
             CValidationState state;

@@ -713,7 +713,8 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(bool fFilterSigTime, int& nCoun
 CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
 {
     // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
-    LOCK2(cs_main,cs);
+    LOCK2(cs_main, mempool.cs);
+    LOCK(cs);
 
     CZnode *pBestZnode = NULL;
     std::vector<std::pair<int, CZnode*> > vecZnodeLastPaid;

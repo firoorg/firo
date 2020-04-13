@@ -191,7 +191,27 @@ public:
 
     constexpr static const CAllNodes AllNodes{};    
 
-    bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
+    bool ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func);
+    bool ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func);
+
+    template<typename Callable>
+    bool ForNode(const CService& addr, Callable&& func)
+    {
+        return ForNode(addr, FullyConnectedOnly, func);
+    }
+
+    template<typename Callable>
+    bool ForNode(NodeId id, Callable&& func)
+    {
+        return ForNode(id, FullyConnectedOnly, func);
+    }
+
+    bool IsConnected(const CService& addr, std::function<bool(const CNode* pnode)> cond)
+    {
+        return ForNode(addr, cond, [](CNode* pnode){
+            return true;
+        });
+    }
 
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOptimisticSend = DEFAULT_ALLOW_OPTIMISTIC_SEND);
 
@@ -936,7 +956,7 @@ public:
         vBlockHashesToAnnounce.push_back(hash);
     }
 
-    void AskFor(const CInv& inv);
+    void AskFor(const CInv& inv, int64_t doubleRequestDelay = 2 * 60 * 1000000);
     void RemoveAskFor(const uint256& hash);
 
     void CloseSocketDisconnect();

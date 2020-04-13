@@ -1,15 +1,6 @@
 #!/bin/bash
 
-vars=$(set -o posix; set)
-while IFS= read -r var
-do
-  if test "${var#*=}" == "$var"
-  then
-    continue
-  fi
-  eval $(echo "$var" | awk -F= '{ print "export " $1 }')
-done <<< "$vars"
-
+export AR CCACHE CC CFLAGS CXX CXXFLAGS NM OBJC RANLIB LDFLAGS LIB
 
 cmake_osflags="-DOPSYS=LINUX -DCMAKE_SYSTEM_NAME=Linux"
 case $host_alias in

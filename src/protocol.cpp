@@ -116,6 +116,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::DANDELIONTX,
     //znode
     NetMsgType::TXLOCKREQUEST,
+    NetMsgType::TXLOCKVOTE,
     NetMsgType::ZNODEPAYMENTVOTE,
     NetMsgType::ZNODEPAYMENTBLOCK,
     NetMsgType::ZNODEPAYMENTSYNC,
@@ -123,17 +124,25 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETSPORKS,
     NetMsgType::MNANNOUNCE,
     NetMsgType::MNPING,
-    NetMsgType::DSACCEPT,
-    NetMsgType::DSVIN,
-    NetMsgType::DSFINALTX,
-    NetMsgType::DSSIGNFINALTX,
-    NetMsgType::DSCOMPLETE,
-    NetMsgType::DSSTATUSUPDATE,
-    NetMsgType::DSTX,
-    NetMsgType::DSQUEUE,
-    NetMsgType::DSEG,
+    NetMsgType::GETMNLISTDIFF,
+    NetMsgType::MNLISTDIFF,
     NetMsgType::SYNCSTATUSCOUNT,
     NetMsgType::MNVERIFY,
+    NetMsgType::QSENDRECSIGS,
+    NetMsgType::QFCOMMITMENT,
+    NetMsgType::QCONTRIB,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QWATCH,
+    NetMsgType::QSIGSESANN,
+    NetMsgType::QSIGSHARESINV,
+    NetMsgType::QGETSIGSHARES,
+    NetMsgType::QBSIGSHARES,
+    NetMsgType::QSIGREC,
+    NetMsgType::CLSIG,
+    NetMsgType::ISLOCK,
+    NetMsgType::MNAUTH,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
@@ -249,6 +258,15 @@ std::string CInv::GetCommand() const
     case MSG_ZNODE_PING:            return cmd.append(NetMsgType::MNPING);
     case MSG_DSTX:                  return cmd.append(NetMsgType::DSTX);
     case MSG_ZNODE_VERIFY:          return cmd.append(NetMsgType::MNVERIFY);
+
+    case MSG_QUORUM_FINAL_COMMITMENT:       return cmd.append(NetMsgType::QFCOMMITMENT);
+    case MSG_QUORUM_CONTRIB:                return cmd.append(NetMsgType::QCONTRIB);
+    case MSG_QUORUM_COMPLAINT:              return cmd.append(NetMsgType::QCOMPLAINT);
+    case MSG_QUORUM_JUSTIFICATION:          return cmd.append(NetMsgType::QJUSTIFICATION);
+    case MSG_QUORUM_PREMATURE_COMMITMENT:   return cmd.append(NetMsgType::QPCOMMITMENT);
+    case MSG_QUORUM_RECOVERED_SIG:          return cmd.append(NetMsgType::QSIGREC);
+    case MSG_CLSIG:                         return cmd.append(NetMsgType::CLSIG);
+    case MSG_ISLOCK:                        return cmd.append(NetMsgType::ISLOCK);
     default:
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }
