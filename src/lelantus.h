@@ -146,6 +146,10 @@ public:
 
     bool CanAddMintToMempool(const GroupElement& pubCoin);
 
+    // Add spend into the mempool.
+    // Check if there is a coin with such serial in either blockchain or mempool
+    bool AddSpendToMempool(const vector<Scalar>& coinSerials, uint256 txHash);
+
     void AddMintsToMempool(const vector<GroupElement>& pubCoins);
     void RemoveMintFromMempool(const GroupElement& pubCoin);
 
@@ -153,7 +157,7 @@ public:
     uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
-    void RemoveSpendFromMempool(const Scalar& coinSerial);
+    void RemoveSpendFromMempool(const vector<Scalar>& coinSerials);
 
 
 

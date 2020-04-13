@@ -272,6 +272,7 @@ void DisconnectTipLelantus(CBlock& block, CBlockIndex *pindexDelete) {
     RemoveLelantusJoinSplitReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
+
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
@@ -714,6 +715,23 @@ std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(
         return std::make_pair(coinIt->second.nHeight, coinIt->second.coinGroupId);
     }
     return std::make_pair(-1, -1);
+}
+
+bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+    BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
+        if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+            return false;
+
+        mempoolCoinSerials[coinSerial] = txHash;
+    }
+
+    return true;
+}
+
+void CLelantusState::RemoveSpendFromMempool(const vector<Scalar> &coinSerials) {
+    BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
+        mempoolCoinSerials.erase(coinSerial);
+    }
 }
 
 void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
