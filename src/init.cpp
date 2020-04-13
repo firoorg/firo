@@ -47,6 +47,7 @@
 #endif
 
 #include "activemasternode.h"
+#include "dsnotificationinterface.h"
 #include "flat-database.h"
 #include "instantx.h"
 #include "masternode-meta.h"
@@ -120,6 +121,8 @@ std::unique_ptr<PeerLogicValidation> peerLogic;
 #if ENABLE_ZMQ
 static CZMQNotificationInterface* pzmqNotificationInterface = NULL;
 #endif
+
+static CDSNotificationInterface* pdsNotificationInterface = NULL;
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -354,6 +357,15 @@ void Shutdown()
         pzmqNotificationInterface = NULL;
     }
 #endif
+
+    if (pdsNotificationInterface) {
+        UnregisterValidationInterface(pdsNotificationInterface);
+        delete pdsNotificationInterface;
+        pdsNotificationInterface = NULL;
+    }
+    if (fMasternodeMode) {
+        UnregisterValidationInterface(activeMasternodeManager);
+    }
 
 #ifndef WIN32
     try {
@@ -800,12 +812,29 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }
+    }    
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+    // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
+    // but don't call it directly to prevent triggering of other listeners like zmq etc.
+    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+    pdsNotificationInterface->InitializeCurrentBlockTip();
+
+    if (fMasternodeMode) {
+        assert(activeMasternodeManager);
+        activeMasternodeManager->Init();
+    }
+
+#ifdef ENABLE_WALLET
+    // we can't do this before DIP3 is fully initialized
+    if (pwalletMain) {
+        pwalletMain->AutoLockMasternodeCollaterals();
+    }
+#endif
 
     if (!(GetBoolArg("-zapwallettxes", false) || GetBoolArg("-reindex", false))) {
         LoadMempool();
@@ -1642,6 +1671,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         RegisterValidationInterface(pzmqNotificationInterface);
     }
 #endif
+
+    pdsNotificationInterface = new CDSNotificationInterface(connman);
+    RegisterValidationInterface(pdsNotificationInterface);
+
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
     uint64_t nMaxOutboundTimeframe = MAX_UPLOAD_TIMEFRAME;
 
@@ -2102,7 +2135,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if(fMasternodeMode) {
         LogPrintf("MASTERNODE:\n");
 
-        std::string strMasterNodeBLSPrivKey = GetArg("-masternodeblsprivkey", "");
+        std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
             auto binKey = ParseHex(strMasterNodeBLSPrivKey);
             CBLSSecretKey keyOperator;
@@ -2112,7 +2145,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
                 LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
             } else {
-                return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
+                return InitError(_("Invalid znodeblsprivkey. Please see documentation."));
             }
         } else {
             // TODO: uncomment when switch to evo znodes is done

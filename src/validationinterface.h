@@ -36,6 +36,8 @@ void UnregisterAllValidationInterfaces();
 
 class CValidationInterface {
 protected:
+    virtual void AcceptedBlockHeader(const CBlockIndex *pindexNew) {}
+    virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     virtual void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock) {}
     virtual void NotifyTransactionLock(const CTransaction &tx) {}
@@ -58,6 +60,10 @@ protected:
 };
 
 struct CMainSignals {
+    /** Notifies listeners of accepted block header */
+    boost::signals2::signal<void (const CBlockIndex *)> AcceptedBlockHeader;
+    /** Notifies listeners of updated block header tip */
+    boost::signals2::signal<void (const CBlockIndex *, bool fInitialDownload)> NotifyHeaderTip;    
     /** Notifies listeners of updated block chain tip */
     boost::signals2::signal<void (const CBlockIndex *, const CBlockIndex *, bool fInitialDownload)> UpdatedBlockTip;
     /** A posInBlock value for SyncTransaction calls for tranactions not

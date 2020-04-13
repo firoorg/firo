@@ -79,6 +79,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     entry.push_back(Pair("vsize", (int)::GetVirtualTransactionSize(tx)));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
+    entry.push_back(Pair("type", int(tx.nType)));
 
     UniValue vin(UniValue::VARR);
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
@@ -183,6 +184,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.push_back(Pair("confirmations", 0));
             }
         }
+    }
+    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+        entry.push_back(Pair("extraPayLoadSize", tx.vExtraPayload.size()));
+        entry.push_back(Pair("extraPayLoad", HexStr(tx.vExtraPayload.begin(), tx.vExtraPayload.end())));
     }
 }
 
