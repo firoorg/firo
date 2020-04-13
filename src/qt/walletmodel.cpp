@@ -1228,9 +1228,14 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
         return false;
 
     CCoinsViewCache &view = *pcoinsTip;
-    const CCoins* existingCoins = view.AccessCoins(hash);
+    bool fHaveChain = false;
+    for (size_t i=0; i<wtx->tx->vout.size() && !fHaveChain; i++) {
+        if (view.HaveCoin(COutPoint(hash, i)))
+            fHaveChain = true;
+    }
+
     bool fHaveMempool = mempool.exists(hash);
-    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
         CValidationState state;

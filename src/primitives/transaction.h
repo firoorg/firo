@@ -25,6 +25,17 @@ class CBadSequence : public CBadTxIn
 {
 };
 
+/** Transaction types */
+enum {
+    TRANSACTION_NORMAL = 0,
+    TRANSACTION_PROVIDER_REGISTER = 1,
+    TRANSACTION_PROVIDER_UPDATE_SERVICE = 2,
+    TRANSACTION_PROVIDER_UPDATE_REGISTRAR = 3,
+    TRANSACTION_PROVIDER_UPDATE_REVOKE = 4,
+    TRANSACTION_COINBASE = 5,
+    TRANSACTION_QUORUM_COMMITMENT = 6,
+};
+
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -275,7 +286,11 @@ template<typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
-    s >> tx.nVersion;
+    int32_t n32bitVersion;
+    s >> n32bitVersion;
+    tx.nVersion = (int16_t) (n32bitVersion & 0xffff);
+    tx.nType = (int16_t) ((n32bitVersion >> 16) & 0xffff);
+
     unsigned char flags = 0;
     tx.vin.clear();
     tx.vout.clear();
@@ -304,13 +319,18 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         throw std::ios_base::failure("Unknown transaction optional data");
     }
     s >> tx.nLockTime;
+
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
+        s >> tx.vExtraPayload;
+    }
 }
 
 template<typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
-    s << tx.nVersion;
+    int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
+    s << n32bitVersion;
     unsigned char flags = 0;
     // Consistency check
     if (fAllowWitness) {
@@ -333,6 +353,8 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         }
     }
     s << tx.nLockTime;
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL)
+        s << tx.vExtraPayload;
 }
 
 /** The basic transaction that is broadcasted on the network and contained in
@@ -357,9 +379,11 @@ public:
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
     const int32_t nVersion;
+    const int16_t nType;
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const uint32_t nLockTime;
+    const std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
 private:
     /** Memory only. */
@@ -465,9 +489,11 @@ public:
 struct CMutableTransaction
 {
     int32_t nVersion;
+    int32_t nType;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     uint32_t nLockTime;
+    std::vector<uint8_t> vExtraPayload; // only available for special transaction types
 
     CMutableTransaction();
     CMutableTransaction(const CTransaction& tx);

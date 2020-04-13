@@ -12,10 +12,13 @@ class CCoinControl
 {
 public:
     CTxDestination destChange;
+    bool fUseInstantSend;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
     bool fAllowWatchOnly;
+    //! If false, only include as many inputs as necessary to fulfill a coin selection request. Only usable together with fAllowOtherInputs
+    bool fRequireAllInputs;
     //! Minimum absolute fee (not per kilobyte)
     CAmount nMinimumTotalFee;
     //! Override estimated feerate
@@ -34,8 +37,10 @@ public:
     {
         destChange = CNoDestination();
         fAllowOtherInputs = false;
+        fRequireAllInputs = true;
         fAllowWatchOnly = false;
         setSelected.clear();
+        fUseInstantSend = false;
         nMinimumTotalFee = 0;
         nFeeRate = CFeeRate(0);
         fOverrideFeeRate = false;

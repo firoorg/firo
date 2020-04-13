@@ -148,9 +148,9 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
         mnodeman.mapSeenZnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
     // if it matches our Znode privkey...
-    if (fZNode && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode) {
         nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
-        if (nProtocolVersion == PROTOCOL_VERSION) {
+        if (nProtocolVersion == LEGACY_ZNODES_PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
             activeZnode.ManageState();
         } else {
@@ -201,10 +201,8 @@ void CZnode::Check(bool fForce) {
         TRY_LOCK(cs_main, lockMain);
         if (!lockMain) return;
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        Coin coin;
+        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
             nActiveState = ZNODE_OUTPOINT_SPENT;
             LogPrint("znode", "CZnode::Check -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return;
@@ -229,15 +227,15 @@ void CZnode::Check(bool fForce) {
     }
 
     int nActiveStatePrev = nActiveState;
-    bool fOurZnode = fZNode && activeZnode.pubKeyZnode == pubKeyZnode;
+    bool fOurZnode = fMasternodeMode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // znode doesn't meet payment protocol requirements ...
-/*    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+/*    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
 
     // znode doesn't meet payment protocol requirements ...
-    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode && (nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1 || nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2));
 
@@ -436,10 +434,10 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
     LOCK(cs_mapZnodeBlocks);
 
     for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
-//        LogPrintf("mnpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", mnpayments.mapZnodeBlocks.count(BlockReading->nHeight));
-//        LogPrintf("mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
-        if (mnpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
-            mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
+//        LogPrintf("znpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", znpayments.mapZnodeBlocks.count(BlockReading->nHeight));
+//        LogPrintf("znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
+        if (znpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
+            znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
             // LogPrintf("i=%s, BlockReading->nHeight=%s\n", i, BlockReading->nHeight);
             CBlock block;
             if (!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
@@ -466,8 +464,8 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
         BlockReading = BlockReading->pprev;
     }
 
-    // Last payment for this znode wasn't found in latest mnpayments blocks
-    // or it was found in mnpayments blocks but wasn't found in the blockchain.
+    // Last payment for this znode wasn't found in latest znpayments blocks
+    // or it was found in znpayments blocks but wasn't found in the blockchain.
     // LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
 }
 
@@ -535,11 +533,7 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
     }
 
     int nHeight = chainActive.Height();
-    if (nHeight < ZC_MODULUS_V2_START_BLOCK) {
-        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, MIN_PEER_PROTO_VERSION);
-    } else {
-        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
-    }
+    mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, LEGACY_ZNODES_PROTOCOL_VERSION);
 
     if (!mnbRet.IsValidNetAddr()) {
         strErrorRet = strprintf("Invalid IP address, znode=%s", txin.prevout.ToStringShort());
@@ -582,7 +576,7 @@ bool CZnodeBroadcast::SimpleCheck(int &nDos) {
         nActiveState = ZNODE_EXPIRED;
     }
 
-    if (nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+    if (nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
         LogPrintf("CZnodeBroadcast::SimpleCheck -- ignoring outdated Znode: znode=%s  nProtocolVersion=%d\n", vin.prevout.ToStringShort(), nProtocolVersion);
         return false;
     }
@@ -657,7 +651,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
     }
 
     // if ther was no znode broadcast recently or if it matches our Znode privkey...
-    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fZNode && pubKeyZnode == activeZnode.pubKeyZnode)) {
+    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode)) {
         // take the newest entry
         LogPrintf("CZnodeBroadcast::Update -- Got UPDATED Znode entry: addr=%s\n", addr.ToString());
         if (pmn->UpdateFromNewBroadcast((*this))) {
@@ -673,7 +667,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
 bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     // we are a znode with the same vin (i.e. already activated) and this mnb is ours (matches our Znode privkey)
     // so nothing to do here for us
-    if (fZNode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fMasternodeMode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
         return false;
     }
 
@@ -691,18 +685,16 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
             return false;
         }
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        Coin coin;
+        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (coins.vout[vin.prevout.n].nValue != ZNODE_COIN_REQUIRED * COIN) {
+        if (coin.out.nValue != ZNODE_COIN_REQUIRED * COIN) {
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO should have 1000 XZC, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nZnodeMinimumConfirmations) {
+        if (chainActive.Height() - coin.nHeight + 1 < Params().GetConsensus().nZnodeMinimumConfirmations) {
             LogPrintf("CZnodeBroadcast::CheckOutpoint -- Znode UTXO must have at least %d confirmations, znode=%s\n",
                       Params().GetConsensus().nZnodeMinimumConfirmations, vin.prevout.ToStringShort());
             // maybe we miss few blocks, let this mnb to be checked again later

@@ -16,9 +16,6 @@ class CSporkMessage;
     Don't ever reuse these IDs for other sporks
     - This would result in old clients getting confused about which spork is for what
 */
-static const int SPORK_START                                            = 10001;
-static const int SPORK_END                                              = 10013;
-
 static const int SPORK_2_INSTANTSEND_ENABLED                            = 10001;
 static const int SPORK_3_INSTANTSEND_BLOCK_FILTERING                    = 10002;
 static const int SPORK_5_INSTANTSEND_MAX_VALUE                          = 10004;
@@ -28,6 +25,11 @@ static const int SPORK_10_ZNODE_PAY_UPDATED_NODES                  = 10009;
 static const int SPORK_12_RECONSIDER_BLOCKS                             = 10011;
 static const int SPORK_13_OLD_SUPERBLOCK_FLAG                           = 10012;
 static const int SPORK_14_REQUIRE_SENTINEL_FLAG                         = 10013;
+static const int SPORK_15_DETERMINISTIC_MNS_ENABLED                     = 10014;
+static const int SPORK_16_INSTANTSEND_AUTOLOCKS                         = 10015;
+static const int SPORK_17_QUORUM_DKG_ENABLED                            = 10016;
+static const int SPORK_19_CHAINLOCKS_ENABLED                            = 10018;
+static const int SPORK_20_INSTANTSEND_LLMQ_BASED                        = 10019;
 
 static const int64_t SPORK_2_INSTANTSEND_ENABLED_DEFAULT                = 0;            // ON
 static const int64_t SPORK_3_INSTANTSEND_BLOCK_FILTERING_DEFAULT        = 0;            // ON
@@ -38,6 +40,9 @@ static const int64_t SPORK_10_ZNODE_PAY_UPDATED_NODES_DEFAULT      = 4070908800U
 static const int64_t SPORK_12_RECONSIDER_BLOCKS_DEFAULT                 = 0;            // 0 BLOCKS
 static const int64_t SPORK_13_OLD_SUPERBLOCK_FLAG_DEFAULT               = 4070908800ULL;// OFF
 static const int64_t SPORK_14_REQUIRE_SENTINEL_FLAG_DEFAULT             = 4070908800ULL;// OFF
+
+static const int SPORK_START                                            = SPORK_2_INSTANTSEND_ENABLED;
+static const int SPORK_END                                              = SPORK_20_INSTANTSEND_LLMQ_BASED;
 
 extern std::map<uint256, CSporkMessage> mapSporks;
 

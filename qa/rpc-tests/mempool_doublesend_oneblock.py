@@ -65,7 +65,7 @@ class MempoolDoubleSpendOneBlock(BitcoinTestFramework):
             self.nodes[0].sendrawtransaction(spends2_raw)
         except JSONRPCException as ex:
             error = ex.error['message']
-            assert '18: bad-txns-inputs-spent' == error, 'Unexpected exception appeared: {}'.format(error)
+            assert 'Missing inputs' == error, 'Unexpected exception appeared: {}'.format(error)
         assert error, 'Did not raise txt-mempool-conflict exception.'
 
         assert_equal(len(self.nodes[0].getrawmempool()), 0)

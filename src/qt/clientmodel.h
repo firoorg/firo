@@ -112,7 +112,7 @@ Q_SIGNALS:
     void networkActiveChanged(bool networkActive);
     void alertsChanged(const QString &warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
-    void additionalDataSyncProgressChanged(int count, double nSyncProgress);
+    void additionalDataSyncProgressChanged(double nSyncProgress);
 
     // Additional Exodus signals
     void reinitExodusState();

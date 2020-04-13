@@ -658,9 +658,9 @@ static bool FillTxInputCache(const CTransaction& tx)
         }
 
         unsigned int nOut = txIn.prevout.n;
-        CCoinsModifier coins = view.ModifyCoins(txIn.prevout.hash);
+        Coin coin = view.AccessCoin(txIn.prevout);
 
-        if (coins->IsAvailable(nOut)) {
+        if (!coin.IsSpent()) {
             ++nCacheHits;
             continue;
         } else {
@@ -673,11 +673,9 @@ static bool FillTxInputCache(const CTransaction& tx)
             return false;
         }
 
-        if (nOut >= coins->vout.size()) {
-            coins->vout.resize(nOut+1);
-        }
-        coins->vout[nOut].scriptPubKey = txPrev->vout[nOut].scriptPubKey;
-        coins->vout[nOut].nValue = txPrev->vout[nOut].nValue;
+        coin.out.scriptPubKey = txPrev->vout[nOut].scriptPubKey;
+        coin.out.nValue = txPrev->vout[nOut].nValue;
+        view.AddCoin(txIn.prevout, std::move(coin), true);
     }
 
     return true;
@@ -739,20 +737,18 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             if (exodus_debug_vin) PrintToLog("vin=%d:%s\n", i, ScriptToAsmStr(wtx.vin[i].scriptSig));
 
             const CTxIn& txIn = wtx.vin[i];
-            const CTxOut& txOut = view.GetOutputFor(txIn);
-
-            assert(!txOut.IsNull());
+            const Coin& txOut = view.AccessCoin(txIn.prevout);
 
             CTxDestination source;
             txnouttype whichType;
-            if (!GetOutputType(txOut.scriptPubKey, whichType)) {
+            if (!GetOutputType(txOut.out.scriptPubKey, whichType)) {
                 return -104;
             }
             if (!IsAllowedInputType(whichType, nBlock)) {
                 return -105;
             }
-            if (ExtractDestination(txOut.scriptPubKey, source)) { // extract the destination of the previous transaction's vout[n] and check it's allowed type
-                inputs_sum_of_values[CBitcoinAddress(source)] += txOut.nValue;
+            if (ExtractDestination(txOut.out.scriptPubKey, source)) { // extract the destination of the previous transaction's vout[n] and check it's allowed type
+                inputs_sum_of_values[CBitcoinAddress(source)] += txOut.out.nValue;
             }
             else return -106;
         }
@@ -784,19 +780,17 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         if (exodus_debug_vin) PrintToLog("vin=%d:%s\n", vin_n, ScriptToAsmStr(wtx.vin[vin_n].scriptSig));
 
         const CTxIn& txIn = wtx.vin[vin_n];
-        const CTxOut& txOut = view.GetOutputFor(txIn);
-
-        assert(!txOut.IsNull());
+        const Coin& txOut = view.AccessCoin(txIn.prevout);
 
         txnouttype whichType;
-        if (!GetOutputType(txOut.scriptPubKey, whichType)) {
+        if (!GetOutputType(txOut.out.scriptPubKey, whichType)) {
             return -108;
         }
         if (!IsAllowedInputType(whichType, nBlock)) {
             return -109;
         }
         CTxDestination source;
-        if (ExtractDestination(txOut.scriptPubKey, source)) {
+        if (ExtractDestination(txOut.out.scriptPubKey, source)) {
             sender = source;
         }
         else return -110;

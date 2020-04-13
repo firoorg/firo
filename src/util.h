@@ -24,7 +24,9 @@
 #include <map>
 #include <stdint.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
+
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
@@ -41,7 +43,7 @@ public:
     /** Translate a message to the native language of the user. */
     boost::signals2::signal<std::string (const char* psz)> Translate;
 };
-extern bool fZNode;
+extern bool fMasternodeMode;
 extern bool fLiteMode;
 extern int nWalletBackups;
 
@@ -233,6 +235,13 @@ int GetNumCores();
 void SetThreadPriority(int nPriority);
 
 void RenameThread(const char* name);
+std::string GetThreadName();
+
+namespace ctpl {
+    class thread_pool;
+}
+void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName);
+
 
 /**
  * .. and a wrapper that just calls func once

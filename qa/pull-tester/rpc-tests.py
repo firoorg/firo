@@ -112,8 +112,6 @@ testScripts = [
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
-    'wallet-hd.py',
-    'walletbackup.py',
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',
     # 'p2p-dandelion.py',
@@ -131,7 +129,6 @@ testScripts = [
     # 'listtransactions.py',
     # vv Tests less than 60s vv
     # 'sendheaders.py',
-    'zapwallettxes.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
     # 'merkle_blocks.py',
@@ -139,7 +136,6 @@ testScripts = [
     # 'abandonconflict.py',
     # 'bip68-112-113-p2p.py',
     # 'rawtransactions.py',
-    'reindex.py',
     # vv Tests less than 30s vv
     # 'mempool_resurrect_test.py',
     # 'txn_doublespend.py --mineblock',

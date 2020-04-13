@@ -176,7 +176,7 @@ std::string CDarksendPool::GetStatus() {
 // Check the mixing progress and send client updates if a Znode
 //
 void CDarksendPool::CheckPool() {
-    if (fZNode) {
+    if (fMasternodeMode) {
         LogPrint("privatesend", "CDarksendPool::CheckPool -- entries count %lu\n", GetEntriesCount());
 
         // If entries are full, create finalized transaction
@@ -624,7 +624,7 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn &txin) {
 }
 
 bool CDarksendQueue::Sign() {
-    if (!fZNode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
 
@@ -653,7 +653,7 @@ bool CDarksendQueue::Relay() {
 }
 
 bool CDarksendBroadcastTx::Sign() {
-    if (!fZNode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
 

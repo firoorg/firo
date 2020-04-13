@@ -2,8 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-DIST_SUBDIRS = secp256k1 univalue tor
-SUBDIRS = tor
+DIST_SUBDIRS = secp256k1 univalue tor bls-signatures
+SUBDIRS = tor bls-signatures
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
@@ -75,6 +75,9 @@ $(TOR_LIBS): tor.timestamp
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
 
+LIBBLSSIG_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signatures/contrib/relic/include
+LIBBLSSIG_LIBS=bls-signatures/build/libchiabls.a
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
@@ -138,11 +141,13 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   activeznode.h \
+  activemasternode.h \
   addressindex.h \
   spentindex.h \
   addrdb.h \
   addrman.h \
   base58.h \
+  batchedlogger.h \
   bloom.h \
   blockencodings.h \
   chain.h \
@@ -152,6 +157,16 @@ BITCOIN_CORE_H = \
   checkpoints.h \
   checkqueue.h \
   clientversion.h \
+  ctpl.h \
+  cxxtimer.hpp \
+  evo/cbtx.h \
+  evo/deterministicmns.h \
+  evo/evodb.h \
+  evo/mnauth.h \
+  evo/providertx.h \
+  evo/simplifiedmns.h \
+  evo/specialtx.h \
+  dsnotificationinterface.h \
   coins.h \
   compat.h \
   compat/byteswap.h \
@@ -177,6 +192,7 @@ BITCOIN_CORE_H = \
   znode.h \
   znode-payments.h \
   znode-sync.h \
+  masternode-utils.h \
   znodeman.h \
   znodeconfig.h \
   mbstring.h \
@@ -212,6 +228,8 @@ BITCOIN_CORE_H = \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
+  support/allocators/pooled_secure.h \
+  support/allocators/mt_pooled_secure.h \
   support/cleanse.h \
   support/events.h \
   support/lockedpool.h \
@@ -266,7 +284,83 @@ BITCOIN_CORE_H = \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
-  mtpstate.h
+  mtpstate.h \
+  messagesigner.h \
+  masternode-meta.h \
+  masternode-payments.h \
+  masternode-sync.h \
+  saltedhasher.h \
+  unordered_lru_cache.h \
+  llmq/quorums.h \
+  llmq/quorums_blockprocessor.h \
+  llmq/quorums_dkgsessionmgr.h \
+  llmq/quorums_commitment.h \
+  llmq/quorums_signing.h \
+  llmq/quorums_dkgsessionhandler.h \
+  llmq/quorums_dkgsession.h \
+  llmq/quorums_instantsend.h \
+  llmq/quorums_debug.h \
+  llmq/quorums_utils.h \
+  llmq/quorums_chainlocks.h\
+  llmq/quorums_init.h \
+  llmq/quorums_signing_shares.h \
+  immer/atom.hpp \
+  immer/set.hpp \
+  immer/box.hpp \
+  immer/flex_vector_transient.hpp \
+  immer/transience/no_transience_policy.hpp \
+  immer/transience/gc_transience_policy.hpp \
+  immer/map_transient.hpp \
+  immer/set_transient.hpp \
+  immer/flex_vector.hpp \
+  immer/refcount/enable_intrusive_ptr.hpp \
+  immer/refcount/no_refcount_policy.hpp \
+  immer/refcount/unsafe_refcount_policy.hpp \
+  immer/refcount/refcount_policy.hpp \
+  immer/memory_policy.hpp \
+  immer/config.hpp \
+  immer/array.hpp \
+  immer/vector.hpp \
+  immer/detail/arrays/no_capacity.hpp \
+  immer/detail/arrays/node.hpp \
+  immer/detail/arrays/with_capacity.hpp \
+  immer/detail/type_traits.hpp \
+  immer/detail/rbts/rbtree_iterator.hpp \
+  immer/detail/rbts/rbtree.hpp \
+  immer/detail/rbts/rrbtree.hpp \
+  immer/detail/rbts/visitor.hpp \
+  immer/detail/rbts/position.hpp \
+  immer/detail/rbts/bits.hpp \
+  immer/detail/rbts/node.hpp \
+  immer/detail/rbts/operations.hpp \
+  immer/detail/rbts/rrbtree_iterator.hpp \
+  immer/detail/combine_standard_layout.hpp \
+  immer/detail/ref_count_base.hpp \
+  immer/detail/hamts/champ_iterator.hpp \
+  immer/detail/hamts/champ.hpp \
+  immer/detail/hamts/bits.hpp \
+  immer/detail/hamts/node.hpp \
+  immer/detail/util.hpp \
+  immer/detail/iterator_facade.hpp \
+  immer/vector_transient.hpp \
+  immer/experimental/dvektor.hpp \
+  immer/experimental/detail/dvektor_impl.hpp \
+  immer/heap/free_list_heap.hpp \
+  immer/heap/tags.hpp \
+  immer/heap/debug_size_heap.hpp \
+  immer/heap/heap_policy.hpp \
+  immer/heap/gc_heap.hpp \
+  immer/heap/unsafe_free_list_heap.hpp \
+  immer/heap/split_heap.hpp \
+  immer/heap/identity_heap.hpp \
+  immer/heap/thread_local_free_list_heap.hpp \
+  immer/heap/malloc_heap.hpp \
+  immer/heap/cpp_heap.hpp \
+  immer/heap/free_list_node.hpp \
+  immer/heap/with_data.hpp \
+  immer/algorithm.hpp \
+  immer/array_transient.hpp \
+  immer/map.hpp
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -275,22 +369,50 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between zcoind and zcoin-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
   addrdb.cpp \
+  batchedlogger.cpp \
   bloom.cpp \
   blockencodings.cpp \
   chain.cpp \
   checkpoints.cpp \
+  dsnotificationinterface.cpp \
+  evo/cbtx.cpp \
+  evo/deterministicmns.cpp \
+  evo/evodb.cpp \
+  evo/mnauth.cpp \
+  evo/providertx.cpp \
+  evo/simplifiedmns.cpp \
+  evo/specialtx.cpp \
+  llmq/quorums.cpp \
+  llmq/quorums_blockprocessor.cpp \
+  llmq/quorums_commitment.cpp \
+  llmq/quorums_chainlocks.cpp \
+  llmq/quorums_debug.cpp \
+  llmq/quorums_dkgsessionhandler.cpp \
+  llmq/quorums_dkgsessionmgr.cpp \
+  llmq/quorums_dkgsession.cpp \
+  llmq/quorums_init.cpp \
+  llmq/quorums_instantsend.cpp \
+  llmq/quorums_signing.cpp \
+  llmq/quorums_signing_shares.cpp \
+  llmq/quorums_utils.cpp \
+  masternode-meta.cpp \
+  masternode-payments.cpp \
+  masternode-sync.cpp \
+  masternode-utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
+  instantx.cpp \
   dbwrapper.cpp \
   threadinterrupt.cpp \
   merkleblock.cpp \
   miner.cpp \
+  messagesigner.cpp \
   net.cpp \
   netfulfilledman.cpp \
   net_processing.cpp \
@@ -301,12 +423,15 @@ libbitcoin_server_a_SOURCES = \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/masternode.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
   rpc/rpcznode.cpp \
   rpc/server.cpp \
+  rpc/rpcevo.cpp \
+  rpc/rpcquorums.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
   timedata.cpp \
@@ -335,16 +460,17 @@ endif
 
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled
-libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
+  activemasternode.cpp \
   darksend.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
-  instantx.cpp \
   znode-payments.cpp \
   znode-sync.cpp \
+  masternode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
   hdmint/mintpool.cpp \
@@ -399,12 +525,14 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha512.h
 
 # consensus: shared between all executables that validate any consensus rules.
-libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
+libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(PIC_FLAGS)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
+  bls/bls.cpp \
+  bls/bls.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \
@@ -476,6 +604,7 @@ libbitcoin_common_a_SOURCES = \
   netaddress.cpp \
   netbase.cpp \
   protocol.cpp \
+  saltedhasher.cpp \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
@@ -486,9 +615,14 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
+  bls/bls_batchverifier.h \
+  bls/bls_ies.cpp \
+  bls/bls_ies.h \
+  bls/bls_worker.cpp \
+  bls/bls_worker.h \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
@@ -585,6 +719,7 @@ zcoind_SOURCES = bitcoind.cpp
 zcoind_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 zcoind_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 zcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+EXTRA_zcoind_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 if TARGET_WINDOWS
 zcoind_SOURCES += bitcoind-res.rc
@@ -602,9 +737,8 @@ zcoind_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
-  $(LIBSECP256K1)
-
-
+  $(LIBSECP256K1) \
+  $(LIBBLSSIG_LIBS)
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
 
@@ -684,10 +818,11 @@ if GLIBC_BACK_COMPAT
   libbitcoinconsensus_la_SOURCES += compat/glibc_compat.cpp
 endif
 
-libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
+libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(LIBBLSSIG_LIBS)
 libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
+libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include $(LIBBLSSIG_INCLUDES) -DBUILD_BITCOIN_INTERNAL
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+EXTRA_libbitcoinconsensus_la_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 endif
 #
@@ -730,9 +865,13 @@ clean-local:
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
 	-$(MAKE) -C tor clean
+	-$(MAKE) -C bls-signatures clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
+
+distclean-local:
+	-rm -rf bls-signatures/build
 
 .rc.o:
 	@test -f $(WINDRES)
