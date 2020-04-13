@@ -249,6 +249,8 @@ struct Params {
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
+    /** number of block when MTP switch occurs or 0 if not clear yet */
+    int nMTPStartBlock;
     /** block number to reduce distance between blocks */
     int nMTPFiveMinutesStartBlock;
 

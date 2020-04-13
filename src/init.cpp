@@ -1755,6 +1755,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pblocktree;
                 delete evoDb;
 
+                MTPState::GetMTPState()->SetMTPStartBlock(chainparams.GetConsensus().nMTPStartBlock);
+
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
                 if (!fReindex) {

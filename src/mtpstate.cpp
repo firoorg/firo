@@ -12,12 +12,16 @@ void MTPState::SetLastBlock(CBlockIndex *lastBlockIndex, const Consensus::Params
     else {
         // not at MTP yet
         if (lastBlockIndex->nHeight > 0 && lastBlockIndex->nTime >= params.nMTPSwitchTime) {
-            // switched to MTP at some point. Find the first block with nTime greater than switch time
-            CBlockIndex *block = lastBlockIndex;
-            while (block->pprev->nHeight > 0 && block->pprev->nTime >= params.nMTPSwitchTime)
-                block = block->pprev;
+            if (nMTPStartBlock > 0)
+                nFirstMTPBlock = nMTPStartBlock;
+            else {
+                // switched to MTP at some point. Find the first block with nTime greater than switch time
+                CBlockIndex *block = lastBlockIndex;
+                while (block->pprev->nHeight > 0 && block->pprev->nTime >= params.nMTPSwitchTime)
+                    block = block->pprev;
 
-            nFirstMTPBlock = block->nHeight;
+                nFirstMTPBlock = block->nHeight;
+            }
             LogPrintf("Switch to MTP happened at block height  %d\n", nFirstMTPBlock);
         }
     }
@@ -38,15 +42,21 @@ int MTPState::GetFirstMTPBlockNumber(const Consensus::Params &params, const CBlo
         if (blockIndex->nHeight == 0)
             return 0;
 
-        // go back the block chain and get the first block with MTP
-        int firstMTPBlock = 0;
-        do {
-           if (blockIndex->nTime >= params.nMTPSwitchTime)
-               firstMTPBlock = blockIndex->nHeight;
-           blockIndex = blockIndex->pprev;
-        } while (blockIndex->nHeight > 0 && blockIndex != lastSeenBlockIndex);
+        if (nMTPStartBlock > 0) {
+            // we already know when switch occurs
+            return blockIndex->nHeight >= nMTPStartBlock ? nMTPStartBlock : 0;
+        }
+        else {
+            // go back the block chain and get the first block with MTP
+            int firstMTPBlock = 0;
+            do {
+            if (blockIndex->nTime >= params.nMTPSwitchTime)
+                firstMTPBlock = blockIndex->nHeight;
+            blockIndex = blockIndex->pprev;
+            } while (blockIndex->nHeight > 0 && blockIndex != lastSeenBlockIndex);
 
-        return firstMTPBlock;
+            return firstMTPBlock;
+        }
     }
     else
         // return nFirstMTPBlock if blockIndex is past the point of MTP switch, else 0

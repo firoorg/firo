@@ -256,6 +256,7 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
@@ -475,6 +476,7 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
 
         consensus.nMTPSwitchTime = 1539172800;
+        consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
@@ -656,6 +658,7 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
 
         consensus.nMTPSwitchTime = INT_MAX;
+        consensus.nMTPStartBlock = 0;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 5000;
         consensus.nFixedDifficulty = 0x2000ffff;
