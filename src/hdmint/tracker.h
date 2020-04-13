@@ -47,7 +47,9 @@ public:
     void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
     void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CLelantusMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
+    void UpdateMintStateFromBlock(const std::vector<lelantus::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
+    void UpdateSpendStateFromBlock(const std::unordered_map<Scalar, int>& spentSerials);
     void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins, bool isLelantus);
     void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
     list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);

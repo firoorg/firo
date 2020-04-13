@@ -36,6 +36,7 @@
 #include "znodeman.h"
 #include "zerocoin.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "sigma/remint.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -373,6 +374,17 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
             return false;
     }
 
+    // Check transaction against lelantus limits
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendAmount(tx);
+        auto &params = chainparams.GetConsensus();
+        if (spendAmount > params.nMaxValueSigmaSpendPerTransaction)
+            return false;
+
+        if (spendAmount + nSigmaSpendAmount > params.nMaxValueSigmaSpendPerBlock)
+            return false;
+    }
+
     return true;
 }
 
@@ -387,6 +399,16 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
             return;
         
         if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
+            return;
+    }
+
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendAmount(tx);
+        auto &params = chainparams.GetConsensus();
+        if (spendAmount > params.nMaxValueSigmaSpendPerTransaction)
+            return;
+
+        if ((nSigmaSpendAmount += spendAmount) > params.nMaxValueSigmaSpendPerBlock)
             return;
     }
     

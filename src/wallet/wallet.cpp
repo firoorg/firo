@@ -1534,12 +1534,15 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
 {
     LOCK(cs_wallet);
 
-    if (txout.scriptPubKey.IsSigmaMint()) {
+    if (txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint()) {
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
 
         try {
-            pub = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+            if (txout.scriptPubKey.IsSigmaMint())
+                pub = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+            else
+                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
         } catch (std::invalid_argument&) {
             return ISMINE_NO;
         }

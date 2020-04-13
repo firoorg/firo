@@ -47,6 +47,10 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
 
+CAmount GetSpendAmount(const CTxIn& in);
+CAmount GetSpendAmount(const CTransaction& tx);
+bool CheckLelantusBlock(CValidationState &state, const CBlock& block);
+
 bool CheckLelantusTransaction(
     const CTransaction &tx,
 	CValidationState &state,
@@ -57,6 +61,15 @@ bool CheckLelantusTransaction(
 	bool fStatefulSigmaCheck,
 	CLelantusTxInfo* lelantusTxInfo);
 
+void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);
+
+bool ConnectBlockLelantus(
+  CValidationState& state,
+  const CChainParams& chainparams,
+  CBlockIndex* pindexNew,
+  const CBlock *pblock,
+  bool fJustCheck=false);
+
 /*
  * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
  */
@@ -65,11 +78,13 @@ bool GetOutPoint(COutPoint& outPoint, const lelantus::PublicCoin &pubCoin);
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 
+bool BuildLelantusStateFromIndex(CChain *chain);
+
 /*
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
-//friend bool BuildSigmaStateFromIndex(CChain *, set<CBlockIndex *> &);
+friend bool BuildLelantusStateFromIndex(CChain *, set<CBlockIndex *> &);
 public:
     // First and last block where mint with given id was seen
     struct LelantusCoinGroupInfo {
@@ -90,6 +105,12 @@ public:
 
     // Add serial to the list of used ones
     void AddSpend(const Scalar &serial, int coinGroupId);
+
+    // Add everything from the block to the state
+    void AddBlock(CBlockIndex *index);
+
+    // Disconnect block from the chain rolling back mints and spends
+    void RemoveBlock(CBlockIndex *index);
 
     // Query coin group with given denomination and id
     bool GetCoinGroupInfo(int group_id, LelantusCoinGroupInfo &result);

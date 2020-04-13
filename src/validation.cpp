@@ -2338,6 +2338,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
 
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
@@ -2371,12 +2372,18 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
         }
 
-        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsSigmaSpend() || tx.IsSigmaMint() || tx.IsZerocoinRemint()) {
+        if (tx.IsZerocoinSpend()
+        || tx.IsZerocoinMint()
+        || tx.IsSigmaSpend()
+        || tx.IsSigmaMint()
+        || tx.IsZerocoinRemint()
+        || tx.IsLelantusMint()
+        || tx.IsLelantusJoinSplit()) {
             if( tx.IsSigmaSpend())
                 nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
 
             // Check transaction against zerocoin state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get()))
+            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get(), block.lelantusTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2419,6 +2426,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     block.zerocoinTxInfo->Complete();
     block.sigmaTxInfo->Complete();
+    block.lelantusTxInfo->Complete();
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
@@ -2459,7 +2467,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
     if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
-        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck))
+        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
+        !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
     if (fJustCheck)
@@ -2587,7 +2596,7 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
             if (txout.scriptPubKey.IsLelantusMint()) {
                 GroupElement pubCoinValue;
                 try {
-                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
                 } catch (std::invalid_argument&) {
                     // nothing
                 }
@@ -2802,9 +2811,10 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
     // retrieve all mints
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
-            false, false, nullptr, block.sigmaTxInfo.get());
+            false, false, nullptr, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
     }
 
     // Apply the block atomically to the chain state.
@@ -2820,6 +2830,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 	DisconnectTipZC(block, pindexDelete);
 	sigma::DisconnectTipSigma(block, pindexDelete);
+    lelantus::DisconnectTipLelantus(block, pindexDelete);
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
 
@@ -2875,6 +2886,14 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
         if (block.sigmaTxInfo->mints.size() > 0) {
             zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+        }
+
+        if (block.lelantusTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.lelantusTxInfo->spentSerials);
+        }
+
+        if (block.lelantusTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.lelantusTxInfo->mints);
         }
     }
 #endif
@@ -2985,7 +3004,6 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         exodus_handler_block_begin(GetHeight(), pindexNew);
     }
 #endif
-
     // Remove conflicting transactions from the mempool.;
     txpools.removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
 
@@ -3014,6 +3032,16 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
             LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
             zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
+        }
+
+        if (blockConnecting.lelantusTxInfo->spentSerials.size() > 0) {
+            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(blockConnecting.lelantusTxInfo->spentSerials);
+        }
+
+        if (blockConnecting.lelantusTxInfo->mints.size() > 0) {
+            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.lelantusTxInfo->mints);
         }
     }
 #endif
@@ -3705,7 +3733,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     if (!block.sigmaTxInfo)
         block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
-        
+    if (!block.lelantusTxInfo)
+        block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
+
     LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n", nHeight, block.GetHash().ToString(), isVerifyDB);
 
     // These are checks that are independent of context.
@@ -3793,7 +3823,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     for (CTransactionRef tx : block.vtx)
         // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
-        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
+        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
@@ -3809,6 +3839,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         block.fChecked = true;
 
     if (!sigma::CheckSigmaBlock(state, block))
+        return false;
+
+    if (!lelantus::CheckLelantusBlock(state, block))
         return false;
 
     return true;
@@ -4569,6 +4602,7 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     set<CBlockIndex *> changes;
     ZerocoinBuildStateFromIndex(&chainActive, changes);
     sigma::BuildSigmaStateFromIndex(&chainActive);
+    lelantus::BuildLelantusStateFromIndex(&chainActive);
     if (!changes.empty()) {
         setDirtyBlockIndex.insert(changes.begin(), changes.end());
         FlushStateToDisk();

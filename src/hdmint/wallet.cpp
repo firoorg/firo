@@ -110,7 +110,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
         throw ZerocoinException("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
-    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1); //TODO(levon) handel this as we have no denominations in lelantus
     if(!SeedToMint(mintSeed, commitmentValue, coin))
         throw ZerocoinException("Unable to create sigmamint from seed in mint regeneration.");
 
@@ -167,7 +167,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
             continue;
 
         GroupElement commitmentValue;
-        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1); //TODO(levon) handel this as we have no denominations in lelantus
         if(!SeedToMint(mintSeed, commitmentValue, coin))
             continue;
 

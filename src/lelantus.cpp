@@ -110,6 +110,31 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     ParseLelantusMintScript(script, pubcoin, schnorrProof);
 }
 
+// This function will not report an error only if the transaction is lelantus joinsplit.
+CAmount GetSpendAmount(const CTxIn& in) {
+    if (in.IsLelantusJoinSplit()) {
+        //TODO(levon) implement here
+    }
+    return 0;
+}
+
+CAmount GetSpendAmount(const CTransaction& tx) {
+    CAmount sum(0);
+    for (const auto& vin : tx.vin) {
+        sum += GetSpendAmount(vin);
+    }
+    return sum;
+}
+
+bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
+    auto& consensus = ::Params().GetConsensus();
+
+    size_t blockSpendsAmount = 0;
+    CAmount blockSpendsValue(0);
+    //TODO(levon) implement here
+    return true;
+}
+
 bool CheckLelantusMintTransaction(
         const CTxOut &txout,
         CValidationState &state,
@@ -210,6 +235,89 @@ bool CheckLelantusTransaction(
         }
     }
 
+    // Check Lelantus JoinSplit Transaction
+    if(tx.IsLelantusJoinSplit()) {
+        //TODO(levon) implement joinsplit checks
+    }
+
+    return true;
+}
+
+void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
+    LOCK2(cs_main, pool.cs);
+    std::vector<CTransaction> txn_to_remove;
+    for (CTxMemPool::txiter mi = pool.mapTx.begin(); mi != pool.mapTx.end(); ++mi) {
+        const CTransaction& tx = mi->GetTx();
+        if (tx.IsLelantusJoinSplit()) {
+            // Run over all the inputs, check if their CoinGroup block hash is equal to
+            // block removed. If any one is equal, remove txn from mempool.
+            for (const CTxIn& txin : tx.vin) {
+                if (txin.IsLelantusJoinSplit()) { //TODO(levon) implement this
+                }
+            }
+        }
+    }
+    for (const CTransaction& tx: txn_to_remove) {
+        // Remove txn from mempool.
+        pool.removeRecursive(tx);
+        LogPrintf("DisconnectTipLelantus: removed lelantus joinsplit which referenced a removed blockchain tip.");
+    }
+}
+
+void DisconnectTipLelantus(CBlock& block, CBlockIndex *pindexDelete) {
+    lelantusState.RemoveBlock(pindexDelete);
+
+    // Also remove from mempool lelantus joinsplits that reference given block hash.
+    RemoveLelantusJoinSplitReferencingBlock(mempool, pindexDelete);
+    RemoveLelantusJoinSplitReferencingBlock(txpools.getStemTxPool(), pindexDelete);
+}
+
+/**
+ * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
+ * corresponding to pindexNew, to bypass loading it again from disk.
+ */
+bool ConnectBlockLelantus(
+        CValidationState &state,
+        const CChainParams &chainparams,
+        CBlockIndex *pindexNew,
+        const CBlock *pblock,
+        bool fJustCheck) {
+    // Add lelantus transaction information to index
+    if (pblock && pblock->lelantusTxInfo) {
+        if (!fJustCheck) {
+            pindexNew->lelantusMintedPubCoins.clear();
+            pindexNew->lelantusSpentSerials.clear();
+        }
+
+        if (!CheckLelantusBlock(state, *pblock)) {
+            return false;
+        }
+
+        BOOST_FOREACH(auto& serial, pblock->lelantusTxInfo->spentSerials) {
+            if (!CheckLelantusSpendSerial(
+                    state,
+                    pblock->lelantusTxInfo.get(),
+                    serial.first,
+                    pindexNew->nHeight,
+                    true /* fConnectTip */
+                    )) {
+                return false;
+            }
+
+            if (!fJustCheck) {
+                pindexNew->lelantusSpentSerials.insert(serial);
+                lelantusState.AddSpend(serial.first, serial.second);
+            }
+        }
+
+        if (fJustCheck)
+            return true;
+
+        lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
+    }
+    else if (!fJustCheck) {
+        lelantusState.AddBlock(pindexNew);
+    }
     return true;
 }
 
@@ -270,6 +378,18 @@ bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
     }
 
     return GetOutPoint(outPoint, pubCoinValue);
+}
+
+bool BuildLelantusStateFromIndex(CChain *chain) {
+    for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
+    {
+        lelantusState.AddBlock(blockIndex);
+    }
+    // DEBUG
+    LogPrintf(
+        "Latest ID for Lelantus coin group  %d\n",
+        lelantusState.GetLatestCoinID());
+    return true;
 }
 
 // CLelantusTxInfo
@@ -434,6 +554,79 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
 
 void CLelantusState::AddSpend(const Scalar &serial, int coinGroupId) {
     containers.AddSpend(serial, coinGroupId);
+}
+
+void CLelantusState::AddBlock(CBlockIndex *index) {
+    BOOST_FOREACH(
+        const PAIRTYPE(int, vector<lelantus::PublicCoin>) &pubCoins,
+            index->lelantusMintedPubCoins) {
+        if (!pubCoins.second.empty()) {
+            LelantusCoinGroupInfo& coinGroup = coinGroups[pubCoins.first];
+
+            if (coinGroup.firstBlock == NULL)
+                coinGroup.firstBlock = index;
+            coinGroup.lastBlock = index;
+            coinGroup.nCoins += pubCoins.second.size();
+        }
+
+        latestCoinId = pubCoins.first;
+        BOOST_FOREACH(const lelantus::PublicCoin &coin, pubCoins.second) {
+            containers.AddMint(coin, CMintedCoinInfo::make(pubCoins.first, index->nHeight));
+        }
+    }
+
+    BOOST_FOREACH(const auto& serial, index->lelantusSpentSerials) {
+        AddSpend(serial.first, serial.second);
+    }
+}
+
+void CLelantusState::RemoveBlock(CBlockIndex *index) {
+    // roll back coin group updates
+    BOOST_FOREACH(
+        const PAIRTYPE(int,vector<lelantus::PublicCoin>)& coins,
+        index->lelantusMintedPubCoins)
+    {
+        LelantusCoinGroupInfo& coinGroup = coinGroups[coins.first];
+        int  nMintsToForget = coins.second.size();
+
+        assert(coinGroup.nCoins >= nMintsToForget);
+
+        if ((coinGroup.nCoins -= nMintsToForget) == 0) {
+            // all the coins of this group have been erased, remove the group altogether
+            coinGroups.erase(coins.first);
+            // decrease pubcoin id
+            latestCoinId--;
+        }
+        else {
+            // roll back lastBlock to previous position
+            assert(coinGroup.lastBlock == index);
+
+            do {
+                assert(coinGroup.lastBlock != coinGroup.firstBlock);
+                coinGroup.lastBlock = coinGroup.lastBlock->pprev;
+            } while (coinGroup.lastBlock->lelantusMintedPubCoins.count(coins.first) == 0);
+        }
+    }
+
+    // roll back mints
+    BOOST_FOREACH(const PAIRTYPE(int, vector<lelantus::PublicCoin>) &pubCoins,
+                  index->lelantusMintedPubCoins) {
+        BOOST_FOREACH(const lelantus::PublicCoin& coin, pubCoins.second) {
+            auto coins = containers.GetMints().equal_range(coin);
+            auto coinIt = find_if(
+                coins.first, coins.second,
+                [&pubCoins](const mint_info_container::value_type &v) {
+                    return v.second.coinGroupId == pubCoins.first;
+                });
+            assert(coinIt != coins.second);
+            containers.RemoveMint(coinIt->first);
+        }
+    }
+
+    // roll back spends
+    BOOST_FOREACH(const auto& serial, index->lelantusSpentSerials) {
+        containers.RemoveSpend(serial.first);
+    }
 }
 
 bool CLelantusState::GetCoinGroupInfo(
