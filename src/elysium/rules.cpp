@@ -132,7 +132,7 @@ CMainConsensusParams::CMainConsensusParams()
 
     // Sigma releated
     SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
-    SIGMA_SPENDV1_FEATURE_BLOCK = 258177; // 13 April 2020
+    SIGMA_SPENDV1_FEATURE_BLOCK = 264165; // 4 May 2020
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 212000;
