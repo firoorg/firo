@@ -88,6 +88,7 @@ public:
     bool operator!=(const SigmaPublicKey& other) const;
 
 public:
+    bool IsMember() const;
     bool IsValid() const;
 
 public:

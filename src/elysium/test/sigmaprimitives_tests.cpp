@@ -93,6 +93,21 @@ BOOST_AUTO_TEST_CASE(public_key)
     BOOST_CHECK_EQUAL(pub.commitment, commit);
 }
 
+BOOST_AUTO_TEST_CASE(public_key_inf)
+{
+    auto& params = DefaultSigmaParams;
+    SigmaPrivateKey k;
+    k.Generate();
+
+    SigmaPublicKey infp, pub(k, params);
+
+    BOOST_CHECK(infp.IsMember());
+    BOOST_CHECK(!infp.IsValid());
+
+    BOOST_CHECK(pub.IsMember());
+    BOOST_CHECK(pub.IsValid());
+}
+
 BOOST_AUTO_TEST_CASE(public_key_hash)
 {
     auto& params = DefaultSigmaParams;

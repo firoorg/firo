@@ -104,9 +104,14 @@ bool SigmaPublicKey::operator!=(const SigmaPublicKey& other) const
     return !(*this == other);
 }
 
+bool SigmaPublicKey::IsMember() const
+{
+    return commitment.isMember();
+}
+
 bool SigmaPublicKey::IsValid() const
 {
-    return commitment.isMember() && !commitment.isInfinity();
+    return IsMember() && !commitment.isInfinity();
 }
 
 void SigmaPublicKey::Generate(const SigmaPrivateKey& key, const SigmaParams& params)

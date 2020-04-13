@@ -75,7 +75,11 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
         auto denom = mint.first;
         auto& pubkey = mint.second;
 
-        if (!pubkey.IsValid()) {
+        auto isValid = IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block)
+            ? pubkey.IsValid()
+            : pubkey.IsMember();
+
+        if (!isValid) {
             PrintToLog("%s(): rejected: public key is invalid\n", __func__);
             return PKT_ERROR_SIGMA - 904;
         }
