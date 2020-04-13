@@ -14,8 +14,33 @@
 #include "darksend.h"
 #include "util.h"
 #include "net.h"
+#include "netbase.h"
 
 #include <boost/lexical_cast.hpp>
+
+CZnodeTimings::CZnodeTimings()
+{
+    if(Params().GetConsensus().IsRegtest()) {
+        minMnp = Regtest::ZnodeMinMnpSeconds;
+        newStartRequired = Regtest::ZnodeNewStartRequiredSeconds;
+    } else {
+        minMnp = Mainnet::ZnodeMinMnpSeconds;
+        newStartRequired = Mainnet::ZnodeNewStartRequiredSeconds;
+    }
+}
+
+CZnodeTimings & CZnodeTimings::Inst() {
+    static CZnodeTimings inst;
+    return inst;
+}
+
+int CZnodeTimings::MinMnpSeconds() {
+    return Inst().minMnp;
+}
+
+int CZnodeTimings::NewStartRequiredSeconds() {
+    return Inst().newStartRequired;
+}
 
 
 CZnode::CZnode() :
@@ -269,7 +294,7 @@ void CZnode::Check(bool fForce) {
         }
     }
 
-    if (lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
         nActiveState = ZNODE_PRE_ENABLED;
         if (nActiveStatePrev != nActiveState) {
             LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
@@ -474,8 +499,8 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     }
 
     // TODO: upgrade dash
-    /*
-    CService service = CService(strService);
+
+    CService service = LookupNumeric(strService.c_str());
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if (service.GetPort() != mainnetDefaultPort) {
@@ -489,9 +514,7 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
         return false;
     }
 
-    return Create(txin, CService(strService), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);*/
-
-    return false;
+    return Create(txin, LookupNumeric(strService.c_str()), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);
 }
 
 bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet) {

@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright (c) 2015-2016 The Bitcoin Core developers
+#!/usr/bin/env python3
+# Copyright (c) 2015-2018 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
@@ -127,7 +127,7 @@ def get_PE_dll_characteristics(executable):
         raise IOError('Error opening file')
     arch = ''
     bits = 0
-    for line in stdout.split('\n'):
+    for line in stdout.splitlines():
         tokens = line.split()
         if len(tokens)>=2 and tokens[0] == 'architecture:':
             arch = tokens[1].rstrip(',')

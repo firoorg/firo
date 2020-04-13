@@ -9,6 +9,7 @@
 #include "znode-payments.h"
 #include "znodeman.h"
 #include "protocol.h"
+#include "netbase.h"
 
 // TODO: upgrade to new dash, remove this hack
 #define vNodes (g_connman->vNodes)
@@ -158,6 +159,15 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     bool fFoundLocal = false;
+    if(Params().NetworkIDString() == CBaseChainParams::REGTEST) {
+        std::string const & serv = GetArg("-externalip", "");
+        if(!serv.empty()) {
+            service = LookupNumeric(serv.c_str());
+            fFoundLocal = true;
+        }
+
+    }
+    if(!fFoundLocal)
     {
         LOCK(cs_vNodes);
 
