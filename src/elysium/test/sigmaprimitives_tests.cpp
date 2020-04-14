@@ -42,22 +42,22 @@ BOOST_AUTO_TEST_CASE(private_key)
     BOOST_CHECK_NE(key.randomness, randomness);
 }
 
-BOOST_AUTO_TEST_CASE(private_key_inf)
+BOOST_AUTO_TEST_CASE(private_key_validation)
 {
-    Scalar inf;
-    Scalar s(1), r(2);
+    secp_primitives::Scalar zero(uint64_t(0));
+    secp_primitives::Scalar s(1), r(2);
 
-    SigmaPrivateKey sr(s, r);
-    BOOST_CHECK(sr.IsMember());
-    BOOST_CHECK(sr.IsValid());
+    SigmaPrivateKey validCoin(s, r);
+    BOOST_CHECK(validCoin.IsMember());
+    BOOST_CHECK(validCoin.IsValid());
 
-    SigmaPrivateKey sinf(s, inf);
-    BOOST_CHECK(sinf.IsMember());
-    BOOST_CHECK(!sinf.IsValid());
+    SigmaPrivateKey zeroAsRandomness(s, zero);
+    BOOST_CHECK(zeroAsRandomness.IsMember());
+    BOOST_CHECK(!zeroAsRandomness.IsValid());
 
-    SigmaPrivateKey infr(s, inf);
-    BOOST_CHECK(infr.IsMember());
-    BOOST_CHECK(!infr.IsValid());
+    SigmaPrivateKey zeroAsSerial(zero, r);
+    BOOST_CHECK(zeroAsSerial.IsMember());
+    BOOST_CHECK(!zeroAsSerial.IsValid());
 }
 
 BOOST_AUTO_TEST_CASE(private_key_hash)
@@ -93,19 +93,19 @@ BOOST_AUTO_TEST_CASE(public_key)
     BOOST_CHECK_EQUAL(pub.commitment, commit);
 }
 
-BOOST_AUTO_TEST_CASE(public_key_inf)
+BOOST_AUTO_TEST_CASE(public_key_validation)
 {
     auto& params = DefaultSigmaParams;
     SigmaPrivateKey k;
     k.Generate();
 
-    SigmaPublicKey infp, pub(k, params);
+    SigmaPublicKey invalidKey, validKey(k, params);
 
-    BOOST_CHECK(infp.IsMember());
-    BOOST_CHECK(!infp.IsValid());
+    BOOST_CHECK(invalidKey.IsMember());
+    BOOST_CHECK(!invalidKey.IsValid());
 
-    BOOST_CHECK(pub.IsMember());
-    BOOST_CHECK(pub.IsValid());
+    BOOST_CHECK(validKey.IsMember());
+    BOOST_CHECK(validKey.IsValid());
 }
 
 BOOST_AUTO_TEST_CASE(public_key_hash)

@@ -71,13 +71,12 @@ int TxProcessor::ProcessSimpleMint(const CMPTransaction& tx)
     std::vector<SigmaDenomination> denominations;
     denominations.reserve(tx.getMints().size());
 
+    auto spendV1IsActivated = IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block);
     for (auto &mint : tx.getMints()) {
         auto denom = mint.first;
         auto& pubkey = mint.second;
 
-        auto isValid = IsFeatureActivated(FEATURE_SIGMA_SPENDV1, block)
-            ? pubkey.IsValid()
-            : pubkey.IsMember();
+        auto isValid = spendV1IsActivated ? pubkey.IsValid() : pubkey.IsMember();
 
         if (!isValid) {
             PrintToLog("%s(): rejected: public key is invalid\n", __func__);
