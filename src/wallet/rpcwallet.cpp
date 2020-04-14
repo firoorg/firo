@@ -4357,10 +4357,9 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
-UniValue getnewpcode(const JSONRPCRequest& request)
-{
-
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getnewpcode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() > 1)
@@ -4378,32 +4377,32 @@ UniValue getnewpcode(const JSONRPCRequest& request)
                 + HelpExampleRpc("getnewpcode", "")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     // Parse the account first so we don't generate a key if there's an error
     string strAccount;
     if (request.params.size() > 0)
         strAccount = AccountFromValue(request.params[0]);
 
-    if (!pwalletMain->IsLocked())
-        pwalletMain->TopUpKeyPool();
+    if (!pwallet->IsLocked())
+        pwallet->TopUpKeyPool();
 
     // Generate a new key that is added to wallet
     CPubKey newKey;
-    if (!pwalletMain->GetKeyFromPool(newKey))
+    if (!pwallet->GetKeyFromPool(newKey))
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    pwalletMain->SetAddressBook(keyID, strAccount, "receive");
+    pwallet->SetAddressBook(keyID, strAccount, "receive");
 
     return CBitcoinAddress(keyID).ToString();
 }
 
 
 
-UniValue getMyPaymentCode(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getMyPaymentCode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() >= 1)
@@ -4412,17 +4411,17 @@ UniValue getMyPaymentCode(const JSONRPCRequest& request)
                 "return payment Code"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     
-    return pwalletMain->getPaymentCode();
+    return pwallet->getPaymentCode();
 }
 
-UniValue getMyNotificationAddress(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getMyNotificationAddress(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() >= 1)
@@ -4431,17 +4430,17 @@ UniValue getMyNotificationAddress(const JSONRPCRequest& request)
                 "return notificatioinAddress"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     
-    return pwalletMain->getNotifiactionAddress();
+    return pwallet->getNotifiactionAddress();
 }
 
-UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
@@ -4450,18 +4449,18 @@ UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request)
                 "return notificatioinAddress of Payment Code"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     Bip47Account bip47Account(request.params[0].get_str());
 
     return bip47Account.getNotificationAddress().ToString();
 }
 
-UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
@@ -4470,28 +4469,28 @@ UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request)
                 "return paymentcode of recieved"
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     uint256 hash;
     hash.SetHex(request.params[0].get_str());
 
-    if (!pwalletMain->mapWallet.count(hash))
+    if (!pwallet->mapWallet.count(hash))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
-    const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+    const CWalletTx& wtx = pwallet->mapWallet[hash];
     CTransaction tx = *wtx.tx.get();
 
-    if(pwalletMain->isNotificationTransaction(tx))
+    if(pwallet->isNotificationTransaction(tx))
     {
-        PaymentCode pcode = pwalletMain->getPaymentCodeInNotificationTransaction(tx);
+        PaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx);
         if (pcode.isValid())
         {
-            bool needsSaving = pwalletMain->savePaymentCode(pcode);
+            bool needsSaving = pwallet->savePaymentCode(pcode);
             if(needsSaving)
             {
                 LogPrintf("saveBip47PaymentChannelData\n");
-                pwalletMain->saveBip47PaymentChannelData(pcode.toString());
+                pwallet->saveBip47PaymentChannelData(pcode.toString());
             }
 
             return pcode.toString();
@@ -4512,14 +4511,14 @@ UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
-UniValue SecretPointCheck(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue SecretPointCheck(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
     
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
     
-    if(SecretPoint::SelfTest(pwalletMain))
+    if(SecretPoint::SelfTest(pwallet))
     {
         return "true";
     }
@@ -4530,14 +4529,14 @@ UniValue SecretPointCheck(const JSONRPCRequest& request)
     
 }
 
-UniValue PaymentAddressSelfCheck(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue PaymentAddressSelfCheck(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
     
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
     
-    if(PaymentAddress::SelfTest(pwalletMain))
+    if(PaymentAddress::SelfTest(pwallet))
     {
         return "true";
     }
@@ -4574,9 +4573,9 @@ UniValue validatepcode(const JSONRPCRequest& request)
                 + HelpExampleCli("validatepcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"")
                 + HelpExampleRpc("validatepcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\"")
         );
-
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
 #ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+    LOCK2(cs_main, pwallet ? &pwallet->cs_wallet : NULL);
 #else
     LOCK(cs_main);
 #endif
@@ -4585,29 +4584,29 @@ UniValue validatepcode(const JSONRPCRequest& request)
     PaymentCode paymentCode(strPcode);
     Bip47Account bip47Account(strPcode);
     bool isValid = paymentCode.isValid();
-    bool walletBip47AccountValid = pwalletMain->getBip47Account(0).isValid();
+    bool walletBip47AccountValid = pwallet->getBip47Account(0).isValid();
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
     ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
     ret.push_back(Pair("Wallet Account isvalid", walletBip47AccountValid));
     
-    if(pwalletMain->getPaymentCode().compare(strPcode) == 0)
+    if(pwallet->getPaymentCode().compare(strPcode) == 0)
     {
         ret.push_back(Pair("IsMine", true));
     }
     else
     {
         ret.push_back(Pair("IsMine", false));
-        if(pwalletMain->m_Bip47channels.count(strPcode) > 0 )
+        if(pwallet->m_Bip47channels.count(strPcode) > 0 )
         {
             ret.push_back(Pair("Exist in Bip47PaymentChannel", true));
-            Bip47PaymentChannel *pchannel = pwalletMain->getPaymentChannelFromPaymentCode(strPcode);
-            std::string outaddress = pwalletMain->getCurrentOutgoingAddress(*pchannel);
+            Bip47PaymentChannel *pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
+            std::string outaddress = pwallet->getCurrentOutgoingAddress(*pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", pchannel->getOutgoingAddresses().size()));
             if(pchannel->getIncomingAddresses().size() == 0) {
-                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwalletMain, paymentCode, 0);
+                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4621,10 +4620,10 @@ UniValue validatepcode(const JSONRPCRequest& request)
         {
             ret.push_back(Pair("Exist in Bip47PaymentChannel", false));
             Bip47PaymentChannel pchannel(strPcode);
-            std::string outaddress = pwalletMain->getCurrentOutgoingAddress(pchannel);
+            std::string outaddress = pwallet->getCurrentOutgoingAddress(pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if(pchannel.getIncomingAddresses().size() == 0) {
-                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwalletMain, paymentCode, 0);
+                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4643,16 +4642,16 @@ UniValue validatepcode(const JSONRPCRequest& request)
 
 
 
-UniValue sendtopcode(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue sendtopcode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw runtime_error(
                 "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
                 "\nSend an amount to a given address.\n"
-                + HelpRequiringPassphrase() +
+                + HelpRequiringPassphrase(pwallet) +
                 "\nArguments:\n"
                 "1. \"paymentcode\"  (string, required) The Zcoin paymentcode to send to.\n"
                 "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
@@ -4662,7 +4661,7 @@ UniValue sendtopcode(const JSONRPCRequest& request)
                 + HelpExampleRpc("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 0.1, \"donation\", \"seans outpost\"")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     PaymentCode paymentCode(request.params[0].get_str());
     if (!paymentCode.isValid())
@@ -4674,33 +4673,33 @@ UniValue sendtopcode(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
     
-    Bip47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString());
+    Bip47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
     
     if (channel->isNotificationTransactionSent()) 
     {
-        std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);
+        std::string addressTo = pwallet->getCurrentOutgoingAddress(*channel);
         CBitcoinAddress pcAddress(addressTo);
         CWalletTx wtx;
         bool fSubtractFeeFromAmount = false;
 
-        SendMoney(pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+        SendMoney(pwallet, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
         return wtx.GetHash().GetHex();
     }
     else
     {
-        return pwalletMain->makeNotificationTransaction(paymentCode.toString());    
+        return pwallet->makeNotificationTransaction(paymentCode.toString());
     }
     
     
     
 }
 
-UniValue listreceivedbypcode(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue listreceivedbypcode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() > 3)
@@ -4731,14 +4730,14 @@ UniValue listreceivedbypcode(const JSONRPCRequest& request)
                 + HelpExampleRpc("listreceivedbypcode", "6, true, true")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    return ListReceived(request.params, false);
+    return ListReceived(pwallet, request.params, false);
 }
 
-UniValue getreceivedbypcode(const JSONRPCRequest& request)
-{
-    if (!EnsureWalletIsAvailable(request.fHelp))
+UniValue getreceivedbypcode(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
@@ -4761,14 +4760,14 @@ UniValue getreceivedbypcode(const JSONRPCRequest& request)
                 + HelpExampleRpc("getreceivedbypcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\", 6")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     // Zcoin address
     CBitcoinAddress address = CBitcoinAddress(request.params[0].get_str());
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin zcoinpaymentcode");
     CScript scriptPubKey = GetScriptForDestination(address.Get());
-    if (!IsMine(*pwalletMain, scriptPubKey))
+    if (!IsMine(*pwallet, scriptPubKey))
         return ValueFromAmount(0);
 
     // Minimum confirmations
@@ -4778,7 +4777,7 @@ UniValue getreceivedbypcode(const JSONRPCRequest& request)
 
     // Tally
     CAmount nAmount = 0;
-    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+    for (map<uint256, CWalletTx>::iterator it = pwallet->mapWallet.begin(); it != pwallet->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
         if (wtx.IsCoinBase() || !CheckFinalTx(wtx))
