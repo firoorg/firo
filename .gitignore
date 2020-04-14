@@ -119,6 +119,7 @@ qa/cache/*
 !src/leveldb*/Makefile
 
 /doc/doxygen/
+/doc/man/Makefile
 
 libzcoinconsensus.pc
 contrib/devtools/split-debug.sh
