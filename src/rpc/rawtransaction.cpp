@@ -34,6 +34,7 @@
 #include <univalue.h>
 #include "sigma.h"
 #include "sigma/remint.h"
+#include "evo/cbtx.h"
 
 using namespace std;
 
@@ -186,8 +187,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         }
     }
     if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
-        entry.push_back(Pair("extraPayLoadSize", (int)tx.vExtraPayload.size()));
-        entry.push_back(Pair("extraPayLoad", HexStr(tx.vExtraPayload.begin(), tx.vExtraPayload.end())));
+        CbtxToJson(tx, entry);
     }
 }
 
