@@ -20,4 +20,4 @@ fi
 set -e
 mkdir -p build
 cd build
-cmake ../ -DWSIZE=64 -DMULTI=PTHREAD -DARITH=gmp $cmake_osflags
+cmake ../ -DCMAKE_INSTALL_PREFIX=$prefix -DWSIZE=64 -DMULTI=PTHREAD -DARITH=gmp $cmake_osflags
