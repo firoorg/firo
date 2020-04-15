@@ -93,7 +93,7 @@
          <item>
           <widget class="QLabel" name="balanceLabel">
            <property name="text">
-            <string>Available: 0.00000000 EXODUS</string>
+            <string>Available: 0.00000000 ELYSIUM</string>
            </property>
            <property name="margin">
             <number>8</number>
@@ -342,7 +342,7 @@ border: 1px solid rgb(142,61,0);padding:5px 5px 5px 5px;background-repeat: no-re
           <cursorShape>IBeamCursor</cursorShape>
          </property>
          <property name="text">
-          <string notr="true">123.456 EXODUS</string>
+          <string notr="true">123.456 ELYSIUM</string>
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
