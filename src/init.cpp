@@ -2288,56 +2288,71 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11c: update block tip in Zcoin modules
 
-    // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-    // but don't call it directly to prevent triggering of other listeners like zmq etc.
-    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    znpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
-    // governance.UpdatedBlockTip(chainActive.Tip());
+    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+
+    if (!fEvoZnodes) {
+        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+        // but don't call it directly to prevent triggering of other listeners like zmq etc.
+        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+        mnodeman.UpdatedBlockTip(chainActive.Tip());
+        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+        znpayments.UpdatedBlockTip(chainActive.Tip());
+        znodeSync.UpdatedBlockTip(chainActive.Tip());
+        // governance.UpdatedBlockTip(chainActive.Tip());
+    }
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 
     // TODO: replace this temporary patch with real DASH evo code
-    threadGroup.create_thread([] {
-        RenameThread("znode-tick");
+    if (!fEvoZnodes)
+    {
+        threadGroup.create_thread([] {
 
-        if (fLiteMode)
-            return;
+            RenameThread("znode-tick");
 
-        unsigned int nTick = 0;
+            if (fLiteMode)
+                return;
 
-        while (true) {
-            MilliSleep(1000);
+            unsigned int nTick = 0;
 
-            znodeSync.ProcessTick();
+            while (true) {
+                MilliSleep(1000);
 
-            if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
-                nTick++;
-
-                LOCK(cs_main);
-
-                // make sure to check all znodes first
-                mnodeman.Check();
-
-                // check if we should activate or ping every few minutes,
-                // slightly postpone first run to give net thread a chance to connect to some peers
-                if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
-                    activeZnode.ManageState();
-
-                if (nTick % 60 == 0) {
-                    mnodeman.ProcessZnodeConnections();
-                    mnodeman.CheckAndRemove();
-                    znpayments.CheckAndRemove();
-                    instantsend.CheckAndRemove();
+                {
+                    LOCK(cs_main);
+                    // shut legacy znode down if past 100 blocks of DIP3 enforcement
+                    if (chainActive.Height() >= Params().GetConsensus().DIP0003EnforcementHeight + 100)
+                        break;
                 }
-                if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
-                    mnodeman.DoFullVerificationStep();
+                    
+                znodeSync.ProcessTick();
+
+                if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+                    nTick++;
+
+                    LOCK(cs_main);
+
+                    // make sure to check all znodes first
+                    mnodeman.Check();
+
+                    // check if we should activate or ping every few minutes,
+                    // slightly postpone first run to give net thread a chance to connect to some peers
+                    if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
+                        activeZnode.ManageState();
+
+                    if (nTick % 60 == 0) {
+                        mnodeman.ProcessZnodeConnections();
+                        mnodeman.CheckAndRemove();
+                        znpayments.CheckAndRemove();
+                        instantsend.CheckAndRemove();
+                    }
+                    if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
+                        mnodeman.DoFullVerificationStep();
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     // ********************************************************* Step 12: finished
 

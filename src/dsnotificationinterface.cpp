@@ -8,6 +8,7 @@
 //#include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
+#include "znodesync-interface.h"
 #include "validation.h"
 #include "spork.h"
 
@@ -47,6 +48,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     deterministicMNManager->UpdatedBlockTip(pindexNew);
 
     masternodeSync.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
+    znodeSyncInterface.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
 
     // Update global DIP0001 activation status
     //fDIP0001ActiveAtTip = pindexNew->nHeight >= Params().GetConsensus().DIP0001Height;
