@@ -115,9 +115,6 @@ public:
     /** Masternode list has changed */
     boost::signals2::signal<void (const CDeterministicMNList&)> NotifyMasternodeListChanged;
 
-    /** Znode sync complete */
-    boost::signals2::signal<void ()> ZnodeSyncComplete;
-
     /** Additional data sync progress changed */
     boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
 

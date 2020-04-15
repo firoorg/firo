@@ -158,10 +158,8 @@ private:
 
     /** Updates Zc2SigmaPage visibility */
     void checkZc2SigmaVisibility(int numBlocks);
-    /** Updates Legacy Znode visibility */
-    void checkLegacyZnodeVisibility(int numBlocks);
-    /** Updates Masternode visibility */
-    void checkMasternodeVisibility(int numBlocks);
+    /** Updates Znode visibility */
+    void checkZnodeVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 

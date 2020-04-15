@@ -9,6 +9,7 @@ public:
 
     static void notify();
     static bool shouldShow();
+    static bool shown;
 };
 
 #endif //ZCOIN_NOTIFYZNODEWARNING_H

@@ -7728,7 +7728,7 @@ void CWallet::ListLockedCoins(std::vector<COutPoint>& vOutpts)
 }
 
 bool CWallet::HasMasternode(){
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
 
     AssertLockHeld(cs_wallet);
     for (const auto &o : setWalletUTXO) {
@@ -7745,7 +7745,7 @@ bool CWallet::HasMasternode(){
 
 void CWallet::ListProTxCoins(std::vector<COutPoint>& vOutpts)
 {
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
 
     AssertLockHeld(cs_wallet);
     for (const auto &o : setWalletUTXO) {

@@ -141,17 +141,17 @@
          </column>
          <column>
           <property name="text">
-           <string>Registered</string>
+           <string>Registered (Block)</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Last Paid</string>
+           <string>Last Paid (Block)</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Next Payment</string>
+           <string>Next Payment (Block)</string>
           </property>
          </column>
          <column>

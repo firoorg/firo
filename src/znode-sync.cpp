@@ -194,8 +194,6 @@ void CZnodeSync::SwitchToNextAsset() {
             nTimeLastGovernanceItem = GetTime();
             LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
             nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
-            // signal that znode sync has completed
-            uiInterface.ZnodeSyncComplete();
             break;
     }
     nRequestedZnodeAttempt = 0;

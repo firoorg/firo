@@ -35,9 +35,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     int columnAddressWidth = 200;
     int columnStatusWidth = 80;
     int columnPoSeScoreWidth = 80;
-    int columnRegisteredWidth = 80;
-    int columnLastPaidWidth = 80;
-    int columnNextPaymentWidth = 100;
+    int columnRegisteredWidth = 110;
+    int columnLastPaidWidth = 100;
+    int columnNextPaymentWidth = 120;
     int columnPayeeWidth = 130;
     int columnOperatorRewardWidth = 130;
     int columnCollateralWidth = 130;
@@ -148,6 +148,9 @@ void MasternodeList::updateDIP3List()
     }
 
     auto mnList = clientModel->getMasternodeList();
+    if(mnList.GetAllMNsCount()==0){
+        clientModel->refreshMasternodeList();
+        mnList = clientModel->getMasternodeList();    }
     std::map<uint256, CTxDestination> mapCollateralDests;
 
     {
@@ -189,6 +192,7 @@ void MasternodeList::updateDIP3List()
         }
     }
 
+    const Consensus::Params& params = ::Params().GetConsensus();
     mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
@@ -204,7 +208,7 @@ void MasternodeList::updateDIP3List()
         QTableWidgetItem* statusItem = new QTableWidgetItem(mnList.IsMNValid(dmn) ? tr("ENABLED") : (mnList.IsMNPoSeBanned(dmn) ? tr("POSE_BANNED") : tr("UNKNOWN")));
         QTableWidgetItem* PoSeScoreItem = new QTableWidgetItem(QString::number(dmn->pdmnState->nPoSePenalty));
         QTableWidgetItem* registeredItem = new QTableWidgetItem(QString::number(dmn->pdmnState->nRegisteredHeight));
-        QTableWidgetItem* lastPaidItem = new QTableWidgetItem(QString::number(dmn->pdmnState->nLastPaidHeight));
+        QTableWidgetItem* lastPaidItem = new QTableWidgetItem((dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight) ? tr("NONE") : QString::number(dmn->pdmnState->nLastPaidHeight));
         QTableWidgetItem* nextPaymentItem = new QTableWidgetItem(nextPayments.count(dmn->proTxHash) ? QString::number(nextPayments[dmn->proTxHash]) : tr("UNKNOWN"));
 
         CTxDestination payeeDest;

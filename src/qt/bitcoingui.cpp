@@ -41,6 +41,7 @@
 #include "znode-sync.h"
 #include "znodelist.h"
 #include "masternodelist.h"
+#include "notifyznodewarning.h"
 #include "exodus_qtutils.h"
 #include "zc2sigmapage.h"
 
@@ -373,8 +374,8 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes (Legacy)"), this);
-    znodeAction->setStatusTip(tr("Browse legacy Znodes"));
+    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
+    znodeAction->setStatusTip(tr("Browse Znodes"));
     znodeAction->setToolTip(znodeAction->statusTip());
     znodeAction->setCheckable(true);
 
@@ -638,8 +639,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
         checkZc2SigmaVisibility(clientModel->getNumBlocks());
-        checkLegacyZnodeVisibility(clientModel->getNumBlocks());
-        checkMasternodeVisibility(clientModel->getNumBlocks());
+        checkZnodeVisibility(clientModel->getNumBlocks());
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -1068,8 +1068,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBar->setToolTip(tooltip);
 
     checkZc2SigmaVisibility(count);
-    checkLegacyZnodeVisibility(count);
-    checkMasternodeVisibility(count);
+    checkZnodeVisibility(count);
 }
 
 
@@ -1467,18 +1466,30 @@ void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
     }
 }
 
-void BitcoinGUI::checkLegacyZnodeVisibility(int numBlocks) {
-    if(CZnode::IsLegacyWindow(numBlocks))
-        znodeAction->setVisible(true);
-    else
-        znodeAction->setVisible(false);
-}
+void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
 
-void BitcoinGUI::checkMasternodeVisibility(int numBlocks) {
-    if(CDeterministicMNManager::IsDIP3Active(numBlocks))
-        masternodeAction->setVisible(true);
-    else
+    const Consensus::Params& params = ::Params().GetConsensus();
+    // Before legacy window
+    if(numBlocks < params.DIP0003Height){
+        znodeAction->setVisible(true);
         masternodeAction->setVisible(false);
+    } // during legacy window
+    else if(numBlocks < params.DIP0003EnforcementHeight){
+        znodeAction->setText(tr("&Znodes (legacy)"));
+        znodeAction->setStatusTip(tr("Browse legacy Znodes"));
+        znodeAction->setVisible(true);
+        masternodeAction->setVisible(true);
+    } // DIP0003 Enforcement
+    else {
+        znodeAction->setVisible(false);
+        masternodeAction->setVisible(true);
+    }
+
+    //also check for Znode warning here
+    if(znodeSync.IsSynced()){
+        if(NotifyZnodeWarning::shouldShow())
+            NotifyZnodeWarning::notify();
+    }
 }
 
 void BitcoinGUI::toggleNetworkActive()

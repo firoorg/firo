@@ -20,9 +20,6 @@
 
 #include <stdint.h>
 
-#include "znode-sync.h"
-#include "notifyznodewarning.h"
-
 #include <QDebug>
 #include <QTimer>
 
@@ -371,14 +368,6 @@ static void NotifyMasternodeListChanged(ClientModel *clientmodel, const CDetermi
     clientmodel->setMasternodeList(newList);
 }
 
-static void ZnodeSyncComplete(ClientModel *clientmodel)
-{
-    // show warning for legacy znodes (can be removed following full transition)
-    if(NotifyZnodeWarning::shouldShow()){
-        NotifyZnodeWarning::notify();
-    }
-}
-
 static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
 {
     QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
@@ -443,7 +432,6 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, _1));
-    uiInterface.ZnodeSyncComplete.connect(boost::bind(ZnodeSyncComplete, this));
 
     // Connect Exodus signals
     uiInterface.ExodusStateChanged.connect(boost::bind(ExodusStateChanged, this));
@@ -464,7 +452,6 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
-    uiInterface.ZnodeSyncComplete.disconnect(boost::bind(ZnodeSyncComplete, this));
 
     // Disconnect Exodus signals
     uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
