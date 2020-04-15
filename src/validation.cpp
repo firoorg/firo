@@ -2071,6 +2071,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     CAmount nFees = 0;
 
+    if (!UndoSpecialTxsInBlock(block, pindex)) {
+        return DISCONNECT_FAILED;
+    }
+
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
