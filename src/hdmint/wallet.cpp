@@ -133,7 +133,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
 /**
  * Generate the mintpool for the current master seed.
  *
- * only runs if the current mintpool is exhausted and we need new mints (ie. the next mint to 
+ * only runs if the current mintpool is exhausted and we need new mints (ie. the next mint to
  * generate is the same as the one last used)
  * Generates 20 mints at a time.
  * Makes the appropriate database entries.
@@ -243,7 +243,7 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
  * Mints are created deterministically so we can completely regenerate all mints and transaction data for them from chain data.
  * Rather than a single pass of listMints, we wrap each pass in an outer while loop, that continues until no updates are found.
  * The reason for this is to allow the mint counter in the wallet to update and regenerate more of the mint pool should it need to.
- * 
+ *
  * @param fGenerateMintPool whether or not to call GenerateMintPool. defaults to true
  * @param listMints An optional value. If passed, only sync the mints in this list. Else get all mints in the mintpool
  */
@@ -447,10 +447,10 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
 }
 
 /**
- * Convert a 512-bit mint seed into a mint. 
+ * Convert a 512-bit mint seed into a mint.
  *
  * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
- * 
+ *
  * @param mintSeed uint512 object of seed for mint
  * @param commit reference to public coin. Is set in this function
  * @param coin reference to private coin. Is set in this function
@@ -526,7 +526,7 @@ bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::Privat
  *
  * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
  * Looks to the mintpool first - if mint doesn't exist, generates new mints in the mintpool.
- * 
+ *
  * @param nCount count in the HD Chain of the mint to use.
  * @return the seed ID
  */
@@ -726,7 +726,7 @@ bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(lelantus::PrivateCoin& co
  * Following creation, verify the mint does not already exist, in-memory or on-chain. This is to prevent sync issues with the
  * mint counter between copies of the same wallet. If it does, increment the count and repeat creation. Continue until an available
  * mint is found.
- * 
+ *
  * @param denom denomination of mint
  * @param coin reference to private coin object
  * @param dMint reference to CHDMint object
@@ -837,7 +837,7 @@ bool CHDMintWallet::GenerateLelantusMint(lelantus::PrivateCoin& coin, CHDMint& d
  * Regenerate a CSigmaEntry (ie. mint object with private data)
  *
  * Internally calls GenerateMint with known MintPoolEntry and constructs the CSigmaEntry
- * 
+ *
  * @param dMint HDMint object
  * @param sigma reference to full mint object
  * @return success
@@ -909,7 +909,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CLelantusEntry& lelantu
 
 /**
  * Checks to see if serial passed is on-chain (ie. a check on whether the mint for the serial is spent)
- * 
+ *
  * @param hashSerial mint serial hash
  * @param nHeightTx transaction height on-chain
  * @param txidSpend transaction hash
@@ -934,7 +934,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
 
 /**
  * Constructs a PublicCoin object from a mint-containing transaction output
- * 
+ *
  * @param txout mint-containing transaction output
  * @param pubCoin mint public coin
  * @param state validation state object

@@ -10,9 +10,6 @@ src/zcoin
 src/zcoind
 src/zcoin-cli
 src/zcoin-tx
-src/test/test_zcoin
-src/test/test_zcoin_fuzzy
-src/qt/test/test_zcoin-qt
 
 # autoreconf
 Makefile.in
@@ -113,6 +110,8 @@ test/config.ini
 test/cache/*
 src/test/buildenv.py
 src/test/test_bitcoin
+src/test/test_bitcoin_fuzzy
+src/qt/test/test_bitcoin-qt
 qa/pull-tester/tests_config.py
 qa/cache/*
 
@@ -123,8 +122,6 @@ qa/cache/*
 
 libzcoinconsensus.pc
 contrib/devtools/split-debug.sh
-
-src/test/test_bitcoin
 
 libbitcoinconsensus.pc
 qa/pull-tester/run-bitcoind-for-test.sh
