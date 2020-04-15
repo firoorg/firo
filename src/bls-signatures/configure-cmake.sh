@@ -20,4 +20,4 @@ fi
 set -e
 mkdir -p build
 cd build
-cmake ../ -DWSIZE=64 -DMULTI=PTHREAD -DARITH=easy $cmake_osflags
+cmake ../ -DWSIZE=64 -DMULTI=PTHREAD -DARITH=gmp $cmake_osflags
