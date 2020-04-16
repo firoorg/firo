@@ -77,6 +77,7 @@ $(TOR_LIBS): tor.timestamp
 
 LIBBLSSIG_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signatures/contrib/relic/include
 LIBBLSSIG_LIBS=bls-signatures/build/libchiabls.a
+LIBBLSSIG_DEPENDS=-lgmp
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
@@ -279,6 +280,7 @@ BITCOIN_CORE_H = \
   masternode-meta.h \
   masternode-payments.h \
   masternode-sync.h \
+  znodesync-interface.h \
   saltedhasher.h \
   unordered_lru_cache.h \
   llmq/quorums.h \
@@ -393,6 +395,7 @@ libbitcoin_server_a_SOURCES = \
   masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
+  znodesync-interface.cpp \
   masternode-utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -459,6 +462,7 @@ libbitcoin_wallet_a_SOURCES = \
   znode-payments.cpp \
   znode-sync.cpp \
   masternode-sync.cpp \
+  znodesync-interface.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
   hdmint/mintpool.cpp \
@@ -722,7 +726,7 @@ zcoind_LDADD = \
   $(LIBSECP256K1) \
   $(LIBBLSSIG_LIBS)
 
-zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS)
 
 if ENABLE_CLIENTAPI
 zcoind_LDADD += $(MINIZIP_LIBS)
@@ -783,7 +787,7 @@ if GLIBC_BACK_COMPAT
   libbitcoinconsensus_la_SOURCES += compat/glibc_compat.cpp
 endif
 
-libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(LIBBLSSIG_LIBS)
+libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
 libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include $(LIBBLSSIG_INCLUDES) -DBUILD_BITCOIN_INTERNAL
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)

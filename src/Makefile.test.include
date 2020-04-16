@@ -235,7 +235,7 @@ if ENABLE_CLIENTAPI
 test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
-test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS)
+test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 # test_bitcoin_fuzzy binary #
@@ -259,7 +259,7 @@ if ENABLE_CLIENTAPI
 test_test_bitcoin_fuzzy_LDADD += $(MINIZIP_LIBS)
 endif
 
-test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS)
+test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)

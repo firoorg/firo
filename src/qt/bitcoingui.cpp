@@ -36,7 +36,7 @@
 #include "ui_interface.h"
 #include "util.h"
 
-#include "znode-sync.h"
+#include "znodesync-interface.h"
 #include "znodelist.h"
 #include "exodus_qtutils.h"
 #include "zc2sigmapage.h"
@@ -1001,7 +1001,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
     }
-    else if (!znodeSync.IsBlockchainSynced())
+    else if (!znodeSyncInterface.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
@@ -1062,12 +1062,12 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
     // Set icon state: spinning if catching up, tick otherwise
 
-    if(znodeSync.GetBlockchainSynced())
+    if(znodeSyncInterface.IsBlockchainSynced())
     {
         QString strSyncStatus;
         tooltip = tr("Up to date") + QString(".<br>") + tooltip;
 
-        if(znodeSync.IsSynced()) {
+        if(znodeSyncInterface.IsSynced()) {
             progressBarLabel->setVisible(false);
             progressBar->setVisible(false);
             labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
@@ -1088,7 +1088,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
             progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
         }
 
-        strSyncStatus = QString(znodeSync.GetSyncStatus().c_str());
+        strSyncStatus = QString(znodeSyncInterface.GetSyncStatus().c_str());
         progressBarLabel->setText(strSyncStatus);
         tooltip = strSyncStatus + QString("<br>") + tooltip;
     }

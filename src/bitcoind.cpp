@@ -135,6 +135,7 @@ bool AppInit(int argc, char* argv[])
         std::string strErr;
         if(!znodeConfig.read(strErr)) {
             fprintf(stderr,"Error reading znode configuration file: %s\n", strErr.c_str());
+            // TODO: ignore the error after switch to evo znodes
             return false;
         }
 

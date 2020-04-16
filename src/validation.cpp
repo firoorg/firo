@@ -2071,6 +2071,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     CAmount nFees = 0;
 
+    if (!UndoSpecialTxsInBlock(block, pindex)) {
+        return DISCONNECT_FAILED;
+    }
+
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
@@ -2809,9 +2813,12 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    znpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+
+    if (pindexNew->nHeight < chainParams.GetConsensus().DIP0003EnforcementHeight) {
+        mnodeman.UpdatedBlockTip(chainActive.Tip());
+        znpayments.UpdatedBlockTip(chainActive.Tip());
+        znodeSync.UpdatedBlockTip(chainActive.Tip());
+    }
 
     // New best block
     txpools.AddTransactionsUpdated(1);
@@ -4291,8 +4298,8 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
 
 bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fForceProcessing, bool *fNewBlock)
 {
+    CBlockIndex *pindex = NULL;
     {
-        CBlockIndex *pindex = NULL;
         if (fNewBlock) *fNewBlock = false;
         CValidationState state;
 
@@ -4320,7 +4327,8 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
 
-    znodeSync.IsBlockchainSynced(true);
+    if (pindex->nHeight < chainparams.GetConsensus().DIP0003EnforcementHeight)
+        znodeSync.IsBlockchainSynced(true);
 
     return true;
 }
