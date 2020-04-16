@@ -1950,7 +1950,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
 
-        if(!tx->IsSigmaSpend()){
+        if(!tx->IsSigmaSpend() && !tx->IsZerocoinSpend()){
             if (nDebit > 0) {
                 // Don't report 'change' txouts
                 if (ignoreChange && IsChange(static_cast<uint32_t>(i))) {
@@ -1964,7 +1964,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (txout.scriptPubKey.IsSigmaMint()) {
+        if (txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsZerocoinMint()) {
             address = CNoDestination();
         } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
             LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
@@ -1975,7 +1975,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
         COutputEntry output = {address, txout.nValue, (int) i};
 
         /// If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0 || (tx->IsSigmaSpend() && fromMe)){
+        if (nDebit > 0 || ((tx->IsSigmaSpend() || tx->IsZerocoinSpend()) && fromMe)){
             listSent.push_back(output);
         }
 
@@ -3134,7 +3134,6 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 
 // available implies a mature or unspent mint.
 bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
-    LOCK(cs_wallet);
 
     if(!txout.scriptPubKey.IsSigmaMint())
         throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
@@ -3155,33 +3154,6 @@ bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
 
         if(pubCoinValue == dMint.GetPubcoinValue())
             return true;
-    }
-
-    return false;
-}
-
-bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
-    LOCK(cs_wallet);
-
-    if(!txout.scriptPubKey.IsZerocoinMint()){
-        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
-    }
-
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    CBigNum pubCoin;
-    CZerocoinEntry pubCoinItem;
-
-    vector<unsigned char> vchZeroMint;
-    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-    pubCoin.setvch(vchZeroMint);
-
-    if(walletdb.ReadZerocoinEntry(pubCoin, pubCoinItem)){
-        fIsAvailable = !(pubCoinItem.IsUsed ||
-                       (!pubCoinItem.IsUsed &&
-                        (pubCoinItem.randomness == 0 ||
-                         pubCoinItem.serialNumber == 0)));
-        return true;
     }
 
     return false;
@@ -8307,14 +8279,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     }
 
-#ifdef ENABLE_CLIENTAPI    
-    // Set API loaded before wallet sync and immediately notify
-    if(fApi){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-#endif
-
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
@@ -8329,8 +8293,17 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         else
             pindexRescan = chainActive.Genesis();
     }
-    if (chainActive.Tip() && chainActive.Tip() != pindexRescan)
-    {
+    bool reindexing = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
+
+#ifdef ENABLE_CLIENTAPI
+        // Set API loaded before wallet sync (if not reindexing) and immediately notify
+        if(fApi && !reindexing){
+            SetAPIWarmupFinished();
+            GetMainSignals().NotifyAPIStatus();
+        }
+#endif
+
+    if (reindexing) {
         //We can't rescan beyond non-pruned blocks, stop and throw an error
         //this might happen if a user uses a old wallet within a pruned node
         // or if he ran -disablewallet for a longer time, then decided to re-enable
@@ -8417,6 +8390,12 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
     }
+#ifdef ENABLE_CLIENTAPI
+    if(fApi && reindexing){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+    }
+#endif
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     {
