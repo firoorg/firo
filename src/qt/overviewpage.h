@@ -53,7 +53,6 @@ public Q_SLOTS:
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
-    void elysiumTransactionClicked(const uint256& txid);
 
 private:
     Ui::OverviewPage *ui;
