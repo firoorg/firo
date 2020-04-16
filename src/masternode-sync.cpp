@@ -65,6 +65,9 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
         case(MASTERNODE_SYNC_WAITING):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
+            connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+            });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
 /*        case(MASTERNODE_SYNC_GOVERNANCE):
@@ -72,9 +75,6 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
 
-            connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
-            });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
             break;*/
