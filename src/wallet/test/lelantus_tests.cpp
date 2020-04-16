@@ -21,14 +21,14 @@ public:
     }
 
 public:
-    bool GenerateBlock(const std::vector<CMutableTransaction>& txns = {}) {
+    bool GenerateBlock(std::vector<CMutableTransaction> const &txns = {}) {
         auto last = chainActive.Tip();
 
         CreateAndProcessBlock(txns, script);
         auto block = chainActive.Tip();
 
         if (block != last) {
-            pwalletMain->ScanForWalletTransactions(block);
+            pwalletMain->ScanForWalletTransactions(block, true);
         }
 
         return block != last;
@@ -38,6 +38,30 @@ public:
         while (--blocks) {
             GenerateBlock();
         }
+    }
+
+    std::vector<CHDMint> GenerateMints(std::vector<CAmount> const &amounts, std::vector<CMutableTransaction> &txs) {
+        std::vector<CHDMint> mints;
+
+        for (auto a : amounts) {
+            lelantus::PrivateCoin coin(params, a);
+            mints.emplace_back();
+            auto mint = mints.back();
+
+            auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
+
+            CWalletTx wtx;
+            auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
+            txs.emplace_back(wtx);
+
+            zwalletMain->GetTracker().AddLelantus(mint, true);
+
+            if (result != "") {
+                throw std::runtime_error("Fail to generate mints " + result);
+            }
+        }
+
+        return mints;
     }
 
 public:
@@ -101,6 +125,38 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     // verify tx
     CMutableTransaction mtx(*tx);
     BOOST_CHECK(GenerateBlock({mtx}));
+}
+
+BOOST_AUTO_TEST_CASE(list_confirmed)
+{
+    GenerateBlocks(120);
+    std::vector<CAmount> confirmedAmounts = {1, 2 * COIN};
+    std::vector<CAmount> unconfirmedAmounts = {10 * COIN};
+    std::vector<CAmount> allAmounts(confirmedAmounts);
+    allAmounts.insert(allAmounts.end(), unconfirmedAmounts.begin(), unconfirmedAmounts.end());
+
+    // Generate all coins
+    std::vector<CMutableTransaction> txs;
+    auto mints = GenerateMints(allAmounts, txs);
+    GenerateBlock(std::vector<CMutableTransaction>(txs.begin(), txs.begin() + txs.size() - 1));
+
+    auto extractAmountsFromOutputs = [](std::vector<COutput> const &outs) -> std::vector<CAmount> {
+        std::vector<CAmount> amounts;
+        for (auto const &out : outs) {
+            amounts.push_back(out.tx->tx->vout[out.i].nValue);
+        }
+
+        return amounts;
+    };
+
+    std::vector<COutput> confirmedCoins, allCoins;
+    pwalletMain->ListAvailableLelantusMintCoins(confirmedCoins, true);
+    pwalletMain->ListAvailableLelantusMintCoins(allCoins, false);
+    auto confirmed = extractAmountsFromOutputs(confirmedCoins);
+    auto all = extractAmountsFromOutputs(allCoins);
+
+    BOOST_CHECK(std::is_permutation(confirmed.begin(), confirmed.end(), confirmedAmounts.begin()));
+    BOOST_CHECK(std::is_permutation(all.begin(), all.end(), allAmounts.begin()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

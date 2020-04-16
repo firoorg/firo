@@ -92,7 +92,7 @@ friend bool BuildLelantusStateFromIndex(CChain *, set<CBlockIndex *> &);
 public:
     // First and last block where mint with given id was seen
     struct LelantusCoinGroupInfo {
-        LelantusCoinGroupInfo() : firstBlock(NULL), lastBlock(NULL), nCoins(0) {}
+        LelantusCoinGroupInfo() : firstBlock(nullptr), lastBlock(nullptr), nCoins(0) {}
 
         // first and last blocks having coins with given id minted
         CBlockIndex *firstBlock;
