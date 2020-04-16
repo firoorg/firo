@@ -138,12 +138,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     }
     result.push_back(Pair("tx", txs));
     if (!block.vtx[0]->vExtraPayload.empty()) {
-        CCbTx cbTx;
-        if (GetTxPayload(block.vtx[0]->vExtraPayload, cbTx)) {
-            UniValue cbTxObj;
-            cbTx.ToJson(cbTxObj);
-            result.push_back(Pair("cbTx", cbTxObj));
-        }
+        CbtxToJson(*block.vtx[0], result);
     }
     result.push_back(Pair("time", block.GetBlockTime()));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));

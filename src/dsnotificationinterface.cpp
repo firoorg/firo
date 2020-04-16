@@ -8,7 +8,9 @@
 //#include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
+#include "znodesync-interface.h"
 #include "validation.h"
+#include "spork.h"
 
 #include "evo/deterministicmns.h"
 #include "evo/mnauth.h"
@@ -40,9 +42,13 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     if (pindexNew == pindexFork) // blocks were disconnected without any new ones
         return;
 
+    // use DIP0003EncorcementHeight as trigger for spork 17
+    sporkManager.UpdateSpork(SPORK_17_QUORUM_DKG_ENABLED, pindexNew->nHeight >= Params().GetConsensus().DIP0003EnforcementHeight ? 1 : 0);
+
     deterministicMNManager->UpdatedBlockTip(pindexNew);
 
     masternodeSync.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
+    znodeSyncInterface.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
 
     // Update global DIP0001 activation status
     //fDIP0001ActiveAtTip = pindexNew->nHeight >= Params().GetConsensus().DIP0001Height;

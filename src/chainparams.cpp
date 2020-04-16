@@ -95,7 +95,7 @@ static Consensus::LLMQParams llmq10_70 = {
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 18,
-        .dkgBadVotesThreshold = 15,
+        .dkgBadVotesThreshold = 8,
 
         .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
 
@@ -254,8 +254,10 @@ public:
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 5*60;
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
@@ -473,8 +475,10 @@ public:
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 20;
 
         consensus.nMTPSwitchTime = 1539172800;
+        consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
@@ -651,11 +655,14 @@ public:
         consensus.DIP0008Height = INT_MAX;
 
         // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_5_60] = llmq5_60;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 1;
 
         consensus.nMTPSwitchTime = INT_MAX;
+        consensus.nMTPStartBlock = 0;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 5000;
         consensus.nFixedDifficulty = 0x2000ffff;

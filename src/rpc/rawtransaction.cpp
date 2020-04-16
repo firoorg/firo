@@ -34,6 +34,9 @@
 #include <univalue.h>
 #include "sigma.h"
 #include "sigma/remint.h"
+#include "evo/cbtx.h"
+#include "evo/specialtx.h"
+#include "llmq/quorums_commitment.h"
 
 using namespace std;
 
@@ -185,9 +188,24 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             }
         }
     }
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
-        entry.push_back(Pair("extraPayLoadSize", (int)tx.vExtraPayload.size()));
-        entry.push_back(Pair("extraPayLoad", HexStr(tx.vExtraPayload.begin(), tx.vExtraPayload.end())));
+    if (tx.nVersion >= 3) {
+        switch(tx.nType){
+            case TRANSACTION_COINBASE:
+                if (!CbtxToJson(tx, entry))
+                    throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+                break;
+            case TRANSACTION_QUORUM_COMMITMENT: {
+                    llmq::CFinalCommitmentTxPayload qcTx;
+                    if (!GetTxPayload(tx, qcTx))
+                        throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+                    UniValue qcTxObj;
+                    qcTx.ToJson(qcTxObj);
+                    entry.push_back(Pair("finalCommitment", qcTxObj));
+                }
+                break;
+            default:
+                break;
+        }
     }
 }
 

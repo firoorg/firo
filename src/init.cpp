@@ -367,6 +367,10 @@ void Shutdown()
         UnregisterValidationInterface(activeMasternodeManager);
     }
 
+    // make sure to clean up BLS keys before global destructors are called (they have allocated from the secure memory pool)
+    activeMasternodeInfo.blsKeyOperator.reset();
+    activeMasternodeInfo.blsPubKeyOperator.reset();
+
 #ifndef WIN32
     try {
         boost::filesystem::remove(GetPidFile());
@@ -1755,6 +1759,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pblocktree;
                 delete evoDb;
 
+                MTPState::GetMTPState()->SetMTPStartBlock(chainparams.GetConsensus().nMTPStartBlock);
+
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
                 if (!fReindex) {
@@ -2002,76 +2008,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
     }
 
-    // ********************************************************* Step 10: import blocks
-
-    if (!CheckDiskSpace())
-        return false;
-
-    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
-    // No locking, as this happens before any background thread is started.
-    if (chainActive.Tip() == NULL) {
-        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
-    } else {
-        fHaveGenesis = true;
-    }
-
-    if (IsArgSet("-blocknotify"))
-        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
-
-    std::vector<boost::filesystem::path> vImportFiles;
-    if (mapMultiArgs.count("-loadblock"))
-    {
-        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
-            vImportFiles.push_back(strFile);
-    }
-
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
-
-    // Wait for genesis block to be processed
-    {
-        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
-            condvar_GenesisWait.wait(lock);
-        }
-        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
-    }
-
-    // ********************************************************* Step 11: start node
-
-    //// debug print
-    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
-    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
-
-    Discover(threadGroup);
-
-    // Map ports with UPnP
-    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
-
-    std::string strNodeError;
-    CConnman::Options connOptions;
-    connOptions.nLocalServices = nLocalServices;
-    connOptions.nRelevantServices = nRelevantServices;
-    connOptions.nMaxConnections = nMaxConnections;
-    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
-    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
-    connOptions.nMaxFeeler = 1;
-    connOptions.nBestHeight = chainActive.Height();
-    connOptions.uiInterface = &uiInterface;
-    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
-    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
-
-    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
-    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
-
-    if (!connman.Start(scheduler, strNodeError, connOptions))
-        return InitError(strNodeError);
-
-    // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
-                     chainparams);
-
     // ********************************************************* Step 11a: setup PrivateSend
     fMasternodeMode = GetBoolArg("-znode", false);
 
@@ -2194,6 +2130,76 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     darkSendPool.InitDenominations();
 
+    // ********************************************************* Step 10: import blocks
+
+    if (!CheckDiskSpace())
+        return false;
+
+    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
+    // No locking, as this happens before any background thread is started.
+    if (chainActive.Tip() == NULL) {
+        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
+    } else {
+        fHaveGenesis = true;
+    }
+
+    if (IsArgSet("-blocknotify"))
+        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
+
+    std::vector<boost::filesystem::path> vImportFiles;
+    if (mapMultiArgs.count("-loadblock"))
+    {
+        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
+            vImportFiles.push_back(strFile);
+    }
+
+    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+
+    // Wait for genesis block to be processed
+    {
+        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
+        while (!fHaveGenesis) {
+            condvar_GenesisWait.wait(lock);
+        }
+        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
+    }
+
+    // ********************************************************* Step 11: start node
+
+    //// debug print
+    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
+    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
+    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
+        StartTorControl(threadGroup, scheduler);
+
+    Discover(threadGroup);
+
+    // Map ports with UPnP
+    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+
+    std::string strNodeError;
+    CConnman::Options connOptions;
+    connOptions.nLocalServices = nLocalServices;
+    connOptions.nRelevantServices = nRelevantServices;
+    connOptions.nMaxConnections = nMaxConnections;
+    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
+    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
+    connOptions.nMaxFeeler = 1;
+    connOptions.nBestHeight = chainActive.Height();
+    connOptions.uiInterface = &uiInterface;
+    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
+
+    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
+    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
+
+    if (!connman.Start(scheduler, strNodeError, connOptions))
+        return InitError(strNodeError);
+
+    // Generate coins in the background
+    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
+                     chainparams);
+
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
@@ -2282,56 +2288,71 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11c: update block tip in Zcoin modules
 
-    // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-    // but don't call it directly to prevent triggering of other listeners like zmq etc.
-    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    znpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
-    // governance.UpdatedBlockTip(chainActive.Tip());
+    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+
+    if (!fEvoZnodes) {
+        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+        // but don't call it directly to prevent triggering of other listeners like zmq etc.
+        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+        mnodeman.UpdatedBlockTip(chainActive.Tip());
+        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+        znpayments.UpdatedBlockTip(chainActive.Tip());
+        znodeSync.UpdatedBlockTip(chainActive.Tip());
+        // governance.UpdatedBlockTip(chainActive.Tip());
+    }
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 
     // TODO: replace this temporary patch with real DASH evo code
-    threadGroup.create_thread([] {
-        RenameThread("znode-tick");
+    if (!fEvoZnodes)
+    {
+        threadGroup.create_thread([] {
 
-        if (fLiteMode)
-            return;
+            RenameThread("znode-tick");
 
-        unsigned int nTick = 0;
+            if (fLiteMode)
+                return;
 
-        while (true) {
-            MilliSleep(1000);
+            unsigned int nTick = 0;
 
-            znodeSync.ProcessTick();
+            while (true) {
+                MilliSleep(1000);
 
-            if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
-                nTick++;
-
-                LOCK(cs_main);
-
-                // make sure to check all znodes first
-                mnodeman.Check();
-
-                // check if we should activate or ping every few minutes,
-                // slightly postpone first run to give net thread a chance to connect to some peers
-                if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
-                    activeZnode.ManageState();
-
-                if (nTick % 60 == 0) {
-                    mnodeman.ProcessZnodeConnections();
-                    mnodeman.CheckAndRemove();
-                    znpayments.CheckAndRemove();
-                    instantsend.CheckAndRemove();
+                {
+                    LOCK(cs_main);
+                    // shut legacy znode down if past 100 blocks of DIP3 enforcement
+                    if (chainActive.Height() >= Params().GetConsensus().DIP0003EnforcementHeight + 100)
+                        break;
                 }
-                if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
-                    mnodeman.DoFullVerificationStep();
+                    
+                znodeSync.ProcessTick();
+
+                if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+                    nTick++;
+
+                    LOCK(cs_main);
+
+                    // make sure to check all znodes first
+                    mnodeman.Check();
+
+                    // check if we should activate or ping every few minutes,
+                    // slightly postpone first run to give net thread a chance to connect to some peers
+                    if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
+                        activeZnode.ManageState();
+
+                    if (nTick % 60 == 0) {
+                        mnodeman.ProcessZnodeConnections();
+                        mnodeman.CheckAndRemove();
+                        znpayments.CheckAndRemove();
+                        instantsend.CheckAndRemove();
+                    }
+                    if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
+                        mnodeman.DoFullVerificationStep();
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     // ********************************************************* Step 12: finished
 
