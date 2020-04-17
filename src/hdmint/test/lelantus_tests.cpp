@@ -131,4 +131,39 @@ BOOST_AUTO_TEST_CASE(lelantus_mint_regeneration)
     BOOST_CHECK(mint1.GetPubCoinHash() == mint2.GetPubCoinHash());
 }
 
+BOOST_AUTO_TEST_CASE(regenerate_mint)
+{
+    lelantus::PrivateCoin coin(params, 1);
+
+    CHDMint mint;
+
+    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin, mint));
+
+    // Should be generated deterministically
+
+    CLelantusEntry entry1, entry2;
+    zwalletMain->RegenerateMint(mint, entry1);
+    zwalletMain->RegenerateMint(mint, entry2);
+
+    // verify
+    BOOST_CHECK(entry1.value == entry2.value);
+    BOOST_CHECK(entry1.randomness == entry2.randomness);
+    BOOST_CHECK(entry1.serialNumber == entry2.serialNumber);
+    BOOST_CHECK(entry1.ecdsaSecretKey == entry2.ecdsaSecretKey);
+    BOOST_CHECK_EQUAL(false, entry1.IsUsed);
+    BOOST_CHECK_EQUAL(-1, entry1.nHeight);
+    BOOST_CHECK_EQUAL(-1, entry1.id);
+    BOOST_CHECK_EQUAL(1, entry1.amount);
+
+    auto key = coin.getEcdsaSeckey(); // 32 bytes
+
+    BOOST_CHECK(coin.getPublicCoin() == entry1.value);
+    BOOST_CHECK(coin.getRandomness() == entry1.randomness);
+    BOOST_CHECK(coin.getSerialNumber() == entry1.serialNumber);
+    BOOST_CHECK_EQUAL(coin.getV(), entry1.amount);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        key, key + 32,
+        entry1.ecdsaSecretKey.begin(), entry1.ecdsaSecretKey.end());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

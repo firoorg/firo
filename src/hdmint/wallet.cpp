@@ -499,13 +499,13 @@ bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::Privat
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = mintSeed.trim256();
     nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
-    coin.setEcdsaSeckey(nSeedPrivKey);
 
     // Create a key pair
     secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())){
+    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, nSeedPrivKey.begin())) {
         return false;
     }
+
     // Hash the public key in the group to obtain a serial number
     Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
 
@@ -514,9 +514,15 @@ bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::Privat
     uint256 nSeedRandomness = ArithToUint512(UintToArith512(mintSeed) >> 256).trim256();
     randomness.memberFromSeed(nSeedRandomness.begin());
 
-    uint64_t value = coin.getV();
     //generating coin
-    coin = lelantus::PrivateCoin(coin.getParams(), serialNumber, value, randomness, LELANTUS_TX_VERSION_4);
+    coin = lelantus::PrivateCoin(
+        coin.getParams(),
+        serialNumber,
+        coin.getV(),
+        randomness,
+        LELANTUS_TX_VERSION_4);
+
+    coin.setEcdsaSeckey(nSeedPrivKey);
 
     return true;
 }
