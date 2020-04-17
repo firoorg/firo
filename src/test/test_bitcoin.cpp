@@ -43,6 +43,7 @@
 #include "zerocoin.h"
 #include "sigma.h"
 #include "evo/evodb.h"
+#include "llmq/quorums_init.h"
 
 extern std::unique_ptr<CConnman> g_connman;
 uint256 insecure_rand_seed = GetRandHash();
@@ -62,11 +63,16 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     fCheckBlockIndex = true;
     SelectParams(chainName);
     SoftSetBoolArg("-dandelion", false);
+    evoDb = new CEvoDB(1 << 20, true, true);
+    deterministicMNManager = new CDeterministicMNManager(*evoDb);
     noui_connect();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
+        delete deterministicMNManager;
+        delete evoDb;
+
         ECC_Stop();
         g_connman.reset();
 }
@@ -85,14 +91,11 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         mempool.setSanityCheck(1.0);
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
+        llmq::InitLLMQSystem(*evoDb, nullptr, true);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
         pwalletMain = new CWallet(string("wallet_test.dat"));
         static bool fFirstRun = true;
         pwalletMain->LoadWallet(fFirstRun);
-        pEvoDb = std::make_shared<CEvoDB>(1024 * 1024 * 16, true, true);
-        evoDb = pEvoDb.get();
-        pDeterministicMNManager = std::make_shared<CDeterministicMNManager>(*evoDb);
-        deterministicMNManager = pDeterministicMNManager.get();
 
         InitBlockIndex(chainparams);
         {
@@ -130,6 +133,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
+    llmq::InterruptLLMQSystem();
 #ifdef ENABLE_EXODUS
     exodus_shutdown();
 #endif
