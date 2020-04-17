@@ -2010,6 +2010,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11a: setup PrivateSend
     fMasternodeMode = GetBoolArg("-znode", false);
+    if (fMasternodeMode)
+        // turn off dandelion for znodes
+        ForceSetArg("-dandelion", "0");
 
     LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());

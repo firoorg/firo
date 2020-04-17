@@ -145,9 +145,11 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
     // gradually request the rest of the votes after sync finished
     if(IsSynced()) {
+        /*
         std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
-        //governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
+        governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
         connman.ReleaseNodeVector(vNodesCopy);
+        */
         return;
     }
 
@@ -172,7 +174,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
         {
             if (nCurrentAsset == MASTERNODE_SYNC_WAITING) {
-                connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
+                //connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
                 SwitchToNextAsset(connman);
             } /*else if (nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
                 SendGovernanceSyncRequest(pnode, connman);
