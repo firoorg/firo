@@ -46,7 +46,7 @@ public:
         for (auto a : amounts) {
             lelantus::PrivateCoin coin(params, a);
             mints.emplace_back();
-            auto mint = mints.back();
+            auto &mint = mints.back();
 
             auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     BOOST_CHECK(GenerateBlock({mtx}));
 }
 
-BOOST_AUTO_TEST_CASE(list_confirmed)
+BOOST_AUTO_TEST_CASE(get_and_list_mints)
 {
     GenerateBlocks(120);
     std::vector<CAmount> confirmedAmounts = {1, 2 * COIN};
@@ -139,6 +139,14 @@ BOOST_AUTO_TEST_CASE(list_confirmed)
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints(allAmounts, txs);
     GenerateBlock(std::vector<CMutableTransaction>(txs.begin(), txs.begin() + txs.size() - 1));
+
+    std::vector<lelantus::PublicCoin> pubCoins;
+    pubCoins.reserve(mints.size() - 1);
+    for (size_t i = 0; i != mints.size() - 1; i++) {
+        pubCoins.emplace_back(mints[i].GetPubcoinValue());
+    }
+
+    zwalletMain->GetTracker().UpdateMintStateFromBlock(pubCoins);
 
     auto extractAmountsFromOutputs = [](std::vector<COutput> const &outs) -> std::vector<CAmount> {
         std::vector<CAmount> amounts;
@@ -157,6 +165,15 @@ BOOST_AUTO_TEST_CASE(list_confirmed)
 
     BOOST_CHECK(std::is_permutation(confirmed.begin(), confirmed.end(), confirmedAmounts.begin()));
     BOOST_CHECK(std::is_permutation(all.begin(), all.end(), allAmounts.begin()));
+
+    // get mints
+    CLelantusEntry entry;
+    BOOST_CHECK(pwalletMain->GetMint(mints.front().GetSerialHash(), entry));
+    BOOST_CHECK(entry.value == mints.front().GetPubcoinValue());
+
+    uint256 fakeSerial;
+    std::fill(fakeSerial.begin(), fakeSerial.end(), 1);
+    BOOST_CHECK(!pwalletMain->GetMint(fakeSerial, entry));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
