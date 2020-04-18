@@ -56,6 +56,7 @@ class CAddrMan;
 class CScheduler;
 class CNode;
 class CTxMemPool;
+class CMNAuth;
 
 namespace boost {
     class thread_group;
@@ -846,6 +847,8 @@ public:
     uint256 receivedMNAuthChallenge;
     uint256 verifiedProRegTxHash;
     uint256 verifiedPubKeyHash;
+    // pending verification from node
+    CMNAuth *pendingMNVerification;
 
     // If true, we will announce/send him plain recovered sigs (usually true for full nodes)
     std::atomic<bool> fSendRecSigs{false};

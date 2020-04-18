@@ -12,6 +12,7 @@
 #include "netmessagemaker.h"
 #include "ui_interface.h"
 #include "evo/deterministicmns.h"
+#include "evo/mnauth.h"
 
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
@@ -378,6 +379,25 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         // Reached best header while being in initial mode.
         // We must be at the tip already, let's move to the next asset.
         SwitchToNextAsset(connman);
+
+        // Process all pending MNAUTH messages we were unable to process before
+        g_connman->ForEachNode([](CNode *pnode) {
+            uint256 verifiedProRegTxHash;
+            CMNAuth *pendingMNVerification;
+            {
+                LOCK(pnode->cs_mnauth);
+                verifiedProRegTxHash = pnode->verifiedProRegTxHash;
+                pendingMNVerification = pnode->pendingMNVerification;
+                pnode->pendingMNVerification = nullptr;
+            }
+
+            if (verifiedProRegTxHash.IsNull() && pendingMNVerification) {
+                LogPrint("mnsync", "CMasternodeSync::UpdatedBlockTip -- reverifying masternode connection to node id=%d\n", pnode->id);
+                CMNAuth::ProcessMNAUTH(pnode, *pendingMNVerification, *g_connman);
+            }
+
+            delete pendingMNVerification;
+        });
     }
 }
 
