@@ -37,6 +37,9 @@ TOR_LIBS = tor/src/core/libtor-app.a \
     tor/src/lib/libtor-err.a \
     tor/src/lib/libtor-log.a \
     tor/src/lib/libtor-version.a \
+    tor/src/lib/libtor-pubsub.a \
+    tor/src/lib/libtor-dispatch.a \
+    tor/src/lib/libtor-confmgt.a \
     tor/src/lib/libtor-container.a \
     tor/src/lib/libtor-crypt-ops.a \
     tor/src/lib/libtor-fs.a \
@@ -711,6 +714,6 @@ check-local:
 	$(error Please rerun configure with tests enabling flag)
 endif
 
-if ENABLE_EXODUS
-include Makefile.exodus.include
+if ENABLE_ELYSIUM
+include Makefile.elysium.include
 endif
