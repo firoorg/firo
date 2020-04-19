@@ -4,7 +4,7 @@
 #include "amount.h"
 #include "chain.h"
 #include "liblelantus/coin.h"
-//#include "sigma/coinspend.h"
+#include "liblelantus/joinsplit.h"
 #include "consensus/validation.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
@@ -46,7 +46,7 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, std::vector<uns
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
-
+JoinSplit ParseLelantusJoinSplit(const CTxIn& in);
 CAmount GetSpendAmount(const CTxIn& in);
 CAmount GetSpendAmount(const CTransaction& tx);
 size_t GetSpendInputs(const CTxIn& in);
@@ -81,6 +81,8 @@ bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 
 bool BuildLelantusStateFromIndex(CChain *chain);
+
+std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin);
 
 /*
  * State of minted/spent coins as extracted from the index

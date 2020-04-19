@@ -110,11 +110,17 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     ParseLelantusMintScript(script, pubcoin, schnorrProof);
 }
 
+JoinSplit ParseLelantusJoinSplit(const CTxIn& in)
+{
+    //TODO(levon) implement this
+
+}
 
 // This function will not report an error only if the transaction is lelantus joinsplit.
 CAmount GetSpendAmount(const CTxIn& in) {
     if (in.IsLelantusJoinSplit()) {
         //TODO(levon) implement here
+
     }
     return 0;
 }
@@ -278,6 +284,7 @@ bool CheckLelantusTransaction(
                 "bad-txns-spend-invalid");
         }
 //TODO(levon) implement joinsplit checks
+
     }
 
     return true;
@@ -293,6 +300,7 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
             // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
                 if (txin.IsLelantusJoinSplit()) { //TODO(levon) implement this
+
                 }
             }
         }
@@ -310,6 +318,19 @@ void DisconnectTipLelantus(CBlock& block, CBlockIndex *pindexDelete) {
     // Also remove from mempool lelantus joinsplits that reference given block hash.
     RemoveLelantusJoinSplitReferencingBlock(mempool, pindexDelete);
     RemoveLelantusJoinSplitReferencingBlock(txpools.getStemTxPool(), pindexDelete);
+}
+
+std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin) {
+    if (!tx.IsSigmaSpend())
+        return std::vector<Scalar>();
+
+    try {
+        JoinSplit joinSplit = ParseLelantusJoinSplit(txin);
+        return joinSplit.getCoinSerialNumbers();
+    }
+    catch (const std::ios_base::failure &) {
+        return std::vector<Scalar>();
+    }
 }
 
 size_t GetSpendInputs(const CTxIn& in) {
