@@ -5,20 +5,20 @@
 #include "metadexcanceldialog.h"
 #include "ui_metadexcanceldialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "clientmodel.h"
 #include "ui_interface.h"
 #include "walletmodel.h"
 
-#include "exodus/createpayload.h"
-#include "exodus/errors.h"
-#include "exodus/mdex.h"
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
-#include "exodus/pending.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/wallettxs.h"
+#include "elysium/createpayload.h"
+#include "elysium/errors.h"
+#include "elysium/mdex.h"
+#include "elysium/elysium.h"
+#include "elysium/sp.h"
+#include "elysium/pending.h"
+#include "elysium/utilsbitcoin.h"
+#include "elysium/wallettxs.h"
 
 #include <stdint.h>
 #include <map>
@@ -34,7 +34,7 @@
 
 using std::ostringstream;
 using std::string;
-using namespace exodus;
+using namespace elysium;
 
 MetaDExCancelDialog::MetaDExCancelDialog(QWidget *parent) :
     QDialog(parent),
@@ -163,7 +163,7 @@ void MetaDExCancelDialog::UpdateCancelCombo()
                     if (isTestEcosystemProperty(obj.getProperty())) fTestEcosystem = true;
 
                     bool isBuy = false; // sell or buy? (from UI perspective)
-                    if ((obj.getProperty() == EXODUS_PROPERTY_EXODUS) || (obj.getProperty() == EXODUS_PROPERTY_TEXODUS)) isBuy = true;
+                    if ((obj.getProperty() == ELYSIUM_PROPERTY_ELYSIUM) || (obj.getProperty() == ELYSIUM_PROPERTY_TELYSIUM)) isBuy = true;
                     string sellToken = getPropertyName(obj.getProperty()).c_str();
                     string desiredToken = getPropertyName(obj.getDesProperty()).c_str();
                     string sellId = strprintf("%d", obj.getProperty());
@@ -177,7 +177,7 @@ void MetaDExCancelDialog::UpdateCancelCombo()
                     string dataStr = sellId + "/" + desiredId;
                     if (ui->radioCancelPrice->isChecked()) { // append price if needed
                         comboStr += " priced at " + StripTrailingZeros(obj.displayUnitPrice());
-                        if ((obj.getProperty() == EXODUS_PROPERTY_EXODUS) || (obj.getDesProperty() == EXODUS_PROPERTY_EXODUS)) { comboStr += " EXODUS/SPT"; } else { comboStr += " TEXODUS/SPT"; }
+                        if ((obj.getProperty() == ELYSIUM_PROPERTY_ELYSIUM) || (obj.getDesProperty() == ELYSIUM_PROPERTY_ELYSIUM)) { comboStr += " ELYSIUM/SPT"; } else { comboStr += " TELYSIUM/SPT"; }
                         dataStr += ":" + obj.displayUnitPrice();
                     }
                     int index = ui->cancelCombo->findText(QString::fromStdString(comboStr));

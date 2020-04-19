@@ -5,23 +5,23 @@
 #include "txhistorydialog.h"
 #include "ui_txhistorydialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "clientmodel.h"
 #include "guiutil.h"
 #include "walletmodel.h"
 #include "platformstyle.h"
 
-#include "exodus/fetchwallettx.h"
-#include "exodus/exodus.h"
-#include "exodus/pending.h"
-#include "exodus/rpc.h"
-#include "exodus/rpctxobject.h"
-#include "exodus/sp.h"
-#include "exodus/tx.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/walletcache.h"
-#include "exodus/wallettxs.h"
+#include "elysium/fetchwallettx.h"
+#include "elysium/elysium.h"
+#include "elysium/pending.h"
+#include "elysium/rpc.h"
+#include "elysium/rpctxobject.h"
+#include "elysium/sp.h"
+#include "elysium/tx.h"
+#include "elysium/utilsbitcoin.h"
+#include "elysium/walletcache.h"
+#include "elysium/wallettxs.h"
 
 #include "init.h"
 #include "main.h"
@@ -56,7 +56,7 @@
 #include <QWidget>
 
 using std::string;
-using namespace exodus;
+using namespace elysium;
 
 TXHistoryDialog::TXHistoryDialog(QWidget *parent) :
     QDialog(parent),
@@ -163,9 +163,9 @@ void TXHistoryDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshExodusBalance()), this, SLOT(UpdateHistory()));
+        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(UpdateHistory()));
         connect(model, SIGNAL(numBlocksChanged(int)), this, SLOT(UpdateConfirmations()));
-        connect(model, SIGNAL(reinitExodusState()), this, SLOT(ReinitTXHistoryTable()));
+        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(ReinitTXHistoryTable()));
     }
 }
 
@@ -187,8 +187,8 @@ int TXHistoryDialog::PopulateHistoryMap()
 
     int64_t nProcessed = 0; // counter for how many transactions we've added to history this time
 
-    // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending) - default last 65535
-    std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(GetArg("-exodusuiwalletscope", 65535L));
+    // obtain a sorted list of Elysium layer wallet transactions (including STO receipts and pending) - default last 65535
+    std::map<std::string,uint256> walletTransactions = FetchWalletElysiumTransactions(GetArg("-elysiumuiwalletscope", 65535L));
 
     // reverse iterate over (now ordered) transactions and populate history map for each one
     for (std::map<std::string,uint256>::reverse_iterator it = walletTransactions.rbegin(); it != walletTransactions.rend(); it++) {
@@ -204,7 +204,7 @@ int TXHistoryDialog::PopulateHistoryMap()
                 if (pending_it != my_pending.end()) continue; // transaction is still pending, do nothing
             }
 
-            // pending transaction has confirmed, remove temp pending object from map and allow it to be readded as an Exodus transaction
+            // pending transaction has confirmed, remove temp pending object from map and allow it to be readded as an Elysium transaction
             txHistoryMap.erase(hIter);
             ui->txHistoryTable->setSortingEnabled(false); // disable sorting temporarily while we update the table (leaving enabled gives unexpected results)
             QAbstractItemModel* historyAbstractModel = ui->txHistoryTable->model(); // get a model to work with
@@ -234,8 +234,8 @@ int TXHistoryDialog::PopulateHistoryMap()
             htxo.amount = "-" + FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
             bool fundsMoved = true;
             htxo.txType = shrinkTxType(pending.type, &fundsMoved);
-            if (pending.type == EXODUS_TYPE_METADEX_CANCEL_PRICE || pending.type == EXODUS_TYPE_METADEX_CANCEL_PAIR ||
-                pending.type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == EXODUS_TYPE_SEND_ALL) {
+            if (pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
+                pending.type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == ELYSIUM_TYPE_SEND_ALL) {
                 htxo.amount = "N/A";
             }
 
@@ -299,7 +299,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             continue;
         }
 
-        // handle Exodus transaction
+        // handle Elysium transaction
         if (0 != parseRC) continue;
         if (!mp_obj.interpret_Transaction()) continue;
         int64_t amount = mp_obj.getAmount();
@@ -307,7 +307,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint32_t type = 0;
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
-        if (htxo.valid && type == EXODUS_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
+        if (htxo.valid && type == ELYSIUM_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
 
         if (htxo.valid && type == EXODUS_TYPE_SIMPLE_SPEND) { // override amount for spend
             amount = mp_obj.getSpendAmount();
@@ -334,11 +334,11 @@ int TXHistoryDialog::PopulateHistoryMap()
         }
 
         // override - special case for property creation (getProperty cannot get ID as createdID not stored in obj)
-        if (type == EXODUS_TYPE_CREATE_PROPERTY_FIXED || type == EXODUS_TYPE_CREATE_PROPERTY_VARIABLE || type == EXODUS_TYPE_CREATE_PROPERTY_MANUAL) {
+        if (type == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED || type == ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE || type == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL) {
             displayAmount = "N/A";
             if (htxo.valid) {
                 uint32_t propertyId = _my_sps->findSPByTX(txHash);
-                if (type == EXODUS_TYPE_CREATE_PROPERTY_FIXED) displayAmount = FormatShortMP(propertyId, getTotalTokens(propertyId)) + getTokenLabel(propertyId);
+                if (type == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED) displayAmount = FormatShortMP(propertyId, getTotalTokens(propertyId)) + getTokenLabel(propertyId);
             }
         }
 
@@ -346,14 +346,14 @@ int TXHistoryDialog::PopulateHistoryMap()
         // - Unchanged balance sigma transactions
         // - Cancels transactions
         // - Unknown transactions
-        if (type == EXODUS_TYPE_METADEX_CANCEL_PRICE || type == EXODUS_TYPE_METADEX_CANCEL_PAIR ||
-            type == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || type == EXODUS_TYPE_SEND_ALL ||
-            type == EXODUS_TYPE_CREATE_DENOMINATION || htxo.txType == "Unknown") {
+        if (type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
+            type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || type == ELYSIUM_TYPE_SEND_ALL ||
+            type == ELYSIUM_TYPE_CREATE_DENOMINATION || htxo.txType == "Unknown") {
             displayAmount = "N/A";
         }
 
         // override - display amount received not STO amount in packet (the total amount) for STOs I didn't send
-        if (type == EXODUS_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
+        if (type == ELYSIUM_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
             UniValue receiveArray(UniValue::VARR);
             uint64_t tmpAmount = 0, stoFee = 0;
             LOCK(cs_main);
@@ -531,32 +531,32 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
 {
     string displayType = "Unknown";
     switch (txType) {
-        case EXODUS_TYPE_SIMPLE_SEND: displayType = "Send"; break;
-        case EXODUS_TYPE_RESTRICTED_SEND: displayType = "Rest. Send"; break;
-        case EXODUS_TYPE_SEND_TO_OWNERS: displayType = "Send To Owners"; break;
-        case EXODUS_TYPE_SEND_ALL: displayType = "Send All"; break;
-        case EXODUS_TYPE_SAVINGS_MARK: displayType = "Mark Savings"; *fundsMoved = false; break;
-        case EXODUS_TYPE_SAVINGS_COMPROMISED: ; displayType = "Lock Savings"; break;
-        case EXODUS_TYPE_RATELIMITED_MARK: displayType = "Rate Limit"; break;
-        case EXODUS_TYPE_AUTOMATIC_DISPENSARY: displayType = "Auto Dispense"; break;
-        case EXODUS_TYPE_TRADE_OFFER: displayType = "DEx Trade"; *fundsMoved = false; break;
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC: displayType = "DEx Accept"; *fundsMoved = false; break;
-        case EXODUS_TYPE_METADEX_TRADE: displayType = "MetaDEx Trade"; *fundsMoved = false; break;
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE:
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR:
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
+        case ELYSIUM_TYPE_SIMPLE_SEND: displayType = "Send"; break;
+        case ELYSIUM_TYPE_RESTRICTED_SEND: displayType = "Rest. Send"; break;
+        case ELYSIUM_TYPE_SEND_TO_OWNERS: displayType = "Send To Owners"; break;
+        case ELYSIUM_TYPE_SEND_ALL: displayType = "Send All"; break;
+        case ELYSIUM_TYPE_SAVINGS_MARK: displayType = "Mark Savings"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_SAVINGS_COMPROMISED: ; displayType = "Lock Savings"; break;
+        case ELYSIUM_TYPE_RATELIMITED_MARK: displayType = "Rate Limit"; break;
+        case ELYSIUM_TYPE_AUTOMATIC_DISPENSARY: displayType = "Auto Dispense"; break;
+        case ELYSIUM_TYPE_TRADE_OFFER: displayType = "DEx Trade"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: displayType = "DEx Accept"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_METADEX_TRADE: displayType = "MetaDEx Trade"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
+        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
+        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
             displayType = "MetaDEx Cancel"; *fundsMoved = false; break;
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED: displayType = "Create Property"; break;
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE: displayType = "Create Property"; *fundsMoved = false; break;
-        case EXODUS_TYPE_PROMOTE_PROPERTY: displayType = "Promo Property"; break;
-        case EXODUS_TYPE_CLOSE_CROWDSALE: displayType = "Close Crowdsale"; *fundsMoved = false; break;
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL: displayType = "Create Property"; *fundsMoved = false; break;
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
-        case EXODUS_TYPE_SIMPLE_SPEND: displayType = "Sigma Spend"; break;
-        case EXODUS_TYPE_CREATE_DENOMINATION: displayType = "Create Sigma Denomination"; *fundsMoved = false; break;
-        case EXODUS_TYPE_SIMPLE_MINT: displayType = "Sigma Mint"; break;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: displayType = "Create Property"; break;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: displayType = "Create Property"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_PROMOTE_PROPERTY: displayType = "Promo Property"; break;
+        case ELYSIUM_TYPE_CLOSE_CROWDSALE: displayType = "Close Crowdsale"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: displayType = "Create Property"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
+        case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
+        case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_SIMPLE_SPEND: displayType = "Sigma Spend"; break;
+        case ELYSIUM_TYPE_CREATE_DENOMINATION: displayType = "Create Sigma Denomination"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_SIMPLE_MINT: displayType = "Sigma Mint"; break;
     }
     return displayType;
 }
