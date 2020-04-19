@@ -38,6 +38,9 @@ JoinSplit::JoinSplit(const Params *p,
 
 }
 
+const std::vector<uint32_t>& JoinSplit::getCoinGroupIds() {
+    return this->groupIds;
+}
 
 const std::vector<Scalar>& JoinSplit::getCoinSerialNumbers() {
     return this->serialNumbers;

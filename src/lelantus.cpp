@@ -112,8 +112,19 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
 
 JoinSplit ParseLelantusJoinSplit(const CTxIn& in)
 {
-    //TODO(levon) implement this
+    if (in.scriptSig.size() < 1) {
+        throw CBadTxIn();
+    }
 
+    CDataStream serialized(
+        std::vector<unsigned char>(in.scriptSig.begin() + 1, in.scriptSig.end()),
+        SER_NETWORK,
+        PROTOCOL_VERSION
+    );
+
+    std::unique_ptr<lelantus::JoinSplit> joinsplit(new lelantus::JoinSplit(lelantus::Params::get_default(), serialized));
+
+    return joinsplit;
 }
 
 // This function will not report an error only if the transaction is lelantus joinsplit.
@@ -283,8 +294,6 @@ bool CheckLelantusTransaction(
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
         }
-//TODO(levon) implement joinsplit checks
-
     }
 
     return true;
@@ -300,7 +309,6 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
             // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
                 if (txin.IsLelantusJoinSplit()) { //TODO(levon) implement this
-
                 }
             }
         }

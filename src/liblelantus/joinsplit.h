@@ -27,6 +27,8 @@ public:
 
     const std::vector<Scalar>& getCoinSerialNumbers();
 
+    const std::vector<uint32_t>& getCoinGroupIds();
+
     int getVersion() const {
         return version;
     }
@@ -40,6 +42,7 @@ public:
     void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(lelantusProof);
         READWRITE(serialNumbers);
+        READWRITE(groupIds);
         READWRITE(version);
     }
 
@@ -48,6 +51,7 @@ private:
     unsigned int version = 0;
     LelantusProof lelantusProof;
     std::vector<Scalar> serialNumbers;
+    std::vector<uint32_t> groupIds;
 
 };
 
