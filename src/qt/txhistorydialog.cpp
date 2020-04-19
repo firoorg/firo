@@ -239,7 +239,7 @@ int TXHistoryDialog::PopulateHistoryMap()
                 htxo.amount = "N/A";
             }
 
-            if (pending.type == EXODUS_TYPE_SIMPLE_SPEND) {
+            if (pending.type == ELYSIUM_TYPE_SIMPLE_SPEND) {
                 if (pending.dest && IsMyAddress(pending.dest.get())) {
                     htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
                 }
@@ -309,11 +309,11 @@ int TXHistoryDialog::PopulateHistoryMap()
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
         if (htxo.valid && type == ELYSIUM_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
 
-        if (htxo.valid && type == EXODUS_TYPE_SIMPLE_SPEND) { // override amount for spend
+        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_SPEND) { // override amount for spend
             amount = mp_obj.getSpendAmount();
         }
 
-        if (htxo.valid && type == EXODUS_TYPE_SIMPLE_MINT) { // override amount for mint
+        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_MINT) { // override amount for mint
             amount = mp_obj.getMintAmount();
         }
 
@@ -326,7 +326,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
 
-        if (type == EXODUS_TYPE_SIMPLE_SPEND) {
+        if (type == ELYSIUM_TYPE_SIMPLE_SPEND) {
             htxo.address = "Spend";
             if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
                 displayAmount = "-" + displayAmount;

@@ -280,7 +280,7 @@ public:
     const CPubKey &getECDSAPublicKey() const { return ecdsaPubkey; }
     const ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
     CAmount getMintAmount() const {
-        auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, exodus::SigmaPublicKey> const &m) -> uint8_t {
+        auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, elysium::SigmaPublicKey> const &m) -> uint8_t {
             return m.first;
         });
 
