@@ -84,9 +84,9 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
 {
     auto params = lelantus::Params::get_default();
 
-    secp_primitives::GroupElement comm = commit + params->get_h1() * v;
+    secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier<Scalar, GroupElement> verifier(params->get_g(), params->get_h0());
-    return verifier.verify(commit, schnorrProof);
+    return verifier.verify(comm, schnorrProof);
 }
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof)
