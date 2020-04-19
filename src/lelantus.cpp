@@ -110,7 +110,7 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     ParseLelantusMintScript(script, pubcoin, schnorrProof);
 }
 
-JoinSplit ParseLelantusJoinSplit(const CTxIn& in)
+std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in)
 {
     if (in.scriptSig.size() < 1) {
         throw CBadTxIn();
@@ -131,7 +131,6 @@ JoinSplit ParseLelantusJoinSplit(const CTxIn& in)
 CAmount GetSpendAmount(const CTxIn& in) {
     if (in.IsLelantusJoinSplit()) {
         //TODO(levon) implement here
-
     }
     return 0;
 }
@@ -294,6 +293,8 @@ bool CheckLelantusTransaction(
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
         }
+//TODO(levon) implement joinsplit checks
+//
     }
 
     return true;
@@ -333,17 +334,16 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
         return std::vector<Scalar>();
 
     try {
-        JoinSplit joinSplit = ParseLelantusJoinSplit(txin);
-        return joinSplit.getCoinSerialNumbers();
+        return ParseLelantusJoinSplit(txin)->getCoinSerialNumbers();
     }
     catch (const std::ios_base::failure &) {
         return std::vector<Scalar>();
     }
 }
 
-size_t GetSpendInputs(const CTxIn& in) {
+size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in) {
     if (in.IsLelantusJoinSplit()) {
-        //TODO(levon) implement here
+        GetLelantusJoinSplitSerialNumbers(tx, in).size();
     }
     return 0;
 }
@@ -351,7 +351,7 @@ size_t GetSpendInputs(const CTxIn& in) {
 size_t GetSpendInputs(const CTransaction &tx) {
     size_t sum = 0;
     for (const auto& vin : tx.vin) {
-        sum += GetSpendInputs(vin);
+        sum += GetSpendInputs(tx, vin);
     }
     return sum;
 }

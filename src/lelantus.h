@@ -46,10 +46,10 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, std::vector<uns
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
-JoinSplit ParseLelantusJoinSplit(const CTxIn& in);
+std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
 CAmount GetSpendAmount(const CTxIn& in);
 CAmount GetSpendAmount(const CTransaction& tx);
-size_t GetSpendInputs(const CTxIn& in);
+size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in);
 size_t GetSpendInputs(const CTransaction &tx);
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block);
 
