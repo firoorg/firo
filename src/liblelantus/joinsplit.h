@@ -1,0 +1,10 @@
+#ifndef ZCOIN_LIBLELANTUS_JOINSPLIT_H
+#define ZCOIN_LIBLELANTUS_JOINSPLIT_H
+
+
+class joinsplit {
+
+};
+
+
+#endif //ZCOIN_LIBLELANTUS_JOINSPLIT_H

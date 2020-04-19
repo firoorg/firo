@@ -556,6 +556,8 @@ liblelantus_a_SOURCES = \
   liblelantus/range_verifier.hpp \
   liblelantus/coin.h \
   liblelantus/coin.cpp \
+  liblelantus/joinsplit.h \
+  liblelantus/joinsplit.cpp \
   liblelantus/params.h \
   liblelantus/params.cpp
 
