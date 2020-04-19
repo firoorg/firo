@@ -49,6 +49,8 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
 
 CAmount GetSpendAmount(const CTxIn& in);
 CAmount GetSpendAmount(const CTransaction& tx);
+size_t GetSpendInputs(const CTxIn& in);
+size_t GetSpendInputs(const CTransaction &tx);
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block);
 
 bool CheckLelantusTransaction(

@@ -144,6 +144,9 @@ void BlockAssembler::resetBlock()
 
     nSigmaSpendAmount = 0;
     nSigmaSpendInputs = 0;
+
+    nLelantusSpendAmount = 0;
+    nLelantusSpendInputs = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
@@ -377,11 +380,16 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
     // Check transaction against lelantus limits
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
         auto &params = chainparams.GetConsensus();
-        if (spendAmount > params.nMaxValueSigmaSpendPerTransaction)
+
+        if (spendNumber > params.nMaxLelantusInputPerTransaction ||spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return false;
 
-        if (spendAmount + nSigmaSpendAmount > params.nMaxValueSigmaSpendPerBlock)
+        if (spendNumber + nLelantusSpendInputs > params.nMaxLelantusInputPerBlock)
+            return false;
+
+        if (spendAmount + nLelantusSpendAmount > params.nMaxValueLelantusSpendPerBlock)
             return false;
     }
 
@@ -404,11 +412,14 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
         auto &params = chainparams.GetConsensus();
-        if (spendAmount > params.nMaxValueSigmaSpendPerTransaction)
+        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return;
 
-        if ((nSigmaSpendAmount += spendAmount) > params.nMaxValueSigmaSpendPerBlock)
+        if ((nLelantusSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
+            return;
+        if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
             return;
     }
     

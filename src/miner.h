@@ -169,6 +169,10 @@ private:
     CAmount nSigmaSpendAmount;
     size_t nSigmaSpendInputs;
 
+    // lelantus spend limits
+    CAmount nLelantusSpendAmount;
+    size_t nLelantusSpendInputs;
+
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */

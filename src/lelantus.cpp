@@ -110,6 +110,7 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     ParseLelantusMintScript(script, pubcoin, schnorrProof);
 }
 
+
 // This function will not report an error only if the transaction is lelantus joinsplit.
 CAmount GetSpendAmount(const CTxIn& in) {
     if (in.IsLelantusJoinSplit()) {
@@ -131,7 +132,34 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
 
     size_t blockSpendsAmount = 0;
     CAmount blockSpendsValue(0);
-    //TODO(levon) implement here
+
+    for (const auto& tx : block.vtx) {
+        auto txSpendsValue =  GetSpendAmount(*tx);
+        size_t txSpendNumber = GetSpendInputs(*tx);
+
+        if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-lelantus-spend-invalid");
+        }
+
+        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-lelantus-spend-invalid");
+        }
+
+        blockSpendsAmount += txSpendNumber;
+        blockSpendsValue += txSpendsValue;
+    }
+
+    if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "bad-txns-lelantus-spend-invalid");
+    }
+
+    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "bad-txns-lelantus-spend-invalid");
+    }
     return true;
 }
 
@@ -237,7 +265,19 @@ bool CheckLelantusTransaction(
 
     // Check Lelantus JoinSplit Transaction
     if(tx.IsLelantusJoinSplit()) {
-        //TODO(levon) implement joinsplit checks
+        // First check number of inputs does not exceed transaction limit
+        if (GetSpendInputs(tx) > consensus.nMaxLelantusInputPerTransaction) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        if (GetSpendAmount(tx) > consensus.nMaxValueLelantusSpendPerTransaction) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+//TODO(levon) implement joinsplit checks
     }
 
     return true;
@@ -270,6 +310,21 @@ void DisconnectTipLelantus(CBlock& block, CBlockIndex *pindexDelete) {
     // Also remove from mempool lelantus joinsplits that reference given block hash.
     RemoveLelantusJoinSplitReferencingBlock(mempool, pindexDelete);
     RemoveLelantusJoinSplitReferencingBlock(txpools.getStemTxPool(), pindexDelete);
+}
+
+size_t GetSpendInputs(const CTxIn& in) {
+    if (in.IsLelantusJoinSplit()) {
+        //TODO(levon) implement here
+    }
+    return 0;
+}
+
+size_t GetSpendInputs(const CTransaction &tx) {
+    size_t sum = 0;
+    for (const auto& vin : tx.vin) {
+        sum += GetSpendInputs(vin);
+    }
+    return sum;
 }
 
 
