@@ -127,6 +127,18 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // Amount of sigma spends allowed per transaction
 #define ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION            35
 
+// Value of lelantus spends allowed per block
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK  (1200 * COIN)
+
+// Amount of lelantus spends allowed per block
+#define ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK         100
+
+// Value of lelantus spends allowed per transaction
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION     (1000 * COIN)
+
+// Amount of lelantus spends allowed per transaction
+#define ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION            50
+
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100
 
