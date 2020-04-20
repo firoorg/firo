@@ -2107,10 +2107,13 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
-            } else {
+            }
+            else {
                 // LogPrintf("Relaying wtx %s\n", GetHash().ToString());
-                g_connman->RelayTransaction(*this);
-                return true;
+                if (connman) {
+                    connman->RelayTransaction(*this);
+                    return true;
+                }
             }
         }
     }
