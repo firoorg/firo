@@ -238,6 +238,13 @@ int TXHistoryDialog::PopulateHistoryMap()
                 pending.type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == ELYSIUM_TYPE_SEND_ALL) {
                 htxo.amount = "N/A";
             }
+
+            if (pending.type == ELYSIUM_TYPE_SIMPLE_SPEND) {
+                if (pending.dest && IsMyAddress(pending.dest.get())) {
+                    htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
+                }
+            }
+
             txHistoryMap.insert(std::make_pair(txHash, htxo));
             nProcessed++;
             continue;
@@ -301,6 +308,15 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
         if (htxo.valid && type == ELYSIUM_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
+
+        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_SPEND) { // override amount for spend
+            amount = mp_obj.getSpendAmount();
+        }
+
+        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_MINT) { // override amount for mint
+            amount = mp_obj.getMintAmount();
+        }
+
         std::string displayAmount = FormatShortMP(mp_obj.getProperty(), amount) + getTokenLabel(mp_obj.getProperty());
         htxo.fundsMoved = true;
         htxo.txType = shrinkTxType(mp_obj.getType(), &htxo.fundsMoved);
@@ -309,6 +325,14 @@ int TXHistoryDialog::PopulateHistoryMap()
         htxo.address = mp_obj.getSender();
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
+
+        if (type == ELYSIUM_TYPE_SIMPLE_SPEND) {
+            htxo.address = "Spend";
+            if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
+                displayAmount = "-" + displayAmount;
+            }
+        }
+
         // override - special case for property creation (getProperty cannot get ID as createdID not stored in obj)
         if (type == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED || type == ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE || type == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL) {
             displayAmount = "N/A";
@@ -317,11 +341,17 @@ int TXHistoryDialog::PopulateHistoryMap()
                 if (type == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED) displayAmount = FormatShortMP(propertyId, getTotalTokens(propertyId)) + getTokenLabel(propertyId);
             }
         }
-        // override - hide display amount for cancels and unknown transactions as we can't display amount/property as no prop exists
+
+        // override - hide display amount for transaction types below as we can't display amount/property as no prop exists
+        // - Unchanged balance sigma transactions
+        // - Cancels transactions
+        // - Unknown transactions
         if (type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
-            type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || type == ELYSIUM_TYPE_SEND_ALL || htxo.txType == "Unknown") {
+            type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || type == ELYSIUM_TYPE_SEND_ALL ||
+            type == ELYSIUM_TYPE_CREATE_DENOMINATION || htxo.txType == "Unknown") {
             displayAmount = "N/A";
         }
+
         // override - display amount received not STO amount in packet (the total amount) for STOs I didn't send
         if (type == ELYSIUM_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
             UniValue receiveArray(UniValue::VARR);
@@ -330,6 +360,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
             displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
         }
+
         htxo.amount = displayAmount;
         txHistoryMap.insert(std::make_pair(txHash, htxo));
         nProcessed++;
@@ -523,6 +554,9 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
         case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
         case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_SIMPLE_SPEND: displayType = "Sigma Spend"; break;
+        case ELYSIUM_TYPE_CREATE_DENOMINATION: displayType = "Create Sigma Denomination"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_SIMPLE_MINT: displayType = "Sigma Mint"; break;
     }
     return displayType;
 }
