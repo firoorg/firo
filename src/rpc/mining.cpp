@@ -124,9 +124,20 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-            ++pblock->nNonce;
-            --nMaxTries;
+        if (pblock->IsMTP()) {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount) {
+                pblock->mtpHashValue = mtp::hash(*pblock, Params().GetConsensus().powLimit);
+                if (CheckProofOfWork(pblock->mtpHashValue, pblock->nBits, Params().GetConsensus()))
+                    break;
+                ++pblock->nNonce;
+                --nMaxTries;
+            }
+        }
+        else {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+                ++pblock->nNonce;
+                --nMaxTries;
+            }
         }
         if (nMaxTries == 0) {
             break;
