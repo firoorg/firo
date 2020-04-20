@@ -8,6 +8,7 @@ namespace lelantus {
 template <class Exponent, class GroupElement>
 class SchnorrVerifier {
 public:
+    //g and h are being kept by reference, be sure it will not be modified from outside
     SchnorrVerifier(const GroupElement& g, const GroupElement& h);
 
     bool verify(const GroupElement& y, const SchnorrProof<Exponent, GroupElement>& proof);

@@ -38,17 +38,16 @@ size_t PublicCoin::GetSerializeSize() const {
 //class PrivateCoin
 PrivateCoin::PrivateCoin(const Params* p, const uint64_t& v):
     params(p) {
-        this->mintCoin(v);
+    this->randomize();
+    this->mintCoin(v);
 }
 
 PrivateCoin::PrivateCoin(const Params* p,const Scalar& serial, const uint64_t& v, const Scalar& random, int version_) :
         params(p),
         serialNumber(serial),
-        value(v),
         randomness(random),
         version(version_) {
-    publicCoin = LelantusPrimitives<Scalar, GroupElement>::double_commit(
-            params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);
+    this->mintCoin(v);
 }
 
 const Params* PrivateCoin::getParams() const {
@@ -79,11 +78,11 @@ unsigned int PrivateCoin::getVersion() const {
     return this->version;
 }
 
-void PrivateCoin::setPublicCoin(const PublicCoin& p){
+void PrivateCoin::setPublicCoin(const PublicCoin& p) {
     publicCoin = p;
 }
 
-void PrivateCoin::setRandomness(const Scalar& n){
+void PrivateCoin::setRandomness(const Scalar& n) {
     randomness = n;
 }
 
@@ -105,21 +104,24 @@ void PrivateCoin::setEcdsaSeckey(uint256 &seckey) {
         throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
 
-void PrivateCoin::setSerialNumber(const Scalar& n){
+void PrivateCoin::setSerialNumber(const Scalar& n) {
     serialNumber = n;
 }
 
-void PrivateCoin::setV(const uint64_t& n){
+void PrivateCoin::setV(const uint64_t& n) {
     value = n;
 }
 
-void PrivateCoin::setVersion(unsigned int nVersion){
+void PrivateCoin::setVersion(unsigned int nVersion) {
     version = nVersion;
 }
 
-void PrivateCoin::mintCoin(const uint64_t& v){
+void PrivateCoin::randomize() {
     serialNumber.randomize();
     randomness.randomize();
+}
+
+void PrivateCoin::mintCoin(const uint64_t& v) {
     value = v;
     GroupElement commit = LelantusPrimitives<Scalar, GroupElement>::double_commit(
             params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);

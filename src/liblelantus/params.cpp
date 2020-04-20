@@ -2,26 +2,35 @@
 #include <iostream>
 namespace lelantus {
 
+    CCriticalSection Params::cs_instance;
     std::unique_ptr<Params> Params::instance;
-Params const* Params::get_default() {
-    if(instance != nullptr)
-        return instance.get();
-    else {
-       //fixing generator G;
-       GroupElement g;
-       unsigned char buff[32] = {0};
-       GroupElement base;
-       base.set_base_g();
-       base.sha256(buff);
-       g.generate(buff);
-       //fixing n and m; N = n^m = 65,536
-       int n = 16;
-       int m = 4;
-       //fixing bulletproof params
-       int n_rangeProof = 64;
-       int max_m_rangeProof = 16;
 
-       instance.reset(new Params(g, n, m, n_rangeProof, max_m_rangeProof));
+Params const* Params::get_default() {
+    if (instance) {
+        return instance.get();
+    } else {
+        LOCK(cs_instance);
+        if (instance) {
+            return instance.get();
+        }
+
+        //fixing generator G;
+        GroupElement g;
+        unsigned char buff[32] = {0};
+        GroupElement base;
+        base.set_base_g();
+        base.sha256(buff);
+        g.generate(buff);
+
+        //fixing n and m; N = n^m = 65,536
+        int n = 16;
+        int m = 4;
+
+        //fixing bulletproof params
+        int n_rangeProof = 64;
+        int max_m_rangeProof = 16;
+
+        instance.reset(new Params(g, n, m, n_rangeProof, max_m_rangeProof));
         return instance.get();
     }
 }
@@ -33,6 +42,7 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     n_rangeProof(n_rangeProof_),
     max_m_rangeProof(max_m_rangeProof_)
 {
+
     //creating generators for sigma
     this->h_sigma.resize(n_sigma * m_sigma);
     unsigned char buff0[32] = {0};

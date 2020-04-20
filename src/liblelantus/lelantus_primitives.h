@@ -1,6 +1,6 @@
 #ifndef ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
 #define ZCOIN_LIBLELANTUS_LELANTUSPRIMITIVES_H
-#include <vector>
+
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <secp256k1/include/MultiExponent.h>
@@ -9,9 +9,26 @@
 #include "schnorr_proof.h"
 #include "innerproduct_proof.h"
 #include "range_proof.h"
+
+#include "../libzerocoin/Zerocoin.h"
+
+#include <vector>
 #include <algorithm>
 
 namespace lelantus {
+
+template<class Exponent>
+struct NthPower {
+    Exponent num;
+    Exponent pow;
+
+    NthPower(const Exponent& num_) : num(num_), pow(uint64_t(1)) {}
+    NthPower(const Exponent& num_, const Exponent& pow_) : num(num_), pow(pow_) {}
+
+    void go_next() {
+        pow *= num;
+    }
+};
 
 template<class Exponent, class GroupElement>
 class LelantusPrimitives {

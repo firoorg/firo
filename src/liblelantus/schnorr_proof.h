@@ -8,7 +8,7 @@ namespace lelantus {
 template <class Exponent, class GroupElement>
 class SchnorrProof{
 public:
-    inline int memoryRequired() const {
+    inline std::size_t memoryRequired() const {
         return u.memoryRequired()  + P1.memoryRequired() * 2;
     }
 

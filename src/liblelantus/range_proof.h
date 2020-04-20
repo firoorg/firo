@@ -10,7 +10,7 @@ template<class Exponent, class GroupElement>
 class RangeProof{
 public:
 
-    inline int memoryRequired(int n, int m) const {
+    inline std::size_t memoryRequired(int n, int m) const {
         int size = (int)std::log2(n * m);
         return A.memoryRequired() * 4
                + T_x1.memoryRequired() * 3

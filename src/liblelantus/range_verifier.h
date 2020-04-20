@@ -8,6 +8,7 @@ namespace lelantus {
 template<class Exponent, class GroupElement>
 class RangeVerifier {
 public:
+    //g_vector and h_vector are being kept by reference, be sure it will not be modified from outside
     RangeVerifier(
             const GroupElement& g
             , const GroupElement& h1
@@ -34,4 +35,4 @@ private:
 
 #include "range_verifier.hpp"
 
-#endif //ZCOIN_RANGE_VERIFIER_H
+#endif //ZCOIN_LIBLELANTUS_RANGE_VERIFIER_H

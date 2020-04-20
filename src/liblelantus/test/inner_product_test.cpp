@@ -1,92 +1,156 @@
 #include "../innerproduct_proof_generator.h"
 #include "../innerproduct_proof_verifier.h"
 
+#include "./lelantus_test_fixture.h"
+
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(lelantus_inner_product_tests)
+namespace lelantus {
 
-void generate(
-        int n,
-        std::vector <secp_primitives::GroupElement>& gens_g,
-        std::vector <secp_primitives::GroupElement>& gens_h,
-        std::vector <secp_primitives::Scalar>& a,
-        std::vector <secp_primitives::Scalar>& b,
-        secp_primitives::GroupElement& u_) {
+class InnerProductTests : public LelantusTestingSetup {
+public:
+    typedef InnerProductProofGenerator<Scalar, GroupElement> ProofGenerator;
+    typedef InnerProductProofVerifier<Scalar, GroupElement> ProofVerifier;
+    typedef InnerProductProof<Scalar, GroupElement> Proof;
 
-    //creating generators g, h
-    for (int i = 0; i < n; ++i) {
-        secp_primitives::GroupElement g;
-        secp_primitives::GroupElement h;
-        g.randomize();
-        gens_g.push_back(g);
-        h.randomize();
-        gens_h.push_back(h);
+public:
+    InnerProductTests() {}
+
+public:
+    void Generate(size_t n) {
+        gens_g = RandomizeGroupElements(n);
+        gens_h = RandomizeGroupElements(n);
+        a = RandomizeScalars(n);
+        b = RandomizeScalars(n);
+        u.randomize();
     }
-    //creating group element u
-    u_.randomize();
-    //    //create a and b vectors
-    for (int i = 0; i < n; ++i) {
-        secp_primitives::Scalar a_;
-        secp_primitives::Scalar b_;
-        a_.randomize();
-        b_.randomize();
-        a.emplace_back(a_);
-        b.emplace_back(b_);
+
+    Scalar ComputeC() const {
+        return Primitives::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     }
+
+    GroupElement ComputePInit() const {
+        return ComputeMultiExponent(gens_g, a) + ComputeMultiExponent(gens_h, b);
+    }
+
+    GroupElement ComputeP(Scalar const &x) const {
+        return ComputePInit() + u * ComputeC() * x;
+    }
+
+public:
+    std::vector<GroupElement> gens_g;
+    std::vector<GroupElement> gens_h;
+    std::vector<Scalar> a;
+    std::vector<Scalar> b;
+    GroupElement u;
+};
+
+BOOST_FIXTURE_TEST_SUITE(lelantus_inner_product_tests, InnerProductTests)
+
+BOOST_AUTO_TEST_CASE(prove_verify_one)
+{
+    size_t n = 1;
+    size_t log2_n = 0;
+
+    Generate(n);
+
+    Scalar x;
+    x.randomize();
+
+    // generating proofs
+    Proof proof;
+    ProofGenerator prover(gens_g, gens_h, u);
+    prover.generate_proof(a, b, x, proof);
+
+    BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
+
+    // validate
+    BOOST_CHECK_EQUAL(ComputeC(), proof.c_);
+    BOOST_CHECK_EQUAL(a.front(), proof.a_);
+    BOOST_CHECK_EQUAL(b.front(), proof.b_);
+    BOOST_CHECK_EQUAL(log2_n, proof.L_.size());
+    BOOST_CHECK_EQUAL(log2_n, proof.R_.size());
+
+    // verify
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
 }
 
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
-    int n = 32;
-    std::vector <secp_primitives::GroupElement> gens_g;
-    std::vector <secp_primitives::GroupElement> gens_h;
-    std::vector <secp_primitives::Scalar> a;
-    std::vector <secp_primitives::Scalar> b;
-    secp_primitives::GroupElement u_;
-    // generating needed objects
-    generate(n, gens_g, gens_h, a, b, u_);
+    size_t n = 32;
+    size_t log2_n = 5;
 
-    secp_primitives::Scalar x;
+    Generate(n);
+
+    Scalar x;
     x.randomize();
-    //    //creating proof genertor
-    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g , gens_h, u_);
 
-    //////    //generating proof
-    lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
-    prooveGenerator.generate_proof(a, b, x, proof);
+    // generating proofs
+    Proof proof;
+    ProofGenerator prover(gens_g, gens_h, u);
+    prover.generate_proof(a, b, x, proof);
 
-    ////    //create verifier
-    lelantus::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(gens_g, gens_h, u_, prooveGenerator.get_P());
+    BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
 
-    BOOST_CHECK(verifier.verify(x, proof));
+    // validate
+    BOOST_CHECK_EQUAL(ComputeC(), proof.c_);
+    BOOST_CHECK_EQUAL(log2_n, proof.L_.size());
+    BOOST_CHECK_EQUAL(log2_n, proof.R_.size());
+
+    // verify
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof));
 }
 
-BOOST_AUTO_TEST_CASE(fake_proof_notVerify)
+BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
 {
-    int n = 32;
-    std::vector <secp_primitives::GroupElement> gens_g;
-    std::vector <secp_primitives::GroupElement> gens_h;
-    std::vector <secp_primitives::Scalar> a;
-    std::vector <secp_primitives::Scalar> b;
-    secp_primitives::GroupElement u_;
+    size_t n = 32;
+
     // generating needed objects
-    generate(n, gens_g, gens_h, a, b, u_);
+    Generate(n);
 
-    secp_primitives::Scalar x;
+    Scalar x;
     x.randomize();
-    //    //creating proof genertor
-    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(gens_g, gens_h, u_);
 
-    //////    //generating proof
-    lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
-    prooveGenerator.generate_proof(a, b, x, proof);
+    // generating genertor
+    Proof proof;
+    ProofGenerator(gens_g, gens_h, u).generate_proof(a, b, x, proof);
 
-    ////    //create verifier with fake P
-    secp_primitives::GroupElement P;
-    P.randomize();
-    lelantus::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(gens_g, gens_h, u_, P);
+    // verify with fake P
+    GroupElement fakeP;
+    fakeP.randomize();
 
-    BOOST_CHECK(!verifier.verify(x, proof));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof));
+
+    // verify with fake proof
+    auto verify = [&](Scalar const &_x, Proof const &_p) -> void {
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p));
+    };
+
+    auto fakeProof = proof;
+    fakeProof.a_.randomize();
+    verify(x, fakeProof);
+
+    fakeProof = proof;
+    fakeProof.b_.randomize();
+    verify(x, fakeProof);
+
+    fakeProof = proof;
+    fakeProof.c_.randomize();
+    verify(x, fakeProof);
+
+    fakeProof = proof;
+    fakeProof.L_[0].randomize();
+    verify(x, fakeProof);
+
+    fakeProof = proof;
+    fakeProof.R_[0].randomize();
+    verify(x, fakeProof);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace lelantus

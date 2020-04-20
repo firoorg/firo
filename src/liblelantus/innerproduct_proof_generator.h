@@ -6,10 +6,11 @@
 namespace lelantus {
 
 template <class Exponent, class GroupElement>
-class InnerProductProoveGenerator {
+class InnerProductProofGenerator {
 
 public:
-    InnerProductProoveGenerator(
+    //g and h are being kept by reference, be sure it will not be modified from outside
+    InnerProductProofGenerator(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u);
@@ -20,11 +21,11 @@ public:
             const Exponent& x,
             InnerProductProof<Exponent, GroupElement>& proof_out);
 
-    GroupElement get_P();
+    const GroupElement& get_P();
 
 private:
 
-    InnerProductProoveGenerator(
+    InnerProductProofGenerator(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,

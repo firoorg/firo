@@ -24,12 +24,16 @@ void LelantusProver::proof(
 
     if(input != out)
         throw ZerocoinException("Input and output are not equal");
+
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
     generate_sigma_proofs(anonymity_sets, Cin, indexes, x, Yk_sum, proof_out.sigma_proofs);
-    Scalar x_m = x.exponent(params->get_sigma_m());
+
     generate_bulletproofs(Cout, proof_out.bulletproofs);
+
+    Scalar x_m = x.exponent(params->get_sigma_m());
+
     Scalar X_;
     Scalar So;
     Scalar Ro;
@@ -39,6 +43,7 @@ void LelantusProver::proof(
         Ro += Cout[i].getRandomness();
     }
     X_ = So * x_m;
+
     Scalar Y_;
     Scalar Ri;
     for (std::size_t i = 0; i < Cin.size(); ++i)
@@ -46,7 +51,9 @@ void LelantusProver::proof(
         Ri += Cin[i].first.getRandomness() * x_m + Yk_sum[i];
     }
     Y_ = Ro * x_m - Ri;
+
     SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h0());
+
     schnorrProver.proof(X_, Y_, proof_out.schnorrProof);
 
 }
@@ -57,7 +64,7 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<size_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
-        std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs){
+        std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs) {
     SigmaPlusProver<Scalar,GroupElement> sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
     sigma_proofs.resize(Cin.size());
     std::size_t N = Cin.size();
@@ -82,8 +89,8 @@ void LelantusProver::generate_sigma_proofs(
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
-        for(std::size_t j = 0; j < c[Cin[i].second].size(); ++j)
-            C_.emplace_back(c[Cin[i].second][j].getValue() + gs);
+        for (auto const &coin : c[Cin[i].second])
+            C_.emplace_back(coin.getValue() + gs);
 
         rA[i].randomize();
         rB[i].randomize();
@@ -98,11 +105,17 @@ void LelantusProver::generate_sigma_proofs(
 
     LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
 
+    std::vector<Scalar> x_ks;
+    x_ks.reserve(params->get_sigma_m());
+    NthPower<Scalar> x_k(x);
+    for (int k = 0; k < params->get_sigma_m(); ++k) {
+        x_ks.emplace_back(x_k.pow);
+        x_k.go_next();
+    }
+
     for (std::size_t i = 0; i < N; ++i) {
-        Scalar x_k(uint64_t(1));
         for (int k = 0; k < params->get_sigma_m(); ++k) {
-            Yk_sum[i] += Yk[i][k] * x_k;
-            x_k *= x;
+            Yk_sum[i] += Yk[i][k] * x_ks[k];
         }
     }
 
@@ -115,7 +128,7 @@ void LelantusProver::generate_sigma_proofs(
 
 void LelantusProver::generate_bulletproofs(
         const std::vector <PrivateCoin>& Cout,
-        RangeProof<Scalar, GroupElement>& bulletproofs){
+        RangeProof<Scalar, GroupElement>& bulletproofs) {
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size();
@@ -141,11 +154,9 @@ void LelantusProver::generate_bulletproofs(
     g_.reserve(n * m);
     h_.reserve(n * m);
 
-    for (std::size_t i = 0; i < n * m; ++i )
-    {
-        g_.push_back(params->get_bulletproofs_g()[i]);
-        h_.push_back(params->get_bulletproofs_h()[i]);
-    }
+
+    g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
+    h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
     RangeProver<Scalar, GroupElement> rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
