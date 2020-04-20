@@ -119,6 +119,23 @@ std::string ChainNameFromCommandLine()
     return CBaseChainParams::MAIN;
 }
 
+std::string ChainNameFromCommandLineAPI()
+{
+    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
+        , testNet = GetOptBoolArg("-testnet")
+        , mainNet = GetOptBoolArg("-mainnet");
+
+    if (testNet && regTest && *testNet && *regTest ||
+        testNet && mainNet && *testNet && *mainNet ||
+        mainNet && regTest && *mainNet && *regTest)
+        throw std::runtime_error("Invalid combination of network flags (-mainnet, -testnet and -regtest)");
+    if (regTest && *regTest)
+        return CBaseChainParams::REGTEST;
+    if (testNet && *testNet)
+        return CBaseChainParams::TESTNET;
+    return CBaseChainParams::MAIN;
+}
+
 #ifdef ENABLE_CLIENTAPI
 bool IsZMQPort(int64_t port){
     return (port == pCurrentBaseParams->APIAuthREPPort() ||

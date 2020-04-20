@@ -117,14 +117,16 @@ bool AppInit(int argc, char* argv[])
         }
         // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
         try {
-            SelectParams(ChainNameFromCommandLine());
+            bool fApi = false;
+#ifdef ENABLE_CLIENTAPI
+            fApi = GetBoolArg("-clientapi", false);
+#endif
+            SelectParams(fApi ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
         } catch (const std::exception& e) {
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
-    bool fApi = false;
 #ifdef ENABLE_CLIENTAPI
-        fApi = GetBoolArg("-clientapi", false);
         int port = GetArg("-rpcport", BaseParams().RPCPort());
         if(fApi && IsZMQPort(port)){
             fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
