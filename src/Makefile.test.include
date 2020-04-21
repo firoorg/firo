@@ -78,8 +78,13 @@ GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.r
 BITCOIN_TESTS = \
   hdmint/test/hdmint_tests.cpp \
   hdmint/test/lelantus_tests.cpp \
+  liblelantus/test/challenge_generator_tests.cpp \
+  liblelantus/test/coin_tests.cpp \
   liblelantus/test/inner_product_test.cpp \
+  liblelantus/test/lelantus_primitives_tests.cpp \
   liblelantus/test/lelantus_test.cpp \
+  liblelantus/test/lelantus_test_fixture.cpp \
+  liblelantus/test/lelantus_test_fixture.h \
   liblelantus/test/range_proof_test.cpp \
   liblelantus/test/schnorr_test.cpp \
   liblelantus/test/serialize_test.cpp \
@@ -91,13 +96,6 @@ BITCOIN_TESTS = \
   sigma/test/r1_test.cpp \
   sigma/test/serialize_test.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
-  liblelantus/test/challenge_generator_tests.cpp \
-  liblelantus/test/coin_tests.cpp \
-  liblelantus/test/lelantus_primitives_tests.cpp \
-  liblelantus/test/lelantus_test.cpp \
-  liblelantus/test/lelantus_test_fixture.cpp \
-  liblelantus/test/lelantus_test_fixture.h \
-  liblelantus/test/sigma_plus_test.cpp \
   test/addrman_tests.cpp \
   test/allocator_tests.cpp \
   test/amount_tests.cpp \
