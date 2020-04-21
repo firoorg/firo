@@ -794,7 +794,6 @@ public:
 
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
-    std::vector<CInv> vInventoryToSend;
     // Set of Dandelion transactions that should be known to this peer
     std::set<uint256> setDandelionInventoryKnown;
     // Set of transaction ids we still have to announce.
@@ -806,6 +805,8 @@ public:
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
     std::vector<uint256> vInventoryBlockToSend;
+    // List of non-tx/non-block inventory items
+    std::vector<CInv> vInventoryOtherToSend;
     CCriticalSection cs_inventory;
     std::set<uint256> setAskFor;
     std::vector<std::pair<int64_t, CInv>> vecAskFor;
@@ -980,7 +981,12 @@ public:
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         } else {
-            vInventoryToSend.push_back(inv);
+            if (!filterInventoryKnown.contains(inv.hash)) {
+                LogPrint("net", "PushInventory --  inv: %s peer=%d\n", inv.ToString(), id);
+                vInventoryOtherToSend.push_back(inv);
+            } else {
+                LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
+            }
         }
     }
 

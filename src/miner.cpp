@@ -1016,6 +1016,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         free(scratchpad);
                     }
 
+                    boost::this_thread::interruption_point();
+                    
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {
@@ -1037,8 +1039,6 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     if ((pblock->nNonce & 0xFF) == 0)
                         break;
                 }
-                // Check for stop or if block needs to be rebuilt
-                boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 && chainparams.MiningRequiresPeers())
                     break;
