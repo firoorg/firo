@@ -24,6 +24,12 @@ public:
               const std::vector<uint256>& groupBlockHashs,
               const uint256& txHash);
 
+    bool Verify(const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<PublicCoin>& Cout,
+                const Scalar& Vout,
+                const Scalar& fee,
+                const uint256& txHash) const;
+
     void updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
 
     uint256 signatureHash(const SpendMetaData& m, size_t coutSize) const;

@@ -2,6 +2,7 @@
 #include "lelantus_prover.h"
 #include "lelantus_verifier.h"
 #include "../sigma/openssl_context.h"
+#include "util.h"
 
 namespace lelantus {
 
@@ -92,6 +93,71 @@ void JoinSplit::updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t
     }
 
 }
+
+bool JoinSplit::Verify(
+        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<PublicCoin>& Cout,
+        const Scalar& Vout,
+        const Scalar& fee,
+        const uint256& txHash) const {
+    std::vector<uint256> groupBlockHashes;
+    groupBlockHashes.reserve(coinGroupIdAndBlockHash.size());
+
+    for(const auto& idAndHash : coinGroupIdAndBlockHash) {
+        groupBlockHashes.emplace_back(idAndHash.second);
+    }
+
+    SpendMetaData m(anonymity_sets, groupBlockHashes, txHash);
+
+    uint256 metahash = signatureHash(m, Cout.size());
+
+    if(serialNumbers.size() != ecdsaSignatures.size() || serialNumbers.size() != ecdsaPubkeys.size()) {
+        LogPrintf("Sigma spend failed due to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
+        return false;
+    }
+
+    for(size_t i = 0; i < serialNumbers.size(); i++) {
+        // Verify ecdsa_signature, to make sure someone did not change the output of transaction.
+        // Check sizes
+        if (this->ecdsaPubkeys[i].size() != 33 || this->ecdsaSignatures[i].size() != 64) {
+            LogPrintf("Lelantus joinsplit failed due to incorrect size of ecdsaSignature.");
+            return false;
+        }
+
+        // Verify signature
+        secp256k1_pubkey pubkey;
+        secp256k1_ecdsa_signature signature;
+
+        if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
+            LogPrintf("Lelantus joinsplit failed due to unable to parse ecdsaPubkey.");
+            return false;
+        }
+
+        // Recompute and compare hash of public key
+        Scalar coinSerialNumberExpected = PrivateCoin::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+        if (serialNumbers[i] != coinSerialNumberExpected) {
+            LogPrintf("Lelantus joinsplit failed due to serial number does not match public key hash.");
+            return false;
+        }
+
+        if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignatures[i].data()) ) {
+            LogPrintf("Lelantus joinsplit failed due to signature cannot be parsed.");
+            return false;
+        }
+
+        if (!secp256k1_ecdsa_verify(
+                OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
+            LogPrintf("Lelantus joinsplit failed due to signature cannot be verified.");
+            return false;
+        }
+    }
+
+    LelantusVerifier verifier(params);
+
+    // Now verify lelantus proof
+    return verifier.verify(anonymity_sets, serialNumbers, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof);
+}
+
 
 uint256 JoinSplit::signatureHash(const SpendMetaData& m, size_t coutSize) const {
     CHashWriter h(0,0);
