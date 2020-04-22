@@ -101,6 +101,9 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    # lelantus
+    'lelantus_mint.py',
+    # exodus
     'exodus_create_denomination.py',
     'exodus_property_creation_fee.py',
     'exodus_sendmint.py',
