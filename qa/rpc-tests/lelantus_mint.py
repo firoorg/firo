@@ -19,15 +19,26 @@ class LelantusMintTest(BitcoinTestFramework):
 
         self.nodes[0].generate(activation_block - self.nodes[0].getblockcount())
 
+        # generate coins
         amounts = [1, 1.1, 2, 10]
-        for m in amounts:
-            self.nodes[0].mintlelantus(m)
 
-        self.nodes[0].generate(10)
+        # 10 confirmations
+        self.nodes[0].mintlelantus(amounts[0])
+        self.nodes[0].mintlelantus(amounts[1])
+        self.nodes[0].generate(5)
+
+        # 5 confirmations
+        self.nodes[0].mintlelantus(amounts[2])
+        self.nodes[0].mintlelantus(amounts[3])
+        self.nodes[0].generate(5)
 
         # get all mints and utxos
         mints = self.verify_listlelantusmints(amounts)
         self.verify_listunspentlelantusmints(amounts)
+        self.verify_listunspentlelantusmints([], 1000) # [1000, 9999999]
+        self.verify_listunspentlelantusmints([2, 10], 1, 5) # [1, 5]
+        self.verify_listunspentlelantusmints([1, 1.1], 6, 10)
+        self.verify_listunspentlelantusmints([1, 1.1, 2, 10], 5, 10)
         assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
 
         # state modification test
@@ -37,6 +48,10 @@ class LelantusMintTest(BitcoinTestFramework):
 
         mints = self.verify_listlelantusmints(amounts)
         self.verify_listunspentlelantusmints([1, 1.1])
+        self.verify_listunspentlelantusmints([], 1000)
+        self.verify_listunspentlelantusmints([], 1, 5)
+        self.verify_listunspentlelantusmints([1, 1.1], 6, 10)
+        self.verify_listunspentlelantusmints([1, 1.1], 5, 10)
         assert_equal([False, False, True, True], list(map(lambda m : m["isUsed"], mints)))
 
         # set a coin as unused
