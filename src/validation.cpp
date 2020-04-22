@@ -578,7 +578,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             {
                 if (!vInOutPoints.insert(txin.prevout).second)
                     return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
-            }            
+            }
         }
     }
 
@@ -592,7 +592,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         for (const auto& txin : tx.vin)
             if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend() || txin.IsZerocoinRemint()))
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
-                
+
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
                 return false;
@@ -648,7 +648,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 {
     bool fTestNet = Params().GetConsensus().IsTestnet();
     LogPrintf("AcceptToMemoryPoolWorker(), tx.IsZerocoinSpend()=%s, fTestNet=%s\n", ptx->IsZerocoinSpend() || ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
-    
+
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
@@ -679,7 +679,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if(tx.IsSigmaMint()) {
         // Shows if sigma mints are allowed yet in the mempool.
-        bool allow = (chainActive.Height() <= consensus.nLelantusStartBlock);
+        bool allow = (chainActive.Height() < consensus.nLelantusStartBlock);
 
         if (!allow) {
             return state.DoS(100, error("Sigma mints no more allowed in mempool"),
@@ -1246,7 +1246,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } 
+        }
         else {
             LockPoints lp;
             double dPriority = 0;
@@ -2538,7 +2538,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
  */
 void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
     LOCK(mempool.cs);
-    
+
     // Erase conflicting zerocoin txs from the mempool
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();

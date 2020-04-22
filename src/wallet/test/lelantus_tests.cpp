@@ -92,6 +92,9 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
 
 BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
 {
+    fRequireStandard = true; // to verify mainnet can accept lelantus mint
+    pwalletMain->SetBroadcastTransactions(true);
+
     GenerateBlocks(110);
     auto amount = 1 * COIN;
 
@@ -108,6 +111,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
 
     BOOST_CHECK(tx->IsLelantusMint());
     BOOST_CHECK(tx->IsLelantusTransaction());
+    BOOST_CHECK(mempool.exists(tx->GetHash()));
 
     // verify outputs
     BOOST_CHECK_EQUAL(2, tx->vout.size());
