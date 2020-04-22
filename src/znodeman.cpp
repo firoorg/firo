@@ -14,6 +14,7 @@
 #include "net.h"
 #include "net_processing.h"
 #include "util.h"
+#include "txmempool.h"
 
 #define cs_vNodes (g_connman->cs_vNodes)
 #define vNodes (g_connman->vNodes)

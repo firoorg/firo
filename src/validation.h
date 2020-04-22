@@ -31,7 +31,6 @@
 #include <utility>
 #include <vector>
 #include "libzerocoin/Zerocoin.h"
-#include "txmempool.h"
 
 #include <atomic>
 
@@ -46,6 +45,7 @@ class CInv;
 class CConnman;
 class CScriptCheck;
 class CTxMemPool;
+class CTxPoolAggregate;
 class CValidationInterface;
 class CValidationState;
 struct ChainTxData;
