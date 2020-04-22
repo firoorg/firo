@@ -650,8 +650,8 @@ public:
         consensus.nDontAllowDupTxsStartBlock = 1;
 
         // evo znodes
-        consensus.DIP0003Height = INT_MAX;
-        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0003Height = 432;
+        consensus.DIP0003EnforcementHeight = 500;
         consensus.DIP0008Height = INT_MAX;
 
         // long living quorum params

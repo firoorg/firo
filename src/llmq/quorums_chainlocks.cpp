@@ -45,7 +45,7 @@ void CChainLocksHandler::Start()
         EnforceBestChainLock();
         // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
         TrySignChainTip();
-    }, 5000);
+    }, 5);
 }
 
 void CChainLocksHandler::Stop()

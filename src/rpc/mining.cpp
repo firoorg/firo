@@ -19,9 +19,7 @@
 #include "rpc/server.h"
 #include "txmempool.h"
 #include "util.h"
-#ifdef ENABLE_WALLET
-#include "znode-sync.h"
-#endif
+#include "znodesync-interface.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
@@ -126,9 +124,20 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-            ++pblock->nNonce;
-            --nMaxTries;
+        if (pblock->IsMTP()) {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount) {
+                pblock->mtpHashValue = mtp::hash(*pblock, Params().GetConsensus().powLimit);
+                if (CheckProofOfWork(pblock->mtpHashValue, pblock->nBits, Params().GetConsensus()))
+                    break;
+                ++pblock->nNonce;
+                --nMaxTries;
+            }
+        }
+        else {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+                ++pblock->nNonce;
+                --nMaxTries;
+            }
         }
         if (nMaxTries == 0) {
             break;
@@ -525,7 +534,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin is downloading blocks...");
 
-    if (!znodeSync.IsSynced())
+    if (Params().GetConsensus().IsMain() && !znodeSyncInterface.IsSynced())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin Core is syncing with network...");
 
     static unsigned int nTransactionsUpdatedLast;
