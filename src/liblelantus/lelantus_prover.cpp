@@ -6,7 +6,7 @@ LelantusProver::LelantusProver(const Params* p) : params(p) {
 }
 
 void LelantusProver::proof(
-        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const Scalar& Vin,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
@@ -59,7 +59,7 @@ void LelantusProver::proof(
 }
 
 void LelantusProver::generate_sigma_proofs(
-        const std::vector<std::vector<PublicCoin>>& c,
+        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& c,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
         Scalar& x,
@@ -89,7 +89,12 @@ void LelantusProver::generate_sigma_proofs(
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
-        for (auto const &coin : c[Cin[i].second])
+
+        const auto& set = c.find(Cin[i].second);
+        if(set == c.end())
+            throw ZerocoinException("No such anonymity set");
+
+        for (auto const &coin : set->second)
             C_.emplace_back(coin.getValue() + gs);
 
         rA[i].randomize();

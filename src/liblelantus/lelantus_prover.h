@@ -12,7 +12,7 @@ class LelantusProver {
 public:
     LelantusProver(const Params* p);
     void proof(
-            const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+            const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
             const Scalar& Vin,
             const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector <size_t>& indexes,
@@ -23,7 +23,7 @@ public:
 
 private:
     void generate_sigma_proofs(
-            const std::vector<std::vector<PublicCoin>>& c,
+            const std::unordered_map<uint32_t, std::vector<PublicCoin>>& c,
             const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector<size_t>& indexes,
             Scalar& x,

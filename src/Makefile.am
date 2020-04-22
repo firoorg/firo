@@ -560,6 +560,8 @@ liblelantus_a_SOURCES = \
   liblelantus/coin.cpp \
   liblelantus/joinsplit.h \
   liblelantus/joinsplit.cpp \
+  liblelantus/spend_metadata.h \
+  liblelantus/spend_metadata.cpp \
   liblelantus/params.h \
   liblelantus/params.cpp
 

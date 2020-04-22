@@ -13,7 +13,7 @@ BOOST_AUTO_TEST_CASE(privatecoin)
 {
     auto params = Params::get_default();
 
-    Scalar v(1);
+    uint64_t v = 1;
 
     // default constructor
     PrivateCoin priv(params, v);
