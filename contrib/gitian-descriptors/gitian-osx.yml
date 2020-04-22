@@ -28,7 +28,6 @@ packages:
 - "python-setuptools"
 - "fonts-tuffy"
 - "cmake"
-- "libgmp-dev"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
