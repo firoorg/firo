@@ -164,7 +164,8 @@ BITCOIN_TESTS =\
   test/util_tests.cpp \
   test/multiexponentation_test.cpp \
   test/evo_deterministicmns_tests.cpp \
-  test/evo_simplifiedmns_tests.cpp
+  test/evo_simplifiedmns_tests.cpp \
+  test/bls_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
