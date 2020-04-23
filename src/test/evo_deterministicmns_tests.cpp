@@ -39,7 +39,6 @@ static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransaction>& txs)
             }
         }
     }
-    std::cerr << "balance: " << balance / COIN << std::endl;
     return utxos;
 }
 
