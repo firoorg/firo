@@ -2068,11 +2068,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // evo znode system
     if(fLiteMode && fMasternodeMode) {
-        return InitError(_("You can not start a masternode in lite mode."));
+        return InitError(_("You can not start a znode in lite mode."));
     }
 
     if(fMasternodeMode) {
-        LogPrintf("MASTERNODE:\n");
+        LogPrintf("ZNODE:\n");
 
         std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
@@ -2237,10 +2237,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         std::string strDBName;
 
         strDBName = "evozncache.dat";
-        uiInterface.InitMessage(_("Loading masternode cache..."));
+        uiInterface.InitMessage(_("Loading znode cache..."));
         CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
         if(!flatdb1.Load(mmetaman)) {
-            return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
+            return InitError(_("Failed to load znode cache from") + "\n" + (pathDB / strDBName).string());
         }
 
         /*
@@ -2304,9 +2304,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         // governance.UpdatedBlockTip(chainActive.Tip());
     }
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+    // ********************************************************* Step 11d: start legacy znodes thread
 
-    // TODO: replace this temporary patch with real DASH evo code
+    // TODO: remove this code after switch to evo is done
     if (!fEvoZnodes)
     {
         threadGroup.create_thread([] {

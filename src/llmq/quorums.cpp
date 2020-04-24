@@ -205,7 +205,7 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
             if (!connections.empty()) {
                 if (LogAcceptCategory("llmq")) {
                     auto mnList = deterministicMNManager->GetListAtChainTip();
-                    std::string debugMsg = strprintf("CQuorumManager::%s -- adding masternodes quorum connections for quorum %s:\n", __func__, quorum->qc.quorumHash.ToString());
+                    std::string debugMsg = strprintf("CQuorumManager::%s -- adding znodes quorum connections for quorum %s:\n", __func__, quorum->qc.quorumHash.ToString());
                     for (auto& c : connections) {
                         auto dmn = mnList.GetValidMN(c);
                         if (!dmn) {
@@ -223,7 +223,7 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
     }
 
     for (auto& qh : connmanQuorumsToDelete) {
-        LogPrint("llmq", "CQuorumManager::%s -- removing masternodes quorum connections for quorum %s:\n", __func__, qh.ToString());
+        LogPrint("llmq", "CQuorumManager::%s -- removing znodes quorum connections for quorum %s:\n", __func__, qh.ToString());
         g_connman->RemoveMasternodeQuorumNodes(llmqType, qh);
     }
 }
