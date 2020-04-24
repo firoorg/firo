@@ -404,8 +404,8 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
                         joinsplit = ParseLelantusJoinSplit(txin);
                     }
                     catch (const std::ios_base::failure &) {
-                        // nothing
-                        return;
+                        txn_to_remove.push_back(tx);
+                        break;
                     }
 
                     const std::vector<std::pair<uint32_t, uint256>>& coinGroupIdAndBlockHash = joinsplit->getIdAndBlockHashes();
