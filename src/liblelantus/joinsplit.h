@@ -42,6 +42,8 @@ public:
 
     const std::vector<uint32_t>& getCoinGroupIds();
 
+    const std::vector<std::pair<uint32_t, uint256>>& getIdAndBlockHashes();
+
     int getVersion() const {
         return version;
     }

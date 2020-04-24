@@ -127,22 +127,6 @@ std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in)
     return joinsplit;
 }
 
-// This function will not report an error only if the transaction is lelantus joinsplit.
-CAmount GetSpendAmount(const CTxIn& in) {
-    if (in.IsLelantusJoinSplit()) {
-        //TODO(levon) implement here
-    }
-    return 0;
-}
-
-CAmount GetSpendAmount(const CTransaction& tx) {
-    CAmount sum(0);
-    for (const auto& vin : tx.vin) {
-        sum += GetSpendAmount(vin);
-    }
-    return sum;
-}
-
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
     auto& consensus = ::Params().GetConsensus();
 
@@ -150,7 +134,6 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
     CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
-        auto txSpendsValue =  GetSpendAmount(*tx);
         size_t txSpendNumber = GetSpendInputs(*tx);
 
         if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) {
@@ -158,21 +141,10 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
                 "bad-txns-lelantus-spend-invalid");
         }
 
-        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
-            return state.DoS(100, false, REJECT_INVALID,
-                "bad-txns-lelantus-spend-invalid");
-        }
-
         blockSpendsAmount += txSpendNumber;
-        blockSpendsValue += txSpendsValue;
     }
 
     if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
-        return state.DoS(100, false, REJECT_INVALID,
-            "bad-txns-lelantus-spend-invalid");
-    }
-
-    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-lelantus-spend-invalid");
     }
@@ -288,13 +260,8 @@ bool CheckLelantusTransaction(
                 "bad-txns-spend-invalid");
         }
 
-        if (GetSpendAmount(tx) > consensus.nMaxValueLelantusSpendPerTransaction) {
-            return state.DoS(100, false,
-                REJECT_INVALID,
-                "bad-txns-spend-invalid");
-        }
 //TODO(levon) implement joinsplit checks
-//
+
     }
 
     return true;
@@ -309,7 +276,16 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
             // Run over all the inputs, check if their CoinGroup block hash is equal to
             // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
-                if (txin.IsLelantusJoinSplit()) { //TODO(levon) implement this
+                if (txin.IsLelantusJoinSplit()) {
+                    std::unique_ptr<lelantus::JoinSplit> joinsplit = ParseLelantusJoinSplit(txin);
+                    const std::vector<std::pair<uint32_t, uint256>>& coinGroupIdAndBlockHash = joinsplit->getIdAndBlockHashes();
+                    for(const auto& idAndHash : coinGroupIdAndBlockHash) {
+                        if (idAndHash.second == blockIndex->GetBlockHash()) {
+                        // Do not remove transaction immediately, that will invalidate iterator mi.
+                        txn_to_remove.push_back(tx);
+                        break;
+                        }
+                    }
                 }
             }
         }

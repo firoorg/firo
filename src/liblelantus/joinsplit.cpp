@@ -172,6 +172,10 @@ const std::vector<uint32_t>& JoinSplit::getCoinGroupIds() {
     return this->groupIds;
 }
 
+const std::vector<std::pair<uint32_t, uint256>>& JoinSplit::getIdAndBlockHashes() {
+    return this->coinGroupIdAndBlockHash;
+}
+
 const std::vector<Scalar>& JoinSplit::getCoinSerialNumbers() {
     return this->serialNumbers;
 }

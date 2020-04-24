@@ -170,7 +170,6 @@ private:
     size_t nSigmaSpendInputs;
 
     // lelantus spend limits
-    CAmount nLelantusSpendAmount;
     size_t nLelantusSpendInputs;
 
 public:
