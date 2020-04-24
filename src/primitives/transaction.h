@@ -504,7 +504,7 @@ struct CMutableTransaction
     {
         return !(a == b);
     }
-    
+
     bool HasWitness() const
     {
         for (size_t i = 0; i < vin.size(); i++) {

@@ -803,10 +803,7 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    std::vector<lelantus::PublicCoin> blockMints;
-    for (const auto& mint : pblock->lelantusTxInfo->mints) {
-        blockMints.push_back(mint);
-    }
+    auto &blockMints = pblock->lelantusTxInfo->mints;
 
     latestCoinId = std::max(1, latestCoinId);
 
@@ -829,13 +826,14 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         coinGroup.nCoins += blockMints.size();
     }
     else {
-        LelantusCoinGroupInfo& oldCoinGroup = coinGroups[latestCoinId];
-        latestCoinId += 1;
-        LelantusCoinGroupInfo& newCoinGroup = coinGroups[latestCoinId];
+        auto& oldCoinGroup = coinGroups[latestCoinId];
 
-        for (CBlockIndex *block = oldCoinGroup.lastBlock;
-                ;
-                block = block->pprev) {
+        latestCoinId += 1;
+        auto& newCoinGroup = coinGroups[latestCoinId];
+
+        for (CBlockIndex *block = oldCoinGroup.lastBlock;;
+            block = block->pprev) {
+
             if (block->lelantusMintedPubCoins[latestCoinId - 1].size() > 0) {
                 newCoinGroup.nCoins += block->lelantusMintedPubCoins[latestCoinId - 1].size();  // always start with non empty set
 
@@ -1061,7 +1059,7 @@ bool CLelantusState::CanAddSpendToMempool(const Scalar& coinSerial) {
 }
 
 bool CLelantusState::CanAddMintToMempool(const GroupElement& pubCoin){
-    return mempoolMints.count(pubCoin) == 0;
+    return !HasCoin(pubCoin) && mempoolMints.count(pubCoin) == 0;
 }
 
 void CLelantusState::Reset() {
