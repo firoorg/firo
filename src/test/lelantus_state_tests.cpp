@@ -81,6 +81,8 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     BOOST_CHECK(mints[0].GetPubcoinValue() == received);
 
     BOOST_CHECK(!lelantusState->HasCoinHash(received, mints[2].GetPubCoinHash()));
+
+    BOOST_CHECK_EQUAL(2, lelantusState->GetTotalCoins());
 }
 
 BOOST_AUTO_TEST_CASE(serial_adding)
@@ -143,6 +145,10 @@ BOOST_AUTO_TEST_CASE(mempool)
     lelantusState->AddMintsToMempool({randMint});
     BOOST_CHECK(!lelantusState->CanAddMintToMempool(randMint));
 
+    // - remove from mempool then can add again
+    lelantusState->RemoveMintFromMempool(randMint);
+    BOOST_CHECK(lelantusState->CanAddMintToMempool(randMint));
+
     // test spend mempool
     // - can not add on-chain spend
     BOOST_CHECK(!lelantusState->CanAddSpendToMempool(spendSerial));
@@ -151,6 +157,19 @@ BOOST_AUTO_TEST_CASE(mempool)
     Scalar anotherSerial(2);
     auto txid = ArithToUint256(1);
 
+    BOOST_CHECK(lelantusState->CanAddSpendToMempool(anotherSerial));
+    lelantusState->AddSpendToMempool({anotherSerial}, txid);
+    BOOST_CHECK(!lelantusState->CanAddSpendToMempool(anotherSerial));
+
+    BOOST_CHECK(txid ==
+        lelantusState->GetMempoolConflictingTxHash(anotherSerial));
+
+    Scalar fakeSerial(3);
+    BOOST_CHECK(uint256() ==
+        lelantusState->GetMempoolConflictingTxHash(fakeSerial));
+
+    // - remove spend then can add again
+    lelantusState->RemoveSpendFromMempool({anotherSerial});
     BOOST_CHECK(lelantusState->CanAddSpendToMempool(anotherSerial));
     lelantusState->AddSpendToMempool({anotherSerial}, txid);
     BOOST_CHECK(!lelantusState->CanAddSpendToMempool(anotherSerial));
