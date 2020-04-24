@@ -3607,6 +3607,119 @@ UniValue spendmany(const JSONRPCRequest& request) {
     return wtx.GetHash().GetHex();
 }
 
+UniValue joinsplit(const JSONRPCRequest& request) {
+ if (request.fHelp || request.params.size() != 3)
+        throw std::runtime_error(
+                "joinsplit \"fromaccount\" {\"address\":amount,...} ([\"address\",...] )\n"
+                "\nSpend lelantus and mint in one transaction, you need at least provide one of 1-st or 3-rd arguments."
+                + HelpRequiringPassphrase() + "\n"
+                "\nArguments:\n"
+                "1. \"amounts\"             (string, optional) A json object with addresses and amounts\n"
+                "    {\n"
+                "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      ,...\n"
+                "    }\n"
+                "2. subtractfeefromamount   (string, optional) A json array with addresses.\n"
+                "                           The fee will be equally deducted from the amount of each selected address.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           If no addresses are specified here, the sender pays the fee.\n"
+                "    [\n"
+                "      \"address\"            (string) Subtract fee from this address\n"
+                "      ,...\n"
+                "    ]\n"
+                "3. output mints            (numeric, optional) A json object with amounts to mont\n"
+                "    {\n"
+                "      \"mint\"\n"
+                "      ,...\n"
+                "    }\n"
+                "\nResult:\n"
+                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                "                                    the number of addresses.\n"
+                "\nExamples:\n"
+                "\nSend two amounts to two different addresses:\n"
+                + HelpExampleCli("joinsplit", "\"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+                "\nSend two amounts to two different addresses and subtract fee from amount:\n"
+                + HelpExampleCli("joinsplit", "\"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"\"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
+        );
+
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    EnsureLelantusWalletIsAvailable();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+
+    UniValue sendTo = request.params[0].get_obj();
+    UniValue mintAmounts = request.params[2].get_obj();
+
+    std::unordered_set<std::string> subtractFeeFromAmountSet;
+    UniValue subtractFeeFromAmount(UniValue::VARR);
+    if (request.params.size() > 2) {
+        subtractFeeFromAmount = request.params[1].get_array();
+        for (int i = subtractFeeFromAmount.size(); i--;) {
+            subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
+    }
+
+    std::set<CBitcoinAddress> setAddress;
+    std::vector<CRecipient> vecSend;
+    std::vector<CAmount> vMints;
+
+    CAmount totalAmount = 0;
+
+    auto keys = sendTo.getKeys();
+    auto mints = mintAmounts.getValues();
+
+    if(keys.empty() && mints.empty())
+        throw JSONRPCError(RPC_TYPE_ERROR, "You have to provide at least public addressed or amount to mint");
+
+    for (const auto& strAddr : keys) {
+        CBitcoinAddress address(strAddr);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address: " + strAddr);
+
+        if (!setAddress.insert(address).second)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = AmountFromValue(sendTo[strAddr]);
+        if (nAmount <= 0) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        }
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount =
+                subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
+
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+    }
+
+    for(const auto& mint : mints) {
+        auto val = mint.get_int64();
+        if(val <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Mint value has to be positive.");
+        vMints.push_back(val);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    CWalletTx wtx;
+
+    try {
+        pwalletMain->JoinSplitLelantus(vecSend, vMints, wtx);
+    }
+    catch (const InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    }
+    catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue resetmintzerocoin(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
@@ -4778,6 +4891,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
     { "wallet",             "spendmanyzerocoin",        &spendmanyzerocoin,        false },
     { "wallet",             "spendmany",                &spendmany,                false },
+    { "wallet",             "joinsplit",                &joinsplit,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
     { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
     { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false },

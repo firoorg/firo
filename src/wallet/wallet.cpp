@@ -6,6 +6,7 @@
 #include "wallet.h"
 #include "walletexcept.h"
 #include "sigmaspendbuilder.h"
+#include "lelantusjoinsplitbuilder.h"
 #include "amount.h"
 #include "base58.h"
 #include "checkpoints.h"
@@ -7117,6 +7118,97 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
     return true;
 }
+
+void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
+    // create transaction
+    std::vector<CLelantusEntry> spendCoins; //spends
+    std::vector<CHDMint> mintCoins; // new mints
+    result = CreateLelantusJoinSplitTransaction(recipients, newMints, spendCoins, mintCoins);
+
+    CommitLelantusTransaction(result, spendCoins, mintCoins);
+}
+
+CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<CAmount>& newMints,
+        std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CHDMint>& mintCoins,
+        const CCoinControl *coinControl)
+{
+    // sanity check
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        throw std::runtime_error(_("Wallet locked"));
+    }
+
+    // create transaction
+    LelantusJoinSplitBuilder builder(*this, *zwalletMain, coinControl);
+
+    CWalletTx tx = builder.Build(recipients, newMints);
+    spendCoins = builder.spendCoins;
+    mintCoins = builder.mintCoins;
+
+    return tx;
+}
+
+bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
+    EnsureMintWalletAvailable();
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
+    } catch (...) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    // mark selected coins as used
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    CWalletDB db(strWalletFile);
+
+    for (auto& coin : spendCoins) {
+        // get coin id & height
+        int height, id;
+
+        std::tie(height, id) = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
+
+//TODO(levon) implement here
+
+
+        // raise event
+        NotifyZerocoinChanged(
+                this,
+                coin.value.GetHex(),
+                "Used (" + std::to_string(coin.amount) + " mint)",
+                CT_UPDATED);
+    }
+
+    for (auto& coin : mintCoins) {
+        coin.SetTxHash(wtxNew.GetHash());
+        zwalletMain->GetTracker().AddLelantus(coin, true);
+
+        // raise event
+        NotifyZerocoinChanged(this,
+                              coin.GetPubcoinValue().GetHex(),
+                              "New (" + std::to_string(coin.GetAmount()) + " mint)",
+                              CT_NEW);
+    }
+
+    // Update nCountNextUse in HDMint wallet database
+    zwalletMain->UpdateCountDB();
+
+    return true;
+}
+
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
 {

@@ -994,6 +994,13 @@ public:
         bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
+    CWalletTx CreateLelantusJoinSplitTransaction(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<CAmount>& newMints,
+        std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CHDMint>& mintCoins,
+        const CCoinControl *coinControl = NULL);
+
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleSigmaSpendTransaction(
@@ -1011,6 +1018,7 @@ public:
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
+    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
@@ -1040,6 +1048,8 @@ public:
 
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
+
+    void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
 
