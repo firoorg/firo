@@ -195,7 +195,8 @@ enum opcodetype
 
     // lelantus params
     OP_LELANTUSMINT = 0xc5,
-    OP_LELANTUSJOINSPLIT = 0xc6,
+    OP_LELANTUSJMINT = 0xc6,
+    OP_LELANTUSJOINSPLIT = 0xc7,
 
     // input for reminting zerocoin to sigma (v3)
     OP_ZEROCOINTOSIGMAREMINT = 0xc8
@@ -572,7 +573,7 @@ public:
         opcodeRet = (opcodetype)opcode;
 
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
-            opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT) {
+            opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -666,6 +667,7 @@ public:
 
     // Checks if the script is lelantus mint/joinsplit or not.
     bool IsLelantusMint() const;
+    bool IsLelantusJMint() const;
     bool IsLelantusJoinSplit() const;
 
     bool IsZerocoinRemint() const;

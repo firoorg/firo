@@ -151,6 +151,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_ZEROCOINTOSIGMAREMINT  : return "OP_ZEROCOINTOSIGMAREMINT";
     // lelantus
     case OP_LELANTUSMINT       : return "OP_LELANTUSMINT";
+    case OP_LELANTUSJMINT      : return "OP_LELANTUSJMINT";
     case OP_LELANTUSJOINSPLIT  : return "OP_LELANTUSJOINSPLIT";
 
     // Note:
@@ -314,6 +315,11 @@ bool CScript::IsZerocoinRemint() const {
 bool CScript::IsLelantusMint() const {
     return (this->size() > 0 &&
             (*this)[0] == OP_LELANTUSMINT);
+}
+
+bool CScript::IsLelantusJMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_LELANTUSJMINT);
 }
 
 bool CScript::IsLelantusJoinSplit() const {
