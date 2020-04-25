@@ -275,8 +275,6 @@ void Shutdown()
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
     flatdb2.Dump(znpayments);
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    flatdb4.Dump(netfulfilledman);
     
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
@@ -289,7 +287,7 @@ void Shutdown()
         flatdb1.Dump(mmetaman);
 /*        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
         flatdb3.Dump(governance); */
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("evonetfulfilled.dat", "magicFulfilledCache");
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
         flatdb4.Dump(netfulfilledman);
         /*if(fEnableInstantSend)
         {
@@ -2225,10 +2223,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         } else {
             uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
         }
-
-        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-        flatdb4.Load(netfulfilledman);
     }
 
     if (!fIgnoreCacheFiles) {
@@ -2253,7 +2247,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         governance.InitOnLoad();
         */
 
-        strDBName = "evonetfulfilled.dat";
+        strDBName = "netfulfilled.dat";
         uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
         CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
         if(!flatdb4.Load(netfulfilledman)) {
