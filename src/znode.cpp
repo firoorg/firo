@@ -58,7 +58,7 @@ CZnode::CZnode() :
         nActiveState(ZNODE_ENABLED),
         nCacheCollateralBlock(0),
         nBlockLastPaid(0),
-        nProtocolVersion(PROTOCOL_VERSION),
+        nProtocolVersion(LEGACY_ZNODES_PROTOCOL_VERSION),
         nPoSeBanScore(0),
         nPoSeBanHeight(0),
         fAllowMixingTx(true),
@@ -156,7 +156,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
         } else {
             // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
             // but also do not ban the node we get this message from
-            LogPrintf("CZnode::UpdateFromNewBroadcast -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", nProtocolVersion, PROTOCOL_VERSION);
+            LogPrintf("CZnode::UpdateFromNewBroadcast -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", nProtocolVersion, LEGACY_ZNODES_PROTOCOL_VERSION);
             return false;
         }
     }

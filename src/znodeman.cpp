@@ -213,7 +213,7 @@ void CZnodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     }
     mWeAskedForZnodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, vin));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::DSEG, vin));
 }
 
 void CZnodeMan::Check()
@@ -489,7 +489,7 @@ void CZnodeMan::DsegUpdate(CNode* pnode)
         }
     }
     
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, CTxIn()));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::DSEG, CTxIn()));
     int64_t askAgain = GetTime() + DSEG_UPDATE_SECONDS;
     mWeAskedForZnodeList[pnode->addr] = askAgain;
 
@@ -1053,7 +1053,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
         }
 
         if(vin == CTxIn()) {
-            g_connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount));
+            g_connman->PushMessage(pfrom, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount));
             LogPrintf("DSEG -- Sent %d Znode invs to peer %d\n", nInvCount, pfrom->id);
             return;
         }
@@ -1236,7 +1236,7 @@ bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode
     CZnodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
     mWeAskedForVerification[addr] = mnv;
     LogPrintf("CZnodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
 */
     return true;
 }
@@ -1277,7 +1277,7 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
         return;
     }
 
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
 }
 
@@ -1614,7 +1614,7 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
             } else {
                 // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
                 // but also do not ban the node we get this message from
-                LogPrintf("CZnodeMan::CheckMnbAndUpdateZnodeList -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", mnb.nProtocolVersion, PROTOCOL_VERSION);
+                LogPrintf("CZnodeMan::CheckMnbAndUpdateZnodeList -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", mnb.nProtocolVersion, LEGACY_ZNODES_PROTOCOL_VERSION);
                 return false;
             }
         }
