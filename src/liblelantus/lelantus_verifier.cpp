@@ -6,15 +6,33 @@ LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
 }
 
 bool LelantusVerifier::verify(
-        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
-        const std::vector<std::vector<Scalar>>& Sin,
+        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<Scalar>& serialNumbers,
+        const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         const Scalar& Vout,
         const Scalar f,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
+    std::vector<std::vector<PublicCoin>> vAnonymity_sets;
+    std::vector<std::vector<Scalar>> vSin;
+    vAnonymity_sets.reserve(anonymity_sets.size());
+    vSin.resize(anonymity_sets.size());
+
+    int i = 0;
+    auto itr = vSin.begin();
+    for(const auto& set : anonymity_sets) {
+        vAnonymity_sets.emplace_back(set.second);
+
+        while (groupIds[i] == set.first) {
+            itr->push_back(serialNumbers[i]);
+            i++;
+        }
+        itr++;
+    }
+
     Scalar x, zV, zR;
-    if(!(verify_sigma(anonymity_sets, Sin, proof.sigma_proofs, x, zV, zR) &&
+    if(!(verify_sigma(vAnonymity_sets, vSin, proof.sigma_proofs, x, zV, zR) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;

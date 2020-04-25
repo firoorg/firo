@@ -127,22 +127,6 @@ std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in)
     return joinsplit;
 }
 
-// This function will not report an error only if the transaction is lelantus joinsplit.
-CAmount GetSpendAmount(const CTxIn& in) {
-    if (in.IsLelantusJoinSplit()) {
-        //TODO(levon) implement here
-    }
-    return 0;
-}
-
-CAmount GetSpendAmount(const CTransaction& tx) {
-    CAmount sum(0);
-    for (const auto& vin : tx.vin) {
-        sum += GetSpendAmount(vin);
-    }
-    return sum;
-}
-
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
     auto& consensus = ::Params().GetConsensus();
 
@@ -150,7 +134,6 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
     CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
-        auto txSpendsValue =  GetSpendAmount(*tx);
         size_t txSpendNumber = GetSpendInputs(*tx);
 
         if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) {
@@ -158,24 +141,129 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
                 "bad-txns-lelantus-spend-invalid");
         }
 
-        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
-            return state.DoS(100, false, REJECT_INVALID,
-                "bad-txns-lelantus-spend-invalid");
-        }
-
         blockSpendsAmount += txSpendNumber;
-        blockSpendsValue += txSpendsValue;
     }
 
     if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-lelantus-spend-invalid");
     }
+    return true;
+}
 
-    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
-        return state.DoS(100, false, REJECT_INVALID,
-            "bad-txns-lelantus-spend-invalid");
+bool CheckLelantusJoinSplitTransaction(
+        const CTransaction &tx,
+        CValidationState &state,
+        uint256 hashTx,
+        bool isVerifyDB,
+        int nHeight,
+        int nRealHeight,
+        bool isCheckWallet,
+        bool fStatefulSigmaCheck,
+        CLelantusTxInfo* lelantusTxInfo) {
+    std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
+
+    Consensus::Params const & params = ::Params().GetConsensus();
+
+    if(tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsLelantusJoinSplit()) {
+        // mixing lelantus spend input with non-lelantus inputs is prohibited
+        return state.DoS(100, false,
+                         REJECT_MALFORMED,
+                         "CheckLelantusJoinSplitTransaction: can't mix lelantus spend input with other tx types or have more than one spend");
     }
+
+    const CTxIn &txin = tx.vin[0];
+    std::unique_ptr<lelantus::JoinSplit> joinsplit;
+
+    try {
+        joinsplit = ParseLelantusJoinSplit(txin);
+    }
+    catch (CBadTxIn&) {
+        return state.DoS(100,
+            false,
+            REJECT_MALFORMED,
+            "CheckLelantusJoinSplitTransaction: invalid joinsplit transaction");
+    }
+
+    if (joinsplit->getVersion() != LELANTUS_TX_VERSION_4) {
+        return state.DoS(100,
+                         false,
+                         NSEQUENCE_INCORRECT,
+                         "CTransaction::CheckLelantusJoinSplitTransaction() : Error: incorrect joinsplit transaction verion");
+    }
+
+    uint256 txHashForMetadata;
+
+    // Obtain the hash of the transaction sans the zerocoin part
+    CMutableTransaction txTemp = tx;
+    txTemp.vin[0].scriptSig.clear();
+
+    txHashForMetadata = txTemp.GetHash();
+
+    LogPrintf("CheckLelantusJoinSplitTransaction: tx version=%d, tx metadata hash=%s\n",
+             joinsplit->getVersion(), txHashForMetadata.ToString());
+
+    if (!fStatefulSigmaCheck) {
+        return true;
+    }
+
+    bool passVerify = false;
+    std::unordered_map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
+    std::vector<PublicCoin> Cout;
+    Scalar Vout;
+    Scalar fee;
+//TODO(levon) implement here
+
+    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, fee, txHashForMetadata);
+
+    if (passVerify) {
+        const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+        // do not check for duplicates in case we've seen exact copy of this tx in this block before
+        if (!(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
+            for(const auto& serial : serials) {
+                if (!CheckLelantusSpendSerial(
+                        state, lelantusTxInfo, serial, nHeight, false)) {
+                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serial);
+                    return false;
+
+                }
+            }
+        }
+
+        // check duplicated serials in same transaction.
+        for(const auto& serial : serials) {
+            if (!txSerials.insert(serial).second) {
+                return state.DoS(100,
+                                 error("CheckLelantusJoinSplitTransaction: two or more spends with same serial in the same transaction"));
+            }
+        }
+
+            if(!isVerifyDB && !isCheckWallet) {
+                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+                    // add spend information to the index
+                    const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
+                    if(serials.size() != ids.size()) {
+                        return state.DoS(100,
+                                         error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));
+                    }
+
+                    for(size_t i = 0; i < serials.size(); i++) {
+                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
+                    }
+                }
+            }
+    }
+    else {
+        LogPrintf("CheckLelantusJoinSplitTransaction: verification failed at block %d\n", nHeight);
+        return false;
+    }
+
+    if(!isVerifyDB && !isCheckWallet) {
+        if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+            lelantusTxInfo->zcTransactions.insert(hashTx);
+        }
+    }
+
     return true;
 }
 
@@ -288,13 +376,13 @@ bool CheckLelantusTransaction(
                 "bad-txns-spend-invalid");
         }
 
-        if (GetSpendAmount(tx) > consensus.nMaxValueLelantusSpendPerTransaction) {
-            return state.DoS(100, false,
-                REJECT_INVALID,
-                "bad-txns-spend-invalid");
+        if (!isVerifyDB) {
+            if (!CheckLelantusJoinSplitTransaction(
+                tx, state, hashTx, isVerifyDB, nHeight, realHeight,
+                isCheckWallet, fStatefulSigmaCheck, lelantusTxInfo)) {
+                    return false;
+            }
         }
-//TODO(levon) implement joinsplit checks
-//
     }
 
     return true;
@@ -309,7 +397,25 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
             // Run over all the inputs, check if their CoinGroup block hash is equal to
             // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
-                if (txin.IsLelantusJoinSplit()) { //TODO(levon) implement this
+                if (txin.IsLelantusJoinSplit()) {
+                    std::unique_ptr<lelantus::JoinSplit> joinsplit;
+
+                    try {
+                        joinsplit = ParseLelantusJoinSplit(txin);
+                    }
+                    catch (const std::ios_base::failure &) {
+                        txn_to_remove.push_back(tx);
+                        break;
+                    }
+
+                    const std::vector<std::pair<uint32_t, uint256>>& coinGroupIdAndBlockHash = joinsplit->getIdAndBlockHashes();
+                    for(const auto& idAndHash : coinGroupIdAndBlockHash) {
+                        if (idAndHash.second == blockIndex->GetBlockHash()) {
+                        // Do not remove transaction immediately, that will invalidate iterator mi.
+                        txn_to_remove.push_back(tx);
+                        break;
+                        }
+                    }
                 }
             }
         }

@@ -3,6 +3,7 @@
 
 #include "coin.h"
 #include "lelantus_proof.h"
+#include "spend_metadata.h"
 
 namespace lelantus {
 
@@ -16,10 +17,22 @@ public:
 
     JoinSplit(const Params* p,
               const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
-              const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+              const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
-              const Scalar& fee);
+              const Scalar& fee,
+              const std::vector<uint256>& groupBlockHashs,
+              const uint256& txHash);
+
+    bool Verify(const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<PublicCoin>& Cout,
+                const Scalar& Vout,
+                const Scalar& fee,
+                const uint256& txHash) const;
+
+    void updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
+
+    uint256 signatureHash(const SpendMetaData& m, size_t coutSize) const;
 
     void setVersion(unsigned int nVersion) {
         version = nVersion;
@@ -28,6 +41,8 @@ public:
     const std::vector<Scalar>& getCoinSerialNumbers();
 
     const std::vector<uint32_t>& getCoinGroupIds();
+
+    const std::vector<std::pair<uint32_t, uint256>>& getIdAndBlockHashes();
 
     int getVersion() const {
         return version;
@@ -43,6 +58,9 @@ public:
         READWRITE(lelantusProof);
         READWRITE(serialNumbers);
         READWRITE(groupIds);
+        READWRITE(ecdsaSignatures);
+        READWRITE(ecdsaPubkeys);
+        READWRITE(coinGroupIdAndBlockHash);
         READWRITE(version);
     }
 
@@ -52,6 +70,9 @@ private:
     LelantusProof lelantusProof;
     std::vector<Scalar> serialNumbers;
     std::vector<uint32_t> groupIds;
+    std::vector<std::vector<unsigned char>> ecdsaSignatures;
+    std::vector<std::vector<unsigned char>> ecdsaPubkeys;
+    std::vector<std::pair<uint32_t, uint256>> coinGroupIdAndBlockHash;
 
 };
 

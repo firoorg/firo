@@ -35,6 +35,8 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TX_ZEROCOINMINT: return "zerocoinmint";
     case TX_ZEROCOINMINTV3: return "zerocoinmintv3";
+    case TX_LELANTUSMINT: return "lelantusmint";
+    case TX_LELANTUSJMINT: return "lelantusmint";
 
     }
     return NULL;
@@ -103,7 +105,15 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     if (scriptPubKey.IsLelantusMint())
     {
         typeRet = TX_LELANTUSMINT;
-        if (scriptPubKey.size() < 133) return false;
+        if (scriptPubKey.size() != 133) return false;
+        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
+        return true;
+    }
+
+    if (scriptPubKey.IsLelantusJMint())
+    {
+        typeRet = TX_LELANTUSJMINT;
+        if (scriptPubKey.size() != 133) return false; //TODO(levon) put correct size of lelantus joinsplit mint
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }

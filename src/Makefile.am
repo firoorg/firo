@@ -239,6 +239,7 @@ BITCOIN_CORE_H = \
   wallet/rpcwallet.h \
   wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
+  wallet/lelantusjoinsplitbuilder.h \
   wallet/wallet.h \
   wallet/walletexcept.h \
   wallet/walletdb.h \
@@ -354,6 +355,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpcwallet.cpp \
   wallet/sigmaspendbuilder.cpp \
   wallet/txbuilder.cpp \
+  wallet/lelantusjoinsplitbuilder.cpp \
   wallet/walletexcept.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
@@ -560,6 +562,8 @@ liblelantus_a_SOURCES = \
   liblelantus/coin.cpp \
   liblelantus/joinsplit.h \
   liblelantus/joinsplit.cpp \
+  liblelantus/spend_metadata.h \
+  liblelantus/spend_metadata.cpp \
   liblelantus/params.h \
   liblelantus/params.cpp
 
