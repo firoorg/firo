@@ -2318,7 +2318,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 {
                     LOCK(cs_main);
                     // shut legacy znode down if past 100 blocks of DIP3 enforcement
-                    if (chainActive.Height() >= Params().GetConsensus().DIP0003EnforcementHeight + 100)
+                    if (chainActive.Height()-100 >= Params().GetConsensus().DIP0003EnforcementHeight)
                         break;
                 }
                     
