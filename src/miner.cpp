@@ -278,8 +278,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
         
     if (nHeight >= params.DIP0003EnforcementHeight) {
-        std::vector<CTxOut> mnPayments, sbPayments;
-        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, mnPayments, sbPayments);
+        std::vector<CTxOut> sbPayments;
+        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
     }
     else {
         // Update coinbase transaction with additional info about znode and governance payments,
