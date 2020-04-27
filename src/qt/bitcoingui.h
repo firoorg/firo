@@ -122,6 +122,7 @@ private:
     QAction *sigmaAction;
     QAction *zc2SigmaAction;
     QAction *znodeAction;
+    QAction *masternodeAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -157,6 +158,8 @@ private:
 
     /** Updates Zc2SigmaPage visibility */
     void checkZc2SigmaVisibility(int numBlocks);
+    /** Updates Znode visibility */
+    void checkZnodeVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -224,6 +227,8 @@ private Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to znode page */
     void gotoZnodePage();
+    /** Switch to masternode page */
+    void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

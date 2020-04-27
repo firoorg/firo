@@ -830,6 +830,8 @@ public:
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
     void ListProTxCoins(std::vector<COutPoint>& vOutpts);
 
+    bool HasMasternode();
+
     // znode
     /// Get 1000 XZC output and keys which can be used for the Znode
     bool GetZnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
