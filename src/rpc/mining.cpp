@@ -454,6 +454,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "  },\n"
             "  \"znode_payments_started\" :  true|false, (boolean) true, if znode payments started\n"
             "  \"znode_payments_enforced\" : true|false, (boolean) true, if znode payments are enforced\n"
+            "  \"coinbase_payload\" : \"xxxxxxxx\"    (string) coinbase transaction payload data encoded in hexadecimal\n"
             "}\n"
 
             "\nExamples:\n"
@@ -807,6 +808,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         }
         result.push_back(Pair("znode", znodeObj));
         result.push_back(Pair("znode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nZnodePaymentsStartBlock));
+    }
+
+    if (pindexPrev->nHeight+1 >= Params().GetConsensus().DIP0003Height) {
+        result.push_back(Pair("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload)));
     }
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty() && fSupportsSegwit) {
