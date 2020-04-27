@@ -85,7 +85,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()){
+        } else if (txin.IsSigmaSpend()) {
             std::unique_ptr<sigma::CoinSpend> spend;
             uint32_t pubcoinId;
             try {
@@ -100,7 +100,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
             in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
             in.push_back(Pair("valueSat", spend->getIntDenomination()));
-        } else if (txin.IsZerocoinRemint()){
+        } else if (txin.IsLelantusJoinSplit()) {
+            in.push_back("joinsplit");
+
+            fillStdFields(in, txin);
+        } else if (txin.IsZerocoinRemint()) {
             std::shared_ptr<sigma::CoinRemintToV3>  remint;
             try {
                 CDataStream serData(std::vector<unsigned char>(txin.scriptSig.begin()+1, txin.scriptSig.end()), SER_NETWORK, PROTOCOL_VERSION);
@@ -149,7 +153,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        if(!tx.IsLelantusMint())
+            out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);

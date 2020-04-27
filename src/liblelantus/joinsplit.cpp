@@ -11,11 +11,12 @@ JoinSplit::JoinSplit(const Params *p,
              const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
              const Scalar& Vout,
              const std::vector<PrivateCoin>& Cout,
-             const Scalar& fee,
+             const uint64_t& fee,
              const std::vector<uint256>& groupBlockHashes,
              const uint256& txHash)
         :
-        params(p) {
+        params (p),
+        fee (fee){
 
     serialNumbers.reserve(Cin.size());
     for(size_t i = 0; i < Cin.size(); i++) {
@@ -98,7 +99,6 @@ bool JoinSplit::Verify(
         const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<PublicCoin>& Cout,
         const Scalar& Vout,
-        const Scalar& fee,
         const uint256& txHash) const {
     std::vector<uint256> groupBlockHashes;
     groupBlockHashes.reserve(coinGroupIdAndBlockHash.size());
@@ -178,6 +178,10 @@ const std::vector<std::pair<uint32_t, uint256>>& JoinSplit::getIdAndBlockHashes(
 
 const std::vector<Scalar>& JoinSplit::getCoinSerialNumbers() {
     return this->serialNumbers;
+}
+
+const uint64_t& JoinSplit::getFee() {
+    return this->fee;
 }
 
 bool JoinSplit::getIndex(const PublicCoin& coin, const std::vector<PublicCoin>& anonymity_set, uint64_t& index) {

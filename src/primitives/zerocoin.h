@@ -366,7 +366,7 @@ public:
     uint256 hashTx;
     GroupElement pubCoin;
     int id;
-//    int64_t amount;
+    int64_t amount;
 
     CLelantusSpendEntry()
     {
@@ -377,8 +377,8 @@ public:
     {
         coinSerial = Scalar(uint64_t(0));
         pubCoin = GroupElement();
-//        amount = 0;
         id = 0;
+        amount = 0;
     }
     ADD_SERIALIZE_METHODS;
 
@@ -387,8 +387,8 @@ public:
         READWRITE(coinSerial);
         READWRITE(hashTx);
         READWRITE(pubCoin);
-//        READWRITE(amount);
         READWRITE(id);
+        READWRITE(amount);
     }
 };
 

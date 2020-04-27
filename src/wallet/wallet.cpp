@@ -715,6 +715,15 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
                 return false;
             }
             return meta.isUsed;
+        } else if (zwalletMain && (script.IsLelantusMint() || script.IsLelantusJMint())) {
+            secp_primitives::GroupElement pubcoin;
+            lelantus::ParseLelantusMintScript(script, pubcoin);
+            uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+            CLelantusMintMeta meta;
+            if(!zwalletMain->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
+                return false;
+            }
+            return meta.isUsed;
         }
     }
 
@@ -1216,7 +1225,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend())) {
+            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit()) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -1361,6 +1370,35 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                 spendEntry.coinSerial = serial;
                 walletdb.EraseCoinSpendSerialEntry(spendEntry);
             }
+        } else if (wtx.tx->IsLelantusJoinSplit()) {
+            // find out coin serial number
+            assert(wtx.tx->vin.size() == 1);
+
+            const CTxIn &txin = wtx.tx->vin[0];
+            std::unique_ptr<lelantus::JoinSplit> joinsplit;
+            try {
+                joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+            }
+            catch (CBadTxIn&) {
+                continue;
+            }
+
+            const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+
+            for (const auto& serial : serials) {
+                // mark corresponding mint as unspent
+                uint256 hashSerial = primitives::GetSerialHash(serial);
+                CLelantusMintMeta meta;
+                if(zwalletMain->GetTracker().GetMetaFromSerial(hashSerial, meta)){
+                    meta.isUsed = false;
+                    zwalletMain->GetTracker().UpdateState(meta);
+
+                    // erase lelantus spend entry
+                    CLelantusSpendEntry spendEntry;
+                    spendEntry.coinSerial = serial;
+                    walletdb.EraseLelantusSpendSerialEntry(spendEntry);
+                }
+            }
         }
     }
 
@@ -1463,6 +1501,19 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
         if (db.HasCoinSpendSerialEntry(spend.getCoinSerialNumber())) {
             return ISMINE_SPENDABLE;
         }
+    } else if (txin.IsLelantusJoinSplit()) {
+        CWalletDB db(strWalletFile);
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+        }
+        catch (CBadTxIn&) {
+            return ISMINE_NO;
+        }
+
+        if (db.HasLelantusSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0])) {
+            return ISMINE_SPENDABLE;
+        }
     } else if (txin.IsZerocoinRemint()) {
         CWalletDB db(strWalletFile);
 
@@ -1516,6 +1567,29 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
         }
     } else if (txin.IsZerocoinRemint()) {
         return 0;
+    } else if (txin.IsLelantusJoinSplit()) {
+        if (!(filter & ISMINE_SPENDABLE)) {
+            goto end;
+        }
+
+        CWalletDB db(strWalletFile);
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+        }
+        catch (CBadTxIn&) {
+            goto end;
+        }
+
+        CAmount amount = 0;
+
+        const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+        for (const auto& serial : serials) {
+            CLelantusSpendEntry lelantusSpend;
+            if(db.ReadLelantusSpendSerialEntry(serial, lelantusSpend))
+                amount += lelantusSpend.amount;
+        }
+        return amount;
     } else {
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end())
@@ -1535,7 +1609,7 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
 {
     LOCK(cs_wallet);
 
-    if (txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint()) {
+    if (txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
 
@@ -1558,6 +1632,21 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
+    if (txout.scriptPubKey.IsLelantusJMint()) {
+        CWalletDB db(strWalletFile);
+        secp_primitives::GroupElement pub;
+        try {
+            lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+        } catch (std::invalid_argument&) {
+            return ISMINE_NO;
+        }
+        CHDMint dMint;
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+        if (db.ReadHDMint(hashPubcoin, true, dMint)) {
+            return dMint.GetAmount();
+        }
+        return 0;
+    }
     return ((IsMine(txout) & filter) ? txout.nValue : 0);
 }
 
@@ -1899,8 +1988,12 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
     CAmount nDebit = GetDebit(filter);
     if (nDebit > 0) // debit>0 means we signed/sent this transaction
     {
-        CAmount nValueOut = tx->GetValueOut();
-        nFee = nDebit - nValueOut;
+        if (!tx->IsLelantusJoinSplit()) {
+            CAmount nValueOut = tx->GetValueOut();
+            nFee = nDebit - nValueOut;
+        }
+        else
+            nFee = lelantus::ParseLelantusJoinSplit(tx->vin[0])->getFee();
     }
 
     // Sent/received.
@@ -1923,7 +2016,7 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint())
+        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint())
         {
             address = CNoDestination();
         }
@@ -1934,7 +2027,13 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
             address = CNoDestination();
         }
 
-        COutputEntry output = {address, txout.nValue, (int)i};
+        CAmount nValue;
+        if(txout.scriptPubKey.IsLelantusJMint())
+            nValue = pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+        else
+            nValue = txout.nValue;
+
+        COutputEntry output = {address, nValue, (int)i};
 
         // If we are debited by the transaction, add the output as a "sent" entry
         if (nDebit > 0)
@@ -2212,7 +2311,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !fExcludeLocked)
+    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !tx->IsLelantusMint() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -2222,7 +2321,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         if (!pwallet->IsSpent(hashTx, i))
         {
             const CTxOut &txout = tx->vout[i];
-            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint();
+            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint();
             bool condition = isPrivate;
             if (fExcludeLocked)
                 condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));
@@ -2331,7 +2430,7 @@ bool CWalletTx::IsTrusted() const
     // Trusted if all inputs are from us and are in the mempool:
     BOOST_FOREACH(const CTxIn& txin, tx->vin)
     {
-        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint()) {
+        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint() || txin.IsLelantusJoinSplit()) {
             if (!(pwallet->IsMine(txin) & ISMINE_SPENDABLE)) {
                 return false;
             }
@@ -2694,11 +2793,97 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     return coins;
 }
 
+std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl *coinControl, bool includeUnsafe) const {
+    EnsureMintWalletAvailable();
+
+    LOCK2(cs_main, cs_wallet);
+    CWalletDB walletdb(strWalletFile);
+    std::list<CLelantusEntry> coins;
+    std::vector<CLelantusMintMeta> vecMints = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
+    list<CLelantusMintMeta> listMints(vecMints.begin(), vecMints.end());
+    for (const CLelantusMintMeta& mint : listMints) {
+        CLelantusEntry entry;
+        GetMint(mint.hashSerial, entry);
+        if(entry.amount != 0) // ignore 0 mints which where created to increase privacy
+            coins.push_back(entry);
+    }
+
+    std::set<COutPoint> lockedCoins = setLockedCoins;
+
+    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // above them, after they were minted.
+    // Also filter out used coins.
+    // Finally filter out coins that have not been selected from CoinControl should that be used
+    coins.remove_if([lockedCoins, coinControl, includeUnsafe](const CLelantusEntry& coin) {
+        lelantus::CLelantusState* state = lelantus::CLelantusState::GetState();
+        if (coin.IsUsed)
+            return true;
+
+        int coinHeight, coinId;
+        std::tie(coinHeight, coinId) =  state->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
+
+        // Check group size
+        uint256 hashOut;
+        std::vector<lelantus::PublicCoin> coinOuts;
+        state->GetCoinSetForSpend(
+            &chainActive,
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            coinId,
+            hashOut,
+            coinOuts
+        );
+
+        if (!includeUnsafe && coinOuts.size() < 2) {
+            return true;
+        }
+
+        if (coinHeight == -1) {
+            // Coin still in the mempool.
+            return true;
+        }
+
+        if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
+            // Remove the coin from the candidates list, since it does not have the
+            // required number of confirmations.
+            return true;
+        }
+
+        COutPoint outPoint;
+        lelantus::PublicCoin pubCoin(coin.value);
+        lelantus::GetOutPoint(outPoint, pubCoin);
+
+        if(lockedCoins.count(outPoint) > 0){
+            return true;
+        }
+
+        if(coinControl != NULL){
+            if(coinControl->HasSelected()){
+                if(!coinControl->IsSelected(outPoint)){
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    });
+
+    return coins;
+}
+
 template<typename Iterator>
 static CAmount CalculateCoinsBalance(Iterator begin, Iterator end) {
     CAmount balance(0);
     for (auto start = begin; start != end; start++) {
         balance += start->get_denomination_value();
+    }
+    return balance;
+}
+
+template<typename Iterator>
+static CAmount CalculateLelantusCoinsBalance(Iterator begin, Iterator end) {
+    CAmount balance(0);
+    for (auto start = begin; start != end; start++) {
+        balance += start->amount;
     }
     return balance;
 }
@@ -2834,6 +3019,108 @@ bool CWallet::GetCoinsToSpend(
     return true;
 }
 
+bool CWallet::GetCoinsToJoinSplit(
+        CAmount required,
+        std::vector<CLelantusEntry>& coinsToSpend_out,
+        CAmount& changeToMint,
+        const size_t coinsToSpendLimit,
+        const CAmount amountToSpendLimit,
+        const CCoinControl *coinControl) const
+{
+    // Sanity check to make sure this function is never called with a too large
+    // amount to spend, resulting to a possible crash due to out of memory condition.
+    if (!MoneyRange(required)) {
+        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
+    }
+
+    if (!MoneyRange(amountToSpendLimit)) {
+        throw std::invalid_argument(_("Amount limit is exceed max money"));
+    }
+
+    if (required > amountToSpendLimit) {
+        throw std::invalid_argument(
+                _("Required amount exceed value spend limit"));
+    }
+
+    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl);
+
+    CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
+
+    if (required > availableBalance) {
+        throw InsufficientFunds();
+    }
+
+    // sort by biggest amount. if it is same amount we will prefer the older block
+    auto comparer = [](const CLelantusEntry& a, const CLelantusEntry& b) -> bool {
+        return a.amount != b.amount ? a.amount > b.amount : a.nHeight < b.nHeight;
+    };
+    coins.sort(comparer);
+
+    CAmount spend_val(0);
+
+    std::list<CLelantusEntry> coinsToSpend;
+
+    // If coinControl, want to use all inputs
+    bool coinControlUsed = false;
+    if(coinControl != NULL) {
+        if(coinControl->HasSelected()) {
+            auto coinIt = coins.rbegin();
+            for (; coinIt != coins.rend(); coinIt++) {
+                spend_val += coinIt->amount;
+            }
+            coinControlUsed = true;
+
+            if (spend_val > amountToSpendLimit) {
+                throw std::invalid_argument(
+                        _("Selected amount exceed value spend limit"));
+            }
+
+            coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
+        }
+    }
+
+    if(!coinControlUsed) {
+
+        auto itr = coins.begin();
+        while (spend_val < required) {
+            if(itr == coins.end())
+                break;
+
+            CLelantusEntry choosen;
+            CAmount need = required - spend_val;
+
+            if(need >= itr->amount) {
+                choosen = *itr;
+                itr++;
+            } else {
+                for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
+                    auto nextItr = coinIt;
+                    nextItr++;
+
+                    if (coinIt->amount >= need && (nextItr == coins.rend() || nextItr->amount != coinIt->amount)) {
+                        choosen = *coinIt;
+                        break;
+                    }
+                }
+            }
+
+            spend_val += choosen.amount;
+            coinsToSpend.push_back(choosen);
+        }
+    }
+
+    // sort by group id ay ascending order. it is mandatory for creting proper joinsplit
+    auto idComparer = [](const CLelantusEntry& a, const CLelantusEntry& b) -> bool {
+        return a.id < b.id;
+    };
+    coinsToSpend.sort(idComparer);
+
+    changeToMint = spend_val - required;
+    coinsToSpend_out.insert(coinsToSpend_out.begin(), coinsToSpend.begin(), coinsToSpend.end());
+
+    return true;
+}
+
 CAmount CWallet::GetUnconfirmedBalance() const {
     CAmount nTotal = 0;
     {
@@ -2960,22 +3247,16 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 bool found = false;
-                auto const &vout = pcoin->tx->vout[i];
-
                 if(nCoinType == ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
-                    found = !(vout.scriptPubKey.IsZerocoinMint() ||
-                        vout.scriptPubKey.IsSigmaMint() ||
-                        vout.scriptPubKey.IsZerocoinRemint() ||
-                        vout.scriptPubKey.IsLelantusMint());
-
+                    found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
+                            || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint())
+                            || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint()
+                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
+                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint();
                 } else if(nCoinType == ONLY_MINTS){
                     // Do not consider anything other than mints
-                    found = vout.scriptPubKey.IsZerocoinMint() ||
-                        vout.scriptPubKey.IsSigmaMint() ||
-                        vout.scriptPubKey.IsZerocoinRemint() ||
-                        vout.scriptPubKey.IsLelantusMint();
-
+                    found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
                     found = !(fZNode && vout.nValue == ZNODE_COIN_REQUIRED * COIN);
 
@@ -3205,7 +3486,7 @@ void CWallet::ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnly
         LogPrintf("pcoin->tx->vout.size()=%s\n", pcoin->tx->vout.size());
 
         for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-            if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()) {
+            if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) {
                 CTxOut txout = pcoin->tx->vout[i];
                 secp_primitives::GroupElement pubCoin;
                 lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
@@ -7193,8 +7474,36 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
 
         std::tie(height, id) = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
 
-//TODO(levon) implement here
+        // add CLelantusSpendEntry
+        CLelantusSpendEntry spend;
 
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = wtxNew.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.amount = coin.amount;
+
+        if (!db.WriteLelantusSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+        }
+        //TODO(levon) handel this
+        //Set spent mint as used in memory
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        zwalletMain->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
+        CLelantusMintMeta metaCheck;
+        zwalletMain->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+            LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+        }
+
+        //Set spent mint as used in DB
+        zwalletMain->GetTracker().UpdateState(metaCheck);
+
+        // update CLelantusEntry
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
 
         // raise event
         NotifyZerocoinChanged(
@@ -7684,7 +7993,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
         CWalletTx *pcoin = &walletEntry.second;
 
         if (pcoin->tx->vin.size() > 0 &&
-            !(pcoin->tx->IsZerocoinSpend() || pcoin->tx->IsSigmaSpend() || pcoin->tx->IsZerocoinRemint())) { /* Spends have no standard input */
+            !(pcoin->tx->IsZerocoinSpend() || pcoin->tx->IsSigmaSpend() || pcoin->tx->IsZerocoinRemint()) || pcoin->tx->IsLelantusJoinSplit()) { /* Spends have no standard input */
             bool any_mine = false;
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->tx->vin)

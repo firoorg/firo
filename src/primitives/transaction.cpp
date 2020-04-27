@@ -201,7 +201,7 @@ bool CTransaction::IsSigmaMint() const
 bool CTransaction::IsLelantusMint() const
 {
     for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsLelantusMint())
+        if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint())
             return true;
     }
     return false;

@@ -545,6 +545,9 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsLelantusMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
+    if(out.scriptPubKey.IsLelantusJMint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusMint, uint160(), height, txNumber, txHash, outNo, false), 0));
+
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
