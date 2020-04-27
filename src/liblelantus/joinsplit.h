@@ -20,14 +20,13 @@ public:
               const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
-              const Scalar& fee,
-              const std::vector<uint256>& groupBlockHashs,
+              const uint64_t& fee,
+              const std::vector<uint256>& groupBlockHashes,
               const uint256& txHash);
 
     bool Verify(const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<PublicCoin>& Cout,
                 const Scalar& Vout,
-                const Scalar& fee,
                 const uint256& txHash) const;
 
     void updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
@@ -39,6 +38,8 @@ public:
     }
 
     const std::vector<Scalar>& getCoinSerialNumbers();
+
+    const uint64_t& getFee();
 
     const std::vector<uint32_t>& getCoinGroupIds();
 
@@ -61,6 +62,7 @@ public:
         READWRITE(ecdsaSignatures);
         READWRITE(ecdsaPubkeys);
         READWRITE(coinGroupIdAndBlockHash);
+        READWRITE(fee);
         READWRITE(version);
     }
 
@@ -73,6 +75,7 @@ private:
     std::vector<std::vector<unsigned char>> ecdsaSignatures;
     std::vector<std::vector<unsigned char>> ecdsaPubkeys;
     std::vector<std::pair<uint32_t, uint256>> coinGroupIdAndBlockHash;
+    uint64_t fee;
 
 };
 

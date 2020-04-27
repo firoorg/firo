@@ -294,6 +294,10 @@ bool CWalletDB::EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantu
     return Erase(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial));
 }
 
+bool CWalletDB::ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend) {
+    return Read(std::make_pair(std::string("lelantus_spend"), serial), lelantusSpend);
+}
+
 bool
 CWalletDB::WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination,
                                     int pubcoinid) {

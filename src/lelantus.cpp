@@ -104,10 +104,32 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     schnorrProof.deserialize(serialized.data() + pubcoin.memoryRequired());
 }
 
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue)
+{
+    if (script.size() < 1) {
+        throw std::invalid_argument("Script is not a valid Lelantus jMint");
+    }
+
+    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    // 16 is the size of encrypted mint value
+    if (serialized.size() < (pubcoin.memoryRequired() + 16)) {
+        throw std::invalid_argument("Script is not a valid Lelantus jMint");
+    }
+
+    pubcoin.deserialize(serialized.data());
+    encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired(), serialized.end());
+}
+
+
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin)
 {
-    SchnorrProof<Scalar, GroupElement> schnorrProof;
-    ParseLelantusMintScript(script, pubcoin, schnorrProof);
+    if(script.IsLelantusMint()) {
+        SchnorrProof<Scalar, GroupElement> schnorrProof;
+        ParseLelantusMintScript(script, pubcoin, schnorrProof);
+    } else if (script.IsLelantusJMint()) {
+        std::vector<unsigned char> encryptedValue;
+        ParseLelantusJMintScript(script, pubcoin, encryptedValue);
+    }
 }
 
 std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in)
@@ -148,6 +170,66 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-lelantus-spend-invalid");
     }
+    return true;
+}
+
+bool CheckLelantusJMintTransaction(
+        const CTxOut &txout,
+        CValidationState &state,
+        uint256 hashTx,
+        bool fStatefulSigmaCheck,
+        std::vector<PublicCoin>& Cout,
+        CLelantusTxInfo* lelantusTxInfo) {
+
+    LogPrintf("CheckLelantusJMintTransaction txHash = %s\n", txout.GetHash().ToString());
+
+    secp_primitives::GroupElement pubCoinValue;
+    try {
+        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+    } catch (std::invalid_argument&) {
+        return state.DoS(100,
+            false,
+            PUBCOIN_NOT_VALIDATE,
+            "CTransaction::CheckTransaction() : Mint parsing failure.");
+    }
+
+    lelantus::PublicCoin pubCoin(pubCoinValue);
+
+    //checking whether commitment is valid
+    if(!pubCoin.validate())
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckLelantusMintTransaction : PubCoin validation failed");
+
+    bool hasCoin = lelantusState.HasCoin(pubCoin);
+
+    if (!hasCoin && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+        BOOST_FOREACH(const lelantus::PublicCoin& mint, lelantusTxInfo->mints) {
+            if (mint == pubCoin) {
+                hasCoin = true;
+                break;
+            }
+        }
+    }
+
+    if (hasCoin && fStatefulSigmaCheck) {
+       LogPrintf("CheckLelantusMintTransaction: double mint, tx=%s\n",
+                txout.GetHash().ToString());
+        return state.DoS(100,
+                false,
+                PUBCOIN_NOT_VALIDATE,
+                "CheckLelantusMintTransaction: double mint");
+    }
+
+    if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
+        // Update public coin list in the info
+        lelantusTxInfo->mints.push_back(pubCoin);
+        lelantusTxInfo->zcTransactions.insert(hashTx);
+    }
+
+    Cout.push_back(pubCoin);
+
     return true;
 }
 
@@ -210,11 +292,47 @@ bool CheckLelantusJoinSplitTransaction(
     bool passVerify = false;
     std::unordered_map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
     std::vector<PublicCoin> Cout;
-    Scalar Vout;
-    Scalar fee;
-//TODO(levon) implement here
+    uint64_t Vout;
 
-    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, fee, txHashForMetadata);
+    for (const CTxOut &txout : tx.vout) {
+        if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsLelantusJMint()) {
+            if (!CheckLelantusJMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, Cout, lelantusTxInfo))
+                return false;
+        } else if(txout.scriptPubKey.IsLelantusMint()) {
+            return false; //putting regular mints at JoinSplit transactions is not allowed
+        } else {
+            Vout += txout.nValue;
+        }
+    }
+
+    for(auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
+        CLelantusState::LelantusCoinGroupInfo coinGroup;
+        if(!lelantusState.GetCoinGroupInfo(idAndHash.first, coinGroup))
+            return state.DoS(100, false, NO_MINT_ZEROCOIN,
+                             "CheckLelantusJoinSplitTransaction: Error: no coins were minted with such parameters");
+
+        CBlockIndex *index = coinGroup.lastBlock;
+
+        // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
+        while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
+            index = index->pprev;
+
+        // Build a vector with all the public coins with given id before
+        // the block on which the spend occured.
+        // This list of public coins is required by function "Verify" of JoinSplit.
+        std::vector<lelantus::PublicCoin> anonymity_set;
+        while(true) {
+            BOOST_FOREACH(const lelantus::PublicCoin& pubCoinValue,
+                    index->lelantusMintedPubCoins[idAndHash.first]) {
+                anonymity_set.push_back(pubCoinValue);
+            }
+            if (index == coinGroup.firstBlock)
+                break;
+            index = index->pprev;
+        }
+    }
+
+    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, txHashForMetadata);
 
     if (passVerify) {
         const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
@@ -436,7 +554,7 @@ void DisconnectTipLelantus(CBlock& block, CBlockIndex *pindexDelete) {
 }
 
 std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin) {
-    if (!tx.IsSigmaSpend())
+    if (!tx.IsLelantusJoinSplit())
         return std::vector<Scalar>();
 
     try {
@@ -518,12 +636,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
     BOOST_FOREACH(CTransactionRef tx, block.vtx){
         uint32_t nIndex = 0;
         for (const CTxOut &txout: tx->vout) {
-            if (txout.scriptPubKey.IsLelantusMint()) {
-                // If you wonder why +1, go to file wallet.cpp and read the comments in function
-                // CWallet::CreateLelantusMintRecipient around "script << OP_LELANTUSMINT";
-                vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                                      txout.scriptPubKey.begin() + 35);
-                txPubCoinValue.deserialize(&coin_serialised[0]);
+            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
+                ParseLelantusMintScript(txout.scriptPubKey, txPubCoinValue);
                 if(pubCoinValue==txPubCoinValue){
                     outPoint = COutPoint(tx->GetHash(), nIndex);
                     return true;

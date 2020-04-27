@@ -45,6 +45,7 @@ bool IsAvailableToMint(const CAmount& amount);
 void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, std::vector<unsigned char>&  serializedSchnorrProof);
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof<Scalar, GroupElement>& schnorrProof);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof);
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
 std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
 
@@ -115,7 +116,7 @@ public:
     // Disconnect block from the chain rolling back mints and spends
     void RemoveBlock(CBlockIndex *index);
 
-    // Query coin group with given denomination and id
+    // Query coin group with given id
     bool GetCoinGroupInfo(int group_id, LelantusCoinGroupInfo &result);
 
     // Query if the coin serial was previously used
@@ -128,7 +129,7 @@ public:
     // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
     bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
 
-    // Given denomination and id returns latest accumulator value and corresponding block hash
+    // Given id returns latest anonymity set and corresponding block hash
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
     int GetCoinSetForSpend(

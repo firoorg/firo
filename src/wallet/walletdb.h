@@ -248,6 +248,7 @@ public:
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
     bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
+    bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
     bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);

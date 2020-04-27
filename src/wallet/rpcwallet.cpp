@@ -2814,12 +2814,12 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
         nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
 
         if(nIndexes.first != oldHashPubcoin){
-            walletdb.EraseMintPoolPair(oldHashPubcoin);
+            walletdb.EraseMintPoolPair(oldHashPubcoin); //TODO(levon) handel this
             reindexRequired = true;
         }
 
         if(!hasSerial || nIndexes.second != oldHashSerial){
-            walletdb.ErasePubcoin(oldHashSerial);
+            walletdb.ErasePubcoin(oldHashSerial);  //TODO(levon) handel this
             reindexRequired = true;
         }
     }
@@ -4337,6 +4337,91 @@ UniValue listsigmaspends(const JSONRPCRequest& request) {
     return ret;
 }
 
+UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw runtime_error(
+                "listlelantusjoinsplits\n"
+                "Return up to \"count\" saved lelantus joinsplit transactions\n"
+                "\nArguments:\n"
+                "1. count            (numeric) The number of transactions to return, <=0 means no limit\n"
+                "2. onlyunconfirmed  (bool, optional, default=false) If true return only unconfirmed transactions\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
+                "    \"confirmations\": n,             (numeric) The number of confirmations for the transaction\n"
+                "    \"abandoned\": xxx,               (bool) True if the transaction was already abandoned\n"
+                "    \"joinsplits\": \n"
+                "    [\n"
+                "      {\n"
+                "        \"spendid\": id,                (numeric) Spend group id\n"
+                "        \"serial\": \"s\",              (string) Serial number of the coin\n"
+                "      }\n"
+                "    ]\n"
+                "  }\n"
+                "]\n");
+
+    EnsureLelantusWalletIsAvailable();
+
+    int  count = request.params[0].get_int();
+    bool fOnlyUnconfirmed = request.params.size()>=2 && request.params[1].get_bool();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    UniValue ret(UniValue::VARR);
+    const CWallet::TxItems& txOrdered = pwalletMain->wtxOrdered;
+
+    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin();
+         it != txOrdered.rend();
+         ++it) {
+        CWalletTx *const pwtx = (*it).second.first;
+
+        if (!pwtx || !pwtx->tx->IsLelantusJoinSplit())
+            continue;
+
+        UniValue entry(UniValue::VOBJ);
+
+        int confirmations = pwtx->GetDepthInMainChain();
+        if (confirmations > 0 && fOnlyUnconfirmed)
+            continue;
+
+        entry.push_back(Pair("txid", pwtx->GetHash().GetHex()));
+        entry.push_back(Pair("confirmations", confirmations));
+        entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
+
+        UniValue joinsplits(UniValue::VARR);
+        BOOST_FOREACH(const CTxIn &txin, pwtx->tx->vin) {
+            std::unique_ptr<lelantus::JoinSplit> joinsplit;
+            try {
+            lelantus::ParseLelantusJoinSplit(txin);
+            } catch (std::invalid_argument&) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Unable to parse Lelantus JoinSplit.");
+            }
+
+            UniValue joinsplitEntry(UniValue::VOBJ);
+            if(joinsplit->getCoinSerialNumbers().size() != joinsplit->getCoinGroupIds().size()) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus JoinSplit is invalid.");
+            }
+
+            for(size_t i = 0; i < joinsplit->getCoinSerialNumbers().size(); i++) {
+                joinsplitEntry.push_back(Pair("spendid", int64_t(joinsplit->getCoinGroupIds()[i])));
+                joinsplitEntry.push_back(Pair("serial", joinsplit->getCoinSerialNumbers()[i].GetHex()));
+            }
+
+            joinsplits.push_back(joinsplitEntry);
+        }
+
+        entry.push_back(Pair("joinsplits", joinsplits));
+        ret.push_back(entry);
+
+        if (count > 0 && (int)ret.size() >= count)
+            break;
+    }
+
+    return ret;
+}
+
 UniValue listspendzerocoins(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
@@ -4910,6 +4995,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
+    { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
 
 };

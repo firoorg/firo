@@ -17,6 +17,15 @@ public:
 
     CWalletTx Build(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints);
 
+private:
+    void GenerateMints(const std::vector<CAmount>& newMints, const CAmount& changeToMint, std::vector<lelantus::PrivateCoin>& Cout, std::vector<CTxOut>& outputs);
+    void CreateJoinSplit(
+            const uint256& txHash,
+            const std::vector<lelantus::PrivateCoin>& Cout,
+            const uint64_t& Vout,
+            const uint64_t& fee,
+            CMutableTransaction& tx);
+
 public:
     std::vector<CLelantusEntry> spendCoins;
     std::vector<CHDMint>  mintCoins;
