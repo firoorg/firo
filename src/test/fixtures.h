@@ -53,7 +53,7 @@ public:
     LelantusTestingSetup();
 
 public:
-    bool GenerateBlock(std::vector<CMutableTransaction> const &txns = {});
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {});
     void GenerateBlocks(size_t blocks);
     std::vector<CHDMint> GenerateMints(
         std::vector<CAmount> const &amounts,

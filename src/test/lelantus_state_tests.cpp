@@ -6,12 +6,26 @@
 
 #include <boost/test/unit_test.hpp>
 
+namespace std {
+
+template<typename Char, typename Traits, typename Item1, typename Item2>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const pair<Item1, Item2>& p)
+{
+    return os << '(' << p.first << ", " << p.second << ')';
+}
+
+}
+
 namespace lelantus {
 
 class LelantusStateTests : public LelantusTestingSetup {
 public:
     LelantusStateTests() : LelantusTestingSetup(),
         lelantusState(CLelantusState::GetState()) {
+    }
+
+    ~LelantusStateTests() {
+        lelantusState->Reset();
     }
 
 public:
@@ -26,9 +40,14 @@ public:
 
     void PopulateLelantusTxInfo(
         CBlock &block,
-        std::vector<secp_primitives::GroupElement> const &mints) {
+        std::vector<secp_primitives::GroupElement> const &mints,
+        std::vector<std::pair<Scalar, int>> const &serials) {
         block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
         block.lelantusTxInfo->mints.insert(block.lelantusTxInfo->mints.end(), mints.begin(), mints.end());
+
+        for (auto const &s : serials) {
+            block.lelantusTxInfo->spentSerials.emplace(s);
+        }
     }
 
 public:
@@ -46,29 +65,22 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({1 * COIN, 2 * COIN, 1 * CENT}, txs);
 
-    GenerateBlock({txs[0]});
-
-    auto blockIdx = chainActive.Tip();
+    auto blockIdx = GenerateBlock({txs[0]});
     auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mints[0].GetPubcoinValue()});
+    PopulateLelantusTxInfo(block, {mints[0].GetPubcoinValue()}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
-    GenerateBlock({txs[1]});
-
-    blockIdx = chainActive.Tip();
+    blockIdx = GenerateBlock({txs[1]});
     block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mints[1].GetPubcoinValue()});
+    PopulateLelantusTxInfo(block, {mints[1].GetPubcoinValue()}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
-
-    auto r = lelantusState->GetMintedCoinHeightAndId(mints[0].GetPubcoinValue())
-    ;
 
     // verify heigh and id was assigned.
-    BOOST_CHECK(std::make_pair(chainActive.Height() - 1, 1) == lelantusState->GetMintedCoinHeightAndId(mints[0].GetPubcoinValue()));
-    BOOST_CHECK(std::make_pair(chainActive.Height(), 1) == lelantusState->GetMintedCoinHeightAndId(mints[1].GetPubcoinValue()));
-    BOOST_CHECK(std::make_pair(-1, -1) == lelantusState->GetMintedCoinHeightAndId(mints[2].GetPubcoinValue()));
+    BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height() - 1, 1), lelantusState->GetMintedCoinHeightAndId(mints[0].GetPubcoinValue()));
+    BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height(), 1), lelantusState->GetMintedCoinHeightAndId(mints[1].GetPubcoinValue()));
+    BOOST_CHECK_EQUAL(std::make_pair(-1, -1), lelantusState->GetMintedCoinHeightAndId(mints[2].GetPubcoinValue()));
 
     // test has coin
     BOOST_CHECK(lelantusState->HasCoin(mints[0].GetPubcoinValue()));
@@ -96,7 +108,7 @@ BOOST_AUTO_TEST_CASE(serial_adding)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mints[0].GetPubcoinValue()});
+    PopulateLelantusTxInfo(block, {mints[0].GetPubcoinValue()}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -126,7 +138,7 @@ BOOST_AUTO_TEST_CASE(mempool)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mint.GetPubcoinValue()});
+    PopulateLelantusTxInfo(block, {mint.GetPubcoinValue()}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -173,6 +185,82 @@ BOOST_AUTO_TEST_CASE(mempool)
     BOOST_CHECK(lelantusState->CanAddSpendToMempool(anotherSerial));
     lelantusState->AddSpendToMempool({anotherSerial}, txid);
     BOOST_CHECK(!lelantusState->CanAddSpendToMempool(anotherSerial));
+}
+
+BOOST_AUTO_TEST_CASE(add_remove_block)
+{
+    // No coins and serials
+    auto index1 = GenerateBlock({});
+    auto block1 = GetCBlock(index1);
+    PopulateLelantusTxInfo(block1, {}, {});
+
+    lelantusState->AddBlock(index1);
+
+    BOOST_CHECK_EQUAL(0, lelantusState->GetMints().size());
+    BOOST_CHECK_EQUAL(0, lelantusState->GetSpends().size());
+
+    // some mints
+    GroupElement mint1, mint2;
+    mint1.randomize();
+    mint2.randomize();
+
+    auto index2 = GenerateBlock({});
+    auto block2 = GetCBlock(index2);
+    PopulateLelantusTxInfo(block2, {mint1, mint2}, {});
+
+    lelantusState->AddMintsToStateAndBlockIndex(index2, &block2);
+    lelantusState->AddBlock(index2);
+
+    BOOST_CHECK_EQUAL(2, lelantusState->GetMints().size());
+    BOOST_CHECK_EQUAL(0, lelantusState->GetSpends().size());
+
+    // some serials
+    Scalar serial1, serial2;
+    serial1.randomize();
+    serial2.randomize();
+
+    auto index3 = GenerateBlock({});
+    auto block3 = GetCBlock(index3);
+    PopulateLelantusTxInfo(block3, {}, {{serial1, 1}, {serial2, 1}});
+    index3->lelantusSpentSerials = block3.lelantusTxInfo->spentSerials;
+
+    lelantusState->AddBlock(index3);
+
+    BOOST_CHECK_EQUAL(2, lelantusState->GetMints().size());
+    BOOST_CHECK_EQUAL(2, lelantusState->GetSpends().size());
+
+    // both mint and serial
+    GroupElement mint3;
+    mint3.randomize();
+
+    Scalar serial3;
+    serial3.randomize();
+
+    auto index4 = GenerateBlock({});
+    auto block4 = GetCBlock(index4);
+    PopulateLelantusTxInfo(block4, {mint3}, {{serial3, 2}});
+    lelantusState->AddMintsToStateAndBlockIndex(index4, &block4);
+    index4->lelantusSpentSerials = block4.lelantusTxInfo->spentSerials;
+
+    lelantusState->AddBlock(index4);
+
+    BOOST_CHECK_EQUAL(3, lelantusState->GetMints().size());
+    BOOST_CHECK_EQUAL(3, lelantusState->GetSpends().size());
+
+    // remove last block
+    lelantusState->RemoveBlock(index4);
+
+    BOOST_CHECK_EQUAL(2, lelantusState->GetMints().size());
+    BOOST_CHECK_EQUAL(2, lelantusState->GetSpends().size());
+
+    // verify mints and spends on blocks
+    BOOST_CHECK(lelantusState->HasCoin(mint1));
+    BOOST_CHECK(lelantusState->HasCoin(mint2));
+    BOOST_CHECK(!lelantusState->HasCoin(mint3));
+
+    BOOST_CHECK(lelantusState->IsUsedCoinSerial(serial1));
+    BOOST_CHECK(lelantusState->IsUsedCoinSerial(serial2));
+    BOOST_CHECK(!lelantusState->IsUsedCoinSerial(serial3));
 }
 
 // TODO:

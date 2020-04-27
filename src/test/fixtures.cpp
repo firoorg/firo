@@ -223,7 +223,7 @@ LelantusTestingSetup::LelantusTestingSetup() :
     script = GetScriptForDestination(key.GetID());
 }
 
-bool LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns) {
+CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns) {
     auto last = chainActive.Tip();
 
     CreateAndProcessBlock(txns, script);
@@ -233,7 +233,7 @@ bool LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const 
         pwalletMain->ScanForWalletTransactions(block, true);
     }
 
-    return block != last;
+    return block != last ? block : nullptr;
 }
 
 void LelantusTestingSetup::GenerateBlocks(size_t blocks) {
