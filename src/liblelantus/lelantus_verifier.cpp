@@ -19,14 +19,13 @@ bool LelantusVerifier::verify(
     vAnonymity_sets.reserve(anonymity_sets.size());
     vSin.resize(anonymity_sets.size());
 
-    int i = 0;
+    size_t i = 0;
     auto itr = vSin.begin();
     for(const auto& set : anonymity_sets) {
         vAnonymity_sets.emplace_back(set.second);
 
-        while (groupIds[i] == set.first) {
-            itr->push_back(serialNumbers[i]);
-            i++;
+        while (i < groupIds.size() && groupIds[i] == set.first) {
+            itr->push_back(serialNumbers[i++]);
         }
         itr++;
     }
