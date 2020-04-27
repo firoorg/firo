@@ -9,7 +9,7 @@ public:
 
     static void notify();
     static bool shouldShow();
-    static bool shown;
+    static bool nConsidered;
 };
 
 #endif //ZCOIN_NOTIFYZNODEWARNING_H

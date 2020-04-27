@@ -7731,6 +7731,7 @@ void CWallet::ListLockedCoins(std::vector<COutPoint>& vOutpts)
 }
 
 bool CWallet::HasMasternode(){
+
     auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
 
     AssertLockHeld(cs_wallet);

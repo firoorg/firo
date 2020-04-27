@@ -174,11 +174,6 @@
            <string>Owner Address</string>
           </property>
          </column>
-         <column>
-          <property name="text">
-           <string>Voting Address</string>
-          </property>
-         </column>
         </widget>
        </item>
       </layout>

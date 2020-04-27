@@ -15,7 +15,7 @@
 #include <QMessageBox>
 #include <QAbstractButton>
 
-bool NotifyZnodeWarning::shown = false;
+bool NotifyZnodeWarning::nConsidered = false;
 
 void NotifyZnodeWarning::notify()
 {
@@ -27,26 +27,26 @@ void NotifyZnodeWarning::notify()
     float daysToEnforcement = floor(daysDecimal);
     float hoursToEnforcement = floor((daysDecimal > 0 ? (daysDecimal - daysToEnforcement) : 0) * 24);
 
-    QString messageWarning = QString("WARNING: Legacy znodes detected. You should migrate to the new Znode layout before it becomes enforced (approximately %1 days and %2 hours). For details on how to migrate, go to zcoin.io/znodemigration")
+    QString messageWarning = QString("WARNING: Legacy znodes detected. You should migrate to the new Znode layout before it becomes enforced (approximately %1 days and %2 hours). For details on how to migrate, go to https://zcoin.io/znode-migration")
     .arg(QString::number((int)daysToEnforcement, 10))
     .arg(QString::number((int)hoursToEnforcement, 10));
     msg.setText(messageWarning);
     msg.setIcon(QMessageBox::Warning);
     msg.exec();
-    shown = true;
+    nConsidered = true;
 }
 
 bool NotifyZnodeWarning::shouldShow()
 {
 #ifdef ENABLE_WALLET
-    if(shown || // already shown warning
+    if(nConsidered || // already fully considered warning
        znodeConfig.getCount() == 0 || // no legacy znodes detected
        !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight)) // outside of legacy window 
         return false;
 
     // get Znode entries.
     std::vector<COutPoint> vOutpts;
-    pwalletMain->ListProTxCoins(vOutpts);
+    bool nGotProReg = false;
     uint256 mnTxHash;
     int outputIndex;
     BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
@@ -57,6 +57,10 @@ bool NotifyZnodeWarning::shouldShow()
             continue;
 
         // So we have a valid legacy Znode. get ProReg transactions, look for the same collateral.
+        if(!nGotProReg){
+            pwalletMain->ListProTxCoins(vOutpts);
+            nGotProReg = true;
+        }
         bool foundOutpoint = false;
         mnTxHash.SetHex(mne.getTxHash());
         outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
@@ -72,6 +76,9 @@ bool NotifyZnodeWarning::shouldShow()
         if(!foundOutpoint)
             return true;
     }
+
+    // if we get to here, the warning will never be shown, and so is fully considered (All znodes ported or expired)
+    nConsidered = true;
 #endif
     return false;
 }

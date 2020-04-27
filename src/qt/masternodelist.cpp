@@ -42,7 +42,6 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     int columnOperatorRewardWidth = 130;
     int columnCollateralWidth = 130;
     int columnOwnerWidth = 130;
-    int columnVotingWidth = 130;
 
     ui->tableWidgetMasternodesDIP3->setColumnWidth(0, columnAddressWidth);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(1, columnStatusWidth);
@@ -54,7 +53,6 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     ui->tableWidgetMasternodesDIP3->setColumnWidth(7, columnOperatorRewardWidth);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(8, columnCollateralWidth);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(9, columnOwnerWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(10, columnVotingWidth);
 
     // dummy column for proTxHash
     // TODO use a proper table model for the MN list
@@ -72,6 +70,8 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     connect(ui->tableWidgetMasternodesDIP3, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(extraInfoDIP3_clicked()));
     connect(copyProTxHashAction, SIGNAL(triggered()), this, SLOT(copyProTxHash_clicked()));
     connect(copyCollateralOutpointAction, SIGNAL(triggered()), this, SLOT(copyCollateralOutpoint_clicked()));
+    //always start with "my znodes only" checked
+    ui->checkBoxMyMasternodesOnly->setChecked(true);
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(updateDIP3ListScheduled()));
@@ -95,8 +95,6 @@ void MasternodeList::setClientModel(ClientModel* model)
 void MasternodeList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
-    if(walletModel->hasMasternode())
-        ui->checkBoxMyMasternodesOnly->setChecked(true);
 }
 
 void MasternodeList::showContextMenuDIP3(const QPoint& point)
