@@ -3247,16 +3247,24 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 bool found = false;
+                auto const &vout = pcoin->tx->vout[i];
+
                 if(nCoinType == ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
-                    found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint())
-                            || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint();
+                    found = !(vout.scriptPubKey.IsZerocoinMint()
+                        || vout.scriptPubKey.IsSigmaMint()
+                        || vout.scriptPubKey.IsZerocoinRemint()
+                        || vout.scriptPubKey.IsLelantusMint()
+                        || vout.scriptPubKey.IsLelantusJMint());
+
                 } else if(nCoinType == ONLY_MINTS){
                     // Do not consider anything other than mints
-                    found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
+                    found = vout.scriptPubKey.IsZerocoinMint()
+                        || vout.scriptPubKey.IsSigmaMint()
+                        || vout.scriptPubKey.IsZerocoinRemint()
+                        || vout.scriptPubKey.IsLelantusMint()
+                        || vout.scriptPubKey.IsLelantusJMint();
+
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
                     found = !(fZNode && vout.nValue == ZNODE_COIN_REQUIRED * COIN);
 
@@ -3271,14 +3279,21 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 }
                 if (!found) continue;
 
-                isminetype mine = IsMine(pcoin->tx->vout[i]);
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                    !IsLockedCoin((*it).first, i) && (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
-                    (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i))))
+                isminetype mine = IsMine(vout);
+                if (!(IsSpent(wtxid, i))
+                    && mine != ISMINE_NO
+                    && !IsLockedCoin((*it).first, i)
+                    && (vout.nValue > 0 || fIncludeZeroValue)
+                    && (!coinControl
+                        || !coinControl->HasSelected()
+                        || coinControl->fAllowOtherInputs
+                        || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
-                                                 ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
-                                                  (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
-                                                 (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));            }
+                            ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
+                            (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
+                            (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
+                }
+            }
         }
     }
 }
