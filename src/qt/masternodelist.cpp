@@ -42,22 +42,23 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     int columnOperatorRewardWidth = 130;
     int columnCollateralWidth = 130;
     int columnOwnerWidth = 130;
+    numColumn = 0;
 
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(0, columnAddressWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(1, columnStatusWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(2, columnPoSeScoreWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(3, columnRegisteredWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(4, columnLastPaidWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(5, columnNextPaymentWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(6, columnPayeeWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(7, columnOperatorRewardWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(8, columnCollateralWidth);
-    ui->tableWidgetMasternodesDIP3->setColumnWidth(9, columnOwnerWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnAddressWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnStatusWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnPoSeScoreWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnRegisteredWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnLastPaidWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnNextPaymentWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnPayeeWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnOperatorRewardWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnCollateralWidth);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(numColumn++, columnOwnerWidth);
 
     // dummy column for proTxHash
     // TODO use a proper table model for the MN list
-    ui->tableWidgetMasternodesDIP3->insertColumn(11);
-    ui->tableWidgetMasternodesDIP3->setColumnHidden(11, true);
+    ui->tableWidgetMasternodesDIP3->insertColumn(numColumn);
+    ui->tableWidgetMasternodesDIP3->setColumnHidden(numColumn, true);
 
     ui->tableWidgetMasternodesDIP3->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -195,7 +196,6 @@ void MasternodeList::updateDIP3List()
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
                 walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
-                walletModel->IsSpendable(dmn->pdmnState->keyIDVoting) ||
                 walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
                 walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
@@ -243,9 +243,6 @@ void MasternodeList::updateDIP3List()
         QString ownerStr = QString::fromStdString(CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString());
         QTableWidgetItem* ownerItem = new QTableWidgetItem(ownerStr);
 
-        QString votingStr = QString::fromStdString(CBitcoinAddress(dmn->pdmnState->keyIDVoting).ToString());
-        QTableWidgetItem* votingItem = new QTableWidgetItem(votingStr);
-
         QTableWidgetItem* proTxHashItem = new QTableWidgetItem(QString::fromStdString(dmn->proTxHash.ToString()));
 
         if (strCurrentFilterDIP3 != "") {
@@ -259,24 +256,23 @@ void MasternodeList::updateDIP3List()
                           operatorRewardItem->text() + " " +
                           collateralItem->text() + " " +
                           ownerItem->text() + " " +
-                          votingItem->text() + " " +
                           proTxHashItem->text();
             if (!strToFilter.contains(strCurrentFilterDIP3)) return;
         }
 
+        numColumn = 0;
         ui->tableWidgetMasternodesDIP3->insertRow(0);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 0, addressItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 1, statusItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 2, PoSeScoreItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 3, registeredItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 4, lastPaidItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 5, nextPaymentItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 6, payeeItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 7, operatorRewardItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 8, collateralItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 9, ownerItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 10, votingItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, 11, proTxHashItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, addressItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, statusItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, PoSeScoreItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, registeredItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, lastPaidItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, nextPaymentItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, payeeItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, operatorRewardItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, collateralItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, ownerItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn, proTxHashItem);
     });
 
     ui->countLabelDIP3->setText(QString::number(ui->tableWidgetMasternodesDIP3->rowCount()));
@@ -315,7 +311,7 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
 
         QModelIndex index = selected.at(0);
         int nSelectedRow = index.row();
-        strProTxHash = ui->tableWidgetMasternodesDIP3->item(nSelectedRow, 11)->text().toStdString();
+        strProTxHash = ui->tableWidgetMasternodesDIP3->item(nSelectedRow, numColumn)->text().toStdString();
     }
 
     uint256 proTxHash;

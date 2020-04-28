@@ -43,6 +43,7 @@ private:
     QMenu* contextMenuDIP3;
     int64_t nTimeFilterUpdatedDIP3;
     int64_t nTimeUpdatedDIP3;
+    int64_t numColumn;
     bool fFilterUpdatedDIP3;
 
     QTimer* timer;
