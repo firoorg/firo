@@ -65,17 +65,17 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({1 * COIN, 2 * COIN, 1 * CENT}, txs);
 
-    auto blockIdx = GenerateBlock({txs[0]});
-    auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mints[0].GetPubcoinValue()}, {});
+    auto blockIdx1 = GenerateBlock({txs[0]});
+    auto block1 = GetCBlock(blockIdx1);
+    PopulateLelantusTxInfo(block1, {mints[0].GetPubcoinValue()}, {});
 
-    lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
+    lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
 
-    blockIdx = GenerateBlock({txs[1]});
-    block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {mints[1].GetPubcoinValue()}, {});
+    auto blockIdx2 = GenerateBlock({txs[1]});
+    auto block2 = GetCBlock(blockIdx2);
+    PopulateLelantusTxInfo(block2, {mints[1].GetPubcoinValue()}, {});
 
-    lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
+    lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
     // verify heigh and id was assigned.
     BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height() - 1, 1), lelantusState->GetMintedCoinHeightAndId(mints[0].GetPubcoinValue()));
@@ -95,6 +95,18 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     BOOST_CHECK(!lelantusState->HasCoinHash(received, mints[2].GetPubCoinHash()));
 
     BOOST_CHECK_EQUAL(2, lelantusState->GetTotalCoins());
+
+    // check group info
+    CLelantusState::LelantusCoinGroupInfo group, fakeGroup;
+    BOOST_CHECK(lelantusState->GetCoinGroupInfo(1, group));
+    BOOST_CHECK(!lelantusState->GetCoinGroupInfo(0, fakeGroup));
+    BOOST_CHECK(!lelantusState->GetCoinGroupInfo(2, fakeGroup));
+
+    BOOST_CHECK(blockIdx1 == group.firstBlock);
+    BOOST_CHECK(blockIdx2 == group.lastBlock);
+    BOOST_CHECK_EQUAL(2, group.nCoins);
+
+    BOOST_CHECK_EQUAL(1, lelantusState->GetLatestCoinID());
 }
 
 BOOST_AUTO_TEST_CASE(serial_adding)
@@ -263,9 +275,137 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK(!lelantusState->IsUsedCoinSerial(serial3));
 }
 
-// TODO:
-// - test surge detection. should not work for now.
-// - test get coins to spend
+BOOST_AUTO_TEST_CASE(get_coin_group)
+{
+    GenerateBlocks(120);
+
+    std::vector<CAmount> amounts(12, COIN);
+    std::vector<CMutableTransaction> txs;
+
+    auto mints = GenerateMints(amounts, txs);
+    std::vector<PublicCoin> coins;
+    for (auto const &m : mints) {
+        coins.emplace_back(m.GetPubcoinValue());
+    }
+    std::vector<CBlockIndex*> indexes;
+    std::vector<CBlock> blocks;
+
+    for (size_t i = 0; i != mints.size(); i += 2) {
+        auto index = GenerateBlock({txs[i], txs[i + 1]});
+        auto block = GetCBlock(index);
+        PopulateLelantusTxInfo(
+            block,
+            {
+                mints[i].GetPubcoinValue(),
+                mints[i + 1].GetPubcoinValue()
+            }, {});
+
+        indexes.push_back(index);
+        blocks.push_back(block);
+    }
+
+    size_t maxSize = 6;
+    size_t startCoin = 2;
+    auto lelantusState = new CLelantusState(maxSize, startCoin);
+
+    auto addMintsToState = [&](CBlockIndex *index, CBlock const &block) {
+        lelantusState->AddMintsToStateAndBlockIndex(index, &block);
+    };
+
+    // 6 coins, 1(6), 2(0)
+    addMintsToState(indexes[0], blocks[0]);
+    addMintsToState(indexes[1], blocks[1]);
+    addMintsToState(indexes[2], blocks[2]);
+
+    auto id1 = lelantusState->GetLatestCoinID();
+    CLelantusState::LelantusCoinGroupInfo group1;
+    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id1, group1));
+
+    BOOST_CHECK_EQUAL(1, id1);
+    BOOST_CHECK_EQUAL(6, group1.nCoins);
+    BOOST_CHECK_EQUAL(indexes[0], group1.firstBlock);
+    BOOST_CHECK_EQUAL(indexes[2], group1.lastBlock);
+
+    uint256 blockHashOut1;
+    std::vector<PublicCoin> coinOut1;
+    BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[2]->nHeight,
+        id1,
+        blockHashOut1,
+        coinOut1));
+
+    BOOST_CHECK(std::is_permutation(
+        coins.begin(), coins.begin() + 6, coinOut1.begin()));
+
+    // 8 coins, 1(4), 2(4)
+    addMintsToState(indexes[3], blocks[3]);
+    auto id2 = lelantusState->GetLatestCoinID();
+    CLelantusState::LelantusCoinGroupInfo group2;
+
+    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id2, group2));
+    BOOST_CHECK_EQUAL(4, group2.nCoins);
+    BOOST_CHECK_EQUAL(indexes[2], group2.firstBlock);
+    BOOST_CHECK_EQUAL(indexes[3], group2.lastBlock);
+
+    uint256 blockHashOut2;
+    std::vector<PublicCoin> coinOut2;
+    BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[3]->nHeight,
+        id2,
+        blockHashOut2,
+        coinOut2));
+
+    BOOST_CHECK(std::is_permutation(
+        coins.begin() + 4, coins.begin() + 8, coinOut2.begin()));
+
+    // 10 coins, 1(4), 2(6)
+    addMintsToState(indexes[4], blocks[4]);
+
+    auto id3 = lelantusState->GetLatestCoinID();
+    CLelantusState::LelantusCoinGroupInfo group3;
+
+    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id3, group3));
+    BOOST_CHECK_EQUAL(6, group3.nCoins);
+    BOOST_CHECK_EQUAL(indexes[2], group3.firstBlock);
+    BOOST_CHECK_EQUAL(indexes[4], group3.lastBlock);
+
+    uint256 blockHashOut3;
+    std::vector<PublicCoin> coinOut3;
+    BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[4]->nHeight,
+        id3,
+        blockHashOut3,
+        coinOut3));
+
+    BOOST_CHECK(std::is_permutation(
+        coins.begin() + 4, coins.begin() + 10, coinOut3.begin()));
+
+    // 12 coins, 1(4), 2(4), 3(4)
+    addMintsToState(indexes[5], blocks[5]);
+
+    auto id4 = lelantusState->GetLatestCoinID();
+    CLelantusState::LelantusCoinGroupInfo group4;
+
+    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id4, group4));
+    BOOST_CHECK_EQUAL(4, group4.nCoins);
+    BOOST_CHECK_EQUAL(indexes[4], group4.firstBlock);
+    BOOST_CHECK_EQUAL(indexes[5], group4.lastBlock);
+
+    uint256 blockHashOut4;
+    std::vector<PublicCoin> coinOut4;
+    BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[5]->nHeight,
+        id4,
+        blockHashOut4,
+        coinOut4));
+
+    BOOST_CHECK(std::is_permutation(
+        coins.begin() + 8, coins.begin() + 12, coinOut4.begin()));
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

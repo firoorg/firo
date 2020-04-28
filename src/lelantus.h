@@ -102,7 +102,9 @@ public:
     };
 
 public:
-    CLelantusState();
+    CLelantusState(
+        size_t maxCoinInGroup = ZC_LELANTUS_MAX_MINT_NUM,
+        size_t startGroupSize = ZC_LELANTUS_SET_START_SIZE);
 
     // Add mints in block, automatically assigning id to it
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
@@ -179,6 +181,10 @@ public:
     bool IsSurgeConditionDetected() const;
 
 private:
+    // Group Limit
+    size_t maxCoinInGroup;
+    size_t startGroupSize;
+
     // Collection of coin groups. Map from id to LelantusCoinGroupInfo structure
     std::unordered_map<int, LelantusCoinGroupInfo> coinGroups;
 
