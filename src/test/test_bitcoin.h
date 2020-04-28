@@ -72,7 +72,7 @@ struct TestChainDIP3Setup : public TestChain100Setup {
 };
 
 struct TestChainDIP3BeforeActivationSetup : public TestChain100Setup {
-    TestChainDIP3BeforeActivationSetup() : TestChain100Setup(430) {}
+    TestChainDIP3BeforeActivationSetup() : TestChain100Setup(498) {}
 };
 
 class CTxMemPoolEntry;
