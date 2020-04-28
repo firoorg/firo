@@ -90,6 +90,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
+
     // SIGMA
     if (scriptPubKey.IsSigmaMint())
     {

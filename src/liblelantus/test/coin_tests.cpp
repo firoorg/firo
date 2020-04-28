@@ -23,8 +23,8 @@ BOOST_AUTO_TEST_CASE(privatecoin)
     // calculate commitment
     auto commitment = LelantusPrimitives<Scalar, GroupElement>::double_commit(
         params->get_g(), serial,
-        params->get_h0(), priv.getV(),
-        params->get_h1(), randomness);
+        params->get_h1(), priv.getV(),
+        params->get_h0(), randomness);
 
     // verify
     BOOST_CHECK(serial.isMember());

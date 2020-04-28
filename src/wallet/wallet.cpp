@@ -613,21 +613,21 @@ bool CWallet::Verify()
         } catch (const boost::filesystem::filesystem_error&) {
             // failure is ok (well, not really, but it's not worse than what we started with)
         }
-        
+
         // try again
         if (!bitdb.Open(GetDataDir())) {
             // if it still fails, it probably means we can't even create the database env
             return InitError(strprintf(_("Error initializing wallet database environment %s!"), GetDataDir()));
         }
     }
-    
+
     if (GetBoolArg("-salvagewallet", false))
     {
         // Recover readable keypairs:
         if (!CWalletDB::Recover(bitdb, walletFile, true))
             return false;
     }
-    
+
     if (boost::filesystem::exists(GetDataDir() / walletFile))
     {
         CDBEnv::VerifyResult r = bitdb.Verify(walletFile, CWalletDB::Recover);
@@ -642,7 +642,7 @@ bool CWallet::Verify()
         if (r == CDBEnv::RECOVER_FAIL)
             return InitError(strprintf(_("%s corrupt, salvage failed"), walletFile));
     }
-    
+
     return true;
 }
 
@@ -2620,8 +2620,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     EnsureMintWalletAvailable();
 
     // Generate and store secrets deterministically in the following function.
-    CHDMint dMint;
-    zwalletMain->GenerateLelantusMint(coin, dMint);
+    zwalletMain->GenerateLelantusMint(coin, vDMint);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Lelantus 'MINT' transaction along with a series of currency inputs
@@ -3248,35 +3247,53 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 bool found = false;
+                auto const &vout = pcoin->tx->vout[i];
+
                 if(nCoinType == ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
-                    found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint())
-                            || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint();
+                    found = !(vout.scriptPubKey.IsZerocoinMint()
+                        || vout.scriptPubKey.IsSigmaMint()
+                        || vout.scriptPubKey.IsZerocoinRemint()
+                        || vout.scriptPubKey.IsLelantusMint()
+                        || vout.scriptPubKey.IsLelantusJMint());
+
                 } else if(nCoinType == ONLY_MINTS){
                     // Do not consider anything other than mints
-                    found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
+                    found = vout.scriptPubKey.IsZerocoinMint()
+                        || vout.scriptPubKey.IsSigmaMint()
+                        || vout.scriptPubKey.IsZerocoinRemint()
+                        || vout.scriptPubKey.IsLelantusMint()
+                        || vout.scriptPubKey.IsLelantusJMint();
+
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
-                    found = !(fZNode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
+                    found = !(fZNode && vout.nValue == ZNODE_COIN_REQUIRED * COIN);
+
                 } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
-                    if (fZNode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
+                    if (fZNode) found = vout.nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
+
                 } else if (nCoinType == ONLY_1000) {
-                    found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
+                    found = vout.nValue == ZNODE_COIN_REQUIRED * COIN;
+
                 } else {
                     found = true;
                 }
                 if (!found) continue;
 
-                isminetype mine = IsMine(pcoin->tx->vout[i]);
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                    !IsLockedCoin((*it).first, i) && (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
-                    (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i))))
+                isminetype mine = IsMine(vout);
+                if (!(IsSpent(wtxid, i))
+                    && mine != ISMINE_NO
+                    && !IsLockedCoin((*it).first, i)
+                    && (vout.nValue > 0 || fIncludeZeroValue)
+                    && (!coinControl
+                        || !coinControl->HasSelected()
+                        || coinControl->fAllowOtherInputs
+                        || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
-                                                 ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
-                                                  (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
-                                                 (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));            }
+                            ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
+                            (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
+                            (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
+                }
+            }
         }
     }
 }
@@ -3467,7 +3484,7 @@ void CWallet::ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnly
         }
 
         if (fOnlyConfirmed && !pcoin->IsTrusted()) {
-            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted()\n", fOnlyConfirmed, !pcoin->IsTrusted());
+            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted() = %s\n", fOnlyConfirmed, !pcoin->IsTrusted());
             continue;
         }
 
@@ -3923,7 +3940,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 setCoins.clear();
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
                 {
-                    strFailReason = _("Insufficient funds");                            
+                    strFailReason = _("Insufficient funds");
                     return false;
                 }
                 if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
@@ -3964,7 +3981,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                             strFailReason = _("Keypool ran out, please call keypoolrefill first");
                             return false;
                         }
-                        
+
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
@@ -5254,9 +5271,9 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                         }
                         scriptChange = GetScriptForDestination(keyID);
                     }
-                    
+
                     // no coin control: send change to newly generated address
-                    else 
+                    else
                     {
                         // Note: We use a new key here to keep it from being obvious which side is the change.
                         //  The drawback is that by not reusing a previous key, the change may be lost if a
@@ -5409,7 +5426,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
                     int currentConfirmationTarget = nTxConfirmTarget;
                     if (coinControl && coinControl->nConfirmTarget > 0)
-                        currentConfirmationTarget = coinControl->nConfirmTarget;                    
+                        currentConfirmationTarget = coinControl->nConfirmTarget;
                     int64_t nMinFee = GetMinimumFee(nBytes, currentConfirmationTarget, mempool);
                     nFeeNeeded = nPayFee;
                     if (nFeeNeeded < nMinFee) {
@@ -7798,7 +7815,7 @@ bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 
 /**
  * Mark old keypool keys as used,
- * and generate all new keys 
+ * and generate all new keys
  */
 bool CWallet::NewKeyPool()
 {
@@ -8498,7 +8515,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
-            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) { 
+            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) {
                 if (GetArg("-mnemonicpassphrase", "").size() > 256) {
                     throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
                 }

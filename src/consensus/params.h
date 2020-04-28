@@ -120,7 +120,7 @@ struct Params {
 
     // Maximum number of outbound peers designated as Dandelion destinations.
     uint32_t nDandelionMaxDestinations;
-    
+
     // Expected time between Dandelion routing shuffles (in seconds).
     uint32_t nDandelionShuffleInterval;
 
@@ -205,7 +205,7 @@ struct Params {
 
     /** block number to disable zerocoin on consensus level */
     int nDisableZerocoinStartBlock;
-	
+
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;

@@ -1887,7 +1887,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
             "      \"fee\": x.xxx,                     (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
             "                                           'send' category of transactions.\n"
             "      \"abandoned\": xxx                  (bool) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-            "                                           'send' category of transactions.\n"			
+            "                                           'send' category of transactions.\n"
             "    }\n"
             "    ,...\n"
             "  ],\n"
@@ -2948,16 +2948,19 @@ UniValue listunspentsigmamints(const JSONRPCRequest& request) {
 }
 
 UniValue listunspentlelantusmints(const JSONRPCRequest& request) {
+    if (request.fHelp || request.params.size() > 2) {
         throw runtime_error(
-                "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
-                "Returns array of unspent transaction outputs\n"
-                "with between minconf and maxconf (inclusive) confirmations.\n"
-                "Results are an array of Objects, each of which has:\n"
-                "{txid, vout, scriptPubKey, amount, confirmations}");
+            "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
+            "Returns array of unspent transaction outputs\n"
+            "with between minconf and maxconf (inclusive) confirmations.\n"
+            "Results are an array of Objects, each of which has:\n"
+            "{txid, vout, scriptPubKey, amount, confirmations}");
+    }
 
-    if (pwalletMain->IsLocked())
+    if (pwalletMain->IsLocked()) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
-                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+            "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    }
 
     EnsureLelantusWalletIsAvailable();
 
@@ -2970,7 +2973,7 @@ UniValue listunspentlelantusmints(const JSONRPCRequest& request) {
     int nMaxDepth = 9999999;
     if (request.params.size() > 1)
         nMaxDepth = request.params[1].get_int();
-//
+
     UniValue results(UniValue::VARR);
     vector <COutput> vecOutputs;
     assert(pwalletMain != NULL);
@@ -3906,7 +3909,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
         if (fAllStatus || lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0))) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", lelantusItem.id));
-            entry.push_back(Pair("IsUsed", lelantusItem.IsUsed));
+            entry.push_back(Pair("isUsed", lelantusItem.IsUsed));
             entry.push_back(Pair("amount", lelantusItem.amount));
             entry.push_back(Pair("value", lelantusItem.value.GetHex()));
             entry.push_back(Pair("serialNumber", lelantusItem.serialNumber.GetHex()));
@@ -4173,8 +4176,8 @@ UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked();
 
     std::vector <CLelantusMintMeta> listMints;
+    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false, false);
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false);
 
     UniValue results(UniValue::VARR);
 
@@ -4211,7 +4214,7 @@ UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
 
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("id", lelantusItem.id));
-                entry.push_back(Pair("IsUsed", fStatus));
+                entry.push_back(Pair("isUsed", fStatus));
                 entry.push_back(Pair("amount", lelantusItem.amount));
                 entry.push_back(Pair("value", lelantusItem.value.GetHex()));
                 entry.push_back(Pair("serialNumber", lelantusItem.serialNumber.GetHex()));

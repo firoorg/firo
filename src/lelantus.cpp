@@ -84,9 +84,9 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
 {
     auto params = lelantus::Params::get_default();
 
-    secp_primitives::GroupElement comm = commit + params->get_h1() * v;
+    secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier<Scalar, GroupElement> verifier(params->get_g(), params->get_h0());
-    return verifier.verify(commit, schnorrProof);
+    return verifier.verify(comm, schnorrProof);
 }
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof)
@@ -622,7 +622,9 @@ bool ConnectBlockLelantus(
         if (fJustCheck)
             return true;
 
-        lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
+        if (!pblock->lelantusTxInfo->mints.empty()) {
+            lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
+        }
     }
     else if (!fJustCheck) {
         lelantusState.AddBlock(pindexNew);
@@ -806,55 +808,54 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         blockMints.push_back(mint);
     }
 
-    if (latestCoinId < 1)
-        latestCoinId = 1;
+    latestCoinId = std::max(1, latestCoinId);
 
-    LelantusCoinGroupInfo &coinGroup = coinGroups[latestCoinId];
+    auto &coinGroup = coinGroups[latestCoinId];
 
-        if (coinGroup.nCoins + blockMints.size() <= ZC_LELANTUS_MAX_MINT_NUM) {
-            if (coinGroup.nCoins == 0) {
-                // first group of coins
-                assert(coinGroup.firstBlock == nullptr);
-                assert(coinGroup.lastBlock == nullptr);
+    if (coinGroup.nCoins + blockMints.size() <= ZC_LELANTUS_MAX_MINT_NUM) {
+        if (coinGroup.nCoins == 0) {
+            // first group of coins
+            assert(coinGroup.firstBlock == nullptr);
+            assert(coinGroup.lastBlock == nullptr);
 
-                coinGroup.firstBlock = coinGroup.lastBlock = index;
-            } else {
-                assert(coinGroup.firstBlock != nullptr);
-                assert(coinGroup.lastBlock != nullptr);
-                assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+            coinGroup.firstBlock = coinGroup.lastBlock = index;
+        } else {
+            assert(coinGroup.firstBlock != nullptr);
+            assert(coinGroup.lastBlock != nullptr);
+            assert(coinGroup.lastBlock->nHeight <= index->nHeight);
 
-                coinGroup.lastBlock = index;
-            }
-            coinGroup.nCoins += blockMints.size();
+            coinGroup.lastBlock = index;
         }
-        else {
-            LelantusCoinGroupInfo& oldCoinGroup = coinGroups[latestCoinId];
-            latestCoinId += 1;
-            LelantusCoinGroupInfo& newCoinGroup = coinGroups[latestCoinId];
+        coinGroup.nCoins += blockMints.size();
+    }
+    else {
+        LelantusCoinGroupInfo& oldCoinGroup = coinGroups[latestCoinId];
+        latestCoinId += 1;
+        LelantusCoinGroupInfo& newCoinGroup = coinGroups[latestCoinId];
 
-            for (CBlockIndex *block = oldCoinGroup.lastBlock;
-                    ;
-                 block = block->pprev) {
-                if (block->lelantusMintedPubCoins[latestCoinId - 1].size() > 0) {
-                    newCoinGroup.nCoins += block->lelantusMintedPubCoins[latestCoinId - 1].size();  // always start with non empty set
+        for (CBlockIndex *block = oldCoinGroup.lastBlock;
+                ;
+                block = block->pprev) {
+            if (block->lelantusMintedPubCoins[latestCoinId - 1].size() > 0) {
+                newCoinGroup.nCoins += block->lelantusMintedPubCoins[latestCoinId - 1].size();  // always start with non empty set
 
-                    if (newCoinGroup.nCoins >= ZC_LELANTUS_SET_START_SIZE) {
-                        newCoinGroup.firstBlock = block;
-                        break;
-                    }
+                if (newCoinGroup.nCoins >= ZC_LELANTUS_SET_START_SIZE) {
+                    newCoinGroup.firstBlock = block;
+                    break;
                 }
             }
-
-            newCoinGroup.lastBlock = index;
-            newCoinGroup.nCoins += blockMints.size();
         }
 
-        for (const auto& mint : blockMints) {
-            containers.AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+        newCoinGroup.lastBlock = index;
+        newCoinGroup.nCoins += blockMints.size();
+    }
 
-            LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
-            index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
-        }
+    for (const auto& mint : blockMints) {
+        containers.AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+
+        LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
+        index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
+    }
 }
 
 void CLelantusState::AddSpend(const Scalar &serial, int coinGroupId) {
