@@ -1785,8 +1785,8 @@ UniValue elysium_sendspend(const UniValue& params, bool fHelp)
                 ELYSIUM_TYPE_SIMPLE_SPEND,
                 propertyId,
                 GetDenominationValue(mint.property, mint.denomination),
-                false
-            );
+                false,
+                toAddress);
             return txid.GetHex();
         }
     }
