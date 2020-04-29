@@ -12,7 +12,7 @@ public:
     LelantusVerifier(const Params* p);
 
     bool verify(
-            const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<Scalar>& serialNumbers,
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,

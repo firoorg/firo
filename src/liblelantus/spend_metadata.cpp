@@ -4,7 +4,7 @@ namespace lelantus {
 
 
 SpendMetaData::SpendMetaData(
-        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<uint256>& groupBlockHashes,
         const uint256& txHash) {
     if(groupBlockHashes.size() != anonymity_sets.size())

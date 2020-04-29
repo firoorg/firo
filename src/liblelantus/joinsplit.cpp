@@ -8,7 +8,7 @@ namespace lelantus {
 
 JoinSplit::JoinSplit(const Params *p,
              const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
-             const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+             const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
              const Scalar& Vout,
              const std::vector<PrivateCoin>& Cout,
              const uint64_t& fee,
@@ -96,7 +96,7 @@ void JoinSplit::updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t
 }
 
 bool JoinSplit::Verify(
-        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<PublicCoin>& Cout,
         const Scalar& Vout,
         const uint256& txHash) const {

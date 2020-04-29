@@ -290,7 +290,7 @@ bool CheckLelantusJoinSplitTransaction(
     }
 
     bool passVerify = false;
-    std::unordered_map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
+    std::map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
     std::vector<PublicCoin> Cout;
     uint64_t Vout;
 

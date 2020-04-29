@@ -40,8 +40,8 @@ public:
         return serials;
     }
 
-    std::unordered_map<uint32_t, std::vector<PublicCoin>> GenerateAnonymitySets(std::initializer_list<size_t> sizes) const {
-        std::unordered_map<uint32_t, std::vector<PublicCoin>> sets;
+    std::map<uint32_t, std::vector<PublicCoin>> GenerateAnonymitySets(std::initializer_list<size_t> sizes) const {
+        std::map<uint32_t, std::vector<PublicCoin>> sets;
 
         uint32_t id = 0;
         for (size_t s : sizes) {

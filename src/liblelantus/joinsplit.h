@@ -17,14 +17,14 @@ public:
 
     JoinSplit(const Params* p,
               const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
-              const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+              const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
               const uint64_t& fee,
               const std::vector<uint256>& groupBlockHashes,
               const uint256& txHash);
 
-    bool Verify(const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+    bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<PublicCoin>& Cout,
                 const Scalar& Vout,
                 const uint256& txHash) const;

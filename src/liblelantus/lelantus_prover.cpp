@@ -6,7 +6,7 @@ LelantusProver::LelantusProver(const Params* p) : params(p) {
 }
 
 void LelantusProver::proof(
-        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const Scalar& Vin,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
@@ -59,7 +59,7 @@ void LelantusProver::proof(
 }
 
 void LelantusProver::generate_sigma_proofs(
-        const std::unordered_map<uint32_t, std::vector<PublicCoin>>& c,
+        const std::map<uint32_t, std::vector<PublicCoin>>& c,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
         Scalar& x,

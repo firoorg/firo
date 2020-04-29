@@ -8,7 +8,7 @@ BOOST_AUTO_TEST_SUITE(lelantus_serialize_tests)
 BOOST_AUTO_TEST_CASE(serialize)
 {
     auto params = lelantus::Params::get_default();
-    std::unordered_map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
     int N = 100;
 
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> Cin;

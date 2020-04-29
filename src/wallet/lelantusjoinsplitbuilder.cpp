@@ -310,7 +310,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
     std::vector<lelantus::PublicCoin> pCoins;
     coins.reserve(spendCoins.size());
-    std::unordered_map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
     std::vector<uint256> groupBlockHashes;
     for(const auto& spend : spendCoins) {
         // construct public part of the mint
