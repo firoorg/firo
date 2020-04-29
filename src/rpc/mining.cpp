@@ -136,9 +136,10 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             }
         }
         else {
-            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight), pblock->nBits, Params().GetConsensus())) {
                 ++pblock->nNonce;
                 --nMaxTries;
+                pblock->cachedPoWHash.SetNull();
             }
         }
         if (nMaxTries == 0) {

@@ -4,9 +4,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-static map<int, uint256> mapPoWHash;
-
-const char *precomputedHash[20501] = {
+static const char *precomputedHash[20501] = {
         "",
         "00000da58fce09f363bf5bb42409fbc2aabfc8b58c2211b24a3d7e2a7deedc90", "000009614e788eaeb5a3647d4313f37c8be994c678f10b7462476c1605c4c8df", "000008404d2723be9fb2eb0d4d1d1541ca1e823909faf572fa1d11097fc0123a", "000007c74d283118c293bfee54c5085573ab887549ed09a8d8d8664269c79685",
         "000002aed9eee0aab7be474c08e953b359e917d1fde806961bb9009639943555", "00000d51f1c82b16db53a09eb7dfe53e8d744a968e19cb976a262150d456bb12", "00000a9d826969c5a16b369a63d270f9bffd11e179ea021bcc12a1300d0e016c", "000006426aaead3840b90fc095c15b42026a301e717404331294f484d50a5a08",
@@ -5135,8 +5133,10 @@ const char *precomputedHash[20501] = {
         "0000000da1e36c4636dcc335a04f92eadd914b6b7ba7c491d57e885ee51910fe", "00000027ac4851b1295226716709fc7903f12c13499db94e39a8748f3a022308", "0000001f3ae8427fd5c6ae82f345b67a5bfa81812b3013d106dc1bab080a2074", "0000000000652474481a18f6affe29ed9a5b9f20045a331f0ce5c734b770d4d2"
 };
 
-void buildMapPoWHash() {
-    for (int i=1; i<20500; i++) {
-        mapPoWHash.insert(make_pair(i, uint256S(precomputedHash[i])));
-    }
-};
+// We rarely reference PoW hash of early mainnet blocks, no need to convert it to uint256 for easy access
+uint256 GetPrecomputedBlockPoWHash(int nHeight) {
+    if (nHeight > 0 && nHeight < 20500)
+        return uint256S(precomputedHash[nHeight]);
+    else
+        return uint256();
+}

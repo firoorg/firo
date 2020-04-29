@@ -1544,12 +1544,9 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, int nHeight, con
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)){
-        //Maybe cache is not valid
-        if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)){
-            return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
-        }
-    }
+    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+        return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
+
     return true;
 }
 
@@ -2119,7 +2116,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-    block.InvalidateCachedPoWHash(pindex->nHeight);
 
     //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
     //When called from there, no real disconnect happens.
@@ -3781,12 +3777,8 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)) {
-        //Maybe cache is not valid
-        if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)) {
-            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
-        }
-    }
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight > 0 ? nHeight : INT_MAX), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");        
     return true;
 }
 

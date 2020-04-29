@@ -57,48 +57,47 @@ bool CBlockHeader::IsMTP() const {
     return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime;
 }
 
-uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-    if (!fTestNet) {
-        if (nHeight < 20500) {
-            if (!mapPoWHash.count(1)) {
-                buildMapPoWHash();
-            }
-        }
-        if (!forceCalc && mapPoWHash.count(nHeight)) {
-            return mapPoWHash[nHeight];
-        }
-    }
-    uint256 powHash;
-    // Zcoin - MTP
-    try {
-    	if (IsMTP()) {
-            powHash = mtpHashValue;
-		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
-            lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-		} else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
-            lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT_TESTNET) { // testnet
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else {
-            scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
-        }
-    } catch (std::exception &e) {
-        LogPrintf("excepetion: %s", e.what());
-    }
-    mapPoWHash.insert(make_pair(nHeight, powHash));
-    return powHash;
-}
+uint256 CBlockHeader::GetPoWHash(int nHeight) const {
+    if (!cachedPoWHash.IsNull())
+        return cachedPoWHash;
 
-void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
-    if (nHeight >= 20500 && mapPoWHash.count(nHeight) > 0)
-        mapPoWHash.erase(nHeight);
+    uint256 powHash;
+    if (IsMTP()) {
+        // MTP processing is the same across all the types on networks
+        powHash = mtpHashValue;
+    }
+    else if (nHeight == 0) {
+        // genesis block
+        scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
+    }
+    else if (Params().GetConsensus().IsMain()) {
+        if (nHeight >= 20500) {
+            // Lyra2Z
+            lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
+        }
+        else if (nHeight > 0) {
+            // we take values from precomputed table because calculations of these are horribly slow
+            powHash = GetPrecomputedBlockPoWHash(nHeight);
+
+            /*
+             * This is original code for reference
+             * 
+             * if (nHeight >= HF_LYRA2_HEIGHT) {
+             *   LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
+             * } else if (nHeight >= HF_LYRA2VAR_HEIGHT) {
+             *    LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
+             * }
+             */
+        }
+    }
+    else {
+        // regtest - use simple block hash
+        // current testnet is MTP since block 1, shouldn't get here
+        powHash = GetHash();
+    }
+    
+    cachedPoWHash = powHash;
+    return powHash;
 }
 
 std::string CBlock::ToString() const {
