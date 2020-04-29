@@ -283,16 +283,17 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     std::vector<CMutableTransaction> txs;
 
     auto mints = GenerateMints(amounts, txs);
+
     std::vector<PublicCoin> coins;
-    for (auto const &m : mints) {
-        coins.emplace_back(m.GetPubcoinValue());
-    }
     std::vector<CBlockIndex*> indexes;
     std::vector<CBlock> blocks;
 
     for (size_t i = 0; i != mints.size(); i += 2) {
         auto index = GenerateBlock({txs[i], txs[i + 1]});
         auto block = GetCBlock(index);
+        coins.push_back(mints[i + 1].GetPubcoinValue());
+        coins.push_back(mints[i].GetPubcoinValue());
+
         PopulateLelantusTxInfo(
             block,
             {
@@ -310,6 +311,13 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
 
     auto addMintsToState = [&](CBlockIndex *index, CBlock const &block) {
         lelantusState->AddMintsToStateAndBlockIndex(index, &block);
+    };
+
+    auto verifyMints = [&](size_t i, size_t j, std::vector<PublicCoin> const &coinSet) {
+        std::vector<PublicCoin> expected(coins.begin() + i, coins.begin() + j);
+        std::reverse(expected.begin(), expected.end());
+
+        BOOST_CHECK(expected == coinSet);
     };
 
     // 6 coins, 1(6), 2(0)
@@ -335,8 +343,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         blockHashOut1,
         coinOut1));
 
-    BOOST_CHECK(std::is_permutation(
-        coins.begin(), coins.begin() + 6, coinOut1.begin()));
+    verifyMints(0, 6, coinOut1);
 
     // 8 coins, 1(4), 2(4)
     addMintsToState(indexes[3], blocks[3]);
@@ -357,8 +364,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         blockHashOut2,
         coinOut2));
 
-    BOOST_CHECK(std::is_permutation(
-        coins.begin() + 4, coins.begin() + 8, coinOut2.begin()));
+    verifyMints(4, 8, coinOut2);
 
     // 10 coins, 1(4), 2(6)
     addMintsToState(indexes[4], blocks[4]);
@@ -380,8 +386,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         blockHashOut3,
         coinOut3));
 
-    BOOST_CHECK(std::is_permutation(
-        coins.begin() + 4, coins.begin() + 10, coinOut3.begin()));
+    verifyMints(4, 10, coinOut3);
 
     // 12 coins, 1(4), 2(4), 3(4)
     addMintsToState(indexes[5], blocks[5]);
@@ -403,8 +408,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         blockHashOut4,
         coinOut4));
 
-    BOOST_CHECK(std::is_permutation(
-        coins.begin() + 8, coins.begin() + 12, coinOut4.begin()));
+    verifyMints(8, 12, coinOut4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

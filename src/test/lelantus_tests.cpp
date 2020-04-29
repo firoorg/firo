@@ -121,6 +121,52 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_mintscript)
     proof.serialize(parsedProof.data());
 
     BOOST_CHECK(proofSerialized == parsedProof);
+
+    GroupElement parsedCoin2;
+    ParseLelantusMintScript(script, parsedCoin2);
+
+    BOOST_CHECK(pub.getValue() == parsedCoin2);
+
+    script.resize(script.size() - 1);
+    BOOST_CHECK_THROW(ParseLelantusMintScript(script, parsedCoin, proof), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(parse_lelantus_jmint)
+{
+    GroupElement val;
+    val.randomize();
+
+    PublicCoin coin(val);
+
+    CScript script;
+    script.push_back(OP_LELANTUSJMINT);
+
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << coin;
+    script.insert(script.end(), ss.begin(), ss.end());
+
+    std::vector<unsigned char> encrypted;
+    encrypted.resize(16);
+
+    std::fill(encrypted.begin(), encrypted.end(), 0xff);
+    script.insert(script.end(), encrypted.begin(), encrypted.end());
+
+    // parse and verify
+    GroupElement outCoin;
+    std::vector<unsigned char> outEnc;
+    ParseLelantusJMintScript(script, outCoin, outEnc);
+
+    BOOST_CHECK(val == outCoin);
+    BOOST_CHECK(encrypted == outEnc);
+
+    GroupElement outCoin2;
+    ParseLelantusMintScript(script, outCoin2);
+
+    BOOST_CHECK(val == outCoin2);
+
+    // parse invalid
+    script.resize(script.size() - 1);
+    BOOST_CHECK_THROW(ParseLelantusJMintScript(script, outCoin, outEnc), std::invalid_argument);
 }
 
 // TODO(can not):
