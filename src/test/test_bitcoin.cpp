@@ -35,8 +35,8 @@
 #include "client-api/server.h"
 #endif
 
-#ifdef ENABLE_EXODUS
-#include "../exodus/exodus.h"
+#ifdef ENABLE_ELYSIUM
+#include "../elysium/elysium.h"
 #endif
 
 #include <boost/filesystem.hpp>
@@ -127,8 +127,8 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
-#ifdef ENABLE_EXODUS
-    exodus_shutdown();
+#ifdef ENABLE_ELYSIUM
+    elysium_shutdown();
 #endif
     threadGroup.interrupt_all();
     threadGroup.join_all();

@@ -47,13 +47,15 @@ public Q_SLOTS:
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
     void setSigmaBalance();
-    //void updateExodus();
-    //void reinitExodus();
+    //void updateElysium();
+    //void reinitElysium();
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
-    void exodusTransactionClicked(const uint256& txid);
+#ifdef ENABLE_ELYSIUM
+    void elysiumTransactionClicked(const uint256& txid);
+#endif
 
 private:
     Ui::OverviewPage *ui;

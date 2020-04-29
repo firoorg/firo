@@ -127,7 +127,7 @@ QT_FORMS_UI = \
   qt/forms/metadexcanceldialog.ui \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
-  qt/forms/exoassetsdialog.ui \
+  qt/forms/elyassetsdialog.ui \
   qt/forms/zc2sigmapage.ui
 
 QT_MOC_CPP = \
@@ -187,7 +187,7 @@ QT_MOC_CPP = \
   qt/moc_lookupspdialog.cpp \
   qt/moc_lookuptxdialog.cpp \
   qt/moc_txhistorydialog.cpp \
-  qt/moc_exoassetsdialog.cpp \
+  qt/moc_elyassetsdialog.cpp \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
   qt/moc_tradehistorydialog.cpp \
@@ -277,12 +277,12 @@ BITCOIN_QT_H = \
   qt/lookupspdialog.h \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
-  qt/exoassetsdialog.h \
+  qt/elyassetsdialog.h \
   qt/metadexdialog.h \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
-  qt/exodus_qtutils.h \
+  qt/elysium_qtutils.h \
   qt/zc2sigmapage.h \
   qt/zc2sigmamodel.h
 
@@ -335,11 +335,11 @@ RES_ICONS = \
   qt/res/icons/meta_partcancelled.png \
   qt/res/icons/meta_partfilled.png \
   qt/res/icons/meta_pending.png \
-  qt/res/icons/exodus_in.png \
-  qt/res/icons/exodus_inout.png \
-  qt/res/icons/exodus_invalid.png \
-  qt/res/icons/exodus_out.png \
-  qt/res/icons/exodus_hourglass.png \
+  qt/res/icons/elysium_in.png \
+  qt/res/icons/elysium_inout.png \
+  qt/res/icons/elysium_invalid.png \
+  qt/res/icons/elysium_out.png \
+  qt/res/icons/elysium_hourglass.png \
   qt/res/icons/open.png \
   qt/res/icons/overview.png \
   qt/res/icons/quit.png \
@@ -386,7 +386,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/splashscreen.cpp \
   qt/trafficgraphwidget.cpp \
   qt/utilitydialog.cpp \
-  qt/exodus_qtutils.cpp
+  qt/elysium_qtutils.cpp
 
 BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 
@@ -425,8 +425,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/zc2sigmapage.cpp \
   qt/zc2sigmamodel.cpp
 
-ZCOIN_QT_EXODUS_CPP = \
-  qt/exoassetsdialog.cpp \
+ZCOIN_QT_ELYSIUM_CPP = \
+  qt/elyassetsdialog.cpp \
   qt/lookupaddressdialog.cpp \
   qt/lookupspdialog.cpp \
   qt/lookuptxdialog.cpp \
@@ -443,8 +443,8 @@ endif
 if ENABLE_WALLET
 BITCOIN_QT_CPP += $(BITCOIN_QT_WALLET_CPP)
 endif
-if ENABLE_EXODUS
-BITCOIN_QT_CPP += $(ZCOIN_QT_EXODUS_CPP)
+if ENABLE_ELYSIUM
+BITCOIN_QT_CPP += $(ZCOIN_QT_ELYSIUM_CPP)
 endif
 
 RES_IMAGES = \

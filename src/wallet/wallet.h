@@ -89,8 +89,9 @@ const uint32_t BIP44_INDEX = 0x2C;
 const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_MINT_INDEX = 0x2;
-#ifdef ENABLE_EXODUS
-const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
+#ifdef ENABLE_ELYSIUM
+const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
+const uint32_t BIP44_ELYSIUM_MINT_INDEX_V1 = 0x4;
 #endif
 
 class CBlockIndex;

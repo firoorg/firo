@@ -55,8 +55,8 @@ static CZMQReplierInterface* pzmqReplierInterface = NULL;
 #include "wallet/wallet.h"
 #endif
 
-#ifdef ENABLE_EXODUS
-#include "exodus/exodus.h"
+#ifdef ENABLE_ELYSIUM
+#include "elysium/elysium.h"
 #endif
 
 #include <stdint.h>
@@ -285,9 +285,9 @@ void Shutdown() {
         pblocktree = NULL;
     }
 
-#ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
-        exodus_shutdown();
+#ifdef ENABLE_ELYSIUM
+    if (isElysiumEnabled()) {
+        elysium_shutdown();
     }
 #endif
 
@@ -334,7 +334,7 @@ void HandleSIGTERM(int) {
 
 void HandleSIGHUP(int) {
     fReopenDebugLog = true;
-    fReopenExodusLog = true;
+    fReopenElysiumLog = true;
 }
 
 bool static Bind(const CService &addr, unsigned int flags) {
@@ -679,21 +679,21 @@ std::string HelpMessage(HelpMessageMode mode) {
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
 
-#ifdef ENABLE_EXODUS
-    strUsage += HelpMessageGroup("Exodus options:");
-    strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
-    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
-    strUsage += HelpMessageOpt("-exodustxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
-    strUsage += HelpMessageOpt("-exodusprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
-    strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
+#ifdef ENABLE_ELYSIUM
+    strUsage += HelpMessageGroup("Elysium options:");
+    strUsage += HelpMessageOpt("-elysium", "Enable Elysium");
+    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Elysium transactions");
+    strUsage += HelpMessageOpt("-elysiumtxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
+    strUsage += HelpMessageOpt("-elysiumprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
+    strUsage += HelpMessageOpt("-elysiumdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
     strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
     strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
-    strUsage += HelpMessageOpt("-exodusalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
-    strUsage += HelpMessageOpt("-exodusalertignoresender=<addr>", "Ignore senders of alerts");
-    strUsage += HelpMessageOpt("-exodusactivationignoresender=<addr>", "Ignore senders of activations");
-    strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
-    strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
-    strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
+    strUsage += HelpMessageOpt("-elysiumalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
+    strUsage += HelpMessageOpt("-elysiumalertignoresender=<addr>", "Ignore senders of alerts");
+    strUsage += HelpMessageOpt("-elysiumactivationignoresender=<addr>", "Ignore senders of activations");
+    strUsage += HelpMessageOpt("-elysiumactivationallowsender=<addr>", "Whitelist senders of activations");
+    strUsage += HelpMessageOpt("-elysiumuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
+    strUsage += HelpMessageOpt("-elysiumshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
 #endif
 
     return strUsage;
@@ -1894,20 +1894,20 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
 
-    // ********************************************************* Step 8.5: load exodus
+    // ********************************************************* Step 8.5: load elysium
 
-#ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+#ifdef ENABLE_ELYSIUM
+    if (isElysiumEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them
             std::string msg = _("Disabled transaction index detected.\n\n"
-                                "Exodus requires an enabled transaction index. To enable "
+                                "Elysium requires an enabled transaction index. To enable "
                                 "transaction indexing, please use the \"-txindex\" option as "
                                 "command line argument or add \"txindex=1\" to your client "
                                 "configuration file within your data directory.\n\n"
                                 "Configuration file"); // allow translation of main text body while still allowing differing config file string
             msg += ": " + GetConfigFile().string() + "\n\n";
-            msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
+            msg += _("Would you like Elysium to attempt to update your configuration file accordingly?");
             bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
             if (fRet) {
                 // add txindex=1 to config file in GetConfigFile()
@@ -1917,7 +1917,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     std::string failMsg = _("Unable to update configuration file at");
                     failMsg += ":\n" + GetConfigFile().string() + "\n\n";
                     failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
-                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
+                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nElysium will now shutdown.");
                     return InitError(failMsg);
                 }
                 fprintf(fp, "\ntxindex=1\n");
@@ -1925,7 +1925,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 fclose(fp);
                 std::string strUpdated = _(
                         "Your configuration file has been updated.\n\n"
-                        "Exodus will now shutdown - please restart the client for your new configuration to take effect.");
+                        "Elysium will now shutdown - please restart the client for your new configuration to take effect.");
                 uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
                 return false;
             } else {
@@ -1933,10 +1933,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             }
         }
 
-        uiInterface.InitMessage(_("Parsing Exodus transactions..."));
-        exodus_init();
+        uiInterface.InitMessage(_("Parsing Elysium transactions..."));
+        elysium_init();
 
-        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+        // Elysium code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();
     }
 #endif
