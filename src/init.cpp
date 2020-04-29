@@ -820,6 +820,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+    } // End scope of CImportingNow
 
     // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
@@ -851,7 +852,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
-    } // End scope of CImportingNow
     fDumpMempoolLater = !fRequestShutdown;
 }
 
