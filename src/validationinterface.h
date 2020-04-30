@@ -51,6 +51,7 @@ protected:
     virtual void NotifyAPIStatus() {}
     virtual void NotifyZnodeList() {}
     virtual void UpdatedBalance() {}
+    virtual void WalletSegment(const std::string &) {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -93,6 +94,8 @@ struct CMainSignals {
     boost::signals2::signal<void ()> NotifyZnodeList;
     /** Notifies listeners of balance */
     boost::signals2::signal<void ()> UpdatedBalance;
+    /** Notifies listeners of wallet segment (stateWallet) */
+    boost::signals2::signal<void (const std::string &)> WalletSegment;
 };
 
 CMainSignals& GetMainSignals();

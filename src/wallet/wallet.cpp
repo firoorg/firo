@@ -3145,19 +3145,17 @@ bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
+    CHDMint fHdMint;
+    sigma::CoinDenomination denomination;
 
-    std::vector <CMintMeta> listMints;
-    listMints = zwalletMain->GetTracker().ListMints(true, true, false);
     GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
 
-    BOOST_FOREACH(CMintMeta &mint, listMints) {
-        CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint))
-            continue;
+    IntegerToDenomination(txout.nValue, denomination);
 
-        if(pubCoinValue == dMint.GetPubcoinValue())
-            return true;
-    }
+    sigma::PublicCoin pubCoin(pubCoinValue, denomination);
+
+    if(walletdb.ReadHDMint(pubCoin.getValueHash(), fHdMint))
+        return true;
 
     return false;
 }

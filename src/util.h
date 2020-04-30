@@ -154,7 +154,6 @@ boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific=true);
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
 boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
-boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
