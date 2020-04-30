@@ -57,7 +57,10 @@ public:
     void GenerateBlocks(size_t blocks);
     std::vector<CHDMint> GenerateMints(
         std::vector<CAmount> const &amounts,
-        std::vector<CMutableTransaction> &txs);
+        std::vector<CMutableTransaction> &txs,
+        bool useHDMints = false);
+
+    CPubKey GenerateAddress();
 
 public:
     lelantus::Params const *params;

@@ -409,6 +409,19 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         coinOut4));
 
     verifyMints(8, 12, coinOut4);
+
+    // Get first group
+    // TODO: test this later
+    // uint256 blockHashOut5;
+    // std::vector<PublicCoin> coinOut5;
+    // BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
+    //     &chainActive,
+    //     indexes[5]->nHeight,
+    //     1,
+    //     blockHashOut5,
+    //     coinOut5));
+
+    // verifyMints(0, 4, coinOut5);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

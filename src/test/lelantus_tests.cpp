@@ -384,6 +384,49 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     verifyLastGroup(1, blockIdx1, blockIdx2, 2);
 }
 
+BOOST_AUTO_TEST_CASE(checktransaction)
+{
+    GenerateBlocks(1000);
+
+    // mints
+    std::vector<CMutableTransaction> txs;
+    auto mints = GenerateMints({1 * COIN}, txs);
+    auto &tx = txs[0];
+
+    CValidationState state;
+    CLelantusTxInfo info;
+    BOOST_CHECK(CheckLelantusTransaction(
+        txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, &info));
+
+    std::vector<PublicCoin> expectedCoins = {mints[0].GetPubcoinValue()};
+    BOOST_CHECK(expectedCoins == info.mints);
+
+    // TODO: tests this when can create join split functions
+    // join split
+    // txs.clear();
+    // mints = GenerateMints({10 * COIN, 11 * COIN, 100 * COIN}, txs, true);
+    // GenerateBlock(txs);
+    // std::vector<PublicCoin> mintsToUpdate;
+    // for (auto const &m : mints) {
+    //     mintsToUpdate.emplace_back(m.GetPubcoinValue());
+    // }
+
+    // std::vector<CRecipient> recp;
+    // auto key = GenerateAddress();
+
+    // CWalletTx wtx;
+    // pwalletMain->JoinSplitLelantus(
+    //     {{GetScriptForDestination(key.GetID()), 8 * COIN, false}},
+    //     {199 * CENT},
+    //     wtx);
+
+    // tx = CMutableTransaction(wtx);
+
+    // info = CLelantusTxInfo();
+    // BOOST_CHECK(CheckLelantusTransaction(
+    //     tx, state, tx.GetHash(), true, chainActive.Height(), true, true, &info));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 };
