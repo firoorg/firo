@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2016 The Bitcoin Core developers
+# Copyright (c) 2014-2017 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,17 +20,20 @@ import http.client
 import random
 import shutil
 import subprocess
+import tempfile
 import time
 import re
 import errno
+import logging
 
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
 
 COVERAGE_DIR = None
 
+logger = logging.getLogger("TestFramework.utils")
 # The maximum number of nodes a single test can spawn
-MAX_NODES = 8
+MAX_NODES = 15
 # Don't assign rpc or p2p ports lower than this
 PORT_MIN = 11000
 # The number of ports to "reserve" for p2p and rpc, each
@@ -94,6 +98,19 @@ def get_rpc_proxy(url, node_number, timeout=None):
 
     return coverage.AuthServiceProxyWrapper(proxy, coverage_logfile)
 
+def get_mnsync_status(node):
+    result = node.znsync("status")
+    return result['IsSynced']
+
+def wait_to_sync(node, fast_znsync=False):
+    while True:
+        synced = get_znsync_status(node)
+        if synced:
+            break
+        time.sleep(0.2)
+        if fast_znsync:
+            # skip mnsync states
+            node.znsync("next")
 
 def p2p_port(n):
     assert(n <= MAX_NODES)
@@ -186,6 +203,10 @@ def sync_mempools(rpc_connections, *, wait=1, timeout=60):
         time.sleep(wait)
         timeout -= wait
     raise AssertionError("Mempool sync failed")
+
+def sync_znodes(rpc_connections, fast_mnsync=False):
+    for node in rpc_connections:
+        wait_to_sync(node, fast_mnsync)
 
 bitcoind_processes = {}
 
@@ -345,7 +366,7 @@ def _rpchost_to_args(rpchost):
         rv += ['-rpcport=' + rpcport]
     return rv
 
-def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None):
+def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None, redirect_stderr=False, stderr=None):
     """
     Start a bitcoind and return RPC connection to it
     """
@@ -353,15 +374,18 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
+    # Don't try auto backups (they fail a lot when running tests)
+    args += [ "-createwalletbackups=0" ]
     if extra_args is not None: args.extend(extra_args)
-    print("Starting a process with: " + " ".join(args))
-    bitcoind_processes[i] = subprocess.Popen(args)
-    if os.getenv("PYTHON_DEBUG", ""):
-        print("start_node: zcoind started, waiting for RPC to come up")
+    # Allow to redirect stderr to stdout in case we expect some non-critical warnings/errors printed to stderr
+    # Otherwise the whole test would be considered to be failed in such cases
+    if redirect_stderr:
+        stderr = sys.stdout
+    bitcoind_processes[i] = subprocess.Popen(args, stderr=stderr)
+    logger.debug("start_node: dashd started, waiting for RPC to come up")
     url = rpc_url(i, rpchost)
     wait_for_bitcoind_start(bitcoind_processes[i], url, i)
-    if os.getenv("PYTHON_DEBUG", ""):
-        print("start_node: RPC successfully started")
+    logger.debug("start_node: RPC successfully started")
     proxy = get_rpc_proxy(url, i, timeout=timewait)
 
     if COVERAGE_DIR:
@@ -384,21 +408,41 @@ def start_nodes(num_nodes, dirname, extra_args=None, rpchost=None, timewait=None
         raise
     return rpcs
 
+def copy_datadir(from_node, to_node, dirname):
+    from_datadir = os.path.join(dirname, "node"+str(from_node), "regtest")
+    to_datadir = os.path.join(dirname, "node"+str(to_node), "regtest")
+
+    dirs = ["blocks", "chainstate", "evodb", "llmq"]
+    for d in dirs:
+        try:
+            src = os.path.join(from_datadir, d)
+            dst = os.path.join(to_datadir, d)
+            shutil.copytree(src, dst)
+        except:
+            pass
 def log_filename(dirname, n_node, logname):
     return os.path.join(dirname, "node"+str(n_node), "regtest", logname)
 
-def stop_node(node, i):
-    try:
-        node.stop()
-    except http.client.CannotSendRequest as e:
-        print("WARN: Unable to stop node: " + repr(e))
+def wait_node(i):
     return_code = bitcoind_processes[i].wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
     assert_equal(return_code, 0)
     del bitcoind_processes[i]
 
-def stop_nodes(nodes):
+def stop_node(node, i, wait=True):
+    logger.debug("Stopping node %d" % i)
+    try:
+        node.stop()
+    except http.client.CannotSendRequest as e:
+        logger.exception("Unable to stop node")
+    if wait:
+        wait_node(i)
+
+def stop_nodes(nodes, fast=True):
     for i, node in enumerate(nodes):
-        stop_node(node, i)
+        stop_node(node, i, not fast)
+    if fast:
+        for i, node in enumerate(nodes):
+            wait_node(i)
     assert not bitcoind_processes.values() # All connections must be gone now
 
 def set_node_times(nodes, t):
@@ -418,6 +462,18 @@ def connect_nodes_bi(nodes, a, b):
     connect_nodes(nodes[a], b)
     connect_nodes(nodes[b], a)
 
+def isolate_node(node, timeout=5):
+    node.setnetworkactive(False)
+    st = time.time()
+    while time.time() < st + timeout:
+        if node.getconnectioncount() == 0:
+            return
+        time.sleep(0.5)
+    raise AssertionError("disconnect_node timed out")
+
+def reconnect_isolated_node(node, node_num):
+    node.setnetworkactive(True)
+    connect_nodes(node, node_num)
 def find_output(node, txid, amount):
     """
     Return index to output of txid with value amount

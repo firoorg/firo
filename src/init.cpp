@@ -2038,9 +2038,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
-            if(!IsArgSet("-znodeblsprivkey"))
-                return InitError(
-                        _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+            return InitError(
+                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 

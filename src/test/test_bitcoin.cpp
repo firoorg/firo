@@ -236,22 +236,24 @@ CBlock TestChain100Setup::CreateBlock(const std::vector<CMutableTransaction>& tx
 // scriptPubKey, and try to add it to the current chain.
 //
 CBlock
-TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
+TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey, bool * processBlockResult)
 {
     const CChainParams& chainparams = Params();
     auto block = CreateBlock(txns, scriptPubKey);
 
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
-    ProcessNewBlock(chainparams, shared_pblock, true, NULL);
+    bool pbr = ProcessNewBlock(chainparams, shared_pblock, true, NULL);
+    if(processBlockResult)
+        *processBlockResult = pbr;
 
     CBlock result = block;
     return result;
 }
 
-CBlock TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CKey& scriptKey)
+CBlock TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CKey& scriptKey, bool * processBlockResult)
 {
     CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    return CreateAndProcessBlock(txns, scriptPubKey);
+    return CreateAndProcessBlock(txns, scriptPubKey, processBlockResult);
 }
 
 TestChain100Setup::~TestChain100Setup()

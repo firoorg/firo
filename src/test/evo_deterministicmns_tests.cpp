@@ -320,8 +320,11 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
             operatorKeys.emplace(tx.GetHash(), operatorKey);
             txns.emplace_back(tx);
         }
-        CreateAndProcessBlock(txns, coinbaseKey);
+        bool pbr = false;
+        CreateAndProcessBlock(txns, coinbaseKey, &pbr);
         deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
+
+        BOOST_ASSERT(pbr);
         BOOST_ASSERT(chainActive.Height() == nHeight + 1);
 
         for (size_t j = 0; j < 3; j++) {
