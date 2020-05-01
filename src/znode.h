@@ -79,19 +79,6 @@ public:
         READWRITE(vchSig);
     }
 
-    void swap(CZnodePing& first, CZnodePing& second) // nothrow
-    {
-        // enable ADL (not necessary in our case, but good practice)
-        using std::swap;
-
-        // by swapping the members of two classes,
-        // the two classes are effectively swapped
-        swap(first.vin, second.vin);
-        swap(first.blockHash, second.blockHash);
-        swap(first.sigTime, second.sigTime);
-        swap(first.vchSig, second.vchSig);
-    }
-
     uint256 GetHash() const
     {
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
@@ -108,9 +95,12 @@ public:
     bool CheckAndUpdate(CZnode* pmn, bool fFromNewBroadcast, int& nDos);
     void Relay();
 
-    CZnodePing& operator=(CZnodePing from)
+    CZnodePing& operator=(const CZnodePing &from)
     {
-        swap(*this, from);
+        vin = from.vin;
+        blockHash = from.blockHash;
+        sigTime = from.sigTime;
+        vchSig = from.vchSig;
         return *this;
     }
     friend bool operator==(const CZnodePing& a, const CZnodePing& b)
