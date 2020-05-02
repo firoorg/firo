@@ -1684,37 +1684,22 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    // ********************************************************* Step 7: load block chain
+    // ********************************************************* Step 7a: check lite mode
+
+    // lite mode disables all Dash-specific functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
+    }
+
+    // ********************************************************* Step 7b: load block chain
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
 
-    // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
-    boost::filesystem::path blocksDir = GetDataDir() / "blocks";
-    if (!boost::filesystem::exists(blocksDir))
-    {
-        boost::filesystem::create_directories(blocksDir);
-        bool linked = false;
-        for (unsigned int i = 1; i < 10000; i++) {
-            boost::filesystem::path source = GetDataDir() / strprintf("blk%04u.dat", i);
-            if (!boost::filesystem::exists(source)) break;
-            boost::filesystem::path dest = blocksDir / strprintf("blk%05u.dat", i-1);
-            try {
-                boost::filesystem::create_hard_link(source, dest);
-                LogPrintf("Hardlinked %s -> %s\n", source.string(), dest.string());
-                linked = true;
-            } catch (const boost::filesystem::filesystem_error& e) {
-                // Note: hardlink creation failing is not a disaster, it just means
-                // blocks will get re-downloaded from peers.
-                LogPrintf("Error hardlinking blk%04u.dat: %s\n", i, e.what());
-                break;
-            }
-        }
-        if (linked)
-        {
-            fReindex = true;
-        }
-    }
+    boost::filesystem::create_directories(GetDataDir() / "blocks");
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
@@ -2006,7 +1991,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
     }
 
-    // ********************************************************* Step 11a: setup PrivateSend
+    // ********************************************************* Step 10a: Prepare znode related stuff
     fMasternodeMode = GetBoolArg("-znode", false);
     if (fMasternodeMode)
         // turn off dandelion for znodes
@@ -2014,6 +1999,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
+
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode."));
+    }
 
     if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
@@ -2101,6 +2090,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
     }
 
+    // ********************************************************* Step 10b: PrivateSend (some of its functions are required for legacy znode operation)
+
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
@@ -2118,94 +2109,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 //    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
 //    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    // lite mode disables all Znode and Darksend related functionality
-    fLiteMode = GetBoolArg("-litemode", false);
-    if (fMasternodeMode && fLiteMode) {
-        return InitError("You can not start a znode in litemode");
-    }
-
-    LogPrintf("fLiteMode %d\n", fLiteMode);
-//    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
-//    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
-//    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
-
     darkSendPool.InitDenominations();
 
-    // ********************************************************* Step 10: import blocks
-
-    if (!CheckDiskSpace())
-        return false;
-
-    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
-    // No locking, as this happens before any background thread is started.
-    if (chainActive.Tip() == NULL) {
-        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
-    } else {
-        fHaveGenesis = true;
-    }
-
-    if (IsArgSet("-blocknotify"))
-        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
-
-    std::vector<boost::filesystem::path> vImportFiles;
-    if (mapMultiArgs.count("-loadblock"))
-    {
-        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
-            vImportFiles.push_back(strFile);
-    }
-
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
-
-    // Wait for genesis block to be processed
-    {
-        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
-            condvar_GenesisWait.wait(lock);
-        }
-        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
-    }
-
-    // ********************************************************* Step 11: start node
-
-    //// debug print
-    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
-    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
-
-    Discover(threadGroup);
-
-    // Map ports with UPnP
-    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
-
-    std::string strNodeError;
-    CConnman::Options connOptions;
-    connOptions.nLocalServices = nLocalServices;
-    connOptions.nRelevantServices = nRelevantServices;
-    connOptions.nMaxConnections = nMaxConnections;
-    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
-    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
-    connOptions.nMaxFeeler = 1;
-    connOptions.nBestHeight = chainActive.Height();
-    connOptions.uiInterface = &uiInterface;
-    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
-    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
-
-    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
-    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
-
-    if (!connman.Start(scheduler, strNodeError, connOptions))
-        return InitError(strNodeError);
-
-    // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
-                     chainparams);
-
-    // ********************************************************* Step 11b: Load cache data
+    // ********************************************************* Step 10c: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
     bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
-
     if (!fIgnoreCacheFiles) {
         // Legacy znodes cache
         uiInterface.InitMessage(_("Loading znode cache..."));
@@ -2283,7 +2192,77 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     llmq::StartLLMQSystem();
 
-    // ********************************************************* Step 11c: update block tip in Zcoin modules
+    // ********************************************************* Step 11: import blocks
+
+    if (!CheckDiskSpace())
+        return false;
+
+    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
+    // No locking, as this happens before any background thread is started.
+    if (chainActive.Tip() == NULL) {
+        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
+    } else {
+        fHaveGenesis = true;
+    }
+
+    if (IsArgSet("-blocknotify"))
+        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
+
+    std::vector<boost::filesystem::path> vImportFiles;
+    if (mapMultiArgs.count("-loadblock"))
+    {
+        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
+            vImportFiles.push_back(strFile);
+    }
+
+    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+
+    // Wait for genesis block to be processed
+    {
+        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
+        while (!fHaveGenesis) {
+            condvar_GenesisWait.wait(lock);
+        }
+        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
+    }
+
+    // ********************************************************* Step 12: start node
+
+    //// debug print
+    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
+    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
+    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
+        StartTorControl(threadGroup, scheduler);
+
+    Discover(threadGroup);
+
+    // Map ports with UPnP
+    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+
+    std::string strNodeError;
+    CConnman::Options connOptions;
+    connOptions.nLocalServices = nLocalServices;
+    connOptions.nRelevantServices = nRelevantServices;
+    connOptions.nMaxConnections = nMaxConnections;
+    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
+    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
+    connOptions.nMaxFeeler = 1;
+    connOptions.nBestHeight = chainActive.Height();
+    connOptions.uiInterface = &uiInterface;
+    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
+
+    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
+    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
+
+    if (!connman.Start(scheduler, strNodeError, connOptions))
+        return InitError(strNodeError);
+
+    // Generate coins in the background
+    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
+                     chainparams);
+
+    // ********************************************************* Step 13a: update block tip in Zcoin modules
 
     bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
 
@@ -2298,7 +2277,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         // governance.UpdatedBlockTip(chainActive.Tip());
     }
 
-    // ********************************************************* Step 11d: start legacy znodes thread
+    // ********************************************************* Step 13b: start legacy znodes thread
 
     // TODO: remove this code after switch to evo is done
     if (!fEvoZnodes)
@@ -2351,7 +2330,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         });
     }
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 14: finished
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
