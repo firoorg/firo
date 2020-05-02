@@ -319,7 +319,7 @@ void CZnodeMan::CheckAndRemove()
     }
     {
         // no need for cm_main below
-        LOCK(cs);
+        LOCK2(cs_main, cs);
 
         std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > >::iterator itMnbRequest = mMnbRecoveryRequests.begin();
         while(itMnbRequest != mMnbRecoveryRequests.end()){
