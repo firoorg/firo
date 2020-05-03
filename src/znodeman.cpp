@@ -962,7 +962,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         if (CheckMnbAndUpdateZnodeList(pfrom, mnb, nDos)) {
             // use announced Znode as a peer
-            //addrman.Add(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
+            g_connman->AddNewAddress(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
         } else if(nDos > 0) {
             Misbehaving(pfrom->GetId(), nDos);
         }
@@ -1105,11 +1105,11 @@ void CZnodeMan::DoFullVerificationStep()
 
     std::vector<std::pair<int, CZnode> > vecZnodeRanks = GetZnodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
 
-    // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
-    // through GetHeight() signal in ConnectNode
-    LOCK2(cs_main, cs);
-
+    std::vector<CAddress> vAddr;
     int nCount = 0;
+
+    {
+    LOCK2(cs_main, cs);
 
     int nMyRank = -1;
     int nRanksTotal = (int)vecZnodeRanks.size();
@@ -1161,13 +1161,20 @@ void CZnodeMan::DoFullVerificationStep()
         }
         LogPrint("znode", "CZnodeMan::DoFullVerificationStep -- Verifying znode %s rank %d/%d address %s\n",
                     it->second.vin.prevout.ToStringShort(), it->first, nRanksTotal, it->second.addr.ToString());
-        if(SendVerifyRequest(CAddress(it->second.addr, NODE_NETWORK), vSortedByAddr)) {
-            nCount++;
-            if(nCount >= MAX_POSE_CONNECTIONS) break;
+        CAddress addr = CAddress(it->second.addr, NODE_NETWORK);
+        if(CheckVerifyRequestAddr(addr, *g_connman)) {
+            vAddr.push_back(addr);
+            if((int)vAddr.size() >= MAX_POSE_CONNECTIONS) break;
         }
         nOffset += MAX_POSE_CONNECTIONS;
         if(nOffset >= (int)vecZnodeRanks.size()) break;
         it += MAX_POSE_CONNECTIONS;
+    }
+
+    } // LOCK2(cs_main, cs)
+
+    for (const auto& addr : vAddr) {
+        PrepareVerifyRequest(addr, *g_connman);
     }
 
     LogPrint("znode", "CZnodeMan::DoFullVerificationStep -- Sent verification requests to %d znodes\n", nCount);
@@ -1231,29 +1238,60 @@ void CZnodeMan::CheckSameAddr()
     }
 }
 
-bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode*>& vSortedByAddr)
+bool CZnodeMan::CheckVerifyRequestAddr(const CAddress& addr, CConnman& connman)
 {
     if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
         // we already asked for verification, not a good idea to do this too often, skip it
-        LogPrint("znode", "CZnodeMan::SendVerifyRequest -- too many requests, skipping... addr=%s\n", addr.ToString());
+        LogPrint("znode", "CZnodeMan::%s -- too many requests, skipping... addr=%s\n", __func__, addr.ToString());
         return false;
     }
 
-    // TODO: upgrade dash
-/*    CNode* pnode = ConnectNode(addr, NULL, false, true);
-    if(pnode == NULL) {
-        LogPrintf("CZnodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
-        return false;
+    return !connman.IsMasternodeOrDisconnectRequested(addr);
+}
+
+void CZnodeMan::PrepareVerifyRequest(const CAddress& addr, CConnman& connman)
+{
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
     }
 
-    netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
+    connman.AddPendingMasternode(addr);
     // use random nonce, store it and require node to reply with correct one later
-    CZnodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
-    mWeAskedForVerification[addr] = mnv;
-    LogPrintf("CZnodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
-    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
-*/
-    return true;
+    CZnodeVerification mnv(addr, GetRandInt(999999), nHeight - 1);
+    LOCK(cs_mapPendingMNV);
+    mapPendingMNV.insert(std::make_pair(addr, std::make_pair(GetTime(), mnv)));
+    LogPrintf("CZnodeMan::%s -- verifying node using nonce %d addr=%s\n", __func__, mnv.nonce, addr.ToString());
+}
+
+void CZnodeMan::ProcessPendingMnvRequests(CConnman& connman)
+{
+    LOCK(cs_mapPendingMNV);
+
+    std::map<CService, std::pair<int64_t, CZnodeVerification> >::iterator itPendingMNV = mapPendingMNV.begin();
+
+    while (itPendingMNV != mapPendingMNV.end()) {
+        bool fDone = connman.ForNode(itPendingMNV->first, [&](CNode* pnode) {
+            netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
+            // use random nonce, store it and require node to reply with correct one later
+            mWeAskedForVerification[pnode->addr] = itPendingMNV->second.second;
+            LogPrint("znode", "-- verifying node using nonce %d addr=%s\n", itPendingMNV->second.second.nonce, pnode->addr.ToString());
+            CNetMsgMaker msgMaker(LEGACY_ZNODES_PROTOCOL_VERSION);
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNVERIFY, itPendingMNV->second.second));
+            return true;
+        });
+
+        int64_t nTimeAdded = itPendingMNV->second.first;
+        if (fDone || (GetTime() - nTimeAdded > 15)) {
+            if (!fDone) {
+                LogPrint("znode", "CZnodeMan::%s -- failed to connect to %s\n", __func__, itPendingMNV->first.ToString());
+            }
+            mapPendingMNV.erase(itPendingMNV++);
+        } else {
+            ++itPendingMNV;
+        }
+    }
 }
 
 void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)

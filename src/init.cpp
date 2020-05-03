@@ -2296,8 +2296,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 {
                     LOCK(cs_main);
-                    // shut legacy znode down if past 100 blocks of DIP3 enforcement
-                    if (chainActive.Height()-100 >= Params().GetConsensus().DIP0003EnforcementHeight)
+                    // shut legacy znode down if past 6 blocks of DIP3 enforcement
+                    if (chainActive.Height()-6 >= Params().GetConsensus().DIP0003EnforcementHeight)
                         break;
                 }
                     
@@ -2310,6 +2310,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                     // make sure to check all znodes first
                     mnodeman.Check();
+
+                    mnodeman.ProcessPendingMnvRequests(*g_connman);
 
                     // check if we should activate or ping every few minutes,
                     // slightly postpone first run to give net thread a chance to connect to some peers

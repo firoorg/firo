@@ -1734,7 +1734,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         pfrom->fSuccessfullyConnected = true;
     }
 
-    else if (!pfrom->fSuccessfullyConnected)
+    else if (!pfrom->fSuccessfullyConnected 
+            // HACK to allow 0.13.* peers to send us MNVERIFY without sending VERACK first
+            // TODO: remove after evo HF            
+            && strCommand != NetMsgType::MNVERIFY)
     {
         // Must have a verack message before anything else
         LOCK(cs_main);
