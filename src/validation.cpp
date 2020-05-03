@@ -3777,7 +3777,10 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight > 0 ? nHeight : INT_MAX), block.nBits, consensusParams))
+    // set nHeight to INT_MAX if block is not found in index and it's not genesis block
+    if (nHeight == 0 && !block.hashPrevBlock.IsNull())
+        nHeight = INT_MAX;
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");        
     return true;
 }
