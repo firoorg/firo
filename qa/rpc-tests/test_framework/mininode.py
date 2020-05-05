@@ -40,7 +40,7 @@ import copy
 from test_framework.siphash import siphash256
 
 BIP0031_VERSION = 60000
-MY_VERSION = 90025  # past bip-31 for ping/pong
+MY_VERSION = 90030  # past bip-31 for ping/pong
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
@@ -278,6 +278,7 @@ class CAddress(object):
 
     def serialize(self):
         r = b""
+        r += struct.pack("<I", 0)
         r += struct.pack("<Q", self.nServices)
         r += self.pchReserved
         r += socket.inet_aton(self.ip)
@@ -690,7 +691,8 @@ class CBlock(CBlockHeader):
         return r
 
     # Calculate the merkle root given a vector of transaction hashes
-    def get_merkle_root(self, hashes):
+    @staticmethod
+    def get_merkle_root(hashes):
         while len(hashes) > 1:
             newhashes = []
             for i in range(0, len(hashes), 2):
@@ -1821,11 +1823,14 @@ class NodeConnCB(object):
     # This can be called from the testing thread, so it needs to acquire the
     # global lock.
     def wait_for_verack(self):
-        while True:
+        tm = 0
+        while tm < 180:
             with mininode_lock:
                 if self.verack_received:
                     return
             time.sleep(0.05)
+            tm += 0.05
+        assert self.verack_received
 
     def deliver(self, conn, message):
         deliver_sleep = self.get_deliver_sleep_time()
@@ -1907,7 +1912,6 @@ class SingleNodeConnCB(NodeConnCB):
         self.connection = conn
 
     # Wrapper for the NodeConn's send_message function
-        self.send_message(vt, True)
     def send_message(self, message):
         self.connection.send_message(message)
 
@@ -2003,19 +2007,16 @@ class NodeConn(asyncore.dispatcher):
             self.handle_close()
         self.rpc = rpc
 
-    def show_debug_msg(self, msg):
-        self.log.debug(msg)
-
     def handle_connect(self):
         if self.state != "connected":
-            self.show_debug_msg("MiniNode: Connected & Listening: \n")
+            logger.debug("MiniNode: Connected & Listening: \n")
             self.state = "connected"
             self.cb.on_open(self)
 
     def handle_close(self):
         print("MiniNode: Closing Connection to %s:%d... "
                             % (self.dstaddr, self.dstport))
-        self.show_debug_msg("MiniNode: Closing Connection to %s:%d... "
+        logger.debug("MiniNode: Closing Connection to %s:%d... "
                             % (self.dstaddr, self.dstport))
         self.state = "closed"
         self.recvbuf = b""
@@ -2099,10 +2100,10 @@ class NodeConn(asyncore.dispatcher):
                     t.deserialize(f)
                     self.got_message(t)
                 else:
-                    self.show_debug_msg("Unknown command: '" + command + "' " +
+                    logger.debug("Unknown command: '" + command + "' " +
                                         repr(msg))
         except Exception as e:
-            print('got_data:', repr(e))
+            logger.error('got_data:', repr(e))
             # import  traceback
             # traceback.print_tb(sys.exc_info()[2])
 
@@ -2110,7 +2111,7 @@ class NodeConn(asyncore.dispatcher):
         if self.state != "connected" and not pushbuf:
             print("State of connection is ", self.state)
             raise IOError('Not connected, no pushbuf')
-        self.show_debug_msg("Send %s" % repr(message))
+            logger.debug("Send %s" % repr(message))
         command = message.command
         data = message.serialize()
         tmsg = self.MAGIC_BYTES[self.network]
@@ -2132,7 +2133,7 @@ class NodeConn(asyncore.dispatcher):
                 self.messagemap[b'ping'] = msg_ping_prebip31
         if self.last_sent + 30 * 60 < time.time():
             self.send_message(self.messagemap[b'ping']())
-        self.show_debug_msg("Recv %s" % repr(message))
+            logger.debug("Recv %s" % repr(message))
         self.cb.deliver(self, message)
 
     def disconnect_node(self):

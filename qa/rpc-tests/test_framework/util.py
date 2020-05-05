@@ -60,6 +60,10 @@ def enable_mocktime():
     global MOCKTIME
     MOCKTIME = 1414776313 + (201 * 10 * 60)
 
+def set_mocktime(t):
+    global MOCKTIME
+    MOCKTIME = t
+
 def disable_mocktime():
     global MOCKTIME
     MOCKTIME = 0
@@ -98,19 +102,23 @@ def get_rpc_proxy(url, node_number, timeout=None):
 
     return coverage.AuthServiceProxyWrapper(proxy, coverage_logfile)
 
-def get_mnsync_status(node):
-    result = node.znsync("status")
+def get_evoznsync_status(node):
+    result = node.evoznsync("status")
     return result['IsSynced']
 
 def wait_to_sync(node, fast_znsync=False):
-    while True:
-        synced = get_znsync_status(node)
+    tm = 0
+    synced = False
+    while tm < 30:
+        synced = get_evoznsync_status(node)
         if synced:
-            break
+            return
         time.sleep(0.2)
         if fast_znsync:
             # skip mnsync states
             node.znsync("next")
+        tm += 0.2
+    assert(synced)
 
 def p2p_port(n):
     assert(n <= MAX_NODES)
@@ -382,7 +390,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if redirect_stderr:
         stderr = sys.stdout
     bitcoind_processes[i] = subprocess.Popen(args, stderr=stderr)
-    logger.debug("start_node: dashd started, waiting for RPC to come up")
+    logger.debug("start_node: zcoind started, waiting for RPC to come up")
     url = rpc_url(i, rpchost)
     wait_for_bitcoind_start(bitcoind_processes[i], url, i)
     logger.debug("start_node: RPC successfully started")

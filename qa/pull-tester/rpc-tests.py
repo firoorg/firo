@@ -198,7 +198,9 @@ testScripts = [
 
     # Evo Znodes
     'dip3-deterministicmns.py'
-#    , 'dip4-coinbasemerkleroots.py'
+
+    # Unstable tests
+    #, 'dip4-coinbasemerkleroots.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
