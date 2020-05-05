@@ -325,6 +325,7 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
         deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
         BOOST_ASSERT(pbr);
+        LOCK(cs_main);
         BOOST_ASSERT(chainActive.Height() == nHeight + 1);
 
         for (size_t j = 0; j < 3; j++) {
