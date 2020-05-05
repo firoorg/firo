@@ -41,7 +41,8 @@ bool NotifyZnodeWarning::shouldShow()
 #ifdef ENABLE_WALLET
     if(nConsidered || // already fully considered warning
        znodeConfig.getCount() == 0 || // no legacy znodes detected
-       !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight)) // outside of legacy window 
+       !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight) // outside of legacy window
+       || !pwalletMain) // wallet not yet loaded
         return false;
 
     // get Znode entries.
@@ -58,6 +59,7 @@ bool NotifyZnodeWarning::shouldShow()
 
         // So we have a valid legacy Znode. get ProReg transactions, look for the same collateral.
         if(!nGotProReg){
+            LOCK2(cs_main, pwalletMain->cs_wallet);
             pwalletMain->ListProTxCoins(vOutpts);
             nGotProReg = true;
         }

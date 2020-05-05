@@ -1482,10 +1482,8 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     }
 
     //also check for Znode warning here
-    if(znodeSyncInterface.IsSynced()){
-        if(NotifyZnodeWarning::shouldShow())
-            NotifyZnodeWarning::notify();
-    }
+    if(NotifyZnodeWarning::shouldShow())
+        NotifyZnodeWarning::notify();
 }
 
 void BitcoinGUI::toggleNetworkActive()
