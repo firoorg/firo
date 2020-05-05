@@ -303,6 +303,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
 
         indexes.push_back(index);
         blocks.push_back(block);
+
+        GenerateBlock({});
     }
 
     size_t maxSize = 6;
@@ -320,108 +322,124 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         BOOST_CHECK(expected == coinSet);
     };
 
+    auto verifyGroup = [&](int expectedId, size_t expectedCoins, CBlockIndex *expectedFirst, CBlockIndex *expectedLast, int testId = 0) -> bool {
+        if (!testId) {
+            testId = lelantusState->GetLatestCoinID();
+        }
+
+        CLelantusState::LelantusCoinGroupInfo group;
+
+        BOOST_CHECK(lelantusState->GetCoinGroupInfo(testId, group));
+        if (expectedId > 0) { // verify last Id
+            BOOST_CHECK_EQUAL(expectedId, testId);
+        }
+
+        BOOST_CHECK_EQUAL(expectedCoins, group.nCoins);
+        BOOST_CHECK_EQUAL(expectedFirst, group.firstBlock);
+        BOOST_CHECK_EQUAL(expectedLast, group.lastBlock);
+    };
+
     // 6 coins, 1(6), 2(0)
     addMintsToState(indexes[0], blocks[0]);
     addMintsToState(indexes[1], blocks[1]);
     addMintsToState(indexes[2], blocks[2]);
 
-    auto id1 = lelantusState->GetLatestCoinID();
-    CLelantusState::LelantusCoinGroupInfo group1;
-    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id1, group1));
-
-    BOOST_CHECK_EQUAL(1, id1);
-    BOOST_CHECK_EQUAL(6, group1.nCoins);
-    BOOST_CHECK_EQUAL(indexes[0], group1.firstBlock);
-    BOOST_CHECK_EQUAL(indexes[2], group1.lastBlock);
+    verifyGroup(1, 6, indexes[0], indexes[2]);
 
     uint256 blockHashOut1;
     std::vector<PublicCoin> coinOut1;
     BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
         &chainActive,
         indexes[2]->nHeight,
-        id1,
+        1,
         blockHashOut1,
         coinOut1));
 
     verifyMints(0, 6, coinOut1);
+    BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut1);
 
-    // 8 coins, 1(4), 2(4)
+    // 8 coins, 1(6), 2(4)
     addMintsToState(indexes[3], blocks[3]);
-    auto id2 = lelantusState->GetLatestCoinID();
-    CLelantusState::LelantusCoinGroupInfo group2;
-
-    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id2, group2));
-    BOOST_CHECK_EQUAL(4, group2.nCoins);
-    BOOST_CHECK_EQUAL(indexes[2], group2.firstBlock);
-    BOOST_CHECK_EQUAL(indexes[3], group2.lastBlock);
+    verifyGroup(2, 4, indexes[2], indexes[3]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
 
     uint256 blockHashOut2;
     std::vector<PublicCoin> coinOut2;
     BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
         &chainActive,
-        indexes[3]->nHeight,
-        id2,
+        indexes[3]->nHeight + 1, // specify limit with no mints block
+        2,
         blockHashOut2,
         coinOut2));
 
     verifyMints(4, 8, coinOut2);
+    BOOST_CHECK(indexes[3]->GetBlockHash() == blockHashOut2);
 
-    // 10 coins, 1(4), 2(6)
+    // 10 coins, 1(6), 2(6)
     addMintsToState(indexes[4], blocks[4]);
 
-    auto id3 = lelantusState->GetLatestCoinID();
-    CLelantusState::LelantusCoinGroupInfo group3;
-
-    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id3, group3));
-    BOOST_CHECK_EQUAL(6, group3.nCoins);
-    BOOST_CHECK_EQUAL(indexes[2], group3.firstBlock);
-    BOOST_CHECK_EQUAL(indexes[4], group3.lastBlock);
+    verifyGroup(2, 6, indexes[2], indexes[4]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
 
     uint256 blockHashOut3;
     std::vector<PublicCoin> coinOut3;
     BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
         &chainActive,
         indexes[4]->nHeight,
-        id3,
+        2,
         blockHashOut3,
         coinOut3));
 
     verifyMints(4, 10, coinOut3);
+    BOOST_CHECK(indexes[4]->GetBlockHash() == blockHashOut3);
 
-    // 12 coins, 1(4), 2(4), 3(4)
+    // 12 coins, 1(6), 2(6), 3(4)
     addMintsToState(indexes[5], blocks[5]);
 
-    auto id4 = lelantusState->GetLatestCoinID();
-    CLelantusState::LelantusCoinGroupInfo group4;
-
-    BOOST_CHECK(lelantusState->GetCoinGroupInfo(id4, group4));
-    BOOST_CHECK_EQUAL(4, group4.nCoins);
-    BOOST_CHECK_EQUAL(indexes[4], group4.firstBlock);
-    BOOST_CHECK_EQUAL(indexes[5], group4.lastBlock);
+    verifyGroup(3, 4, indexes[4], indexes[5]);
+    verifyGroup(2, 6, indexes[2], indexes[4], 2);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
 
     uint256 blockHashOut4;
     std::vector<PublicCoin> coinOut4;
     BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
         &chainActive,
         indexes[5]->nHeight,
-        id4,
+        3,
         blockHashOut4,
         coinOut4));
 
     verifyMints(8, 12, coinOut4);
 
     // Get first group
-    // TODO: test this later
-    // uint256 blockHashOut5;
-    // std::vector<PublicCoin> coinOut5;
-    // BOOST_CHECK_EQUAL(4, lelantusState->GetCoinSetForSpend(
-    //     &chainActive,
-    //     indexes[5]->nHeight,
-    //     1,
-    //     blockHashOut5,
-    //     coinOut5));
+    uint256 blockHashOut5;
+    std::vector<PublicCoin> coinOut5;
+    BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[5]->nHeight,
+        1,
+        blockHashOut5,
+        coinOut5));
 
-    // verifyMints(0, 4, coinOut5);
+    verifyMints(0, 6, coinOut5);
+    BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut5);
+
+    // Get first group with low max height
+    uint256 blockHashOut6;
+    std::vector<PublicCoin> coinOut6;
+    BOOST_CHECK_EQUAL(2, lelantusState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[0]->nHeight,
+        1,
+        blockHashOut6,
+        coinOut6));
+
+    verifyMints(0, 2, coinOut6);
+    BOOST_CHECK(indexes[0]->GetBlockHash() == blockHashOut6);
+
+    lelantusState->RemoveBlock(indexes[5]);
+    verifyGroup(2, 6, indexes[2], indexes[4]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -715,6 +715,14 @@ void CLelantusTxInfo::Complete() {
     fInfoIsComplete = true;
 }
 
+/*
+ * Util funtions
+ */
+size_t HasCoinInBlock(CBlockIndex *index, int id) {
+    return index->lelantusMintedPubCoins.count(id) > 0
+        ? index->lelantusMintedPubCoins[id].size() > 0 : 0;
+}
+
 /******************************************************************************/
 // CLelantusState::Containers
 /******************************************************************************/
@@ -890,22 +898,41 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
 
 void CLelantusState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
-    BOOST_FOREACH(
-        const PAIRTYPE(int,vector<lelantus::PublicCoin>)& coins,
-        index->lelantusMintedPubCoins)
+    for (auto &coins : index->lelantusMintedPubCoins)
     {
+        if (coinGroups.count(coins.first) <= 0) {
+            throw std::invalid_argument("Group Id does not exist");
+        }
+
         LelantusCoinGroupInfo& coinGroup = coinGroups[coins.first];
-        int  nMintsToForget = coins.second.size();
+        auto nMintsToForget = coins.second.size();
 
         assert(coinGroup.nCoins >= nMintsToForget);
+        auto isExtended = coins.first > 1;
+        coinGroup.nCoins -= nMintsToForget;
 
-        if ((coinGroup.nCoins -= nMintsToForget) == 0) {
+        // if `index` is edged block we need to erase group
+        auto isEdgedBlock = false;
+        if (isExtended) {
+            auto prevBlockContainMints = index;
+            size_t prevGroupCount = 0;
+
+            // find block that contain some Lelantus mints
+            do {
+                prevBlockContainMints = prevBlockContainMints->pprev;
+            } while (prevBlockContainMints
+                && HasCoinInBlock(prevBlockContainMints, coins.first) <= 0
+                && (prevGroupCount = HasCoinInBlock(prevBlockContainMints, coins.first - 1)) <= 0);
+
+            isEdgedBlock = prevGroupCount > 0 && (coinGroup.nCoins - prevGroupCount) < startGroupSize;
+        }
+
+        if ((!isExtended && coinGroup.nCoins == 0) || (isExtended && isEdgedBlock)) {
             // all the coins of this group have been erased, remove the group altogether
             coinGroups.erase(coins.first);
             // decrease pubcoin id
             latestCoinId--;
-        }
-        else {
+        } else {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
 
@@ -917,9 +944,8 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back mints
-    BOOST_FOREACH(const PAIRTYPE(int, vector<lelantus::PublicCoin>) &pubCoins,
-                  index->lelantusMintedPubCoins) {
-        BOOST_FOREACH(const lelantus::PublicCoin& coin, pubCoins.second) {
+    for (auto const &pubCoins : index->lelantusMintedPubCoins) {
+        for (auto const &coin : pubCoins.second) {
             auto coins = containers.GetMints().equal_range(coin);
             auto coinIt = find_if(
                 coins.first, coins.second,
@@ -932,7 +958,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back spends
-    BOOST_FOREACH(const auto& serial, index->lelantusSpentSerials) {
+    for (auto const &serial : index->lelantusSpentSerials) {
         containers.RemoveSpend(serial.first);
     }
 }
@@ -994,14 +1020,20 @@ int CLelantusState::GetCoinSetForSpend(
     int numberOfCoins = 0;
     for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
 
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
         // check coins in group coinGroupID - 1 in the case that using coins from prev group.
-        auto id = block->lelantusMintedPubCoins[coinGroupID].size() > 0 ?
-            coinGroupID : coinGroupID - 1;
+        int id = 0;
+        if (HasCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (HasCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
 
-        if (id >= 1
-            && block->nHeight <= maxHeight
-            && block->lelantusMintedPubCoins[id].size() > 0) {
-
+        if (id) {
             if (numberOfCoins == 0) {
                 // latest block satisfying given conditions
                 // remember block hash
@@ -1017,6 +1049,7 @@ int CLelantusState::GetCoinSetForSpend(
             break ;
         }
     }
+
     return numberOfCoins;
 }
 

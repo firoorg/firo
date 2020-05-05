@@ -85,6 +85,11 @@ bool BuildLelantusStateFromIndex(CChain *chain);
 std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin);
 
 /*
+ * Util functions
+ */
+size_t HasCoinInBlock(CBlockIndex const *index, int id);
+
+/*
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
