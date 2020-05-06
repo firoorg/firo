@@ -8413,17 +8413,18 @@ bool CWallet::InitLoadWallet() {
         else
             pindexRescan = chainActive.Genesis();
     }
-    bool reindexing = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
+    bool rescanning = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
 
 #ifdef ENABLE_CLIENTAPI
-        // Set API loaded before wallet sync (if not reindexing) and immediately notify
-        if(fApi && !reindexing){
+        // Set API loaded before wallet sync (if not rescanning) and immediately notify
+        if(fApi && !rescanning){
             SetAPIWarmupFinished();
             GetMainSignals().NotifyAPIStatus();
+            LogPrintf("InitLoadWallet() : loaded API\n");
         }
 #endif
 
-    if (reindexing) {
+    if (rescanning) {
         //We can't rescan beyond non-pruned blocks, stop and throw an error
         //this might happen if a user uses a old wallet within a pruned node
         // or if he ran -disablewallet for a longer time, then decided to re-enable
@@ -8509,12 +8510,6 @@ bool CWallet::InitLoadWallet() {
             }
         }
     }
-#ifdef ENABLE_CLIENTAPI
-    if(fApi && reindexing){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-#endif
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     pwalletMain = walletInstance;

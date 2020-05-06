@@ -882,6 +882,14 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
+
+    // notify api loaded following rescan complietion (has no effect if rescan not set - already loaded in InitLoadWallet())
+#ifdef ENABLE_CLIENTAPI
+    if(fApi){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+    }
+#endif
 }
 
 /** Sanity checks
