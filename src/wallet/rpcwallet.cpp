@@ -576,6 +576,48 @@ UniValue listaddressgroupings(const JSONRPCRequest& request)
     return jsonGroupings;
 }
 
+UniValue listaddressbalances(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 1)
+        throw std::runtime_error(
+            "listaddressbalances ( minamount )\n"
+            "\nLists addresses of this wallet and their balances\n"
+            "\nArguments:\n"
+            "1. minamount               (numeric, optional, default=0) Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": amount,       (string) The dash address and the amount in " + CURRENCY_UNIT + "\n"
+            "  ,...\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listaddressbalances", "")
+            + HelpExampleCli("listaddressbalances", "10")
+            + HelpExampleRpc("listaddressbalances", "")
+            + HelpExampleRpc("listaddressbalances", "10")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    CAmount nMinAmount = 0;
+    if (request.params.size() > 0)
+        nMinAmount = AmountFromValue(request.params[0]);
+
+    if (nMinAmount < 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+
+    UniValue jsonBalances(UniValue::VOBJ);
+    std::map<CTxDestination, CAmount> balances = pwallet->GetAddressBalances();
+    for (auto& balance : balances)
+        if (balance.second >= nMinAmount)
+            jsonBalances.push_back(Pair(CBitcoinAddress(balance.first).ToString(), ValueFromAmount(balance.second)));
+
+    return jsonBalances;
+}
+
 UniValue signmessage(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4723,6 +4765,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "keypoolrefill",            &keypoolrefill,            true,   {"newsize"} },
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
+    { "wallet",             "listaddressbalances",      &listaddressbalances,      false,  {"minamount"} },
     { "wallet",             "listlockunspent",          &listlockunspent,          false,  {} },
     { "wallet",             "listreceivedbyaccount",    &listreceivedbyaccount,    false,  {"minconf","include_empty","include_watchonly"} },
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false,  {"minconf","include_empty","include_watchonly"} },
