@@ -132,6 +132,8 @@ private:
     std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > > mMnbRecoveryRequests;
     std::map<uint256, std::vector<CZnodeBroadcast> > mMnbRecoveryGoodReplies;
     std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
+    std::map<CService, std::pair<int64_t, CZnodeVerification> > mapPendingMNV;
+    CCriticalSection cs_mapPendingMNV;
 
     int64_t nLastIndexRebuildTime;
 
@@ -227,7 +229,7 @@ public:
     void DsegUpdate(CNode* pnode);
 
     /// Find an entry
-    CZnode* Find(const std::string &txHash, const std::string outputIndex);
+    CZnode* Find(const std::string &txHash, const std::string &outputIndex);
     CZnode* Find(const CScript &payee);
     CZnode* Find(const CTxIn& vin);
     CZnode* Find(const CPubKey& pubKeyZnode);
@@ -310,7 +312,9 @@ public:
 
     void DoFullVerificationStep();
     void CheckSameAddr();
-    bool SendVerifyRequest(const CAddress& addr, const std::vector<CZnode*>& vSortedByAddr);
+    bool CheckVerifyRequestAddr(const CAddress& addr, CConnman& connman);
+    void PrepareVerifyRequest(const CAddress& addr, CConnman& connman);
+    void ProcessPendingMnvRequests(CConnman& connman);
     void SendVerifyReply(CNode* pnode, CZnodeVerification& mnv);
     void ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv);
     void ProcessVerifyBroadcast(CNode* pnode, const CZnodeVerification& mnv);

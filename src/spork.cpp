@@ -54,8 +54,11 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
             return;
         }
 
+        // Don't act on received spork in any way
+        /*
         mapSporks[hash] = spork;
         mapSporksActive[spork.nSporkID] = spork;
+        */
         //spork.Relay();
 
         //does a task if needed
@@ -81,8 +84,13 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    mapSporks[spork.GetHash()] = spork;
-    mapSporksActive[nSporkID] = spork;
+    if(spork.Sign(strMasterPrivKey)) {
+        //spork.Relay();
+        mapSporks[spork.GetHash()] = spork;
+        mapSporksActive[nSporkID] = spork;
+        return true;
+    }    
+
     return true;
 }
 
@@ -230,7 +238,6 @@ bool CSporkMessage::CheckSignature()
 
 void CSporkMessage::Relay()
 {
-    // don't do anything here
     /*
     CInv inv(MSG_SPORK, GetHash());
     g_connman->RelayInv(inv);

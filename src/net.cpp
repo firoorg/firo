@@ -3478,6 +3478,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fPauseRecv = false;
     fPauseSend = false;
     nProcessQueueSize = 0;
+    pendingMNVerification = nullptr;
 
     BOOST_FOREACH(const std::string &msg, getAllNetMessageTypes())
         mapRecvBytesPerMsgCmd[msg] = 0;
@@ -3495,6 +3496,9 @@ CNode::~CNode()
 
     if (pfilter)
         delete pfilter;
+
+    if (pendingMNVerification)
+        delete pendingMNVerification;
 }
 
 void CNode::AskFor(const CInv& inv, int64_t doubleRequestDelay)

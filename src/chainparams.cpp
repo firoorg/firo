@@ -623,7 +623,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = INT_MAX;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
         consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = INT_MAX;
@@ -650,8 +650,8 @@ public:
         consensus.nDontAllowDupTxsStartBlock = 1;
 
         // evo znodes
-        consensus.DIP0003Height = INT_MAX;
-        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0003Height = 500;
+        consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0008Height = INT_MAX;
 
         // long living quorum params
@@ -665,7 +665,7 @@ public:
         consensus.nMTPStartBlock = 0;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 5000;
-        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nFixedDifficulty = 0x207fffff;
         consensus.nPowTargetSpacingMTP = 5*60;
         consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;

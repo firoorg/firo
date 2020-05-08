@@ -808,7 +808,7 @@ void CZnodePayments::Sync(CNode *pnode) {
     }
 
     LogPrintf("CZnodePayments::Sync -- Sent %d votes to peer %d\n", nInvCount, pnode->id);
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_MNW, nInvCount));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_MNW, nInvCount));
 }
 
 // Request low data/unknown payment blocks in batches directly from some node instead of/after preliminary Sync.
@@ -829,7 +829,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
             // We should not violate GETDATA rules
             if (vToFetch.size() == MAX_INV_SZ) {
                 LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
                 // Start filling new batch
                 vToFetch.clear();
             }
@@ -878,7 +878,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
         // We should not violate GETDATA rules
         if (vToFetch.size() == MAX_INV_SZ) {
             LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
-            g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
+            g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
             // Start filling new batch
             vToFetch.clear();
         }
@@ -887,7 +887,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
     // Ask for the rest of it
     if (!vToFetch.empty()) {
         LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
-        g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
+        g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETDATA, vToFetch));
     }
 }
 

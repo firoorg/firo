@@ -79,6 +79,9 @@ LIBBLSSIG_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signat
 LIBBLSSIG_LIBS=bls-signatures/build/libchiabls.a
 LIBBLSSIG_DEPENDS=-lgmp
 
+$(LIBBLSSIG_LIBS): $(wildcard bls-signatures/src/*.cpp) $(wildcard bls-signatures/src/*.hpp)
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C bls-signatures/build
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 

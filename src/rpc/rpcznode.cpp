@@ -117,7 +117,7 @@ UniValue znode(const JSONRPCRequest &request) {
                         "  debug        - Print znode status\n"
                         "  genkey       - Generate new znodeprivkey\n"
                         "  outputs      - Print znode compatible outputs\n"
-                        "  start        - Start local Hot znode configured in dash.conf\n"
+                        "  start        - Start local Hot znode configured in zcoin.conf\n"
                         "  start-alias  - Start single remote znode by assigned alias configured in znode.conf\n"
                         "  start-<mode> - Start remote znodes configured in znode.conf (<mode>: 'all', 'missing', 'disabled')\n"
                         "  status       - Print znode status information\n"

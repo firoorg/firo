@@ -48,6 +48,9 @@
 #include "zerocoin.h"
 #include "sigma.h"
 #include "evo/evodb.h"
+#include "evo/cbtx.h"
+#include "evo/specialtx.h"
+#include "llmq/quorums_init.h"
 
 extern std::unique_ptr<CConnman> g_connman;
 uint256 insecure_rand_seed = GetRandHash();
@@ -67,11 +70,16 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     fCheckBlockIndex = true;
     SelectParams(chainName);
     SoftSetBoolArg("-dandelion", false);
+    evoDb = new CEvoDB(1 << 20, true, true);
+    deterministicMNManager = new CDeterministicMNManager(*evoDb);
     noui_connect();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
+        delete deterministicMNManager;
+        delete evoDb;
+
         ECC_Stop();
         g_connman.reset();
 }
@@ -93,14 +101,11 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         mempool.setSanityCheck(1.0);
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
+        llmq::InitLLMQSystem(*evoDb, nullptr, true);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
         pwalletMain = new CWallet(string("wallet_test.dat"));
         static bool fFirstRun = true;
         pwalletMain->LoadWallet(fFirstRun);
-        pEvoDb = std::make_shared<CEvoDB>(1024 * 1024 * 16, true, true);
-        evoDb = pEvoDb.get();
-        pDeterministicMNManager = std::make_shared<CDeterministicMNManager>(*evoDb);
-        deterministicMNManager = pDeterministicMNManager.get();
 
         InitBlockIndex(chainparams);
         {
@@ -140,6 +145,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
+    llmq::InterruptLLMQSystem();
 #ifdef ENABLE_EXODUS
     exodus_shutdown();
 #endif
@@ -172,12 +178,12 @@ TestingSetup::~TestingSetup()
 #endif
 }
 
-TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)
+TestChain100Setup::TestChain100Setup(int nBlocks) : TestingSetup(CBaseChainParams::REGTEST)
 {
     // Generate a 100-block chain:
     coinbaseKey.MakeNewKey(true);
     CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    for (int i = 0; i < COINBASE_MATURITY; i++)
+    for (int i = 0; i < nBlocks; i++)
     {
         std::vector<CMutableTransaction> noTxns;
         CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
@@ -185,34 +191,84 @@ TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)
     }
 }
 
-//
-// Create a new block with just given transactions, coinbase paying to
-// scriptPubKey, and try to add it to the current chain.
-//
-CBlock
-TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
+CBlock TestChain100Setup::CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
 {
     const CChainParams& chainparams = Params();
     std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
     CBlock& block = pblocktemplate->block;
 
+    std::vector<CTransactionRef> llmqCommitments;
+    for (const auto& tx : block.vtx) {
+        if (tx->nVersion == 3 && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
+            llmqCommitments.emplace_back(tx);
+        }
+    }
+
     // Replace mempool-selected txns with just coinbase plus passed-in txns:
     block.vtx.resize(1);
+    // Re-add quorum commitments
+    block.vtx.insert(block.vtx.end(), llmqCommitments.begin(), llmqCommitments.end());
     BOOST_FOREACH(const CMutableTransaction& tx, txns)
         block.vtx.push_back(MakeTransactionRef(tx));
+
+    // Manually update CbTx as we modified the block here
+    if (block.vtx[0]->nType == TRANSACTION_COINBASE) {
+        LOCK(cs_main);
+        CCbTx cbTx;
+        if (!GetTxPayload(*block.vtx[0], cbTx)) {
+            BOOST_ASSERT(false);
+        }
+        CValidationState state;
+        if (!CalcCbTxMerkleRootMNList(block, chainActive.Tip(), cbTx.merkleRootMNList, state)) {
+            BOOST_ASSERT(false);
+        }
+        if (!CalcCbTxMerkleRootQuorums(block, chainActive.Tip(), cbTx.merkleRootQuorums, state)) {
+            BOOST_ASSERT(false);
+        }
+        CMutableTransaction tmpTx = *block.vtx[0];
+        SetTxPayload(tmpTx, cbTx);
+        block.vtx[0] = MakeTransactionRef(tmpTx);
+    }
+
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) {
-        ++block.nNonce;
-    }
-
-    std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
-    ProcessNewBlock(chainparams, shared_pblock, true, NULL);
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
 
     CBlock result = block;
     return result;
+}
+
+CBlock TestChain100Setup::CreateBlock(const std::vector<CMutableTransaction>& txns, const CKey& scriptKey)
+{
+    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    return CreateBlock(txns, scriptPubKey);
+}
+
+//
+// Create a new block with just given transactions, coinbase paying to
+// scriptPubKey, and try to add it to the current chain.
+//
+CBlock
+TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey, bool * processBlockResult)
+{
+    const CChainParams& chainparams = Params();
+    auto block = CreateBlock(txns, scriptPubKey);
+
+    std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
+    bool pbr = ProcessNewBlock(chainparams, shared_pblock, true, NULL);
+    if(processBlockResult)
+        *processBlockResult = pbr;
+
+    CBlock result = block;
+    return result;
+}
+
+CBlock TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CKey& scriptKey, bool * processBlockResult)
+{
+    CScript scriptPubKey = CScript() <<  ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    return CreateAndProcessBlock(txns, scriptPubKey, processBlockResult);
 }
 
 TestChain100Setup::~TestChain100Setup()
@@ -232,6 +288,27 @@ CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CTransaction &txn, CTxMemPo
     return CTxMemPoolEntry(MakeTransactionRef(txn), nFee, nTime, nHeight,
                            inChainValue, spendsCoinbase, sigOpCost, lp);
 }
+
+size_t FindZnodeOutput(CTransaction const & tx) {
+    static std::vector<CScript> const founders {
+        GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get()),
+        GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get()),
+        GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get()),
+        GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get()),
+        GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get()),
+    };
+
+    BOOST_CHECK(tx.IsCoinBase());
+    for(size_t i = 0; i < tx.vout.size(); ++i) {
+        CTxOut const & out = tx.vout[i];
+         if(std::find(founders.begin(), founders.end(), out.scriptPubKey) == founders.end()) {
+            if(out.nValue == GetZnodePayment(Params().GetConsensus(), false))
+                return i;
+        }
+    }
+    throw std::runtime_error("Cannot find the Znode output");
+}
+
 /*
 void Shutdown(void* parg)
 {

@@ -83,7 +83,7 @@ Dependencies
 
 2.  Install required packages
 
-        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libzmq3-dev libminizip-dev
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libgmp-dev cmake libzmq3-dev libminizip-dev
 
 3.  Install Berkeley DB 4.8
 

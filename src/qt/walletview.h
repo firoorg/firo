@@ -11,6 +11,7 @@
 
 #include "amount.h"
 #include "znodelist.h"
+#include "masternodelist.h"
 #include "sigmadialog.h"
 
 #ifdef ENABLE_EXODUS
@@ -114,6 +115,7 @@ private:
     TransactionView *zcoinTransactionList;
     QWidget *zcoinTransactionsView;
     ZnodeList *znodeListPage;
+    MasternodeList *masternodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -139,6 +141,8 @@ public Q_SLOTS:
     void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to znode page */
     void gotoZnodePage();
+    /** Switch to masternode page */
+    void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

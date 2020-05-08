@@ -280,8 +280,6 @@ void Shutdown()
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
     flatdb2.Dump(znpayments);
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    flatdb4.Dump(netfulfilledman);
     
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
@@ -294,7 +292,7 @@ void Shutdown()
         flatdb1.Dump(mmetaman);
 /*        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
         flatdb3.Dump(governance); */
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("evonetfulfilled.dat", "magicFulfilledCache");
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
         flatdb4.Dump(netfulfilledman);
         /*if(fEnableInstantSend)
         {
@@ -834,6 +832,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+    } // End scope of CImportingNow
 
     // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
@@ -865,7 +864,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
-    } // End scope of CImportingNow
     fDumpMempoolLater = !fRequestShutdown;
 }
 
@@ -1733,7 +1731,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    // ********************************************************* Step 7: load block chain
+    // ********************************************************* Step 7a: check lite mode
+
+    // lite mode disables all Dash-specific functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
+    }
+
+    // ********************************************************* Step 7b: load block chain
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
@@ -1743,32 +1751,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         pzmqPublisherInterface->StartWorker();
 #endif
 
-    // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
-    boost::filesystem::path blocksDir = GetDataDir() / "blocks";
-    if (!boost::filesystem::exists(blocksDir))
-    {
-        boost::filesystem::create_directories(blocksDir);
-        bool linked = false;
-        for (unsigned int i = 1; i < 10000; i++) {
-            boost::filesystem::path source = GetDataDir() / strprintf("blk%04u.dat", i);
-            if (!boost::filesystem::exists(source)) break;
-            boost::filesystem::path dest = blocksDir / strprintf("blk%05u.dat", i-1);
-            try {
-                boost::filesystem::create_hard_link(source, dest);
-                LogPrintf("Hardlinked %s -> %s\n", source.string(), dest.string());
-                linked = true;
-            } catch (const boost::filesystem::filesystem_error& e) {
-                // Note: hardlink creation failing is not a disaster, it just means
-                // blocks will get re-downloaded from peers.
-                LogPrintf("Error hardlinking blk%04u.dat: %s\n", i, e.what());
-                break;
-            }
-        }
-        if (linked)
-        {
-            fReindex = true;
-        }
-    }
+    boost::filesystem::create_directories(GetDataDir() / "blocks");
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
@@ -2060,11 +2043,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
     }
 
-    // ********************************************************* Step 11a: setup PrivateSend
+    // ********************************************************* Step 10a: Prepare znode related stuff
     fMasternodeMode = GetBoolArg("-znode", false);
+    if (fMasternodeMode)
+        // turn off dandelion for znodes
+        ForceSetArg("-dandelion", "0");
 
     LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
+
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode."));
+    }
 
     if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
@@ -2119,11 +2109,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // evo znode system
     if(fLiteMode && fMasternodeMode) {
-        return InitError(_("You can not start a masternode in lite mode."));
+        return InitError(_("You can not start a znode in lite mode."));
     }
 
     if(fMasternodeMode) {
-        LogPrintf("MASTERNODE:\n");
+        LogPrintf("ZNODE:\n");
 
         std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
@@ -2154,6 +2144,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
     }
 
+    // ********************************************************* Step 10b: PrivateSend (some of its functions are required for legacy znode operation)
+
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
@@ -2171,20 +2163,90 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 //    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
 //    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    // lite mode disables all Znode and Darksend related functionality
-    fLiteMode = GetBoolArg("-litemode", false);
-    if (fMasternodeMode && fLiteMode) {
-        return InitError("You can not start a znode in litemode");
-    }
-
-    LogPrintf("fLiteMode %d\n", fLiteMode);
-//    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
-//    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
-//    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
-
     darkSendPool.InitDenominations();
 
-    // ********************************************************* Step 10: import blocks
+    // ********************************************************* Step 10c: Load cache data
+
+    // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
+    bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
+    if (!fIgnoreCacheFiles) {
+        // Legacy znodes cache
+        uiInterface.InitMessage(_("Loading znode cache..."));
+        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+        if (!flatdb1.Load(mnodeman)) {
+            return InitError("Failed to load znode cache from zncache.dat");
+        }
+
+        if (mnodeman.size()) {
+            uiInterface.InitMessage(_("Loading Znode payment cache..."));
+            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+            if (!flatdb2.Load(znpayments)) {
+                return InitError("Failed to load znode payments cache from znpayments.dat");
+            }
+        } else {
+            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
+        }
+    }
+
+    if (!fIgnoreCacheFiles) {
+        // Evo znode cache
+        boost::filesystem::path pathDB = GetDataDir();
+        std::string strDBName;
+
+        strDBName = "evozncache.dat";
+        uiInterface.InitMessage(_("Loading znode cache..."));
+        CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
+        if(!flatdb1.Load(mmetaman)) {
+            return InitError(_("Failed to load znode cache from") + "\n" + (pathDB / strDBName).string());
+        }
+
+        /*
+        strDBName = "governance.dat";
+        uiInterface.InitMessage(_("Loading governance cache..."));
+        CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
+        if(!flatdb3.Load(governance)) {
+            return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());
+        }
+        governance.InitOnLoad();
+        */
+
+        strDBName = "netfulfilled.dat";
+        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+        CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
+        if(!flatdb4.Load(netfulfilledman)) {
+            return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
+        }
+
+        /*
+        if(fEnableInstantSend)
+        {
+            strDBName = "instantsend.dat";
+            uiInterface.InitMessage(_("Loading InstantSend data cache..."));
+            CFlatDB<CInstantSend> flatdb5(strDBName, "magicInstantSendCache");
+            if(!flatdb5.Load(instantsend)) {
+                return InitError(_("Failed to load InstantSend data cache from") + "\n" + (pathDB / strDBName).string());
+            }
+        }
+        */
+    }
+
+    // ********************************************************* Step 10d: schedule Dash-specific tasks
+
+    if (!fLiteMode) {
+        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1);
+
+        /*
+        scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5);
+
+        scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60);
+        */
+    }
+
+    llmq::StartLLMQSystem();
+
+    // ********************************************************* Step 11: import blocks
 
     if (!CheckDiskSpace())
         return false;
@@ -2218,7 +2280,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
     }
 
-    // ********************************************************* Step 11: start node
+    // ********************************************************* Step 12: start node
 
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
@@ -2254,93 +2316,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
 
-    // ********************************************************* Step 11b: Load cache data
-
-    // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
-
-    if (!fIgnoreCacheFiles) {
-        // Legacy znodes cache
-        uiInterface.InitMessage(_("Loading znode cache..."));
-        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-        if (!flatdb1.Load(mnodeman)) {
-            return InitError("Failed to load znode cache from zncache.dat");
-        }
-
-        if (mnodeman.size()) {
-            uiInterface.InitMessage(_("Loading Znode payment cache..."));
-            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-            if (!flatdb2.Load(znpayments)) {
-                return InitError("Failed to load znode payments cache from znpayments.dat");
-            }
-        } else {
-            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
-        }
-
-        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-        flatdb4.Load(netfulfilledman);
-    }
-
-    if (!fIgnoreCacheFiles) {
-        // Evo znode cache
-        boost::filesystem::path pathDB = GetDataDir();
-        std::string strDBName;
-
-        strDBName = "evozncache.dat";
-        uiInterface.InitMessage(_("Loading masternode cache..."));
-        CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
-        if(!flatdb1.Load(mmetaman)) {
-            return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
-        }
-
-        /*
-        strDBName = "governance.dat";
-        uiInterface.InitMessage(_("Loading governance cache..."));
-        CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
-        if(!flatdb3.Load(governance)) {
-            return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());
-        }
-        governance.InitOnLoad();
-        */
-
-        strDBName = "evonetfulfilled.dat";
-        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-        CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
-        if(!flatdb4.Load(netfulfilledman)) {
-            return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
-        }
-
-        /*
-        if(fEnableInstantSend)
-        {
-            strDBName = "instantsend.dat";
-            uiInterface.InitMessage(_("Loading InstantSend data cache..."));
-            CFlatDB<CInstantSend> flatdb5(strDBName, "magicInstantSendCache");
-            if(!flatdb5.Load(instantsend)) {
-                return InitError(_("Failed to load InstantSend data cache from") + "\n" + (pathDB / strDBName).string());
-            }
-        }
-        */
-    }
-
-    // ********************************************************* Step 10d: schedule Dash-specific tasks
-
-    if (!fLiteMode) {
-        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60 * 1000);
-        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1 * 1000);
-        scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1 * 1000);
-
-        /*
-        scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5 * 1000);
-
-        scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60 * 1000);
-        */
-    }
-
-    llmq::StartLLMQSystem();
-
-    // ********************************************************* Step 11c: update block tip in Zcoin modules
+    // ********************************************************* Step 13a: update block tip in Zcoin modules
 
     bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
 
@@ -2355,9 +2331,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         // governance.UpdatedBlockTip(chainActive.Tip());
     }
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+    // ********************************************************* Step 13b: start legacy znodes thread
 
-    // TODO: replace this temporary patch with real DASH evo code
+    // TODO: remove this code after switch to evo is done
     if (!fEvoZnodes)
     {
         threadGroup.create_thread([] {
@@ -2374,8 +2350,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 {
                     LOCK(cs_main);
-                    // shut legacy znode down if past 100 blocks of DIP3 enforcement
-                    if (chainActive.Height() >= Params().GetConsensus().DIP0003EnforcementHeight + 100)
+                    // shut legacy znode down if past 6 blocks of DIP3 enforcement
+                    if (chainActive.Height()-6 >= Params().GetConsensus().DIP0003EnforcementHeight)
                         break;
                 }
                     
@@ -2388,6 +2364,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                     // make sure to check all znodes first
                     mnodeman.Check();
+
+                    mnodeman.ProcessPendingMnvRequests(*g_connman);
 
                     // check if we should activate or ping every few minutes,
                     // slightly postpone first run to give net thread a chance to connect to some peers
@@ -2408,7 +2386,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         });
     }
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 14: finished
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

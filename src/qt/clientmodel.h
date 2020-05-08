@@ -10,6 +10,8 @@
 
 #include <atomic>
 
+#include "evo/deterministicmns.h"
+
 class AddressTableModel;
 class BanTableModel;
 class OptionsModel;
@@ -59,6 +61,10 @@ public:
     long getMempoolSize() const;
     //! Return the dynamic memory usage of the mempool
     size_t getMempoolDynamicUsage() const;
+
+    void setMasternodeList(const CDeterministicMNList& mnList);
+    CDeterministicMNList getMasternodeList() const;
+    void refreshMasternodeList();    
     
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
@@ -98,6 +104,12 @@ private:
 
     QTimer *pollTimer;
 
+    // The cache for mn list is not technically needed because CDeterministicMNManager
+    // caches it internally for recent blocks but it's not enough to get consistent
+    // representation of the list in UI during initial sync/reindex, so we cache it here too.
+    mutable CCriticalSection cs_mnlinst; // protects mnListCached
+    CDeterministicMNList mnListCached;
+
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
@@ -107,6 +119,7 @@ private:
 
 Q_SIGNALS:
     void numConnectionsChanged(int count);
+    void masternodeListChanged() const;
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
     void networkActiveChanged(bool networkActive);

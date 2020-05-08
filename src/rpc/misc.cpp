@@ -24,6 +24,8 @@
 #include "txdb.h"
 #include "zerocoin.h"
 
+#include "masternode-sync.h"
+
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
@@ -346,6 +348,42 @@ UniValue znsync(const JSONRPCRequest& request)
     return "failure";
 }
 
+UniValue mnsync(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "evoznsync [status|next|reset]\n"
+            "Returns the sync status, updates to the next step or resets it entirely.\n"
+        );
+
+    std::string strMode = request.params[0].get_str();
+
+    if(strMode == "status") {
+        UniValue objStatus(UniValue::VOBJ);
+        objStatus.push_back(Pair("AssetID", masternodeSync.GetAssetID()));
+        objStatus.push_back(Pair("AssetName", masternodeSync.GetAssetName()));
+        objStatus.push_back(Pair("AssetStartTime", masternodeSync.GetAssetStartTime()));
+        objStatus.push_back(Pair("Attempt", masternodeSync.GetAttempt()));
+        objStatus.push_back(Pair("IsBlockchainSynced", masternodeSync.IsBlockchainSynced()));
+        objStatus.push_back(Pair("IsSynced", masternodeSync.IsSynced()));
+        objStatus.push_back(Pair("IsFailed", masternodeSync.IsFailed()));
+        return objStatus;
+    }
+
+    if(strMode == "next")
+    {
+        masternodeSync.SwitchToNextAsset(*g_connman);
+        return "sync updated to " + masternodeSync.GetAssetName();
+    }
+
+    if(strMode == "reset")
+    {
+        masternodeSync.Reset();
+        masternodeSync.SwitchToNextAsset(*g_connman);
+        return "success";
+    }
+    return "failure";
+}
 
 UniValue createmultisig(const JSONRPCRequest& request)
 {
@@ -1282,6 +1320,9 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
+
+    /* Znode features */
+    { "zcoin",              "evoznsync",              &mnsync,                 true,  {} },
 
     /* Not shown in help */
     { "hidden",             "getzerocoinsupply",      &getzerocoinsupply,      false },

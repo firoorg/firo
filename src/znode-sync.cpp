@@ -323,12 +323,12 @@ void CZnodeSync::ProcessTick() {
         // QUICK MODE (REGTEST ONLY!)
         if (Params().NetworkIDString() == CBaseChainParams::REGTEST) {
             if (nRequestedZnodeAttempt <= 2) {
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
             } else if (nRequestedZnodeAttempt < 4) {
                 mnodeman.DsegUpdate(pnode);
             } else if (nRequestedZnodeAttempt < 6) {
                 int nMnCount = mnodeman.CountZnodes();
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
                 GetMainSignals().UpdateSyncStatus();
@@ -354,7 +354,7 @@ void CZnodeSync::ProcessTick() {
                 // only request once from each peer
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
                 // get current network sporks
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS));
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS));
                 LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- requesting sporks from peer %d\n", nTick, nRequestedZnodeAssets, pnode->id);
                 continue; // always get sporks first, switch to the next node without waiting for the next tick
             }
@@ -429,7 +429,7 @@ void CZnodeSync::ProcessTick() {
                 nRequestedZnodeAttempt++;
 
                 // ask node for all payment votes it has (new nodes will only return votes for future payments)
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, znpayments.GetStorageLimit()));
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, znpayments.GetStorageLimit()));
                 // ask node for missing pieces only (old nodes will not be asked)
                 znpayments.RequestLowDataPaymentBlocks(pnode);
 

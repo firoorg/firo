@@ -36,7 +36,27 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         LOCK(cs_mapFulfilledRequests);
-        READWRITE(mapFulfilledRequests);
+        if (ser_action.ForRead()) {
+            // Do we need to upgrade from old version?
+            // Read all the data to the end (only CDataStream is supported)
+            typename Stream::size_type bytesLeft = s.size();
+            try {
+                READWRITE(mapFulfilledRequests);
+            }
+            catch (std::exception &e) {
+                // Rewind the stream and try to re-read it in legacy mode
+                s.Rewind(bytesLeft - s.size());
+                std::map<CNetAddr, fulfilledreqmapentry_t> legacyMapFulfilledRequests;
+                READWRITE(legacyMapFulfilledRequests);
+                mapFulfilledRequests.clear();
+                int defaultPort = Params().GetDefaultPort();
+                for (const auto &fe: legacyMapFulfilledRequests)
+                    mapFulfilledRequests[CService(fe.first, defaultPort)] = fe.second;
+            }
+        }
+        else {
+            READWRITE(mapFulfilledRequests);
+        }
     }
 
     void AddFulfilledRequest(const CService& addr, const std::string& strRequest);

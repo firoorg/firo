@@ -111,9 +111,7 @@ public:
 
     static const int CURRENT_VERSION = 2;
 
-    // uint32_t lastHeight;
-    uint256 powHash;
-    int32_t isComputed;
+    mutable uint256 cachedPoWHash;
 
     CBlockHeader()
     {
@@ -176,8 +174,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
-        isComputed = -1;
-        powHash.SetNull();
+        cachedPoWHash.SetNull();
 
         // Zcoin - MTP
         mtpHashData.reset();
@@ -196,18 +193,7 @@ public:
         return (nBits == 0);
     }
 
-    bool IsComputed() const
-    {
-        return (isComputed <= 0);
-    }
-
-    void SetPoWHash(uint256 hash) const
-    {
-//        isComputed = 1;
-//        powHash = hash;
-    }
-
-    uint256 GetPoWHash(int nHeight, bool forceCalc = false) const;
+    uint256 GetPoWHash(int nHeight) const;
 
     uint256 GetHash() const;
 

@@ -1544,12 +1544,9 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, int nHeight, con
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)){
-        //Maybe cache is not valid
-        if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)){
-            return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
-        }
-    }
+    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+        return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
+
     return true;
 }
 
@@ -1623,8 +1620,8 @@ bool IsInitialBlockDownload() {
         return true;
 //    if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
 //        return true;
-//    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
-//        return true;
+    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
+        return true;
     latchToFalse.store(true, std::memory_order_relaxed);
     return false;
 }
@@ -2119,7 +2116,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-    block.InvalidateCachedPoWHash(pindex->nHeight);
 
     //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
     //When called from there, no real disconnect happens.
@@ -2518,7 +2514,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::string strError = "";
     if (deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
         // evo znodes
-        if (!IsBlockValueValid(block, pindex->nHeight, blockSubsidy, strError)) {
+        if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
             return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
         }
        
@@ -2542,11 +2538,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     }
 
-    if (pindex->nHeight >= chainparams.GetConsensus().DIP0003Height) {
-        if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
-            return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
-                        pindex->GetBlockHash().ToString(), FormatStateMessage(state));
-        }
+    if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
+        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
+                    pindex->GetBlockHash().ToString(), FormatStateMessage(state));
     }
     // END ZNODE
 
@@ -3564,7 +3558,7 @@ bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, C
 
     InvalidChainFound(pindex);
     txpools.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
-
+    GetMainSignals().UpdatedBlockTip(chainActive.Tip(), NULL, IsInitialBlockDownload());
     uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindex->pprev);
     return true;
 }
@@ -3783,12 +3777,11 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)) {
-        //Maybe cache is not valid
-        if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)) {
-            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
-        }
-    }
+    // set nHeight to INT_MAX if block is not found in index and it's not genesis block
+    if (nHeight == 0 && !block.hashPrevBlock.IsNull())
+        nHeight = INT_MAX;
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");        
     return true;
 }
 
