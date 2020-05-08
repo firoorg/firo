@@ -516,7 +516,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
  */
 void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta){
     if (mintPoolEntries.size() > 0) {
-        zwalletMain->SyncWithChain(false, mintPoolEntries);
+        pwalletMain->zwallet->SyncWithChain(false, mintPoolEntries);
     }
 
     //overwrite any updates

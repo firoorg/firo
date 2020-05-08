@@ -20,7 +20,7 @@ class CHDMintWallet
 private:
     int32_t nCountNextUse;
     int32_t nCountNextGenerate;
-    std::string strWalletFile;
+    CWalletDB walletdb;
     CMintPool mintPool;
     CHDMintTracker tracker;
     uint160 hashSeedMaster;
@@ -50,7 +50,6 @@ public:
     void SetCount(int32_t nCount);
     void UpdateCountLocal();
     void UpdateCountDB();
-    void UpdateCount();
     void SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex *blockIndex, const CBlock &block);
 
 private:

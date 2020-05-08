@@ -26,10 +26,8 @@
  * @param strWalletFile wallet file string
  * @return CHDMintWallet object
  */
-CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : tracker(strWalletFile)
+CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : tracker(strWalletFile), walletdb(strWalletFile)
 {
-    this->strWalletFile = strWalletFile;
-    CWalletDB walletdb(strWalletFile);
     this->mintPool = CMintPool();
 
     //Don't try to do anything else if the wallet is locked.
@@ -56,7 +54,6 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) 
  */
 bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 {
-    CWalletDB walletdb(strWalletFile);
     if (pwalletMain->IsLocked())
         return false;
 
@@ -99,7 +96,6 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
     // hashPubcoin, hashSerial
     std::pair<uint256,uint256> nIndexes;
 
-    CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())
         throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -118,8 +114,8 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
 
     MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-    CWalletDB(strWalletFile).WritePubcoin(hashSerial, commitmentValue);
-    CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
+    walletdb.WritePubcoin(hashSerial, commitmentValue);
+    walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
     LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
 
     nIndexes.first = hashPubcoin;
@@ -141,7 +137,6 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
  */
 void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 {
-    CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())
         return;
@@ -174,8 +169,8 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 
         MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-        CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
-        CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
+        walletdb.WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+        walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
         LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
@@ -191,7 +186,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
  */
 bool CHDMintWallet::LoadMintPoolFromDB()
 {
-    vector<std::pair<uint256, MintPoolEntry>> listMintPool = CWalletDB(strWalletFile).ListMintPool();
+    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
 
     for (auto& mintPoolPair : listMintPool){
         LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
@@ -249,7 +244,6 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
     bool found = true;
-    CWalletDB walletdb(strWalletFile);
 
     set<uint256> setAddedTx;
     std::set<uint256> setChecked;
@@ -391,7 +385,6 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     }else{
         LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
         // Get serial and pubcoin data from the db
-        CWalletDB walletdb(strWalletFile);
         std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
         bool fFound = false;
         for(auto serialPubcoinPair : serialPubcoinPairs){
@@ -418,7 +411,6 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     dMint.SetHeight(nHeight);
 
     // Check if this is also already spent
-    CWalletDB walletdb(strWalletFile);
     int nHeightTx;
     uint256 txidSpend;
     CTransactionRef txSpend;
@@ -581,7 +573,6 @@ int32_t CHDMintWallet::GetCount()
  */
 void CHDMintWallet::ResetCount()
 {
-    CWalletDB walletdb(strWalletFile);
     walletdb.ReadMintCount(nCountNextUse);
 }
 
@@ -616,20 +607,8 @@ void CHDMintWallet::UpdateCountLocal()
 void CHDMintWallet::UpdateCountDB()
 {
     LogPrintf("CHDMintWallet : Updating count in DB to %s\n",nCountNextUse);
-    CWalletDB walletdb(strWalletFile);
     walletdb.WriteMintCount(nCountNextUse);
     GenerateMintPool();
-}
-
-/**
- * Call the previous two functions at once.
- *
- * @return void
- */
-void CHDMintWallet::UpdateCount()
-{
-    UpdateCountLocal();
-    UpdateCountDB();
 }
 
 /**
@@ -682,7 +661,6 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
     if(mintPoolEntry!=boost::none)
         return GetHDMintFromMintPoolEntry(denom, coin, dMint, mintPoolEntry.get());
 
-    CWalletDB walletdb(strWalletFile);
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     while(true){
         if(hashSeedMaster.IsNull())
