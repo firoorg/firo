@@ -10,7 +10,7 @@
 
 namespace lelantus {
 
-struct MintScript {
+struct MintScriptGenerator {
 public:
     CScript script;
     PrivateCoin coin;
@@ -30,6 +30,36 @@ public:
     }
 };
 
+struct JoinSplitScriptGenerator {
+public:
+    Params const *params;
+    std::vector<std::pair<PrivateCoin, uint32_t>> coins;
+    std::map<uint32_t, std::vector<PublicCoin>> anons;
+    CAmount vout;
+    std::vector<PrivateCoin> coinsOut;
+    CAmount fee;
+    std::vector<uint256> groupBlockHashes;
+    uint256 txHash;
+
+public:
+    CScript GenerateScript() {
+        auto p = params == nullptr ? Params::get_default() : params;
+
+        CScript script;
+
+        JoinSplit joinSplit(p, coins, anons, vout, coinsOut, fee, groupBlockHashes, txHash);
+        joinSplit.setVersion(LELANTUS_TX_VERSION_4);
+
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << joinSplit;
+
+        script << OP_LELANTUSJOINSPLIT;
+        script.insert(script.end(), ss.begin(), ss.end());
+
+        return script;
+    }
+};
+
 class LelantusTests : public LelantusTestingSetup {
 public:
     LelantusTests() :
@@ -43,8 +73,8 @@ public:
 
 public:
 
-    std::pair<MintScript, CTxOut> GenerateMintScript(CAmount value) const {
-        MintScript script{CScript(), PrivateCoin(params, value)};
+    std::pair<MintScriptGenerator, CTxOut> GenerateMintScript(CAmount value) const {
+        MintScriptGenerator script{CScript(), PrivateCoin(params, value)};
         script.GenerateScript();
 
         return {script, CTxOut(value, script.script)};
@@ -204,8 +234,6 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_jmint)
 
 // TODO(can):
 // - CheckLelantusTransaction
-// - DisconnectTipLelantus
-// - ConnectBlockLelantus
 
 BOOST_AUTO_TEST_CASE(get_outpoint)
 {
