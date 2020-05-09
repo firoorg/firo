@@ -1801,7 +1801,7 @@ bool CZnodeMan::IsZnodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTim
 
 void CZnodeMan::SetZnodeLastPing(const CTxIn& vin, const CZnodePing& mnp)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     CZnode* pMN = Find(vin);
     if(!pMN)  {
         return;
