@@ -36,6 +36,8 @@ JoinSplit::JoinSplit(const Params *p,
 
         if(!getIndex(Cin[i].first.getPublicCoin(), set->second, index))
             throw ZerocoinException("No such coin in this anonymity set");
+
+        groupIds.push_back(Cin[i].second);
         indexes.emplace_back(index);
     }
 

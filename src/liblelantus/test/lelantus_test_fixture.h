@@ -14,6 +14,10 @@ protected:
     typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
 
 public:
+    LelantusTestingSetup() : params(Params::get_default()) {
+    }
+
+public:
     GroupElement ComputeMultiExponent(std::vector<GroupElement> const &gs, std::vector<Scalar> const &s) const {
         return secp_primitives::MultiExponent(gs, s).get_multiple();
     }
@@ -46,6 +50,8 @@ public:
     std::vector<GroupElement> GenerateGroupElements(size_t size) const;
     std::vector<GroupElement> RandomizeGroupElements(size_t size) const;
     std::vector<Scalar> RandomizeScalars(size_t size) const;
+public:
+    Params const *params;
 };
 
 } // namespace lelantus

@@ -4,6 +4,7 @@
 #include "zerocoin.h"
 #include "test/testutil.h"
 #include "consensus/params.h"
+#include "liblelantus/coin.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -58,7 +59,15 @@ public:
     std::vector<CHDMint> GenerateMints(
         std::vector<CAmount> const &amounts,
         std::vector<CMutableTransaction> &txs,
-        bool useHDMints = false);
+        bool useHDMints = false,
+        bool buildTxs = true);
+
+    std::vector<CHDMint> GenerateMints(
+        std::vector<CAmount> const &amounts,
+        std::vector<CMutableTransaction> &txs,
+        std::vector<lelantus::PrivateCoin> &coins,
+        bool useHDMints = false,
+        bool buildTxs = true);
 
     CPubKey GenerateAddress();
 

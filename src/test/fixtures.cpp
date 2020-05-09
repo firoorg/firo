@@ -245,12 +245,26 @@ void LelantusTestingSetup::GenerateBlocks(size_t blocks) {
 std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
     std::vector<CAmount> const &amounts,
     std::vector<CMutableTransaction> &txs,
-    bool useHdMints) {
+    bool useHDMints,
+    bool buildTxs) {
+
+    std::vector<lelantus::PrivateCoin> coins;
+    return GenerateMints(amounts, txs, coins, useHDMints, buildTxs);
+}
+
+std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts,
+    std::vector<CMutableTransaction> &txs,
+    std::vector<lelantus::PrivateCoin> &coins,
+    bool useHdMints,
+    bool buildTxs) {
 
     std::vector<CHDMint> mints;
 
     for (auto a : amounts) {
-        lelantus::PrivateCoin coin(params, a);
+        // lelantus::PrivateCoin coin(params, a);
+        coins.emplace_back(params, a);
+        auto &coin = coins.back();
 
         if (useHdMints) {
             CHDMint hdmint;
@@ -262,16 +276,18 @@ std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
 
         auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
 
-        CWalletTx wtx;
-        auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
-        txs.emplace_back(wtx);
+        if (buildTxs) {
+            CWalletTx wtx;
+            auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
+            txs.emplace_back(wtx);
+
+            if (result != "") {
+            throw std::runtime_error("Fail to generate mints " + result);
+        }
+        }
 
         if (useHdMints) {
             zwalletMain->GetTracker().AddLelantus(mint, true);
-        }
-
-        if (result != "") {
-            throw std::runtime_error("Fail to generate mints " + result);
         }
     }
 

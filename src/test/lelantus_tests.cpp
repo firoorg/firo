@@ -11,12 +11,11 @@
 namespace lelantus {
 
 struct MintScriptGenerator {
-public:
-    CScript script;
     PrivateCoin coin;
 
-public:
-    void GenerateScript() {
+    CScript Get() {
+        CScript script;
+
         script.push_back(OP_LELANTUSMINT);
 
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -27,11 +26,12 @@ public:
 
         script.insert(script.end(), ss.begin(), ss.end());
         script.insert(script.end(), serializedProof.begin(), serializedProof.end());
+
+        return script;
     }
 };
 
 struct JoinSplitScriptGenerator {
-public:
     Params const *params;
     std::vector<std::pair<PrivateCoin, uint32_t>> coins;
     std::map<uint32_t, std::vector<PublicCoin>> anons;
@@ -41,9 +41,8 @@ public:
     std::vector<uint256> groupBlockHashes;
     uint256 txHash;
 
-public:
-    CScript GenerateScript() {
-        auto p = params == nullptr ? Params::get_default() : params;
+    std::pair<CScript, JoinSplit> Get() {
+        auto p = params ? params : Params::get_default();
 
         CScript script;
 
@@ -56,7 +55,7 @@ public:
         script << OP_LELANTUSJOINSPLIT;
         script.insert(script.end(), ss.begin(), ss.end());
 
-        return script;
+        return {script, joinSplit};
     }
 };
 
@@ -73,11 +72,21 @@ public:
 
 public:
 
-    std::pair<MintScriptGenerator, CTxOut> GenerateMintScript(CAmount value) const {
-        MintScriptGenerator script{CScript(), PrivateCoin(params, value)};
-        script.GenerateScript();
+    std::vector<PublicCoin> ExtractCoins(std::vector<PrivateCoin> const &coins) {
+        std::vector<PublicCoin> pubs;
+        pubs.reserve(coins.size());
 
-        return {script, CTxOut(value, script.script)};
+        for (auto &c : coins) {
+            pubs.push_back(c.getPublicCoin());
+        }
+
+        return pubs;
+    }
+
+    std::pair<MintScriptGenerator, CTxOut> GenerateMintScript(CAmount value) const {
+        MintScriptGenerator script{PrivateCoin(params, value)};
+
+        return {script, CTxOut(value, script.Get())};
     }
 
     CBlock GetCBlock(CBlockIndex const *blockIdx) {
@@ -453,6 +462,50 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     // info = CLelantusTxInfo();
     // BOOST_CHECK(CheckLelantusTransaction(
     //     tx, state, tx.GetHash(), true, chainActive.Height(), true, true, &info));
+}
+
+BOOST_AUTO_TEST_CASE(parse_joinsplit)
+{
+    std::vector<CMutableTransaction> txs;
+    std::vector<PrivateCoin> coins;
+    GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN}, txs, coins, true, false);
+
+    JoinSplitScriptGenerator g;
+    g.params = params;
+    g.coins = {{coins[0], 1}, {coins[1], 1}, {coins[2], 2}};
+    for (auto id : {1, 2}) {
+        for (size_t i = 0; i != 10; i++) {
+            GroupElement e;
+            e.randomize();
+
+            g.anons[id].emplace_back(e);
+        }
+    }
+
+    g.anons[1][0] = coins[0].getPublicCoin();
+    g.anons[1][1] = coins[1].getPublicCoin();
+    g.anons[2][0] = coins[2].getPublicCoin();
+
+    g.vout = 11 * COIN - CENT;
+    g.coinsOut.push_back(coins[3]);
+    g.fee = CENT;
+    g.groupBlockHashes = {ArithToUint256(1), ArithToUint256(2)};
+    g.txHash = ArithToUint256(3);
+
+    auto gs = g.Get();
+    CTxIn inp(COutPoint(), gs.first);
+
+    auto result = ParseLelantusJoinSplit(inp);
+
+    BOOST_CHECK(gs.second.getCoinSerialNumbers() == result->getCoinSerialNumbers());
+    BOOST_CHECK(gs.second.getFee() == result->getFee());
+    BOOST_CHECK(gs.second.getCoinGroupIds() == result->getCoinGroupIds());
+    BOOST_CHECK(gs.second.getIdAndBlockHashes() == result->getIdAndBlockHashes());
+    BOOST_CHECK(gs.second.getVersion() == result->getVersion());
+    BOOST_CHECK(gs.second.HasValidSerials() == result->HasValidSerials());
+
+    BOOST_CHECK(gs.second.Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
+    BOOST_CHECK(result->Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
