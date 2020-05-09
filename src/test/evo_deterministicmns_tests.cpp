@@ -281,6 +281,7 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
         CreateAndProcessBlock({tx}, coinbaseKey);
         deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
+        LOCK(cs_main);
         BOOST_ASSERT(chainActive.Height() == nHeight + 1);
         BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(tx.GetHash()));
 
