@@ -446,7 +446,7 @@ libbitcoin_server_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 if ENABLE_CLIENTAPI
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
   rpc/client.cpp

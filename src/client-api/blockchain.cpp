@@ -14,6 +14,7 @@
 #include "univalue.h"
 #include "darksend.h"
 #include "chain.h"
+#include "txmempool.h"
 
 using namespace std;
 using namespace boost::chrono;
