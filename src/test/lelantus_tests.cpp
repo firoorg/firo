@@ -399,6 +399,12 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     verifyMintsAndSerials(true, true, true, true);
     verifyLastGroup(1, blockIdx1, blockIdx2, 2);
 
+    // add a block with duplicated a serial should fail
+    auto blockIdx3 = GenerateBlock({});
+    auto block3 = GetCBlock(blockIdx3);
+    PopulateLelantusTxInfo(block3, {}, {{serial2, 1}});
+    BOOST_CHECK(!ConnectBlockLelantus(state, ::Params(), blockIdx3, &block3, false));
+
     // disconnect last block
     DisconnectTipLelantus(block2, blockIdx2);
 

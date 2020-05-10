@@ -442,6 +442,76 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     verifyGroup(1, 6, indexes[0], indexes[2], 1);
 }
 
+BOOST_AUTO_TEST_CASE(surge_detection)
+{
+    size_t maxGroupSize = 6;
+    size_t startGroupSize = 2;
+    CLelantusState state(maxGroupSize, startGroupSize);
+    state.Reset();
+
+    std::vector<CAmount> amounts;
+    for (size_t i = 0; i != 8; i++) {
+        amounts.push_back(1 * COIN);
+    }
+
+    // create
+    // 1(6), 2(4)
+    std::vector<PrivateCoin> mints;
+    std::vector<CMutableTransaction> txes;
+    GenerateMints(amounts, txes, mints, true, false);
+
+    std::vector<PublicCoin> coins;
+    for (size_t i = 0; i != 8; i += 2) {
+        auto index = GenerateBlock({});
+        auto block = GetCBlock(index);
+        coins.push_back(mints[i + 1].getPublicCoin());
+        coins.push_back(mints[i].getPublicCoin());
+
+        PopulateLelantusTxInfo(
+            block,
+            {
+                mints[i].getPublicCoin().getValue(),
+                mints[i + 1].getPublicCoin().getValue()
+            }, {});
+
+        state.AddMintsToStateAndBlockIndex(index, &block);
+    }
+
+    auto addSerials = [&] (std::vector<std::pair<uint32_t, size_t>> const serials)
+        -> CBlockIndex* {
+
+        auto index = GenerateBlock({});
+        for (auto const s : serials) {
+            for (size_t i = 0; i != s.second; i++) {
+                Scalar serial;
+                serial.randomize();
+
+                index->lelantusSpentSerials[serial] = s.first;
+            }
+        }
+
+        state.AddBlock(index);
+        return index;
+    };
+
+    // NOTE: This would be false-positive in the case that
+    // group i have coins in group p(coins from prevous group) + n(coins in this group)
+    // serials in set could be p + n but coins in the container of group i have only n
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    addSerials({{1, 6}, {2, 2}});
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    auto index1 = addSerials({{1, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+
+    state.RemoveBlock(index1);
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    addSerials({{2, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }
