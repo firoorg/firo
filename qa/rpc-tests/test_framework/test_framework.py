@@ -283,7 +283,7 @@ class ComparisonTestFramework(BitcoinTestFramework):
             binary=[self.options.testbinary] +
             [self.options.refbinary]*(self.num_nodes-1))
 
-class ExodusTestFramework(BitcoinTestFramework):
+class ElysiumTestFramework(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.addrs = []
@@ -298,7 +298,7 @@ class ExodusTestFramework(BitcoinTestFramework):
         self.sync_all()
 
     def setup_nodes(self):
-        return start_nodes(self.num_nodes, self.options.tmpdir, [['-exodus'] for _ in range(self.num_nodes)])
+        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium'] for _ in range(self.num_nodes)])
 
     def assert_property_summary(self, prop, id, divisible, cat, subcat, name, url, data):
         assert_equal(prop['propertyid'], id)
@@ -972,4 +972,30 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
             return c >= count
         assert wait_until(test, timeout=timeout)
 
+    def generate_until_sigma_activated(self, num_node):
+        node = self.nodes[num_node]
 
+        self.sync_all()
+        required_block = 550
+        current_block = node.getblockcount()
+        if current_block >= required_block:
+            return []
+
+        return node.generate(required_block - current_block)
+
+    def create_default_property(self, name, num_node, address, sigma = True, amount = None):
+        node = self.nodes[num_node]
+
+        sigma_status = 1 if sigma else 0
+
+        if amount is None:
+            node.elysium_sendissuancemanaged(address, 1, 1, 0, '', '', name, '', '', sigma_status)
+        else:
+            node.elysium_sendissuancefixed(address, 1, 1, 0, '', '', name, '', '', amount, sigma_status)
+
+        node.generate(1)
+        self.sync_all()
+
+        # get lastest id
+        properties = node.elysium_listproperties()
+        return max(map(lambda p: p["propertyid"], properties))

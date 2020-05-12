@@ -35,8 +35,8 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
     peerTableModel(0),
     banTableModel(0),
     pollTimer(0),
-    lockedExodusStateChanged(false),
-    lockedExodusBalanceChanged(false)
+    lockedElysiumStateChanged(false),
+    lockedElysiumBalanceChanged(false)
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
@@ -183,48 +183,48 @@ void ClientModel::updateNumConnections(int numConnections)
 }
 
 
-void ClientModel::invalidateExodusState()
+void ClientModel::invalidateElysiumState()
 {
-    Q_EMIT reinitExodusState();
+    Q_EMIT reinitElysiumState();
 }
 
-void ClientModel::updateExodusState()
+void ClientModel::updateElysiumState()
 {
-    lockedExodusStateChanged = false;
-    Q_EMIT refreshExodusState();
+    lockedElysiumStateChanged = false;
+    Q_EMIT refreshElysiumState();
 }
 
-bool ClientModel::tryLockExodusStateChanged()
+bool ClientModel::tryLockElysiumStateChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusStateChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumStateChanged) {
         return false;
     }
 
-    lockedExodusStateChanged = true;
+    lockedElysiumStateChanged = true;
     return true;
 }
 
-void ClientModel::updateExodusBalance()
+void ClientModel::updateElysiumBalance()
 {
-    lockedExodusBalanceChanged = false;
-    Q_EMIT refreshExodusBalance();
+    lockedElysiumBalanceChanged = false;
+    Q_EMIT refreshElysiumBalance();
 }
 
-bool ClientModel::tryLockExodusBalanceChanged()
+bool ClientModel::tryLockElysiumBalanceChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusBalanceChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumBalanceChanged) {
         return false;
     }
 
-    lockedExodusBalanceChanged = true;
+    lockedElysiumBalanceChanged = true;
     return true;
 }
 
-void ClientModel::updateExodusPending(bool pending)
+void ClientModel::updateElysiumPending(bool pending)
 {
-    Q_EMIT refreshExodusPending(pending);
+    Q_EMIT refreshElysiumPending(pending);
 }
 
 void ClientModel::updateNetworkActive(bool networkActive)
@@ -320,32 +320,32 @@ void ClientModel::updateBanlist()
 }
 
 // Handlers for core signals
-static void ExodusStateInvalidated(ClientModel *clientmodel)
+static void ElysiumStateInvalidated(ClientModel *clientmodel)
 {
     // This will be triggered if a reorg invalidates the state
-    QMetaObject::invokeMethod(clientmodel, "invalidateExodusState", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(clientmodel, "invalidateElysiumState", Qt::QueuedConnection);
 }
 
-static void ExodusStateChanged(ClientModel *clientmodel)
+static void ElysiumStateChanged(ClientModel *clientmodel)
 {
-    // This will be triggered for each block that contains Exodus layer transactions
-    if (clientmodel->tryLockExodusStateChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateExodusState", Qt::QueuedConnection);
+    // This will be triggered for each block that contains Elysium layer transactions
+    if (clientmodel->tryLockElysiumStateChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateElysiumState", Qt::QueuedConnection);
     }
 }
 
-static void ExodusBalanceChanged(ClientModel *clientmodel)
+static void ElysiumBalanceChanged(ClientModel *clientmodel)
 {
     // Triggered when a balance for a wallet address changes
-    if (clientmodel->tryLockExodusBalanceChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateExodusBalance", Qt::QueuedConnection);
+    if (clientmodel->tryLockElysiumBalanceChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateElysiumBalance", Qt::QueuedConnection);
     }
 }
 
-static void ExodusPendingChanged(ClientModel *clientmodel, bool pending)
+static void ElysiumPendingChanged(ClientModel *clientmodel, bool pending)
 {
-    // Triggered when Exodus pending map adds/removes transactions
-    QMetaObject::invokeMethod(clientmodel, "updateExodusPending", Qt::QueuedConnection, Q_ARG(bool, pending));
+    // Triggered when Elysium pending map adds/removes transactions
+    QMetaObject::invokeMethod(clientmodel, "updateElysiumPending", Qt::QueuedConnection, Q_ARG(bool, pending));
 }
 
 static void ShowProgress(ClientModel *clientmodel, const std::string &title, int nProgress)
@@ -433,11 +433,11 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
-    // Connect Exodus signals
-    uiInterface.ExodusStateChanged.connect(boost::bind(ExodusStateChanged, this));
-    uiInterface.ExodusPendingChanged.connect(boost::bind(ExodusPendingChanged, this, _1));
-    uiInterface.ExodusBalanceChanged.connect(boost::bind(ExodusBalanceChanged, this));
-    uiInterface.ExodusStateInvalidated.connect(boost::bind(ExodusStateInvalidated, this));
+    // Connect Elysium signals
+    uiInterface.ElysiumStateChanged.connect(boost::bind(ElysiumStateChanged, this));
+    uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, _1));
+    uiInterface.ElysiumBalanceChanged.connect(boost::bind(ElysiumBalanceChanged, this));
+    uiInterface.ElysiumStateInvalidated.connect(boost::bind(ElysiumStateInvalidated, this));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -453,9 +453,9 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
-    // Disconnect Exodus signals
-    uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
-    uiInterface.ExodusPendingChanged.disconnect(boost::bind(ExodusPendingChanged, this, _1));
-    uiInterface.ExodusBalanceChanged.disconnect(boost::bind(ExodusBalanceChanged, this));
-	uiInterface.ExodusStateInvalidated.disconnect(boost::bind(ExodusStateInvalidated, this));
+    // Disconnect Elysium signals
+    uiInterface.ElysiumStateChanged.disconnect(boost::bind(ElysiumStateChanged, this));
+    uiInterface.ElysiumPendingChanged.disconnect(boost::bind(ElysiumPendingChanged, this, _1));
+    uiInterface.ElysiumBalanceChanged.disconnect(boost::bind(ElysiumBalanceChanged, this));
+	uiInterface.ElysiumStateInvalidated.disconnect(boost::bind(ElysiumStateInvalidated, this));
 }

@@ -129,8 +129,8 @@ bool fLogIPs = DEFAULT_LOGIPS;
 std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
 
-/** Flag to indicate, whether the Exodus log file should be reopened. */
-std::atomic<bool> fReopenExodusLog(false);
+/** Flag to indicate, whether the Elysium log file should be reopened. */
+std::atomic<bool> fReopenElysiumLog(false);
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
