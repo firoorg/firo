@@ -82,10 +82,6 @@ ZnodeList::~ZnodeList()
 void ZnodeList::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
-    if(model) {
-        // try to update list when znode count changes
-        connect(clientModel, SIGNAL(strZnodesChanged(QString)), this, SLOT(updateNodeList()));
-    }
 }
 
 void ZnodeList::setWalletModel(WalletModel *model)

@@ -885,8 +885,8 @@ check-local:
 	$(error Please rerun configure with tests enabling flag)
 endif
 
-if ENABLE_EXODUS
-include Makefile.exodus.include
+if ENABLE_ELYSIUM
+include Makefile.elysium.include
 endif
 
 if ENABLE_CLIENTAPI

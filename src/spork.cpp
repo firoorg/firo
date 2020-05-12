@@ -84,13 +84,11 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    if(spork.Sign(strMasterPrivKey)) {
-        //spork.Relay();
-        mapSporks[spork.GetHash()] = spork;
-        mapSporksActive[nSporkID] = spork;
-        return true;
-    }    
+    spork.Sign(strMasterPrivKey);
 
+    //spork.Relay();
+    mapSporks[spork.GetHash()] = spork;
+    mapSporksActive[nSporkID] = spork;
     return true;
 }
 

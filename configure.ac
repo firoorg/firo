@@ -99,10 +99,10 @@ AC_ARG_ENABLE([clientapi],
   [enable_clientapi=$enableval],
   [enable_clientapi=no])
 
-AC_ARG_ENABLE([exodus],
-  [AS_HELP_STRING([--enable-exodus],[enable exodus (disabled by default)])],
-  [enable_exodus=$enableval],
-  [enable_exodus=no])
+AC_ARG_ENABLE([elysium],
+  [AS_HELP_STRING([--enable-elysium],[enable elysium (disabled by default)])],
+  [enable_elysium=$enableval],
+  [enable_elysium=no])
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
@@ -988,6 +988,7 @@ else
   AC_MSG_RESULT(no)
 fi
 
+<<<<<<< HEAD
 dnl enable clientapi
 AC_MSG_CHECKING([if clientapi should be enabled])
 if test x$enable_clientapi != xno; then
@@ -1000,8 +1001,13 @@ fi
 dnl enable exodus
 AC_MSG_CHECKING([if exodus should be enabled])
 if test x$enable_exodus != xno; then
+=======
+dnl enable elysium
+AC_MSG_CHECKING([if elysium should be enabled])
+if test x$enable_elysium != xno; then
+>>>>>>> origin/core14-master-merge
   AC_MSG_RESULT(yes)
-  AC_DEFINE_UNQUOTED([ENABLE_EXODUS],[1],[Define if exodus should be compiled in])
+  AC_DEFINE_UNQUOTED([ENABLE_ELYSIUM],[1],[Define if elysium should be compiled in])
 else
   AC_MSG_RESULT(no)
 fi
@@ -1103,7 +1109,7 @@ AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
-AM_CONDITIONAL([ENABLE_EXODUS],[test x$enable_exodus = xyes])
+AM_CONDITIONAL([ENABLE_ELYSIUM],[test x$enable_elysium = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])

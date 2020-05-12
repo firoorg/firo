@@ -63,7 +63,6 @@ src/tor/src/or
 *.pyc
 *.o
 *.o-*
-*.patch
 *.a
 *.pb.cc
 *.pb.h
