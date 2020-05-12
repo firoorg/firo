@@ -64,6 +64,12 @@ void SelectBaseParams(const std::string& chain);
 std::string ChainNameFromCommandLine();
 
 /**
+ * Looks for -regtest, -testnet and -mainnet and returns the appropriate BIP70 chain name.
+ * @return CBaseChainParams::MAX_NETWORK_TYPES if an invalid combination is given. CBaseChainParams::MAIN by default.
+ */
+std::string ChainNameFromCommandLineAPI();
+
+/**
  * Checks if the port parameter is the same as any ZMQ port for base params.
  */
 #ifdef ENABLE_CLIENTAPI

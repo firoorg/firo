@@ -665,7 +665,6 @@ boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
 
 void CreatePersistentFiles(bool fNetSpecific){
     CreatePaymentRequestFile(fNetSpecific);
-    CreateTxTimestampFile(fNetSpecific);
     CreateTxMetadataFile(fNetSpecific);
     CreateZerocoinFile(fNetSpecific);
 }
@@ -724,25 +723,6 @@ boost::filesystem::path CreateSettingsFile(bool fNetSpecific)
         std::ofstream settingsOut(pathConfigFile.string());
 
         settingsOut << settingsUni.write(4,0) << endl;
-    }
-
-    return pathConfigFile;
-}
-
-boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific)
-{
-    boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_TIMESTAMP_FILENAME);
-
-    if(!boost::filesystem::exists(pathConfigFile)){
-        LogPrintf("API:timestamp does not exist. Creating..\n");
-        UniValue txTimestampUni(UniValue::VOBJ);
-        txTimestampUni.push_back(Pair("type", "tx_timestamp"));
-        txTimestampUni.push_back(Pair("data", NullUniValue));
-        
-        //write back UniValue
-        std::ofstream txTimestampOut(pathConfigFile.string());
-
-        txTimestampOut << txTimestampUni.write(4,0) << endl;
     }
 
     return pathConfigFile;

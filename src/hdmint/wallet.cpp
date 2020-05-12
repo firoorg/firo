@@ -141,6 +141,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
  */
 void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())
@@ -174,8 +175,8 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 
         MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-        CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
-        CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
+        walletdb.WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+        walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
         LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
@@ -381,7 +382,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     bool serialInBlockchain = false;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()){
-        LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
+        LogPrintf("%s: Wallet not locked, creating mint seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(mintSeed, mintCount, seedId);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
@@ -389,7 +390,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
-        LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
+        LogPrintf("%s: Wallet locked, retrieving mint seed..\n", __func__);
         // Get serial and pubcoin data from the db
         CWalletDB walletdb(strWalletFile);
         std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();

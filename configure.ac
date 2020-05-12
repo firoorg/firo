@@ -988,7 +988,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-<<<<<<< HEAD
 dnl enable clientapi
 AC_MSG_CHECKING([if clientapi should be enabled])
 if test x$enable_clientapi != xno; then
@@ -998,14 +997,9 @@ else
   AC_MSG_RESULT(no)
 fi
 
-dnl enable exodus
-AC_MSG_CHECKING([if exodus should be enabled])
-if test x$enable_exodus != xno; then
-=======
 dnl enable elysium
 AC_MSG_CHECKING([if elysium should be enabled])
 if test x$enable_elysium != xno; then
->>>>>>> origin/core14-master-merge
   AC_MSG_RESULT(yes)
   AC_DEFINE_UNQUOTED([ENABLE_ELYSIUM],[1],[Define if elysium should be compiled in])
 else

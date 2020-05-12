@@ -98,6 +98,9 @@ if __name__ == "__main__":
     settingsfilter = b"settings"
     socket.setsockopt(zmq.SUBSCRIBE, settingsfilter)
 
+    walletsegmentfilter = b"walletSegment"
+    socket.setsockopt(zmq.SUBSCRIBE, walletsegmentfilter)
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

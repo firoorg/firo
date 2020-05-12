@@ -196,6 +196,20 @@ bool CZMQAPIStatusEvent::NotifyAPIStatus()
     return true;
 }
 
+bool CZMQWalletSegmentEvent::NotifyWalletSegment(const std::string &segment)
+{
+    UniValue segmentObj(UniValue::VOBJ);
+    try{
+        segmentObj.read(segment);
+    }catch(const std::exception& e){
+       throw JSONAPIError(API_PARSE_ERROR, "Could not read wallet segment");
+    }
+    request.replace("data", segmentObj);
+    Execute();
+
+    return true;
+}
+
 bool CZMQZnodeListEvent::NotifyZnodeList()
 {
     request.push_back(Pair("type", "initial"));

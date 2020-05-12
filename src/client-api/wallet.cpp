@@ -23,6 +23,7 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 std::map<COutPoint, bool> pendingLockCoins;
+const int WALLET_SEGMENT_SIZE = 100;
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coinControl").isNull()) return false;
@@ -161,72 +162,6 @@ CAmount getLockUnspentAmount()
     return total;
 }
 
-UniValue getInitialTimestamp(string hash){
-    fs::path const &path = CreateTxTimestampFile();
-
-    // get data as ifstream
-    std::ifstream TxTimestampIn(path.string());
-
-    // parse as std::string
-    std::string TxTimestampStr((std::istreambuf_iterator<char>(TxTimestampIn)), std::istreambuf_iterator<char>());
-
-    // finally as UniValue
-    UniValue TxTimestampUni(UniValue::VOBJ);
-    TxTimestampUni.read(TxTimestampStr);
-
-    UniValue TxTimestampData(UniValue::VOBJ);
-    if(!TxTimestampUni["data"].isNull()){
-        TxTimestampData = TxTimestampUni["data"];
-    }
-
-    UniValue firstSeenAt = find_value(TxTimestampData,hash);
-    if(firstSeenAt.isNull()){
-        return NullUniValue;
-    }
-    return firstSeenAt;
-}
-
-UniValue setInitialTimestamp(string hash){
-    fs::path const &path = CreateTxTimestampFile();
-
-    // get data as ifstream
-    std::ifstream TxTimestampIn(path.string());
-
-    // parse as std::string
-    std::string TxTimestampStr((std::istreambuf_iterator<char>(TxTimestampIn)), std::istreambuf_iterator<char>());
-
-    // finally as UniValue
-    UniValue TxTimestampUni(UniValue::VOBJ);
-    TxTimestampUni.read(TxTimestampStr);
-
-    UniValue TxTimestampData(UniValue::VOBJ);
-    if(!TxTimestampUni["data"].isNull()){
-        TxTimestampData = TxTimestampUni["data"];
-    }
-
-    if(!find_value(TxTimestampData,hash).isNull()){
-        return find_value(TxTimestampData,hash);
-    }
-
-    milliseconds secs = duration_cast< milliseconds >(
-     system_clock::now().time_since_epoch()
-    );
-    UniValue firstSeenAt = secs.count();
-
-    TxTimestampData.push_back(Pair(hash, firstSeenAt));
-
-    if(!TxTimestampUni.replace("data", TxTimestampData)){
-        throw runtime_error("Could not replace key/value pair.");
-    }
-
-    //write back UniValue
-    std::ofstream TxTimestampOut(path.string());
-
-    TxTimestampOut << TxTimestampUni.write(4,0) << endl;
-
-    return firstSeenAt;
-}
-
 void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry){
     if (pwalletMain->IsSpent(outPoint.hash, outPoint.n) ||
         (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) ||
@@ -248,7 +183,6 @@ UniValue getBlockHeight(const string strHash)
     if (mapBlockIndex.count(hash) == 0)
         return -1;
 
-    CBlock block;
     CBlockIndex* pblockindex = mapBlockIndex[hash];
 
     return pblockindex->nHeight;
@@ -258,22 +192,14 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
     string hash = wtx.GetHash().GetHex();
-    if (confirms > 0)
-    {
+    if (confirms > 0) {
         entry.push_back(Pair("blockHash", wtx.hashBlock.GetHex()));
         UniValue blocktime = mapBlockIndex[wtx.hashBlock]->GetBlockTime();
         entry.push_back(Pair("blockTime", blocktime));
         entry.push_back(Pair("blockHeight", getBlockHeight(wtx.hashBlock.GetHex())));
-        UniValue timestamp = getInitialTimestamp(hash);
-        if(timestamp.isNull()){ 
-            timestamp = blocktime.get_int64() * 1000;
-        }
-        entry.push_back(Pair("firstSeenAt", timestamp));
-    }
-    else {
-        entry.push_back(Pair("firstSeenAt", setInitialTimestamp(hash)));
     }
 
+    entry.push_back(Pair("firstSeenAt", wtx.GetTxTime()));
     entry.push_back(Pair("txid", hash));
 
     BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
@@ -291,18 +217,25 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
     wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
 
+    UniValue address(UniValue::VOBJ);
+    UniValue total(UniValue::VOBJ);
+    UniValue totalCategory(UniValue::VOBJ);
+    UniValue txids(UniValue::VOBJ);
+    UniValue vouts(UniValue::VOBJ);
+    UniValue entry(UniValue::VOBJ);
+
     // Sent
     if ((!listSent.empty() || nFee != 0))
     {
 
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {
-            UniValue address(UniValue::VOBJ);         
-            UniValue total(UniValue::VOBJ);
-            UniValue totalCategory(UniValue::VOBJ);
-            UniValue txids(UniValue::VOBJ);
-            UniValue vouts(UniValue::VOBJ);
-            UniValue entry(UniValue::VOBJ);
+            address.setObject();
+            total.setObject();
+            totalCategory.setObject();
+            txids.setObject();
+            vouts.setObject();
+            entry.setObject();
 
             uint256 txid = wtx.GetHash();
             if (addr.Set(s.destination)){
@@ -401,17 +334,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     {
         BOOST_FOREACH(const COutputEntry& r, listReceived)
         {
-            UniValue address(UniValue::VOBJ);         
-            UniValue total(UniValue::VOBJ);
-            UniValue totalCategory(UniValue::VOBJ);
-            UniValue txids(UniValue::VOBJ);
-            UniValue vouts(UniValue::VOBJ);
-            UniValue entry(UniValue::VOBJ);
 
-            string account;
-            if (pwalletMain->mapAddressBook.count(r.destination)){
-                account = pwalletMain->mapAddressBook[r.destination].name;
-            }
+            address.setObject();
+            total.setObject();
+            totalCategory.setObject();
+            txids.setObject();
+            vouts.setObject();
+            entry.setObject();
 
             uint256 txid = wtx.GetHash();
             string category;
@@ -578,17 +507,32 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 
     int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
 
-    UniValue transactions(UniValue::VOBJ);
+    LogPrintf("StateWallet: wallet segments = %u\n",       floor(pwalletMain->mapWallet.size() / WALLET_SEGMENT_SIZE) + 1);
+    UniValue segment(UniValue::VOBJ);
+    int txCount = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
     {
         CWalletTx tx = (*it).second;
 
         if (depth == -1 || tx.GetDepthInMainChain() <= depth)
-            ListAPITransactions(tx, transactions, filter, true);
+            ListAPITransactions(tx, segment, filter, true);
+
+        if((++txCount % WALLET_SEGMENT_SIZE)==0){
+            ret.push_back(Pair("addresses", segment));
+            GetMainSignals().WalletSegment(ret.write());
+            ret.setObject();
+            segment.setObject();
+            LogPrintf("StateWallet: segment loaded= %u\n",       txCount/WALLET_SEGMENT_SIZE);
+        }
     }
 
-    ret.push_back(Pair("addresses", transactions));
-    return ret;
+    // send last batch
+    ret.push_back(Pair("addresses", segment));
+    GetMainSignals().WalletSegment(ret.write());
+
+    LogPrintf("StateWallet: all segments loaded \n");
+
+    return true;
 }
 
 UniValue StateBlock(UniValue& ret, std::string blockhash){
@@ -638,6 +582,11 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     StateSinceBlock(ret, genesisBlock);
 
     return ret;
+}
+
+UniValue walletsegment(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    return data;
 }
 
 UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -1025,6 +974,7 @@ static const CAPICommand commands[] =
     { "wallet",             "lockWallet",                     &lockwallet,                     true,      false,           false  },
     { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
     { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
+    { "wallet",             "walletSegment",                  &walletsegment,                  true,      false,           false  },
     { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
     { "wallet",             "balance",                        &balance,                        true,      false,           false  },
     { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },

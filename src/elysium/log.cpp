@@ -232,7 +232,6 @@ void InitDebugLogLevels()
     }
 
     const std::vector<std::string>& debugLevels = mapMultiArgs.at("-elysiumdebug");
-
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") elysium_debug_parser_data = true;
         if (*it == "parser_readonly") elysium_debug_parser_readonly = true;

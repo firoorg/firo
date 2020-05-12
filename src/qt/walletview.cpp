@@ -311,12 +311,12 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
         sigmaView->setWalletModel(_walletModel);
     }
     zc2SigmaPage->createModel();
-    usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
-    usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
-    znodeListPage->setWalletModel(_walletModel);
+    usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
+    usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
+    znodeListPage->setWalletModel(walletModel);
     masternodeListPage->setWalletModel(_walletModel);
-    sendZcoinView->setModel(_walletModel);
-    zc2SigmaPage->setWalletModel(_walletModel);
+    sendZcoinView->setModel(walletModel);
+    zc2SigmaPage->setWalletModel(walletModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
 

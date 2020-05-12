@@ -55,7 +55,6 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
     RegisterMasternodeRPCCommands(tableRPC);
-
     RegisterEvoRPCCommands(tableRPC);
     RegisterQuorumsRPCCommands(tableRPC);
 

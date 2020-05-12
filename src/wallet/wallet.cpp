@@ -3149,19 +3149,17 @@ bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
+    CHDMint fHdMint;
+    sigma::CoinDenomination denomination;
 
-    std::vector <CMintMeta> listMints;
-    listMints = zwalletMain->GetTracker().ListMints(true, true, false);
     GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
 
-    BOOST_FOREACH(CMintMeta &mint, listMints) {
-        CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint))
-            continue;
+    IntegerToDenomination(txout.nValue, denomination);
 
-        if(pubCoinValue == dMint.GetPubcoinValue())
-            return true;
-    }
+    sigma::PublicCoin pubCoin(pubCoinValue, denomination);
+
+    if(walletdb.ReadHDMint(pubCoin.getValueHash(), fHdMint))
+        return true;
 
     return false;
 }
@@ -8317,17 +8315,18 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         else
             pindexRescan = chainActive.Genesis();
     }
-    bool reindexing = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
+    bool rescanning = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
 
 #ifdef ENABLE_CLIENTAPI
-        // Set API loaded before wallet sync (if not reindexing) and immediately notify
-        if(fApi && !reindexing){
+        // Set API loaded before wallet sync (if not rescanning) and immediately notify
+        if(fApi && !rescanning){
             SetAPIWarmupFinished();
             GetMainSignals().NotifyAPIStatus();
+            LogPrintf("InitLoadWallet() : loaded API\n");
         }
 #endif
 
-    if (reindexing) {
+    if (rescanning) {
         //We can't rescan beyond non-pruned blocks, stop and throw an error
         //this might happen if a user uses a old wallet within a pruned node
         // or if he ran -disablewallet for a longer time, then decided to re-enable
@@ -8414,12 +8413,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
     }
-#ifdef ENABLE_CLIENTAPI
-    if(fApi && reindexing){
-        SetAPIWarmupFinished();
-        GetMainSignals().NotifyAPIStatus();
-    }
-#endif
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     {

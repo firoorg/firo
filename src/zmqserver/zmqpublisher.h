@@ -92,6 +92,14 @@ public:
     bool NotifyAPIStatus();
 };
 
+class CZMQWalletSegmentEvent : virtual public CZMQAbstractPublisher
+{
+    /* StateWallet segment notification
+    */
+public:
+    bool NotifyWalletSegment(const std::string &segment);
+};
+
 class CZMQZnodeListEvent : virtual public CZMQAbstractPublisher
 {
     /* Znode List notification
@@ -180,6 +188,13 @@ class CZMQAPIStatusTopic : public CZMQAPIStatusEvent
 public:
     void SetTopic(){ topic = "apiStatus";}
     void SetMethod(){ method= "apiStatus";}
+};
+
+class CZMQWalletSegmentTopic : public CZMQWalletSegmentEvent
+{
+public:
+    void SetTopic(){ topic = "address";}
+    void SetMethod(){ method= "walletSegment";}
 };
 
 class CZMQZnodeListTopic : public CZMQZnodeListEvent
