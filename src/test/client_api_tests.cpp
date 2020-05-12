@@ -21,7 +21,7 @@
 #include <univalue.h>
 
 #include "miner.h"
-#include "main.h"
+#include "validation.h"
 #include "consensus/validation.h"
 #include "core_io.h"
 #include "znode-sync.h"
