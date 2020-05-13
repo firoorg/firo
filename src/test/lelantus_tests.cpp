@@ -444,30 +444,42 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     std::vector<PublicCoin> expectedCoins = {mints[0].GetPubcoinValue()};
     BOOST_CHECK(expectedCoins == info.mints);
 
-    // TODO: tests this when can create join split functions
     // join split
-    // txs.clear();
-    // mints = GenerateMints({10 * COIN, 11 * COIN, 100 * COIN}, txs, true);
-    // GenerateBlock(txs);
-    // std::vector<PublicCoin> mintsToUpdate;
-    // for (auto const &m : mints) {
-    //     mintsToUpdate.emplace_back(m.GetPubcoinValue());
-    // }
+    txs.clear();
+    mints = GenerateMints({10 * COIN, 11 * COIN, 100 * COIN}, txs, true);
+    GenerateBlock(txs);
+    GenerateBlocks(10);
 
-    // std::vector<CRecipient> recp;
-    // auto key = GenerateAddress();
+    auto outputAmount = 8 * COIN;
+    auto mintAmount = 2 * COIN - CENT; // a cent as fee
 
-    // CWalletTx wtx;
-    // pwalletMain->JoinSplitLelantus(
-    //     {{GetScriptForDestination(key.GetID()), 8 * COIN, false}},
-    //     {199 * CENT},
-    //     wtx);
+    CWalletTx wtx;
+    pwalletMain->JoinSplitLelantus(
+        {{script, outputAmount, false}},
+        {mintAmount},
+        wtx);
 
-    // tx = CMutableTransaction(wtx);
+    CMutableTransaction joinsplitTx(wtx);
+    auto joinsplit = ParseLelantusJoinSplit(joinsplitTx.vin[0]);
 
-    // info = CLelantusTxInfo();
-    // BOOST_CHECK(CheckLelantusTransaction(
-    //     tx, state, tx.GetHash(), true, chainActive.Height(), true, true, &info));
+    info = CLelantusTxInfo();
+    BOOST_CHECK(CheckLelantusTransaction(
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    auto &serials = joinsplit->getCoinSerialNumbers();
+    auto &ids = joinsplit->getCoinGroupIds();
+
+    for (size_t i = 0; i != serials.size(); i++) {
+        bool hasSerial = false;
+        BOOST_CHECK_MESSAGE(hasSerial = (info.spentSerials.count(serials[i]) > 0), "No serial as expected");
+        if (hasSerial) {
+            BOOST_CHECK_MESSAGE(ids[i] == info.spentSerials[serials[i]], "Serials group id is invalid");
+        }
+    }
+
+    info = CLelantusTxInfo();
+    BOOST_CHECK(CheckLelantusTransaction(
+        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, &info));
 }
 
 BOOST_AUTO_TEST_CASE(parse_joinsplit)

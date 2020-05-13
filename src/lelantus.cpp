@@ -292,7 +292,7 @@ bool CheckLelantusJoinSplitTransaction(
     bool passVerify = false;
     std::map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
     std::vector<PublicCoin> Cout;
-    uint64_t Vout;
+    uint64_t Vout = 0;
 
     for (const CTxOut &txout : tx.vout) {
         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsLelantusJMint()) {
@@ -320,7 +320,7 @@ bool CheckLelantusJoinSplitTransaction(
         // Build a vector with all the public coins with given id before
         // the block on which the spend occured.
         // This list of public coins is required by function "Verify" of JoinSplit.
-        std::vector<lelantus::PublicCoin> anonymity_set;
+        auto &anonymity_set = anonymity_sets[idAndHash.first];
         while(true) {
             BOOST_FOREACH(const lelantus::PublicCoin& pubCoinValue,
                     index->lelantusMintedPubCoins[idAndHash.first]) {
@@ -356,20 +356,20 @@ bool CheckLelantusJoinSplitTransaction(
             }
         }
 
-            if(!isVerifyDB && !isCheckWallet) {
-                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-                    // add spend information to the index
-                    const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
-                    if(serials.size() != ids.size()) {
-                        return state.DoS(100,
-                                         error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));
-                    }
+        if (!isVerifyDB && !isCheckWallet) {
+            if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+                // add spend information to the index
+                const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
+                if(serials.size() != ids.size()) {
+                    return state.DoS(100,
+                                        error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));
+                }
 
-                    for(size_t i = 0; i < serials.size(); i++) {
-                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
-                    }
+                for(size_t i = 0; i < serials.size(); i++) {
+                    lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
                 }
             }
+        }
     }
     else {
         LogPrintf("CheckLelantusJoinSplitTransaction: verification failed at block %d\n", nHeight);

@@ -291,6 +291,7 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         scriptSerializedCoin << OP_LELANTUSJMINT;
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+        scriptSerializedCoin.resize(scriptSerializedCoin.size() + 16); // mock 16 bytes
         //TODO(levon) put encrypted value at script
         outputs.push_back(CTxOut(0, scriptSerializedCoin));
         mintCoins.push_back(hdMint);
@@ -357,8 +358,9 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     for(const auto& coin : Cout)
         pCout.emplace_back(coin.getPublicCoin());
 
-    if(joinSplit.Verify(anonymity_sets, pCout, Vout, txHash))
+    if (!joinSplit.Verify(anonymity_sets, pCout, Vout, txHash)) {
         throw std::runtime_error(_("The joinsplit transaction failed to verify"));
+    }
 
     // construct spend script
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -366,7 +368,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     CScript script;
 
-    script << OP_SIGMASPEND;
+    script << OP_LELANTUSJOINSPLIT;
     script.insert(script.end(), serialized.begin(), serialized.end());
 
     tx.vin[0].scriptSig = script;
