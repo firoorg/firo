@@ -478,7 +478,7 @@ BOOST_AUTO_TEST_CASE(valid_ascii)
             SanitizeInvalidUTF8("`abcdefghijklmnopqrstuvwxyz{|}~"));
 }
 
-BOOST_AUTO_TEST_CASE(exodus_getproperty_2147483662)
+BOOST_AUTO_TEST_CASE(elysium_getproperty_2147483662)
 {
     BOOST_CHECK_EQUAL(
             "{"
