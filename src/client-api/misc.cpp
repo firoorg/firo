@@ -176,7 +176,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("rescanning",    fRescanning));
     obj.push_back(Pair("walletinitialized",    fWalletInitialized));
-    obj.push_back(Pair("reindexing",    fReindex || !znodeSync.GetBlockchainSynced()));
+    // have to wait for the API to be loaded before getting the correct reindexing state
+    if(!APIIsInWarmup())
+        obj.push_back(Pair("reindexing",    fReindex));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
 
 #ifdef WIN32
