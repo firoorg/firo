@@ -505,15 +505,15 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
-        if (vTxHashes.size() > 1) {
-            vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
-            vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
-            vTxHashes.pop_back();
-            if (vTxHashes.size() * 2 < vTxHashes.capacity())
-                vTxHashes.shrink_to_fit();
-        } else
-            vTxHashes.clear();
     }
+    if (vTxHashes.size() > 1) {
+        vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
+        vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
+        vTxHashes.pop_back();
+        if (vTxHashes.size() * 2 < vTxHashes.capacity())
+            vTxHashes.shrink_to_fit();
+    } else
+        vTxHashes.clear();
 
     auto eraseProTxRef = [&](const uint256& proTxHash, const uint256& txHash) {
         auto its = mapProTxRefs.equal_range(proTxHash);
