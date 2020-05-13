@@ -200,6 +200,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
         std::vector<CTxOut> shuffled;
         shuffled.reserve(outputs.size());
 
+        size_t coinIdx = 0;
         for (size_t i = 0; i < outputs.size(); i++) {
             auto& output = outputs[i];
 
@@ -207,6 +208,20 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
 
             if (output.second) {
                 result.changes.insert(static_cast<uint32_t>(i));
+            }
+
+            CScript script;
+            if ((script = output.first.get().scriptPubKey).IsLelantusJMint()) {
+                GroupElement g;
+                std::vector<unsigned char> enc;
+                lelantus::ParseLelantusJMintScript(script, g, enc);
+
+                for (size_t i = coinIdx; i != Cout.size(); i++) {
+                    if (Cout[i].getPublicCoin() == g) {
+                        std::swap(Cout[i], Cout[coinIdx++]);
+                        break;
+                    }
+                }
             }
         }
 
