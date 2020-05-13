@@ -42,7 +42,8 @@ struct JoinSplitScriptGenerator {
     uint256 txHash;
 
     std::pair<CScript, JoinSplit> Get() {
-        auto p = params ? params : Params::get_default();
+        // auto p = params ? params : Params::get_default();
+        auto p = Params::get_default();
 
         CScript script;
 
@@ -63,7 +64,8 @@ class LelantusTests : public LelantusTestingSetup {
 public:
     LelantusTests() :
         LelantusTestingSetup(),
-        lelantusState(CLelantusState::GetState()) {
+        lelantusState(CLelantusState::GetState()),
+        consensus(::Params().GetConsensus()) {
     }
 
     ~LelantusTests() {
@@ -114,6 +116,7 @@ public:
 
 public:
     CLelantusState *lelantusState;
+    Consensus::Params const &consensus;
 };
 
 BOOST_FIXTURE_TEST_SUITE(lelantus_tests, LelantusTests)
@@ -235,14 +238,6 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_jmint)
     script.resize(script.size() - 1);
     BOOST_CHECK_THROW(ParseLelantusJMintScript(script, outCoin, outEnc), std::invalid_argument);
 }
-
-// TODO(can not):
-// - ParseLelantusJoinSplit
-// - GetSpendAmount
-// - CheckLelantusBlock
-
-// TODO(can):
-// - CheckLelantusTransaction
 
 BOOST_AUTO_TEST_CASE(get_outpoint)
 {
@@ -462,6 +457,10 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CMutableTransaction joinsplitTx(wtx);
     auto joinsplit = ParseLelantusJoinSplit(joinsplitTx.vin[0]);
 
+    // test get join split amounts
+    BOOST_CHECK_EQUAL(1, GetSpendInputs(joinsplitTx));
+    BOOST_CHECK_EQUAL(1, GetSpendInputs(joinsplitTx, joinsplitTx.vin[0]));
+
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
         joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
@@ -480,6 +479,97 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
         joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, &info));
+
+    // test surge dection.
+    while (!lelantusState->IsSurgeConditionDetected()) {
+        Scalar s;
+        s.randomize();
+
+        lelantusState->AddSpend(s, 1);
+    }
+
+    BOOST_CHECK(!CheckLelantusTransaction(
+        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, &info));
+}
+
+BOOST_AUTO_TEST_CASE(spend_limitation_per_tx)
+{
+    PrivateCoin coinOut(params, 0);
+    JoinSplitScriptGenerator invalidG, validG;
+    invalidG.fee = 0;
+    invalidG.vout = 0;
+    invalidG.coinsOut = {coinOut};
+    invalidG.groupBlockHashes = {ArithToUint256(0)};
+    invalidG.txHash = ArithToUint256(0);
+
+    validG.fee = 0;
+    validG.vout = 0;
+    validG.coinsOut = {coinOut};
+    validG.groupBlockHashes = {ArithToUint256(0)};
+    validG.txHash = ArithToUint256(0);
+
+    for (size_t i = 0; i != consensus.nMaxLelantusInputPerTransaction + 1; i++) {
+        PrivateCoin coin(params, 0);
+        invalidG.coins.emplace_back(coin, 1);
+        invalidG.anons[1].push_back(coin.getPublicCoin());
+
+        if (i != 0) { // skip first
+            validG.coins.emplace_back(coin, 1);
+            validG.anons[1].push_back(coin.getPublicCoin());
+        }
+    }
+
+    CMutableTransaction invalidTx, validTx;
+    invalidTx.vin.resize(1);
+    invalidTx.vin[0].scriptSig = invalidG.Get().first;
+
+    validTx.vin.resize(1);
+    validTx.vin[0].scriptSig = validG.Get().first;
+
+    CBlock invalidBlock, validBlock;
+    invalidBlock.vtx.push_back(MakeTransactionRef(invalidTx));
+    validBlock.vtx.push_back(MakeTransactionRef(validTx));
+
+    CValidationState state;
+    BOOST_CHECK(!CheckLelantusBlock(state, invalidBlock));
+    BOOST_CHECK(CheckLelantusBlock(state, validBlock));
+}
+
+BOOST_AUTO_TEST_CASE(spend_limitation_per_block)
+{
+    CBlock block;
+    size_t spends = 0;
+
+    for (size_t i = 0; spends <= consensus.nMaxLelantusInputPerBlock; i++) {
+        PrivateCoin coinOut(params, 0);
+        JoinSplitScriptGenerator g;
+        g.fee = 0;
+        g.vout = 0;
+        g.coinsOut = {coinOut};
+        for (size_t i = 0; i != consensus.nMaxLelantusInputPerTransaction; i++) {
+            PrivateCoin coin(params, 0);
+            g.coins.emplace_back(coin, 1);
+            g.anons[1].push_back(coin.getPublicCoin());
+
+            spends++;
+        }
+
+        g.groupBlockHashes = {ArithToUint256(i)};
+        g.txHash = ArithToUint256(i);
+
+        CMutableTransaction tx;
+        tx.vin.resize(1);
+        tx.vin[0].scriptSig = g.Get().first;
+
+
+        block.vtx.push_back(MakeTransactionRef(tx));
+    }
+
+    CValidationState state;
+    BOOST_CHECK(!CheckLelantusBlock(state, block));
+
+    block.vtx.pop_back();
+    BOOST_CHECK(CheckLelantusBlock(state, block));
 }
 
 BOOST_AUTO_TEST_CASE(parse_joinsplit)

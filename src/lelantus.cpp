@@ -566,10 +566,8 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
 }
 
 size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in) {
-    if (in.IsLelantusJoinSplit()) {
-        GetLelantusJoinSplitSerialNumbers(tx, in).size();
-    }
-    return 0;
+    return in.IsLelantusJoinSplit() ?
+        GetLelantusJoinSplitSerialNumbers(tx, in).size() : 0;
 }
 
 size_t GetSpendInputs(const CTransaction &tx) {

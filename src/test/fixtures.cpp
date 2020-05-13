@@ -262,7 +262,6 @@ std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
     std::vector<CHDMint> mints;
 
     for (auto a : amounts) {
-        // lelantus::PrivateCoin coin(params, a);
         coins.emplace_back(params, a);
         auto &coin = coins.back();
 
