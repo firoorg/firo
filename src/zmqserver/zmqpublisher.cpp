@@ -226,8 +226,7 @@ bool CZMQConnectionsEvent::NotifyConnections()
 
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
 {
-    CTransactionRef transactionRef(&transaction);
-    CWalletTx wtx(pwalletMain, transactionRef);
+    CWalletTx wtx(pwalletMain, MakeTransactionRef(std::move(transaction)));
     CAmount nFee;
     string strSentAccount;
     list<COutputEntry> listReceived;

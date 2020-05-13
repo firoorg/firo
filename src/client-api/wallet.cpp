@@ -208,6 +208,7 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 
 void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs)
 {
+    LOCK(cs_main);
     CAmount nFee;
     string strSentAccount;
     list<COutputEntry> listReceived;
