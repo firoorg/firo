@@ -141,7 +141,6 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
  */
 void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     //Is locked
     if (pwalletMain->IsLocked())

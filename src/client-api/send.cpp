@@ -93,8 +93,6 @@ bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData
 }
 
 bool setTxFee(const UniValue& feeperkb){
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
     CAmount nAmount = feeperkb.get_int64();
 
     payTxFee = CFeeRate(nAmount, 1000);
@@ -125,6 +123,7 @@ UniValue getNewAddress()
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {   
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     UniValue txMetadataUni(UniValue::VOBJ);
     UniValue txMetadataData(UniValue::VOBJ);
     UniValue txMetadataEntry(UniValue::VOBJ);
@@ -156,8 +155,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
             UniValue txid(UniValue::VOBJ);
             setTxFee(feePerKb);
-
-            LOCK2(cs_main, pwalletMain->cs_wallet);
 
             int nMinDepth = 1;
 
@@ -260,6 +257,8 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     UniValue ret(UniValue::VOBJ);
     UniValue feePerKb;
     UniValue sendTo(UniValue::VOBJ);
@@ -272,8 +271,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
     }
     setTxFee(feePerKb);
-
-    LOCK2(cs_main, pwalletMain->cs_wallet); 
 
     CWalletTx wtx;
     wtx.strFromAccount = "";

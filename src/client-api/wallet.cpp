@@ -576,6 +576,8 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     UniValue ret(UniValue::VOBJ);
 
     std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();

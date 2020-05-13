@@ -97,6 +97,7 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
 
 UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     UniValue getblockObj(UniValue::VOBJ);
     string blockhash;
 
