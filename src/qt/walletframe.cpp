@@ -115,12 +115,12 @@ void WalletFrame::gotoOverviewPage()
         i.value()->gotoOverviewPage();
 }
 
-#ifdef ENABLE_EXODUS
-void WalletFrame::gotoExoAssetsPage()
+#ifdef ENABLE_ELYSIUM
+void WalletFrame::gotoElyAssetsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoExoAssetsPage();
+        i.value()->gotoElyAssetsPage();
 }
 #endif
 
@@ -131,12 +131,12 @@ void WalletFrame::gotoHistoryPage()
         i.value()->gotoHistoryPage();
 }
 
-#ifdef ENABLE_EXODUS
-void WalletFrame::gotoExodusHistoryTab()
+#ifdef ENABLE_ELYSIUM
+void WalletFrame::gotoElysiumHistoryTab()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoExodusHistoryTab();
+        i.value()->gotoElysiumHistoryTab();
 }
 #endif
 
@@ -147,7 +147,7 @@ void WalletFrame::gotoBitcoinHistoryTab()
         i.value()->gotoBitcoinHistoryTab();
 }
 
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
 void WalletFrame::gotoToolboxPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
