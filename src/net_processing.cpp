@@ -3833,27 +3833,33 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
         //
         // Message: getdata (non-blocks)
         //
-        while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow)
+        std::sort(pto->vecAskFor.begin(), pto->vecAskFor.end());
+        auto it = pto->vecAskFor.begin();
+        while (it != pto->vecAskFor.end() && it->first <= nNow)
         {
-            const CInv& inv = (*pto->mapAskFor.begin()).second;
+            const CInv& inv = it->second;
             if (!AlreadyHave(inv))
             {
-                if (fDebug)
-                    LogPrint("net", "Requesting %s peer=%d\n", inv.ToString(), pto->id);
+                LogPrint("net", "SendMessages -- GETDATA -- requesting inv = %s peer=%d\n", inv.ToString(), pto->id);
                 vGetData.push_back(inv);
                 if (vGetData.size() >= 1000)
                 {
                     connman.PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));
+                    LogPrint("net", "SendMessages -- GETDATA -- pushed size = %lu peer=%d\n", vGetData.size(), pto->id);
                     vGetData.clear();
                 }
             } else {
                 //If we're not going to ask, don't expect a response.
+                LogPrint("net", "SendMessages -- GETDATA -- already have inv = %s peer=%d\n", inv.ToString(), pto->id);
                 pto->setAskFor.erase(inv.hash);
             }
-            pto->mapAskFor.erase(pto->mapAskFor.begin());
+            ++it;
         }
-        if (!vGetData.empty())
+        pto->vecAskFor.erase(pto->vecAskFor.begin(), it);
+        if (!vGetData.empty()) {
             connman.PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));
+            LogPrint("net", "SendMessages -- GETDATA -- pushed size = %lu peer=%d\n", vGetData.size(), pto->id);
+        }
 
         //
         // Message: feefilter

@@ -3500,7 +3500,7 @@ CNode::~CNode()
 
 void CNode::AskFor(const CInv& inv, int64_t doubleRequestDelay)
 {
-    if (mapAskFor.size() > MAPASKFOR_MAX_SZ || setAskFor.size() > SETASKFOR_MAX_SZ) {
+    if (vecAskFor.size() > MAPASKFOR_MAX_SZ || setAskFor.size() > SETASKFOR_MAX_SZ) {
         int64_t nNow = GetTime();
         if(nNow - nLastWarningTime > WARNING_INTERVAL) {
             LogPrintf("CNode::AskFor -- WARNING: inventory message dropped: vecAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, nSkipped = %d, peer=%d\n",
@@ -3517,7 +3517,7 @@ void CNode::AskFor(const CInv& inv, int64_t doubleRequestDelay)
     if (!setAskFor.insert(inv.hash).second)
         return;
 
-    // We're using mapAskFor as a priority queue,
+    // We're using vecAskFor as a priority queue,
     // the key is the earliest time the request can be sent
     int64_t nRequestTime;
     limitedmap<uint256, int64_t>::const_iterator it = mapAlreadyAskedFor.find(inv.hash);
@@ -3540,7 +3540,7 @@ void CNode::AskFor(const CInv& inv, int64_t doubleRequestDelay)
         mapAlreadyAskedFor.update(it, nRequestTime);
     else
         mapAlreadyAskedFor.insert(std::make_pair(inv.hash, nRequestTime));
-    mapAskFor.insert(std::make_pair(nRequestTime, inv));
+    vecAskFor.emplace_back(nRequestTime, inv);
 }
 
 void CNode::RemoveAskFor(const uint256& hash)
