@@ -31,7 +31,7 @@ void generate_batch_proofs(
             indexes.push_back(i);
 
             secp_primitives::GroupElement c;
-            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[1], v, h_gens[0], r);
             commits.push_back(c);
             --M_;
         }

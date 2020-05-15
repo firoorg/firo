@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N)
         r.randomize();
 
         commits[index] = Primitives::double_commit(
-            g, uint64_t(0), h_gens[0], v, h_gens[1], r);
+            g, uint64_t(0), h_gens[1], v, h_gens[0], r);
 
         Proof proof;
         prover.proof(commits, index, v, r, proof);
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N_with_other_groups)
     auto commits = RandomizeGroupElements(N);
 
     Secret s(0);
-    commits[0] = Primitives::double_commit(g, uint64_t(0), h_gens[0], s.v, h_gens[1], s.r);
+    commits[0] = Primitives::double_commit(g, uint64_t(0), h_gens[1], s.v, h_gens[0], s.r);
 
     Proof proof;
     prover.proof(commits, 0, s.v, s.r, proof);
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N_batch)
         auto &s = secrets.back();
 
         commits[index] = Primitives::double_commit(
-            g, s.s, h_gens[0], s.v, h_gens[1], s.r);
+            g, s.s, h_gens[1], s.v, h_gens[0], s.r);
     }
 
     Prover prover(g, h_gens, n, m);
@@ -229,7 +229,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N_batch_with_some_invalid_proof)
         auto &s = secrets.back();
 
         commits[index] = Primitives::double_commit(
-            g, s.s, h_gens[0], s.v, h_gens[1], s.r);
+            g, s.s, h_gens[1], s.v, h_gens[0], s.r);
     }
 
     Prover prover(g, h_gens, n, m);

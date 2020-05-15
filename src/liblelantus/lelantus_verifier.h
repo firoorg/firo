@@ -12,8 +12,9 @@ public:
     LelantusVerifier(const Params* p);
 
     bool verify(
-            const std::vector<std::vector<PublicCoin>>& anonymity_sets,
-            const std::vector<std::vector<Scalar>>& Sin,
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+            const std::vector<Scalar>& serialNumbers,
+            const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             const Scalar& Vout,
             const Scalar f,

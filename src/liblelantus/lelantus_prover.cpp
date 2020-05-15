@@ -6,10 +6,10 @@ LelantusProver::LelantusProver(const Params* p) : params(p) {
 }
 
 void LelantusProver::proof(
-        const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const Scalar& Vin,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
-        const std::vector<uint64_t>& indexes,
+        const std::vector<size_t>& indexes,
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
         const Scalar& f,
@@ -52,15 +52,16 @@ void LelantusProver::proof(
     }
     Y_ = Ro * x_m - Ri;
 
-    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h1());
+    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h0());
+
     schnorrProver.proof(X_, Y_, proof_out.schnorrProof);
 
 }
 
 void LelantusProver::generate_sigma_proofs(
-        const std::vector<std::vector<PublicCoin>>& c,
+        const std::map<uint32_t, std::vector<PublicCoin>>& c,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
-        const std::vector<uint64_t>& indexes,
+        const std::vector<size_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
         std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs) {
@@ -88,7 +89,12 @@ void LelantusProver::generate_sigma_proofs(
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
-        for (auto const &coin : c[Cin[i].second])
+
+        const auto& set = c.find(Cin[i].second);
+        if(set == c.end())
+            throw ZerocoinException("No such anonymity set");
+
+        for (auto const &coin : set->second)
             C_.emplace_back(coin.getValue() + gs);
 
         rA[i].randomize();
@@ -157,7 +163,7 @@ void LelantusProver::generate_bulletproofs(
     g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
-    RangeProver<Scalar, GroupElement> rangeProver(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
+    RangeProver<Scalar, GroupElement> rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
 
 }
