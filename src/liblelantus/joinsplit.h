@@ -55,7 +55,7 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action) {
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(lelantusProof);
         READWRITE(serialNumbers);
         READWRITE(groupIds);
