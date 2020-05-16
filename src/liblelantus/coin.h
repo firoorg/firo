@@ -46,11 +46,12 @@ private:
 class PrivateCoin {
 public:
 
-    PrivateCoin(const Params* p, const uint64_t& v);
+    PrivateCoin(const Params* p, uint64_t v);
     PrivateCoin(const Params* p,
             const Scalar& serial,
-            const uint64_t& v,
+            uint64_t v,
             const Scalar& random,
+            const std::vector<unsigned char>& seckey,
             int version_);
 
     const Params * getParams() const;
@@ -63,7 +64,7 @@ public:
     void setPublicCoin(const PublicCoin& p);
     void setRandomness(const Scalar& n);
     void setSerialNumber(const Scalar& n);
-    void setV(const uint64_t& n);
+    void setV(uint64_t n);
     void setVersion(unsigned int nVersion);
     const unsigned char* getEcdsaSeckey() const;
 
@@ -82,7 +83,6 @@ private:
     Scalar randomness;
     unsigned int version = 0;
     unsigned char ecdsaSeckey[32];
-
 
 private:
     void randomize();

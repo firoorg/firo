@@ -83,16 +83,16 @@ void LelantusProver::generate_sigma_proofs(
     a.resize(N);
     for (std::size_t i = 0; i < N; ++i)
     {
-        if(c.size() <= Cin[i].second)
-            throw ZerocoinException("No such anonymity set or id is not correct");
+        if (!c.count(Cin[i].second))
+            throw std::invalid_argument("No such anonymity set or id is not correct");
 
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
 
         const auto& set = c.find(Cin[i].second);
-        if(set == c.end())
-            throw ZerocoinException("No such anonymity set");
+        if (set == c.end())
+            throw std::invalid_argument("No such anonymity set");
 
         for (auto const &coin : set->second)
             C_.emplace_back(coin.getValue() + gs);

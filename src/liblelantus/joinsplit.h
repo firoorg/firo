@@ -20,7 +20,7 @@ public:
               const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
-              const uint64_t& fee,
+              uint64_t fee,
               const std::vector<uint256>& groupBlockHashes,
               const uint256& txHash);
 
@@ -29,7 +29,7 @@ public:
                 const Scalar& Vout,
                 const uint256& txHash) const;
 
-    void updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
+    void signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
 
     uint256 signatureHash(const SpendMetaData& m, size_t coutSize) const;
 
@@ -39,7 +39,7 @@ public:
 
     const std::vector<Scalar>& getCoinSerialNumbers();
 
-    const uint64_t& getFee();
+    uint64_t getFee();
 
     const std::vector<uint32_t>& getCoinGroupIds();
 

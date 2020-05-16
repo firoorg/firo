@@ -52,7 +52,7 @@ bool LelantusVerifier::verify_sigma(
                                                           params->get_sigma_m());
 
     if(Sin.size() != anonymity_sets.size())
-        throw ZerocoinException("Number of anonymity sets and number of vectors containing serial numbers must be equal");
+        throw std::invalid_argument("Number of anonymity sets and number of vectors containing serial numbers must be equal");
 
     int t = 0;
     for(std::size_t k = 0; k < Sin.size(); k++) {

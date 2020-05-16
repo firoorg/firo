@@ -4,17 +4,19 @@ namespace lelantus {
 
 
 SpendMetaData::SpendMetaData(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymitySets,
         const std::vector<uint256>& groupBlockHashes,
-        const uint256& txHash) {
-    if(groupBlockHashes.size() != anonymity_sets.size())
-        throw ZerocoinException("Mismatch blockHashes and anonymity sets sizes.");
+        const uint256& txHash)
+        : txHash(txHash) {
+    if(groupBlockHashes.size() != anonymitySets.size())
+        throw std::invalid_argument("Mismatch blockHashes and anonymity sets sizes.");
 
     coinGroupIdAndBlockHash.reserve(groupBlockHashes.size());
 
     int i = 0;
-    for(const auto& set : anonymity_sets) {
-        coinGroupIdAndBlockHash.emplace_back(std::make_pair(set.first, groupBlockHashes[i]));
+    for(const auto& set : anonymitySets) {
+        coinGroupIdAndBlockHash.emplace_back(set.first, groupBlockHashes[i]);
+        i++;
     }
 }
 
