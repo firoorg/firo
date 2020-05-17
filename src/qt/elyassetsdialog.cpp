@@ -118,7 +118,7 @@ ElyAssetsDialog::~ElyAssetsDialog()
     delete ui;
 }
 
-void ElyAssetsDialog::reinitEly()
+void ElyAssetsDialog::reinitOmni()
 {
     ui->propSelectorWidget->clear();
     ui->balancesTable->setRowCount(0);
@@ -130,8 +130,8 @@ void ElyAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(reinitEly()));
+        connect(model, SIGNAL(refreshOmniBalance()), this, SLOT(balancesUpdated()));
+        connect(model, SIGNAL(reinitOmniState()), this, SLOT(reinitOmni()));
     }
 }
 

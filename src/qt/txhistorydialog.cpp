@@ -164,7 +164,7 @@ void TXHistoryDialog::setClientModel(ClientModel *model)
     this->clientModel = model;
     if (model != NULL) {
         connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(UpdateHistory()));
-        connect(model, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(UpdateConfirmations()));
+        connect(model, SIGNAL(numBlocksChanged(int)), this, SLOT(UpdateConfirmations()));
         connect(model, SIGNAL(reinitElysiumState()), this, SLOT(ReinitTXHistoryTable()));
     }
 }
