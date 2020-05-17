@@ -599,6 +599,8 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
     if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     if (fHelp)
         return true;
 

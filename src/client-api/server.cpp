@@ -9,7 +9,6 @@
 
 static bool fAPIRunning = false;
 static bool fAPIInWarmup = true;
-static bool fAPIIsOpen = true;
 static std::string apiWarmupStatus("API server started");
 static CCriticalSection cs_apiWarmup;
 
@@ -62,16 +61,6 @@ bool APIIsInWarmup()
 {
     LOCK(cs_apiWarmup);
     return fAPIInWarmup;
-}
-
-bool APIIsOpen()
-{
-    return fAPIIsOpen;
-}
-
-void SetAPIOpenStatus(const bool& newStatus)
-{
-    fAPIIsOpen = newStatus;
 }
 
 CAPITable::CAPITable(){}
@@ -174,7 +163,6 @@ void APIJSONRequest::parse(const UniValue& valRequest)
 
 UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
-    SetAPIOpenStatus(false);
     if(request.collection!="apiStatus")
         LogPrintf("executing method %s\n",  request.collection);
     
@@ -230,7 +218,6 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
     }
 
     g_apiSignals.PostCommand(*pcmd);
-    SetAPIOpenStatus(true);
 }
 
 CAPITable tableAPI;

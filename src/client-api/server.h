@@ -17,7 +17,6 @@ void SetAPIWarmupStatus(const std::string& newStatus);
 void SetAPIWarmupFinished();
 bool APIIsInWarmup(std::string *outStatus);
 bool APIIsInWarmup();
-bool APIIsOpen();
 
 enum Type {
    None,

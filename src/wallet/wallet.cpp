@@ -8299,6 +8299,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
         zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+        zwalletMain->GenerateMintPool(); // create any potentially new mints immediately
     }
 
     RegisterValidationInterface(walletInstance);
