@@ -109,37 +109,6 @@ void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
     }
 }
 
-UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
-    fs::path const &path = CreateTxMetadataFile();
-
-    // get data as ifstream
-    std::ifstream txMetadataIn(path.string());
-
-    // parse as std::string
-    std::string txMetadataStr((std::istreambuf_iterator<char>(txMetadataIn)), std::istreambuf_iterator<char>());
-
-    // finally as UniValue
-    UniValue txMetadataUni(UniValue::VOBJ);
-    UniValue txMetadataData(UniValue::VOBJ);
-    txMetadataUni.read(txMetadataStr);
-
-    if(!txMetadataUni["data"].isNull()){
-        txMetadataData = txMetadataUni["data"];
-    }
-    UniValue entryPointer(UniValue::VOBJ);
-    UniValue entry(UniValue::VOBJ);
-    entryPointer = find_value(find_value(txMetadataData, txid), address);
-
-    if(!entryPointer.isNull()){
-        entry = entryPointer.get_obj();
-        LogPrintf("entry: %s\n", entry.write());
-        return entry;
-    }
-
-    return NullUniValue;
-}
-
-
 CAmount getLockUnspentAmount()
 {
     LOCK(pwalletMain->cs_wallet);
@@ -283,13 +252,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("amount", amount));
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
             APIWalletTxToJSON(wtx, entry);
-
-            UniValue txMetadata(UniValue::VOBJ);
-            txMetadata = getTxMetadataEntry(txid.ToString(), addrStr, amount);
-            if(!txMetadata.isNull()){
-                string label = find_value(txMetadata, "label").get_str();
-                entry.push_back(Pair("label", label));   
-            }
 
             if(!ret[addrStr].isNull()){
                 address = ret[addrStr];

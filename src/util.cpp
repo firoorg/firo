@@ -611,27 +611,8 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
-boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
-{
-    boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_METADATA_FILENAME);
-
-    if(!boost::filesystem::exists(pathConfigFile)){
-        UniValue txMetadataUni(UniValue::VOBJ);
-        txMetadataUni.push_back(Pair("type", "tx_metadata"));
-        txMetadataUni.push_back(Pair("data", NullUniValue));
-        
-        //write back UniValue
-        std::ofstream txMetadataOut(pathConfigFile.string());
-
-        txMetadataOut << txMetadataUni.write(4,0) << endl;
-    }
-
-    return pathConfigFile;
-}
-
 void CreatePersistentFiles(bool fNetSpecific){
     CreatePaymentRequestFile(fNetSpecific);
-    CreateTxMetadataFile(fNetSpecific);
     CreateZerocoinFile(fNetSpecific);
 }
 

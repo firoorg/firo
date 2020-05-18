@@ -1482,7 +1482,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             return false;        
 
         CreatePaymentRequestFile();
-        CreateTxMetadataFile();
         CreateZerocoinFile();
 
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);

@@ -26,39 +26,6 @@ std::map<std::string, int> nStates = {
         {"archived",3}
 };
 
-bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData){
-    fs::path const &path = CreateTxMetadataFile();
-
-    // get data as ifstream
-    std::ifstream txMetadataIn(path.string());
-
-    // parse as std::string
-    std::string txMetadataStr((std::istreambuf_iterator<char>(txMetadataIn)), std::istreambuf_iterator<char>());
-
-    // finally as UniValue
-    txMetadataUni.read(txMetadataStr);
-
-    if(!txMetadataUni["data"].isNull()){
-        txMetadataData = txMetadataUni["data"];
-    }
-    
-    return true;
-}
-
-bool setTxMetadata(UniValue txMetadataUni){
-    //write back UniValue
-    fs::path const &path = CreateTxMetadataFile();
-    LogPrintf("path: %s\n", path.string());
-
-    std::ofstream txMetadataOut(path.string());
-
-    LogPrintf("txMetadata: %s\n", txMetadataUni.write());
-    txMetadataOut << txMetadataUni.write(4,0) << endl;
-
-    return true;
-}
-
-
 bool setPaymentRequest(UniValue paymentRequestUni){
     //write back UniValue
     fs::path const &path = CreatePaymentRequestFile();
@@ -122,18 +89,6 @@ UniValue getNewAddress()
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {   
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    UniValue txMetadataUni(UniValue::VOBJ);
-    UniValue txMetadataData(UniValue::VOBJ);
-    UniValue txMetadataEntry(UniValue::VOBJ);
-    getTxMetadata(txMetadataUni, txMetadataData);
-
-    if(txMetadataUni.empty()){
-        UniValue txMetadataUni(UniValue::VOBJ);
-    }
-
-    if(txMetadataData.empty()){
-        UniValue txMetadataData(UniValue::VOBJ);
-    }
 
     CCoinControl cc;
     bool hasCoinControl = GetCoinControl(data, cc);
@@ -172,7 +127,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 }catch (const std::exception& e){
                     throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
                 }
-                UniValue txMetadataSubEntry(UniValue::VOBJ);
 
                 CBitcoinAddress address(name_);
                 if (!address.IsValid())
@@ -191,11 +145,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
                 CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
-
-                // write label and amount to entry object
-                txMetadataSubEntry.push_back(Pair("amount", nAmount));
-                txMetadataSubEntry.push_back(Pair("label", label));
-                txMetadataEntry.push_back(Pair(name_, txMetadataSubEntry));
             }
 
             // Try each of our accounts looking for one with enough balance
@@ -226,13 +175,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
 
             string txidStr = wtx.GetHash().GetHex();
-
-            // write back tx metadata object
-            txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-            if(!txMetadataUni.replace("data", txMetadataData)){
-                throw runtime_error("Could not replace key/value pair.");
-            }
-            setTxMetadata(txMetadataUni);
 
             if (!pwalletMain->CommitTransaction(wtx, keyChange))
                 throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
@@ -313,88 +255,6 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
-}
-
-UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    UniValue txMetadataUni(UniValue::VOBJ);
-    UniValue txMetadataData(UniValue::VOBJ);
-
-    UniValue txidValue(UniValue::VOBJ);
-    UniValue addressValue(UniValue::VOBJ);
-
-    string txidKey;
-    UniValue addressKeyObj(UniValue::VOBJ);
-    string addressKey;
-
-    string label;
-
-    UniValue returnObj(UniValue::VOBJ);
-
-    getTxMetadata(txMetadataUni, txMetadataData);
-
-    if(txMetadataUni.empty()){
-        txMetadataUni.setObject();
-    }
-
-    if(txMetadataData.empty()){
-        txMetadataData.setObject();
-    }
-
-    try {
-        txidKey = find_value(data, "txid").get_str();
-        label = find_value(data, "label").get_str();
-    }catch (const std::exception& e){
-        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-    }
-
-    /* 
-     * If txid object found, we proceed with an update. 
-     * Otherwise this is new data, so the logic following this block will create it.
-     */
-    txidValue = find_value(txMetadataData, txidKey);
-    if(!txidValue.isNull()){
-        /* 
-         * If no "address" key in the call, this is a private spend label update.
-         * therefore we simply select the only address in the txid and modify that.
-         *
-         * if "address" key exists, we check for the existince of the object for that address, and use it if found.
-         * if not found, reset the object so it can be used again. 
-         */
-        addressKeyObj = find_value(data, "address");
-        if(addressKeyObj.isNull()){
-            addressKey = txidValue.getKeys()[0];
-            addressValue = txidValue.getValues()[0];
-        }else{
-            addressKey = addressKeyObj.get_str();
-            addressValue = find_value(txidValue, addressKey);
-            if(addressValue.isNull()){
-                addressValue.setObject();
-            }
-        }
-    }else{
-        try{
-            addressKey = find_value(data, "address").get_str();
-        }catch (const std::exception& e){
-            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
-        } 
-        txidValue.setObject();
-    }
-
-    addressValue.replace("label", label);
-    txidValue.replace(addressKey, addressValue);
-    txMetadataData.replace(txidKey, txidValue);
-
-    if(!txMetadataUni.replace("data", txMetadataData)){
-        throw runtime_error("Could not replace key/value pair.");
-    }
-    setTxMetadata(txMetadataUni);
-
-    returnObj.push_back(Pair("txid",txidKey));
-    returnObj.push_back(Pair("address",addressKey));
-    returnObj.push_back(Pair("label", label));
-
-    return returnObj;
 }
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -536,7 +396,6 @@ static const CAPICommand commands[] =
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "send",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "send",            "txFee",           &txfee,                   true,      false,           false  },
-    { "send",            "updateLabels",    &updatelabels,            true,      false,           false  },
     { "send",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
 
 };
