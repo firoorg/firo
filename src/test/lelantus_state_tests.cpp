@@ -450,18 +450,18 @@ BOOST_AUTO_TEST_CASE(surge_detection)
     state.Reset();
 
     std::vector<CAmount> amounts;
-    for (size_t i = 0; i != 8; i++) {
+    for (size_t i = 0; i != 14; i++) {
         amounts.push_back(1 * COIN);
     }
 
     // create
-    // 1(6), 2(4)
+    // 1(6), 2(4), 3(4)
     std::vector<PrivateCoin> mints;
     std::vector<CMutableTransaction> txes;
     GenerateMints(amounts, txes, mints, true, false);
 
     std::vector<PublicCoin> coins;
-    for (size_t i = 0; i != 8; i += 2) {
+    for (size_t i = 0; i != 14; i += 2) {
         auto index = GenerateBlock({});
         auto block = GetCBlock(index);
         coins.push_back(mints[i + 1].getPublicCoin());
@@ -499,17 +499,50 @@ BOOST_AUTO_TEST_CASE(surge_detection)
     // serials in set could be p + n but coins in the container of group i have only n
     BOOST_CHECK(!state.IsSurgeConditionDetected());
 
-    addSerials({{1, 6}, {2, 2}});
+    // spend 6 coins from 1, 4 coins from 2 and add one more should fail
+    auto index1 = addSerials({{1, 6}, {2, 4}});
     BOOST_CHECK(!state.IsSurgeConditionDetected());
 
-    auto index1 = addSerials({{1, 1}});
+    auto index2 = addSerials({{1, 1}});
     BOOST_CHECK(state.IsSurgeConditionDetected());
+
+    state.RemoveBlock(index2);
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    index2 = addSerials({{2, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+    state.RemoveBlock(index2);
+    state.RemoveBlock(index1);
+
+    // spend 5 coins from 1, 5 coins from 2, 4 coins from 3, and add one more should fail
+    index1 = addSerials({{1, 5}, {2, 5}, {3, 4}});
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    index2 = addSerials({{1, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+
+    state.RemoveBlock(index2);
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    index2 = addSerials({{2, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+
+    state.RemoveBlock(index2);
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    index2 = addSerials({{3, 1}});
+    BOOST_CHECK(state.IsSurgeConditionDetected());
+
+    state.RemoveBlock(index2);
+    BOOST_CHECK(!state.IsSurgeConditionDetected());
 
     state.RemoveBlock(index1);
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
 
-    addSerials({{2, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
+    // state.RemoveBlock(index1);
+    // BOOST_CHECK(!state.IsSurgeConditionDetected());
+
+    // addSerials({{2, 1}});
+    // BOOST_CHECK(state.IsSurgeConditionDetected());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

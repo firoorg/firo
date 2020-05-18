@@ -761,6 +761,16 @@ void CLelantusState::Containers::RemoveSpend(Scalar const & serial) {
     }
 }
 
+void CLelantusState::Containers::AddExtendMints(int group, size_t mints) {
+    extendMintMetaInfo[group] = mints;
+    CheckSurgeCondition(group);
+}
+
+void CLelantusState::Containers::RemoveExtendMints(int group) {
+    extendMintMetaInfo.erase(group);
+    CheckSurgeCondition(group);
+}
+
 mint_info_container const & CLelantusState::Containers::GetMints() const {
     return mintedPubCoins;
 }
@@ -781,19 +791,42 @@ void CLelantusState::Containers::Reset() {
     surgeCondition = false;
 }
 
-void CLelantusState::Containers::CheckSurgeCondition(int groupId) {
-    bool result = spendMetaInfo[groupId] > mintMetaInfo[groupId];
-    if( result ) {
-        std::ostringstream ostr;
-        ostr << "Turning sigma surge protection ON: groupId: " << groupId << '\n';
-        error(ostr.str().c_str());
-    }
+void CLelantusState::Containers::CheckSurgeCondition(int id) {
+    bool result = false;
 
-    for(metainfo_container_t::const_iterator smi = spendMetaInfo.begin(); smi != spendMetaInfo.end() && !result; ++smi) {
-        if(smi->second > mintMetaInfo[smi->first]) {
+    // find a range of groups that sum of serials larger than sum of mints
+    size_t serials = 0;
+    size_t mints = 0;
+    int start = 0;
+    for (auto it = spendMetaInfo.begin(); it != spendMetaInfo.end(); it++) {
+        auto id = it->first;
+
+        // include serials and mints accumulator
+        serials += it->second;
+        mints += mintMetaInfo.count(id) ? mintMetaInfo[id] : 0;
+
+        // serials exceed mints then alert
+        if (serials > mints) {
             result = true;
+
+            std::ostringstream ostr;
+            ostr << "Turning Lelantus surge protection ON: in group range: " << start << " - " << id << '\n';
+            error(ostr.str().c_str());
+
+            break;
+        }
+
+        auto nextGroupExtendMints = extendMintMetaInfo.count(id + 1) ?
+            extendMintMetaInfo[id + 1] : 0;
+
+        // TODO(panu): add description to this block
+        if (serials <= mints - nextGroupExtendMints) {
+            start = id + 1;
+            serials = 0;
+            mints = nextGroupExtendMints;
         }
     }
+
     surgeCondition = result;
 }
 
@@ -836,26 +869,15 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         coinGroup.nCoins += blockMints.size();
     }
     else {
-        auto& oldCoinGroup = coinGroups[latestCoinId];
+        auto& newCoinGroup = coinGroups[++latestCoinId];
 
-        latestCoinId += 1;
-        auto& newCoinGroup = coinGroups[latestCoinId];
-
-        for (CBlockIndex *block = oldCoinGroup.lastBlock;;
-            block = block->pprev) {
-
-            if (block->lelantusMintedPubCoins[latestCoinId - 1].size() > 0) {
-                newCoinGroup.nCoins += block->lelantusMintedPubCoins[latestCoinId - 1].size();  // always start with non empty set
-
-                if (newCoinGroup.nCoins >= startGroupSize) {
-                    newCoinGroup.firstBlock = block;
-                    break;
-                }
-            }
-        }
-
+        size_t coins = 0;
+        auto firstBlock = CountLastNCoins(latestCoinId - 1, startGroupSize, coins);
+        newCoinGroup.firstBlock = firstBlock ? firstBlock : index;
         newCoinGroup.lastBlock = index;
-        newCoinGroup.nCoins += blockMints.size();
+        newCoinGroup.nCoins = coins + blockMints.size();
+
+        containers.AddExtendMints(latestCoinId, newCoinGroup.nCoins);
     }
 
     for (const auto& mint : blockMints) {
@@ -871,25 +893,33 @@ void CLelantusState::AddSpend(const Scalar &serial, int coinGroupId) {
 }
 
 void CLelantusState::AddBlock(CBlockIndex *index) {
-    BOOST_FOREACH(
-        const PAIRTYPE(int, vector<lelantus::PublicCoin>) &pubCoins,
-            index->lelantusMintedPubCoins) {
+    for (auto const &pubCoins : index->lelantusMintedPubCoins) {
         if (!pubCoins.second.empty()) {
-            LelantusCoinGroupInfo& coinGroup = coinGroups[pubCoins.first];
+            auto &coinGroup = coinGroups[pubCoins.first];
 
-            if (coinGroup.firstBlock == NULL)
+            if (!coinGroup.firstBlock) {
                 coinGroup.firstBlock = index;
+
+                if (pubCoins.first > 1) {
+                    size_t coins = 0;
+                    auto firstBlock = CountLastNCoins(pubCoins.first - 1, startGroupSize, coins);
+                    coinGroup.firstBlock = firstBlock ? firstBlock : index;
+                    coinGroup.nCoins = coins;
+
+                    containers.AddExtendMints(pubCoins.first, coins);
+                }
+            }
             coinGroup.lastBlock = index;
             coinGroup.nCoins += pubCoins.second.size();
         }
 
         latestCoinId = pubCoins.first;
-        BOOST_FOREACH(const lelantus::PublicCoin &coin, pubCoins.second) {
+        for (auto const &coin : pubCoins.second) {
             containers.AddMint(coin, CMintedCoinInfo::make(pubCoins.first, index->nHeight));
         }
     }
 
-    BOOST_FOREACH(const auto& serial, index->lelantusSpentSerials) {
+    for (auto const &serial : index->lelantusSpentSerials) {
         AddSpend(serial.first, serial.second);
     }
 }
@@ -930,6 +960,8 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
             coinGroups.erase(coins.first);
             // decrease pubcoin id
             latestCoinId--;
+            // erase from containers
+            containers.RemoveExtendMints(coins.first);
         } else {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
@@ -1137,6 +1169,31 @@ std::unordered_map<int, CLelantusState::LelantusCoinGroupInfo> const & CLelantus
 
 std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & CLelantusState::GetMempoolCoinSerials() const {
     return mempoolCoinSerials;
+}
+
+// private
+CBlockIndex* CLelantusState::CountLastNCoins(int groupId, size_t required, size_t &coins) {
+    CBlockIndex* first = nullptr;
+    coins = 0;
+
+    if (coinGroups.count(groupId)) {
+        auto &group = coinGroups[groupId];
+
+        for (auto block = group.lastBlock
+            ; coins < required && block
+            ; block = block->pprev) {
+
+            size_t inBlock;
+            if (block->lelantusMintedPubCoins.count(groupId)
+                && (inBlock = block->lelantusMintedPubCoins[groupId].size())) {
+
+                coins += inBlock;
+                first = block;
+            }
+        }
+    }
+
+    return first;
 }
 
 } // end of namespace lelantus.

@@ -186,6 +186,9 @@ public:
     bool IsSurgeConditionDetected() const;
 
 private:
+    CBlockIndex* CountLastNCoins(int groupId, size_t required, size_t &coins);
+
+private:
     // Group Limit
     size_t maxCoinInGroup;
     size_t startGroupSize;
@@ -212,6 +215,9 @@ private:
         void AddSpend(Scalar const & serial, int coinGroupId);
         void RemoveSpend(Scalar const & serial);
 
+        void AddExtendMints(int group, size_t mints);
+        void RemoveExtendMints(int group);
+
         void Reset();
 
         mint_info_container const & GetMints() const;
@@ -227,7 +233,7 @@ private:
         std::atomic<bool> & surgeCondition;
 
         typedef std::map<int, size_t> metainfo_container_t;
-        metainfo_container_t mintMetaInfo, spendMetaInfo;
+        metainfo_container_t extendMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
         void CheckSurgeCondition(int groupId);
     };
