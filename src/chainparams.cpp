@@ -467,7 +467,7 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 3340;
-        consensus.DIP0003EnforcementHeight = 3370;
+        consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0008Height = INT_MAX;
 
         // long living quorum params
