@@ -124,6 +124,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETSPORKS,
     NetMsgType::MNANNOUNCE,
     NetMsgType::MNPING,
+    NetMsgType::DSEG,
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
     NetMsgType::SYNCSTATUSCOUNT,
