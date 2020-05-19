@@ -50,6 +50,61 @@ public:
         }
     }
 
+    std::vector<CBlockIndex*> GenerateMintsInBlocks(CLelantusState &state, std::initializer_list<size_t> const &mintsInBlocks) {
+
+        std::vector<CBlockIndex*> indexes;
+        for (auto mintsInBlock : mintsInBlocks) {
+
+            std::vector<CAmount> amounts(mintsInBlock, 1);
+            std::vector<PrivateCoin> mints;
+            std::vector<CMutableTransaction> txes;
+            GenerateMints(amounts, txes, mints, true, false);
+
+
+            std::vector<GroupElement> coins;
+            for (auto const &m : mints) {
+                coins.push_back(m.getPublicCoin().getValue());
+            }
+
+            auto index = GenerateBlock({});
+            auto block = GetCBlock(index);
+
+            PopulateLelantusTxInfo(block, coins, {});
+
+            state.AddMintsToStateAndBlockIndex(index, &block);
+            indexes.push_back(index);
+        }
+
+        return indexes;
+    }
+
+    CBlockIndex* GenerateSpendGroups(
+        CLelantusState &state, std::initializer_list<std::pair<uint32_t, size_t>> const &serials) {
+
+        std::vector<CBlockIndex*> indexes;
+        auto index = GenerateBlock({});
+
+        for (auto const s : serials) {
+            for (size_t i = 0; i != s.second; i++) {
+                Scalar serial;
+                serial.randomize();
+
+                index->lelantusSpentSerials[serial] = s.first;
+            }
+        }
+
+        state.AddBlock(index);
+        return {index};
+    }
+
+    void RemoveBlocks(CLelantusState &state, std::vector<CBlockIndex*> indexes) {
+        for (auto it = indexes.rbegin(); it != indexes.rend(); it++) {
+            state.RemoveBlock(*it);
+        }
+    }
+
+
+
 public:
     CLelantusState *lelantusState;
 };
@@ -137,6 +192,9 @@ BOOST_AUTO_TEST_CASE(serial_adding)
 
     BOOST_CHECK(!lelantusState->IsUsedCoinSerial(serial2));
     BOOST_CHECK(!lelantusState->IsUsedCoinSerialHash(receivedSerial, serialHash2));
+
+    // add serials to group that doesn't exist, should fail
+    BOOST_CHECK_THROW(lelantusState->AddSpend(Scalar(1), 100), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(mempool)
@@ -250,7 +308,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     auto index4 = GenerateBlock({});
     auto block4 = GetCBlock(index4);
-    PopulateLelantusTxInfo(block4, {mint3}, {{serial3, 2}});
+    PopulateLelantusTxInfo(block4, {mint3}, {{serial3, 1}});
     lelantusState->AddMintsToStateAndBlockIndex(index4, &block4);
     index4->lelantusSpentSerials = block4.lelantusTxInfo->spentSerials;
 
@@ -442,108 +500,92 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     verifyGroup(1, 6, indexes[0], indexes[2], 1);
 }
 
-BOOST_AUTO_TEST_CASE(surge_detection)
+// Surge condition testing
+#define Undetected BOOST_CHECK(!state.IsSurgeConditionDetected())
+#define Detected BOOST_CHECK(state.IsSurgeConditionDetected())
+
+BOOST_AUTO_TEST_CASE(add_more_spend_and_trigger_surge_condition)
 {
     size_t maxGroupSize = 6;
     size_t startGroupSize = 2;
     CLelantusState state(maxGroupSize, startGroupSize);
     state.Reset();
 
-    std::vector<CAmount> amounts;
-    for (size_t i = 0; i != 14; i++) {
-        amounts.push_back(1 * COIN);
-    }
-
-    // create
-    // 1(6), 2(4), 3(4)
-    std::vector<PrivateCoin> mints;
-    std::vector<CMutableTransaction> txes;
-    GenerateMints(amounts, txes, mints, true, false);
-
-    std::vector<PublicCoin> coins;
-    for (size_t i = 0; i != 14; i += 2) {
-        auto index = GenerateBlock({});
-        auto block = GetCBlock(index);
-        coins.push_back(mints[i + 1].getPublicCoin());
-        coins.push_back(mints[i].getPublicCoin());
-
-        PopulateLelantusTxInfo(
-            block,
-            {
-                mints[i].getPublicCoin().getValue(),
-                mints[i + 1].getPublicCoin().getValue()
-            }, {});
-
-        state.AddMintsToStateAndBlockIndex(index, &block);
-    }
-
-    auto addSerials = [&] (std::vector<std::pair<uint32_t, size_t>> const serials)
-        -> CBlockIndex* {
-
-        auto index = GenerateBlock({});
-        for (auto const s : serials) {
-            for (size_t i = 0; i != s.second; i++) {
-                Scalar serial;
-                serial.randomize();
-
-                index->lelantusSpentSerials[serial] = s.first;
-            }
-        }
-
-        state.AddBlock(index);
-        return index;
-    };
-
-    // NOTE: This would be false-positive in the case that
-    // group i have coins in group p(coins from prevous group) + n(coins in this group)
-    // serials in set could be p + n but coins in the container of group i have only n
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    // 6(1), 4(2), 4(3)
+    auto mintIndexes = GenerateMintsInBlocks(state, {2, 2, 2, 2, 2, 2, 2});
+    Undetected;
 
     // spend 6 coins from 1, 4 coins from 2 and add one more should fail
-    auto index1 = addSerials({{1, 6}, {2, 4}});
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    auto index1 = GenerateSpendGroups(state, {{1, 6}, {2, 4}});
+    Undetected;
 
-    auto index2 = addSerials({{1, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
+    auto index2 = GenerateSpendGroups(state, {{1, 1}});
+    Detected;
 
-    state.RemoveBlock(index2);
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
-
-    index2 = addSerials({{2, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
-    state.RemoveBlock(index2);
-    state.RemoveBlock(index1);
+    RemoveBlocks(state, {index1, index2});
+    Undetected;
 
     // spend 5 coins from 1, 5 coins from 2, 4 coins from 3, and add one more should fail
-    index1 = addSerials({{1, 5}, {2, 5}, {3, 4}});
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    index1 = GenerateSpendGroups(state, {{1, 5}, {2, 5}, {3, 4}});
+    Undetected;
 
-    index2 = addSerials({{1, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
+    index2 = GenerateSpendGroups(state, {{1, 1}});
+    Detected;
 
-    state.RemoveBlock(index2);
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    RemoveBlocks(state, {index2});
+    Undetected;
 
-    index2 = addSerials({{2, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
+    index2 = GenerateSpendGroups(state, {{2, 1}});
+    Detected;
 
-    state.RemoveBlock(index2);
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    RemoveBlocks(state, {index2});
+    Undetected;
 
-    index2 = addSerials({{3, 1}});
-    BOOST_CHECK(state.IsSurgeConditionDetected());
+    index2 = GenerateSpendGroups(state, {{3, 1}});
+    Detected;
 
-    state.RemoveBlock(index2);
-    BOOST_CHECK(!state.IsSurgeConditionDetected());
+    RemoveBlocks(state, {index1});
+    Undetected;
 
-    state.RemoveBlock(index1);
-
-    // state.RemoveBlock(index1);
-    // BOOST_CHECK(!state.IsSurgeConditionDetected());
-
-    // addSerials({{2, 1}});
-    // BOOST_CHECK(state.IsSurgeConditionDetected());
 }
+
+BOOST_AUTO_TEST_CASE(surge_condition_detected_and_no_serials_in_early_groups)
+{
+    size_t maxGroupSize = 6;
+    size_t startGroupSize = 2;
+    CLelantusState state(maxGroupSize, startGroupSize);
+    state.Reset();
+
+    // 0 + 6(1), 2 + 4(2), 2 + 4(3), 2 + 3(4), 3 + 3(5), 3 + 3(6), 3 + 3(7)
+    GenerateMintsInBlocks(state, {2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3});
+    Undetected;
+
+    auto index1 = GenerateSpendGroups(state, {{4, 5}});
+    Undetected;
+
+    auto index2 = GenerateSpendGroups(state, {{4, 1}});
+    Detected;
+
+    RemoveBlocks(state, {index1, index2});
+
+    index1 = GenerateSpendGroups(state, {{4, 5}, {5, 3}});
+    Undetected;
+
+    index1 = GenerateSpendGroups(state, {{4, 1}});
+    Detected;
+
+    RemoveBlocks(state, {index1});
+    Undetected;
+
+    index1 = GenerateSpendGroups(state, {{5, 1}});
+    Detected;
+
+    RemoveBlocks(state, {index1});
+    Undetected;
+}
+
+#undef Detected
+#undef Undetected
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -732,7 +732,7 @@ CLelantusState::Containers::Containers(std::atomic<bool> & surgeCondition)
 void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo) {
     mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
     mintMetaInfo[coinInfo.coinGroupId] += 1;
-    CheckSurgeCondition(coinInfo.coinGroupId);
+    CheckSurgeCondition();
 }
 
 void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin) {
@@ -741,14 +741,18 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
         mintMetaInfo[iter->second.coinGroupId] -= 1;
         CMintedCoinInfo tmpMintInfo(iter->second);
         mintedPubCoins.erase(iter);
-        CheckSurgeCondition(tmpMintInfo.coinGroupId);
+        CheckSurgeCondition();
     }
 }
 
 void CLelantusState::Containers::AddSpend(Scalar const & serial, int coinGroupId) {
+    if (!mintMetaInfo.count(coinGroupId)) {
+        throw std::invalid_argument("group id doesn't exist");
+    }
+
     usedCoinSerials[serial] = coinGroupId;
     spendMetaInfo[coinGroupId] += 1;
-    CheckSurgeCondition(coinGroupId);
+    CheckSurgeCondition();
 }
 
 void CLelantusState::Containers::RemoveSpend(Scalar const & serial) {
@@ -757,18 +761,18 @@ void CLelantusState::Containers::RemoveSpend(Scalar const & serial) {
         spendMetaInfo[iter->second] -= 1;
         int id = iter->second;
         usedCoinSerials.erase(iter);
-        CheckSurgeCondition(id);
+        CheckSurgeCondition();
     }
 }
 
-void CLelantusState::Containers::AddExtendMints(int group, size_t mints) {
-    extendMintMetaInfo[group] = mints;
-    CheckSurgeCondition(group);
+void CLelantusState::Containers::AddExtendedMints(int group, size_t mints) {
+    extendedMintMetaInfo[group] = mints;
+    CheckSurgeCondition();
 }
 
-void CLelantusState::Containers::RemoveExtendMints(int group) {
-    extendMintMetaInfo.erase(group);
-    CheckSurgeCondition(group);
+void CLelantusState::Containers::RemoveExtendedMints(int group) {
+    extendedMintMetaInfo.erase(group);
+    CheckSurgeCondition();
 }
 
 mint_info_container const & CLelantusState::Containers::GetMints() const {
@@ -791,21 +795,22 @@ void CLelantusState::Containers::Reset() {
     surgeCondition = false;
 }
 
-void CLelantusState::Containers::CheckSurgeCondition(int id) {
+void CLelantusState::Containers::CheckSurgeCondition() {
     bool result = false;
 
     // find a range of groups that sum of serials larger than sum of mints
     size_t serials = 0;
     size_t mints = 0;
     int start = 0;
-    for (auto it = spendMetaInfo.begin(); it != spendMetaInfo.end(); it++) {
+
+    for (auto it = mintMetaInfo.begin(); it != mintMetaInfo.end(); it++) {
         auto id = it->first;
 
-        // include serials and mints accumulator
-        serials += it->second;
-        mints += mintMetaInfo.count(id) ? mintMetaInfo[id] : 0;
+        // include serials and mints to accumulators
+        serials += spendMetaInfo.count(id) ? spendMetaInfo[id] : 0;
+        mints += it->second;
 
-        // serials exceed mints then alert
+        // serials exceed mints then trigger
         if (serials > mints) {
             result = true;
 
@@ -816,14 +821,13 @@ void CLelantusState::Containers::CheckSurgeCondition(int id) {
             break;
         }
 
-        auto nextGroupExtendMints = extendMintMetaInfo.count(id + 1) ?
-            extendMintMetaInfo[id + 1] : 0;
+        auto extendedMints = extendedMintMetaInfo.count(id + 1) ?
+            extendedMintMetaInfo[id + 1] : 0;
 
-        // TODO(panu): add description to this block
-        if (serials <= mints - nextGroupExtendMints) {
+        if (serials <= mints - extendedMints) {
             start = id + 1;
             serials = 0;
-            mints = nextGroupExtendMints;
+            mints = extendedMints;
         }
     }
 
@@ -871,13 +875,13 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
     else {
         auto& newCoinGroup = coinGroups[++latestCoinId];
 
-        size_t coins = 0;
-        auto firstBlock = CountLastNCoins(latestCoinId - 1, startGroupSize, coins);
-        newCoinGroup.firstBlock = firstBlock ? firstBlock : index;
+        CBlockIndex *first;
+        auto coins = CountLastNCoins(latestCoinId - 1, startGroupSize, first);
+        newCoinGroup.firstBlock = first ? first : index;
         newCoinGroup.lastBlock = index;
         newCoinGroup.nCoins = coins + blockMints.size();
 
-        containers.AddExtendMints(latestCoinId, newCoinGroup.nCoins);
+        containers.AddExtendedMints(latestCoinId, coins);
     }
 
     for (const auto& mint : blockMints) {
@@ -901,12 +905,11 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
                 coinGroup.firstBlock = index;
 
                 if (pubCoins.first > 1) {
-                    size_t coins = 0;
-                    auto firstBlock = CountLastNCoins(pubCoins.first - 1, startGroupSize, coins);
-                    coinGroup.firstBlock = firstBlock ? firstBlock : index;
-                    coinGroup.nCoins = coins;
+                    CBlockIndex *first;
+                    coinGroup.nCoins = CountLastNCoins(pubCoins.first - 1, startGroupSize, first);
+                    coinGroup.firstBlock = first ? first : index;
 
-                    containers.AddExtendMints(pubCoins.first, coins);
+                    containers.AddExtendedMints(pubCoins.first, coinGroup.nCoins);
                 }
             }
             coinGroup.lastBlock = index;
@@ -961,7 +964,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
             // decrease pubcoin id
             latestCoinId--;
             // erase from containers
-            containers.RemoveExtendMints(coins.first);
+            containers.RemoveExtendedMints(coins.first);
         } else {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
@@ -1172,9 +1175,9 @@ std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & CLelantusState::
 }
 
 // private
-CBlockIndex* CLelantusState::CountLastNCoins(int groupId, size_t required, size_t &coins) {
-    CBlockIndex* first = nullptr;
-    coins = 0;
+size_t CLelantusState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &first) {
+    first = nullptr;
+    size_t coins = 0;
 
     if (coinGroups.count(groupId)) {
         auto &group = coinGroups[groupId];
@@ -1193,7 +1196,7 @@ CBlockIndex* CLelantusState::CountLastNCoins(int groupId, size_t required, size_
         }
     }
 
-    return first;
+    return coins;
 }
 
 } // end of namespace lelantus.
