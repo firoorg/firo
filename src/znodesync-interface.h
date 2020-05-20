@@ -17,6 +17,7 @@ public:
     CZnodeSyncInterface() : fEvoZnodes(false) {}
 
     bool IsFailed() { return GetAssetID() == MASTERNODE_SYNC_FAILED; }
+    bool GetBlockchainSynced();
     bool IsBlockchainSynced();
     bool IsSynced();
 

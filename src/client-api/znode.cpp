@@ -6,6 +6,7 @@
 #include "validationinterface.h"
 #include "znodeman.h"
 #include "univalue.h"
+#include "znodesync-interface.h"
 #include "znode-sync.h"
 #include "znodeconfig.h"
 #include "client-api/server.h"

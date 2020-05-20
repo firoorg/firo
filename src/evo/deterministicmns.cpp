@@ -1105,8 +1105,11 @@ void CDeterministicMNManager::UpgradeDBIfNeeded()
     evoDb.GetRawDB().CompactFull();
 }
 
-bool CDeterministicMNManager::IsDIP3Active(int height)
+bool CDeterministicMNManager::IsDIP3Active(int nHeight)
 {
     const Consensus::Params& params = ::Params().GetConsensus();
-    return height >= params.DIP0003Height;
+    if (nHeight == -1) {
+        nHeight = tipIndex->nHeight;
+    }
+    return nHeight >= params.DIP0003Height;
 }

@@ -11,7 +11,7 @@
 #include "client-api/wallet.h"
 #include "rpc/server.h"
 #include "rpc/client.h"
-#include "znode-sync.h"
+#include "znodesync-interface.h"
 #include "wallet/wallet.h"
 #include "znode.h"
 #include "net.h"
@@ -148,15 +148,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
+    modules.push_back(Pair("Znode", znodeSyncInterface.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
         obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
         obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
-        if(nWalletUnlockTime>0){
-            obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
+        if(pwalletMain->nRelockTime>0){
+            obj.push_back(Pair("unlockedUntil", pwalletMain->nRelockTime));
         }
         obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
         CWalletDB db(pwalletMain->strWalletFile);
@@ -172,9 +172,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
-    obj.push_back(Pair("connections",   (int)g_connman->vNodes.size()));
+    obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
-    obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
+    obj.push_back(Pair("synced",        znodeSyncInterface.GetBlockchainSynced()));
     obj.push_back(Pair("rescanning",    fRescanning));
     obj.push_back(Pair("walletinitialized",    fWalletInitialized));
     // have to wait for the API to be loaded before getting the correct reindexing state

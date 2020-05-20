@@ -5,6 +5,7 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "rpc/server.h"
+#include "znodesync-interface.h"
 #include "znode-sync.h"
 #include "core_io.h"
 #include "net.h"
@@ -15,6 +16,7 @@
 #include "darksend.h"
 #include "chain.h"
 #include "txmempool.h"
+#include "evo/deterministicmns.h"
 
 using namespace std;
 using namespace boost::chrono;
@@ -36,11 +38,14 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     UniValue status(UniValue::VOBJ);
     UniValue currentBlock(UniValue::VOBJ);
 
-    status.push_back(Pair("isBlockchainSynced", znodeSync.GetBlockchainSynced()));
-    status.push_back(Pair("isZnodeListSynced", znodeSync.IsZnodeListSynced()));
-    status.push_back(Pair("isWinnersListSynced", znodeSync.IsWinnersListSynced()));
-    status.push_back(Pair("isSynced", znodeSync.IsSynced()));
-    status.push_back(Pair("isFailed", znodeSync.IsFailed()));
+    status.push_back(Pair("isBlockchainSynced", znodeSyncInterface.GetBlockchainSynced()));
+    // only push these values if EVO znodes not yet actuve
+    if(!deterministicMNManager->IsDIP3Active(chainActive.Tip()->nHeight)){
+        status.push_back(Pair("isZnodeListSynced", znodeSync.IsZnodeListSynced()));
+        status.push_back(Pair("isWinnersListSynced", znodeSync.IsWinnersListSynced()));
+    }
+    status.push_back(Pair("isSynced", znodeSyncInterface.IsSynced()));
+    status.push_back(Pair("isFailed", znodeSyncInterface.IsFailed()));
 
     // if coming from PUB, height and time are included in data. otherwise just return chain tip
     UniValue height = find_value(data, "nHeight");
@@ -55,13 +60,13 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     }
 
     blockinfoObj.push_back(Pair("testnet", Params().NetworkIDString() == CBaseChainParams::TESTNET));
-    blockinfoObj.push_back(Pair("connections", (int)g_connman->vNodes.size()));
+    blockinfoObj.push_back(Pair("connections", (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     blockinfoObj.push_back(Pair("type","full"));
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
     blockinfoObj.push_back(Pair("avgBlockTime", int64_t(AvgBlockTime())));
 
-    if(!znodeSync.GetBlockchainSynced()){
+    if(!znodeSyncInterface.GetBlockchainSynced()){
         unsigned long currentTimestamp = floor(
             system_clock::now().time_since_epoch() / 
             milliseconds(1)/1000);

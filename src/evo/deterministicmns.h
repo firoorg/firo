@@ -657,12 +657,12 @@ public:
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     bool IsDIP3Enforced(int nHeight = -1);
+    bool IsDIP3Active(int nHeight = -1);
 
 public:
     // TODO these can all be removed in a future version
     bool UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
     void UpgradeDBIfNeeded();
-    static bool IsDIP3Active(int height);
 
 private:
     void CleanupCache(int nHeight);
