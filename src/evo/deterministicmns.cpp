@@ -685,6 +685,12 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 // This might only happen with a ProRegTx that refers an external collateral
                 // In that case the new ProRegTx will replace the old one. This means the old one is removed
                 // and the new one is added like a completely fresh one, which is also at the bottom of the payment list
+                
+                // ProRegTx can't replace masternode declared in the same block
+                if (replacedDmn->pdmnState->nRegisteredHeight == nHeight) {
+                    return _state.DoS(100, false, REJECT_CONFLICT, "protx-dup");
+                }
+
                 newList.RemoveMN(replacedDmn->proTxHash);
                 if (debugLogs) {
                     LogPrintf("CDeterministicMNManager::%s -- MN %s removed from list because collateral was used for a new ProRegTx. collateralOutpoint=%s, nHeight=%d, mapCurMNs.allMNsCount=%d\n",
