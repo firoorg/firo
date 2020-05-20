@@ -1069,6 +1069,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (!CheckSpecialTx(tx, chainActive.Tip(), state))
                 return false;
 
+            if (pool.existsProviderTxConflict(tx)) {
+                return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
+            }
+
             // A transaction that spends outputs that would be replaced by it is invalid. Now
             // that we have the set of all ancestors we can detect this
             // pathological case by making sure setConflicts and setAncestors don't

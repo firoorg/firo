@@ -637,7 +637,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         // this works on the previous block, so confirmation will happen one block after nMasternodeMinimumConfirmations
         // has been reached, but the block hash will then point to the block at nMasternodeMinimumConfirmations
         int nConfirmations = pindexPrev->nHeight - dmn->pdmnState->nRegisteredHeight;
-        if (nConfirmations >= Params().GetConsensus().nZnodeMinimumConfirmations) {
+        if (nConfirmations >= Params().GetConsensus().nEvoZnodeMinimumConfirmations) {
             CDeterministicMNState newState = *dmn->pdmnState;
             newState.UpdateConfirmedHash(dmn->proTxHash, pindexPrev->GetBlockHash());
             newList.UpdateMN(dmn->proTxHash, std::make_shared<CDeterministicMNState>(newState));

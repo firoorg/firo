@@ -249,6 +249,7 @@ public:
         consensus.DIP0003Height = INT_MAX;
         consensus.DIP0003EnforcementHeight = INT_MAX;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 15;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
@@ -469,6 +470,7 @@ public:
         consensus.DIP0003Height = 3340;
         consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 0;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_10_70] = llmq10_70;
@@ -653,6 +655,7 @@ public:
         consensus.DIP0003Height = 500;
         consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 1;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_5_60] = llmq5_60;
