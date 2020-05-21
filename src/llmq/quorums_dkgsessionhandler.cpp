@@ -226,7 +226,7 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
                                           const WhileWaitFunc& runWhileWaiting)
 {
     // expected time for a full phase
-    double phaseTime = params.dkgPhaseBlocks * Params().GetConsensus().nPowTargetSpacing * 1000;
+    double phaseTime = params.dkgPhaseBlocks * Params().GetConsensus().nLLMQPowTargetSpacing * 1000;
     // expected time per member
     phaseTime = phaseTime / params.size;
     // Don't expect perfect block times and thus reduce the phase time to be on the secure side (caller chooses factor)
@@ -485,7 +485,7 @@ void CDKGSessionHandler::HandleDKGRound()
         }
         if (!connections.empty()) {
             if (LogAcceptCategory("llmq-dkg")) {
-                std::string debugMsg = strprintf("CDKGSessionManager::%s -- adding masternodes quorum connections for quorum %s:\n", __func__, curSession->pindexQuorum->GetBlockHash().ToString());
+                std::string debugMsg = strprintf("CDKGSessionManager::%s -- adding znodes quorum connections for quorum %s:\n", __func__, curSession->pindexQuorum->GetBlockHash().ToString());
                 auto mnList = deterministicMNManager->GetListAtChainTip();
                 for (const auto& c : connections) {
                     auto dmn = mnList.GetValidMN(c);

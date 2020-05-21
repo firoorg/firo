@@ -280,10 +280,14 @@ struct Params {
     /** block to start using chainlocks */
     int DIP0008Height;
 
+    int nEvoZnodeMinimumConfirmations;
+
     std::map<LLMQType, LLMQParams> llmqs;
     LLMQType llmqChainLocks;
     LLMQType llmqForInstantSend{LLMQ_NONE};
 
+    /** Time between blocks for LLMQ random time purposes. Can be less than actual average distance between blocks */
+    int nLLMQPowTargetSpacing;
 	
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;

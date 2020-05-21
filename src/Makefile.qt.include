@@ -106,6 +106,7 @@ QT_FORMS_UI = \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
   qt/forms/znodelist.ui \
+  qt/forms/masternodelist.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
   qt/forms/recover.ui \
@@ -129,7 +130,7 @@ QT_FORMS_UI = \
   qt/forms/metadexcanceldialog.ui \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
-  qt/forms/exoassetsdialog.ui \
+  qt/forms/elyassetsdialog.ui \
   qt/forms/zc2sigmapage.ui
 
 QT_MOC_CPP = \
@@ -158,6 +159,7 @@ QT_MOC_CPP = \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_znodelist.cpp \
+  qt/moc_masternodelist.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
   qt/moc_openuridialog.cpp \
@@ -192,7 +194,7 @@ QT_MOC_CPP = \
   qt/moc_lookupspdialog.cpp \
   qt/moc_lookuptxdialog.cpp \
   qt/moc_txhistorydialog.cpp \
-  qt/moc_exoassetsdialog.cpp \
+  qt/moc_elyassetsdialog.cpp \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
   qt/moc_tradehistorydialog.cpp \
@@ -242,9 +244,11 @@ BITCOIN_QT_H = \
   qt/intro.h \
   qt/recover.h \
   qt/notifymnemonic.h \
+  qt/notifyznodewarning.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
   qt/znodelist.h \
+  qt/masternodelist.h \
   qt/modaloverlay.h \
   qt/paymentcodepage.h \
   qt/networkstyle.h \
@@ -285,12 +289,12 @@ BITCOIN_QT_H = \
   qt/lookupspdialog.h \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
-  qt/exoassetsdialog.h \
+  qt/elyassetsdialog.h \
   qt/metadexdialog.h \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
-  qt/exodus_qtutils.h \
+  qt/elysium_qtutils.h \
   qt/zc2sigmapage.h \
   qt/zc2sigmamodel.h
 
@@ -346,11 +350,11 @@ RES_ICONS = \
   qt/res/icons/meta_partcancelled.png \
   qt/res/icons/meta_partfilled.png \
   qt/res/icons/meta_pending.png \
-  qt/res/icons/exodus_in.png \
-  qt/res/icons/exodus_inout.png \
-  qt/res/icons/exodus_invalid.png \
-  qt/res/icons/exodus_out.png \
-  qt/res/icons/exodus_hourglass.png \
+  qt/res/icons/elysium_in.png \
+  qt/res/icons/elysium_inout.png \
+  qt/res/icons/elysium_invalid.png \
+  qt/res/icons/elysium_out.png \
+  qt/res/icons/elysium_hourglass.png \
   qt/res/icons/network_disabled.png \
   qt/res/icons/open.png \
   qt/res/icons/overview.png \
@@ -388,6 +392,8 @@ BITCOIN_QT_BASE_CPP = \
   qt/modaloverlay.cpp \
   qt/recover.cpp \
   qt/notifymnemonic.cpp \
+  qt/notifyznodewarning.cpp \
+  qt/masternodelist.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \
   qt/optionsdialog.cpp \
@@ -400,7 +406,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/splashscreen.cpp \
   qt/trafficgraphwidget.cpp \
   qt/utilitydialog.cpp \
-  qt/exodus_qtutils.cpp
+  qt/elysium_qtutils.cpp
 
 BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 
@@ -437,12 +443,13 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
   qt/znodelist.cpp \
+  qt/masternodelist.cpp \
   qt/walletview.cpp \
   qt/zc2sigmapage.cpp \
   qt/zc2sigmamodel.cpp
 
-ZCOIN_QT_EXODUS_CPP = \
-  qt/exoassetsdialog.cpp \
+ZCOIN_QT_ELYSIUM_CPP = \
+  qt/elyassetsdialog.cpp \
   qt/lookupaddressdialog.cpp \
   qt/lookupspdialog.cpp \
   qt/lookuptxdialog.cpp \
@@ -459,8 +466,8 @@ endif
 if ENABLE_WALLET
 BITCOIN_QT_CPP += $(BITCOIN_QT_WALLET_CPP)
 endif
-if ENABLE_EXODUS
-BITCOIN_QT_CPP += $(ZCOIN_QT_EXODUS_CPP)
+if ENABLE_ELYSIUM
+BITCOIN_QT_CPP += $(ZCOIN_QT_ELYSIUM_CPP)
 endif
 
 RES_IMAGES = \
@@ -475,7 +482,7 @@ BITCOIN_QT_INCLUDES = -I$(builddir)/qt -I$(srcdir)/qt -I$(srcdir)/qt/forms \
   -I$(builddir)/qt/forms -DQT_NO_KEYWORDS
 
 qt_libzcoinqt_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BITCOIN_QT_INCLUDES) \
-  $(QT_INCLUDES) $(QT_DBUS_INCLUDES) $(PROTOBUF_CFLAGS) $(QR_CFLAGS)
+  $(QT_INCLUDES) $(QT_DBUS_INCLUDES) $(LIBBLSSIG_INCLUDES) $(PROTOBUF_CFLAGS) $(QR_CFLAGS)
 qt_libzcoinqt_a_CXXFLAGS = $(AM_CXXFLAGS) $(QT_PIE_FLAGS)
 
 qt_libzcoinqt_a_SOURCES = $(BITCOIN_QT_CPP) $(BITCOIN_QT_H) $(QT_FORMS_UI) \
@@ -498,7 +505,7 @@ $(QT_MOC): $(PROTOBUF_H)
 $(QT_MOC_CPP): $(PROTOBUF_H)
 
 # bitcoin-qt binary #
-qt_zcoin_qt_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BITCOIN_QT_INCLUDES) \
+qt_zcoin_qt_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BITCOIN_QT_INCLUDES) $(LIBBLSSIG_INCLUDES) \
   $(QT_INCLUDES) $(PROTOBUF_CFLAGS) $(QR_CFLAGS)
 qt_zcoin_qt_CXXFLAGS = $(AM_CXXFLAGS) $(QT_PIE_FLAGS)
 
@@ -563,13 +570,13 @@ qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBZCOIN_BIP47)\
   $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) $(QT_LIBS) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
-  $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(ZLIB_LIBS) \
-  $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
+  $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) \
+  $(ZLIB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
 
 EXTRA_qt_zcoin_qt_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 qt_zcoin_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-qt_zcoin_qt_LIBTOOLFLAGS = --tag CXX
+qt_zcoin_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
 
 #locale/foo.ts -> locale/foo.qm
 QT_QM=$(QT_TS:.ts=.qm)

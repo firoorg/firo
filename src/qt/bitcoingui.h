@@ -87,16 +87,16 @@ private:
     QLabel *labelWalletHDStatusIcon;
     QLabel *connectionsControl;
     QLabel *labelBlocksIcon;
-    QLabel *labelExodusPendingIcon;
-    QLabel *labelExodusPendingText;
+    QLabel *labelElysiumPendingIcon;
+    QLabel *labelElysiumPendingText;
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
     QProgressDialog *progressDialog;
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
-#ifdef ENABLE_EXODUS
-    QAction *exoAssetsAction;
+#ifdef ENABLE_ELYSIUM
+    QAction *elyAssetsAction;
     QAction *toolboxAction;
 #endif
     QAction *historyAction;
@@ -123,6 +123,7 @@ private:
     QAction *sigmaAction;
     QAction *zc2SigmaAction;
     QAction *znodeAction;
+    QAction *masternodeAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -158,6 +159,8 @@ private:
 
     /** Updates Zc2SigmaPage visibility */
     void checkZc2SigmaVisibility(int numBlocks);
+    /** Updates Znode visibility */
+    void checkZnodeVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -193,8 +196,8 @@ public Q_SLOTS:
     */
     void setEncryptionStatus(int status);
 
-    /** Set the Exodus pending transactions label **/
-    void setExodusPendingStatus(bool pending);
+    /** Set the Elysium pending transactions label **/
+    void setElysiumPendingStatus(bool pending);
     /** Set the hd-enabled status as shown in the UI.
      @param[in] status            current hd enabled status
      @see WalletModel::EncryptionStatus
@@ -211,13 +214,13 @@ private Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_EXODUS
-    /** Switch to ExoAssets page */
-    void gotoExoAssetsPage();
+#ifdef ENABLE_ELYSIUM
+    /** Switch to ElyAssets page */
+    void gotoElyAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
-    /** Switch directly to Exodus history tab */
-    void gotoExodusHistoryTab();
+    /** Switch directly to Elysium history tab */
+    void gotoElysiumHistoryTab();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
@@ -225,6 +228,8 @@ private Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to znode page */
     void gotoZnodePage();
+    /** Switch to masternode page */
+    void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

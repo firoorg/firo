@@ -46,73 +46,82 @@ void CMNAuth::PushMNAUTH(CNode* pnode, CConnman& connman)
 
 void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
+    if (strCommand != NetMsgType::MNAUTH)
+        return;
+
+    CMNAuth mnauth;
+    vRecv >> mnauth;
+
     if (!masternodeSync.IsBlockchainSynced()) {
         // we can't really verify MNAUTH messages when we don't have the latest MN list
+        // save verification for later
+        LOCK(pnode->cs_mnauth);
+        pnode->pendingMNVerification = new CMNAuth(mnauth);
         return;
     }
 
-    if (strCommand == NetMsgType::MNAUTH) {
-        CMNAuth mnauth;
-        vRecv >> mnauth;
+    ProcessMNAUTH(pnode, mnauth, connman);
+}
 
-        {
-            LOCK(pnode->cs_mnauth);
-            // only one MNAUTH allowed
-            if (!pnode->verifiedProRegTxHash.IsNull()) {
-                LOCK(cs_main);
-                Misbehaving(pnode->id, 100);
-                return;
-            }
-        }
-
-        if (mnauth.proRegTxHash.IsNull() || !mnauth.sig.IsValid()) {
+void CMNAuth::ProcessMNAUTH(CNode* pnode, const CMNAuth &mnauth, CConnman& connman)
+{
+    {
+        LOCK(pnode->cs_mnauth);
+        // only one MNAUTH allowed
+        if (!pnode->verifiedProRegTxHash.IsNull()) {
             LOCK(cs_main);
             Misbehaving(pnode->id, 100);
             return;
         }
-
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = mnList.GetMN(mnauth.proRegTxHash);
-        if (!dmn) {
-            LOCK(cs_main);
-            // in case he was unlucky and not up to date, just let him be connected as a regular node, which gives him
-            // a chance to get up-to-date and thus realize by himself that he's not a MN anymore. We still give him a
-            // low DoS score.
-            Misbehaving(pnode->id, 10);
-            return;
-        }
-
-        uint256 signHash;
-        {
-            LOCK(pnode->cs_mnauth);
-            // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
-            signHash = ::SerializeHash(std::make_tuple(dmn->pdmnState->pubKeyOperator, pnode->sentMNAuthChallenge, !pnode->fInbound));
-        }
-
-        if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash)) {
-            LOCK(cs_main);
-            // Same as above, MN seems to not know about his fate yet, so give him a chance to update. If this is a
-            // malicious actor (DoSing us), we'll ban him soon.
-            Misbehaving(pnode->id, 10);
-            return;
-        }
-
-        connman.ForEachNode([&](CNode* pnode2) {
-            if (pnode2->verifiedProRegTxHash == mnauth.proRegTxHash) {
-                LogPrint("net", "CMNAuth::ProcessMessage -- Masternode %s has already verified as peer %d, dropping old connection. peer=%d\n",
-                        mnauth.proRegTxHash.ToString(), pnode2->id, pnode->id);
-                pnode2->fDisconnect = true;
-            }
-        });
-
-        {
-            LOCK(pnode->cs_mnauth);
-            pnode->verifiedProRegTxHash = mnauth.proRegTxHash;
-            pnode->verifiedPubKeyHash = dmn->pdmnState->pubKeyOperator.GetHash();
-        }
-
-        LogPrint("net", "CMNAuth::%s -- Valid MNAUTH for %s, peer=%d\n", __func__, mnauth.proRegTxHash.ToString(), pnode->id);
     }
+
+    if (mnauth.proRegTxHash.IsNull() || !mnauth.sig.IsValid()) {
+        LOCK(cs_main);
+        Misbehaving(pnode->id, 100);
+        return;
+    }
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetMN(mnauth.proRegTxHash);
+    if (!dmn) {
+        LOCK(cs_main);
+        // in case he was unlucky and not up to date, just let him be connected as a regular node, which gives him
+        // a chance to get up-to-date and thus realize by himself that he's not a MN anymore. We still give him a
+        // low DoS score.
+        Misbehaving(pnode->id, 10);
+        return;
+    }
+
+    uint256 signHash;
+    {
+        LOCK(pnode->cs_mnauth);
+        // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
+        signHash = ::SerializeHash(std::make_tuple(dmn->pdmnState->pubKeyOperator, pnode->sentMNAuthChallenge, !pnode->fInbound));
+    }
+
+    if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash)) {
+        LOCK(cs_main);
+        // Same as above, MN seems to not know about his fate yet, so give him a chance to update. If this is a
+        // malicious actor (DoSing us), we'll ban him soon.
+        Misbehaving(pnode->id, 10);
+        return;
+    }
+
+    connman.ForEachNode([&](CNode* pnode2) {
+        if (pnode2->verifiedProRegTxHash == mnauth.proRegTxHash) {
+            LogPrint("net", "CMNAuth::ProcessMessage -- Znode %s has already verified as peer %d, dropping old connection. peer=%d\n",
+                    mnauth.proRegTxHash.ToString(), pnode2->id, pnode->id);
+            pnode2->fDisconnect = true;
+        }
+    });
+
+    {
+        LOCK(pnode->cs_mnauth);
+        pnode->verifiedProRegTxHash = mnauth.proRegTxHash;
+        pnode->verifiedPubKeyHash = dmn->pdmnState->pubKeyOperator.GetHash();
+    }
+
+    LogPrint("net", "CMNAuth::%s -- Valid MNAUTH for %s, peer=%d\n", __func__, mnauth.proRegTxHash.ToString(), pnode->id);
 }
 
 void CMNAuth::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff)

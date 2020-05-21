@@ -37,7 +37,7 @@ class ZnodeCheckPayments(ZnodeTestFramework):
         self.nodes[1].lockunspent(True, znode_output)
         self.nodes[1].sendtoaddress(generator_address, 1000, "", "", True)
 
-        self.generate(6)
+        self.generate(12)
 
         znode_list = self.nodes[self.num_nodes - 1].znodelist()
         for zno, status in znode_list.items():

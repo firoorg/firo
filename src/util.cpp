@@ -129,8 +129,8 @@ bool fLogIPs = DEFAULT_LOGIPS;
 std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
 
-/** Flag to indicate, whether the Exodus log file should be reopened. */
-std::atomic<bool> fReopenExodusLog(false);
+/** Flag to indicate, whether the Elysium log file should be reopened. */
+std::atomic<bool> fReopenElysiumLog(false);
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
@@ -977,7 +977,7 @@ std::string CopyrightHolders(const std::string& strPrefix)
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
         strCopyrightHolders
                 += '\n' + strPrefix + "The Bitcoin Core developers"
-                +  '\n' + strPrefix + "The Dash Core developers";
+                +  '\n' + strPrefix + "The Zcoin Core developers";
     }
     return strCopyrightHolders;
 }

@@ -17,7 +17,4 @@ then
   cmake_osflags="$cmake_osflags -DENABLE_TESTS=1"
 fi
 
-set -e
-mkdir -p build
-cd build
-cmake ../ -DWSIZE=64 -DMULTI=PTHREAD -DARITH=easy $cmake_osflags
+cmake -Bbuild -H. -DCMAKE_INSTALL_PREFIX=$depends_prefix -DWSIZE=64 -DMULTI=PTHREAD -DARITH=gmp $cmake_osflags

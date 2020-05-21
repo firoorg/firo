@@ -51,6 +51,7 @@ public:
 
     static void PushMNAUTH(CNode* pnode, CConnman& connman);
     static void ProcessMessage(CNode* pnode, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
+    static void ProcessMNAUTH(CNode* pnode, const CMNAuth &mnauth, CConnman &connman);
     static void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff);
 };
 

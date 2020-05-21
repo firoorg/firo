@@ -60,8 +60,8 @@
 #include "sigma/remint.h"
 #include "warnings.h"
 
-#ifdef ENABLE_EXODUS
-#include "exodus/exodus.h"
+#ifdef ENABLE_ELYSIUM
+#include "elysium/elysium.h"
 #endif
 
 #include "masternode-payments.h"
@@ -1069,6 +1069,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (!CheckSpecialTx(tx, chainActive.Tip(), state))
                 return false;
 
+            if (pool.existsProviderTxConflict(tx)) {
+                return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
+            }
+
             // A transaction that spends outputs that would be replaced by it is invalid. Now
             // that we have the set of all ancestors we can detect this
             // pathological case by making sure setConflicts and setAncestors don't
@@ -1544,12 +1548,9 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, int nHeight, con
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)){
-        //Maybe cache is not valid
-        if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)){
-            return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
-        }
-    }
+    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+        return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
+
     return true;
 }
 
@@ -1623,8 +1624,8 @@ bool IsInitialBlockDownload() {
         return true;
 //    if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
 //        return true;
-//    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
-//        return true;
+    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
+        return true;
     latchToFalse.store(true, std::memory_order_relaxed);
     return false;
 }
@@ -2071,6 +2072,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     CAmount nFees = 0;
 
+    if (!UndoSpecialTxsInBlock(block, pindex)) {
+        return DISCONNECT_FAILED;
+    }
+
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
@@ -2115,7 +2120,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-    block.InvalidateCachedPoWHash(pindex->nHeight);
 
     //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
     //When called from there, no real disconnect happens.
@@ -2514,7 +2518,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::string strError = "";
     if (deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
         // evo znodes
-        if (!IsBlockValueValid(block, pindex->nHeight, blockSubsidy, strError)) {
+        if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
             return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
         }
        
@@ -2538,11 +2542,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     }
 
-    if (pindex->nHeight >= chainparams.GetConsensus().DIP0003Height) {
-        if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
-            return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
-                        pindex->GetBlockHash().ToString(), FormatStateMessage(state));
-        }
+    if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
+        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
+                    pindex->GetBlockHash().ToString(), FormatStateMessage(state));
     }
     // END ZNODE
 
@@ -2809,9 +2811,12 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    znpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+
+    if (pindexNew->nHeight < chainParams.GetConsensus().DIP0003EnforcementHeight) {
+        mnodeman.UpdatedBlockTip(chainActive.Tip());
+        znpayments.UpdatedBlockTip(chainActive.Tip());
+        znodeSync.UpdatedBlockTip(chainActive.Tip());
+    }
 
     // New best block
     txpools.AddTransactionsUpdated(1);
@@ -2968,13 +2973,13 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
 #endif
 
-#ifdef ENABLE_EXODUS
-    //! Exodus: begin block disconnect notification
-    auto fExodus = isExodusEnabled();
+#ifdef ENABLE_ELYSIUM
+    //! Elysium: begin block disconnect notification
+    auto fElysium = isElysiumEnabled();
 
-    if (fExodus) {
-        LogPrint("handler", "Exodus handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
-        exodus_handler_disc_begin(GetHeight(), pindexDelete);
+    if (fElysium) {
+        LogPrint("handler", "Elysium handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
+        elysium_handler_disc_begin(GetHeight(), pindexDelete);
     }
 #endif
 
@@ -2984,11 +2989,11 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         GetMainSignals().SyncTransaction(*tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
     }
 
-#ifdef ENABLE_EXODUS
-    //! Exodus: end of block disconnect notification
-    if (fExodus) {
-        LogPrint("handler", "Exodus handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
-        exodus_handler_disc_end(GetHeight(), pindexDelete);
+#ifdef ENABLE_ELYSIUM
+    //! Elysium: end of block disconnect notification
+    if (fElysium) {
+        LogPrint("handler", "Elysium handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
+        elysium_handler_disc_end(GetHeight(), pindexDelete);
     }
 #endif
 
@@ -3063,18 +3068,18 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     int64_t nTime5 = GetTimeMicros(); nTimeChainState += nTime5 - nTime4;
     LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001, nTimeChainState * 0.000001);
 
-#ifdef ENABLE_EXODUS
-    bool fExodus = isExodusEnabled();
+#ifdef ENABLE_ELYSIUM
+    bool fElysium = isElysiumEnabled();
 
-    //! Exodus: transaction position within the block
+    //! Elysium: transaction position within the block
     unsigned int nTxIdx = 0;
-    //! Exodus: number of meta transactions found
+    //! Elysium: number of meta transactions found
     unsigned int nNumMetaTxs = 0;
 
-    //! Exodus: begin block connect notification
-    if (fExodus) {
-        LogPrint("handler", "Exodus handler: block connect begin [height: %d]\n", GetHeight());
-        exodus_handler_block_begin(GetHeight(), pindexNew);
+    //! Elysium: begin block connect notification
+    if (fElysium) {
+        LogPrint("handler", "Elysium handler: block connect begin [height: %d]\n", GetHeight());
+        elysium_handler_block_begin(GetHeight(), pindexNew);
     }
 #endif
 
@@ -3084,13 +3089,13 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     // Update chainActive & related variables.
     UpdateTip(pindexNew, chainparams);
 
-#ifdef ENABLE_EXODUS
-    BOOST_FOREACH(CTransactionRef tx, blockConnecting.vtx) {
-        //! Exodus: new confirmed transaction notification
-        if (fExodus) {
-            LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
-            if (exodus_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
-        }
+#ifdef ENABLE_ELYSIUM
+        //! Elysium: new confirmed transaction notification
+    if (fElysium) {
+        BOOST_FOREACH(CTransactionRef tx, blockConnecting.vtx) {
+                LogPrint("handler", "Elysium handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
+                if (elysium_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
+            }
     }
 #endif
 
@@ -3110,11 +3115,11 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     }
 #endif
 
-#ifdef ENABLE_EXODUS
-    //! Exodus: end of block connect notification
-    if (fExodus) {
-        LogPrint("handler", "Exodus handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
-        exodus_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
+#ifdef ENABLE_ELYSIUM
+    //! Elysium: end of block connect notification
+    if (fElysium) {
+        LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
+        elysium_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
     }
 #endif
 
@@ -3557,7 +3562,7 @@ bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, C
 
     InvalidChainFound(pindex);
     txpools.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
-
+    GetMainSignals().UpdatedBlockTip(chainActive.Tip(), NULL, IsInitialBlockDownload());
     uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindex->pprev);
     return true;
 }
@@ -3776,12 +3781,11 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)) {
-        //Maybe cache is not valid
-        if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)) {
-            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
-        }
-    }
+    // set nHeight to INT_MAX if block is not found in index and it's not genesis block
+    if (nHeight == 0 && !block.hashPrevBlock.IsNull())
+        nHeight = INT_MAX;
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");        
     return true;
 }
 
@@ -4291,8 +4295,8 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
 
 bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fForceProcessing, bool *fNewBlock)
 {
+    CBlockIndex *pindex = NULL;
     {
-        CBlockIndex *pindex = NULL;
         if (fNewBlock) *fNewBlock = false;
         CValidationState state;
 
@@ -4320,7 +4324,8 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
 
-    znodeSync.IsBlockchainSynced(true);
+    if (pindex->nHeight < chainparams.GetConsensus().DIP0003EnforcementHeight)
+        znodeSync.IsBlockchainSynced(true);
 
     return true;
 }

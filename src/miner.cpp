@@ -278,8 +278,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
         
     if (nHeight >= params.DIP0003EnforcementHeight) {
-        std::vector<CTxOut> mnPayments, sbPayments;
-        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, mnPayments, sbPayments);
+        std::vector<CTxOut> sbPayments;
+        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
     }
     else {
         // Update coinbase transaction with additional info about znode and governance payments,
@@ -890,7 +890,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("BitcoinMiner: generated block is stale");
+            return error("ZcoinMiner: generated block is stale");
     }
 
     // Inform about the new block
@@ -1016,6 +1016,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         free(scratchpad);
                     }
 
+                    boost::this_thread::interruption_point();
+                    
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {
@@ -1037,8 +1039,6 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     if ((pblock->nNonce & 0xFF) == 0)
                         break;
                 }
-                // Check for stop or if block needs to be rebuilt
-                boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 && chainparams.MiningRequiresPeers())
                     break;

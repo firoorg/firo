@@ -95,7 +95,7 @@ static Consensus::LLMQParams llmq10_70 = {
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 18,
-        .dkgBadVotesThreshold = 15,
+        .dkgBadVotesThreshold = 8,
 
         .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
 
@@ -109,15 +109,15 @@ static Consensus::LLMQParams llmq50_60 = {
         .minSize = 40,
         .threshold = 30,
 
-        .dkgInterval = 24, // one DKG per hour
+        .dkgInterval = 18, // one DKG per 90 minutes
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
-        .dkgMiningWindowEnd = 18,
+        .dkgMiningWindowEnd = 16,
         .dkgBadVotesThreshold = 40,
 
-        .signingActiveQuorumCount = 24, // a full day worth of LLMQs
+        .signingActiveQuorumCount = 16, // a full day worth of LLMQs
 
-        .keepOldConnections = 25,
+        .keepOldConnections = 17,
 };
 
 static Consensus::LLMQParams llmq400_60 = {
@@ -127,7 +127,7 @@ static Consensus::LLMQParams llmq400_60 = {
         .minSize = 300,
         .threshold = 240,
 
-        .dkgInterval = 24 * 12, // one DKG every 12 hours
+        .dkgInterval = 12 * 12, // one DKG every 12 hours
         .dkgPhaseBlocks = 4,
         .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 28,
@@ -146,7 +146,7 @@ static Consensus::LLMQParams llmq400_85 = {
         .minSize = 350,
         .threshold = 340,
 
-        .dkgInterval = 24 * 24, // one DKG every 24 hours
+        .dkgInterval = 12 * 24, // one DKG every 24 hours
         .dkgPhaseBlocks = 4,
         .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 48, // give it a larger mining window to make sure it is mined
@@ -249,11 +249,13 @@ public:
         consensus.DIP0003Height = INT_MAX;
         consensus.DIP0003EnforcementHeight = INT_MAX;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 15;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 5*60;
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -466,14 +468,16 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 3340;
-        consensus.DIP0003EnforcementHeight = 3370;
+        consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 0;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_10_70] = llmq10_70;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 20;
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -621,7 +625,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = INT_MAX;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
         consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = INT_MAX;
@@ -648,20 +652,23 @@ public:
         consensus.nDontAllowDupTxsStartBlock = 1;
 
         // evo znodes
-        consensus.DIP0003Height = INT_MAX;
-        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0003Height = 500;
+        consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 1;
 
         // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_5_60] = llmq5_60;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
+        consensus.nLLMQPowTargetSpacing = 1;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
         consensus.nMTPFiveMinutesStartBlock = 0;
         consensus.nDifficultyAdjustStartBlock = 5000;
-        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nFixedDifficulty = 0x207fffff;
         consensus.nPowTargetSpacingMTP = 5*60;
         consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;

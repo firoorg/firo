@@ -34,8 +34,24 @@
 #include <univalue.h>
 #include "sigma.h"
 #include "sigma/remint.h"
+#include "evo/cbtx.h"
+#include "evo/specialtx.h"
+#include "llmq/quorums_commitment.h"
+#include "evo/providertx.h"
 
 using namespace std;
+
+namespace {
+    template<class Tx>
+    void ExtraPayloadToJson(const CTransaction& tx, const char * jsonId, UniValue & entry) {
+        Tx extraPayloadTx;
+        if (!GetTxPayload(tx, extraPayloadTx))
+            throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the extra payload information");
+        UniValue epJsonObj;
+        extraPayloadTx.ToJson(epJsonObj);
+        entry.push_back(Pair(jsonId, epJsonObj));
+    }
+}
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
 {
@@ -185,9 +201,29 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             }
         }
     }
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
-        entry.push_back(Pair("extraPayLoadSize", (int)tx.vExtraPayload.size()));
-        entry.push_back(Pair("extraPayLoad", HexStr(tx.vExtraPayload.begin(), tx.vExtraPayload.end())));
+    if (tx.nVersion >= 3) {
+        switch(tx.nType){
+            case TRANSACTION_PROVIDER_REGISTER:
+                ExtraPayloadToJson<CProRegTx>(tx, "proReg", entry);
+                break;
+            case TRANSACTION_PROVIDER_UPDATE_SERVICE:
+                ExtraPayloadToJson<CProUpServTx>(tx, "proUpServ", entry);
+                break;
+            case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
+                ExtraPayloadToJson<CProUpRegTx>(tx, "proUpReg", entry);
+                break;
+            case TRANSACTION_PROVIDER_UPDATE_REVOKE:
+                ExtraPayloadToJson<CProUpRevTx>(tx, "proUpRev", entry);
+                break;
+            case TRANSACTION_COINBASE:
+                ExtraPayloadToJson<CCbTx>(tx, "cbTx", entry);
+                break;
+            case TRANSACTION_QUORUM_COMMITMENT:
+                ExtraPayloadToJson<llmq::CFinalCommitmentTxPayload>(tx, "finalCommitment", entry);
+                break;
+            default:
+                break;
+        }
     }
 }
 

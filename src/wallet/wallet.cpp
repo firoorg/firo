@@ -37,7 +37,7 @@
 #include "validation.h"
 #include "instantx.h"
 #include "znode.h"
-#include "znode-sync.h"
+#include "znodesync-interface.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
@@ -46,6 +46,7 @@
 #include "hdmint/tracker.h"
 
 #include <assert.h>
+#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -1741,7 +1742,12 @@ void CWallet::GenerateNewMnemonic()
 
         std::string mnemonic = GetArg("-mnemonic", "");
         std::string mnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
-        //Use 24 words by default lgtm [cpp/commented-out-code] ;
+
+        //remove trailing string identifiers
+        boost::algorithm::trim_if(mnemonic, [](char c){return c=='\"' || c=='\'';});
+        boost::algorithm::trim_if(mnemonicPassphrase, [](char c){return c=='\"' || c=='\'';});
+
+        //Use 24 words by default;
         bool use12Words = GetBoolArg("-use12", false);
         mnContainer.Set12Words(use12Words);
 
@@ -2745,10 +2751,13 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
-            } else {
+            }
+            else {
                 // LogPrintf("Relaying wtx %s\n", GetHash().ToString());
-                g_connman->RelayTransaction(*this);
-                return true;
+                if (connman) {
+                    connman->RelayTransaction(*this);
+                    return true;
+                }
             }
         }
     }
@@ -4191,7 +4200,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     return false;
                 }
                 if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
-                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH."), sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
+                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 XZC."), sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
                     return false;
                 }
 
@@ -5002,7 +5011,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         return false;
     }
 
-    if (!params.IsRegtest() && !znodeSync.IsBlockchainSynced()) {
+    if (!params.IsRegtest() && !znodeSyncInterface.IsBlockchainSynced()) {
         stringError = "Blockchain is not synced";
         return false;
     }
@@ -8331,9 +8340,26 @@ void CWallet::ListLockedCoins(std::vector<COutPoint>& vOutpts)
     }
 }
 
+bool CWallet::HasMasternode(){
+
+    auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
+
+    AssertLockHeld(cs_wallet);
+    for (const auto &o : setWalletUTXO) {
+        if (mapWallet.count(o.hash)) {
+            const auto &p = mapWallet[o.hash];
+            if (deterministicMNManager->IsProTxWithCollateral(p.tx, o.n) || mnList.HasMNByCollateral(o)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void CWallet::ListProTxCoins(std::vector<COutPoint>& vOutpts)
 {
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
 
     AssertLockHeld(cs_wallet);
     for (const auto &o : setWalletUTXO) {
@@ -8613,7 +8639,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     {
         // Create new keyUser and set as default key
         if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
-            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) { 
+            if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC)) {
                 if (GetArg("-mnemonicpassphrase", "").size() > 256) {
                     throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
                 }

@@ -248,3 +248,15 @@ void CCbTx::ToJson(UniValue& obj) const
         obj.push_back(Pair("merkleRootQuorums", merkleRootQuorums.ToString()));
     }
 }
+
+
+bool CbtxToJson(const CTransaction& tx, UniValue& obj) {
+    CCbTx cbTx;
+    if (GetTxPayload(tx.vExtraPayload, cbTx)) {
+        UniValue cbTxObj;
+        cbTx.ToJson(cbTxObj);
+        obj.push_back(Pair("cbTx", cbTxObj));
+        return true;
+    }
+    return false;
+}

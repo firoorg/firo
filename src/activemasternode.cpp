@@ -43,9 +43,9 @@ std::string CActiveMasternodeManager::GetStatus() const
     case MASTERNODE_WAITING_FOR_PROTX:
         return "Waiting for ProTx to appear on-chain";
     case MASTERNODE_POSE_BANNED:
-        return "Masternode was PoSe banned";
+        return "Znode was PoSe banned";
     case MASTERNODE_REMOVED:
-        return "Masternode removed from list";
+        return "Znode removed from list";
     case MASTERNODE_OPERATOR_KEY_CHANGED:
         return "Operator key changed or revoked";
     case MASTERNODE_PROTX_IP_CHANGED:
@@ -71,7 +71,7 @@ void CActiveMasternodeManager::Init()
     if (!fListen) {
         // listen option is probably overwritten by smth else, no good
         state = MASTERNODE_ERROR;
-        strError = "Masternode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
+        strError = "Znode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
         LogPrintf("CActiveDeterministicMasternodeManager::Init -- ERROR: %s\n", strError);
         return;
     }

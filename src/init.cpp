@@ -62,8 +62,8 @@
 #include "evo/deterministicmns.h"
 #include "llmq/quorums_init.h"
 
-#ifdef ENABLE_EXODUS
-#include "exodus/exodus.h"
+#ifdef ENABLE_ELYSIUM
+#include "elysium/elysium.h"
 #endif
 
 #include <stdint.h>
@@ -275,8 +275,6 @@ void Shutdown()
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
     flatdb2.Dump(znpayments);
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    flatdb4.Dump(netfulfilledman);
     
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
@@ -289,7 +287,7 @@ void Shutdown()
         flatdb1.Dump(mmetaman);
 /*        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
         flatdb3.Dump(governance); */
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("evonetfulfilled.dat", "magicFulfilledCache");
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
         flatdb4.Dump(netfulfilledman);
         /*if(fEnableInstantSend)
         {
@@ -337,9 +335,9 @@ void Shutdown()
         evoDb = NULL;
     }
 
-#ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
-        exodus_shutdown();
+#ifdef ENABLE_ELYSIUM
+    if (isElysiumEnabled()) {
+        elysium_shutdown();
     }
 #endif
 
@@ -366,6 +364,10 @@ void Shutdown()
     if (fMasternodeMode) {
         UnregisterValidationInterface(activeMasternodeManager);
     }
+
+    // make sure to clean up BLS keys before global destructors are called (they have allocated from the secure memory pool)
+    activeMasternodeInfo.blsKeyOperator.reset();
+    activeMasternodeInfo.blsPubKeyOperator.reset();
 
 #ifndef WIN32
     try {
@@ -395,7 +397,7 @@ void HandleSIGTERM(int)
 void HandleSIGHUP(int)
 {
     fReopenDebugLog = true;
-    fReopenExodusLog = true;
+    fReopenElysiumLog = true;
 }
 
 bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
@@ -620,21 +622,21 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
 
-#ifdef ENABLE_EXODUS
-    strUsage += HelpMessageGroup("Exodus options:");
-    strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
-    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
-    strUsage += HelpMessageOpt("-exodustxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
-    strUsage += HelpMessageOpt("-exodusprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
-    strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
+#ifdef ENABLE_ELYSIUM
+    strUsage += HelpMessageGroup("Elysium options:");
+    strUsage += HelpMessageOpt("-elysium", "Enable Elysium");
+    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Elysium transactions");
+    strUsage += HelpMessageOpt("-elysiumtxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
+    strUsage += HelpMessageOpt("-elysiumprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
+    strUsage += HelpMessageOpt("-elysiumdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
     strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
     strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
-    strUsage += HelpMessageOpt("-exodusalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
-    strUsage += HelpMessageOpt("-exodusalertignoresender=<addr>", "Ignore senders of alerts");
-    strUsage += HelpMessageOpt("-exodusactivationignoresender=<addr>", "Ignore senders of activations");
-    strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
-    strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
-    strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
+    strUsage += HelpMessageOpt("-elysiumalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
+    strUsage += HelpMessageOpt("-elysiumalertignoresender=<addr>", "Ignore senders of alerts");
+    strUsage += HelpMessageOpt("-elysiumactivationignoresender=<addr>", "Ignore senders of activations");
+    strUsage += HelpMessageOpt("-elysiumactivationallowsender=<addr>", "Whitelist senders of activations");
+    strUsage += HelpMessageOpt("-elysiumuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
+    strUsage += HelpMessageOpt("-elysiumshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
 #endif
 
     return strUsage;
@@ -818,6 +820,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+    } // End scope of CImportingNow
 
     // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
@@ -849,7 +852,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
-    } // End scope of CImportingNow
     fDumpMempoolLater = !fRequestShutdown;
 }
 
@@ -1682,37 +1684,22 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    // ********************************************************* Step 7: load block chain
+    // ********************************************************* Step 7a: check lite mode
+
+    // lite mode disables all Dash-specific functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
+    }
+
+    // ********************************************************* Step 7b: load block chain
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
 
-    // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
-    boost::filesystem::path blocksDir = GetDataDir() / "blocks";
-    if (!boost::filesystem::exists(blocksDir))
-    {
-        boost::filesystem::create_directories(blocksDir);
-        bool linked = false;
-        for (unsigned int i = 1; i < 10000; i++) {
-            boost::filesystem::path source = GetDataDir() / strprintf("blk%04u.dat", i);
-            if (!boost::filesystem::exists(source)) break;
-            boost::filesystem::path dest = blocksDir / strprintf("blk%05u.dat", i-1);
-            try {
-                boost::filesystem::create_hard_link(source, dest);
-                LogPrintf("Hardlinked %s -> %s\n", source.string(), dest.string());
-                linked = true;
-            } catch (const boost::filesystem::filesystem_error& e) {
-                // Note: hardlink creation failing is not a disaster, it just means
-                // blocks will get re-downloaded from peers.
-                LogPrintf("Error hardlinking blk%04u.dat: %s\n", i, e.what());
-                break;
-            }
-        }
-        if (linked)
-        {
-            fReindex = true;
-        }
-    }
+    boost::filesystem::create_directories(GetDataDir() / "blocks");
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
@@ -1932,20 +1919,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
 
-    // ********************************************************* Step 8.5: load exodus
+    // ********************************************************* Step 8.5: load elysium
 
-#ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
+#ifdef ENABLE_ELYSIUM
+    if (isElysiumEnabled()) {
         if (!fTxIndex) {
             // ask the user if they would like us to modify their config file for them
             std::string msg = _("Disabled transaction index detected.\n\n"
-                                "Exodus requires an enabled transaction index. To enable "
+                                "Elysium requires an enabled transaction index. To enable "
                                 "transaction indexing, please use the \"-txindex\" option as "
                                 "command line argument or add \"txindex=1\" to your client "
                                 "configuration file within your data directory.\n\n"
                                 "Configuration file"); // allow translation of main text body while still allowing differing config file string
             msg += ": " + GetConfigFile("").string() + "\n\n";
-            msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
+            msg += _("Would you like Elysium to attempt to update your configuration file accordingly?");
             bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
             if (fRet) {
                 // add txindex=1 to config file in GetConfigFile()
@@ -1955,7 +1942,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     std::string failMsg = _("Unable to update configuration file at");
                     failMsg += ":\n" + GetConfigFile("").string() + "\n\n";
                     failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
-                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
+                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nElysium will now shutdown.");
                     return InitError(failMsg);
                 }
                 fprintf(fp, "\ntxindex=1\n");
@@ -1963,7 +1950,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 fclose(fp);
                 std::string strUpdated = _(
                         "Your configuration file has been updated.\n\n"
-                        "Exodus will now shutdown - please restart the client for your new configuration to take effect.");
+                        "Elysium will now shutdown - please restart the client for your new configuration to take effect.");
                 uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
                 return false;
             } else {
@@ -1971,10 +1958,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             }
         }
 
-        uiInterface.InitMessage(_("Parsing Exodus transactions..."));
-        exodus_init();
+        uiInterface.InitMessage(_("Parsing Elysium transactions..."));
+        elysium_init();
 
-        // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+        // Elysium code should be initialized and wallet should now be loaded, perform an initial populate
         CheckWalletUpdate();
     }
 #endif
@@ -2004,81 +1991,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
     }
 
-    // ********************************************************* Step 10: import blocks
-
-    if (!CheckDiskSpace())
-        return false;
-
-    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
-    // No locking, as this happens before any background thread is started.
-    if (chainActive.Tip() == NULL) {
-        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
-    } else {
-        fHaveGenesis = true;
-    }
-
-    if (IsArgSet("-blocknotify"))
-        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
-
-    std::vector<boost::filesystem::path> vImportFiles;
-    if (mapMultiArgs.count("-loadblock"))
-    {
-        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
-            vImportFiles.push_back(strFile);
-    }
-
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
-
-    // Wait for genesis block to be processed
-    {
-        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
-            condvar_GenesisWait.wait(lock);
-        }
-        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
-    }
-
-    // ********************************************************* Step 11: start node
-
-    //// debug print
-    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
-    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
-
-    Discover(threadGroup);
-
-    // Map ports with UPnP
-    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
-
-    std::string strNodeError;
-    CConnman::Options connOptions;
-    connOptions.nLocalServices = nLocalServices;
-    connOptions.nRelevantServices = nRelevantServices;
-    connOptions.nMaxConnections = nMaxConnections;
-    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
-    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
-    connOptions.nMaxFeeler = 1;
-    connOptions.nBestHeight = chainActive.Height();
-    connOptions.uiInterface = &uiInterface;
-    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
-    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
-
-    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
-    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
-
-    if (!connman.Start(scheduler, strNodeError, connOptions))
-        return InitError(strNodeError);
-
-    // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
-                     chainparams);
-
-    // ********************************************************* Step 11a: setup PrivateSend
+    // ********************************************************* Step 10a: Prepare znode related stuff
     fMasternodeMode = GetBoolArg("-znode", false);
+    if (fMasternodeMode)
+        // turn off dandelion for znodes
+        ForceSetArg("-dandelion", "0");
 
     LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
+
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode."));
+    }
 
     if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
@@ -2131,11 +2055,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // evo znode system
     if(fLiteMode && fMasternodeMode) {
-        return InitError(_("You can not start a masternode in lite mode."));
+        return InitError(_("You can not start a znode in lite mode."));
     }
 
     if(fMasternodeMode) {
-        LogPrintf("MASTERNODE:\n");
+        LogPrintf("ZNODE:\n");
 
         std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
@@ -2166,6 +2090,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
     }
 
+    // ********************************************************* Step 10b: PrivateSend (some of its functions are required for legacy znode operation)
+
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
@@ -2183,24 +2109,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 //    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
 //    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    // lite mode disables all Znode and Darksend related functionality
-    fLiteMode = GetBoolArg("-litemode", false);
-    if (fMasternodeMode && fLiteMode) {
-        return InitError("You can not start a znode in litemode");
-    }
-
-    LogPrintf("fLiteMode %d\n", fLiteMode);
-//    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
-//    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
-//    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
-
     darkSendPool.InitDenominations();
 
-    // ********************************************************* Step 11b: Load cache data
+    // ********************************************************* Step 10c: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
     bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
-
     if (!fIgnoreCacheFiles) {
         // Legacy znodes cache
         uiInterface.InitMessage(_("Loading znode cache..."));
@@ -2218,10 +2132,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         } else {
             uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
         }
-
-        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-        flatdb4.Load(netfulfilledman);
     }
 
     if (!fIgnoreCacheFiles) {
@@ -2230,10 +2140,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         std::string strDBName;
 
         strDBName = "evozncache.dat";
-        uiInterface.InitMessage(_("Loading masternode cache..."));
+        uiInterface.InitMessage(_("Loading znode cache..."));
         CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
         if(!flatdb1.Load(mmetaman)) {
-            return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
+            return InitError(_("Failed to load znode cache from") + "\n" + (pathDB / strDBName).string());
         }
 
         /*
@@ -2246,7 +2156,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         governance.InitOnLoad();
         */
 
-        strDBName = "evonetfulfilled.dat";
+        strDBName = "netfulfilled.dat";
         uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
         CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
         if(!flatdb4.Load(netfulfilledman)) {
@@ -2269,73 +2179,160 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 10d: schedule Dash-specific tasks
 
     if (!fLiteMode) {
-        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60 * 1000);
-        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1 * 1000);
-        scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1 * 1000);
+        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1);
+        scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1);
 
         /*
-        scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5 * 1000);
+        scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5);
 
-        scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60 * 1000);
+        scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60);
         */
     }
 
     llmq::StartLLMQSystem();
 
-    // ********************************************************* Step 11c: update block tip in Zcoin modules
+    // ********************************************************* Step 11: import blocks
 
-    // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-    // but don't call it directly to prevent triggering of other listeners like zmq etc.
-    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    znpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
-    // governance.UpdatedBlockTip(chainActive.Tip());
+    if (!CheckDiskSpace())
+        return false;
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+    // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
+    // No locking, as this happens before any background thread is started.
+    if (chainActive.Tip() == NULL) {
+        uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
+    } else {
+        fHaveGenesis = true;
+    }
 
-    // TODO: replace this temporary patch with real DASH evo code
-    threadGroup.create_thread([] {
-        RenameThread("znode-tick");
+    if (IsArgSet("-blocknotify"))
+        uiInterface.NotifyBlockTip.connect(BlockNotifyCallback);
 
-        if (fLiteMode)
-            return;
+    std::vector<boost::filesystem::path> vImportFiles;
+    if (mapMultiArgs.count("-loadblock"))
+    {
+        BOOST_FOREACH(const std::string& strFile, mapMultiArgs.at("-loadblock"))
+            vImportFiles.push_back(strFile);
+    }
 
-        unsigned int nTick = 0;
+    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
 
-        while (true) {
-            MilliSleep(1000);
+    // Wait for genesis block to be processed
+    {
+        boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
+        while (!fHaveGenesis) {
+            condvar_GenesisWait.wait(lock);
+        }
+        uiInterface.NotifyBlockTip.disconnect(BlockNotifyGenesisWait);
+    }
 
-            znodeSync.ProcessTick();
+    // ********************************************************* Step 12: start node
 
-            if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
-                nTick++;
+    //// debug print
+    LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
+    LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
+    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
+        StartTorControl(threadGroup, scheduler);
 
-                LOCK(cs_main);
+    Discover(threadGroup);
 
-                // make sure to check all znodes first
-                mnodeman.Check();
+    // Map ports with UPnP
+    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
 
-                // check if we should activate or ping every few minutes,
-                // slightly postpone first run to give net thread a chance to connect to some peers
-                if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
-                    activeZnode.ManageState();
+    std::string strNodeError;
+    CConnman::Options connOptions;
+    connOptions.nLocalServices = nLocalServices;
+    connOptions.nRelevantServices = nRelevantServices;
+    connOptions.nMaxConnections = nMaxConnections;
+    connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
+    connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
+    connOptions.nMaxFeeler = 1;
+    connOptions.nBestHeight = chainActive.Height();
+    connOptions.uiInterface = &uiInterface;
+    connOptions.nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+    connOptions.nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
 
-                if (nTick % 60 == 0) {
-                    mnodeman.ProcessZnodeConnections();
-                    mnodeman.CheckAndRemove();
-                    znpayments.CheckAndRemove();
-                    instantsend.CheckAndRemove();
+    connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
+    connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
+
+    if (!connman.Start(scheduler, strNodeError, connOptions))
+        return InitError(strNodeError);
+
+    // Generate coins in the background
+    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
+                     chainparams);
+
+    // ********************************************************* Step 13a: update block tip in Zcoin modules
+
+    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+
+    if (!fEvoZnodes) {
+        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+        // but don't call it directly to prevent triggering of other listeners like zmq etc.
+        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+        mnodeman.UpdatedBlockTip(chainActive.Tip());
+        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+        znpayments.UpdatedBlockTip(chainActive.Tip());
+        znodeSync.UpdatedBlockTip(chainActive.Tip());
+        // governance.UpdatedBlockTip(chainActive.Tip());
+    }
+
+    // ********************************************************* Step 13b: start legacy znodes thread
+
+    // TODO: remove this code after switch to evo is done
+    if (!fEvoZnodes)
+    {
+        threadGroup.create_thread([] {
+
+            RenameThread("znode-tick");
+
+            if (fLiteMode)
+                return;
+
+            unsigned int nTick = 0;
+
+            while (true) {
+                MilliSleep(1000);
+
+                {
+                    LOCK(cs_main);
+                    // shut legacy znode down if past 6 blocks of DIP3 enforcement
+                    if (chainActive.Height()-6 >= Params().GetConsensus().DIP0003EnforcementHeight)
+                        break;
                 }
-                if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
-                    mnodeman.DoFullVerificationStep();
+                    
+                znodeSync.ProcessTick();
+
+                if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+                    nTick++;
+
+                    LOCK(cs_main);
+
+                    // make sure to check all znodes first
+                    mnodeman.Check();
+
+                    mnodeman.ProcessPendingMnvRequests(*g_connman);
+
+                    // check if we should activate or ping every few minutes,
+                    // slightly postpone first run to give net thread a chance to connect to some peers
+                    if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
+                        activeZnode.ManageState();
+
+                    if (nTick % 60 == 0) {
+                        mnodeman.ProcessZnodeConnections();
+                        mnodeman.CheckAndRemove();
+                        znpayments.CheckAndRemove();
+                        instantsend.CheckAndRemove();
+                    }
+                    if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
+                        mnodeman.DoFullVerificationStep();
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 14: finished
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

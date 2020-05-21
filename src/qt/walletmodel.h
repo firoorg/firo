@@ -207,6 +207,8 @@ public:
 
     UnlockContext requestUnlock();
 
+    bool IsSpendable(const CTxDestination& dest) const;
+    bool IsSpendable(const CScript& script) const;
     bool getPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
     bool havePrivKey(const CKeyID &address) const;
     bool getPrivKey(const CKeyID &address, CKey& vchPrivKeyOut) const;
@@ -218,6 +220,10 @@ public:
     void lockCoin(COutPoint& output);
     void unlockCoin(COutPoint& output);
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
+
+    void listProTxCoins(std::vector<COutPoint>& vOutpts);
+
+    bool hasMasternode();
 
     void loadReceiveRequests(std::vector<std::string>& vReceiveRequests);
     void loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);

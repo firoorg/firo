@@ -56,6 +56,7 @@ class CAddrMan;
 class CScheduler;
 class CNode;
 class CTxMemPool;
+class CMNAuth;
 
 namespace boost {
     class thread_group;
@@ -65,6 +66,8 @@ namespace boost {
 static const int PING_INTERVAL = 2 * 60;
 /** Time after which to disconnect, after waiting for a ping response (or inactivity). */
 static const int TIMEOUT_INTERVAL = 20 * 60;
+/** Minimum time between warnings printed to log. */
+static const int WARNING_INTERVAL = 10 * 60;
 /** Run the feeler connection loop once every 2 minutes or 120 seconds. **/
 static const int FEELER_INTERVAL = 120;
 /** The maximum number of entries in an 'inv' protocol message */
@@ -79,6 +82,11 @@ static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 static const int MAX_OUTBOUND_CONNECTIONS = 8;
 /** Maximum number of addnode outgoing nodes */
 static const int MAX_ADDNODE_CONNECTIONS = 8;
+/** Maximum number if outgoing masternodes */
+static const int MAX_OUTBOUND_MASTERNODE_CONNECTIONS = 30;
+static const int MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN = 250;
+/** Eviction protection time for incoming connections  */
+static const int INBOUND_EVICTION_PROTECTION_TIME = 1;
 /** -listen default */
 static const bool DEFAULT_LISTEN = true;
 /** -upnp default */
@@ -87,7 +95,7 @@ static const bool DEFAULT_UPNP = USE_UPNP;
 #else
 static const bool DEFAULT_UPNP = false;
 #endif
-/** The maximum number of entries in mapAskFor */
+/** The maximum number of entries in vecAskFor */
 static const size_t MAPASKFOR_MAX_SZ = MAX_INV_SZ;
 /** The maximum number of entries in setAskFor (larger due to getdata latency)*/
 static const size_t SETASKFOR_MAX_SZ = 2 * MAX_INV_SZ;
@@ -213,7 +221,11 @@ public:
         });
     }
 
+    bool IsMasternodeOrDisconnectRequested(const CService& addr);
+
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOptimisticSend = DEFAULT_ALLOW_OPTIMISTIC_SEND);
+
+    
 
     template<typename Condition, typename Callable>
     bool ForEachNodeContinueIf(const Condition& cond, Callable&& func)
@@ -248,6 +260,16 @@ public:
     {
         return ForEachNodeContinueIf(FullyConnectedOnly, func);
     }
+
+    template<typename Condition, typename Callable>
+    void ForEachNode(const Condition& cond, Callable&& func)
+    {
+        LOCK(cs_vNodes);
+        for (auto&& node : vNodes) {
+            if (cond(node))
+                func(node);
+        }
+    };
 
     template<typename Callable>
     void ForEachNode(Callable&& func)
@@ -409,6 +431,7 @@ private:
     void AcceptConnection(const ListenSocket& hListenSocket);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
+    void ThreadOpenMasternodeConnections();
     void ThreadDandelionShuffle();
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
@@ -497,6 +520,7 @@ private:
 
     CSemaphore *semOutbound;
     CSemaphore *semAddnode;
+    CSemaphore *semMasternodeOutbound;
     int nMaxConnections;
     int nMaxOutbound;
     int nMaxAddnode;
@@ -520,6 +544,7 @@ private:
     std::thread threadSocketHandler;
     std::thread threadOpenAddedConnections;
     std::thread threadOpenConnections;
+    std::thread threadOpenMasternodeConnections;
     std::thread threadMessageHandler;
     std::thread threadDandelionShuffle;
 };
@@ -628,6 +653,8 @@ public:
     double dMinPing;
     std::string addrLocal;
     CAddress addr;
+    // In case this is a verified MN, this value is the proTx of the MN
+    uint256 verifiedProRegTxHash;
 };
 
 
@@ -708,7 +735,11 @@ public:
     std::atomic<int64_t> nLastRecv;
     const int64_t nTimeConnected;
     std::atomic<int64_t> nTimeOffset;
+    std::atomic<int64_t> nLastWarningTime;
+    std::atomic<int64_t> nTimeFirstMessageReceived;
+    std::atomic<bool> fFirstMessageIsMNAUTH;
     const CAddress addr;
+    std::atomic<int> nNumWarningsSkipped;
     std::atomic<int> nVersion;
     // strSubVer is whatever byte array we read from the wire. However, this field is intended
     // to be printed out, displayed to humans in various forms and so on. So we sanitize it and
@@ -731,6 +762,7 @@ public:
     bool fRelayTxes; //protected by cs_filter
     bool fSentAddr;
     CSemaphoreGrant grantOutbound;
+    CSemaphoreGrant grantMasternodeOutbound;
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
     std::atomic<int> nRefCount;
@@ -762,7 +794,6 @@ public:
 
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
-    std::vector<CInv> vInventoryToSend;
     // Set of Dandelion transactions that should be known to this peer
     std::set<uint256> setDandelionInventoryKnown;
     // Set of transaction ids we still have to announce.
@@ -774,10 +805,11 @@ public:
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
     std::vector<uint256> vInventoryBlockToSend;
+    // List of non-tx/non-block inventory items
+    std::vector<CInv> vInventoryOtherToSend;
     CCriticalSection cs_inventory;
     std::set<uint256> setAskFor;
     std::vector<std::pair<int64_t, CInv>> vecAskFor;
-    std::multimap<int64_t, CInv> mapAskFor;
     int64_t nNextInvSend;
     // Used for headers announcements - unfiltered blocks to relay
     // Also protected by cs_inventory
@@ -815,6 +847,8 @@ public:
     uint256 receivedMNAuthChallenge;
     uint256 verifiedProRegTxHash;
     uint256 verifiedPubKeyHash;
+    // pending verification from node
+    CMNAuth *pendingMNVerification;
 
     // If true, we will announce/send him plain recovered sigs (usually true for full nodes)
     std::atomic<bool> fSendRecSigs{false};
@@ -946,7 +980,12 @@ public:
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         } else {
-            vInventoryToSend.push_back(inv);
+            if (!filterInventoryKnown.contains(inv.hash)) {
+                LogPrint("net", "PushInventory --  inv: %s peer=%d\n", inv.ToString(), id);
+                vInventoryOtherToSend.push_back(inv);
+            } else {
+                LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
+            }
         }
     }
 

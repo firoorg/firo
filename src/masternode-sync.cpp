@@ -12,6 +12,7 @@
 #include "netmessagemaker.h"
 #include "ui_interface.h"
 #include "evo/deterministicmns.h"
+#include "evo/mnauth.h"
 
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
@@ -65,6 +66,9 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
         case(MASTERNODE_SYNC_WAITING):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
+            connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+            });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
 /*        case(MASTERNODE_SYNC_GOVERNANCE):
@@ -72,9 +76,6 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
 
-            connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
-            });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
             break;*/
@@ -145,9 +146,11 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
     // gradually request the rest of the votes after sync finished
     if(IsSynced()) {
+        /*
         std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
-        //governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
+        governance.RequestGovernanceObjectVotes(vNodesCopy, connman);
         connman.ReleaseNodeVector(vNodesCopy);
+        */
         return;
     }
 
@@ -172,7 +175,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
         {
             if (nCurrentAsset == MASTERNODE_SYNC_WAITING) {
-                connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
+                //connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
                 SwitchToNextAsset(connman);
             } /*else if (nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
                 SendGovernanceSyncRequest(pnode, connman);
@@ -194,6 +197,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
             // SPORK : ALWAYS ASK FOR SPORKS AS WE SYNC
 
+            /*
             if(!netfulfilledman.HasFulfilledRequest(pnode->addr, "spork-sync")) {
                 // always get sporks first, only request once from each peer
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
@@ -201,6 +205,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS));
                 LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- requesting sporks from peer=%d\n", nTick, nCurrentAsset, pnode->id);
             }
+            */
 
             // INITIAL TIMEOUT
 
@@ -374,6 +379,26 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         // Reached best header while being in initial mode.
         // We must be at the tip already, let's move to the next asset.
         SwitchToNextAsset(connman);
+
+        // Process all pending MNAUTH messages we were unable to process before
+        LOCK(cs_main);
+        g_connman->ForEachNode([](CNode *pnode) {
+            uint256 verifiedProRegTxHash;
+            CMNAuth *pendingMNVerification;
+            {
+                LOCK(pnode->cs_mnauth);
+                verifiedProRegTxHash = pnode->verifiedProRegTxHash;
+                pendingMNVerification = pnode->pendingMNVerification;
+                pnode->pendingMNVerification = nullptr;
+            }
+
+            if (verifiedProRegTxHash.IsNull() && pendingMNVerification) {
+                LogPrint("mnsync", "CMasternodeSync::UpdatedBlockTip -- reverifying znode connection to node id=%d\n", pnode->id);
+                CMNAuth::ProcessMNAUTH(pnode, *pendingMNVerification, *g_connman);
+            }
+
+            delete pendingMNVerification;
+        });
     }
 }
 

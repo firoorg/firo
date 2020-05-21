@@ -193,9 +193,9 @@ void quorum_memberof_help()
 {
     throw std::runtime_error(
             "quorum memberof \"proTxHash\" (quorumCount)\n"
-            "Checks which quorums the given masternode is a member of.\n"
+            "Checks which quorums the given znode is a member of.\n"
             "\nArguments:\n"
-            "1. \"proTxHash\"                (string, required) ProTxHash of the masternode.\n"
+            "1. \"proTxHash\"                (string, required) ProTxHash of the znode.\n"
             "2. scanQuorumsCount           (number, optional) Number of quorums to scan for. If not specified,\n"
             "                              the active quorum count for each specific quorum type is used."
     );
@@ -225,7 +225,7 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
     auto mnList = deterministicMNManager->GetListForBlock(pindexTip);
     auto dmn = mnList.GetMN(protxHash);
     if (!dmn) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "masternode not found");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "znode not found");
     }
 
     UniValue result(UniValue::VARR);
@@ -386,7 +386,7 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
             "  info              - Return information about a quorum\n"
             "  dkgsimerror       - Simulates DKG errors and malicious behavior.\n"
             "  dkgstatus         - Return the status of the current DKG process\n"
-            "  memberof          - Checks which quorums the given masternode is a member of\n"
+            "  memberof          - Checks which quorums the given znode is a member of\n"
             "  sign              - Threshold-sign a message\n"
             "  hasrecsig         - Test if a valid recovered signature is present\n"
             "  getrecsig         - Get a recovered signature\n"

@@ -162,7 +162,10 @@ BITCOIN_TESTS =\
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
   test/util_tests.cpp \
-  test/multiexponentation_test.cpp
+  test/multiexponentation_test.cpp 
+#  test/evo_deterministicmns_tests.cpp \
+#  test/evo_simplifiedmns_tests.cpp \
+#  test/bls_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -233,7 +236,7 @@ test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 #
 
-test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS)
+test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 # test_bitcoin_fuzzy binary #
@@ -254,7 +257,7 @@ test_test_bitcoin_fuzzy_LDADD = \
 test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
-test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS)
+test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)

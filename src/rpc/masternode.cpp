@@ -37,7 +37,7 @@ void masternode_list_help()
             "2. \"filter\"    (string, optional) Filter results. Partial match by outpoint by default in all modes,\n"
             "                                    additional matches in some modes are also available\n"
             "\nAvailable modes:\n"
-            "  addr           - Print ip address associated with a masternode (can be additionally filtered, partial match)\n"
+            "  addr           - Print ip address associated with a znode (can be additionally filtered, partial match)\n"
             "  full           - Print info in format 'status payee lastpaidtime lastpaidblock IP'\n"
             "                   (can be additionally filtered, partial match)\n"
             "  info           - Print info in format 'status payee IP'\n"
@@ -45,13 +45,13 @@ void masternode_list_help()
             "  json           - Print info in JSON format (can be additionally filtered, partial match)\n"
             "  lastpaidblock  - Print the last block height a node was paid on the network\n"
             "  lastpaidtime   - Print the last time a node was paid on the network\n"
-            "  owneraddress   - Print the masternode owner Dash address\n"
-            "  payee          - Print the masternode payout Dash address (can be additionally filtered,\n"
+            "  owneraddress   - Print the znode owner Zcoin address\n"
+            "  payee          - Print the znode payout Zcoin address (can be additionally filtered,\n"
             "                   partial match)\n"
-            "  pubKeyOperator - Print the masternode operator public key\n"
-            "  status         - Print masternode status: ENABLED / POSE_BANNED\n"
+            "  pubKeyOperator - Print the znode operator public key\n"
+            "  status         - Print znode status: ENABLED / POSE_BANNED\n"
             "                   (can be additionally filtered, partial match)\n"
-            "  votingaddress  - Print the masternode voting Dash address\n"
+            "  votingaddress  - Print the znode voting Zcoin address\n"
         );
 }
 
@@ -71,10 +71,10 @@ UniValue masternode_list(const JSONRPCRequest& request)
 void masternode_connect_help()
 {
     throw std::runtime_error(
-            "masternode connect \"address\"\n"
-            "Connect to given masternode\n"
+            "znode connect \"address\"\n"
+            "Connect to given znode\n"
             "\nArguments:\n"
-            "1. \"address\"      (string, required) The address of the masternode to connect\n"
+            "1. \"address\"      (string, required) The address of the znode to connect\n"
         );
 }
 
@@ -87,12 +87,12 @@ UniValue masternode_connect(const JSONRPCRequest& request)
 
     CService addr;
     if (!Lookup(strAddress.c_str(), addr, 0, false))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Incorrect masternode address %s", strAddress));
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Incorrect znode address %s", strAddress));
 
     // TODO: Pass CConnman instance somehow and don't use global variable.
     g_connman->OpenMasternodeConnection(CAddress(addr, NODE_NETWORK));
     if (!g_connman->IsConnected(CAddress(addr, NODE_NETWORK), CConnman::AllNodes))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to masternode %s", strAddress));
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to znode %s", strAddress));
 
     return "successfully connected";
 }
@@ -105,12 +105,11 @@ void masternode_count_help()
             "  usage is depricated, call without mode params returns\n"
             "  all values in JSON format.\n"
             "\nArguments:\n"
-            "1. \"mode\"      (string, optional, DEPRICATED) Option to get number of masternodes in different states\n"
+            "1. \"mode\"      (string, optional, DEPRICATED) Option to get number of znodes in different states\n"
             "\nAvailable modes:\n"
-            "  total         - total number of masternodes"
-            "  ps            - number of PrivateSend compatible masternodes"
-            "  enabled       - number of enabled masternodes"
-            "  qualify       - number of qualified masternodes"
+            "  total         - total number of znodes"
+            "  enabled       - number of enabled znodes"
+            "  qualify       - number of qualified znodes"
             "  all           - all above in one string"
         );
 }
@@ -176,8 +175,8 @@ UniValue GetNextMasternodeForPayment(int heightShift)
 void masternode_winner_help()
 {
     throw std::runtime_error(
-            "masternode winner\n"
-            "Print info on next masternode winner to vote for\n"
+            "znode winner\n"
+            "Print info on next znode winner to vote for\n"
         );
 }
 
@@ -192,8 +191,8 @@ UniValue masternode_winner(const JSONRPCRequest& request)
 void masternode_current_help()
 {
     throw std::runtime_error(
-            "masternode current\n"
-            "Print info on current masternode winner to be paid the next block (calculated locally)\n"
+            "znode current\n"
+            "Print info on current znode winner to be paid the next block (calculated locally)\n"
         );
 }
 
@@ -209,8 +208,8 @@ UniValue masternode_current(const JSONRPCRequest& request)
 void masternode_outputs_help()
 {
     throw std::runtime_error(
-            "masternode outputs\n"
-            "Print masternode compatible outputs\n"
+            "znode outputs\n"
+            "Print znode compatible outputs\n"
         );
 }
 
@@ -240,8 +239,8 @@ UniValue masternode_outputs(const JSONRPCRequest& request)
 void masternode_status_help()
 {
     throw std::runtime_error(
-            "masternode status\n"
-            "Print masternode status information\n"
+            "znode status\n"
+            "Print znode status information\n"
         );
 }
 
@@ -251,7 +250,7 @@ UniValue masternode_status(const JSONRPCRequest& request)
         masternode_status_help();
 
     if (!fMasternodeMode)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a masternode");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a znode");
 
     UniValue mnObj(UniValue::VOBJ);
 
@@ -311,7 +310,7 @@ UniValue masternode_winners(const JSONRPCRequest& request)
     }
 
     if (request.params.size() > 3)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'masternode winners ( \"count\" \"filter\" )'");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'znode winners ( \"count\" \"filter\" )'");
 
     UniValue obj(UniValue::VOBJ);
     auto mapPayments = GetRequiredPaymentsStrings(nHeight - nLast, nHeight + 20);
@@ -330,15 +329,15 @@ UniValue masternode_winners(const JSONRPCRequest& request)
         "\nArguments:\n"
         "1. \"command\"        (string or set of strings, required) The command to execute\n"
         "\nAvailable commands:\n"
-        "  count        - Get information about number of masternodes (DEPRECATED options: 'total', 'ps', 'enabled', 'qualify', 'all')\n"
-        "  current      - Print info on current masternode winner to be paid the next block (calculated locally)\n"
+        "  count        - Get information about number of znodes (DEPRECATED options: 'total', enabled', 'qualify', 'all')\n"
+        "  current      - Print info on current znode winner to be paid the next block (calculated locally)\n"
 #ifdef ENABLE_WALLET
-        "  outputs      - Print masternode compatible outputs\n"
+        "  outputs      - Print znode compatible outputs\n"
 #endif // ENABLE_WALLET
-        "  status       - Print masternode status information\n"
-        "  list         - Print list of all known masternodes (see masternodelist for more info)\n"
-        "  winner       - Print info on next masternode winner to vote for\n"
-        "  winners      - Print list of masternode winners\n"
+        "  status       - Print znode status information\n"
+        "  list         - Print list of all known znodes (see evoznodelist for more info)\n"
+        "  winner       - Print info on next znode winner to vote for\n"
+        "  winners      - Print list of znode winners\n"
         );
 }
 
