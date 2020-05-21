@@ -84,7 +84,10 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    spork.Sign(strMasterPrivKey);
+    if (!spork.Sign(strMasterPrivKey)) {
+        LogPrintf("CSporkManager::UpdateSpork -- fail to generate valid signature\n");
+        return false;
+    }
 
     //spork.Relay();
     mapSporks[spork.GetHash()] = spork;
