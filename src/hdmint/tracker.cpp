@@ -826,8 +826,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
-void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<lelantus::PublicCoin>& mints) {
-
+void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelantus::PublicCoin, uint64_t>>& mints) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -836,10 +835,13 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<lelantus::Public
     int32_t nCount;
     std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& mint : mints) {
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(mint.getValue());
+        uint64_t amount = mint.second;
+        auto pubcoin = mint.first.getValue() + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
+
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
         CLelantusMintMeta meta;
         // Check hashPubcoin in db
-        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {//TODO(levon) handel this
+        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {
             // If found in db but not in memory - this is likely a resync
             if(!GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
@@ -909,11 +911,11 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const std::unordered_map<Scalar, 
         CLelantusMintMeta meta;
         GroupElement pubcoin;
         // Check serialHash in db
-        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){ //TODO(levon) handel this for leleantus mint and jmint
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)) {
             // If found in db but not in memory - this is likely a resync
             if(!GetMetaFromSerial(spentSerialHash, meta)){
                 uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
-                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {//TODO(levon) handel this
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {
                     continue;
                 }
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
@@ -937,10 +939,9 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const std::unordered_map<Scalar, 
  * @param pubCoins the set of public coin objects to check for.
  * @return void
  */
-void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins, bool isLelantus){
+void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins){
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
-    std::vector<CLelantusMintMeta> updatedLelantusMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
     uint160 hashSeedMasterEntry;
     CKeyID seedId;
@@ -955,11 +956,7 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
             // If found in db but not in memory - this is likely a resync
             CMintMeta meta;
             CLelantusMintMeta metaLelantus;
-            bool skip;
-            if(isLelantus)
-                skip = !GetLelantusMetaFromPubcoin(hashPubcoin, metaLelantus); //TODO(levon) handel this for leleantus mint and jmint
-            else
-                skip = !GetMetaFromPubcoin(hashPubcoin, meta);
+            bool skip = !GetMetaFromPubcoin(hashPubcoin, meta);
 
             if(skip) {
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
@@ -967,23 +964,53 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
                 continue;
             }
 
-            if(isLelantus) {
-                if(UpdateLelantusMetaStatus(setMempool, metaLelantus)){
-                    updatedLelantusMeta.emplace_back(metaLelantus);
-                }
-            } else {
-                if(UpdateMetaStatus(setMempool, meta)){
-                    updatedMeta.emplace_back(meta);
-                }
+            if(UpdateMetaStatus(setMempool, meta)){
+                updatedMeta.emplace_back(meta);
             }
-
         }
     }
 
-    if(isLelantus)
-        UpdateFromBlock(mintPoolEntries, updatedLelantusMeta);
-    else
-        UpdateFromBlock(mintPoolEntries, updatedMeta);
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
+}
+
+void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const vector<uint64_t>& amounts) {
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CLelantusMintMeta> updatedLelantusMeta;
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool = GetMempoolTxids();
+    int i = 0;
+    for (auto& pubcoin : pubCoins) {
+        auto pub = pubcoin + lelantus::Params::get_default()->get_h1() * Scalar(amounts[i]).negate();
+
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+
+        LogPrintf("UpdateMintStateFromMempool: hashPubcoin=%d\n", hashPubcoin.GetHex());
+        // Check hashPubcoin in db
+        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+            // If found in db but not in memory - this is likely a resync
+            CMintMeta meta;
+            CLelantusMintMeta metaLelantus;
+            bool skip = !GetLelantusMetaFromPubcoin(hashPubcoin, metaLelantus);
+
+            if(skip) {
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                i++;
+                continue;
+            }
+
+            if(UpdateLelantusMetaStatus(setMempool, metaLelantus)){
+                updatedLelantusMeta.emplace_back(metaLelantus);
+            }
+
+        }
+        i++;
+    }
+
+    UpdateFromBlock(mintPoolEntries, updatedLelantusMeta);
 }
 
 /**
@@ -1040,11 +1067,11 @@ void CHDMintTracker::UpdateJoinSplitStateFromMempool(const vector<Scalar>& spent
         CLelantusMintMeta meta;
         GroupElement pubcoin;
         // Check serialHash in db
-        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)) {   //TODO(levon) handel this
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)) {
             // If found in db but not in memory - this is likely a resync
             if(!GetMetaFromSerial(spentSerialHash, meta)){
                 uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
-                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {//TODO(levon) handel this
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)) {
                     continue;
                 }
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);

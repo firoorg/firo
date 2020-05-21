@@ -22,8 +22,8 @@ public:
     // all the zerocoin transactions encountered so far
     std::set<uint256> zcTransactions;
 
-    // Vector of <pubCoin> for all the mints.
-    std::vector<lelantus::PublicCoin> mints;
+    // Vector of <pubCoin, amount> for all the mints.
+    std::vector<std::pair<lelantus::PublicCoin, uint64_t>> mints;
 
     // serial for every spend (map from serial to coin group id)
     std::unordered_map<Scalar, int> spentSerials;
@@ -51,6 +51,8 @@ std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
 
 size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in);
 size_t GetSpendInputs(const CTransaction &tx);
+CAmount GetSpendTransparentAmount(const CTransaction& tx);
+
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block);
 
 bool CheckLelantusTransaction(

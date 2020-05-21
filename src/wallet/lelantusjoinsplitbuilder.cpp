@@ -291,7 +291,8 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         scriptSerializedCoin << OP_LELANTUSJMINT;
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
-        //TODO(levon) put encrypted value at script
+        std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
+        scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
         outputs.push_back(CTxOut(0, scriptSerializedCoin));
         mintCoins.push_back(hdMint);
     }

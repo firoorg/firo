@@ -735,6 +735,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     vector<Scalar> lelantusSpendSerials;
     vector<GroupElement> lelantusMintPubcoins;
+    vector<uint64_t> lelantusAmounts;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
     if (tx.IsZerocoinSpend()) {
@@ -863,16 +864,26 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     {
         if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
             GroupElement pubCoinValue;
+            uint64_t amount;
             try {
-               lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                if (txout.scriptPubKey.IsLelantusMint()) {
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                    amount = txout.nValue;
+                } else {
+                    std::vector<unsigned char> encryptedValue;
+                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+                        amount = 0;
+                }
             } catch (std::invalid_argument&) {
                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
             }
             if (!lelantusState->CanAddMintToMempool(pubCoinValue)) {
-                LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
+                LogPrintf("AcceptToMemoryPool(): lelantus mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
             lelantusMintPubcoins.push_back(pubCoinValue);
+            lelantusAmounts.push_back(amount);
         }
     }
 
@@ -1329,7 +1340,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     }
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout) //TODO(levon) figure out why we need to this again
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
             if(txout.scriptPubKey.IsSigmaMint()){
                 GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
@@ -1338,14 +1349,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3, false);
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
         }
     }
 
     if(tx.IsLelantusMint()) {
         if (zwalletMain) {
             LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(lelantusMintPubcoins, true);
+            zwalletMain->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
         }
     }
 #endif

@@ -181,6 +181,9 @@ struct Params {
     // Value of maximum lelantus spend per transaction.
     int64_t nMaxValueLelantusSpendPerTransaction;
 
+    // Value of maximum lelantus mint.
+    int64_t nMaxValueLelantusMint;
+
     // Number of blocks with allowed zerocoin to sigma remint transaction (after nSigmaStartBlock)
     int nZerocoinToSigmaRemintWindowSize;
 
