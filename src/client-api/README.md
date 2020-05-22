@@ -60,7 +60,6 @@ A function with one or more operations.
 | [stop](#stop)                                                     | Stop the Zcoin daemon. | 🔐 | - | – |
 | [txFee](#txfee)                                                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
 | [unlockWallet](#unlockwallet)                                     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
-| [updateLabels](#updatelabels)                                     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
 | [verifyMnemonicValidity](#verifymnemonicvalidity)                 | Verify mnemonic is valid. | 🔐 | – | – |
 | [writeShowMnemonicWarning](#writeshowmnemonicwarning)             | Write the wallet database entry to show the warning for mnemonics. | 🔐 | – | – |
 | [znodeControl](#znodecontrol)                                     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
@@ -103,7 +102,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 `mint` is a special case: it is considered a part of the `send` category but there is no value leaving the wallet. The reason for this labelling is so that in a Sigma spend-to-mint transaction, `mint` takes priority over the `spendOut` category.
 
 ### `apiStatus`
-`initial`:
+`none`:
 ```
     data: {
     }
@@ -145,7 +144,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `backup`
-`create`:
+`none`:
 ```
     data: {
         directory: STRING ("absolute/path/to/backup/location")
@@ -162,7 +161,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `balance`
-`get`:
+`none`:
 ```
     data: {
     }
@@ -223,10 +222,10 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `block`
-`get`:
+`none`:
 ```
     data: {
-        blockHash: STRING
+        hashBlock: STRING
     }
 ``` 
 *Returns:*
@@ -379,7 +378,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `blockchain`
-`get`:
+`none`:
 ```
     data: {
     }
@@ -412,7 +411,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `editAddressBook`
-`get`:
+`none`:
 ```
     data: {
         "action": STRING ("add"|"edit"|"delete"),
@@ -434,7 +433,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `listMints`:
-`None`:
+`none`:
 ```
     data: {
     }
@@ -469,8 +468,8 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
-### `lockCoin`:
-`create`:
+### `lockCoins`:
+`none`:
 ```
     data: {
         lockedCoins: STRING ("txid0|vout:txid1|vout...txidn|vout")
@@ -508,7 +507,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `mint`
-`create`:
+`none`:
 ```
     data: {
         value: INT (VAR: denominations.IsNull())
@@ -663,7 +662,12 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
             {
                 address: STRING,
                 amount: INT
-            }
+            },
+            {
+                address: STRING,
+                amount: INT
+            },
+            ...
         ],
         label: STRING,
         subtractFeeFromAmount: BOOL
@@ -780,14 +784,19 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `sendPrivate`
-`create`:
+`none`:
 ```
     data: {
         outputs: [
             {
                 address: STRING,
                 amount: INT
-            }
+            },
+            {
+                address: STRING,
+                amount: INT
+            },
+            ...
         ],
         label: STRING,
         subtractFeeFromAmount: BOOL,
@@ -815,7 +824,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `sendZcoin`
-`create`:
+`none`:
 ```
     data: {
         addresses: {
@@ -997,6 +1006,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `showMnemonics`
+`none`:
 ```
     data: {
     }
@@ -1014,7 +1024,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `stateWallet`
-`initial`:
+`none`:
 ```
     data: {
     }
@@ -1169,7 +1179,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `stop`
-`initial`:
+`stop`:
 ```
     data: {
       }
@@ -1211,7 +1221,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 
 ### `unlockWallet`:
-`None`:
+`none`:
 ```
     auth: {
         passphrase: STRING
@@ -1223,27 +1233,6 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     data: {
         true
     }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `updateLabels`
-```
-    data: {
-        "txid": STRING,
-        "label": STRING
-    }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        "txid": STRING,
-        "label": STRING,
-        "address": STRING
-    }
     meta:{
        status: 200
     }
@@ -1271,9 +1260,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 
 ### `writeShowMnemonicWarning`
 ```
-    data: {
-        BOOL
-    }
+    data: BOOL
 ```
 *Returns:*
 ```
@@ -1289,7 +1276,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 
 
 ### `znodeControl`
-`update`:
+`none`:
 ```
     data: {
         method: STRING, ["start-all" || "start-missing" || "start-alias"]
@@ -1477,7 +1464,6 @@ The publisher module is comprised of various _topics_ that are triggered under s
 **apiStatus** (triggers [apiStatus](#apistatus))       | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
 **balance** (triggers [balance](#balance))             | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
 **block** (triggers [blockchain](#blockchain))         | general block data (sync status + header) | -  | -  | ✅ | ✅ | -  | -  | -  | ✅ |
-**mintStatus** (triggers [mintStatus](#mintstatus))    | status of new mint                        | -  | -  | -  | -  | ✅ | -  | -  | -  |
 **settings** (triggers [readSettings](#readsettings))  | settings changed                          | -  | -  | -  | -  | -  | ✅ | -  | -  |
 **transaction** (triggers [transaction](#transaction)) | new transaction data                      | -  | ✅ | -  | -  | -  | -  | -  | -  |
 **znode** (triggers [znodeUpdate](#znodeupdate))       | update to znode                           | -  | -  | -  | -  | -  | -  | ✅ | -  |
@@ -1485,30 +1471,6 @@ The publisher module is comprised of various _topics_ that are triggered under s
 ## Methods
 
 Methods specific to the publisher.
-
-### `mintStatus` 
-*Returns:*
-```
-{
-    "data": {
-        STRING: (txid + index) {
-            txid: STRING,
-            index: STRING,
-            available: BOOL
-        },
-        STRING: (txid + index) {
-            txid: STRING,
-            index: STRING,
-            available: BOOL
-        },
-        ...
-    },
-    meta: {
-        status: 200
-    },
-    error: null
-}
-```
 
 ### `readSettings` 
 *Returns:*

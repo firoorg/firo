@@ -128,7 +128,6 @@ struct ZmqServerTestingSetup : public TestingSetup {
         vector<string> topicsCalled;
 
         topics.push_back("block");
-        topics.push_back("mintStatus");
         topics.push_back("address");
         topics.push_back("balance");
         topics.push_back("transaction");
@@ -330,9 +329,6 @@ BOOST_FIXTURE_TEST_SUITE(zmqserver_tests, ZmqServerTestingSetup)
 BOOST_AUTO_TEST_CASE(event_tests)
 {
     boost::thread* worker;
-    UniValue mintUpdates(UniValue::VOBJ);
-    UniValue entry(UniValue::VOBJ);
-
 
     worker = new boost::thread(boost::bind(&ZmqServerTestingSetup::InitializeSubscriber, this));
     cout << "started worker. waiting 10 seconds for daemon setup.." << endl;
@@ -342,14 +338,6 @@ BOOST_AUTO_TEST_CASE(event_tests)
     // Connections
     cout << "Calling NumConnectionsChanged.." << endl;
     GetMainSignals().NumConnectionsChanged();
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
-
-    // // mintUpdates
-    entry.push_back(Pair("available", false));
-    // use an arbitrary hash for the index.
-    mintUpdates.push_back(Pair(chainActive.Tip()->phashBlock->ToString(), entry));
-    cout << "Calling UpdatedMintStatus.." << endl;
-    GetMainSignals().UpdatedMintStatus(mintUpdates.write());
     boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
 
     // Sync Status

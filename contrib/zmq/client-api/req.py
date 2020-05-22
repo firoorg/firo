@@ -10,11 +10,11 @@ from os.path import expanduser
 from getpass import getuser
 
 ############ START DEFAULTS #########################
-function_id = "" # see 'get_function' for possible values
+function_id = "" # see 'get_function' for possible values. edit "data" object in each function as is needed
 auth = True
 os = "mac"
 network = "regtest"
-passphrase = "d"
+passphrase = "passphrase"
 ############ END DEFAULTS ###########################
 
 ############ START UTIL FUNCTIONS ###################
@@ -57,14 +57,69 @@ def get_port(network, auth, function_id):
     raise ValueError('Incorrect OS string passed.') 
 
 def get_function(function_id, passphrase):
-    if(function_id=="apistatus"):
+    if(function_id=="apiStatus"):
         return apistatus()
+    if(function_id=="backup"):
+        return backup()
+    if(function_id=="balance"):
+        return balance()
+    if(function_id=="balance"):
+        return block()
     if(function_id=="blockchain"):
         return blockchain()
-    if(function_id=="listmints"):
+    if(function_id=="editAddressBook"):
+        return edit_address_book()
+    if(function_id=="listMints"):
         return list_mints(passphrase)
+    if(function_id=="lockCoins"):
+        return lock_coin()
     if(function_id=="mint"):
         return mint(passphrase)
+    if(function_id=="privateTxFee"):
+        return private_tx_fee();
+    if(function_id=="readAddressBook"):
+        return read_address_book();
+    if(function_id=="rebroadcast"):
+        return rebroadcast();
+    if(function_id=="rpc_initial"):
+        return rpc_initial();
+    if(function_id=="rpc_create"):
+        return rpc_create();
+    if(function_id=="sendPrivate"):
+        return send_private(passphrase);
+    if(function_id=="sendZcoin"):
+        return send_zcoin(passphrase);
+    if(function_id=="setPassphrase_update"):
+        return set_passphrase_update(passphrase);
+    if(function_id=="setPassphrase_create"):
+        return set_passphrase_create(passphrase);
+    if(function_id=="setting_initial"):
+        return setting_initial();
+    if(function_id=="setting_create"):
+        return setting_create();
+    if(function_id=="setting_update"):
+        return setting_update();
+    if(function_id=="setting_get"):
+        return setting_get();
+    if(function_id=="showMnemonics"):
+        return show_mnemonics();
+    if(function_id=="stateWallet"):
+        return state_wallet();
+    if(function_id=="txFee"):
+        return tx_fee();
+    if(function_id=="unlockWallet"):
+        return unlock_wallet();
+    if(function_id=="verifyMnemonicValidity"):
+        return verify_mnemonic_validity();
+    if(function_id=="apiStatus"):
+        return write_show_mnemonic_warning();
+    if(function_id=="writeShowMnemonicWarning"):
+        return znode_control(passphrase);
+    if(function_id=="znodeControl"):
+        return znode_key();
+    if(function_id=="znodeKey"):
+        return znode_list();
+
     raise ValueError('Incorrect function_id string passed.')
 
 def get_datadir(os):
@@ -102,16 +157,82 @@ def format(request):
 ################### END UTIL FUNCTONS #####################
 
 ################### START COLLECTIONS #####################
-def apistatus():
+def api_status():
     request = {}
-    request["type"] = "initial"
+    request["type"] = "none"
     request["collection"] = "apiStatus"
+    return format(str(request))
+
+def backup():
+    global os
+    request = {}
+    data = {}
+    data["directory"] = get_datadir(os)
+    # Formulate request
+    request["type"] = "none"
+    request["collection"] = "backup"
+    request["data"] = data
+    return format(str(request))
+
+def balance():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "balance"
+    return format(str(request))
+
+def block():
+    request = {}
+    data = {}
+    data["hashBlock"] = ""
+    # Formulate request
+    request["type"] = "none"
+    request["collection"] = "block"
+    request["data"] = data
     return format(str(request))
 
 def blockchain():
     request = {}
-    request["type"] = "initial"
+    request["type"] = "none"
     request["collection"] = "blockchain"
+    return format(str(request))
+
+def edit_address_book():
+    request = {}
+    data = {}
+    data["action"] = "add"
+    data["address"] = "TTGxLSFXi2LXYU8oiQDMLUE1vxkAuJHMgk"
+    data["label"] = "test_label"
+    data["purpose"] = "test_purpose"
+    # Formulate request
+    request["type"] = "none"
+    request["collection"] = "editAddressBook"
+    request["data"] = data
+    return format(str(request))
+
+def list_mints(passphrase):
+    request = {}
+    auth = {}
+    auth["passphrase"] = passphrase
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "listMints"
+    request["auth"] = auth
+    return format(str(request))
+
+def lock_coin():
+    request = {}
+    data = {}
+    data["lockedCoins"] = "be3b8da5fd23b63b3e52f95475b62894a7fd31cf16b1a24218fc4eaa2f3fe5ac|0:08190ef8e593860a11856b3b5a92683e121c997b1f34c090496dfd77bc0dd27a|1"
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "lockCoins"
+    request["data"] = data
+    return format(str(request))
+
+def lock_wallet():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "lockWallet"
     return format(str(request))
 
 def mint(passphrase):
@@ -122,20 +243,256 @@ def mint(passphrase):
     auth["passphrase"] = passphrase
     denominations["1"] = 1
     data["denominations"] = denominations
-    request["type"] = "create"
+    # formulate request
+    request["type"] = "none"
     request["collection"] = "mint"
     request["data"] = data
     request["auth"] = auth
     return format(str(request))
 
-def list_mints(passphrase):
+def private_tx_fee():
     request = {}
     auth = {}
-    auth["passphrase"] = passphrase
+    data = {}
+    outputs = []
+    output = {}
+    output["address"] = "TXQvbAsNKTGsKsk3279QsgGF2Uvbyc1vXm"
+    output["amount"] = 100000000
+    outputs.add(output)
+    data["outputs"] = outputs
+    data["label"] = "private_tx_fee label"
+    data["subtractFeeFromAmount"] = False
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "privateTxFee"
+    request["data"] = data
+    return format(str(request))
+
+def read_address_book():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "readAddressBook"
+    return format(str(request))
+
+def rebroadcast():
+    request = {}
+    data = {}
+    data["txHash"] = ""
+    request["type"] = "none"
+    request["collection"] = "rebroadcast"
+    return format(str(request))
+
+def rpc_initial():
+    request = {}
     request["type"] = "initial"
-    request["collection"] = "listMints"
+    request["collection"] = "rpc"
+    return format(str(request))
+
+def rpc_create():
+    request = {}
+    data = {}
+    data["method"] = ""
+    data["args"] = ""
+    request["type"] = "create"
+    request["collection"] = "rpc"
+    request["data"] = data
+    return format(str(request))
+
+def send_private(passphrase):
+    request = {}
+    auth = {}
+    data = {}
+    outputs = []
+    output = {}
+    coin_control = {}
+    auth["passphrase"] = passphrase
+    output["address"] = "TXQvbAsNKTGsKsk3279QsgGF2Uvbyc1vXm"
+    output["amount"] = 100000000
+    outputs.add(output)
+    coin_control["selected"] = ""
+    data["outputs"] = outputs
+    data["label"] = "send_private label"
+    data["subtractFeeFromAmount"] = False
+    data["coinControl"] = coin_control
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "sendPrivate"
+    request["data"] = data
     request["auth"] = auth
     return format(str(request))
+
+def send_zcoin(passphrase):
+    request = {}
+    data = {}
+    auth = {}
+    auth["passphrase"] = passphrase
+    ##### Data construction ####
+    addresses = {}
+    address_value = {}
+    coin_control = {}
+    address_key = ""
+    address_value["label"] = address_value + " label"
+    address_value["amount"] = 100000000
+    addresses[address_key] = address_value
+    data["addresses"] = addresses
+    data["feePerKb"] = 1000
+    data["label"] = "send_private label"
+    data["subtractFeeFromAmount"] = False
+    coin_control["selected"] = ""
+    data["coinControl"] = coin_control
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "sendZcoin"
+    request["data"] = data
+    request["auth"] = auth
+    return format(str(request))
+
+def set_passphrase_update(passphrase):
+    request = {}
+    auth = {}
+    auth["passphrase"] = "passphrase"
+    auth["newPassphrase"] = "newPassphrase"
+    request["type"] = "update"
+    request["collection"] = "setPassphrase"
+    request["auth"] = auth
+    return format(str(request))
+
+def set_passphrase_create(passphrase):
+    request = {}
+    auth = {}
+    auth["passphrase"] = "passphrase"
+    request["type"] = "create"
+    request["collection"] = "setPassphrase"
+    request["auth"] = auth
+    return format(str(request))
+
+def setting_initial():
+    request = {}
+    request["type"] = "initial"
+    request["collection"] = "setting"
+    return format(str(request))
+
+def setting_create():
+    request = {}
+    data = {}
+    setting_0_key = ""
+    setting_0_value = ""
+    setting_1_key = ""
+    setting_1_value = ""
+    data[setting_0_key] = setting_0_value
+    data[setting_1_key] = setting_1_value
+    request["type"] = "create"
+    request["collection"] = "setting"
+    request["data"] = data
+    return format(str(request))
+
+def setting_update():
+    request = {}
+    data = {}
+    setting_0_key = ""
+    setting_0_value = ""
+    setting_1_key = ""
+    setting_1_value = ""
+    data[setting_0_key] = setting_0_value
+    data[setting_1_key] = setting_1_value
+    request["type"] = "update"
+    request["collection"] = "setting"
+    request["data"] = data
+    return format(str(request))
+
+def setting_get():
+    request = {}
+    data = {}
+    settings = []
+    setting_0 = ""
+    setting_1 = ""
+    settings.add(setting_0, setting_1)
+    data["settings"] = settings
+    request["type"] = "update"
+    request["collection"] = "setting"
+    request["data"] = data
+    return format(str(request))
+
+def show_mnemonics(passphrase):
+    request = {}
+    auth = {}
+    auth["passphrase"] = "passphrase"
+    request["type"] = "none"
+    request["collection"] = "showMnemonics"
+    request["auth"] = auth
+    return format(str(request))
+
+def state_wallet():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "stateWallet"
+    return format(str(request))
+
+def tx_fee():
+    request = {}
+    data = {}
+    addresses = {}
+    address = ""
+    amount = 0
+    addresses[address] = amount
+    data["addresses"] = addresses
+    data["feePerKb"] = 0
+    data["subtractFeeFromAmount"] = False
+    request["type"] = "none"
+    request["collection"] = "txFee"
+    request["data"] = data
+    return format(str(request))
+
+def unlock_wallet():
+    request = {}
+    auth = {}
+    auth["passphrase"] = "passphrase"
+    request["type"] = "none"
+    request["collection"] = "unlockWallet"
+    request["auth"] = auth
+    return format(str(request))
+
+def verify_mnemonic_validity():
+    request = {}
+    data = {}
+    data["mnemonic"] = ""
+    request["type"] = "none"
+    request["collection"] = "verifyMnemonicValidity"
+    request["data"] = data
+    return format(str(request))
+
+def write_show_mnemonic_warning():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "writeShowMnemonicWarning"
+    request["data"] = True
+    return format(str(request))
+
+def znode_control(passphrase):
+    request = {}
+    data = {}
+    auth = {}
+    data["method"] = ""
+    data["alias"] = ""
+    auth["passphrase"] = "passphrase"
+    request["type"] = "none"
+    request["collection"] = "znodeControl"
+    request["data"] = data
+    request["auth"] = auth
+    return format(str(request))
+
+def znode_key():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "znodeKey"
+    return format(str(request))
+
+def znode_list():
+    request = {}
+    request["type"] = "none"
+    request["collection"] = "znodeList"
+    return format(str(request))
+
 ################### END COLLECTIONS #######################
 
 '''

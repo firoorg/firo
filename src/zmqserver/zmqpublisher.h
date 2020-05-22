@@ -211,11 +211,4 @@ public:
     void SetMethod(){ method= "znodeUpdate";}
 };
 
-class CZMQMintStatusTopic : public CZMQMintStatusEvent
-{
-public:
-    void SetTopic(){ topic = "mintStatus";}
-    void SetMethod(){ method= "mintStatus";}
-};
-
 #endif // ZCOIN_ZMQ_ZMQPUBLISHER_H

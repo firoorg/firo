@@ -241,10 +241,6 @@ UniValue GetDenominations(){
     return denominations;
 }
 
-UniValue mintstatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    return data;
-}
-
 UniValue minttxfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue result(UniValue::VOBJ);
@@ -345,27 +341,6 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 throw JSONAPIError(API_WALLET_ERROR, e.what());
             }
 
-            // publish spent mint data to API
-            UniValue mintUpdates(UniValue::VOBJ);
-            unsigned int index;
-            string txid;
-
-            BOOST_FOREACH(CSigmaEntry coin, coins){
-                COutPoint outpoint;
-                if(!sigma::GetOutPoint(outpoint, coin.value))
-                    throw runtime_error("Mint tx not found!");
-                txid = outpoint.hash.ToString();
-                index = outpoint.n;
-                string key = txid + to_string(index);
-                UniValue entry(UniValue::VOBJ);
-                entry.push_back(Pair("txid", txid));
-                entry.push_back(Pair("index", to_string(index)));
-                entry.push_back(Pair("available", false));
-                mintUpdates.push_back(Pair(key, entry));
-            }
-            LogPrintf("mintUpdates: %s\n", mintUpdates.write());
-            GetMainSignals().UpdatedMintStatus(mintUpdates.write());
-
             return txidStr;
         }
 
@@ -406,8 +381,7 @@ static const CAPICommand commands[] =
     { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
     { "sigma",              "listMints",          &listmints,               true,      true,            false  },
     { "sigma",              "mintTxFee",          &minttxfee,               true,      false,           false  },
-    { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  },
-    { "sigma",              "mintStatus",         &mintstatus,              true,      false,           false  }
+    { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {

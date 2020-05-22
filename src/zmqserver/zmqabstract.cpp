@@ -57,11 +57,6 @@ bool CZMQAbstract::NotifyZnodeUpdate(CZnode &znode)
     return true;
 }
 
-bool CZMQAbstract::NotifyMintStatusUpdate(std::string update)
-{
-    return true;
-}
-
 bool CZMQAbstract::NotifySettingsUpdate(std::string update)
 {
     return true;

@@ -43,7 +43,6 @@ protected:
     void NotifyZnodeList();
     void NotifyAPIStatus();
     void UpdatedZnode(CZnode &znode);
-    void UpdatedMintStatus(std::string update);
     void UpdatedSettings(std::string update);
     void UpdatedBalance();
     

@@ -61,7 +61,6 @@ public:
     virtual bool NotifyWalletSegment(const std::string &segment);
     virtual bool NotifyZnodeList();
     virtual bool NotifyZnodeUpdate(CZnode &znode);
-    virtual bool NotifyMintStatusUpdate(std::string update);
     virtual bool NotifySettingsUpdate(std::string update);
     virtual bool NotifyBalance();
 
