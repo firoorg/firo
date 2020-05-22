@@ -58,10 +58,6 @@ Q_SIGNALS:
     void elysiumTransactionClicked(const uint256& txid);
 #endif
 
-#ifdef ENABLE_ELYSIUM
-    void elysiumTransactionClicked(const uint256& txid);
-#endif
-
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
