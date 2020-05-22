@@ -723,6 +723,8 @@ public:
     bool WriteFeeEstimates(CAutoFile& fileout) const;
     bool ReadFeeEstimates(CAutoFile& filein);
 
+    bool existsProviderTxConflict(const CTransaction &tx) const;
+
     size_t DynamicMemoryUsage() const;
     // returns share of the used memory to maximum allowed memory
     double UsedMemoryShare() const;

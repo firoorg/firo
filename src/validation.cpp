@@ -1069,6 +1069,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (!CheckSpecialTx(tx, chainActive.Tip(), state))
                 return false;
 
+            if (pool.existsProviderTxConflict(tx)) {
+                return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
+            }
+
             // A transaction that spends outputs that would be replaced by it is invalid. Now
             // that we have the set of all ancestors we can detect this
             // pathological case by making sure setConflicts and setAncestors don't
@@ -3088,7 +3092,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 #ifdef ENABLE_ELYSIUM
         //! Elysium: new confirmed transaction notification
     if (fElysium) {
-        BOOST_FOREACH(CTransactionRef tx, pblock->vtx) {
+        BOOST_FOREACH(CTransactionRef tx, blockConnecting.vtx) {
                 LogPrint("handler", "Elysium handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
                 if (elysium_handler_tx(*tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
             }

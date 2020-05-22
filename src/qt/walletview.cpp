@@ -315,8 +315,8 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
     masternodeListPage->setWalletModel(_walletModel);
-    sendZcoinView->setModel(walletModel);
-    zc2SigmaPage->setWalletModel(walletModel);
+    sendZcoinView->setModel(_walletModel);
+    zc2SigmaPage->setWalletModel(_walletModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
 

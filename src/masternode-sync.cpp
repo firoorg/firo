@@ -381,6 +381,7 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         SwitchToNextAsset(connman);
 
         // Process all pending MNAUTH messages we were unable to process before
+        LOCK(cs_main);
         g_connman->ForEachNode([](CNode *pnode) {
             uint256 verifiedProRegTxHash;
             CMNAuth *pendingMNVerification;

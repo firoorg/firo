@@ -572,7 +572,7 @@ endif
 EXTRA_qt_zcoin_qt_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 qt_zcoin_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-qt_zcoin_qt_LIBTOOLFLAGS = --tag CXX
+qt_zcoin_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
 
 #locale/foo.ts -> locale/foo.qm
 QT_QM=$(QT_TS:.ts=.qm)

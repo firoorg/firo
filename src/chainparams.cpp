@@ -109,15 +109,15 @@ static Consensus::LLMQParams llmq50_60 = {
         .minSize = 40,
         .threshold = 30,
 
-        .dkgInterval = 24, // one DKG per hour
+        .dkgInterval = 18, // one DKG per 90 minutes
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
-        .dkgMiningWindowEnd = 18,
+        .dkgMiningWindowEnd = 16,
         .dkgBadVotesThreshold = 40,
 
-        .signingActiveQuorumCount = 24, // a full day worth of LLMQs
+        .signingActiveQuorumCount = 16, // a full day worth of LLMQs
 
-        .keepOldConnections = 25,
+        .keepOldConnections = 17,
 };
 
 static Consensus::LLMQParams llmq400_60 = {
@@ -127,7 +127,7 @@ static Consensus::LLMQParams llmq400_60 = {
         .minSize = 300,
         .threshold = 240,
 
-        .dkgInterval = 24 * 12, // one DKG every 12 hours
+        .dkgInterval = 12 * 12, // one DKG every 12 hours
         .dkgPhaseBlocks = 4,
         .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 28,
@@ -146,7 +146,7 @@ static Consensus::LLMQParams llmq400_85 = {
         .minSize = 350,
         .threshold = 340,
 
-        .dkgInterval = 24 * 24, // one DKG every 24 hours
+        .dkgInterval = 12 * 24, // one DKG every 24 hours
         .dkgPhaseBlocks = 4,
         .dkgMiningWindowStart = 20, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 48, // give it a larger mining window to make sure it is mined
@@ -249,6 +249,7 @@ public:
         consensus.DIP0003Height = INT_MAX;
         consensus.DIP0003EnforcementHeight = INT_MAX;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 15;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
@@ -467,8 +468,9 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 3340;
-        consensus.DIP0003EnforcementHeight = 3370;
+        consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 0;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_10_70] = llmq10_70;
@@ -653,6 +655,7 @@ public:
         consensus.DIP0003Height = 500;
         consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0008Height = INT_MAX;
+        consensus.nEvoZnodeMinimumConfirmations = 1;
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_5_60] = llmq5_60;
