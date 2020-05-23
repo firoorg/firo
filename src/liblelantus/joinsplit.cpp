@@ -1,7 +1,6 @@
 #include "joinsplit.h"
 #include "lelantus_prover.h"
 #include "lelantus_verifier.h"
-#include "../sigma/openssl_context.h"
 #include "util.h"
 
 namespace lelantus {

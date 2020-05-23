@@ -5,6 +5,8 @@
 #include "lelantus_proof.h"
 #include "spend_metadata.h"
 
+#include "../sigma/openssl_context.h"
+
 namespace lelantus {
 
 class JoinSplit {
@@ -57,13 +59,24 @@ public:
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(lelantusProof);
-        READWRITE(serialNumbers);
         READWRITE(groupIds);
         READWRITE(ecdsaSignatures);
         READWRITE(ecdsaPubkeys);
         READWRITE(coinGroupIdAndBlockHash);
         READWRITE(fee);
         READWRITE(version);
+
+        if (ser_action.ForRead()) {
+            serialNumbers.resize(ecdsaPubkeys.size());
+            for(size_t i = 0; i < ecdsaPubkeys.size(); i++) {
+                secp256k1_pubkey pubkey;
+                if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
+                    throw std::invalid_argument("Lelantus joinsplit unserialize failed due to unable to parse ecdsaPubkey.");
+                }
+
+                serialNumbers[i] = PrivateCoin::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+            }
+        }
     }
 
 private:
