@@ -59,16 +59,27 @@ public:
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(lelantusProof);
-        READWRITE(groupIds);
-        READWRITE(ecdsaSignatures);
-        READWRITE(ecdsaPubkeys);
+        READWRITE(coinNum);
+
+        if (ser_action.ForRead()) {
+            groupIds.resize(coinNum);
+            ecdsaSignatures.resize(coinNum);
+            ecdsaPubkeys.resize(coinNum);
+        }
+
+        for(uint8_t i = 0; i < coinNum; i++) {
+            READWRITE(groupIds[i]);
+            READWRITE(ecdsaSignatures[i]);
+            READWRITE(ecdsaPubkeys[i]);
+        }
+
         READWRITE(coinGroupIdAndBlockHash);
         READWRITE(fee);
         READWRITE(version);
 
         if (ser_action.ForRead()) {
-            serialNumbers.resize(ecdsaPubkeys.size());
-            for(size_t i = 0; i < ecdsaPubkeys.size(); i++) {
+            serialNumbers.resize(coinNum);
+            for(size_t i = 0; i < coinNum; i++) {
                 secp256k1_pubkey pubkey;
                 if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
                     throw std::invalid_argument("Lelantus joinsplit unserialize failed due to unable to parse ecdsaPubkey.");
@@ -83,6 +94,7 @@ private:
     const Params* params;
     unsigned int version = 0;
     LelantusProof lelantusProof;
+    uint8_t coinNum;
     std::vector<Scalar> serialNumbers;
     std::vector<uint32_t> groupIds;
     std::vector<std::vector<unsigned char>> ecdsaSignatures;

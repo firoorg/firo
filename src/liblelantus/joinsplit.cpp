@@ -40,6 +40,8 @@ JoinSplit::JoinSplit(const Params *p,
         indexes.emplace_back(index);
     }
 
+    coinNum = Cin.size();
+
     LelantusProver prover(p);
 
     prover.proof(anonymity_sets, uint64_t(0), Cin, indexes, Vout, Cout, fee, lelantusProof);
