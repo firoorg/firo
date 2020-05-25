@@ -12,20 +12,22 @@ using namespace std;
 UniValue masternodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     
     UniValue ret(UniValue::VOBJ);
-    string proTxHash;
+    UniValue masternode(UniValue::VOBJ);
+    std::string strProTxHash;
     try {
-        proTxHash = find_value(data, "proTxHash").get_str();
+        strProTxHash = find_value(data, "proTxHash").get_str();
     }catch (const std::exception& e){
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
-    ret.push_back(Pair(proTxHash, data));
+
+    ret.push_back(Pair(strProTxHash, data));
     return ret;
 }
 
 static const CAPICommand commands[] =
 { //  category      collection          actor (function)   authPort   authPassphrase warmupOk
   //  --------      ----------          ----------------   -----      -------------- --------
-    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         false  }
+    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         true  }
 };
 void RegisterZnodeAPICommands(CAPITable &tableAPI)
 {

@@ -80,6 +80,15 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
 
+#ifdef ENABLE_CLIENTAPI
+    if(fApi){
+        if(deterministicMNManager->GetNextPayments().count(proTxHash)){
+            int nextPaymentHeight = deterministicMNManager->GetNextPayments()[proTxHash];
+            stateObj.push_back(Pair("nextPaymentHeight", nextPaymentHeight));
+        }
+    }
+#endif
+
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
     obj.push_back(Pair("collateralIndex", (int)collateralOutpoint.n));
@@ -505,6 +514,16 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
+void CDeterministicMNManager::UpdateNextPayments() {
+    CDeterministicMNList mnList = deterministicMNManager->GetListAtChainTip();
+    auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
+    for (size_t i = 0; i < projectedPayees.size(); i++) {
+        const auto& dmn = projectedPayees[i];
+        nextPayments.emplace(dmn->proTxHash, mnList.GetHeight() + (int)i + 1);
+    }
+}
+
+
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
@@ -554,6 +573,9 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         uiInterface.NotifyMasternodeListChanged(newList);
     }
 
+    // Update list of next payments
+    UpdateNextPayments();
+
     // TODO: uncomment when DIP3 enforcement block hash is known
     /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
         if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
@@ -599,6 +621,8 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
         GetMainSignals().NotifyMasternodeListChanged(true, curList, inversedDiff);
         uiInterface.NotifyMasternodeListChanged(prevList);
     }
+
+    UpdateNextPayments();
 
     const auto& consensusParams = Params().GetConsensus();
     if (nHeight == consensusParams.DIP0003EnforcementHeight) {

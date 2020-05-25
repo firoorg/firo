@@ -635,6 +635,7 @@ private:
     CEvoDB& evoDb;
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
+    std::map<uint256, int> nextPayments;
     const CBlockIndex* tipIndex{nullptr};
 
 public:
@@ -649,9 +650,14 @@ public:
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet, bool debugLogs);
     void HandleQuorumCommitment(llmq::CFinalCommitment& qc, const CBlockIndex* pindexQuorum, CDeterministicMNList& mnList, bool debugLogs);
     void DecreasePoSePenalties(CDeterministicMNList& mnList);
+    void UpdateNextPayments();
+
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
+    std::map<uint256, int>& GetNextPayments() {
+        return nextPayments;
+    }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);

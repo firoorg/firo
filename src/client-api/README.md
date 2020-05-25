@@ -1459,7 +1459,7 @@ The publisher module is comprised of various _topics_ that are triggered under s
 
 |               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMasternodeStatus  | UpdatedSettings | UpdatedZnode | UpdateSyncStatus |
 | ------------- | ------------- | ---------------  | --------------- | --------------------- | --------------- | -----------------  | --------------- | ------------ | ---------------- |
-| **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | mint transaction added/up dated | settings changed/updated | Znode update | Blockchain sync update
+| **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | EVO Znode added/updated | settings changed/updated | Znode update | Blockchain sync update
 **address** (triggers [block](#block))                          | block tx data.                            | -  | -  | -  | ✅ | -  | -  | -  | -  |
 **apiStatus** (triggers [apiStatus](#apistatus))                | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
 **balance** (triggers [balance](#balance))                      | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
@@ -1716,6 +1716,7 @@ Methods specific to the publisher.
                 service: STRING,
                 registeredHeight: INT,
                 lastPaidHeight: INT,
+                nextPaymentHeight: INT, (VAR: Znode in next payments list)
                 PoSePenalty: INT,
                 PoSeRevivedHeight: INT,
                 PoSeBanHeight: INT,
