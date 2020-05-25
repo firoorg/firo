@@ -171,16 +171,16 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 
 void OverviewPage::handleEnabledTorChanged(){
 
-	QMessageBox msgBox;
+    QMessageBox msgBox;
 
-	if(ui->checkboxEnabledTor->isChecked()){
+    if(ui->checkboxEnabledTor->isChecked()){
         settings.setValue("fTorSetup", true);
         msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
-	}else{
+    }else{
         settings.setValue("fTorSetup", false);
         msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
-	}
-	msgBox.exec();
+    }
+    msgBox.exec();
 }
 
 OverviewPage::~OverviewPage()
@@ -200,6 +200,10 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
     ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
+    if (!pwalletMain->IsHDSeedAvailable()) {
+        currentSigmaBalance = 0;
+        currentSigmaUnconfirmedBalance = 0;
+    }
     ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentSigmaBalance + currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
@@ -241,12 +245,24 @@ void OverviewPage::updateCoins(const std::vector<CMintMeta>& spendable, const st
 
 void OverviewPage::setSigmaBalance()
 {
-    int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    if (pwalletMain->IsHDSeedAvailable()) {
+        int unit = walletModel->getOptionsModel()->getDisplayUnit();
 
-    ui->labelSigmaBalance->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelSigmaPending->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance + currentImmatureBalance + currentSigmaBalance + currentSigmaUnconfirmedBalance, false, BitcoinUnits::separatorAlways));
-
+        ui->labelSigmaBalance->setText(
+                BitcoinUnits::formatWithUnit(unit, currentSigmaBalance, false, BitcoinUnits::separatorAlways));
+        ui->labelSigmaPending->setText(BitcoinUnits::formatWithUnit(unit, currentSigmaUnconfirmedBalance, false,
+                                                                    BitcoinUnits::separatorAlways));
+        ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance +
+                                                                   currentImmatureBalance + currentSigmaBalance +
+                                                                   currentSigmaUnconfirmedBalance, false,
+                                                             BitcoinUnits::separatorAlways));
+    } else {
+        ui->labelSigmaBalanceText->hide();
+        ui->labelSigmaBalance->hide();
+        ui->labelSigmaPending->hide();
+        ui->labelSigmaPendingText->hide();
+        ui->labelAnonymized->hide();
+    }
 }
 
 // show/hide watch-only labels
