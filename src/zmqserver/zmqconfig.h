@@ -17,6 +17,7 @@
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 #include "znode.h"
+#include "evo/deterministicmns.h"
 
 void zmqError(const char *str);
 

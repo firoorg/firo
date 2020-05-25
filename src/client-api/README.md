@@ -1457,16 +1457,17 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 The publisher module is comprised of various _topics_ that are triggered under specific conditions, called _events_. Both topics and events have a 1 to N relationship with each other; ie. 1 event may trigger 1 to N topics, and 1 topic may be triggered by 1 to N events.
 
 
-|               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMintStatus  | UpdatedSettings | UpdatedZnode | UpdateSyncStatus |
+|               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMasternodeStatus  | UpdatedSettings | UpdatedZnode | UpdateSyncStatus |
 | ------------- | ------------- | ---------------  | --------------- | --------------------- | --------------- | -----------------  | --------------- | ------------ | ---------------- |
 | **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | mint transaction added/up dated | settings changed/updated | Znode update | Blockchain sync update
-**address** (triggers [block](#block))                 | block tx data.                            | -  | -  | -  | ✅ | -  | -  | -  | -  |
-**apiStatus** (triggers [apiStatus](#apistatus))       | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
-**balance** (triggers [balance](#balance))             | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
-**block** (triggers [blockchain](#blockchain))         | general block data (sync status + header) | -  | -  | ✅ | ✅ | -  | -  | -  | ✅ |
-**settings** (triggers [readSettings](#readsettings))  | settings changed                          | -  | -  | -  | -  | -  | ✅ | -  | -  |
-**transaction** (triggers [transaction](#transaction)) | new transaction data                      | -  | ✅ | -  | -  | -  | -  | -  | -  |
-**znode** (triggers [znodeUpdate](#znodeupdate))       | update to znode                           | -  | -  | -  | -  | -  | -  | ✅ | -  |
+**address** (triggers [block](#block))                          | block tx data.                            | -  | -  | -  | ✅ | -  | -  | -  | -  |
+**apiStatus** (triggers [apiStatus](#apistatus))                | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
+**balance** (triggers [balance](#balance))                      | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
+**block** (triggers [blockchain](#blockchain))                  | general block data (sync status + header) | -  | -  | ✅ | ✅ | -  | -  | -  | ✅ |
+**masternode** (triggers [masternodeUpdate](#masternodeupdate)) | update to masternode                      | -  | -  | -  | -  | ✅ | -  | -  | -  |
+**settings** (triggers [readSettings](#readsettings))           | settings changed                          | -  | -  | -  | -  | -  | ✅ | -  | -  |
+**transaction** (triggers [transaction](#transaction))          | new transaction data                      | -  | ✅ | -  | -  | -  | -  | -  | -  |
+**znode** (triggers [znodeUpdate](#znodeupdate))                | update to znode                           | -  | -  | -  | -  | -  | -  | ✅ | -  |
 
 ## Methods
 
@@ -1491,8 +1492,8 @@ Methods specific to the publisher.
         restartNow: BOOL
     }
 
-    "meta": {
-        "status": 200
+    meta: {
+        status: 200
     },
     "error": null
 }
@@ -1654,7 +1655,7 @@ Methods specific to the publisher.
 *Returns:*
 ```
 {
-    "data": {
+    data: {
         STRING: (txid + index) {
             rank: INT,
             outpoint: {
@@ -1691,8 +1692,44 @@ Methods specific to the publisher.
             }
         }
     },
-    "meta": {
-        "status": 200
+    meta: {
+        status: 200
+    },
+    "error": null
+}
+```
+
+
+
+### `masternodeUpdate`
+*Returns:*
+```
+{
+    data: {
+        STRING (proTxHash): {
+            proTxHash: STRING,
+            collateralHash: STRING,
+            "collateralIndex: INT,
+            collateralAddress: STRING,
+            operatorReward: INT,
+            state: {
+                service: STRING,
+                registeredHeight: INT,
+                lastPaidHeight: INT,
+                PoSePenalty: INT,
+                PoSeRevivedHeight: INT,
+                PoSeBanHeight: INT,
+                revocationReason: INT,
+                ownerAddress: STRING,
+                votingAddress: STRING,
+                payoutAddress: STRING,
+                pubKeyOperator: STRING (VAR),
+                operatorPayoutAddress: STRING (VAR)
+            }
+        }
+    },
+    meta: {
+        status: 200
     },
     "error": null
 }

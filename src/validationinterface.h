@@ -22,10 +22,13 @@ class CValidationInterface;
 class CValidationState;
 class CGovernanceVote;
 class CGovernanceObject;
+class CDeterministicMN;
 class CDeterministicMNList;
 class CDeterministicMNListDiff;
 class uint256;
 class CZnode;
+
+typedef std::shared_ptr<CDeterministicMN> CDeterministicMNPtr;
 
 // These functions dispatch to one or all registered wallets
 
@@ -59,6 +62,7 @@ protected:
     virtual void NumConnectionsChanged() {}
     virtual void UpdateSyncStatus() {}
     virtual void UpdatedZnode(CZnode &znode) {}
+    virtual void UpdatedMasternode(CDeterministicMNPtr masternode) {};
     virtual void UpdatedMintStatus(std::string update) {};
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
@@ -124,6 +128,8 @@ struct CMainSignals {
     boost::signals2::signal<void ()> UpdateSyncStatus;
     /** Notifies listeners of change to a Znode entry */
     boost::signals2::signal<void (CZnode &)> UpdatedZnode;
+    /** Notifies listeners of change to a Masternode entry */
+    boost::signals2::signal<void (CDeterministicMNPtr)> UpdatedMasternode;
     /** Notifies listeners of an updated mint status */
     boost::signals2::signal<void (std::string)> UpdatedMintStatus;
     /** Notifies listeners of settings following an update */

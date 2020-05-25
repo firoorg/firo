@@ -147,6 +147,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
         "pubblockinfo", 
         "pubbalance", 
         "pubznodeupdate", 
+        "pubmasternodeupdate",
         "pubsettings",
         "pubstatus",
         "pubznodelist",
@@ -158,6 +159,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
     factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
+    factories["pubmasternodeupdate"] = CZMQAbstract::Create<CZMQMasternodeTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     factories["pubwalletsegment"] = CZMQAbstract::Create<CZMQWalletSegmentTopic>;
@@ -315,6 +317,23 @@ void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyZnodeUpdate(znode))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNPtr masternode)
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyMasternodeUpdate(masternode))
         {
             i++;
         }

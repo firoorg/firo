@@ -8,6 +8,7 @@
 #include "zmqabstract.h"
 #include "univalue.h"
 #include "znode.h"
+#include "evo/deterministicmns.h"
 #include "client-api/server.h"
 #include <boost/thread/thread.hpp>
 #include <boost/chrono.hpp>
@@ -124,6 +125,14 @@ public:
     bool NotifyZnodeUpdate(CZnode &znode);
 };
 
+class CZMQMasternodeEvent : virtual public CZMQAbstractPublisher
+{
+    /* Data related to an updated Masternode
+    */
+public:
+    bool NotifyMasternodeUpdate(CDeterministicMNPtr masternode);
+};
+
 class CZMQMintStatusEvent : virtual public CZMQAbstractPublisher
 {
     /* Data related to an updated Znode
@@ -209,6 +218,13 @@ class CZMQZnodeTopic : public CZMQZnodeEvent
 public:
     void SetTopic(){ topic = "znode";}
     void SetMethod(){ method= "znodeUpdate";}
+};
+
+class CZMQMasternodeTopic : public CZMQMasternodeEvent
+{
+public:
+    void SetTopic(){ topic = "masternode";}
+    void SetMethod(){ method= "masternodeUpdate";}
 };
 
 #endif // ZCOIN_ZMQ_ZMQPUBLISHER_H

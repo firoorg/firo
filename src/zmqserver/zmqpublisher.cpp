@@ -293,6 +293,15 @@ bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
     return true;
 }
 
+bool CZMQMasternodeEvent::NotifyMasternodeUpdate(CDeterministicMNPtr masternode){
+    UniValue data;
+    masternode->ToJson(data);
+    request.replace("data", data);
+    Execute();
+
+    return true;
+}
+
 bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
     LogPrintf("update in NotifySettingsUpdate: %s\n", update);
     UniValue updateObj(UniValue::VOBJ);

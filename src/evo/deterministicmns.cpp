@@ -464,6 +464,8 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CD
     UpdateUniqueProperty(dmn, oldState->addr, pdmnState->addr);
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
+
+    GetMainSignals().UpdatedMasternode(dmn);
 }
 
 void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)

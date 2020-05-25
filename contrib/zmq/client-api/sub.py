@@ -101,6 +101,8 @@ if __name__ == "__main__":
     socket.setsockopt(zmq.SUBSCRIBE, b"mintStatus")
     socket.setsockopt(zmq.SUBSCRIBE, b"settings")
     socket.setsockopt(zmq.SUBSCRIBE, b"walletSegment")
+    socket.setsockopt(zmq.SUBSCRIBE, b"masternode")
+
 
     # print any publisher events
     while True:

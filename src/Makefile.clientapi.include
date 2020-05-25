@@ -14,6 +14,7 @@ CLIENTAPI_H = \
 
 CLIENTAPI_CPP = \
   client-api/blockchain.cpp \
+  client-api/masternode.cpp \
   client-api/misc.cpp \
   client-api/protocol.cpp \
   client-api/send.cpp \
@@ -28,12 +29,11 @@ CLIENTAPI_CPP = \
   zmqserver/zmqreplier.cpp
 
 libbitcoin_zmq_a_SOURCES += \
-  $(CLIENTAPI_CPP)
+  $(CLIENTAPI_CPP) \
+  $(CLIENTAPI_H)
 
 libbitcoin_util_a_SOURCES += \
-  $(CLIENTAPI_CPP)
-
-BITCOIN_CORE_H += \
+  $(CLIENTAPI_CPP) \
   $(CLIENTAPI_H)
 
 if ENABLE_TESTS
