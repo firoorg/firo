@@ -133,7 +133,6 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
                                     CAmount& nFeeRequired,
                                     std::vector<CSigmaEntry>& coins,
                                     std::vector<CHDMint> changes,
-                                    UniValue& txMetadataEntry,
                                     bool fDummy){
     // Ensure Sigma is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -176,13 +175,6 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
         totalAmount += nAmount;
 
         vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
-
-        UniValue txMetadataSubEntry(UniValue::VOBJ);
-
-        // write label and amount to entry object
-        txMetadataSubEntry.push_back(Pair("amount", nAmount));
-        txMetadataSubEntry.push_back(Pair("label", label));
-        txMetadataEntry.push_back(Pair(strAddr, txMetadataSubEntry));
     }
 
     if(!fDummy)
@@ -286,9 +278,8 @@ UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, boo
     CAmount nFeeRequired;
     std::vector<CSigmaEntry> coins;
     std::vector<CHDMint> changes;
-    UniValue txMetadataEntry(UniValue::VOBJ);
 
-    createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry, true);
+    createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, true);
 
     result.push_back(Pair("fee", nFeeRequired));
     result.push_back(Pair("inputs", int64_t(coins.size())));
@@ -298,37 +289,17 @@ UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, boo
 
 UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
-    // Initially grab the existing transaction metadata from the filesystem.
-    UniValue txMetadataUni(UniValue::VOBJ);
-    UniValue txMetadataData(UniValue::VOBJ);
-    getTxMetadata(txMetadataUni, txMetadataData);
-
-    if(txMetadataUni.empty()){
-        UniValue txMetadataUni(UniValue::VOBJ);
-    }
-
-    if(txMetadataData.empty()){
-        UniValue txMetadataData(UniValue::VOBJ);
-    }
-
     switch(type){
         case Create: {
             CWalletTx wtx;
             CAmount nFeeRequired;
             std::vector<CSigmaEntry> coins;
             std::vector<CHDMint> changes;
-            UniValue txMetadataEntry(UniValue::VOBJ);
             std::string txidStr;
             try {
-                createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, txMetadataEntry, false);
+                createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, false);
 
-                // Write tx data to filesystem
                 txidStr = wtx.GetHash().GetHex();
-                txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-                if(!txMetadataUni.replace("data", txMetadataData)){
-                    throw runtime_error("Could not replace key/value pair.");
-                }
-                setTxMetadata(txMetadataUni);
 
                 // commit transaction
                 pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
