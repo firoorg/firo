@@ -1,0 +1,11 @@
+--- old/qtbase/src/corelib/tools/qsimd_p.h	2016-05-25 22:46:17.000000000 +0700
++++ new/qtbase/src/corelib/tools/qsimd_p.h	2020-05-28 02:13:41.198113517 +0700
+@@ -452,7 +452,7 @@
+     _BitScanForward(&result, val);
+     return result;
+ }
+-#  elif (defined(Q_CC_CLANG) || (defined(Q_CC_GNU) && Q_CC_GNU < 405)) \
++#  elif ((defined(Q_CC_CLANG) && Q_CC_CLANG < 900) || (!defined(Q_CC_CLANG) && defined(Q_CC_GNU) && Q_CC_GNU < 405)) \
+     && !defined(Q_CC_INTEL)
+ // Clang is missing the intrinsic for _bit_scan_reverse
+ // GCC only added it in version 4.5
