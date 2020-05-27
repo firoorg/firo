@@ -10,7 +10,6 @@
 #include <secp256k1.h>
 
 #include <array>
-#include <cstdint>
 #include <stdexcept>
 #include <vector>
 
