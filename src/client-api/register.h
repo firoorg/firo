@@ -27,6 +27,9 @@ void RegisterSettingsAPICommands(CAPITable &tableAPI);
 /** Register znode API commands */
 void RegisterZnodeAPICommands(CAPITable &tableAPI);
 
+/** Register masternode API commands */
+void RegisterMasternodeAPICommands(CAPITable &tableAPI);
+
 /** Register sigma API commands */
 void RegisterSigmaAPICommands(CAPITable &tableAPI);
 
@@ -38,6 +41,7 @@ static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
     RegisterSendAPICommands(tableAPI);
     RegisterSettingsAPICommands(tableAPI);
     RegisterZnodeAPICommands(tableAPI);
+    RegisterMasternodeAPICommands(tableAPI);
     RegisterSigmaAPICommands(tableAPI);
 }
 

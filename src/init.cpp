@@ -1882,6 +1882,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
 
                 deterministicMNManager->UpgradeDBIfNeeded();
+                deterministicMNManager->GetNextPayments();
 
                 if (!fReindex && chainActive.Tip() != NULL) {
                     uiInterface.InitMessage(_("Rewinding blocks..."));

@@ -29,7 +29,7 @@ static const CAPICommand commands[] =
   //  --------      ----------          ----------------   -----      -------------- --------
     { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         true  }
 };
-void RegisterZnodeAPICommands(CAPITable &tableAPI)
+void RegisterMasternodeAPICommands(CAPITable &tableAPI)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);
