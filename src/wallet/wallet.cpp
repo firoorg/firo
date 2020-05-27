@@ -3833,6 +3833,10 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
             // Notify that old coins are spent
             BOOST_FOREACH(const CTxIn& txin, wtxNew.tx->vin)
             {
+                // Skip inputs of anonymized transactions
+                if (txin.prevout.hash.IsNull())
+                    continue;
+
                 CWalletTx &coin = mapWallet[txin.prevout.hash];
                 coin.BindWallet(this);
                 NotifyTransactionChanged(this, coin.GetHash(), CT_UPDATED);
