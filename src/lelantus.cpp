@@ -119,7 +119,7 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
     }
 
     pubcoin.deserialize(serialized.data());
-    encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired() + 1, serialized.end());
+    encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired(), serialized.end());
 }
 
 

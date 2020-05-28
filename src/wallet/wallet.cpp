@@ -2831,8 +2831,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
     CWalletDB walletdb(strWalletFile);
     std::list<CLelantusEntry> coins;
     std::vector<CLelantusMintMeta> vecMints = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
-    list<CLelantusMintMeta> listMints(vecMints.begin(), vecMints.end());
-    for (const CLelantusMintMeta& mint : listMints) {
+    for (const CLelantusMintMeta& mint : vecMints) {
         CLelantusEntry entry;
         GetMint(mint.hashSerial, entry);
         if(entry.amount != 0) // ignore 0 mints which where created to increase privacy
@@ -2904,7 +2903,10 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoin) {
     uint32_t keyPath = primitives::GetPubCoinValueHash(pubcoin).GetFirstUint32();
     CKey secret;
-    pwalletMain->GetKeyFromKeypath(BIP44_MINT_VALUE_INDEX, keyPath, secret);
+    {
+        LOCK(pwalletMain->cs_wallet);
+        pwalletMain->GetKeyFromKeypath(BIP44_MINT_VALUE_INDEX, keyPath, secret);
+    }
 
     std::vector<unsigned char> result(CHMAC_SHA512::OUTPUT_SIZE);
 

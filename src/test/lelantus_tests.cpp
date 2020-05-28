@@ -437,7 +437,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     GenerateBlocks(10);
 
     auto outputAmount = 8 * CENT;
-    auto mintAmount = 2 * COIN - CENT; // a cent as fee
+    auto mintAmount = 2 * CENT - CENT; // a cent as fee
 
     CWalletTx wtx;
     pwalletMain->JoinSplitLelantus(

@@ -604,15 +604,14 @@ DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
     return DB_LOAD_OK;
 }
 
-bool CWalletDB::WriteHDMint(const CHDMint& dMint, bool isLelantus)
+bool CWalletDB::WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus)
 {
-    uint256 hash = dMint.GetPubCoinHash();
     std::string name;
     if(!isLelantus)
         name = "hdmint";
     else
         name = "hdmint_lelantus";
-    return Write(make_pair(name, hash), dMint, true);
+    return Write(make_pair(name, hashPubcoin), dMint, true);
 }
 
 bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint)
@@ -1750,7 +1749,7 @@ bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHD
     if (!Read(make_pair(string("dzco"), hashPubcoin), dMint))
         return error("%s: failed to retrieve deterministic mint from archive", __func__);
 
-    if (!WriteHDMint(dMint, isLelantus))
+    if (!WriteHDMint(hashPubcoin, dMint, isLelantus))
         return error("%s: failed to write deterministic mint", __func__);
 
     if (!Erase(make_pair(string("dzco"), dMint.GetPubCoinHash())))
