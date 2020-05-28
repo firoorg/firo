@@ -45,6 +45,9 @@
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
 
+#include "crypto/hmac_sha512.h"
+#include "crypto/aes.h"
+
 #include "hdmint/tracker.h"
 
 #include <assert.h>
@@ -120,7 +123,7 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     return &(it->second);
 }
 
-CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
+CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secret) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
@@ -168,7 +171,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     // derive m/44'/136'/0'/<c>/<n>
     externalChainChildKey.Derive(childKey, nChild);
 
-    CKey secret = childKey.key;
+    secret = childKey.key;
 
     CPubKey pubkey = secret.GetPubKey();
     assert(secret.VerifyPubKey(pubkey));
@@ -717,8 +720,20 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             return meta.isUsed;
         } else if (zwalletMain && (script.IsLelantusMint() || script.IsLelantusJMint())) {
             secp_primitives::GroupElement pubcoin;
-            lelantus::ParseLelantusMintScript(script, pubcoin);
+            uint64_t amount;
+            if(script.IsLelantusMint()) {
+                amount = tx->tx->vout[n].nValue;
+                lelantus::ParseLelantusMintScript(script, pubcoin);
+            } else {
+                std::vector<unsigned char> encryptedValue;
+                lelantus::ParseLelantusJMintScript(script, pubcoin, encryptedValue);
+                if(!DecryptMintAmount(encryptedValue, pubcoin, amount))
+                    return false;
+            }
+
+            pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+
             CLelantusMintMeta meta;
             if(!zwalletMain->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
                 return false;
@@ -1616,8 +1631,19 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
         try {
             if (txout.scriptPubKey.IsSigmaMint())
                 pub = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-            else
-                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+            else {
+                uint64_t amount;
+                if(txout.scriptPubKey.IsLelantusMint()) {
+                    amount = txout.nValue;
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+                } else {
+                    std::vector<unsigned char> encryptedValue;
+                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
+                    if(!DecryptMintAmount(encryptedValue, pub, amount))
+                        return ISMINE_NO;
+                }
+                pub += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
+            }
         } catch (std::invalid_argument&) {
             return ISMINE_NO;
         }
@@ -1636,7 +1662,12 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
         try {
-            lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+            std::vector<unsigned char> encryptedValue;
+            lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
+            uint64_t amount;
+            if(!DecryptMintAmount(encryptedValue, pub, amount))
+                return ISMINE_NO;
+            pub += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
         } catch (std::invalid_argument&) {
             return ISMINE_NO;
         }
@@ -2869,6 +2900,37 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 
     return coins;
 }
+
+std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoin) {
+    uint32_t keyPath = primitives::GetPubCoinValueHash(pubcoin).GetFirstUint32();
+    CKey secret;
+    pwalletMain->GetKeyFromKeypath(BIP44_MINT_VALUE_INDEX, keyPath, secret);
+
+    std::vector<unsigned char> result(CHMAC_SHA512::OUTPUT_SIZE);
+
+    CHMAC_SHA512(secret.begin(), secret.size()).Finalize(&result[0]);
+    return result;
+}
+
+std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const {
+    std::vector<unsigned char> key = GetAESKey(pubcoin);
+    AES256Encrypt enc(key.data());
+    std::vector<unsigned char> ciphertext(16);
+    std::vector<unsigned char> plaintext(16);
+    memcpy(plaintext.data(), &amount, 8);
+    enc.Encrypt(ciphertext.data(), plaintext.data());
+    return ciphertext;
+}
+
+bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
+    std::vector<unsigned char> key = GetAESKey(pubcoin);
+    AES256Decrypt dec(key.data());
+    std::vector<unsigned char> plaintext(16);
+    dec.Decrypt(plaintext.data(), encryptedValue.data());
+    memcpy(&amount, plaintext.data(), 8);
+    return true;
+}
+
 
 template<typename Iterator>
 static CAmount CalculateCoinsBalance(Iterator begin, Iterator end) {
@@ -7501,9 +7563,9 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
         if (!db.WriteLelantusSpendSerialEntry(spend)) {
             throw std::runtime_error(_("Failed to write coin serial number into wallet"));
         }
-        //TODO(levon) handel this
+
         //Set spent mint as used in memory
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value + lelantus::Params::get_default()->get_h1() * Scalar(coin.amount).negate());
         zwalletMain->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CLelantusMintMeta metaCheck;
         zwalletMain->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);

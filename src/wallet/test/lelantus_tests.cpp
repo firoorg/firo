@@ -80,10 +80,10 @@ BOOST_AUTO_TEST_CASE(get_and_list_mints)
     auto mints = GenerateMints(allAmounts, txs);
     GenerateBlock(std::vector<CMutableTransaction>(txs.begin(), txs.begin() + txs.size() - 1));
 
-    std::vector<lelantus::PublicCoin> pubCoins;
+    std::vector<std::pair<lelantus::PublicCoin, uint64_t>> pubCoins;
     pubCoins.reserve(mints.size() - 1);
     for (size_t i = 0; i != mints.size() - 1; i++) {
-        pubCoins.emplace_back(mints[i].GetPubcoinValue());
+        pubCoins.emplace_back(mints[i].GetPubcoinValue(), mints[i].GetAmount());
     }
 
     zwalletMain->GetTracker().UpdateMintStateFromBlock(pubCoins);

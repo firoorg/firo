@@ -110,8 +110,8 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(const uint160&
         throw ZerocoinException("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
-    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1); //TODO(levon) handel this as we have no denominations in lelantus
-    if(!SeedToMint(mintSeed, commitmentValue, coin))
+    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+    if(!SeedToMint(mintSeed, commitmentValue, coin)) //for lelantus put just part of commit, for checking we will need to reduce h1^v from lelantus mint
         throw ZerocoinException("Unable to create sigmamint from seed in mint regeneration.");
 
     uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
@@ -167,8 +167,8 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
             continue;
 
         GroupElement commitmentValue;
-        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1); //TODO(levon) handel this as we have no denominations in lelantus
-        if(!SeedToMint(mintSeed, commitmentValue, coin))
+        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+        if(!SeedToMint(mintSeed, commitmentValue, coin)) //for lelantus put just part of commit, for checking we will need to reduce h1^v from lelantus mint
             continue;
 
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
@@ -350,6 +350,82 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB();
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
+            } else if (lelantus::GetOutPoint(outPoint, pMint.first)) {
+                const uint256& txHash = outPoint.hash;
+                //this mint has already occurred on the chain, increment counter's state to reflect this
+                LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
+                found = true;
+
+                uint256 hashBlock;
+                CTransactionRef tx;
+                if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
+                    LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
+                    found = false;
+                    continue;
+                }
+
+                uint64_t amount  = 0;
+
+                bool fFoundMint = false;
+                for (const CTxOut& out : tx->vout) {
+                    if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint())
+                        continue;
+                    secp_primitives::GroupElement pubcoin;
+                    try {
+                        if (out.scriptPubKey.IsLelantusMint()) {
+                            amount = out.nValue;
+                            lelantus::ParseLelantusMintScript(out.scriptPubKey, pubcoin);
+                        }  else {
+                            std::vector<unsigned char> encryptedValue;
+                            lelantus::ParseLelantusJMintScript(out.scriptPubKey, pubcoin, encryptedValue);
+                            if(!pwalletMain->DecryptMintAmount(encryptedValue, pubcoin, amount))
+                                continue;
+                        }
+                    } catch (std::invalid_argument&) {
+                        continue;
+                    }
+
+                    pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
+
+                    // See if this is the mint that we are looking for
+                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+                    if (pMint.first == hashPubcoin) {
+                        fFoundMint = true;
+                        break;
+                    }
+                }
+
+                if (!fFoundMint) {
+                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
+                    found = false;
+                    break;
+                }
+
+                CBlockIndex* pindex = nullptr;
+                if (mapBlockIndex.count(hashBlock))
+                    pindex = mapBlockIndex.at(hashBlock);
+
+                if (!setAddedTx.count(txHash)) {
+                    CBlock block;
+                    CWalletTx wtx(pwalletMain, tx);
+                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+                        SetWalletTransactionBlock(wtx, pindex, block);
+
+                    //Fill out wtx so that a transaction record can be created
+                    wtx.nTimeReceived = pindex->GetBlockTime();
+                    pwalletMain->AddToWallet(wtx, false);
+                    setAddedTx.insert(txHash);
+                }
+
+                if(!SetLelantusMintSeedSeen(pMint, pindex->nHeight, txHash, amount))
+                    continue;
+
+                // Only update if the current hashSeedMaster matches the mints'
+                if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
+                    SetCount(++mintCount);
+                    UpdateCountDB();
+                    LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
+                }
             }
         }
         // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
@@ -442,6 +518,83 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
     LogPrintf("%s: Adding mint to tracker.. \n", __func__);
     // Add to tracker which also adds to database
     tracker.Add(dMint, true);
+
+    return true;
+}
+
+bool CHDMintWallet::SetLelantusMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount)
+{
+    // Regenerate the mint
+    uint256 hashPubcoin = mintPoolEntryPair.first;
+    CKeyID seedId = get<1>(mintPoolEntryPair.second);
+    int32_t mintCount = get<2>(mintPoolEntryPair.second);
+
+    auto params = lelantus::Params::get_default();
+
+    GroupElement bnValue;
+    uint256 hashSerial;
+    bool serialInBlockchain = false;
+    // Can regenerate if unlocked (cheaper)
+    if(!pwalletMain->IsLocked()) {
+        LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
+        uint512 mintSeed;
+        CreateMintSeed(mintSeed, mintCount, seedId);
+        lelantus::PrivateCoin coin(params, amount); // create commitment with reduced h1^amount
+        if(!SeedToLelantusMint(mintSeed, coin))
+            return false;
+        hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
+        bnValue = coin.getPublicCoin().getValue();
+    } else {
+        LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
+        // Get serial and pubcoin data from the db
+        CWalletDB walletdb(strWalletFile);
+        std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
+        bool fFound = false;
+        for(auto serialPubcoinPair : serialPubcoinPairs){
+            GroupElement pubcoin = serialPubcoinPair.second;
+            if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
+                LogPrintf("%s: Found pubcoin and serial hash\n", __func__);
+                bnValue = pubcoin + (params->get_h1() * Scalar(amount).negate());
+                hashSerial = serialPubcoinPair.first;
+                fFound = true;
+                break;
+            }
+        }
+        // Not found in DB
+        if(!fFound){
+            LogPrintf("%s: Pubcoin not found in DB. \n", __func__);
+            return false;
+        }
+    }
+
+    LogPrintf("%s: Creating mint object.. \n", __func__);
+    // Create mint object
+    CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
+    dMint.SetAmount(amount);
+    dMint.SetHeight(nHeight);
+
+    // Check if this is also already spent
+    CWalletDB walletdb(strWalletFile);
+    int nHeightTx;
+    uint256 txidSpend;
+    CTransactionRef txSpend;
+    if (IsLelantusSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
+        //Find transaction details and make a wallettx and add to wallet
+        LogPrintf("%s: Mint object is spent. Setting used..\n", __func__);
+        dMint.SetUsed(true);
+        CWalletTx wtx(pwalletMain, txSpend);
+        CBlockIndex* pindex = chainActive[nHeightTx];
+        CBlock block;
+        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+            SetWalletTransactionBlock(wtx, pindex, block);
+
+        wtx.nTimeReceived = pindex->nTime;
+        pwalletMain->AddToWallet(wtx, false);
+    }
+
+    LogPrintf("%s: Adding mint to tracker.. \n", __func__);
+    // Add to tracker which also adds to database
+    tracker.AddLelantus(dMint, true);
 
     return true;
 }
@@ -580,7 +733,8 @@ bool CHDMintWallet::CreateMintSeed(uint512& mintSeed, const int32_t& nCount, CKe
         }
         else if(nCount<chainIndex){
             // if it's less than the current chain index, we are regenerating the mintpool. get the key at n
-            pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, nCount);
+            CKey secret;
+            pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, nCount, secret);
         }
         else{
             throw ZerocoinException("Unable to retrieve mint seed ID (internal index greater than HDChain index). \n"
@@ -928,6 +1082,22 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     CMintMeta mMeta;
     Scalar bnSerial;
     if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
+        return false;
+
+    if(!tracker.GetMetaFromSerial(hashSerial, mMeta))
+        return false;
+
+    txidSpend = mMeta.txid;
+
+    return IsTransactionInChain(txidSpend, nHeightTx, tx);
+}
+
+bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx)
+{
+    txidSpend.SetNull();
+    CLelantusMintMeta mMeta;
+    Scalar bnSerial;
+    if (!lelantus::CLelantusState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
     if(!tracker.GetMetaFromSerial(hashSerial, mMeta))

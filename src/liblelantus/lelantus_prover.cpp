@@ -1,5 +1,7 @@
 #include "lelantus_prover.h"
 
+#include "chainparams.h"
+
 namespace lelantus {
 
 LelantusProver::LelantusProver(const Params* p) : params(p) {
@@ -146,7 +148,7 @@ void LelantusProver::generate_bulletproofs(
     randoms.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
-        v_s.push_back(Cout[i].getV());
+        v_s.push_back(Cout[i].getVScalar() + (Scalar(uint64_t(2)).exponent(params->get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint));
         serials.push_back(Cout[i].getSerialNumber());
         randoms.push_back(Cout[i].getRandomness());
     }

@@ -102,6 +102,7 @@ const uint32_t BIP44_MINT_INDEX = 0x2;
 #ifdef ENABLE_EXODUS
 const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
 #endif
+const uint32_t BIP44_MINT_VALUE_INDEX = 0x4;
 
 class CBlockIndex;
 class CCoinControl;
@@ -834,7 +835,7 @@ public:
     /// Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);
 
-    CPubKey GetKeyFromKeypath(uint32_t nChange, uint32_t nChild);
+    CPubKey GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secret);
     /**
      * keystore implementation
      * Generate a new key
@@ -931,6 +932,10 @@ public:
     std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
 
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
+
+    std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
+
+    bool DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const;
 
 
     /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.

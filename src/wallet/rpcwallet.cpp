@@ -2814,12 +2814,12 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
         nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
 
         if(nIndexes.first != oldHashPubcoin){
-            walletdb.EraseMintPoolPair(oldHashPubcoin); //TODO(levon) handel this
+            walletdb.EraseMintPoolPair(oldHashPubcoin);
             reindexRequired = true;
         }
 
         if(!hasSerial || nIndexes.second != oldHashSerial){
-            walletdb.ErasePubcoin(oldHashSerial);  //TODO(levon) handel this
+            walletdb.ErasePubcoin(oldHashSerial);
             reindexRequired = true;
         }
     }
@@ -3701,8 +3701,10 @@ UniValue joinsplit(const JSONRPCRequest& request) {
 
     for(const auto& mint : mints) {
         auto val = mint.get_int64();
-        if(val <= 0)
-            throw JSONRPCError(RPC_TYPE_ERROR, "Mint value has to be positive.");
+        if (!lelantus::IsAvailableToMint(val) || val <= 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
+        }
+
         vMints.push_back(val);
     }
 

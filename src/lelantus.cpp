@@ -16,6 +16,8 @@
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "primitives/zerocoin.h"
+#include "policy/policy.h"
+#include "coins.h"
 
 #include <atomic>
 #include <sstream>
@@ -65,7 +67,7 @@ bool IsLelantusAllowed(int height)
 
 bool IsAvailableToMint(const CAmount& amount)
 {
-    return amount >= 5 * CENT;
+    return amount <= ::Params().GetConsensus().nMaxValueLelantusMint;
 }
 
 void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, std::vector<unsigned char>&  serializedSchnorrProof)
@@ -117,7 +119,7 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
     }
 
     pubcoin.deserialize(serialized.data());
-    encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired(), serialized.end());
+    encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired() + 1, serialized.end());
 }
 
 
@@ -156,6 +158,7 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
     CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
+        auto txSpendsValue =  GetSpendTransparentAmount(*tx);
         size_t txSpendNumber = GetSpendInputs(*tx);
 
         if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) {
@@ -163,13 +166,25 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
                 "bad-txns-lelantus-spend-invalid");
         }
 
+        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "bad-txns-lelantus-spend-invalid");
+        }
+
         blockSpendsAmount += txSpendNumber;
+        blockSpendsValue += txSpendsValue;
     }
 
     if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-lelantus-spend-invalid");
     }
+
+    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+                         "bad-txns-lelantus-spend-invalid");
+    }
+
     return true;
 }
 
@@ -184,8 +199,9 @@ bool CheckLelantusJMintTransaction(
     LogPrintf("CheckLelantusJMintTransaction txHash = %s\n", txout.GetHash().ToString());
 
     secp_primitives::GroupElement pubCoinValue;
+    std::vector<unsigned char> encryptedValue;
     try {
-        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+        ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
@@ -205,8 +221,8 @@ bool CheckLelantusJMintTransaction(
     bool hasCoin = lelantusState.HasCoin(pubCoin);
 
     if (!hasCoin && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-        BOOST_FOREACH(const lelantus::PublicCoin& mint, lelantusTxInfo->mints) {
-            if (mint == pubCoin) {
+        BOOST_FOREACH(const auto& mint, lelantusTxInfo->mints) {
+            if (mint.first == pubCoin) {
                 hasCoin = true;
                 break;
             }
@@ -224,7 +240,10 @@ bool CheckLelantusJMintTransaction(
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(pubCoin);
+        uint64_t amount;
+        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+            amount = 0;
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, amount));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -396,6 +415,11 @@ bool CheckLelantusMintTransaction(
 
     LogPrintf("CheckLelantusMintTransaction txHash = %s\n", txout.GetHash().ToString());
     LogPrintf("nValue = %d\n", txout.nValue);
+    if(txout.nValue > ::Params().GetConsensus().nMaxValueLelantusMint)
+        return state.DoS(100,
+                         false,
+                         REJECT_INVALID,
+                         "CTransaction::CheckTransaction() : Mint is out of limit.");
 
     try {
         ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue, schnorrProof);
@@ -419,8 +443,8 @@ bool CheckLelantusMintTransaction(
     bool hasCoin = lelantusState.HasCoin(pubCoin);
 
     if (!hasCoin && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-        BOOST_FOREACH(const lelantus::PublicCoin& mint, lelantusTxInfo->mints) {
-            if (mint == pubCoin) {
+        BOOST_FOREACH(const auto& mint, lelantusTxInfo->mints) {
+            if (mint.first == pubCoin) {
                 hasCoin = true;
                 break;
             }
@@ -438,7 +462,7 @@ bool CheckLelantusMintTransaction(
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(pubCoin);
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, txout.nValue));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -456,6 +480,24 @@ bool CheckLelantusTransaction(
         CLelantusTxInfo* lelantusTxInfo)
 {
     Consensus::Params const & consensus = ::Params().GetConsensus();
+
+
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount nFees;
+        try {
+            nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+        }
+        catch (CBadTxIn&) {
+            return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+        }
+
+        unsigned size = GetVirtualTransactionSize(tx);
+        if(nFees < CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool))
+            return state.DoS(100, false,
+                             REJECT_INVALID,
+                             "Lelantus invalid fee.");
+    }
+
 
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight = nHeight;
@@ -492,6 +534,12 @@ bool CheckLelantusTransaction(
             return state.DoS(100, false,
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
+        }
+
+        if (GetSpendTransparentAmount(tx) > consensus.nMaxValueLelantusSpendPerTransaction) {
+            return state.DoS(100, false,
+                             REJECT_INVALID,
+                             "bad-txns-spend-invalid");
         }
 
         if (!isVerifyDB) {
@@ -578,6 +626,15 @@ size_t GetSpendInputs(const CTransaction &tx) {
     return sum;
 }
 
+CAmount GetSpendTransparentAmount(const CTransaction& tx) {
+    CAmount result = 0;
+    if(!tx.IsLelantusJoinSplit())
+        return 0;
+
+    for (const CTxOut &txout : tx.vout)
+        result += txout.nValue;
+    return result;
+}
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
@@ -850,7 +907,10 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    auto &blockMints = pblock->lelantusTxInfo->mints;
+    std::vector<lelantus::PublicCoin> blockMints;
+    for (const auto& mint : pblock->lelantusTxInfo->mints) {
+        blockMints.push_back(mint.first);
+    }
 
     latestCoinId = std::max(1, latestCoinId);
 
