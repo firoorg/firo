@@ -167,6 +167,8 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
                 return
             raise AssertionError("Block sync failed, mismatched block hashes:{}".format(
                                  "".join("\n  {!r}".format(tip) for tip in tips)))
+
+        time.sleep(wait)
         cur_time = time.time()
     raise AssertionError("Block sync to height {} timed out:{}".format(
                          maxheight, "".join("\n  {!r}".format(tip) for tip in tips)))
