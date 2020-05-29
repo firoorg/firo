@@ -18,6 +18,10 @@
 
 #include <univalue.h>
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/server.h"
+#endif
+
 static const std::string DB_LIST_SNAPSHOT = "dmn_S";
 static const std::string DB_LIST_DIFF = "dmn_D";
 
@@ -79,15 +83,10 @@ void CDeterministicMN::ToJson(UniValue& obj) const
 
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
-
-#ifdef ENABLE_CLIENTAPI
-    if(fApi){
-        if(deterministicMNManager->GetNextPayments().count(proTxHash)){
-            int nextPaymentHeight = deterministicMNManager->GetNextPayments()[proTxHash];
-            stateObj.push_back(Pair("nextPaymentHeight", nextPaymentHeight));
-        }
-    }
-#endif
+    if(deterministicMNManager->GetStatuses().count(proTxHash))
+        stateObj.push_back(Pair("status", deterministicMNManager->GetStatuses()[proTxHash]));
+    if(deterministicMNManager->GetNextPayments().count(proTxHash))
+        stateObj.push_back(Pair("nextPaymentHeight", deterministicMNManager->GetNextPayments()[proTxHash]));
 
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
@@ -460,6 +459,10 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
     if (dmn->pdmnState->pubKeyOperator.Get().IsValid()) {
         AddUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
+
+#ifdef ENABLE_CLIENTAPI
+    GetMainSignals().UpdatedMasternode(dmn);
+#endif
 }
 
 void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState)
@@ -474,7 +477,9 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CD
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
 
+#ifdef ENABLE_CLIENTAPI
     GetMainSignals().UpdatedMasternode(dmn);
+#endif
 }
 
 void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
@@ -515,14 +520,61 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 }
 
 void CDeterministicMNManager::UpdateNextPayments() {
-    CDeterministicMNList mnList = deterministicMNManager->GetListAtChainTip();
+    CDeterministicMNList mnList;
+    if(GetListFromCache(mnList))
+        UpdateNextPayments(mnList);
+}
+
+void CDeterministicMNManager::UpdateNextPayments(CDeterministicMNList& mnList) {
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
     for (size_t i = 0; i < projectedPayees.size(); i++) {
         const auto& dmn = projectedPayees[i];
-        nextPayments.emplace(dmn->proTxHash, mnList.GetHeight() + (int)i + 1);
+        int currentPayment = INT_MAX;
+        int nextPayment;
+        if(nextPayments.count(dmn->proTxHash))
+            currentPayment = nextPayments[dmn->proTxHash];
+
+        nextPayment = mnList.GetHeight() + (int)i + 1;
+
+        if(currentPayment != nextPayment){
+            nextPayments.emplace(dmn->proTxHash, nextPayment);
+#ifdef ENABLE_CLIENTAPI
+            GetMainSignals().UpdatedMasternode(dmn);
+#endif
+        }
     }
 }
 
+void CDeterministicMNManager::UpdateStatuses() {
+    CDeterministicMNList mnList;
+    if(GetListFromCache(mnList))
+        UpdateStatuses(mnList);
+}
+
+void CDeterministicMNManager::UpdateStatuses(CDeterministicMNList& mnList) {
+
+    mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+        std::string currentStatus = "";
+        std::string nextStatus;
+        if(statuses.count(dmn->proTxHash))
+            currentStatus = statuses[dmn->proTxHash];
+
+        if (mnList.IsMNValid(dmn))
+            nextStatus = "ENABLED";
+        else if (mnList.IsMNPoSeBanned(dmn))
+            nextStatus = "POSE_BANNED";
+        else
+            nextStatus =  "UNKNOWN";
+
+        if(currentStatus != nextStatus){
+            statuses.emplace(dmn->proTxHash, nextStatus);
+#ifdef ENABLE_CLIENTAPI
+            GetMainSignals().UpdatedMasternode(dmn);
+#endif
+        }
+
+    });
+}
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
 {
@@ -574,7 +626,8 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     }
 
     // Update list of next payments
-    UpdateNextPayments();
+    UpdateNextPayments(newList);
+    UpdateStatuses(newList);
 
     // TODO: uncomment when DIP3 enforcement block hash is known
     /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
@@ -622,7 +675,8 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
         uiInterface.NotifyMasternodeListChanged(prevList);
     }
 
-    UpdateNextPayments();
+    UpdateNextPayments(prevList);
+    UpdateStatuses(prevList);
 
     const auto& consensusParams = Params().GetConsensus();
     if (nHeight == consensusParams.DIP0003EnforcementHeight) {
@@ -919,6 +973,20 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     for (const auto& proTxHash : toDecrease) {
         mnList.PoSeDecrease(proTxHash);
     }
+}
+
+bool CDeterministicMNManager::GetListFromCache(CDeterministicMNList& mnList)
+{
+    if (!tipIndex)
+        return false;
+
+    auto it = mnListsCache.find(tipIndex->GetBlockHash());
+    if (it != mnListsCache.end()) {
+        mnList = it->second;
+        return true;
+    }
+
+    return false;
 }
 
 CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex* pindex)

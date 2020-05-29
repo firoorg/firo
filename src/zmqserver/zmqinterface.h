@@ -43,7 +43,7 @@ protected:
     void NotifyZnodeList();
     void NotifyAPIStatus();
     void UpdatedZnode(CZnode &znode);
-    void UpdatedMasternode(CDeterministicMNPtr masternode);
+    void UpdatedMasternode(CDeterministicMNCPtr masternode);
     void UpdatedSettings(std::string update);
     void UpdatedBalance();
     

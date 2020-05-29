@@ -13,7 +13,7 @@ from getpass import getuser
 function_id = "" # see 'get_function' for possible values. edit "data" object in each function as is needed
 auth = True
 os = "mac"
-network = "regtest"
+network = "testnet"
 passphrase = "passphrase"
 ############ END DEFAULTS ###########################
 
@@ -73,6 +73,8 @@ def get_function(function_id, passphrase):
         return list_mints(passphrase)
     if(function_id=="lockCoins"):
         return lock_coin()
+    if(function_id=="masternode_list"):
+        return masternode_list()
     if(function_id=="mint"):
         return mint(passphrase)
     if(function_id=="privateTxFee"):
@@ -233,6 +235,15 @@ def lock_wallet():
     request = {}
     request["type"] = "none"
     request["collection"] = "lockWallet"
+    return format(str(request))
+
+def masternode_list():
+    request = {}
+    data = {}
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "masternodeList"
+    request["data"] = data
     return format(str(request))
 
 def mint(passphrase):

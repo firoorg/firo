@@ -7960,6 +7960,19 @@ bool CWallet::HasMasternode(){
     return false;
 }
 
+bool CWallet::HasProTxCoin(COutPoint& coin)
+{
+    auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
+    if (mapWallet.count(coin.hash)) {
+        const auto &p = mapWallet[coin.hash];
+        if (deterministicMNManager->IsProTxWithCollateral(p.tx, coin.n) || mnList.HasMNByCollateral(coin)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void CWallet::ListProTxCoins(std::vector<COutPoint>& vOutpts)
 {
     auto mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
@@ -8323,6 +8336,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         if(fApi && !rescanning){
             SetAPIWarmupFinished();
             GetMainSignals().NotifyAPIStatus();
+            // Update next payments list for EVO Znodes
+            deterministicMNManager->GetListForBlock(chainActive.Tip());
+            deterministicMNManager->UpdateNextPayments();
+            deterministicMNManager->UpdateStatuses();
             LogPrintf("InitLoadWallet() : loaded API\n");
         }
 #endif

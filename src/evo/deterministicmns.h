@@ -636,6 +636,7 @@ private:
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
     std::map<uint256, int> nextPayments;
+    std::map<uint256, std::string> statuses;
     const CBlockIndex* tipIndex{nullptr};
 
 public:
@@ -650,13 +651,19 @@ public:
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet, bool debugLogs);
     void HandleQuorumCommitment(llmq::CFinalCommitment& qc, const CBlockIndex* pindexQuorum, CDeterministicMNList& mnList, bool debugLogs);
     void DecreasePoSePenalties(CDeterministicMNList& mnList);
+    void UpdateNextPayments(CDeterministicMNList& mnList);
     void UpdateNextPayments();
-
+    void UpdateStatuses(CDeterministicMNList& mnList);
+    void UpdateStatuses();
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
+    bool GetListFromCache(CDeterministicMNList& mnList);
     std::map<uint256, int>& GetNextPayments() {
         return nextPayments;
+    }
+    std::map<uint256, std::string>& GetStatuses() {
+        return statuses;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n

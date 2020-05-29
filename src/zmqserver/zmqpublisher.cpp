@@ -10,6 +10,8 @@
 #include "zmqabstract.h"
 #include "zmqpublisher.h"
 
+#include "rpc/rpcevo.h"
+
 #include "client-api/wallet.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
@@ -293,10 +295,8 @@ bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
     return true;
 }
 
-bool CZMQMasternodeEvent::NotifyMasternodeUpdate(CDeterministicMNPtr masternode){
-    UniValue data;
-    masternode->ToJson(data);
-    request.replace("data", data);
+bool CZMQMasternodeEvent::NotifyMasternodeUpdate(CDeterministicMNCPtr masternode) {
+    request.replace("data", BuildDMNListEntry(pwalletMain, masternode, true));
     Execute();
 
     return true;

@@ -59,7 +59,6 @@ void SetAPIWarmupFinished()
 
 bool APIIsInWarmup()
 {
-    LOCK(cs_apiWarmup);
     return fAPIInWarmup;
 }
 

@@ -135,7 +135,8 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         pid: INT,
         modules: {
             API: BOOL,
-            Znode: BOOL
+            Znode: BOOL,
+            Masternode: BOOL
         }
     },
     meta:{

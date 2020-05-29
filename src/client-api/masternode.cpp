@@ -6,8 +6,25 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "client-api/wallet.h"
+#include "evo/deterministicmns.h"
+#include "validation.h"
+#include "rpc/rpcevo.h"
 
 using namespace std;
+
+UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return false;
+
+    UniValue ret(UniValue::VOBJ);
+    CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
+    mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+        std::string proTxHash = dmn->proTxHash.ToString();
+        ret.push_back(Pair(proTxHash, BuildDMNListEntry(pwalletMain, dmn, true)));
+    });
+    return ret;
+}
 
 UniValue masternodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     
@@ -27,7 +44,9 @@ UniValue masternodeupdate(Type type, const UniValue& data, const UniValue& auth,
 static const CAPICommand commands[] =
 { //  category      collection          actor (function)   authPort   authPassphrase warmupOk
   //  --------      ----------          ----------------   -----      -------------- --------
-    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         true  }
+    { "masternode", "masternodeList",   &masternodelist,   true,      false,         false  },
+    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         true   }
+
 };
 void RegisterMasternodeAPICommands(CAPITable &tableAPI)
 {

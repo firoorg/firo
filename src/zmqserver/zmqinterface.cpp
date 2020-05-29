@@ -328,7 +328,7 @@ void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
     }
 }
 
-void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNPtr masternode)
+void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNCPtr masternode)
 {
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {

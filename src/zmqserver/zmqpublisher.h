@@ -130,7 +130,7 @@ class CZMQMasternodeEvent : virtual public CZMQAbstractPublisher
     /* Data related to an updated Masternode
     */
 public:
-    bool NotifyMasternodeUpdate(CDeterministicMNPtr masternode);
+    bool NotifyMasternodeUpdate(CDeterministicMNCPtr masternode);
 };
 
 class CZMQMintStatusEvent : virtual public CZMQAbstractPublisher

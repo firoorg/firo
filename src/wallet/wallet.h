@@ -835,6 +835,7 @@ public:
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
     void ListProTxCoins(std::vector<COutPoint>& vOutpts);
+    bool HasProTxCoin(COutPoint& coin);
 
     bool HasMasternode();
 

@@ -12,6 +12,7 @@
 #include "rpc/server.h"
 #include "rpc/client.h"
 #include "znodesync-interface.h"
+#include "znode-sync.h"
 #include "wallet/wallet.h"
 #include "znode.h"
 #include "net.h"
@@ -148,7 +149,8 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Znode", znodeSyncInterface.IsSynced()));
+    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
+    modules.push_back(Pair("Masternode", masternodeSync.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
