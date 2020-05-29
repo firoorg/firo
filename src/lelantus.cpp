@@ -961,7 +961,7 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
         if (!pubCoins.second.empty()) {
             auto &coinGroup = coinGroups[pubCoins.first];
 
-            if (!coinGroup.firstBlock) {
+            if (coinGroup.firstBlock == nullptr) {
                 coinGroup.firstBlock = index;
 
                 if (pubCoins.first > 1) {
@@ -991,7 +991,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
     for (auto &coins : index->lelantusMintedPubCoins)
     {
-        if (coinGroups.count(coins.first) <= 0) {
+        if (coinGroups.count(coins.first) == 0) {
             throw std::invalid_argument("Group Id does not exist");
         }
 
