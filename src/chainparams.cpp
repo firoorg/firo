@@ -246,8 +246,8 @@ public:
         // consensus.nBudgetPaymentsWindowBlocks = 100;
 
         // evo znodes
-        consensus.DIP0003Height = INT_MAX;
-        consensus.DIP0003EnforcementHeight = INT_MAX;
+        consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
+        consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
         consensus.DIP0008Height = INT_MAX;
         consensus.nEvoZnodeMinimumConfirmations = 15;
 
