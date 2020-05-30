@@ -30,6 +30,7 @@ void CMasternodeSync::Reset()
     nTimeAssetSyncStarted = GetTime();
     nTimeLastBumped = GetTime();
     nTimeLastFailure = 0;
+    fDIP3Enforced = false;
 }
 
 void CMasternodeSync::BumpAssetLastTime(const std::string& strFuncName)
@@ -70,7 +71,8 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
             });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
-            uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
+            if (fDIP3Enforced)
+                uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             break;
 /*        case(MASTERNODE_SYNC_GOVERNANCE):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
@@ -158,7 +160,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     // Calculate "progress" for LOG reporting / GUI notification
     double nSyncProgress = double(nTriedPeerCount + (nCurrentAsset - 1) * 8) / (8*4);
     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTriedPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nTriedPeerCount, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
+    if (fDIP3Enforced)
+        uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
 
@@ -334,6 +337,9 @@ void CMasternodeSync::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitia
 void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload, CConnman& connman)
 {
     LogPrint("mnsync", "CMasternodeSync::UpdatedBlockTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
+
+    if (pindexNew->nHeight >= Params().GetConsensus().DIP0003EnforcementHeight)
+        fDIP3Enforced = true;
 
     if (IsFailed() || IsSynced() || !pindexBestHeader)
         return;
