@@ -48,7 +48,7 @@
          <item>
           <widget class="QValidatedLineEdit" name="addressIn_SM">
            <property name="toolTip">
-            <string>The Bitcoin address to sign the message with</string>
+            <string>The Zcoin address to sign the message with</string>
            </property>
           </widget>
          </item>

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2012-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -8,7 +8,6 @@ they can be picked up by Qt linguist.
 '''
 from __future__ import division,print_function,unicode_literals
 from subprocess import Popen, PIPE
-import glob
 import operator
 import os
 import sys

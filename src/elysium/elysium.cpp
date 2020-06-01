@@ -30,11 +30,12 @@
 
 #include "../base58.h"
 #include "../chainparams.h"
-#include "../coincontrol.h"
+#include "../wallet/coincontrol.h"
 #include "../coins.h"
 #include "../core_io.h"
 #include "../init.h"
-#include "../main.h"
+#include "../validation.h"
+#include "../net.h"
 #include "../primitives/block.h"
 #include "../primitives/transaction.h"
 #include "../script/script.h"
@@ -657,26 +658,24 @@ static bool FillTxInputCache(const CTransaction& tx)
         }
 
         unsigned int nOut = txIn.prevout.n;
-        CCoinsModifier coins = view.ModifyCoins(txIn.prevout.hash);
+        Coin coin = view.AccessCoin(txIn.prevout);
 
-        if (coins->IsAvailable(nOut)) {
+        if (!coin.IsSpent()) {
             ++nCacheHits;
             continue;
         } else {
             ++nCacheMiss;
         }
 
-        CTransaction txPrev;
+        CTransactionRef txPrev;
         uint256 hashBlock;
         if (!GetTransaction(txIn.prevout.hash, txPrev, Params().GetConsensus(), hashBlock, true)) {
             return false;
         }
 
-        if (nOut >= coins->vout.size()) {
-            coins->vout.resize(nOut+1);
-        }
-        coins->vout[nOut].scriptPubKey = txPrev.vout[nOut].scriptPubKey;
-        coins->vout[nOut].nValue = txPrev.vout[nOut].nValue;
+        coin.out.scriptPubKey = txPrev->vout[nOut].scriptPubKey;
+        coin.out.nValue = txPrev->vout[nOut].nValue;
+        view.AddCoin(txIn.prevout, std::move(coin), true);
     }
 
     return true;
@@ -738,20 +737,18 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             if (elysium_debug_vin) PrintToLog("vin=%d:%s\n", i, ScriptToAsmStr(wtx.vin[i].scriptSig));
 
             const CTxIn& txIn = wtx.vin[i];
-            const CTxOut& txOut = view.GetOutputFor(txIn);
-
-            assert(!txOut.IsNull());
+            const Coin& txOut = view.AccessCoin(txIn.prevout);
 
             CTxDestination source;
             txnouttype whichType;
-            if (!GetOutputType(txOut.scriptPubKey, whichType)) {
+            if (!GetOutputType(txOut.out.scriptPubKey, whichType)) {
                 return -104;
             }
             if (!IsAllowedInputType(whichType, nBlock)) {
                 return -105;
             }
-            if (ExtractDestination(txOut.scriptPubKey, source)) { // extract the destination of the previous transaction's vout[n] and check it's allowed type
-                inputs_sum_of_values[CBitcoinAddress(source)] += txOut.nValue;
+            if (ExtractDestination(txOut.out.scriptPubKey, source)) { // extract the destination of the previous transaction's vout[n] and check it's allowed type
+                inputs_sum_of_values[CBitcoinAddress(source)] += txOut.out.nValue;
             }
             else return -106;
         }
@@ -783,19 +780,17 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         if (elysium_debug_vin) PrintToLog("vin=%d:%s\n", vin_n, ScriptToAsmStr(wtx.vin[vin_n].scriptSig));
 
         const CTxIn& txIn = wtx.vin[vin_n];
-        const CTxOut& txOut = view.GetOutputFor(txIn);
-
-        assert(!txOut.IsNull());
+        const Coin& txOut = view.AccessCoin(txIn.prevout);
 
         txnouttype whichType;
-        if (!GetOutputType(txOut.scriptPubKey, whichType)) {
+        if (!GetOutputType(txOut.out.scriptPubKey, whichType)) {
             return -108;
         }
         if (!IsAllowedInputType(whichType, nBlock)) {
             return -109;
         }
         CTxDestination source;
-        if (ExtractDestination(txOut.scriptPubKey, source)) {
+        if (ExtractDestination(txOut.out.scriptPubKey, source)) {
             sender = source;
         }
         else return -110;
@@ -1196,7 +1191,7 @@ static int elysium_initial_scan(int nFirstBlock)
         elysium_handler_block_begin(nBlock, pblockindex);
 
         for (unsigned i = 0; i < block.vtx.size(); i++) {
-            if (elysium_handler_tx(block.vtx[i], nBlock, i, pblockindex)) {
+            if (elysium_handler_tx(*block.vtx[i], nBlock, i, pblockindex)) {
                 parsed++;
             }
         }
@@ -2323,10 +2318,13 @@ int elysium::WalletTxBuilder(
         return 0;
     } else {
         // Commit the transaction to the wallet and broadcast)
-        PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew.ToString(), nFeeRet);
+        PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
         switch (inputMode) {
         case InputMode::NORMAL:
-            if (!pwalletMain->CommitTransaction(wtxNew, reserveKey)) return MP_ERR_COMMIT_TX;
+            {
+                CValidationState state;
+                if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)) return MP_ERR_COMMIT_TX;
+            }
             break;
         case InputMode::SIGMA:
             try {
@@ -2483,7 +2481,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
     for (std::vector<std::pair<std::string, uint256> >::iterator it = loadOrder.begin(); it != loadOrder.end(); ++it) {
         uint256 hash = (*it).second;
         uint256 blockHash;
-        CTransaction wtx;
+        CTransactionRef wtx;
         CMPTransaction mp_obj;
         if (!GetTransaction(hash, wtx, Params().GetConsensus(), blockHash, true)) {
             PrintToLog("ERROR: While loading freeze transaction %s: tx in levelDB but does not exist.\n", hash.GetHex());
@@ -2503,7 +2501,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             PrintToLog("ERROR: While loading freeze transaction %s: transaction is in the future.\n", hash.GetHex());
             return false;
         }
-        if (0 != ParseTransaction(wtx, txBlockHeight, 0, mp_obj)) {
+        if (0 != ParseTransaction(*wtx, txBlockHeight, 0, mp_obj)) {
             PrintToLog("ERROR: While loading freeze transaction %s: failed ParseTransaction.\n", hash.GetHex());
             return false;
         }
@@ -2558,7 +2556,7 @@ void CMPTxList::LoadActivations(int blockHeight)
     for (std::vector<std::pair<int64_t, uint256> >::iterator it = loadOrder.begin(); it != loadOrder.end(); ++it) {
         uint256 hash = (*it).second;
         uint256 blockHash;
-        CTransaction wtx;
+        CTransactionRef wtx;
         CMPTransaction mp_obj;
 
         if (!GetTransaction(hash, wtx, Params().GetConsensus(), blockHash, true)) {
@@ -2575,7 +2573,7 @@ void CMPTxList::LoadActivations(int blockHeight)
             continue;
         }
         int blockHeight = pBlockIndex->nHeight;
-        if (0 != ParseTransaction(wtx, blockHeight, 0, mp_obj)) {
+        if (0 != ParseTransaction(*wtx, blockHeight, 0, mp_obj)) {
             PrintToLog("ERROR: While loading activation transaction %s: failed ParseTransaction.\n", hash.GetHex());
             continue;
         }
@@ -2597,7 +2595,7 @@ void CMPTxList::LoadActivations(int blockHeight)
     CheckLiveActivations(blockHeight);
 
     // This alert never expires as long as custom activations are used
-    if (mapArgs.count("-elysiumactivationallowsender") || mapArgs.count("-elysiumactivationignoresender")) {
+    if (IsArgSet("-elysiumactivationallowsender") || IsArgSet("-elysiumactivationignoresender")) {
         AddAlert("elysium", ALERT_CLIENT_VERSION_EXPIRY, std::numeric_limits<uint32_t>::max(),
                  "Authorization for feature activation has been modified.  Data provided by this client should not be trusted.");
     }
@@ -2626,13 +2624,13 @@ void CMPTxList::LoadAlerts(int blockHeight)
     for (std::vector<std::pair<int64_t, uint256> >::iterator it = loadOrder.begin(); it != loadOrder.end(); ++it) {
         uint256 txid = (*it).second;
         uint256 blockHash;
-        CTransaction wtx;
+        CTransactionRef wtx;
         CMPTransaction mp_obj;
         if (!GetTransaction(txid, wtx, Params().GetConsensus(), blockHash, true)) {
             PrintToLog("ERROR: While loading alert %s: tx in levelDB but does not exist.\n", txid.GetHex());
             continue;
         }
-        if (0 != ParseTransaction(wtx, blockHeight, 0, mp_obj)) {
+        if (0 != ParseTransaction(*wtx, blockHeight, 0, mp_obj)) {
             PrintToLog("ERROR: While loading alert %s: failed ParseTransaction.\n", txid.GetHex());
             continue;
         }

@@ -35,7 +35,7 @@ public:
 
 private:
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         int32_t block = this->block;
 
@@ -65,7 +65,7 @@ public:
 
 private:
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(property);
         READWRITE(denomination);
@@ -106,7 +106,7 @@ public:
 
 private:
     template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(property);
         READWRITE(denomination);

@@ -238,14 +238,6 @@
         <translation>საკომანდო სტრიქონის ოპ&amp;ციები</translation>
     </message>
     <message>
-        <source>No block source available...</source>
-        <translation>ბლოკების წყარო მიუწვდომელია...</translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 და %2</translation>
-    </message>
-    <message>
         <source>%1 behind</source>
         <translation>%1 გავლილია</translation>
     </message>
@@ -293,7 +285,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>საფულე &lt;b&gt;დაშიფრულია&lt;/b&gt; და ამჟამად &lt;b&gt;დაბლოკილია&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -307,10 +299,6 @@
     <message>
         <source>Amount:</source>
         <translation>თანხა:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>პრიორიტეტი:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -351,10 +339,6 @@
     <message>
         <source>Confirmed</source>
         <translation>დადასტურებულია</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>პრიორიტეტი</translation>
     </message>
     </context>
 <context>
@@ -439,6 +423,17 @@
     <message>
         <source>Error</source>
         <translation>შეცდომა</translation>
+    </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>ფორმა</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>ბოლო ბლოკის დრო</translation>
     </message>
     </context>
 <context>
@@ -666,6 +661,13 @@
         <source>N/A</source>
         <translation>მიუწვდ.</translation>
     </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 და %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -907,10 +909,6 @@
     <message>
         <source>Amount:</source>
         <translation>თანხა:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>პრიორიტეტი:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -1174,10 +1172,6 @@
         <translation>რეზიდენტულად გაშვება და კომანდების მიღება</translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>გარედან შეერთებების დაშვება (ნაგულისხმევი: 1 თუ არ გამოიყენება -proxy ან -connect)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>Zcoin Core</translation>
     </message>
@@ -1190,28 +1184,12 @@
         <translation>კომანდის შესრულება საფულის ტრანსაქციის ცვლილებისას (%s კომანდაში ჩანაცვლდება TxID-ით)</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>ეს არის წინასწარი სატესტო ვერსია - გამოიყენეთ საკუთარი რისკით - არ გამოიყენოთ მოპოვებისა ან კომერციული მიზნებისათვის</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>ყურადღება: ქსელში შეუთანხმებლობაა. შესაძლოა ცალკეულ მომპოვებლებს პრობლემები ექმნებათ!</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>ყურადღება: ჩვენ არ ვეთანხმებით ყველა პირს. შესაძლოა თქვენ ან სხვა კვანძებს განახლება გჭირდებათ.</translation>
-    </message>
-    <message>
         <source>&lt;category&gt; can be:</source>
         <translation>&lt;category&gt; შეიძლება იყოს:</translation>
     </message>
     <message>
         <source>Block creation options:</source>
         <translation>ბლოკის შექმნის ოპციები:</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>შეერთება მხოლოდ მითითებულ კვანძ(ებ)თან</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>
@@ -1312,10 +1290,6 @@
     <message>
         <source>Transaction amount too small</source>
         <translation>ტრანსაქციების რაოდენობა ძალიან ცოტაა</translation>
-    </message>
-    <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>ტრანსაქციების რაოდენობა დადებითი რიცხვი უნდა იყოს</translation>
     </message>
     <message>
         <source>Transaction too large</source>

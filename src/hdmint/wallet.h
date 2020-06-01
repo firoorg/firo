@@ -37,7 +37,7 @@ public:
     bool LoadMintPoolFromDB();
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma);
     bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
-    bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
+    bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
     std::pair<uint256,uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
     void GenerateMintPool(int32_t nIndex = 0);
@@ -51,6 +51,7 @@ public:
     void UpdateCountLocal();
     void UpdateCountDB();
     void UpdateCount();
+    void SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex *blockIndex, const CBlock &block);
 
 private:
     CKeyID GetMintSeedID(int32_t nCount);

@@ -7,7 +7,7 @@
 #include "elysium/mdex.h"
 
 #include "amount.h"
-#include "main.h"
+#include "validation.h"
 #include "sync.h"
 #include "txmempool.h"
 #include "uint256.h"
@@ -23,7 +23,8 @@ PendingMap my_pending;
 /**
  * Adds a transaction to the pending map using supplied parameters.
  */
-void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t type, uint32_t propertyId, int64_t amount, bool fSubtract)
+void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t type, uint32_t propertyId,
+    int64_t amount, bool fSubtract, const boost::optional<std::string> &receivingAddress)
 {
     if (elysium_debug_pending) PrintToLog("%s(%s,%s,%d,%d,%d,%s)\n", __func__, txid.GetHex(), sendingAddress, type, propertyId, amount, fSubtract);
 
@@ -41,6 +42,7 @@ void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t
     pending.amount = amount;
     pending.prop = propertyId;
     pending.type = type;
+    pending.dest = receivingAddress;
     {
         LOCK(cs_main);
         my_pending.insert(std::make_pair(txid, pending));

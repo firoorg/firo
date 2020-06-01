@@ -171,7 +171,7 @@ uint8_t ParseMetaDExAction(const UniValue& value)
 
 CTransaction ParseTransaction(const UniValue& value)
 {
-    CTransaction tx;
+    CMutableTransaction tx;
     if (value.isNull() || value.get_str().empty()) {
         return tx;
     }

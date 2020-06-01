@@ -10,6 +10,7 @@ class CTransaction;
 #include "packetencoder.h"
 #include "sp.h"
 
+#include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include "../uint256.h"
@@ -278,6 +279,19 @@ public:
     const elysium::SigmaProof *getSpend() const { return spend.get(); }
     const CPubKey &getECDSAPublicKey() const { return ecdsaPubkey; }
     const ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
+    CAmount getMintAmount() const {
+        auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, elysium::SigmaPublicKey> const &m) -> uint8_t {
+            return m.first;
+        });
+
+        return SumDenominationsValue(getProperty(), itr, itr + mints.size());
+    }
+
+    CAmount getSpendAmount() const {
+        std::array<uint8_t, 1> denoms = {getDenomination()};
+        return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
+    }
+
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

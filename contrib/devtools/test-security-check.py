@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 # Copyright (c) 2015-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -7,7 +7,6 @@ Test script for security-check.py
 '''
 from __future__ import division,print_function
 import subprocess
-import sys
 import unittest
 
 def write_testcode(filename):

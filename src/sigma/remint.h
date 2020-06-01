@@ -35,7 +35,7 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(coinRemintVersion);
         READWRITE(coinMintVersion);
         READWRITE(coinDenomination);    // check for the fixed list of denominations is made in the Verify() method

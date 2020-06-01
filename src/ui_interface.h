@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2012-2015 The Bitcoin Core developers
+// Copyright (c) 2012-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,6 +16,7 @@ class CBasicKeyStore;
 class CWallet;
 class uint256;
 class CBlockIndex;
+class CDeterministicMNList;
 
 /** General change type (added, updated, removed). */
 enum ChangeType
@@ -87,6 +88,9 @@ public:
 
     /** Ask the user whether they want to pay a fee or not. */
     boost::signals2::signal<bool (int64_t nFeeRequired), boost::signals2::last_value<bool> > ThreadSafeAskFee;
+    
+    /** Network activity state changed. */
+    boost::signals2::signal<void (bool networkActive)> NotifyNetworkActiveChanged;
 
     /**
      * Status bar alerts changed.
@@ -108,8 +112,11 @@ public:
     /** Banlist did change. */
     boost::signals2::signal<void (void)> BannedListChanged;
 
+    /** Masternode list has changed */
+    boost::signals2::signal<void (const CDeterministicMNList&)> NotifyMasternodeListChanged;
+
     /** Additional data sync progress changed */
-    boost::signals2::signal<void (int count, double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
+    boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
 
     /** Elysium balances have been updated. */
     boost::signals2::signal<void ()> ElysiumBalanceChanged;
@@ -129,6 +136,8 @@ void InitWarning(const std::string& str);
 
 /** Show error message **/
 bool InitError(const std::string& str);
+
+std::string AmountHighWarn(const std::string& optname);
 
 std::string AmountErrMsg(const char* const optname, const std::string& strValue);
 

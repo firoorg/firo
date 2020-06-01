@@ -24,7 +24,7 @@
 
 #include "../amount.h"
 #include "../base58.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../sync.h"
 #include "../uint256.h"
 #include "../wallet/wallet.h"
@@ -91,8 +91,8 @@ void SendMPDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshOmniBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitOmniState()), this, SLOT(balancesUpdated()));
+        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
+        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(balancesUpdated()));
     }
 }
 

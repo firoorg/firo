@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -76,14 +76,17 @@ void EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs
 void LeaveCritical();
 std::string LocksHeld();
 void AssertLockHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs);
+void AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs);
 void DeleteLock(void* cs);
 #else
 void static inline EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs, bool fTry = false) {}
 void static inline LeaveCritical() {}
 void static inline AssertLockHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs) {}
+void static inline AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs) {}
 void static inline DeleteLock(void* cs) {}
 #endif
 #define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, __LINE__, &cs)
+#define AssertLockNotHeld(cs) AssertLockNotHeldInternal(#cs, __FILE__, __LINE__, &cs)
 
 /**
  * Wrapped boost mutex: supports recursive locking, but no waiting
@@ -171,7 +174,10 @@ public:
 
 typedef CMutexLock<CCriticalSection> CCriticalBlock;
 
-#define LOCK(cs) CCriticalBlock criticalblock(cs, #cs, __FILE__, __LINE__)
+#define PASTE(x, y) x ## y
+#define PASTE2(x, y) PASTE(x, y)
+
+#define LOCK(cs) CCriticalBlock PASTE2(criticalblock, __COUNTER__)(cs, #cs, __FILE__, __LINE__)
 #define LOCK2(cs1, cs2) CCriticalBlock criticalblock1(cs1, #cs1, __FILE__, __LINE__), criticalblock2(cs2, #cs2, __FILE__, __LINE__)
 #define TRY_LOCK(cs, name) CCriticalBlock name(cs, #cs, __FILE__, __LINE__, true)
 
@@ -261,7 +267,6 @@ public:
         grant.Release();
         grant.sem = sem;
         grant.fHaveGrant = fHaveGrant;
-        sem = NULL;
         fHaveGrant = false;
     }
 

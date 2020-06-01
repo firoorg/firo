@@ -25,18 +25,17 @@ namespace
 CTransaction TxFromStr(std::string const & str)
 {
     CDataStream stream(ParseHex(str), SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
+    CMutableTransaction tx;
     stream >> tx;
     return tx;
 }
 
 void AddTxToView(CTransaction const & tx, int height, CCoinsViewCache & viewCache)
 {
-    CCoinsModifier coins = viewCache.ModifyCoins(tx.GetHash());
-    coins->FromTx(tx, height);
+    for (size_t i=0; i<tx.vout.size(); i++)
+        viewCache.AddCoin(COutPoint(tx.GetHash(), i), Coin(tx.vout[i], height, tx.IsCoinBase()), false);
 }
 }
-
 
 BOOST_AUTO_TEST_CASE(dbindexhelper_coinbase)
 {

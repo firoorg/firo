@@ -47,7 +47,7 @@ private:
 	const Bignum contents;
 	ADD_SERIALIZE_METHODS;
 	template <typename Stream, typename Operation>
-	inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+	inline void SerializationOp(Stream& s, Operation ser_action) {
 		READWRITE(commitmentValue);
 		READWRITE(randomness);
 		READWRITE(contents);
@@ -97,7 +97,7 @@ public:
 	bool Verify(const Bignum& A, const Bignum& B) const;
 	ADD_SERIALIZE_METHODS;
 	template <typename Stream, typename Operation>
-	inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+	inline void SerializationOp(Stream& s, Operation ser_action) {
 		READWRITE(S1);
 		READWRITE(S2);
 		READWRITE(S3);

@@ -2,8 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "validation.h"
+#include "net_processing.h"
+#include "netmessagemaker.h"
 #include "darksend.h"
-#include "main.h"
 #include "spork.h"
 
 #include <boost/lexical_cast.hpp>
@@ -48,13 +50,15 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
 
         if(!spork.CheckSignature()) {
             LogPrintf("CSporkManager::ProcessSpork -- invalid signature\n");
-            Misbehaving(pfrom->GetId(), 100);
             return;
         }
 
+        // Don't act on received spork in any way
+        /*
         mapSporks[hash] = spork;
         mapSporksActive[spork.nSporkID] = spork;
-        spork.Relay();
+        */
+        //spork.Relay();
 
         //does a task if needed
         ExecuteSpork(spork.nSporkID, spork.nValue);
@@ -64,7 +68,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
         std::map<int, CSporkMessage>::iterator it = mapSporksActive.begin();
 
         while(it != mapSporksActive.end()) {
-            pfrom->PushMessage(NetMsgType::SPORK, it->second);
+            g_connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SPORK, it->second));
             it++;
         }
     }
@@ -73,46 +77,18 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
 
 void CSporkManager::ExecuteSpork(int nSporkID, int nValue)
 {
-    //correct fork via spork technology
-    if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) {
-        // allow to reprocess 24h of blocks max, which should be enough to resolve any issues
-        int64_t nMaxBlocks = 576;
-        // this potentially can be a heavy operation, so only allow this to be executed once per 10 minutes
-        int64_t nTimeout = 10 * 60;
-
-        static int64_t nTimeExecuted = 0; // i.e. it was never executed before
-
-        if(GetTime() - nTimeExecuted < nTimeout) {
-            LogPrint("spork", "CSporkManager::ExecuteSpork -- ERROR: Trying to reconsider blocks, too soon - %d/%d\n", GetTime() - nTimeExecuted, nTimeout);
-            return;
-        }
-
-        if(nValue > nMaxBlocks) {
-            LogPrintf("CSporkManager::ExecuteSpork -- ERROR: Trying to reconsider too many blocks %d/%d\n", nValue, nMaxBlocks);
-            return;
-        }
-
-
-        LogPrintf("CSporkManager::ExecuteSpork -- Reconsider Last %d Blocks\n", nValue);
-
-        ReprocessBlocks(nValue);
-        nTimeExecuted = GetTime();
-    }
 }
 
 bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 {
-
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    if(spork.Sign(strMasterPrivKey)) {
+    if (spork.Sign(strMasterPrivKey)) {
         spork.Relay();
         mapSporks[spork.GetHash()] = spork;
         mapSporksActive[nSporkID] = spork;
-        return true;
     }
-
-    return false;
+    return true;
 }
 
 // grab the spork, otherwise say it's off
@@ -202,6 +178,7 @@ std::string CSporkManager::GetSporkNameByID(int nSporkID)
 
 bool CSporkManager::SetPrivKey(std::string strPrivKey)
 {
+    return true;
     CSporkMessage spork;
 
     spork.Sign(strPrivKey);
@@ -258,6 +235,8 @@ bool CSporkMessage::CheckSignature()
 
 void CSporkMessage::Relay()
 {
+    /*
     CInv inv(MSG_SPORK, GetHash());
-    RelayInv(inv);
+    g_connman->RelayInv(inv);
+    */
 }

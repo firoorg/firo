@@ -4,14 +4,21 @@
 
 #include "activeznode.h"
 #include "checkpoints.h"
-#include "main.h"
+#include "validation.h"
 #include "znode.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"
+#include "darksend.h"
+#include "net_processing.h"
+#include "netmessagemaker.h"
 #include "util.h"
+
+// TODO: remove this when upgraded to dash latest version
+#define cs_vNodes (g_connman->cs_vNodes)
+#define vNodes (g_connman->vNodes)
 
 class CZnodeSync;
 
@@ -94,13 +101,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         return true;
     }
 
-    if (fCheckpointsEnabled && 
-        pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
-        
-        return false;
-    }
-
-    std::vector < CNode * > vNodesCopy = CopyNodeVector();
+    std::vector < CNode * > vNodesCopy = g_connman->CopyNodeVector();
     // We have enough peers and assume most of them are synced
     if (vNodesCopy.size() >= ZNODE_SYNC_ENOUGH_PEERS) {
         // Check to see how many of our peers are (almost) at the same height as we are
@@ -116,12 +117,12 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
             if (nNodesAtSameHeight >= ZNODE_SYNC_ENOUGH_PEERS) {
                 LogPrintf("CZnodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
-                ReleaseNodeVector(vNodesCopy);
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return true;
             }
         }
     }
-    ReleaseNodeVector(vNodesCopy);
+    g_connman->ReleaseNodeVector(vNodesCopy);
 
     // wait for at least one new block to be accepted
     if (!fFirstBlockAccepted) return false;
@@ -258,7 +259,7 @@ void CZnodeSync::ProcessTick() {
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
     LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(pCurrentBlockIndex->nHeight, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     // RESET SYNCING INCASE OF FAILURE
     {
@@ -270,8 +271,8 @@ void CZnodeSync::ProcessTick() {
                 LogPrintf("CZnodeSync::ProcessTick -- WARNING: not enough data, restarting sync\n");
                 Reset();
             } else {
-                std::vector < CNode * > vNodesCopy = CopyNodeVector();
-                ReleaseNodeVector(vNodesCopy);
+                std::vector < CNode * > vNodesCopy = g_connman->CopyNodeVector();
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return;
             }
         }
@@ -295,7 +296,7 @@ void CZnodeSync::ProcessTick() {
         SwitchToNextAsset();
     }
 
-    std::vector < CNode * > vNodesCopy = CopyNodeVector();
+    std::vector < CNode * > vNodesCopy = g_connman->CopyNodeVector();
 
     BOOST_FOREACH(CNode * pnode, vNodesCopy)
     {
@@ -303,22 +304,22 @@ void CZnodeSync::ProcessTick() {
         // they are temporary and should be considered unreliable for a sync process.
         // Inbound connection this early is most likely a "znode" connection
         // initialted from another node, so skip it too.
-        if (pnode->fZnode || (fZNode && pnode->fInbound)) continue;
+        if (pnode->fZnode || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
         if (Params().NetworkIDString() == CBaseChainParams::REGTEST) {
             if (nRequestedZnodeAttempt <= 2) {
-                pnode->PushMessage(NetMsgType::GETSPORKS); //get current network sporks
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
             } else if (nRequestedZnodeAttempt < 4) {
                 mnodeman.DsegUpdate(pnode);
             } else if (nRequestedZnodeAttempt < 6) {
                 int nMnCount = mnodeman.CountZnodes();
-                pnode->PushMessage(NetMsgType::ZNODEPAYMENTSYNC, nMnCount); //sync payment votes
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
             }
             nRequestedZnodeAttempt++;
-            ReleaseNodeVector(vNodesCopy);
+            g_connman->ReleaseNodeVector(vNodesCopy);
             return;
         }
 
@@ -338,7 +339,7 @@ void CZnodeSync::ProcessTick() {
                 // only request once from each peer
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
                 // get current network sporks
-                pnode->PushMessage(NetMsgType::GETSPORKS);
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS));
                 LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- requesting sporks from peer %d\n", nTick, nRequestedZnodeAssets, pnode->id);
                 continue; // always get sporks first, switch to the next node without waiting for the next tick
             }
@@ -353,11 +354,11 @@ void CZnodeSync::ProcessTick() {
                         LogPrintf("CZnodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // there is no way we can continue without znode list, fail here and try later
                         Fail();
-                        ReleaseNodeVector(vNodesCopy);
+                        g_connman->ReleaseNodeVector(vNodesCopy);
                         return;
                     }
                     SwitchToNextAsset();
-                    ReleaseNodeVector(vNodesCopy);
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -365,19 +366,19 @@ void CZnodeSync::ProcessTick() {
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
 
-                if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
+                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
 
                 mnodeman.DsegUpdate(pnode);
 
-                ReleaseNodeVector(vNodesCopy);
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
             }
 
             // MNW : SYNC ZNODE PAYMENT VOTES FROM OTHER CONNECTED CLIENTS
 
             if (nRequestedZnodeAssets == ZNODE_SYNC_MNW) {
-                LogPrint("mnpayments", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
+                LogPrint("znpayments", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
                 // check for timeout first
                 // This might take a lot longer than ZNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
                 // but that should be OK and it should timeout eventually.
@@ -387,21 +388,21 @@ void CZnodeSync::ProcessTick() {
                         LogPrintf("CZnodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // probably not a good idea to proceed without winner list
                         Fail();
-                        ReleaseNodeVector(vNodesCopy);
+                        g_connman->ReleaseNodeVector(vNodesCopy);
                         return;
                     }
                     SwitchToNextAsset();
-                    ReleaseNodeVector(vNodesCopy);
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
                 // check for data
-                // if mnpayments already has enough blocks and votes, switch to the next asset
+                // if znpayments already has enough blocks and votes, switch to the next asset
                 // try to fetch data from at least two peers though
-                if (nRequestedZnodeAttempt > 1 && mnpayments.IsEnoughData()) {
+                if (nRequestedZnodeAttempt > 1 && znpayments.IsEnoughData()) {
                     LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- found enough data\n", nTick, nRequestedZnodeAssets);
                     SwitchToNextAsset();
-                    ReleaseNodeVector(vNodesCopy);
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -409,22 +410,22 @@ void CZnodeSync::ProcessTick() {
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
 
-                if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
+                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
 
                 // ask node for all payment votes it has (new nodes will only return votes for future payments)
-                pnode->PushMessage(NetMsgType::ZNODEPAYMENTSYNC, mnpayments.GetStorageLimit());
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, znpayments.GetStorageLimit()));
                 // ask node for missing pieces only (old nodes will not be asked)
-                mnpayments.RequestLowDataPaymentBlocks(pnode);
+                znpayments.RequestLowDataPaymentBlocks(pnode);
 
-                ReleaseNodeVector(vNodesCopy);
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
             }
 
         }
     }
     // looped through all nodes, release them
-    ReleaseNodeVector(vNodesCopy);
+    g_connman->ReleaseNodeVector(vNodesCopy);
 }
 
 void CZnodeSync::UpdatedBlockTip(const CBlockIndex *pindex) {

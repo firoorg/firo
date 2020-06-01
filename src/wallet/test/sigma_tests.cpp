@@ -6,7 +6,7 @@
 #include "../walletexcept.h"
 
 #include "../../sigma/coinspend.h"
-#include "../../main.h"
+#include "../../validation.h"
 #include "../../random.h"
 
 #include <set>
@@ -82,7 +82,7 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
-            zwalletMain->GenerateMint(priv.getPublicCoin().getDenomination(), priv, dMint, boost::none);
+            zwalletMain->GenerateMint(priv.getPublicCoin().getDenomination(), priv, dMint, boost::none, true);
 
             auto& pub = priv.getPublicCoin();
 
@@ -542,26 +542,26 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     bool fChangeAddedToFee;
     CWalletTx tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee);
 
-    BOOST_CHECK(tx.vin.size() == 2);
+    BOOST_CHECK(tx.tx->vin.size() == 2);
 
     // 2 outputs to recipients 5 + 10 xzc
     // 10 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 + 0.05 xzc
-    BOOST_CHECK(tx.vout.size() == 12);
+    BOOST_CHECK(tx.tx->vout.size() == 12);
     BOOST_CHECK(fee > 0);
 
     BOOST_CHECK(selected.size() == 2);
     BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
     BOOST_CHECK(selected[1].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
 
-    BOOST_CHECK(CheckSpend(tx.vin[0], selected[0]));
-    BOOST_CHECK(CheckSpend(tx.vin[1], selected[1]));
+    BOOST_CHECK(CheckSpend(tx.tx->vin[0], selected[0]));
+    BOOST_CHECK(CheckSpend(tx.tx->vin[1], selected[1]));
 
-    BOOST_CHECK(ContainTxOut(tx.vout,
+    BOOST_CHECK(ContainTxOut(tx.tx->vout,
         make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
-    BOOST_CHECK(ContainTxOut(tx.vout,
+    BOOST_CHECK(ContainTxOut(tx.tx->vout,
         make_pair(GetScriptForDestination(randomAddr2.Get()), 10 * COIN ), 1));
 
-    CAmount remintsSum = std::accumulate(tx.vout.begin(), tx.vout.end(), 0, [](CAmount c, const CTxOut& v) {
+    CAmount remintsSum = std::accumulate(tx.tx->vout.begin(), tx.tx->vout.end(), 0, [](CAmount c, const CTxOut& v) {
         return c + (v.scriptPubKey.IsSigmaMint() ? v.nValue : 0);
     });
 

@@ -82,10 +82,6 @@ ZnodeList::~ZnodeList()
 void ZnodeList::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
-    if(model) {
-        // try to update list when znode count changes
-        connect(clientModel, SIGNAL(strZnodesChanged(QString)), this, SLOT(updateNodeList()));
-    }
 }
 
 void ZnodeList::setWalletModel(WalletModel *model)
@@ -224,9 +220,9 @@ void ZnodeList::updateMyNodeList(bool fForce)
     }
     static int64_t nTimeMyListUpdated = 0;
 
-    // automatically update my znode list only once in MY_MASTERNODELIST_UPDATE_SECONDS seconds,
+    // automatically update my znode list only once in MY_ZNODELIST_UPDATE_SECONDS seconds,
     // this update still can be triggered manually at any time via button click
-    int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_MASTERNODELIST_UPDATE_SECONDS - GetTime();
+    int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_ZNODELIST_UPDATE_SECONDS - GetTime();
     ui->secondsLabel->setText(QString::number(nSecondsTillUpdate));
 
     if(nSecondsTillUpdate > 0 && !fForce) return;
@@ -256,11 +252,11 @@ void ZnodeList::updateNodeList()
 
     static int64_t nTimeListUpdated = GetTime();
 
-    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
-    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
+    // to prevent high cpu usage update only once in ZNODELIST_UPDATE_SECONDS seconds
+    // or ZNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
     int64_t nSecondsToWait = fFilterUpdated
-                            ? nTimeFilterUpdated - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS
-                            : nTimeListUpdated - GetTime() + MASTERNODELIST_UPDATE_SECONDS;
+                            ? nTimeFilterUpdated - GetTime() + ZNODELIST_FILTER_COOLDOWN_SECONDS
+                            : nTimeListUpdated - GetTime() + ZNODELIST_UPDATE_SECONDS;
 
     if(fFilterUpdated) ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
     if(nSecondsToWait > 0) return;
@@ -318,7 +314,7 @@ void ZnodeList::on_filterLineEdit_textChanged(const QString &strFilterIn)
     strCurrentFilter = strFilterIn;
     nTimeFilterUpdated = GetTime();
     fFilterUpdated = true;
-    ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", MASTERNODELIST_FILTER_COOLDOWN_SECONDS)));
+    ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", ZNODELIST_FILTER_COOLDOWN_SECONDS)));
 }
 
 void ZnodeList::on_startButton_clicked()
