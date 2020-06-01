@@ -738,6 +738,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
 void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid)
 {
     mapTxSpends.insert(make_pair(outpoint, wtxid));
+    setWalletUTXO.erase(outpoint);
 
     pair<TxSpends::iterator, TxSpends::iterator> range;
     range = mapTxSpends.equal_range(outpoint);
@@ -7153,6 +7154,17 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
+        }
+    }
+
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (auto& pair : mapWallet) {
+            for(unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
+                if (IsMine(pair.second.tx->vout[i]) && !IsSpent(pair.first, i)) {
+                    setWalletUTXO.insert(COutPoint(pair.first, i));
+                }
+            }
         }
     }
 
