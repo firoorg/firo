@@ -5,7 +5,7 @@
 #include "tradehistorydialog.h"
 #include "ui_tradehistorydialog.h"
 
-#include "exodus_qtutils.h"
+#include "elysium_qtutils.h"
 
 #include "guiutil.h"
 #include "ui_interface.h"
@@ -13,17 +13,17 @@
 #include "clientmodel.h"
 #include "platformstyle.h"
 
-#include "exodus/fetchwallettx.h"
-#include "exodus/mdex.h"
-#include "exodus/exodus.h"
-#include "exodus/pending.h"
-#include "exodus/rpc.h"
-#include "exodus/rpctxobject.h"
-#include "exodus/sp.h"
-#include "exodus/tx.h"
-#include "exodus/utilsbitcoin.h"
-#include "exodus/walletcache.h"
-#include "exodus/wallettxs.h"
+#include "elysium/fetchwallettx.h"
+#include "elysium/mdex.h"
+#include "elysium/elysium.h"
+#include "elysium/pending.h"
+#include "elysium/rpc.h"
+#include "elysium/rpctxobject.h"
+#include "elysium/sp.h"
+#include "elysium/tx.h"
+#include "elysium/utilsbitcoin.h"
+#include "elysium/walletcache.h"
+#include "elysium/wallettxs.h"
 
 #include "amount.h"
 #include "init.h"
@@ -60,7 +60,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 bool hideInactiveTrades = false;
 
@@ -201,12 +201,12 @@ void TradeHistoryDialog::UpdateTradeHistoryTable(bool forceUpdate)
             QTableWidgetItem *amountInCell = new QTableWidgetItem(QString::fromStdString(objTH.amountIn));
             QTableWidgetItem *txidCell = new QTableWidgetItem(QString::fromStdString(txid.GetHex()));
             QTableWidgetItem *iconCell = new QTableWidgetItem;
-            QIcon ic = QIcon(":/icons/exodus_meta_pending");
-            if (objTH.status == "Cancelled") ic =QIcon(":/icons/exodus_meta_cancelled");
-            if (objTH.status == "Part Cancel") ic = QIcon(":/icons/exodus_meta_partcancelled");
-            if (objTH.status == "Filled") ic = QIcon(":/icons/exodus_meta_filled");
-            if (objTH.status == "Open") ic = QIcon(":/icons/exodus_meta_open");
-            if (objTH.status == "Part Filled") ic = QIcon(":/icons/exodus_meta_partfilled");
+            QIcon ic = QIcon(":/icons/elysium_meta_pending");
+            if (objTH.status == "Cancelled") ic =QIcon(":/icons/elysium_meta_cancelled");
+            if (objTH.status == "Part Cancel") ic = QIcon(":/icons/elysium_meta_partcancelled");
+            if (objTH.status == "Filled") ic = QIcon(":/icons/elysium_meta_filled");
+            if (objTH.status == "Open") ic = QIcon(":/icons/elysium_meta_open");
+            if (objTH.status == "Part Filled") ic = QIcon(":/icons/elysium_meta_partfilled");
             if (!objTH.valid) {
                 ic = QIcon(":/icons/transaction_conflicted");
                 objTH.status = "Invalid";
@@ -270,7 +270,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
 
             // grab pending object, extract details and skip if not a metadex trade
             CMPPending *p_pending = &(it->second);
-            if (p_pending->type != EXODUS_TYPE_METADEX_TRADE) continue;
+            if (p_pending->type != ELYSIUM_TYPE_METADEX_TRADE) continue;
             uint32_t propertyId = p_pending->prop;
             int64_t amount = p_pending->amount;
 
@@ -299,14 +299,14 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
     // ### END PENDING TRANSACTIONS PROCESSING ###
 
     // ### START WALLET TRANSACTIONS PROCESSING ###
-    // obtain a sorted list of Exodus layer wallet transactions (including STO receipts and pending) - default last 65535
-    std::map<std::string,uint256> walletTransactions = FetchWalletExodusTransactions(GetArg("-exodusuiwalletscope", 65535L));
+    // obtain a sorted list of Elysium layer wallet transactions (including STO receipts and pending) - default last 65535
+    std::map<std::string,uint256> walletTransactions = FetchWalletElysiumTransactions(GetArg("-elysiumuiwalletscope", 65535L));
 
     // reverse iterate over (now ordered) transactions and populate history map for each one
     for (std::map<std::string,uint256>::reverse_iterator it = walletTransactions.rbegin(); it != walletTransactions.rend(); it++) {
         uint256 hash = it->second;
 
-        // use levelDB to perform a fast check on whether it's a Zcoin or Exodus tx and whether it's a trade
+        // use levelDB to perform a fast check on whether it's a Zcoin or Elysium tx and whether it's a trade
         std::string tempStrValue;
         {
             LOCK(cs_main);
@@ -315,7 +315,7 @@ int TradeHistoryDialog::PopulateTradeHistoryMap()
         std::vector<std::string> vstr;
         boost::split(vstr, tempStrValue, boost::is_any_of(":"), boost::token_compress_on);
         if (vstr.size() > 2) {
-            if (atoi(vstr[2]) != EXODUS_TYPE_METADEX_TRADE) continue;
+            if (atoi(vstr[2]) != ELYSIUM_TYPE_METADEX_TRADE) continue;
         }
 
         // check historyMap, if this tx exists don't waste resources doing anymore work on it

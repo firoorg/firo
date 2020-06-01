@@ -111,17 +111,17 @@ public:
     /** Additional data sync progress changed */
     boost::signals2::signal<void (int count, double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
 
-    /** Exodus balances have been updated. */
-    boost::signals2::signal<void ()> ExodusBalanceChanged;
+    /** Elysium balances have been updated. */
+    boost::signals2::signal<void ()> ElysiumBalanceChanged;
 
-    /** Exodus state has been changed. */
-    boost::signals2::signal<void ()> ExodusStateChanged;
+    /** Elysium state has been changed. */
+    boost::signals2::signal<void ()> ElysiumStateChanged;
 
-    /** Exodus pending status has been changed */
-    boost::signals2::signal<void (bool pending)> ExodusPendingChanged;
+    /** Elysium pending status has been changed */
+    boost::signals2::signal<void (bool pending)> ElysiumPendingChanged;
 
-    /** Exodus state has been invalidated due to a reorg */
-    boost::signals2::signal<void ()> ExodusStateInvalidated;
+    /** Elysium state has been invalidated due to a reorg */
+    boost::signals2::signal<void ()> ElysiumStateInvalidated;
 };
 
 /** Show warning message **/

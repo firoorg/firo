@@ -989,6 +989,67 @@ UniValue getmintmetadata(const UniValue& params, bool fHelp)
     return ret;
 }
 
+UniValue getusedcoinserials(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "getusedcoinserials\n"
+                "\nReturns the set of used coin serial.\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"serials\" (std::string[]) array of Serialized Scalars\n"
+                "}\n"
+        );
+
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    auto serials = sigmaState->GetSpends();
+
+    UniValue serializedSerials(UniValue::VARR);
+    for ( auto it = serials.begin(); it != serials.end(); ++it )
+        serializedSerials.push_back(it->first.GetHex());
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("serials", serializedSerials));
+
+    return ret;
+}
+
+UniValue getlatestcoinids(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "getlatestcoinids\n"
+                "\nReturns the set of used coin serial.\n"
+                "\nResult:\n"
+                "{\n"
+                "  [\n"
+                "      {\n"
+                "        \"denom\"       (int64_t) The mint denomination\n"
+                "        \"coinGroupId\" (int) The latest group id\n"
+                "      }\n"
+                "      ,...\n"
+                "    ]\n"
+                "}\n"
+        );
+
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds = sigmaState->GetLatestCoinIds();
+
+    UniValue ret(UniValue::VARR);
+    for (const auto& it : latestCoinIds ) {
+        int64_t denom;
+        sigma::DenominationToInteger(it.first, denom);
+
+        UniValue denomandid(UniValue::VOBJ);
+        denomandid.push_back(Pair("denom", denom));
+        denomandid.push_back(Pair("id", it.second));
+
+        ret.push_back(denomandid);
+    }
+
+    return ret;
+}
+
 UniValue getaddresstxids(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -1383,6 +1444,8 @@ static const CRPCCommand commands[] =
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 
     { "hidden",             "getaddressstatistics",   &getaddressstatistics,   false },
 };
