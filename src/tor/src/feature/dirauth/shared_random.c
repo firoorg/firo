@@ -90,7 +90,7 @@
 #include "core/or/or.h"
 #include "feature/dirauth/shared_random.h"
 #include "app/config/config.h"
-#include "app/config/confparse.h"
+#include "lib/confmgt/confparse.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/crypt_ops/crypto_util.h"
 #include "feature/nodelist/networkstatus.h"
@@ -224,7 +224,7 @@ verify_commit_and_reveal(const sr_commit_t *commit)
 STATIC int
 commit_has_reveal_value(const sr_commit_t *commit)
 {
-  return !tor_mem_is_zero(commit->encoded_reveal,
+  return !fast_mem_is_zero(commit->encoded_reveal,
                           sizeof(commit->encoded_reveal));
 }
 
@@ -486,7 +486,7 @@ get_vote_line_from_commit(const sr_commit_t *commit, sr_phase_t phase)
   {
     /* Send a reveal value for this commit if we have one. */
     const char *reveal_str = commit->encoded_reveal;
-    if (tor_mem_is_zero(commit->encoded_reveal,
+    if (fast_mem_is_zero(commit->encoded_reveal,
                         sizeof(commit->encoded_reveal))) {
       reveal_str = "";
     }

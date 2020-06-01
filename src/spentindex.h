@@ -39,6 +39,48 @@ struct CSpentIndexKey {
 
 };
 
+struct CAddressIndexBase {
+    AddressType addressType;
+    uint160 addressHash;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        unsigned int addrType = static_cast<unsigned int>(addressType);
+        READWRITE(addrType);
+        READWRITE(addressHash);
+        addressType = static_cast<AddressType>(addrType);
+    }
+
+    CAddressIndexBase(AddressType type, uint160 a) {
+        addressType = type;
+        addressHash = a;
+    }
+
+    CAddressIndexBase() {
+        SetNull();
+    }
+
+    void SetNull() {
+        addressType = AddressType::unknown;
+        addressHash.SetNull();
+    }
+
+    bool IsNull() const {
+        return addressType == AddressType::unknown;
+    }
+
+    bool operator<(CAddressIndexBase const & other) const {
+        if(addressHash < other.addressHash)
+            return true;
+        if(other.addressHash < addressHash)
+            return false;
+
+        return static_cast<int>(addressType) < static_cast<int>(other.addressType);
+    }
+};
+
 struct CSpentIndexValue {
     uint256 txid;
     unsigned int inputIndex;
@@ -371,6 +413,8 @@ struct CAddressIndexIteratorHeightKey {
         blockHeight = 0;
     }
 };
+
+
 
 
 #endif // BITCOIN_SPENTINDEX_H

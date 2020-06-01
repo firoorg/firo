@@ -1285,6 +1285,78 @@ UniValue getinfoex(const UniValue& params, bool fHelp)
     return info;
 }
 
+#include <iostream>
+
+UniValue getaddressstatistics(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1 || !params[0].isStr())
+        throw runtime_error(
+            "getaddressstatistics\n"
+            "Returns addresses balance statistics information.\n"
+            "\nArguments: top100 | total\n"
+            "{\n"
+            "  \"total\" Requests a sum of all address balances\n"
+            "  \"top100\" Requests top 100 richest balances\n"
+            "}\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("getaddressstatistics", "total")
+            + HelpExampleCli("getaddressstatistics", "total")
+        );
+
+    std::map<CAmount, CAddressIndexBase> addrBalances;
+    if(!pblocktree->ReadAddressBalances(addrBalances))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read from the database");
+
+    std::string action = params[0].getValStr();
+
+    UniValue result;
+
+    if(action == "top100") {
+        result.setArray();
+        auto iter = addrBalances.rbegin();
+        for(size_t i = 0; i < std::min(addrBalances.size(), 100UL); ++i)
+        {
+            auto const & addrInfo = iter->second;
+            std::string addr;
+            switch(addrInfo.addressType) {
+                case AddressType::payToPubKeyHash:
+                    addr = CBitcoinAddress(CKeyID(addrInfo.addressHash)).ToString();
+                    break;
+                case AddressType::payToScriptHash:
+                    addr = CBitcoinAddress(CScriptID(addrInfo.addressHash)).ToString();
+                    break;
+                case AddressType::zerocoinMint:
+                    addr = "Zeromint";
+                    break;
+                case AddressType::zerocoinSpend:
+                    addr = "Zerospend";
+                    break;
+                default:
+                    addr = "Error";
+            }
+
+            UniValue balance;
+            balance.setObject();
+            balance.pushKV(addr, iter->first);
+            ++iter;
+            result.push_back(balance);
+        }
+        return result;
+    }
+    if(action == "total") {
+        CAmount balance = 0;
+
+        for(auto const & bal : addrBalances)
+            balance += bal.first;
+
+        result.setObject();
+        result.pushKV("total", balance);
+        return result;
+    }
+
+    throw runtime_error("Unrecognized parameters.");
+}
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
@@ -1312,6 +1384,7 @@ static const CRPCCommand commands[] =
     { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
 
+    { "hidden",             "getaddressstatistics",   &getaddressstatistics,   false },
 };
 
 void RegisterMiscRPCCommands(CRPCTable &tableRPC)
