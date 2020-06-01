@@ -1,5 +1,5 @@
 ---
-name: "zcoin-osx-0.14.8"
+name: "zcoin-osx-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
