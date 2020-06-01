@@ -6,7 +6,7 @@
 #include "elysium/utilsbitcoin.h"
 #include "elysium/version.h"
 
-#include "main.h"
+#include "validation.h"
 #include "util.h"
 #include "ui_interface.h"
 
@@ -96,8 +96,8 @@ bool CheckAlertAuthorization(const std::string& sender)
     // use -elysiumalertallowsender for testing
 
     // Add manually whitelisted sources
-    if (mapArgs.count("-elysiumalertallowsender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-elysiumalertallowsender"];
+    if (mapMultiArgs.count("-elysiumalertallowsender")) {
+        const std::vector<std::string>& sources = mapMultiArgs.at("-elysiumalertallowsender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.insert(*it);
@@ -105,8 +105,8 @@ bool CheckAlertAuthorization(const std::string& sender)
     }
 
     // Remove manually ignored sources
-    if (mapArgs.count("-elysiumalertignoresender")) {
-        const std::vector<std::string>& sources = mapMultiArgs["-elysiumalertignoresender"];
+    if (mapMultiArgs.count("-elysiumalertignoresender")) {
+        const std::vector<std::string>& sources = mapMultiArgs.at("-elysiumalertignoresender");
 
         for (std::vector<std::string>::const_iterator it = sources.begin(); it != sources.end(); ++it) {
             whitelisted.erase(*it);

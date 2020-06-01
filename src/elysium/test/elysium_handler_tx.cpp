@@ -10,7 +10,7 @@
 #include "../../base58.h"
 #include "../../coins.h"
 #include "../../core_io.h"
-#include "../../main.h"
+#include "../../validation.h"
 #include "../../utilstrencodings.h"
 
 #include "../../primitives/transaction.h"
@@ -84,14 +84,14 @@ BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx)
         elysium::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
     );
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction elysiumTx = block.vtx[1];
+    CTransactionRef elysiumTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(*elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
@@ -113,15 +113,15 @@ BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
         elysium::WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, true)
     );
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction elysiumTx = block.vtx[1];
+    CTransactionRef elysiumTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(*elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     auto ecosystem = 2; // test
@@ -152,15 +152,15 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
         elysium::WalletTxBuilder("", "", "", 0, payload, txid, rawHex, true, elysium::InputMode::SIGMA)
     );
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction sigmaTx = block.vtx[1];
+    CTransactionRef sigmaTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(*sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     std::vector<unsigned char> data = createMockSpendPayload();
@@ -184,15 +184,15 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
         elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, true, elysium::InputMode::SIGMA)
     );
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     auto block = getHeighestBlock();
     BOOST_CHECK_EQUAL(2, block.vtx.size());
 
-    CTransaction sigmaTx = block.vtx[1];
+    CTransactionRef sigmaTx = block.vtx[1];
     CMPTransaction mp_obj;
 
-    BOOST_CHECK_EQUAL(0, ParseTransaction(sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
+    BOOST_CHECK_EQUAL(0, ParseTransaction(*sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

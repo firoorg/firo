@@ -273,33 +273,9 @@
         <source>Processing blocks on disk...</source>
         <translation>Käsitellään lohkoja levyllä...</translation>
     </message>
-    <message>
-        <source>No block source available...</source>
-        <translation>Lohkojen lähdettä ei saatavilla...</translation>
-    </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
         <translation><numerusform>Prosessoitu %n lohko rahansiirtohistoriasta.</numerusform><numerusform>Prosessoitu %n lohkoa rahansiirtohistoriasta.</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n tunti</numerusform><numerusform>%n tuntia</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n day(s)</source>
-        <translation><numerusform>%n päivä</numerusform><numerusform>%n päivää</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n week(s)</source>
-        <translation><numerusform>%n viikko</numerusform><numerusform>%n viikkoa</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 ja %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n year(s)</source>
-        <translation><numerusform>%n vuosi</numerusform><numerusform>%n vuotta</numerusform></translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -387,7 +363,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>Lompakko on &lt;b&gt;salattu&lt;/b&gt; ja tällä hetkellä &lt;b&gt;lukittuna&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -405,10 +381,6 @@
     <message>
         <source>Amount:</source>
         <translation>Määrä:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioriteetti:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -461,10 +433,6 @@
     <message>
         <source>Confirmed</source>
         <translation>Vahvistettu</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>Prioriteetti</translation>
     </message>
     </context>
 <context>
@@ -611,6 +579,21 @@
         <translation><numerusform>(%n Gt tarvittavasta tilasta)</numerusform><numerusform>(%n Gt tarvittavasta tilasta)</numerusform></translation>
     </message>
 </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>Lomake</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Viimeisimmän lohkon aika</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Piilota</translation>
+    </message>
+    </context>
 <context>
     <name>OpenURIDialog</name>
     <message>
@@ -865,7 +848,7 @@
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Näytetyt tiedot eivät välttämättä ole ajantasalla. Lompakkosi synkronoituu zcoin-verkon kanssa automaattisesti yhteyden muodostamisen jälkeen, mutta synkronointi on vielä meneillään.</translation>
+        <translation>Näytetyt tiedot eivät välttämättä ole ajantasalla. Lompakkosi synkronoituu Zcoin-verkon kanssa automaattisesti yhteyden muodostamisen jälkeen, mutta synkronointi on vielä meneillään.</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -945,11 +928,7 @@
         <source>Node/Service</source>
         <translation>Noodi/Palvelu</translation>
     </message>
-    <message>
-        <source>Ping Time</source>
-        <translation>Vasteaika</translation>
-    </message>
-</context>
+    </context>
 <context>
     <name>QObject</name>
     <message>
@@ -988,7 +967,14 @@
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
-</context>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 ja %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
+    </context>
 <context>
     <name>QRImageWidget</name>
     </context>
@@ -1195,14 +1181,6 @@
         <translation>Tyhjennä konsoli</translation>
     </message>
     <message>
-        <source>&amp;Disconnect Node</source>
-        <translation>&amp;Katkaise yhteys solmukohtaan</translation>
-    </message>
-    <message>
-        <source>Ban Node for</source>
-        <translation>Estä solmukohta</translation>
-    </message>
-    <message>
         <source>1 &amp;hour</source>
         <translation>1 &amp;tunti</translation>
     </message>
@@ -1217,10 +1195,6 @@
     <message>
         <source>1 &amp;year</source>
         <translation>1 &amp;vuosi</translation>
-    </message>
-    <message>
-        <source>&amp;Unban Node</source>
-        <translation>&amp;Poista solmukohdan esto</translation>
     </message>
     <message>
         <source>Use up and down arrows to navigate history, and &lt;b&gt;Ctrl-L&lt;/b&gt; to clear screen.</source>
@@ -1371,6 +1345,10 @@
     </context>
 <context>
     <name>RecentRequestsTableModel</name>
+    <message>
+        <source>Date</source>
+        <translation>Aika</translation>
+    </message>
     </context>
 <context>
     <name>SendCoinsDialog</name>
@@ -1405,10 +1383,6 @@
     <message>
         <source>Amount:</source>
         <translation>Määrä:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioriteetti:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -1469,10 +1443,6 @@
     <message>
         <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
         <translation>(Älykästä rahansiirtokulua ei ole vielä alustettu. Tähän kuluu yleensä aikaa muutaman lohkon verran...)</translation>
-    </message>
-    <message>
-        <source>Confirmation time:</source>
-        <translation>Vahvistusaika:</translation>
     </message>
     <message>
         <source>normal</source>
@@ -1703,6 +1673,10 @@
 </context>
 <context>
     <name>TransactionDesc</name>
+    <message>
+        <source>Date</source>
+        <translation>Aika</translation>
+    </message>
     </context>
 <context>
     <name>TransactionDescDialog</name>
@@ -1713,9 +1687,17 @@
     </context>
 <context>
     <name>TransactionTableModel</name>
+    <message>
+        <source>Date</source>
+        <translation>Aika</translation>
+    </message>
     </context>
 <context>
     <name>TransactionView</name>
+    <message>
+        <source>Date</source>
+        <translation>Aika</translation>
+    </message>
     </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -1732,6 +1714,10 @@
     </context>
 <context>
     <name>WalletView</name>
+    <message>
+        <source>&amp;Export</source>
+        <translation>&amp;Vie</translation>
+    </message>
     </context>
 <context>
     <name>zcoin-core</name>
@@ -1768,10 +1754,6 @@
         <translation>Karsinta: viime lompakon synkronisointi menee karsitun datan taakse. Sinun tarvitsee ajaa -reindex (lataa koko lohkoketju uudelleen tapauksessa jossa karsiva noodi)</translation>
     </message>
     <message>
-        <source>Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, &gt;%u = target size in MiB to use for block files)</source>
-        <translation>Vähennä levytilan tarvetta karsimalla (poistamalla) vanhoja lohkoja. Tämä tila ei ole yhteensopiva -txindex ja -rescan -parametrien kanssa. Varoitus: Tämän asetuksen peruutus vaatii koko lohkoketjun uudelleenlataamisen. (oletus: 0 = poista karsinta käytöstä, &gt;%u = kohdekoko muodossa MiB jota käytetään lohkotiedostoille) </translation>
-    </message>
-    <message>
         <source>Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again.</source>
         <translation>Uudelleenskannaukset eivät ole mahdollisia karsivassa tilassa. Sinun täytyy käyttää -reindex joka lataa koko lohkoketjun uudelleen.</translation>
     </message>
@@ -1796,10 +1778,6 @@
         <translation>HTTP-palvelinta ei voitu käynnistää. Katso debug-lokista lisätietoja.</translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>Hyväksy yhteyksiä ulkopuolelta (vakioasetus: 1 jos -proxy tai -connect ei määritelty)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>Zcoin-ydin</translation>
     </message>
@@ -1808,20 +1786,12 @@
         <translation>%s kehittäjät</translation>
     </message>
     <message>
-        <source>-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available.</source>
-        <translation>-fallbackfee on asetettu erittäin suureksi! Tämä on rahansiirtokulu jonka voit maksaa kun arvioitu rahansirtokulu ei ole saatavilla.</translation>
-    </message>
-    <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
         <translation>Kytkeydy annettuun osoitteeseen ja pidä linja aina auki. Käytä [host]:portin merkintätapaa IPv6:lle.</translation>
     </message>
     <message>
         <source>Cannot obtain a lock on data directory %s. %s is probably already running.</source>
         <translation>Ei voida lukita data-hakemistoa %s. %s on luultavasti jo käynnissä.</translation>
-    </message>
-    <message>
-        <source>Distributed under the MIT software license, see the accompanying file COPYING or &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</source>
-        <translation>Jaettu MIT-ohjelmistolisenssin alla, katso mukana tullut tiedosto COPYING tai &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</translation>
     </message>
     <message>
         <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
@@ -1844,24 +1814,8 @@
         <translation>Lohkotietokanta sisältää lohkon, joka vaikuttaa olevan tulevaisuudesta. Tämä saattaa johtua tietokoneesi virheellisesti asetetuista aika-asetuksista. Rakenna lohkotietokanta uudelleen vain jos olet varma, että tietokoneesi päivämäärä ja aika ovat oikein.</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Tämä on esi-julkaistu testiversio - Käytä omalla riskillä - Ei saa käytää louhimiseen tai kauppasovelluksiin.</translation>
-    </message>
-    <message>
         <source>Use UPnP to map the listening port (default: 1 when listening and no -proxy)</source>
         <translation>Käytä UPnP:ta kuuntelevan portin kartoitukseen (oletus: 1 kun kuunnellaan ja -proxy ei käytössä)</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>Varoitus: Tietoverkko ei ole sovussa! Luohijat näyttävät kokevan virhetilanteita.</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>Varoitus: Olemme vertaisverkon kanssa ristiriidassa! Sinun tulee päivittää tai toisten solmujen tulee päivitää.</translation>
-    </message>
-    <message>
-        <source>Whitelist peers connecting from the given netmask or IP address. Can be specified multiple times.</source>
-        <translation>Salli vertaisten yhdistää annetusta verkkomaskista tai IP-osoitteesta. Voidaan määrittää useampia kertoja.</translation>
     </message>
     <message>
         <source>You need to rebuild the database using -reindex-chainstate to change -txindex</source>
@@ -1890,10 +1844,6 @@
     <message>
         <source>Cannot resolve -%s address: '%s'</source>
         <translation>-%s -osoitteen '%s' selvittäminen epäonnistui</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>Yhidstä ainoastaan määrättyihin noodeihin</translation>
     </message>
     <message>
         <source>Connection options:</source>
@@ -2012,10 +1962,6 @@
         <translation>Aseta tietokannan välimuistin koko megatavuissa (%d - %d, oletus: %d</translation>
     </message>
     <message>
-        <source>Set maximum BIP141 block weight (default: %d)</source>
-        <translation>Aseta suurin BIP141-lohkopaino (oletus: %d)</translation>
-    </message>
-    <message>
         <source>Set maximum block size in bytes (default: %d)</source>
         <translation>Aseta lohkon maksimikoko tavuissa (oletus: %d)</translation>
     </message>
@@ -2086,10 +2032,6 @@
     <message>
         <source>The transaction amount is too small to send after the fee has been deducted</source>
         <translation>Siirtomäärä on liian pieni lähetettäväksi kulun vähentämisen jälkeen.</translation>
-    </message>
-    <message>
-        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit &lt;https://www.openssl.org/&gt; and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
-        <translation>Tämä tuote sisältää ohjelmistoa, jonka on kehittänyt OpenSSL Project käytettäväksi OpenSSL Toolkit -ohjelmistossa &lt;https://www.openssl.org/&gt;, ja Eric Youngin kirjoittamaa salausohjelmistoa sekä Thomas Bernardin kirjoittamaa UPnP-ohjelmistoa.</translation>
     </message>
     <message>
         <source>(default: %u)</source>
@@ -2184,10 +2126,6 @@
         <translation>Siirtosumma liian pieni</translation>
     </message>
     <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>Siirtosumman tulee olla positiivinen</translation>
-    </message>
-    <message>
         <source>Transaction too large for fee policy</source>
         <translation>Rahansiirto on liian suuri maksukulukäytännölle</translation>
     </message>
@@ -2238,10 +2176,6 @@
     <message>
         <source>-maxtxfee is set very high! Fees this large could be paid on a single transaction.</source>
         <translation>-maxtxfee on asetettu erittäin suureksi! Tämänkokoisia kuluja saatetaan maksaa yhdessä rahansiirrossa.</translation>
-    </message>
-    <message>
-        <source>-paytxfee is set very high! This is the transaction fee you will pay if you send a transaction.</source>
-        <translation>-paytxfee on asetettu erittäin suureksi! Tämä on rahansiirtokulu, jonka maksat, mikäli lähetät rahansiirron.</translation>
     </message>
     <message>
         <source>Do not keep transactions in the mempool longer than &lt;n&gt; hours (default: %u)</source>
@@ -2318,6 +2252,10 @@
     <message>
         <source>Set key pool size to &lt;n&gt; (default: %u)</source>
         <translation>Aseta avainaltaan kooksi &lt;n&gt; (oletus: %u)</translation>
+    </message>
+    <message>
+        <source>Set maximum BIP141 block weight (default: %d)</source>
+        <translation>Aseta suurin BIP141-lohkopaino (oletus: %d)</translation>
     </message>
     <message>
         <source>Set the number of threads to service RPC calls (default: %d)</source>

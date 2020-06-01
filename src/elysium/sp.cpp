@@ -9,7 +9,7 @@
 #include "../arith_uint256.h"
 #include "../base58.h"
 #include "../clientversion.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../serialize.h"
 #include "../streams.h"
 #include "../tinyformat.h"
@@ -137,7 +137,6 @@ bool CMPSPInfo::updateSP(uint32_t propertyId, const Entry& info)
 
     // DB value for property entry
     CDataStream ssSpValue(SER_DISK, CLIENT_VERSION);
-    ssSpValue.reserve(ssSpValue.GetSerializeSize(info));
     ssSpValue << info;
     leveldb::Slice slSpValue(&ssSpValue[0], ssSpValue.size());
 
@@ -188,7 +187,6 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 
     // DB value for property entry
     CDataStream ssSpValue(SER_DISK, CLIENT_VERSION);
-    ssSpValue.reserve(ssSpValue.GetSerializeSize(info));
     ssSpValue << info;
     leveldb::Slice slSpValue(&ssSpValue[0], ssSpValue.size());
 
@@ -199,7 +197,6 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 
     // DB value for identifier
     CDataStream ssTxValue(SER_DISK, CLIENT_VERSION);
-    ssTxValue.reserve(ssSpValue.GetSerializeSize(propertyId));
     ssTxValue << propertyId;
     leveldb::Slice slTxValue(&ssTxValue[0], ssTxValue.size());
 
@@ -399,7 +396,6 @@ void CMPSPInfo::setWatermark(const uint256& watermark)
     leveldb::Slice slKey(&ssKey[0], ssKey.size());
 
     CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-    ssValue.reserve(ssValue.GetSerializeSize(watermark));
     ssValue << watermark;
     leveldb::Slice slValue(&ssValue[0], ssValue.size());
 

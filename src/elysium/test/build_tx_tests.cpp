@@ -8,7 +8,7 @@
 #include "../../base58.h"
 #include "../../coins.h"
 #include "../../core_io.h"
-#include "../../main.h"
+#include "../../validation.h"
 #include "../../utilstrencodings.h"
 
 #include "../../primitives/transaction.h"
@@ -47,10 +47,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
         elysium::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
     );
 
-    CTransaction decTx;
+    CMutableTransaction decTx;
     BOOST_CHECK(DecodeHexTx(decTx, rawHex));
 
-    BOOST_CHECK(!decTx.IsSigmaSpend());
+    BOOST_CHECK(!CTransaction(decTx).IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
         PacketClass::B,
@@ -71,10 +71,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
         elysium::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
     );
 
-    CTransaction decTx;
+    CMutableTransaction decTx;
     BOOST_CHECK(DecodeHexTx(decTx, rawHex));
 
-    BOOST_CHECK(!decTx.IsSigmaSpend());
+    BOOST_CHECK(!CTransaction(decTx).IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
         PacketClass::C,
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_with_toolarge_data)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
         stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     std::vector<unsigned char> data(nMaxDatacarrierBytes + 1);
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     std::vector<unsigned char> data(80);
@@ -140,10 +140,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
         elysium::WalletTxBuilder("", "", "", 0, data, txid, rawHex, false, elysium::InputMode::SIGMA)
     );
 
-    CTransaction decTx;
+    CMutableTransaction decTx;
     BOOST_CHECK(DecodeHexTx(decTx, rawHex));
 
-    BOOST_CHECK(decTx.IsSigmaSpend());
+    BOOST_CHECK(CTransaction(decTx).IsSigmaSpend());
 
     BOOST_CHECK_EQUAL(
         PacketClass::C,

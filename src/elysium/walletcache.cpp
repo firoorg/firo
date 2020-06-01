@@ -5,7 +5,7 @@
 #include "wallettxs.h"
 
 #include "../init.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../sync.h"
 #include "../uint256.h"
 #ifdef ENABLE_WALLET

@@ -2,26 +2,27 @@
 #define ELYSIUM_RPCTX
 
 #include <univalue.h>
+#include "rpc/server.h"
 
-UniValue elysium_sendrawtx(const UniValue& params, bool fHelp);
-UniValue elysium_send(const UniValue& params, bool fHelp);
-UniValue elysium_sendall(const UniValue& params, bool fHelp);
-UniValue elysium_senddexsell(const UniValue& params, bool fHelp);
-UniValue elysium_senddexaccept(const UniValue& params, bool fHelp);
-UniValue elysium_sendissuancecrowdsale(const UniValue& params, bool fHelp);
-UniValue elysium_sendissuancefixed(const UniValue& params, bool fHelp);
-UniValue elysium_sendissuancemanaged(const UniValue& params, bool fHelp);
-UniValue elysium_sendsto(const UniValue& params, bool fHelp);
-UniValue elysium_sendgrant(const UniValue& params, bool fHelp);
-UniValue elysium_sendrevoke(const UniValue& params, bool fHelp);
-UniValue elysium_sendclosecrowdsale(const UniValue& params, bool fHelp);
-UniValue trade_MP(const UniValue& params, bool fHelp);
-UniValue elysium_sendtrade(const UniValue& params, bool fHelp);
-UniValue elysium_sendcanceltradesbyprice(const UniValue& params, bool fHelp);
-UniValue elysium_sendcanceltradesbypair(const UniValue& params, bool fHelp);
-UniValue elysium_sendcancelalltrades(const UniValue& params, bool fHelp);
-UniValue elysium_sendchangeissuer(const UniValue& params, bool fHelp);
-UniValue elysium_sendactivation(const UniValue& params, bool fHelp);
-UniValue elysium_sendalert(const UniValue& params, bool fHelp);
+UniValue elysium_sendrawtx(const JSONRPCRequest& request);
+UniValue elysium_send(const JSONRPCRequest& request);
+UniValue elysium_sendall(const JSONRPCRequest& request);
+UniValue elysium_senddexsell(const JSONRPCRequest& request);
+UniValue elysium_senddexaccept(const JSONRPCRequest& request);
+UniValue elysium_sendissuancecrowdsale(const JSONRPCRequest& request);
+UniValue elysium_sendissuancefixed(const JSONRPCRequest& request);
+UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request);
+UniValue elysium_sendsto(const JSONRPCRequest& request);
+UniValue elysium_sendgrant(const JSONRPCRequest& request);
+UniValue elysium_sendrevoke(const JSONRPCRequest& request);
+UniValue elysium_sendclosecrowdsale(const JSONRPCRequest& request);
+UniValue trade_MP(const JSONRPCRequest& request);
+UniValue elysium_sendtrade(const JSONRPCRequest& request);
+UniValue elysium_sendcanceltradesbyprice(const JSONRPCRequest& request);
+UniValue elysium_sendcanceltradesbypair(const JSONRPCRequest& request);
+UniValue elysium_sendcancelalltrades(const JSONRPCRequest& request);
+UniValue elysium_sendchangeissuer(const JSONRPCRequest& request);
+UniValue elysium_sendactivation(const JSONRPCRequest& request);
+UniValue elysium_sendalert(const JSONRPCRequest& request);
 
 #endif // ELYSIUM_RPCTX

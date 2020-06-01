@@ -15,9 +15,9 @@
 using std::runtime_error;
 using namespace elysium;
 
-UniValue elysium_createpayload_simplesend(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_simplesend(const JSONRPCRequest& request)
 {
-   if (fHelp || params.size() != 2)
+   if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "elysium_createpayload_simplesend propertyid \"amount\"\n"
 
@@ -35,18 +35,18 @@ UniValue elysium_createpayload_simplesend(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_simplesend", "1, \"100.0\"")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
-    int64_t amount = ParseAmount(params[1], isPropertyDivisible(propertyId));
+    int64_t amount = ParseAmount(request.params[1], isPropertyDivisible(propertyId));
 
     std::vector<unsigned char> payload = CreatePayload_SimpleSend(propertyId, amount);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_sendall(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_sendall(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_sendall ecosystem\n"
 
@@ -63,16 +63,16 @@ UniValue elysium_createpayload_sendall(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_sendall", "2")
         );
 
-    uint8_t ecosystem = ParseEcosystem(params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[0]);
 
     std::vector<unsigned char> payload = CreatePayload_SendAll(ecosystem);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_dexsell(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_dexsell(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 6)
+    if (request.fHelp || request.params.size() != 6)
         throw runtime_error(
             "elysium_createpayload_dexsell propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
 
@@ -95,8 +95,8 @@ UniValue elysium_createpayload_dexsell(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_dexsell", "1, \"1.5\", \"0.75\", 25, \"0.0005\", 1")
         );
 
-    uint32_t propertyIdForSale = ParsePropertyId(params[0]);
-    uint8_t action = ParseDExAction(params[5]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[0]);
+    uint8_t action = ParseDExAction(request.params[5]);
 
     int64_t amountForSale = 0; // depending on action
     int64_t amountDesired = 0; // depending on action
@@ -104,10 +104,10 @@ UniValue elysium_createpayload_dexsell(const UniValue& params, bool fHelp)
     int64_t minAcceptFee = 0;  // depending on action
 
     if (action <= CMPTransaction::UPDATE) { // actions 3 permit zero values, skip check
-        amountForSale = ParseAmount(params[1], true); // TELYSIUM/ELYSIUM is divisible
-        amountDesired = ParseAmount(params[2], true); // XZC is divisible
-        paymentWindow = ParseDExPaymentWindow(params[3]);
-        minAcceptFee = ParseDExFee(params[4]);
+        amountForSale = ParseAmount(request.params[1], true); // TELYSIUM/ELYSIUM is divisible
+        amountDesired = ParseAmount(request.params[2], true); // XZC is divisible
+        paymentWindow = ParseDExPaymentWindow(request.params[3]);
+        minAcceptFee = ParseDExFee(request.params[4]);
     }
 
     std::vector<unsigned char> payload = CreatePayload_DExSell(propertyIdForSale, amountForSale, amountDesired, paymentWindow, minAcceptFee, action);
@@ -115,9 +115,9 @@ UniValue elysium_createpayload_dexsell(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_dexaccept(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_dexaccept(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "elysium_createpayload_dexaccept propertyid \"amount\"\n"
 
@@ -135,18 +135,18 @@ UniValue elysium_createpayload_dexaccept(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_dexaccept", "1, \"15.0\"")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequirePrimaryToken(propertyId);
-    int64_t amount = ParseAmount(params[1], true);
+    int64_t amount = ParseAmount(request.params[1], true);
 
     std::vector<unsigned char> payload = CreatePayload_DExAccept(propertyId, amount);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_sto(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_sto(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
             "elysium_createpayload_sto propertyid \"amount\" ( distributionproperty )\n"
 
@@ -164,19 +164,19 @@ UniValue elysium_createpayload_sto(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_sto", "3, \"5000\"")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
-    int64_t amount = ParseAmount(params[1], isPropertyDivisible(propertyId));
-    uint32_t distributionPropertyId = (params.size() > 2) ? ParsePropertyId(params[2]) : propertyId;
+    int64_t amount = ParseAmount(request.params[1], isPropertyDivisible(propertyId));
+    uint32_t distributionPropertyId = (request.params.size() > 2) ? ParsePropertyId(request.params[2]) : propertyId;
 
     std::vector<unsigned char> payload = CreatePayload_SendToOwners(propertyId, amount, distributionPropertyId);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_issuancefixed(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancefixed(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 9)
+    if (request.fHelp || request.params.size() != 9)
         throw runtime_error(
             "elysium_createpayload_issuancefixed ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\"\n"
 
@@ -201,15 +201,15 @@ UniValue elysium_createpayload_issuancefixed(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_issuancefixed", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
         );
 
-    uint8_t ecosystem = ParseEcosystem(params[0]);
-    uint16_t type = ParsePropertyType(params[1]);
-    uint32_t previousId = ParsePreviousPropertyId(params[2]);
-    std::string category = ParseText(params[3]);
-    std::string subcategory = ParseText(params[4]);
-    std::string name = ParseText(params[5]);
-    std::string url = ParseText(params[6]);
-    std::string data = ParseText(params[7]);
-    int64_t amount = ParseAmount(params[8], type);
+    uint8_t ecosystem = ParseEcosystem(request.params[0]);
+    uint16_t type = ParsePropertyType(request.params[1]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[2]);
+    std::string category = ParseText(request.params[3]);
+    std::string subcategory = ParseText(request.params[4]);
+    std::string name = ParseText(request.params[5]);
+    std::string url = ParseText(request.params[6]);
+    std::string data = ParseText(request.params[7]);
+    int64_t amount = ParseAmount(request.params[8], type);
 
     RequirePropertyName(name);
 
@@ -218,9 +218,9 @@ UniValue elysium_createpayload_issuancefixed(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_issuancecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancecrowdsale(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 13)
+    if (request.fHelp || request.params.size() != 13)
         throw runtime_error(
             "elysium_createpayload_issuancecrowdsale ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" propertyiddesired tokensperunit deadline earlybonus issuerpercentage\n"
 
@@ -249,19 +249,19 @@ UniValue elysium_createpayload_issuancecrowdsale(const UniValue& params, bool fH
             + HelpExampleRpc("elysium_createpayload_issuancecrowdsale", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
         );
 
-    uint8_t ecosystem = ParseEcosystem(params[0]);
-    uint16_t type = ParsePropertyType(params[1]);
-    uint32_t previousId = ParsePreviousPropertyId(params[2]);
-    std::string category = ParseText(params[3]);
-    std::string subcategory = ParseText(params[4]);
-    std::string name = ParseText(params[5]);
-    std::string url = ParseText(params[6]);
-    std::string data = ParseText(params[7]);
-    uint32_t propertyIdDesired = ParsePropertyId(params[8]);
-    int64_t numTokens = ParseAmount(params[9], type);
-    int64_t deadline = ParseDeadline(params[10]);
-    uint8_t earlyBonus = ParseEarlyBirdBonus(params[11]);
-    uint8_t issuerPercentage = ParseIssuerBonus(params[12]);
+    uint8_t ecosystem = ParseEcosystem(request.params[0]);
+    uint16_t type = ParsePropertyType(request.params[1]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[2]);
+    std::string category = ParseText(request.params[3]);
+    std::string subcategory = ParseText(request.params[4]);
+    std::string name = ParseText(request.params[5]);
+    std::string url = ParseText(request.params[6]);
+    std::string data = ParseText(request.params[7]);
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[8]);
+    int64_t numTokens = ParseAmount(request.params[9], type);
+    int64_t deadline = ParseDeadline(request.params[10]);
+    uint8_t earlyBonus = ParseEarlyBirdBonus(request.params[11]);
+    uint8_t issuerPercentage = ParseIssuerBonus(request.params[12]);
 
     RequirePropertyName(name);
     RequireExistingProperty(propertyIdDesired);
@@ -272,9 +272,9 @@ UniValue elysium_createpayload_issuancecrowdsale(const UniValue& params, bool fH
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_issuancemanaged(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_issuancemanaged(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 8)
+    if (request.fHelp || request.params.size() != 8)
         throw runtime_error(
             "elysium_createpayload_issuancemanaged ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\"\n"
 
@@ -298,14 +298,14 @@ UniValue elysium_createpayload_issuancemanaged(const UniValue& params, bool fHel
             + HelpExampleRpc("elysium_createpayload_issuancemanaged", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
         );
 
-    uint8_t ecosystem = ParseEcosystem(params[0]);
-    uint16_t type = ParsePropertyType(params[1]);
-    uint32_t previousId = ParsePreviousPropertyId(params[2]);
-    std::string category = ParseText(params[3]);
-    std::string subcategory = ParseText(params[4]);
-    std::string name = ParseText(params[5]);
-    std::string url = ParseText(params[6]);
-    std::string data = ParseText(params[7]);
+    uint8_t ecosystem = ParseEcosystem(request.params[0]);
+    uint16_t type = ParsePropertyType(request.params[1]);
+    uint32_t previousId = ParsePreviousPropertyId(request.params[2]);
+    std::string category = ParseText(request.params[3]);
+    std::string subcategory = ParseText(request.params[4]);
+    std::string name = ParseText(request.params[5]);
+    std::string url = ParseText(request.params[6]);
+    std::string data = ParseText(request.params[7]);
 
     RequirePropertyName(name);
 
@@ -314,9 +314,9 @@ UniValue elysium_createpayload_issuancemanaged(const UniValue& params, bool fHel
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_closecrowdsale(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_closecrowdsale(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_closecrowdsale propertyid\n"
 
@@ -333,7 +333,7 @@ UniValue elysium_createpayload_closecrowdsale(const UniValue& params, bool fHelp
             + HelpExampleRpc("elysium_createpayload_closecrowdsale", "70")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
 
     // checks bypassed because someone may wish to prepare the payload to close a crowdsale creation not yet broadcast
 
@@ -342,9 +342,9 @@ UniValue elysium_createpayload_closecrowdsale(const UniValue& params, bool fHelp
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_grant(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_grant(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
             "elysium_createpayload_grant propertyid \"amount\" ( \"memo\" )\n"
 
@@ -363,20 +363,20 @@ UniValue elysium_createpayload_grant(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_grant", "51, \"7000\"")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
-    int64_t amount = ParseAmount(params[1], isPropertyDivisible(propertyId));
-    std::string memo = (params.size() > 2) ? ParseText(params[2]): "";
+    int64_t amount = ParseAmount(request.params[1], isPropertyDivisible(propertyId));
+    std::string memo = (request.params.size() > 2) ? ParseText(request.params[2]): "";
 
     std::vector<unsigned char> payload = CreatePayload_Grant(propertyId, amount, memo);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_revoke(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_revoke(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
             "elysium_createpayload_revoke propertyid \"amount\" ( \"memo\" )\n"
 
@@ -395,20 +395,20 @@ UniValue elysium_createpayload_revoke(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_revoke", "51, \"100\"")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
-    int64_t amount = ParseAmount(params[1], isPropertyDivisible(propertyId));
-    std::string memo = (params.size() > 2) ? ParseText(params[2]): "";
+    int64_t amount = ParseAmount(request.params[1], isPropertyDivisible(propertyId));
+    std::string memo = (request.params.size() > 2) ? ParseText(request.params[2]): "";
 
     std::vector<unsigned char> payload = CreatePayload_Revoke(propertyId, amount, memo);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_changeissuer(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_changeissuer(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_changeissuer propertyid\n"
 
@@ -425,7 +425,7 @@ UniValue elysium_createpayload_changeissuer(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_changeissuer", "3")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
 
     std::vector<unsigned char> payload = CreatePayload_ChangeIssuer(propertyId);
@@ -433,9 +433,9 @@ UniValue elysium_createpayload_changeissuer(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_trade(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_trade(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "elysium_createpayload_trade propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
@@ -455,12 +455,12 @@ UniValue elysium_createpayload_trade(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_trade", "31, \"250.0\", 1, \"10.0\"")
         );
 
-    uint32_t propertyIdForSale = ParsePropertyId(params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyIdForSale);
-    int64_t amountForSale = ParseAmount(params[1], isPropertyDivisible(propertyIdForSale));
-    uint32_t propertyIdDesired = ParsePropertyId(params[2]);
+    int64_t amountForSale = ParseAmount(request.params[1], isPropertyDivisible(propertyIdForSale));
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[2]);
     RequireExistingProperty(propertyIdDesired);
-    int64_t amountDesired = ParseAmount(params[3], isPropertyDivisible(propertyIdDesired));
+    int64_t amountDesired = ParseAmount(request.params[3], isPropertyDivisible(propertyIdDesired));
     RequireSameEcosystem(propertyIdForSale, propertyIdDesired);
     RequireDifferentIds(propertyIdForSale, propertyIdDesired);
     RequireDifferentIds(propertyIdForSale, propertyIdDesired);
@@ -470,9 +470,9 @@ UniValue elysium_createpayload_trade(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_canceltradesbyprice(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_canceltradesbyprice(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 4)
+    if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "elysium_createpayload_canceltradesbyprice propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\"\n"
 
@@ -492,12 +492,12 @@ UniValue elysium_createpayload_canceltradesbyprice(const UniValue& params, bool 
             + HelpExampleRpc("elysium_createpayload_canceltradesbyprice", "31, \"100.0\", 1, \"5.0\"")
         );
 
-    uint32_t propertyIdForSale = ParsePropertyId(params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyIdForSale);
-    int64_t amountForSale = ParseAmount(params[1], isPropertyDivisible(propertyIdForSale));
-    uint32_t propertyIdDesired = ParsePropertyId(params[2]);
+    int64_t amountForSale = ParseAmount(request.params[1], isPropertyDivisible(propertyIdForSale));
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[2]);
     RequireExistingProperty(propertyIdDesired);
-    int64_t amountDesired = ParseAmount(params[3], isPropertyDivisible(propertyIdDesired));
+    int64_t amountDesired = ParseAmount(request.params[3], isPropertyDivisible(propertyIdDesired));
     RequireSameEcosystem(propertyIdForSale, propertyIdDesired);
     RequireDifferentIds(propertyIdForSale, propertyIdDesired);
 
@@ -506,9 +506,9 @@ UniValue elysium_createpayload_canceltradesbyprice(const UniValue& params, bool 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_canceltradesbypair(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_canceltradesbypair(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "elysium_createpayload_canceltradesbypair propertyidforsale propertiddesired\n"
 
@@ -526,9 +526,9 @@ UniValue elysium_createpayload_canceltradesbypair(const UniValue& params, bool f
             + HelpExampleRpc("elysium_createpayload_canceltradesbypair", "1, 31")
         );
 
-    uint32_t propertyIdForSale = ParsePropertyId(params[0]);
+    uint32_t propertyIdForSale = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyIdForSale);
-    uint32_t propertyIdDesired = ParsePropertyId(params[1]);
+    uint32_t propertyIdDesired = ParsePropertyId(request.params[1]);
     RequireExistingProperty(propertyIdDesired);
     RequireSameEcosystem(propertyIdForSale, propertyIdDesired);
     RequireDifferentIds(propertyIdForSale, propertyIdDesired);
@@ -538,9 +538,9 @@ UniValue elysium_createpayload_canceltradesbypair(const UniValue& params, bool f
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_cancelalltrades(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_cancelalltrades(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_cancelalltrades ecosystem\n"
 
@@ -557,16 +557,16 @@ UniValue elysium_createpayload_cancelalltrades(const UniValue& params, bool fHel
             + HelpExampleRpc("elysium_createpayload_cancelalltrades", "1")
         );
 
-    uint8_t ecosystem = ParseEcosystem(params[0]);
+    uint8_t ecosystem = ParseEcosystem(request.params[0]);
 
     std::vector<unsigned char> payload = CreatePayload_MetaDExCancelEcosystem(ecosystem);
 
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_enablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_enablefreezing(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_enablefreezing propertyid\n"
 
@@ -583,7 +583,7 @@ UniValue elysium_createpayload_enablefreezing(const UniValue& params, bool fHelp
             + HelpExampleRpc("elysium_createpayload_enablefreezing", "3")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
 
@@ -592,9 +592,9 @@ UniValue elysium_createpayload_enablefreezing(const UniValue& params, bool fHelp
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_disablefreezing(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_disablefreezing(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "elysium_createpayload_disablefreezing propertyid\n"
 
@@ -612,7 +612,7 @@ UniValue elysium_createpayload_disablefreezing(const UniValue& params, bool fHel
             + HelpExampleRpc("elysium_createpayload_disablefreezing", "3")
         );
 
-    uint32_t propertyId = ParsePropertyId(params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
 
@@ -621,9 +621,9 @@ UniValue elysium_createpayload_disablefreezing(const UniValue& params, bool fHel
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_freeze(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_freeze(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 3)
+    if (request.fHelp || request.params.size() != 3)
         throw runtime_error(
             "elysium_createpayload_freeze \"toaddress\" propertyid amount \n"
 
@@ -642,9 +642,9 @@ UniValue elysium_createpayload_freeze(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_freeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
-    std::string refAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int64_t amount = ParseAmount(params[2], isPropertyDivisible(propertyId));
+    std::string refAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
 
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);
@@ -654,9 +654,9 @@ UniValue elysium_createpayload_freeze(const UniValue& params, bool fHelp)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_unfreeze(const UniValue& params, bool fHelp)
+UniValue elysium_createpayload_unfreeze(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 3)
+    if (request.fHelp || request.params.size() != 3)
         throw runtime_error(
             "elysium_createpayload_unfreeze \"toaddress\" propertyid amount \n"
 
@@ -675,9 +675,9 @@ UniValue elysium_createpayload_unfreeze(const UniValue& params, bool fHelp)
             + HelpExampleRpc("elysium_createpayload_unfreeze", "\"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 1, 0")
         );
 
-    std::string refAddress = ParseAddress(params[0]);
-    uint32_t propertyId = ParsePropertyId(params[1]);
-    int64_t amount = ParseAmount(params[2], isPropertyDivisible(propertyId));
+    std::string refAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
 
     RequireExistingProperty(propertyId);
     RequireManagedProperty(propertyId);

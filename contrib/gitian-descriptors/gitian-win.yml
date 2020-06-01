@@ -1,5 +1,5 @@
 ---
-name: "zcoin-win-0.13.8"
+name: "zcoin-win-0.14.8"
 enable_cache: true
 suites:
 - "bionic"
@@ -22,6 +22,7 @@ packages:
 - "ca-certificates"
 - "python"
 - "rename"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"

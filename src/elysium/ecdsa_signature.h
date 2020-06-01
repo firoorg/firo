@@ -10,6 +10,7 @@
 #include <secp256k1.h>
 
 #include <array>
+#include <stdexcept>
 #include <vector>
 
 namespace elysium {
@@ -35,7 +36,7 @@ public:
     /** serialize as compact
      */
     template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const
+    void Serialize(Stream& s) const
     {
         if (!Valid()) {
             throw std::logic_error("ECDSA Signature is invalid");
@@ -49,7 +50,7 @@ public:
     /** unserialize compact
      */
     template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion)
+    void Unserialize(Stream& s)
     {
         std::array<uint8_t, COMPACT_SIZE> buffer;
         s.read(reinterpret_cast<char*>(buffer.data()), buffer.size());

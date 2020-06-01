@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,7 +11,6 @@
 #include "compat.h" // for Windows API
 #include <wincrypt.h>
 #endif
-#include "serialize.h"        // for begin_ptr(vec)
 #include "util.h"             // for LogPrint()
 #include "utilstrencodings.h" // for GetTime()
 
@@ -72,15 +71,15 @@ static void RandAddSeedPerfmon()
     const size_t nMaxSize = 10000000; // Bail out at more than 10MB of performance data
     while (true) {
         nSize = vData.size();
-        ret = RegQueryValueExA(HKEY_PERFORMANCE_DATA, "Global", NULL, NULL, begin_ptr(vData), &nSize);
+        ret = RegQueryValueExA(HKEY_PERFORMANCE_DATA, "Global", NULL, NULL, vData.data(), &nSize);
         if (ret != ERROR_MORE_DATA || vData.size() >= nMaxSize)
             break;
         vData.resize(std::max((vData.size() * 3) / 2, nMaxSize)); // Grow size of buffer exponentially
     }
     RegCloseKey(HKEY_PERFORMANCE_DATA);
     if (ret == ERROR_SUCCESS) {
-        RAND_add(begin_ptr(vData), nSize, nSize / 100.0);
-        memory_cleanse(begin_ptr(vData), nSize);
+        RAND_add(vData.data(), nSize, nSize / 100.0);
+        memory_cleanse(vData.data(), nSize);
         LogPrint("rand", "%s: %lu bytes\n", __func__, nSize);
     } else {
         static bool warned = false; // Warn only once
@@ -93,7 +92,7 @@ static void RandAddSeedPerfmon()
 }
 
 /** Get 32 bytes of system entropy. */
-static void GetOSRand(unsigned char *ent32)
+void GetOSRand(unsigned char *ent32)
 {
 #ifdef WIN32
     HCRYPTPROV hProvider;
@@ -178,6 +177,17 @@ uint256 GetRandHash()
     return hash;
 }
 
+bool GetRandBool(double rate)
+{
+    if (rate == 0.0) {
+        return false;
+    }
+
+    const uint64_t v = 100000000;
+    uint64_t r = GetRand(v + 1);
+    return r <= v * rate;
+}
+
 void FastRandomContext::RandomSeed()
 {
     uint256 seed = GetRandHash();
@@ -185,76 +195,47 @@ void FastRandomContext::RandomSeed()
     requires_seed = false;
 }
 
-uint256 FastRandomContext::rand256()
-{
-    if (bytebuf_size < 32) {
-        FillByteBuffer();
-    }
-    uint256 ret;
-    memcpy(ret.begin(), bytebuf + 64 - bytebuf_size, 32);
-    bytebuf_size -= 32;
-    return ret;
-}
-
-std::vector<unsigned char> FastRandomContext::randbytes(size_t len)
-{
-    std::vector<unsigned char> ret(len);
-    if (len > 0) {
-        rng.Output(&ret[0], len);
-    }
-    return ret;
-}
-
-FastRandomContext::FastRandomContext(const uint256& seed) 
-		: requires_seed(false), bytebuf_size(0), bitbuf_size(0)
+FastRandomContext::FastRandomContext(const uint256& seed) : requires_seed(false), bytebuf_size(0), bitbuf_size(0)
 {
     rng.SetKey(seed.begin(), 32);
 }
 
-FastRandomContext::FastRandomContext(bool fDeterministic) 
-		: requires_seed(!fDeterministic), bytebuf_size(0), bitbuf_size(0)
+bool Random_SanityCheck()
 {
-	if (!fDeterministic) {
-		return;
-	}
-	uint256 seed;
-	rng.SetKey(seed.begin(), 32);
+    /* This does not measure the quality of randomness, but it does test that
+     * OSRandom() overwrites all 32 bytes of the output given a maximum
+     * number of tries.
+     */
+    static const ssize_t MAX_TRIES = 1024;
+    uint8_t data[NUM_OS_RANDOM_BYTES];
+    bool overwritten[NUM_OS_RANDOM_BYTES] = {}; /* Tracks which bytes have been overwritten at least once */
+    int num_overwritten;
+    int tries = 0;
+    /* Loop until all bytes have been overwritten at least once, or max number tries reached */
+    do {
+        memset(data, 0, NUM_OS_RANDOM_BYTES);
+        GetOSRand(data);
+        for (int x=0; x < NUM_OS_RANDOM_BYTES; ++x) {
+            overwritten[x] |= (data[x] != 0);
+        }
+
+        num_overwritten = 0;
+        for (int x=0; x < NUM_OS_RANDOM_BYTES; ++x) {
+            if (overwritten[x]) {
+                num_overwritten += 1;
+            }
+        }
+
+        tries += 1;
+    } while (num_overwritten < NUM_OS_RANDOM_BYTES && tries < MAX_TRIES);
+    return (num_overwritten == NUM_OS_RANDOM_BYTES); /* If this failed, bailed out after too many tries */
 }
 
-uint32_t insecure_rand_Rz = 11;
-uint32_t insecure_rand_Rw = 11;
-void seed_insecure_rand(bool fDeterministic)
+FastRandomContext::FastRandomContext(bool fDeterministic) : requires_seed(!fDeterministic), bytebuf_size(0), bitbuf_size(0)
 {
-    // The seed values have some unlikely fixed points which we avoid.
-    if (fDeterministic) {
-        insecure_rand_Rz = insecure_rand_Rw = 11;
-    } else {
-        uint32_t tmp;
-        do {
-            GetRandBytes((unsigned char*)&tmp, 4);
-        } while (tmp == 0 || tmp == 0x9068ffffU);
-        insecure_rand_Rz = tmp;
-        do {
-            GetRandBytes((unsigned char*)&tmp, 4);
-        } while (tmp == 0 || tmp == 0x464fffffU);
-        insecure_rand_Rw = tmp;
+    if (!fDeterministic) {
+        return;
     }
-}
-
-InsecureRand::InsecureRand(bool _fDeterministic)
-        : nRz(11),
-          nRw(11),
-          fDeterministic(_fDeterministic)
-{
-    // The seed values have some unlikely fixed points which we avoid.
-    if(fDeterministic) return;
-    uint32_t nTmp;
-    do {
-        GetRandBytes((unsigned char*)&nTmp, 4);
-    } while (nTmp == 0 || nTmp == 0x9068ffffU);
-    nRz = nTmp;
-    do {
-        GetRandBytes((unsigned char*)&nTmp, 4);
-    } while (nTmp == 0 || nTmp == 0x464fffffU);
-    nRw = nTmp;
+    uint256 seed;
+    rng.SetKey(seed.begin(), 32);
 }

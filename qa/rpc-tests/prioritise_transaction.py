@@ -9,14 +9,14 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-from test_framework.mininode import COIN, MAX_BLOCK_SIZE
+from test_framework.mininode import COIN, MAX_BLOCK_BASE_SIZE
 
 class PrioritiseTransactionTest(BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
         self.setup_clean_chain = True
-        self.num_nodes = 1
+        self.num_nodes = 2
 
         self.txouts = gen_return_txouts()
 
@@ -25,7 +25,10 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         self.is_network_split = False
 
         self.nodes.append(start_node(0, self.options.tmpdir, ["-debug", "-printpriority=1"]))
+        self.nodes.append(start_node(1, self.options.tmpdir, ["-debug", "-printpriority=1"]))
+        connect_nodes(self.nodes[0], 1)
         self.relayfee = self.nodes[0].getnetworkinfo()['relayfee']
+
 
     def run_test(self):
         utxo_count = 90
@@ -39,10 +42,10 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
             txids.append([])
             start_range = i * range_size
             end_range = start_range + range_size
-            txids[i] = create_lots_of_big_transactions(self.nodes[0], self.txouts, utxos[start_range:end_range], (i+1)*base_fee)
+            txids[i] = create_lots_of_big_transactions(self.nodes[0], self.txouts, utxos[start_range:end_range], end_range - start_range, (i+1)*base_fee)
 
         # Make sure that the size of each group of transactions exceeds
-        # MAX_BLOCK_SIZE -- otherwise the test needs to be revised to create
+        # MAX_BLOCK_BASE_SIZE -- otherwise the test needs to be revised to create
         # more transactions.
         mempool = self.nodes[0].getrawmempool(True)
         sizes = [0, 0, 0]
@@ -50,7 +53,7 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
             for j in txids[i]:
                 assert(j in mempool)
                 sizes[i] += mempool[j]['size']
-            assert(sizes[i] > MAX_BLOCK_SIZE) # Fail => raise utxo_count
+            assert(sizes[i] > MAX_BLOCK_BASE_SIZE) # Fail => raise utxo_count
 
         # add a fee delta to something in the cheapest bucket and make sure it gets mined
         # also check that a different entry in the cheapest bucket is NOT mined (lower
@@ -138,6 +141,17 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         print("Assert that prioritised free transaction is accepted to mempool")
         assert_equal(self.nodes[0].sendrawtransaction(tx2_hex), tx2_id)
         assert(tx2_id in self.nodes[0].getrawmempool())
+
+        # Test that calling prioritisetransaction is sufficient to trigger
+        # getblocktemplate to (eventually) return a new block.
+        mock_time = int(time.time())
+        self.nodes[0].setmocktime(mock_time)
+        template = self.nodes[0].getblocktemplate()
+        self.nodes[0].prioritisetransaction(txid, 0, -int(self.relayfee*COIN))
+        self.nodes[0].setmocktime(mock_time+10)
+        new_template = self.nodes[0].getblocktemplate()
+
+        assert(template != new_template)
 
 if __name__ == '__main__':
     PrioritiseTransactionTest().main()

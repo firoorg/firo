@@ -1,9 +1,6 @@
-#!/usr/bin/env bash
 # Copyright (c) 2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-set -x
 
 # What to do
 sign=false
@@ -55,7 +52,7 @@ Options:
 -j		Number of processes to use. Default 2
 -m		Memory to allocate in MiB. Default 2000
 --kvm           Use KVM instead of LXC
---setup         Set up the Gitian building environment. Uses KVM. If you want to use lxc, use the --lxc option. Only works on Debian-based systems (Ubuntu, Debian)
+--setup         Setup the gitian building environment. Uses KVM. If you want to use lxc, use the --lxc option. Only works on Debian-based systems (Ubuntu, Debian)
 --detach-sign   Create the assert file for detached signing. Will not commit anything.
 --no-commit     Do not commit anything to git
 -h|--help	Print this help message
@@ -208,6 +205,8 @@ done
 if [[ $lxc = true ]]
 then
     export USE_LXC=1
+    export LXC_BRIDGE=lxcbr0
+    sudo ifconfig lxcbr0 up 10.0.2.2
 fi
 
 # Check for OSX SDK
@@ -253,10 +252,7 @@ if [[ $commit = false ]]
 then
 	COMMIT="v${VERSION}"
 fi
-
-me=`basename "$0"`
-
-echo "$me Building branch: ${COMMIT}"
+echo ${COMMIT}
 
 # Setup build environment
 if [[ $setup = true ]]
@@ -323,25 +319,6 @@ then
 	# Windows
 	if [[ $windows = true ]]
 	then
-	   # if [ ! -f inputs/nsis-win32-utils.zip ];
-	   # then
-           #	echo ""
-        #	echo "Starting Utilities build for Windows"
-        #	echo ""
-        #	./bin/gbuild -j ${proc} -m ${mem} --allow-sudo ../zcoin/contrib/gitian-descriptors/gitian-win-utils.yml
-        #	if [ $? -ne 0 ];
-        #	then
-        #	    echo ""
-        #	    echo "FAILED to build Utilities for Windows"
-        #	    echo ""
-        #	    exit 1
-        #	fi
-        #	cd inputs
-        #	cp -a ../build/out/*-utils.zip .
-        #	mv nsis-*-win32-utils.zip nsis-win32-utils.zip
-        #	cd ..
-	#    fi
-
 	    echo ""
 	    echo "Compiling ${VERSION} Windows"
 	    echo ""
@@ -413,7 +390,7 @@ fi
 # Sign binaries
 if [[ $sign = true ]]
 then
-
+	
         pushd ./gitian-builder
 	# Sign Windows
 	if [[ $windows = true ]]

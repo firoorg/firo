@@ -169,11 +169,10 @@ ElysiumTxBuilder& ElysiumTxBuilder::addChange(const std::string& destination, co
 void InputsToView(const std::vector<PrevTxsEntry>& prevTxs, CCoinsViewCache& view)
 {
     for (std::vector<PrevTxsEntry>::const_iterator it = prevTxs.begin(); it != prevTxs.end(); ++it) {
-        CCoinsModifier coins = view.ModifyCoins(it->outPoint.hash);
-        if ((size_t) it->outPoint.n >= coins->vout.size()) {
-            coins->vout.resize(it->outPoint.n+1);
-        }
-        coins->vout[it->outPoint.n].scriptPubKey = it->txOut.scriptPubKey;
-        coins->vout[it->outPoint.n].nValue = it->txOut.nValue;
+        ModifyCoin(view, it->outPoint,
+                [it](Coin & coin){
+                    coin.out.scriptPubKey = it->txOut.scriptPubKey;
+                    coin.out.nValue = it->txOut.nValue;
+                });
     }
 }

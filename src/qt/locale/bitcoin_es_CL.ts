@@ -143,7 +143,7 @@
     </message>
     <message>
         <source>Send coins to a Zcoin address</source>
-        <translation>Enviar monedas a una dirección Zcoin</translation>
+        <translation>Enviar monedas a una dirección zcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -207,11 +207,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Pide pagos (genera codigos QR and zcoin: URIs)</translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 y %2</translation>
+        <translation>Pide pagos (genera codigos QR and zcoin: URls)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -249,16 +245,12 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>La billetera esta &lt;b&gt;codificada&lt;/b&gt; y actualmente &lt;b&gt;bloqueda&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
         <source>Amount:</source>
         <translation>Cantidad:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>prioridad:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -280,10 +272,6 @@
     <message>
         <source>Confirmed</source>
         <translation>Confirmado</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>prioridad</translation>
     </message>
     </context>
 <context>
@@ -332,6 +320,13 @@
     <message>
         <source>Error</source>
         <translation>Error</translation>
+    </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>Formulario</translation>
     </message>
     </context>
 <context>
@@ -460,6 +455,13 @@
         <source>N/A</source>
         <translation>N/A</translation>
     </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 y %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -574,10 +576,6 @@
     <message>
         <source>Amount:</source>
         <translation>Cantidad:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>prioridad:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -775,12 +773,7 @@
     </message>
     <message>
         <source>Zcoin Core</source>
-        <translation>Zcoin Core</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>Conecta solo al nodo especificado
-</translation>
+        <translation>zcoin core</translation>
     </message>
     <message>
         <source>Error loading block database</source>

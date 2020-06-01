@@ -1,11 +1,10 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_WALLET_WALLETDB_H
 #define BITCOIN_WALLET_WALLETDB_H
-//#define loop                for (;;)
 
 #include "amount.h"
 #include "primitives/transaction.h"
@@ -83,11 +82,10 @@ public:
     CHDChain() { SetNull(); }
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    inline void SerializationOp(Stream& s, Operation ser_action)
     {
 
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
         READWRITE(nExternalChainCounter);
         READWRITE(masterKeyID);
         if (this->nVersion >= VERSION_WITH_BIP44) {
@@ -159,9 +157,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
         READWRITE(nCreateTime);
         if (this->nVersion >= VERSION_WITH_HDDATA)
         {
@@ -204,7 +201,7 @@ public:
 
     bool WriteCScript(const uint160& hash, const CScript& redeemScript);
 
-    bool WriteWatchOnly(const CScript &script);
+    bool WriteWatchOnly(const CScript &script, const CKeyMetadata &keymeta);
     bool EraseWatchOnly(const CScript &script);
 
     bool WriteBestBlock(const CBlockLocator& locator);
@@ -222,6 +219,7 @@ public:
 
     /// This writes directly to the database, and will not update the CWallet's cached accounting entries!
     /// Use wallet.AddAccountingEntry instead, to write *and* update its caches.
+    bool WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry);
     bool WriteAccountingEntry_Backend(const CAccountingEntry& acentry);
     bool ReadAccount(const std::string& strAccount, CAccount& account);
     bool WriteAccount(const std::string& strAccount, const CAccount& account);
@@ -297,6 +295,9 @@ public:
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
+
+    static void IncrementUpdateCounter();
+    static unsigned int GetUpdateCounter();    
 
 #ifdef ENABLE_ELYSIUM
 
@@ -458,19 +459,19 @@ private:
             throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
-        unsigned int flags = DB_SET_RANGE;
+        bool setRange = true;
         while (true) {
 
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (flags == DB_SET_RANGE) {
+            if (setRange) {
                 ssKey << std::make_pair(prefix, K());
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, flags);
+            int ret = ReadAtCursor(cursor, ssKey, ssValue, setRange);
 
-            flags = DB_NEXT;
+            setRange = false;
             if (ret == DB_NOTFOUND) {
                 break;
             } else if (ret != 0) {
@@ -496,11 +497,9 @@ private:
 
         cursor->close();
     }
-
-    bool WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry);
 };
 
-void ThreadFlushWalletDB(const std::string& strFile);
+void ThreadFlushWalletDB();
 bool AutoBackupWallet (CWallet* wallet, std::string strWalletFile, std::string& strBackupWarning, std::string& strBackupError);
 
 #endif // BITCOIN_WALLET_WALLETDB_H

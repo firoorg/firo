@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2016 The Bitcoin Core developers
+# Copyright (c) 2014-2017 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,17 +20,20 @@ import http.client
 import random
 import shutil
 import subprocess
+import tempfile
 import time
 import re
 import errno
+import logging
 
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
 
 COVERAGE_DIR = None
 
+logger = logging.getLogger("TestFramework.utils")
 # The maximum number of nodes a single test can spawn
-MAX_NODES = 8
+MAX_NODES = 15
 # Don't assign rpc or p2p ports lower than this
 PORT_MIN = 11000
 # The number of ports to "reserve" for p2p and rpc, each
@@ -55,6 +59,10 @@ def enable_mocktime():
     #to Jan 1, 2014 + (201 * 10 * 60)
     global MOCKTIME
     MOCKTIME = 1414776313 + (201 * 10 * 60)
+
+def set_mocktime(t):
+    global MOCKTIME
+    MOCKTIME = t
 
 def disable_mocktime():
     global MOCKTIME
@@ -94,6 +102,23 @@ def get_rpc_proxy(url, node_number, timeout=None):
 
     return coverage.AuthServiceProxyWrapper(proxy, coverage_logfile)
 
+def get_evoznsync_status(node):
+    result = node.evoznsync("status")
+    return result['IsSynced']
+
+def wait_to_sync(node, fast_znsync=False):
+    tm = 0
+    synced = False
+    while tm < 30:
+        synced = get_evoznsync_status(node)
+        if synced:
+            return
+        time.sleep(0.2)
+        if fast_znsync:
+            # skip mnsync states
+            node.znsync("next")
+        tm += 0.2
+    assert(synced)
 
 def p2p_port(n):
     assert(n <= MAX_NODES)
@@ -121,19 +146,58 @@ def hex_str_to_bytes(hex_str):
 def str_to_b64str(string):
     return b64encode(string.encode('utf-8')).decode('ascii')
 
-def sync_blocks(rpc_connections, wait=1, timeout=60):
+def sync_blocks(rpc_connections, *, wait=1, timeout=60):
     """
-    Wait until everybody has the same tip
+    Wait until everybody has the same tip.
+
+    sync_blocks needs to be called with an rpc_connections set that has least
+    one node already synced to the latest, stable tip, otherwise there's a
+    chance it might return before all nodes are stably synced.
+    """
+    # Use getblockcount() instead of waitforblockheight() to determine the
+    # initial max height because the two RPCs look at different internal global
+    # variables (chainActive vs latestBlock) and the former gets updated
+    # earlier.
+    maxheight = max(x.getblockcount() for x in rpc_connections)
+    start_time = cur_time = time.time()
+    while cur_time <= start_time + timeout:
+        tips = [r.waitforblockheight(maxheight, int(wait * 1000)) for r in rpc_connections]
+        if all(t["height"] == maxheight for t in tips):
+            if all(t["hash"] == tips[0]["hash"] for t in tips):
+                return
+            raise AssertionError("Block sync failed, mismatched block hashes:{}".format(
+                                 "".join("\n  {!r}".format(tip) for tip in tips)))
+
+        time.sleep(wait)
+        cur_time = time.time()
+    raise AssertionError("Block sync to height {} timed out:{}".format(
+                         maxheight, "".join("\n  {!r}".format(tip) for tip in tips)))
+
+def sync_znodes(rpc_connections, *, timeout=60):
+    """
+    Waits until every node has their znsync status is synced.
+    """
+    start_time = cur_time = time.time()
+    while cur_time <= start_time + timeout:
+        statuses = [r.znsync("status") for r in rpc_connections]
+        if all(stat["IsSynced"] == True for stat in statuses):
+            return
+        cur_time = time.time()
+    raise AssertionError("Znode sync failed.")
+
+def sync_chain(rpc_connections, *, wait=1, timeout=60):
+    """
+    Wait until everybody has the same best block
     """
     while timeout > 0:
-        tips = [ x.getbestblockhash() for x in rpc_connections ]
-        if tips == [ tips[0] ]*len(tips):
-            return True
+        best_hash = [x.getbestblockhash() for x in rpc_connections]
+        if best_hash == [best_hash[0]]*len(best_hash):
+            return
         time.sleep(wait)
         timeout -= wait
-    raise AssertionError("Block sync failed")
+    raise AssertionError("Chain sync failed: Best block hashes don't match")
 
-def sync_mempools(rpc_connections, wait=1, timeout=60):
+def sync_mempools(rpc_connections, *, wait=1, timeout=60):
     """
     Wait until everybody has the same transactions in their memory
     pools
@@ -145,10 +209,14 @@ def sync_mempools(rpc_connections, wait=1, timeout=60):
             if set(rpc_connections[i].getrawmempool()) == pool:
                 num_match = num_match+1
         if num_match == len(rpc_connections):
-            return True
+            return
         time.sleep(wait)
         timeout -= wait
     raise AssertionError("Mempool sync failed")
+
+def sync_znodes(rpc_connections, fast_mnsync=False):
+    for node in rpc_connections:
+        wait_to_sync(node, fast_mnsync)
 
 bitcoind_processes = {}
 
@@ -198,10 +266,10 @@ def wait_for_bitcoind_start(process, url, i):
                 raise # unknown IO error
         except JSONRPCException as e: # Initialization phase
             if e.error['code'] != -28: # RPC in warmup?
-                raise # unkown JSON RPC exception
+                raise # unknown JSON RPC exception
         time.sleep(0.25)
 
-def initialize_chain(test_dir, num_nodes):
+def initialize_chain(test_dir, num_nodes, cachedir):
     """
     Create a cache of a 200-block-long chain (with wallet) for MAX_NODES
     Afterward, create num_nodes copies from the cache
@@ -210,7 +278,7 @@ def initialize_chain(test_dir, num_nodes):
     assert num_nodes <= MAX_NODES
     create_cache = False
     for i in range(MAX_NODES):
-        if not os.path.isdir(os.path.join('cache', 'node'+str(i))):
+        if not os.path.isdir(os.path.join(cachedir, 'node'+str(i))):
             create_cache = True
             break
 
@@ -218,12 +286,12 @@ def initialize_chain(test_dir, num_nodes):
 
         #find and delete old cache directories if any exist
         for i in range(MAX_NODES):
-            if os.path.isdir(os.path.join("cache","node"+str(i))):
-                shutil.rmtree(os.path.join("cache","node"+str(i)))
+            if os.path.isdir(os.path.join(cachedir,"node"+str(i))):
+                shutil.rmtree(os.path.join(cachedir,"node"+str(i)))
 
         # Create cache directories, run bitcoinds:
         for i in range(MAX_NODES):
-            datadir=initialize_datadir("cache", i)
+            datadir=initialize_datadir(cachedir, i)
             args = [ os.getenv("ZCOIND", "zcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
@@ -232,7 +300,7 @@ def initialize_chain(test_dir, num_nodes):
                 print("initialize_chain: bitcoind started, waiting for RPC to come up")
             wait_for_bitcoind_start(bitcoind_processes[i], rpc_url(i), i)
             if os.getenv("PYTHON_DEBUG", ""):
-                print("initialize_chain: RPC succesfully started")
+                print("initialize_chain: RPC successfully started")
 
         rpcs = []
         for i in range(MAX_NODES):
@@ -264,15 +332,19 @@ def initialize_chain(test_dir, num_nodes):
         stop_nodes(rpcs)
         disable_mocktime()
         for i in range(MAX_NODES):
-            os.remove(log_filename("cache", i, "debug.log"))
-            os.remove(log_filename("cache", i, "db.log"))
-            os.remove(log_filename("cache", i, "peers.dat"))
-            os.remove(log_filename("cache", i, "fee_estimates.dat"))
+            try:
+                os.remove(log_filename(cachedir, i, "debug.log"))
+                os.remove(log_filename(cachedir, i, "db.log"))
+                os.remove(log_filename(cachedir, i, "peers.dat"))
+                os.remove(log_filename(cachedir, i, "fee_estimates.dat"))
+            except OSError:
+                pass
 
     for i in range(num_nodes):
-        from_dir = os.path.join("cache", "node"+str(i))
+        from_dir = os.path.join(cachedir, "node"+str(i))
         to_dir = os.path.join(test_dir,  "node"+str(i))
-        shutil.copytree(from_dir, to_dir)
+        if from_dir != to_dir:
+            shutil.copytree(from_dir, to_dir)
         initialize_datadir(test_dir, i) # Overwrite port/rpcport in bitcoin.conf
 
 def initialize_chain_clean(test_dir, num_nodes):
@@ -304,7 +376,7 @@ def _rpchost_to_args(rpchost):
         rv += ['-rpcport=' + rpcport]
     return rv
 
-def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None):
+def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None, redirect_stderr=False, stderr=None):
     """
     Start a bitcoind and return RPC connection to it
     """
@@ -312,15 +384,18 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
+    # Don't try auto backups (they fail a lot when running tests)
+    args += [ "-createwalletbackups=0" ]
     if extra_args is not None: args.extend(extra_args)
-    print("Starting a process with: " + " ".join(args))
-    bitcoind_processes[i] = subprocess.Popen(args)
-    if os.getenv("PYTHON_DEBUG", ""):
-        print("start_node: zcoind started, waiting for RPC to come up")
+    # Allow to redirect stderr to stdout in case we expect some non-critical warnings/errors printed to stderr
+    # Otherwise the whole test would be considered to be failed in such cases
+    if redirect_stderr:
+        stderr = sys.stdout
+    bitcoind_processes[i] = subprocess.Popen(args, stderr=stderr)
+    logger.debug("start_node: zcoind started, waiting for RPC to come up")
     url = rpc_url(i, rpchost)
     wait_for_bitcoind_start(bitcoind_processes[i], url, i)
-    if os.getenv("PYTHON_DEBUG", ""):
-        print("start_node: RPC succesfully started")
+    logger.debug("start_node: RPC successfully started")
     proxy = get_rpc_proxy(url, i, timeout=timewait)
 
     if COVERAGE_DIR:
@@ -337,42 +412,52 @@ def start_nodes(num_nodes, dirname, extra_args=None, rpchost=None, timewait=None
     rpcs = []
     try:
         for i in range(num_nodes):
-            print("Starting node ", i)
             rpcs.append(start_node(i, dirname, extra_args[i], rpchost, timewait=timewait, binary=binary[i]))
     except: # If one node failed to start, stop the others
         stop_nodes(rpcs)
         raise
     return rpcs
 
+def copy_datadir(from_node, to_node, dirname):
+    from_datadir = os.path.join(dirname, "node"+str(from_node), "regtest")
+    to_datadir = os.path.join(dirname, "node"+str(to_node), "regtest")
+
+    dirs = ["blocks", "chainstate", "evodb", "llmq"]
+    for d in dirs:
+        try:
+            src = os.path.join(from_datadir, d)
+            dst = os.path.join(to_datadir, d)
+            shutil.copytree(src, dst)
+        except:
+            pass
 def log_filename(dirname, n_node, logname):
     return os.path.join(dirname, "node"+str(n_node), "regtest", logname)
 
-def stop_node(node, i):
+def wait_node(i):
+    return_code = bitcoind_processes[i].wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
+    assert_equal(return_code, 0)
+    del bitcoind_processes[i]
+
+def stop_node(node, i, wait=True):
+    logger.debug("Stopping node %d" % i)
     try:
         node.stop()
     except http.client.CannotSendRequest as e:
-        print("WARN: Unable to stop node: " + repr(e))
-    bitcoind_processes[i].wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
-    del bitcoind_processes[i]
+        logger.exception("Unable to stop node")
+    if wait:
+        wait_node(i)
 
-def stop_nodes(nodes):
-    for node in nodes:
-        try:
-            node.stop()
-        except http.client.CannotSendRequest as e:
-            print("WARN: Unable to stop node: " + repr(e))
-    del nodes[:] # Emptying array closes connections as a side effect
-    wait_bitcoinds()
+def stop_nodes(nodes, fast=True):
+    for i, node in enumerate(nodes):
+        stop_node(node, i, not fast)
+    if fast:
+        for i, node in enumerate(nodes):
+            wait_node(i)
+    assert not bitcoind_processes.values() # All connections must be gone now
 
 def set_node_times(nodes, t):
     for node in nodes:
         node.setmocktime(t)
-
-def wait_bitcoinds():
-    # Wait for all bitcoinds to cleanly exit
-    for bitcoind in bitcoind_processes.values():
-        bitcoind.wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
-    bitcoind_processes.clear()
 
 def connect_nodes(from_connection, node_num):
     # NOTE: In next line p2p_port(0) was replaced by rpc_port(0).
@@ -387,6 +472,18 @@ def connect_nodes_bi(nodes, a, b):
     connect_nodes(nodes[a], b)
     connect_nodes(nodes[b], a)
 
+def isolate_node(node, timeout=5):
+    node.setnetworkactive(False)
+    st = time.time()
+    while time.time() < st + timeout:
+        if node.getconnectioncount() == 0:
+            return
+        time.sleep(0.5)
+    raise AssertionError("disconnect_node timed out")
+
+def reconnect_isolated_node(node, node_num):
+    node.setnetworkactive(True)
+    connect_nodes(node, node_num)
 def find_output(node, txid, amount):
     """
     Return index to output of txid with value amount
@@ -502,13 +599,17 @@ def assert_fee_amount(fee, tx_size, fee_per_kB):
     if fee > (tx_size + 2) * fee_per_kB / 1000:
         raise AssertionError("Fee of %s BTC too high! (Should be %s BTC)"%(str(fee), str(target_fee)))
 
-def assert_equal(thing1, thing2):
-    if thing1 != thing2:
-        raise AssertionError("%s != %s"%(str(thing1),str(thing2)))
+def assert_equal(thing1, thing2, *args):
+    if thing1 != thing2 or any(thing1 != arg for arg in args):
+        raise AssertionError("not(%s)" % " == ".join(str(arg) for arg in (thing1, thing2) + args))
 
 def assert_greater_than(thing1, thing2):
     if thing1 <= thing2:
         raise AssertionError("%s <= %s"%(str(thing1),str(thing2)))
+
+def assert_greater_than_or_equal(thing1, thing2):
+    if thing1 < thing2:
+        raise AssertionError("%s < %s"%(str(thing1),str(thing2)))
 
 def assert_raises(exc, fun, *args, **kwds):
     assert_raises_message(exc, None, fun, *args, **kwds)
@@ -518,6 +619,35 @@ def assert_raises_message(exc, message, fun, *args, **kwds):
         fun(*args, **kwds)
     except exc as e:
         if message is not None and message not in e.error['message']:
+            raise AssertionError("Expected substring not found:"+e.error['message'])
+    except Exception as e:
+        raise AssertionError("Unexpected exception raised: "+type(e).__name__)
+    else:
+        raise AssertionError("No exception raised")
+
+def assert_raises_jsonrpc(code, message, fun, *args, **kwds):
+    """Run an RPC and verify that a specific JSONRPC exception code and message is raised.
+
+    Calls function `fun` with arguments `args` and `kwds`. Catches a JSONRPCException
+    and verifies that the error code and message are as expected. Throws AssertionError if
+    no JSONRPCException was returned or if the error code/message are not as expected.
+
+    Args:
+        code (int), optional: the error code returned by the RPC call (defined
+            in src/rpc/protocol.h). Set to None if checking the error code is not required.
+        message (string), optional: [a substring of] the error string returned by the
+            RPC call. Set to None if checking the error string is not required
+        fun (function): the function to call. This should be the name of an RPC.
+        args*: positional arguments for the function.
+        kwds**: named arguments for the function.
+    """
+    try:
+        fun(*args, **kwds)
+    except JSONRPCException as e:
+        # JSONRPCException was thrown as expected. Check the code and message values are correct.
+        if (code is not None) and (code != e.error["code"]):
+            raise AssertionError("Unexpected JSONRPC error code %i" % e.error["code"])
+        if (message is not None) and (message not in e.error['message']):
             raise AssertionError("Expected substring not found:"+e.error['message'])
     except Exception as e:
         raise AssertionError("Unexpected exception raised: "+type(e).__name__)
@@ -638,16 +768,15 @@ def create_tx_multi_input(node, inputs, outputs):
 
 # Create a spend of each passed-in utxo, splicing in "txouts" to each raw
 # transaction to make it large.  See gen_return_txouts() above.
-def create_lots_of_big_transactions(node, txouts, utxos, fee):
+def create_lots_of_big_transactions(node, txouts, utxos, num, fee):
     addr = node.getnewaddress()
     txids = []
-    for i in range(len(utxos)):
+    for _ in range(num):
         t = utxos.pop()
-        inputs = []
-        inputs.append({ "txid" : t["txid"], "vout" : t["vout"]})
+        inputs=[{ "txid" : t["txid"], "vout" : t["vout"]}]
         outputs = {}
-        send_value = t['amount'] - fee
-        outputs[addr] = satoshi_round(send_value)
+        change = t['amount'] - fee
+        outputs[addr] = satoshi_round(change)
         rawtx = node.createrawtransaction(inputs, outputs)
         newtx = rawtx[0:92]
         newtx = newtx + txouts
@@ -656,6 +785,19 @@ def create_lots_of_big_transactions(node, txouts, utxos, fee):
         txid = node.sendrawtransaction(signresult["hex"], True)
         txids.append(txid)
     return txids
+
+def mine_large_block(node, utxos=None):
+    # generate a 66k transaction,
+    # and 14 of them is close to the 1MB block limit
+    num = 14
+    txouts = gen_return_txouts()
+    utxos = utxos if utxos is not None else []
+    if len(utxos) < num:
+        utxos.clear()
+        utxos.extend(node.listunspent())
+    fee = 100 * node.getnetworkinfo()["relayfee"]
+    create_lots_of_big_transactions(node, txouts, utxos, num, fee=fee)
+    node.generate(1)
 
 def get_bip9_status(node, key):
     info = node.getblockchaininfo()
@@ -675,3 +817,22 @@ def dumpprivkey_otac(node, address):
     if not otac_match:
         raise JSONRPCException(error_text)
     return node.dumpprivkey(address, otac_match.groups()[0])
+
+def get_znsync_status(node):
+    result = node.znsync("status")
+    return result['IsSynced']
+
+def wait_to_sync_znodes(node, fast_znsync=False):
+    while True:
+        synced = get_znsync_status(node)
+        if synced:
+            break
+        time.sleep(0.2)
+        if fast_znsync:
+            # skip mnsync states
+            node.znsync("next")
+
+def get_full_balance(node):
+    wallet_info = node.getwalletinfo()
+    return wallet_info["balance"] + wallet_info["immature_balance"] + wallet_info["unconfirmed_balance"]
+
