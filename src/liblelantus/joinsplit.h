@@ -5,8 +5,6 @@
 #include "lelantus_proof.h"
 #include "spend_metadata.h"
 
-#include "../sigma/openssl_context.h"
-
 namespace lelantus {
 
 class JoinSplit {
@@ -57,20 +55,33 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
         READWRITE(lelantusProof);
         READWRITE(coinNum);
 
-        if (ser_action.ForRead()) {
+        if (ser_action.ForRead())
+        {
             groupIds.resize(coinNum);
             ecdsaSignatures.resize(coinNum);
             ecdsaPubkeys.resize(coinNum);
         }
 
-        for(uint8_t i = 0; i < coinNum; i++) {
+        for(uint8_t i = 0; i < coinNum; i++)
+        {
             READWRITE(groupIds[i]);
-            READWRITE(ecdsaSignatures[i]);
-            READWRITE(ecdsaPubkeys[i]);
+            size_t sigSize = 64;
+            size_t pubKeySize = 33;
+            if (ser_action.ForRead())
+            {
+                ecdsaSignatures[i].resize(sigSize);
+                ecdsaPubkeys[i].resize(pubKeySize);
+            }
+
+            for (size_t j = 0; j < sigSize; j++)
+                READWRITE(ecdsaSignatures[i][j]);
+            for (size_t j = 0; j < pubKeySize; j++)
+                READWRITE(ecdsaPubkeys[i][j]);
         }
 
         READWRITE(coinGroupIdAndBlockHash);

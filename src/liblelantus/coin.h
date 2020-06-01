@@ -3,7 +3,7 @@
 
 #include "lelantus_primitives.h"
 #include "params.h"
-
+#include "../sigma/openssl_context.h"
 
 
 namespace lelantus {
@@ -69,7 +69,7 @@ public:
     const unsigned char* getEcdsaSeckey() const;
 
     void setEcdsaSeckey(const std::vector<unsigned char> &seckey);
-    void setEcdsaSeckey(uint256 &seckey);
+    void setEcdsaSeckey(const uint256& seckey);
 
     static Scalar serialNumberFromSerializedPublicKey(
             const secp256k1_context *context,
@@ -86,7 +86,7 @@ private:
 
 private:
     void randomize();
-    void mintCoin(const uint64_t& v);
+    void mintCoin(uint64_t v);
 };
 
 }// namespace lelantus

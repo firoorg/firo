@@ -163,10 +163,7 @@ bool JoinSplit::Verify(
 
 uint256 JoinSplit::signatureHash(const SpendMetaData& m, size_t coutSize) const {
     CHashWriter h(0,0);
-    std::vector<unsigned char> buffer;
-    buffer.resize(lelantusProof.memoryRequired(serialNumbers.size(), params->get_bulletproofs_n(), coutSize));
-    lelantusProof.serialize(buffer.data());
-    h << m << buffer;
+    h << m << lelantusProof;
     return h.GetHash();
 }
 

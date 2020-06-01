@@ -106,7 +106,7 @@ void PrivateCoin::setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
         throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
 
-void PrivateCoin::setEcdsaSeckey(uint256 &seckey) {
+void PrivateCoin::setEcdsaSeckey(const uint256& seckey) {
     if (seckey.size() == sizeof(ecdsaSeckey))
         std::copy(seckey.begin(), seckey.end(), &ecdsaSeckey[0]);
     else
@@ -126,11 +126,23 @@ void PrivateCoin::setVersion(unsigned int nVersion) {
 }
 
 void PrivateCoin::randomize() {
-    serialNumber.randomize();
+    // Create a key pair
+    secp256k1_pubkey pubkey;
+    do {
+        if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
+            throw std::invalid_argument("Unable to generate randomness");
+        }
+    } while (!secp256k1_ec_pubkey_create(
+            OpenSSLContext::get_context(), &pubkey, this->ecdsaSeckey));
+
+    // Hash the public key in the group to obtain a serial number
+    serialNumber = serialNumberFromSerializedPublicKey(
+            OpenSSLContext::get_context(), &pubkey);
+
     randomness.randomize();
 }
 
-void PrivateCoin::mintCoin(const uint64_t& v) {
+void PrivateCoin::mintCoin(uint64_t v) {
     value = v;
     GroupElement commit = LelantusPrimitives<Scalar, GroupElement>::double_commit(
             params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);
