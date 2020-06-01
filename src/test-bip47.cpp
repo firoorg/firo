@@ -23,7 +23,7 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
-#include "exodus/exodus.h"
+#include "elysium/elysium.h"
 #include "hash.h"
 #include "init.h"
 #include "base58.h"
