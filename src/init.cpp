@@ -267,8 +267,6 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
-    delete pwalletMain->zwallet;
-    pwalletMain->zwallet = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
@@ -344,8 +342,6 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
-    delete pwalletMain->zwallet;
-    pwalletMain->zwallet = NULL;
 #endif
 
 #if ENABLE_ZMQ
@@ -848,7 +844,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         pwalletMain->zwallet->SyncWithChain();
     }
     // Need this to restore Sigma spend state
-    if (GetBoolArg("-rescan", false) && pwalletMain->zwallet) {
+    if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         pwalletMain->zwallet->GetTracker().ListMints();
     }
 #endif
@@ -1908,7 +1904,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("Step 8: load wallet ************************************\n");
     if (GetBoolArg("-disablewallet", false)) {
         pwalletMain = NULL;
-        pwalletMain->zwallet = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
     CWallet::InitLoadWallet();

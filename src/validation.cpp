@@ -1325,7 +1325,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (pwalletMain->zwallet) {
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
@@ -1334,7 +1334,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if(markZcoinSpendTransactionSerial)
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint() && pwalletMain->zwallet) {
+    if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
         zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
@@ -2953,7 +2953,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
-    if (pwalletMain->zwallet) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         if (block.sigmaTxInfo->spentSerials.size() > 0) {
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
         }
@@ -3092,7 +3092,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if (pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
+
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
         if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());

@@ -168,13 +168,14 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
     auto params = sigma::Params::get_default();
 
     CHDMint hdMint;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         hdMint.SetNull();
-        mintWallet.GenerateMint(denomination, newCoin, hdMint, boost::none, true);
+        mintWallet.GenerateMint(walletdb, denomination, newCoin, hdMint, boost::none, true);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {

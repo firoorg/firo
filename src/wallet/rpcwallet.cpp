@@ -2958,7 +2958,7 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
         bool hasSerial = pwallet->zwallet->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
 
         MintPoolEntry entry = mintPoolPair.second;
-        nIndexes = pwallet->zwallet->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
+        nIndexes = pwallet->zwallet->RegenerateMintPoolEntry(walletdb, get<0>(entry),get<1>(entry),get<2>(entry));
 
         if(nIndexes.first != oldHashPubcoin){
             walletdb.EraseMintPoolPair(oldHashPubcoin);

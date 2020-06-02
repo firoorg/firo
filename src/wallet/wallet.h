@@ -767,6 +767,8 @@ public:
     {
         delete pwalletdbEncryption;
         pwalletdbEncryption = NULL;
+        delete zwallet;
+        zwallet = NULL;
     }
 
     void SetNull()

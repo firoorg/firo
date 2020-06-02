@@ -706,7 +706,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             }
 
             return data.IsUsed;
-        } else if (pwalletMain->zwallet && script.IsSigmaMint()) {
+        } else if (zwallet && script.IsSigmaMint()) {
             auto pub = sigma::ParseSigmaMintScript(script);
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
             CMintMeta meta;
@@ -2488,13 +2488,14 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     EnsureMintWalletAvailable();
 
     std::vector<CRecipient> vecSend;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
-        [&vDMints](sigma::PrivateCoin& coin) -> CRecipient {
+        [&vDMints, &walletdb](sigma::PrivateCoin& coin) -> CRecipient {
 
             // Generate and store secrets deterministically in the following function.
             CHDMint dMint;
-            pwalletMain->zwallet->GenerateMint(coin.getPublicCoin().getDenomination(), coin, dMint);
+            pwalletMain->zwallet->GenerateMint(walletdb, coin.getPublicCoin().getDenomination(), coin, dMint);
 
 
             // Get a copy of the 'public' portion of the coin. You should
@@ -3943,6 +3944,7 @@ bool CWallet::CreateSigmaMintModel(
     vector<sigma::PrivateCoin> privCoins;
     CWalletTx wtx;
     CHDMint dMint;
+    CWalletDB walletdb(strWalletFile);
 
     for(const std::pair<sigma::CoinDenomination, int>& denominationPair: denominationPairs) {
         sigma::CoinDenomination denomination = denominationPair.first;
@@ -3973,7 +3975,7 @@ bool CWallet::CreateSigmaMintModel(
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
-            zwallet->GenerateMint(denomination, newCoin, dMint);
+            zwallet->GenerateMint(walletdb, denomination, newCoin, dMint);
 
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -4143,6 +4145,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAm
 
 bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmount) {
     EnsureMintWalletAvailable();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
     if (!fFileBacked)
         return false;
@@ -4170,7 +4173,7 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
 
     // Generate and store secrets deterministically in the following function.
     dMint.SetNull();
-    zwallet->GenerateMint(denomination, newCoin, dMint);
+    zwallet->GenerateMint(walletdb, denomination, newCoin, dMint);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -4199,8 +4202,6 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
 
         if (stringError != "")
             return false;
-
-        CWalletDB walletdb(pwalletMain->strWalletFile);
 
         dMint.SetTxHash(wtx.GetHash());
         zwallet->GetTracker().Add(dMint, true);
@@ -4376,6 +4377,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     CMutableTransaction txNew;
 
     LOCK2(cs_main, cs_wallet);
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
     const Consensus::Params &params = Params().GetConsensus();
     if (!sigma::IsRemintWindow(chainActive.Height())) {
@@ -4441,14 +4443,14 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
 
             // Generate and store secrets deterministically in the following function.
             CHDMint hdMint;
-            zwallet->GenerateMint(newCoin.getPublicCoin().getDenomination(), newCoin, hdMint);
+            zwallet->GenerateMint(walletdb, newCoin.getPublicCoin().getDenomination(), newCoin, hdMint);
 
             sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
             // Validate
             if (!pubCoin.validate()) {
                 stringError = "Unable to mint a sigma coin";
-                zwallet->ResetCount();
+                zwallet->ResetCount(walletdb);
                 return false;
             }
 
@@ -4460,7 +4462,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             int64_t intDenomination;
             if (!sigma::DenominationToInteger(denomMap.sigmaDenomination, intDenomination)) {
                 stringError = "Unknown sigma denomination";
-                zwallet->ResetCount();
+                zwallet->ResetCount(walletdb);
                 return false;
             }
 
@@ -4501,8 +4503,6 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         return false;
     }
 
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-
     // Write mint entry as "used for remint"
     mintEntry.IsUsed = mintEntry.IsUsedForRemint = true;
     walletdb.WriteZerocoinEntry(mintEntry);
@@ -4531,7 +4531,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     }
 
     // Update nCountNextUse in HDMint wallet database
-    zwallet->UpdateCountDB();
+    zwallet->UpdateCountDB(walletdb);
 
     if (wtx)
         *wtx = wtxNew;
@@ -6589,7 +6589,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
     }
 
     // Update nCountNextUse in HDMint wallet database
-    zwallet->UpdateCountDB();
+    zwallet->UpdateCountDB(walletdb);
 
     return "";
 }
@@ -7048,7 +7048,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
     }
 
     // Update nCountNextUse in HDMint wallet database
-    zwallet->UpdateCountDB();
+    zwallet->UpdateCountDB(walletdb);
 
     return true;
 }
@@ -7070,7 +7070,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
         CHDMint dMint;
         if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), dMint))
             return error("%s: failed to read deterministic mint", __func__);
-        if (!zwallet->RegenerateMint(dMint, zerocoin))
+        if (!zwallet->RegenerateMint(walletdb, dMint, zerocoin))
             return error("%s: failed to generate mint", __func__);
 
          return true;
