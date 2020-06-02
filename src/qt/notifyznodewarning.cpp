@@ -2,9 +2,12 @@
 
 #include "evo/deterministicmns.h"
 #include "znode.h"
+#include "znodesync-interface.h"
 #include "chain.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
+#include "warnings.h"
+#include "validation.h"
 
 
 #ifdef ENABLE_WALLET
@@ -12,14 +15,10 @@
 #include "wallet/wallet.h"
 #endif
 
-#include <QMessageBox>
-#include <QAbstractButton>
-
 bool NotifyZnodeWarning::nConsidered = false;
 
 void NotifyZnodeWarning::notify()
 {
-    QMessageBox msg;
     const Consensus::Params& params = ::Params().GetConsensus();
     float numBlocksToEnforcement = params.DIP0003EnforcementHeight - chainActive.Tip()->nHeight;
     float minutesToEnforcement = numBlocksToEnforcement * (params.nPowTargetSpacingMTP / 60);
@@ -27,22 +26,22 @@ void NotifyZnodeWarning::notify()
     float daysToEnforcement = floor(daysDecimal);
     float hoursToEnforcement = floor((daysDecimal > 0 ? (daysDecimal - daysToEnforcement) : 0) * 24);
 
-    QString messageWarning = QString("WARNING: Legacy znodes detected. You should migrate to the new Znode layout before it becomes enforced (approximately %1 days and %2 hours). For details on how to migrate, go to https://zcoin.io/znode-migration")
-    .arg(QString::number((int)daysToEnforcement, 10))
-    .arg(QString::number((int)hoursToEnforcement, 10));
-    msg.setText(messageWarning);
-    msg.setIcon(QMessageBox::Warning);
-    msg.exec();
-    nConsidered = true;
+    std::string strWarning = strprintf(_("WARNING: Legacy znodes detected. You should migrate to the new Znode layout before it becomes enforced (approximately %i days and %i hours). For details on how to migrate, go to https://zcoin.io/znode-migration"),
+        (int)daysToEnforcement,
+        (int)hoursToEnforcement);
+
+    SetMiscWarning(strWarning);
+    uiInterface.NotifyAlertChanged();
 }
 
 bool NotifyZnodeWarning::shouldShow()
 {
 #ifdef ENABLE_WALLET
-    if(nConsidered || // already fully considered warning
-       znodeConfig.getCount() == 0 || // no legacy znodes detected
-       !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight) // outside of legacy window
-       || !pwalletMain) // wallet not yet loaded
+    if(nConsidered ||                                         // already fully considered warning
+       znodeConfig.getCount() == 0 ||                         // no legacy znodes detected
+       !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight) || // outside of legacy window
+       !pwalletMain ||                                        // wallet not yet loaded
+       !znodeSyncInterface.IsSynced())                        // znode state not yet synced
         return false;
 
     // get Znode entries.
@@ -75,8 +74,10 @@ bool NotifyZnodeWarning::shouldShow()
         }
 
         // if collateral not found, show warning.
-        if(!foundOutpoint)
+        if(!foundOutpoint){
+            nConsidered = true;
             return true;
+        }
     }
 
     // if we get to here, the warning will never be shown, and so is fully considered (All znodes ported or expired)
