@@ -31,7 +31,7 @@ void NotifyZnodeWarning::notify()
         (int)hoursToEnforcement);
 
     SetMiscWarning(strWarning);
-    AlertNotify(strWarning);
+    uiInterface.NotifyAlertChanged();
 }
 
 bool NotifyZnodeWarning::shouldShow()
