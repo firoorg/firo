@@ -973,8 +973,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     int64_t intDenom;
     int coinGroupId;
     try {
-        intDenom = std::stol(params[0].get_str());
-        coinGroupId = std::stol(params[1].get_str());
+        intDenom = std::stol(request.params[0].get_str());
+        coinGroupId = std::stol(request.params[1].get_str());
     } catch (std::logic_error const & e) {
         throw runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
@@ -1030,7 +1030,7 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
                 + HelpExampleRpc("getmintmetadata", "{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}")
         );
 
-    UniValue mintValues = find_value(params[0].get_obj(), "mints");
+    UniValue mintValues = find_value(request.params[0].get_obj(), "mints");
     if (!mintValues.isArray()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
     }
@@ -1434,7 +1434,7 @@ UniValue getaddressstatistics(const JSONRPCRequest& request)
     if(!pblocktree->ReadAddressBalances(addrBalances))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read from the database");
 
-    std::string action = params[0].getValStr();
+    std::string action = request.params[0].getValStr();
 
     UniValue result;
 
