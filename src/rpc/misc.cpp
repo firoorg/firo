@@ -949,9 +949,9 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
 }
 
-UniValue getanonymityset(const UniValue& params, bool fHelp)
+UniValue getanonymityset(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 2)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
                 "getanonymityset\n"
                         "\nReturns the anonymity set and latest block hash.\n"
@@ -1007,9 +1007,9 @@ UniValue getanonymityset(const UniValue& params, bool fHelp)
     return ret;
 }
 
-UniValue getmintmetadata(const UniValue& params, bool fHelp)
+UniValue getmintmetadata(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1)
+    if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
                 "getmintmetadata\n"
                         "\nReturns the anonymity set id and nHeight of mint.\n"
@@ -1054,9 +1054,9 @@ UniValue getmintmetadata(const UniValue& params, bool fHelp)
     return ret;
 }
 
-UniValue getusedcoinserials(const UniValue& params, bool fHelp)
+UniValue getusedcoinserials(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 0)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "getusedcoinserials\n"
                 "\nReturns the set of used coin serial.\n"
@@ -1079,9 +1079,9 @@ UniValue getusedcoinserials(const UniValue& params, bool fHelp)
     return ret;
 }
 
-UniValue getlatestcoinids(const UniValue& params, bool fHelp)
+UniValue getlatestcoinids(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 0)
+    if (request.fHelp || request.params.size() != 0)
         throw runtime_error(
                 "getlatestcoinids\n"
                 "\nReturns the set of used coin serial.\n"
@@ -1413,9 +1413,9 @@ UniValue getinfoex(const JSONRPCRequest& request)
 
 #include <iostream>
 
-UniValue getaddressstatistics(const UniValue& params, bool fHelp)
+UniValue getaddressstatistics(const JSONRPCRequest& request)
 {
-    if (fHelp || params.size() != 1 || !params[0].isStr())
+    if (request.fHelp || request.params.size() != 1 || !request.params[0].isStr())
         throw runtime_error(
             "getaddressstatistics\n"
             "Returns addresses balance statistics information.\n"
