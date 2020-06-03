@@ -44,10 +44,14 @@ class SigmaZapWalletMintsTest(BitcoinTestFramework):
             .format(len(sigma_mints1))
 
         # stop nodes
+        blockcount = self.nodes[0].getblockcount()
         stop_nodes(self.nodes)
-
         self.nodes = start_nodes(1, self.options.tmpdir, "-zapwalletmints")
         self.sync_all()
+        while self.nodes[0].getblockcount() < blockcount:
+            time.sleep(0.1)
+        time.sleep(1) # to handle rescan following reindex
+
         sigma_mints2 = self.nodes[0].listunspentsigmamints()
 
         assert len(sigma_mints2) == len(sigma_mints1), \
