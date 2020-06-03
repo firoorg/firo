@@ -175,6 +175,10 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
+    // write hdchain back to database
+    if (!walletdb.WriteHDChain(pwalletMain->GetHDChain()))
+        throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
+
     // Update local + DB entries for count last generated
     nCountNextGenerate = nLastCount;
     walletdb.WriteMintSeedCount(nCountNextGenerate);
@@ -433,7 +437,7 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
 
     LogPrintf("%s: Adding mint to tracker.. \n", __func__);
     // Add to tracker which also adds to database
-    tracker.Add(dMint, true);
+    tracker.Add(walletdb, dMint, true);
 
     return true;
 }
@@ -526,7 +530,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
         int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX];
         if(nCount==chainIndex){
             // If chainIndex is the same as n (ie. we are generating next available key), generate a new key.
-            pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
+            pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX, nWriteChain);
         }
         else if(nCount<chainIndex){
             // if it's less than the current chain index, we are regenerating the mintpool. get the key at n

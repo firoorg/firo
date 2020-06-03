@@ -3760,7 +3760,7 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
         }
         dMint.SetUsed(false);
         dMint.SetHeight(-1);
-        pwallet->zwallet->GetTracker().Add(dMint, true);
+        pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
     }
 
     return NullUniValue;
@@ -4075,10 +4075,10 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
 
                 if(!mint.isDeterministic){
                     zerocoinItem.IsUsed = fStatus;
-                    pwallet->zwallet->GetTracker().Add(zerocoinItem, true);
+                    pwallet->zwallet->GetTracker().Add(walletdb, zerocoinItem, true);
                 }else{
                     dMint.SetUsed(fStatus);
-                    pwallet->zwallet->GetTracker().Add(dMint, true);
+                    pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
                 }
 
                 if (!fStatus) {

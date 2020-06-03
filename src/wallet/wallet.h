@@ -846,7 +846,7 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey(uint32_t nChange=0);
+    CPubKey GenerateNewKey(uint32_t nChange=0, bool nWriteChain=true);
     void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret);
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey) override;

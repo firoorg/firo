@@ -75,6 +75,7 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     block->second.nHeight = block->second.pprev->nHeight + 1;
 
     // generate coins
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     CHDMint dMint;
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
@@ -89,7 +90,7 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
             block->second.sigmaMintedPubCoins[std::make_pair(coin.first, 1)].push_back(pub);
 
             if (addToWallet) {
-                pwalletMain->zwallet->GetTracker().Add(dMint, true);
+                pwalletMain->zwallet->GetTracker().Add(walletdb, dMint, true);
             }
         }
     }

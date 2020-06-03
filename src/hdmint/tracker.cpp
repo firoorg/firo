@@ -102,12 +102,12 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
         CHDMint dMint;
         if (!walletdb.UnarchiveHDMint(hashPubcoin, dMint))
             return error("%s: failed to unarchive deterministic mint", __func__);
-        Add(dMint, false);
+        Add(walletdb, dMint, false);
     } else {
         CSigmaEntry sigma;
         if (!walletdb.UnarchiveSigmaMint(hashPubcoin, sigma))
             return error("%s: failed to unarchivesigma mint", __func__);
-        Add(sigma, false);
+        Add(walletdb, sigma, false);
     }
 
     LogPrintf("%s: unarchived %s\n", __func__, hashPubcoin.GetHex());   
@@ -283,7 +283,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
  * @param isArchived set to true if this mint is archived, used to set meta object correctly
  * @return success
  */
-void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
+void CHDMintTracker::Add(CWalletDB& walletdb, const CHDMint& dMint, bool isNew, bool isArchived)
 {
     CMintMeta meta;
     meta.SetPubCoinValue(dMint.GetPubcoinValue());
@@ -305,10 +305,10 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
         CT_UPDATED);
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteHDMint(dMint);
+        walletdb.WriteHDMint(dMint);
 }
 
-void CHDMintTracker::Add(const CSigmaEntry& sigma, bool isNew, bool isArchived)
+void CHDMintTracker::Add(CWalletDB& walletdb, const CSigmaEntry& sigma, bool isNew, bool isArchived)
 {
     CMintMeta meta;
     meta.SetPubCoinValue(sigma.value);
@@ -324,7 +324,7 @@ void CHDMintTracker::Add(const CSigmaEntry& sigma, bool isNew, bool isArchived)
     mapSerialHashes[meta.hashSerial] = meta;
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteSigmaEntry(sigma);
+        walletdb.WriteSigmaEntry(sigma);
 }
 
 /**
@@ -720,13 +720,13 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
         std::list<CSigmaEntry> listMintsDB;
         walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){
-            Add(mint);
+            Add(walletdb, mint);
         }
         LogPrint("zero", "%s: added %d sigmamints from DB\n", __func__, listMintsDB.size());
 
         std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
         for (auto& dMint : listDeterministicDB) {
-            Add(dMint, false, false);
+            Add(walletdb, dMint, false, false);
         }
         LogPrint("zero", "%s: added %d hdmint from DB\n", __func__, listDeterministicDB.size());
     }
