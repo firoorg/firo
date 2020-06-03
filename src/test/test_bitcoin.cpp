@@ -126,7 +126,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 
         pwalletMain->SetBestChain(chainActive.GetLocator());
 
-        pwalletMain->zwallet = new CHDMintWallet(pwalletMain->strWalletFile);
+        pwalletMain->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
         pwalletMain->zwallet->GetTracker().Init();
         pwalletMain->zwallet->LoadMintPoolFromDB();
         pwalletMain->zwallet->SyncWithChain();

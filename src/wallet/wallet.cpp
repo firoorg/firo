@@ -8093,7 +8093,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
-        walletInstance->zwallet = new CHDMintWallet(pwalletMain->strWalletFile);
+        walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
     }
 
     RegisterValidationInterface(walletInstance);

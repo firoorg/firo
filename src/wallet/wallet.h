@@ -750,7 +750,7 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 
-    CHDMintWallet* zwallet;
+    std::unique_ptr<CHDMintWallet> zwallet;
 
     CWallet()
     {
@@ -767,8 +767,6 @@ public:
     {
         delete pwalletdbEncryption;
         pwalletdbEncryption = NULL;
-        delete zwallet;
-        zwallet = NULL;
     }
 
     void SetNull()

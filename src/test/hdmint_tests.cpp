@@ -322,7 +322,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     }
 
     // Start pwalletMain->zwallet from scratch
-    pwalletMain->zwallet = new CHDMintWallet(pwalletMain->strWalletFile, true);
+    pwalletMain->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile, true);
 
     // sync mints with chain (will regenerate mintpool + sync with chain)
     pwalletMain->zwallet->SyncWithChain();

@@ -1336,7 +1336,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
-        zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
