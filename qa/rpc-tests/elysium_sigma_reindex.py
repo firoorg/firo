@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from test_framework.test_framework import ElysiumTestFramework
 from test_framework.util import assert_equal, connect_nodes, start_node, stop_node, sync_blocks
+import time
 
 class ElysiumSigmaReindexTest(ElysiumTestFramework):
     def run_test(self):
@@ -59,6 +60,7 @@ class ElysiumSigmaReindexTest(ElysiumTestFramework):
         connect_nodes(self.nodes[0], 1)
 
         sync_blocks(self.nodes)
+        time.sleep(1)
 
         reindexed_confirmed_mints = self.nodes[0].elysium_listmints()
         self.compare_mints(confirmed_mints, reindexed_confirmed_mints)
