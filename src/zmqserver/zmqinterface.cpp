@@ -194,6 +194,9 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
 
 void CZMQPublisherInterface::UpdateSyncStatus()
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -228,6 +231,9 @@ void CZMQPublisherInterface::NotifyAPIStatus()
 
 void CZMQPublisherInterface::WalletSegment(const std::string &segment)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -245,6 +251,9 @@ void CZMQPublisherInterface::WalletSegment(const std::string &segment)
 
 void CZMQPublisherInterface::NotifyZnodeList()
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -262,6 +271,9 @@ void CZMQPublisherInterface::NotifyZnodeList()
 
 void CZMQPublisherInterface::NumConnectionsChanged()
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -279,6 +291,9 @@ void CZMQPublisherInterface::NumConnectionsChanged()
 
 void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -296,6 +311,9 @@ void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, const
 
 void CZMQPublisherInterface::WalletTransaction(const CTransaction& tx)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -313,6 +331,9 @@ void CZMQPublisherInterface::WalletTransaction(const CTransaction& tx)
 
 void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -330,6 +351,9 @@ void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
 
 void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNCPtr masternode)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -347,6 +371,9 @@ void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNCPtr masternode)
 
 void CZMQPublisherInterface::UpdatedSettings(std::string update)
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;
@@ -364,6 +391,9 @@ void CZMQPublisherInterface::UpdatedSettings(std::string update)
 
 void CZMQPublisherInterface::UpdatedBalance()
 {
+    if(APIIsInWarmup())
+        return;
+
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
     {
         CZMQAbstract *notifier = *i;

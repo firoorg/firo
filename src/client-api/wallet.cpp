@@ -111,8 +111,6 @@ void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
 
 CAmount getLockUnspentAmount()
 {
-    LOCK(pwalletMain->cs_wallet);
-
     CTransactionRef tx;
     uint256 hashBlock;
     uint256 hash;
@@ -692,6 +690,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);

@@ -45,7 +45,7 @@ static const CAPICommand commands[] =
 { //  category      collection          actor (function)   authPort   authPassphrase warmupOk
   //  --------      ----------          ----------------   -----      -------------- --------
     { "masternode", "masternodeList",   &masternodelist,   true,      false,         false  },
-    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         true   }
+    { "masternode", "masternodeUpdate", &masternodeupdate, true,      false,         false  }
 
 };
 void RegisterMasternodeAPICommands(CAPITable &tableAPI)

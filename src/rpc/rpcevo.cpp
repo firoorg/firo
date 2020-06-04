@@ -914,7 +914,7 @@ UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMNCPtr& dmn, bo
     bool ownsCollateral = false;
     if(pwallet)
         ownsCollateral = pwallet->mapWallet.count(dmn->collateralOutpoint.hash);
-    bool ownsMasternode = hasOwnerKey && hasVotingKey && ownsPayeeScript && ownsOperatorRewardScript && ownsCollateral;
+    bool ownsMasternode = hasOwnerKey && hasVotingKey && ownsPayeeScript && ownsCollateral;
 
     UniValue walletObj(UniValue::VOBJ);
     walletObj.push_back(Pair("hasOwnerKey", hasOwnerKey));
