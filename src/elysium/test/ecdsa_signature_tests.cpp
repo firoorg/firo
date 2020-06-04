@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(construct_and_get_data)
 
 BOOST_AUTO_TEST_CASE(parse_signature)
 {
-    auto sig = ECDSASignature::ParseCompact(context, compact.data(), compact.size());
+    auto sig = ECDSASignature::ParseCompact(context, compact.data());
     auto derSig = ECDSASignature::ParseDER(context, rawSig.data(), rawSig.size());
     auto sigVec = sig.GetDER(context);
     auto derSigVec = derSig.GetDER(context);

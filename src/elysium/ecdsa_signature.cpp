@@ -17,7 +17,7 @@ ECDSASignature::ECDSASignature(secp256k1_ecdsa_signature const &sig)
 {
 }
 
-ECDSASignature ECDSASignature::ParseCompact(ECDSAContext const &context, unsigned char const *signature, size_t len)
+ECDSASignature ECDSASignature::ParseCompact(ECDSAContext const &context, unsigned char const *signature)
 {
     secp256k1_ecdsa_signature sig;
 
