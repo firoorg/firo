@@ -26,7 +26,7 @@ public:
     ECDSASignature(secp256k1_ecdsa_signature const &sig);
 
 public:
-    static ECDSASignature ParseCompact(ECDSAContext const &context, unsigned char const *signature, size_t len);
+    static ECDSASignature ParseCompact(ECDSAContext const &context, unsigned char const *signature);
     static ECDSASignature ParseDER(ECDSAContext const &context, unsigned char const *signature, size_t len);
 
 public:

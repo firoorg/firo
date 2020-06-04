@@ -590,7 +590,7 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
     std::fill(publicKey.begin(), publicKey.end(), 0xFF);
     publicKey[0] = 0x02; // Compressed
 
-    auto signature = ECDSASignature::ParseCompact(ECDSAContext::CreateSignContext(), rawSignature.begin(), rawSignature.size());
+    auto signature = ECDSASignature::ParseCompact(ECDSAContext::CreateSignContext(), rawSignature.begin());
 
     key1.Generate();
     key2.Generate();
