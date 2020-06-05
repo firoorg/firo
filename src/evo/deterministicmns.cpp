@@ -991,6 +991,9 @@ bool CDeterministicMNManager::GetListFromCache(CDeterministicMNList& mnList)
 
 CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex* pindex)
 {
+    if(!pindex)
+        return {};
+
     LOCK(cs);
 
     CDeterministicMNList snapshot;

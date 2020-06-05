@@ -1995,7 +1995,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                                 "command line argument or add \"txindex=1\" to your client "
                                 "configuration file within your data directory.\n\n"
                                 "Configuration file"); // allow translation of main text body while still allowing differing config file string
-
             msg += ": " + GetConfigFile("").string() + "\n\n";
             msg += _("Would you like Elysium to attempt to update your configuration file accordingly?");
             bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
