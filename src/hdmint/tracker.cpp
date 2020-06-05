@@ -1133,9 +1133,9 @@ list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bo
 std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
     std::vector<CMintMeta> setMints;
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    CWalletDB walletdb(strWalletFile);
     if (fLoad) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        CWalletDB walletdb(strWalletFile);
         std::list<CSigmaEntry> listMintsDB;
         walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){

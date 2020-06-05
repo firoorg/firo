@@ -1,6 +1,8 @@
 #include "../chainparams.h"
 #include "../lelantus.h"
+#include "../script/standard.h"
 #include "../validation.h"
+#include "../wallet/coincontrol.h"
 #include "../wallet/wallet.h"
 
 #include "test_bitcoin.h"
@@ -9,25 +11,6 @@
 #include <boost/test/unit_test.hpp>
 
 namespace lelantus {
-
-struct MintScriptGenerator {
-    PrivateCoin coin;
-
-    CScript Get() {
-        CScript script;
-
-        script.push_back(OP_LELANTUSMINT);
-
-        std::vector<unsigned char> serializedProof;
-        GenerateMintSchnorrProof(coin, serializedProof);
-
-        auto vch = coin.getPublicCoin().getValue().getvch();
-        script.insert(script.end(), vch.begin(), vch.end());
-        script.insert(script.end(), serializedProof.begin(), serializedProof.end());
-
-        return script;
-    }
-};
 
 struct JoinSplitScriptGenerator {
     Params const *params;
@@ -83,10 +66,25 @@ public:
         return pubs;
     }
 
-    std::pair<MintScriptGenerator, CTxOut> GenerateMintScript(CAmount value) const {
-        MintScriptGenerator script{PrivateCoin(params, value)};
+    void ExtractJoinSplit(CMutableTransaction const &tx,
+        std::vector<PublicCoin> &newMints,
+        std::vector<Scalar> &serials) {
+        for (auto const &in : tx.vin) {
+            if (in.IsLelantusJoinSplit()) {
+                auto js = ParseLelantusJoinSplit(in);
+                auto const &s = js->getCoinSerialNumbers();
+                serials.insert(serials.end(), s.begin(), s.end());
+            }
+        }
 
-        return {script, CTxOut(value, script.Get())};
+        for (auto const &out : tx.vout) {
+            if (out.scriptPubKey.IsLelantusJMint()) {
+                GroupElement coin;
+                ParseLelantusMintScript(out.scriptPubKey, coin);
+
+                newMints.push_back(coin);
+            }
+        }
     }
 
     CBlock GetCBlock(CBlockIndex const *blockIdx) {
@@ -110,6 +108,38 @@ public:
         }
 
         block.lelantusTxInfo->Complete();
+    }
+
+    CTransaction GenerateJoinSplit(
+        std::vector<CAmount> const &outs,
+        std::vector<CAmount> const &mints,
+        CCoinControl const *coinControl = nullptr) {
+
+        std::vector<CRecipient> vecs;
+        for (auto const &out : outs) {
+            LOCK(pwalletMain->cs_wallet);
+            auto pub = pwalletMain->GenerateNewKey();
+
+            vecs.push_back(
+            {
+                GetScriptForDestination(pub.GetID()),
+                out,
+                false
+            });
+        }
+
+        std::vector<CLelantusEntry>  spendCoins;
+        std::vector<CHDMint> mintCoins;
+
+        auto result = pwalletMain->CreateLelantusJoinSplitTransaction(
+            vecs, mints, spendCoins, mintCoins, coinControl);
+
+        if (!pwalletMain->CommitLelantusTransaction(
+            result, spendCoins, mintCoins)) {
+            throw std::runtime_error("Fail to commit transaction");
+        }
+
+        return result;
     }
 
 public:
@@ -319,160 +349,199 @@ BOOST_AUTO_TEST_CASE(build_lelantus_state)
 
 BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 {
-    auto params = Params::get_default();
+    // util function
+    auto reconnect = [](CBlock const &block) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        LOCK(mempool.cs);
 
-    std::vector<CMutableTransaction> txs;
-    std::vector<PrivateCoin> mints = {
-        PrivateCoin(params, 1), PrivateCoin(params, 1), PrivateCoin(params, 1)
-    };
-    Scalar serial1, serial2, serial3;
-    serial1.randomize();
-    serial2.randomize();
-    serial3.randomize();
+        std::shared_ptr<CBlock const> sharedBlock =
+        std::make_shared<CBlock const>(block);
 
-    // verify functions
-    auto verifyMintsAndSerials = [&] (bool m1In, bool m2In, bool m3In, bool s1In, bool s2In, bool s3In) {
-        BOOST_CHECK_EQUAL(m1In, lelantusState->HasCoin(mints[0].getPublicCoin()));
-        BOOST_CHECK_EQUAL(s1In, lelantusState->IsUsedCoinSerial(serial1));
-
-        BOOST_CHECK_EQUAL(m2In, lelantusState->HasCoin(mints[1].getPublicCoin()));
-        BOOST_CHECK_EQUAL(s2In, lelantusState->IsUsedCoinSerial(serial2));
-
-        BOOST_CHECK_EQUAL(m3In, lelantusState->HasCoin(mints[2].getPublicCoin()));
-        BOOST_CHECK_EQUAL(s3In, lelantusState->IsUsedCoinSerial(serial3));
+        CValidationState state;
+        ActivateBestChain(state, ::Params(), sharedBlock);
     };
 
-    auto verifyLastGroup = [&] (int id, CBlockIndex *first, CBlockIndex *last, size_t count) {
-        auto retrievedId = lelantusState->GetLatestCoinID();
+    GenerateBlocks(1000);
 
-        CLelantusState::LelantusCoinGroupInfo group;
-        lelantusState->GetCoinGroupInfo(retrievedId, group);
+    std::vector<CMutableTransaction> mintTxs;
+    auto hdMints = GenerateMints({3 * COIN, 3 * COIN, 3 * COIN}, mintTxs);
 
-        BOOST_CHECK_EQUAL(id, retrievedId);
-        BOOST_CHECK_EQUAL(first, group.firstBlock);
-        BOOST_CHECK_EQUAL(last, group.lastBlock);
-        BOOST_CHECK_EQUAL(count, group.nCoins);
-    };
+    struct {
+        // expected state.
+        std::vector<PublicCoin> coins;
+        std::vector<Scalar> serials;
 
-    auto blockIdx1 = GenerateBlock({});
+        // first group
+        CBlockIndex *first = nullptr;
+        CBlockIndex *last = nullptr;
+
+        int lastId = 0;
+
+        // real state
+        CLelantusState *state;
+
+        void Verify() const {
+            auto const &spends = state->GetSpends();
+            BOOST_CHECK_EQUAL(serials.size(), spends.size());
+            for (auto const &s : serials) {
+                BOOST_CHECK_MESSAGE(spends.count(s), "serial is not found on state");
+            }
+
+            auto const &mints = state->GetMints();
+            BOOST_CHECK_EQUAL(coins.size(), mints.size());
+            for (auto const &c : coins) {
+                BOOST_CHECK_MESSAGE(mints.count(c), "public is not found on state");
+            }
+
+            auto retrievedId = state->GetLatestCoinID();
+
+            CLelantusState::LelantusCoinGroupInfo group;
+            state->GetCoinGroupInfo(retrievedId, group);
+
+            BOOST_CHECK_EQUAL(lastId, retrievedId);
+            BOOST_CHECK_EQUAL(first, group.firstBlock);
+            BOOST_CHECK_EQUAL(last, group.lastBlock);
+            BOOST_CHECK_EQUAL(coins.size(), group.nCoins);
+        }
+    } checker;
+    checker.state = lelantusState;
+
+    // Cache empty checker
+    auto emptyChecker = checker;
+
+    // Generate some txs which contain mints
+    auto blockIdx1 = GenerateBlock({mintTxs[0], mintTxs[1]});
+    BOOST_CHECK(blockIdx1);
     auto block1 = GetCBlock(blockIdx1);
-    PopulateLelantusTxInfo(block1, {
-        {mints[0].getPublicCoin().getValue(), mints[0].getV()},
-        {mints[1].getPublicCoin().getValue(), mints[1].getV()}
-    }, {});
 
-    // add and verify state
-    CValidationState state;
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), blockIdx1, &block1, false));
+    checker.coins.push_back(hdMints[0].GetPubcoinValue());
+    checker.coins.push_back(hdMints[1].GetPubcoinValue());
+    checker.first = blockIdx1;
+    checker.last = blockIdx1;
+    checker.lastId = 1;
+    checker.Verify();
 
-    verifyMintsAndSerials(1, 1, 0, 0, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
+    // Generate empty blocks should not effect state
+    GenerateBlocks(10);
+    checker.Verify();
 
-    // Generate block between 1 and 2
-    auto noMintBlockIdx = GenerateBlock({});
-    auto noMintBlock = GetCBlock(noMintBlockIdx);
-    PopulateLelantusTxInfo(noMintBlock, {}, {});
+    // Add spend tx
 
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), noMintBlockIdx, &noMintBlock, false));
+    // Create two txs which contains same serial.
+    CCoinControl coinControl;
 
-    verifyMintsAndSerials(1, 1, 0, 0, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
+    {
+        auto tx = mintTxs[0];
+        auto it = std::find_if(tx.vout.begin(), tx.vout.end(), [](CTxOut const &out) -> bool {
+            return out.scriptPubKey.IsLelantusMint();
+        });
+        BOOST_CHECK(it != tx.vout.end());
 
-    // add block 2 with a serial
-    auto blockIdx2 = GenerateBlock({});
+        coinControl.Select(COutPoint(tx.GetHash(), std::distance(tx.vout.begin(), it)));
+    }
+
+    auto jsTx1 = GenerateJoinSplit({1 * COIN}, {}, &coinControl);
+
+    // Update isused status
+    {
+        auto mint = hdMints[0];
+        auto pubCoin = mint.GetPubcoinValue()
+            + lelantus::Params::get_default()->get_h1() * Scalar(mint.GetAmount()).negate();
+        auto hash = primitives::GetPubCoinValueHash(pubCoin);
+
+        CLelantusMintMeta meta;
+        BOOST_CHECK(zwalletMain->GetTracker()
+            .GetLelantusMetaFromPubcoin(hash, meta));
+        BOOST_CHECK(meta.isUsed);
+
+        meta.isUsed = false;
+        BOOST_CHECK(zwalletMain->GetTracker().UpdateState(meta));
+
+        meta = CLelantusMintMeta();
+        BOOST_CHECK(zwalletMain->GetTracker()
+            .GetLelantusMetaFromPubcoin(hash, meta));
+        BOOST_CHECK(!meta.isUsed);
+    }
+
+    // Create duplicated serial tx and test this at the bottom
+    auto dupJsTx1 = GenerateJoinSplit({1 * COIN}, {}, &coinControl);
+
+    std::vector<PublicCoin> dupNewCoins1;
+    std::vector<Scalar> dupSerials1;
+    ExtractJoinSplit(dupJsTx1, dupNewCoins1, dupSerials1);
+
+    std::vector<PublicCoin> newCoins1;
+    std::vector<Scalar> serials1;
+    ExtractJoinSplit(jsTx1, newCoins1, serials1);
+    BOOST_CHECK_EQUAL(1, newCoins1.size());
+    BOOST_CHECK_EQUAL(1, serials1.size());
+    BOOST_CHECK(dupSerials1[0] == serials1[0]);
+
+    auto blockIdx2 = GenerateBlock({jsTx1});
+    BOOST_CHECK(blockIdx2);
     auto block2 = GetCBlock(blockIdx2);
-    PopulateLelantusTxInfo(block2, {}, {{serial1, 1}});
 
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), blockIdx2, &block2, false));
+    auto cacheChecker = checker;
+    checker.coins.push_back(newCoins1.front());
+    checker.serials.push_back(serials1.front());
+    checker.last = blockIdx2;
 
-    verifyMintsAndSerials(1, 1, 0, 1, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
+    checker.Verify();
 
-    // add block 3 which contains both mint and serial
-    auto blockIdx3 = GenerateBlock({});
-    auto block3 = GetCBlock(blockIdx3);
-    PopulateLelantusTxInfo(block3, {{mints[2].getPublicCoin().getValue(), mints[2].getV()}}, {{serial2, 1}});
-
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), blockIdx3, &block3, false));
-
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
-
-    // remove block 3
-    DisconnectTipLelantus(block3, blockIdx3);
-
-    verifyMintsAndSerials(1, 1, 0, 1, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
+    // state should be rolled back
+    DisconnectBlocks(1);
+    BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, blockIdx2->nHeight - 1);
+    cacheChecker.Verify();
 
     // reconnect
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), blockIdx3, &block3, false));
+    reconnect(block2);
+    checker.Verify();
 
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
+    // add more block contain both mint and serial
+    auto jsTx2 = GenerateJoinSplit({1 * COIN}, {CENT});
+    std::vector<PublicCoin> newCoins2;
+    std::vector<Scalar> serials2;
+    ExtractJoinSplit(jsTx2, newCoins2, serials2);
+    BOOST_CHECK_EQUAL(2, newCoins2.size());
+    BOOST_CHECK_EQUAL(1, serials2.size());
 
-    // add more block without any mint or serial
-    noMintBlockIdx = GenerateBlock({});
-    noMintBlock = GetCBlock(noMintBlockIdx);
-    PopulateLelantusTxInfo(noMintBlock, {}, {});
+    auto blockIdx3 = GenerateBlock({mintTxs[2], jsTx2});
+    BOOST_CHECK(blockIdx3);
+    auto block3 = GetCBlock(blockIdx3);
 
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), noMintBlockIdx, &noMintBlock, false));
+    checker.coins.insert(checker.coins.end(), newCoins2.begin(), newCoins2.end());
+    checker.coins.push_back(hdMints[2].GetPubcoinValue());
+    checker.serials.push_back(serials2[0]);
+    checker.last = blockIdx3;
 
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
+    checker.Verify();
 
-    // add a serial
-    auto blockIdx4 = GenerateBlock({});
-    auto block4 = GetCBlock(blockIdx4);
-    PopulateLelantusTxInfo(block4, {}, {{serial3, 1}});
+    // Clear state and rebuild
+    lelantusState->Reset();
+    emptyChecker.Verify();
 
-    BOOST_CHECK(ConnectBlockLelantus(state, ::Params(), blockIdx4, &block4, false));
+    BuildLelantusStateFromIndex(&chainActive);
+    checker.Verify();
 
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 1);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
+    // Disconnect all and reconnect
+    std::vector<CBlock> blocks;
+    while (chainActive.Tip() != chainActive.Genesis()) {
+        blocks.push_back(GetCBlock(chainActive.Tip()));
+        DisconnectBlocks(1);
+    }
 
-    // add a block with duplicated a serial should fail
-    auto invalidBlockIdx3 = GenerateBlock({});
-    auto invalidBlock3 = GetCBlock(invalidBlockIdx3);
-    PopulateLelantusTxInfo(invalidBlock3, {}, {{serial3, 1}});
-    BOOST_CHECK(!ConnectBlockLelantus(state, ::Params(), invalidBlockIdx3, &invalidBlock3, false));
+    emptyChecker.Verify();
 
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 1);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
+    for (auto const &block : blocks) {
+        reconnect(block);
+    }
 
-    // purge state to recreate
-    DisconnectTipLelantus(block4, blockIdx4);
+    checker.Verify();
 
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
-
-    DisconnectTipLelantus(block3, blockIdx3);
-
-    verifyMintsAndSerials(1, 1, 0, 1, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
-
-    DisconnectTipLelantus(noMintBlock, noMintBlockIdx);
-
-    verifyMintsAndSerials(1, 1, 0, 1, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
-
-    DisconnectTipLelantus(block2, blockIdx2);
-
-    verifyMintsAndSerials(1, 1, 0, 0, 0, 0);
-    verifyLastGroup(1, blockIdx1, blockIdx1, 2);
-
-    DisconnectTipLelantus(block1, blockIdx1);
-
-    verifyMintsAndSerials(0, 0, 0, 0, 0, 0);
-
-    // verify no group
-    CLelantusState::LelantusCoinGroupInfo group;
-    BOOST_CHECK(!lelantusState->GetCoinGroupInfo(1, group));
-
-    // regenerate state using BuildLelantusStateFromIndex
-    BOOST_CHECK(BuildLelantusStateFromIndex(&chainActive));
-
-    verifyMintsAndSerials(1, 1, 1, 1, 1, 1);
-    verifyLastGroup(1, blockIdx1, blockIdx3, 3);
+    // double spend
+    auto currentBlock = chainActive.Tip()->nHeight;
+    BOOST_CHECK(!GenerateBlock({dupJsTx1}));
+    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
 }
 
 BOOST_AUTO_TEST_CASE(checktransaction)
