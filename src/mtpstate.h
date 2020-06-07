@@ -14,13 +14,15 @@ class MTPState {
 protected:
     static MTPState *sharedMTPState;
 
+    // this is the block when MTP starts or 0 if we don't know the block number yet
+    int nMTPStartBlock;
     // starting MTP block number. Zero if transition hasn't happened yet
     int nFirstMTPBlock;
     // last block index
     CBlockIndex *lastSeenBlockIndex;
 
 public:
-    MTPState() : nFirstMTPBlock(0), lastSeenBlockIndex(NULL) {}
+    MTPState() : nMTPStartBlock(0), nFirstMTPBlock(0), lastSeenBlockIndex(NULL) {}
 
     // Get shared instance of MTPState
     static MTPState *GetMTPState() { return sharedMTPState; }
@@ -41,6 +43,9 @@ public:
 
     // Initialize from existing chain
     void InitializeFromChain(CChain *chain, const Consensus::Params &params);
+
+    // Set starting MTP block number if we know it
+    void SetMTPStartBlock(int _nMTPStartBlock) { nMTPStartBlock = _nMTPStartBlock; }
 };
 
 #endif

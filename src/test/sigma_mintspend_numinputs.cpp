@@ -5,7 +5,7 @@
 
 #include "chainparams.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "pubkey.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -48,7 +48,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than inputs limit.
-    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){
@@ -64,13 +63,13 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     // add block
     previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock({}, scriptPubKey);
+    b = CreateAndProcessBlock(scriptPubKey);
     wtx.Init(NULL);
 
     //Add 5 more blocks
     for (int i = 0; i < 5; i++)
     {
-        b = CreateAndProcessBlock({}, scriptPubKey);
+        b = CreateAndProcessBlock(scriptPubKey);
         wtx.Init(NULL);
     }
 
@@ -92,7 +91,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     BOOST_CHECK_MESSAGE(mempool.size() == spendsTransactionLimit + 1, "Num input spends not added to mempool");
 
     // add block
-    b = CreateAndProcessBlock({}, scriptPubKey);
+    b = CreateAndProcessBlock(scriptPubKey);
     wtx.Init(NULL);
 
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not correctly cleared: Block spend limit not enforced.");
@@ -134,7 +133,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
 
     // Ensure all mint coins be able to use.
     BOOST_CHECK_NE(mempool.size(), 0);
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_EQUAL(mempool.size(), 0);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
@@ -180,7 +179,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
     BOOST_CHECK_EQUAL(mempool.size(), 2);
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_EQUAL(mempool.size(), 1);
 
     mempool.clear();

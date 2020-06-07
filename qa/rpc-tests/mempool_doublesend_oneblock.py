@@ -39,9 +39,9 @@ class MempoolDoubleSpendOneBlock(BitcoinTestFramework):
         b = self.nodes[0].getblockhash(b_count-101)
         coinbase_txids2 = self.nodes[0].getblock(b)['tx'][0]
 
-        spends1_raw = create_tx(self.nodes[0], coinbase_txids1, node0_address, 1)
+        spends1_raw = create_tx(self.nodes[0], coinbase_txids1, node0_address, 26)
         inputs = [{"txid": coinbase_txids1, "vout": 0}, {"txid": coinbase_txids2, "vout": 0}]
-        outputs = {node0_address: 1, node0_address: 1}
+        outputs = {node0_address: 13, node0_address: 13}
         spends2_raw = create_tx_multi_input(self.nodes[0], inputs, outputs)
 
         self.nodes[0].sendrawtransaction(spends1_raw)
@@ -65,7 +65,7 @@ class MempoolDoubleSpendOneBlock(BitcoinTestFramework):
             self.nodes[0].sendrawtransaction(spends2_raw)
         except JSONRPCException as ex:
             error = ex.error['message']
-            assert '18: bad-txns-inputs-spent' == error, 'Unexpected exception appeared: {}'.format(error)
+            assert 'Missing inputs' == error, 'Unexpected exception appeared: {}'.format(error)
         assert error, 'Did not raise txt-mempool-conflict exception.'
 
         assert_equal(len(self.nodes[0].getrawmempool()), 0)

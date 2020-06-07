@@ -266,10 +266,6 @@ std::string Scalar::tostring() const {
     return ss.str();
 }
 
-size_t Scalar::memoryRequired() const {
-    return 32;
-}
-
 unsigned char* Scalar::serialize(unsigned char* buffer) const {
     secp256k1_scalar_get_b32(buffer, reinterpret_cast<const secp256k1_scalar *>(value_));
     return buffer + 32;

@@ -20,7 +20,7 @@ namespace Ui {
     class LookupSPDialog;
 }
 
-/** Dialog for looking up Exodus Protocol tokens */
+/** Dialog for looking up Elysium Protocol tokens */
 class LookupSPDialog : public QDialog
 {
     Q_OBJECT

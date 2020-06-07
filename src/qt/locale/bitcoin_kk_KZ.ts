@@ -93,26 +93,6 @@
         <source>&amp;Help</source>
         <translation>Көмек</translation>
     </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n сағат</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n day(s)</source>
-        <translation><numerusform>%n күн</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n week(s)</source>
-        <translation><numerusform>%n апта</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 немесе %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n year(s)</source>
-        <translation><numerusform>%n жыл</numerusform></translation>
-    </message>
     <message>
         <source>%1 behind</source>
         <translation>%1 қалмады</translation>
@@ -139,10 +119,6 @@
     <message>
         <source>Amount:</source>
         <translation>Саны</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Басымдық</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -172,10 +148,6 @@
         <source>Confirmed</source>
         <translation>Растық</translation>
     </message>
-    <message>
-        <source>Priority</source>
-        <translation>Басымдық</translation>
-    </message>
     </context>
 <context>
     <name>EditAddressDialog</name>
@@ -202,6 +174,9 @@
     </message>
     </context>
 <context>
+    <name>ModalOverlay</name>
+    </context>
+<context>
     <name>OpenURIDialog</name>
     </context>
 <context>
@@ -226,6 +201,13 @@
         <source>Amount</source>
         <translation>Саны</translation>
     </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 немесе %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -255,10 +237,6 @@
     <message>
         <source>Amount:</source>
         <translation>Саны</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Басымдық</translation>
     </message>
     <message>
         <source>Fee:</source>

@@ -15,9 +15,9 @@
 #include "walletmodel.h"
 #include "sigmadialog.h"
 
-#include "coincontrol.h"
+#include "wallet/coincontrol.h"
 #include "init.h"
-#include "main.h" // For minRelayTxFee
+#include "validation.h" // For minRelayTxFee
 #include "wallet/wallet.h"
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
@@ -491,7 +491,7 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     BOOST_FOREACH(const COutput& out, vOutputs) {
         // unselect already spent, very unlikely scenario, this could happen
         // when selected are spent elsewhere, like rpc or another computer
-        uint256 txhash = out.tx->GetHash();
+        uint256 txhash = out.tx->tx->GetHash();
         COutPoint outpt(txhash, out.i);
         if (model->isSpent(outpt))
         {
@@ -503,21 +503,21 @@ void SigmaCoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         nQuantity++;
 
         // Amount
-        nAmount += out.tx->vout[out.i].nValue;
+        nAmount += out.tx->tx->vout[out.i].nValue;
 
         // Priority
-        dPriorityInputs += (double)out.tx->vout[out.i].nValue * (out.nDepth+1);
+        dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
         if(fMintTabSelected){
             // Bytes
             CTxDestination address;
             int witnessversion = 0;
             std::vector<unsigned char> witnessprogram;
-            if (out.tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
+            if (out.tx->tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
             {
                 nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
                 fWitness = true;
             }
-            else if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
+            else if(ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, address))
             {
                 CPubKey pubkey;
                 CKeyID *keyid = boost::get<CKeyID>(&address);
@@ -748,7 +748,7 @@ void SigmaCoinControlDialog::updateView()
         bool nIsMint = (sWalletAddress == QString::fromStdString("(mint)"));
         BOOST_FOREACH(const COutput& out, coins.second) {
             int nInputSize = 0;
-            nSum += out.tx->vout[out.i].nValue;
+            nSum += out.tx->tx->vout[out.i].nValue;
             nChildren++;
 
             CSigmaCoinControlWidgetItem *itemOutput;
@@ -764,7 +764,7 @@ void SigmaCoinControlDialog::updateView()
                 itemOutput->setText(COLUMN_ADDRESS, sWalletAddress);
                 sAddress = sWalletAddress;
             }
-            if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
+            if(ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, outputAddress))
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
 
@@ -794,8 +794,8 @@ void SigmaCoinControlDialog::updateView()
             }
 
             // amount
-            itemOutput->setText(COLUMN_AMOUNT, BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue));
-            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.tx->vout[out.i].nValue)); // padding so that sorting works correctly
+            itemOutput->setText(COLUMN_AMOUNT, BitcoinUnits::format(nDisplayUnit, out.tx->tx->vout[out.i].nValue));
+            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.tx->tx->vout[out.i].nValue)); // padding so that sorting works correctly
 
             // date
             itemOutput->setText(COLUMN_DATE, GUIUtil::dateTimeStr(out.tx->GetTxTime()));
@@ -806,14 +806,14 @@ void SigmaCoinControlDialog::updateView()
             itemOutput->setData(COLUMN_CONFIRMATIONS, Qt::UserRole, QVariant((qlonglong)out.nDepth));
 
             // priority
-            double dPriority = ((double)out.tx->vout[out.i].nValue  / (nInputSize + 78)) * (out.nDepth+1); // 78 = 2 * 34 + 10
+            double dPriority = ((double)out.tx->tx->vout[out.i].nValue  / (nInputSize + 78)) * (out.nDepth+1); // 78 = 2 * 34 + 10
             itemOutput->setText(COLUMN_PRIORITY, SigmaCoinControlDialog::getPriorityLabel(dPriority, mempoolEstimatePriority));
             itemOutput->setData(COLUMN_PRIORITY, Qt::UserRole, QVariant((qlonglong)dPriority));
-            dPrioritySum += (double)out.tx->vout[out.i].nValue  * (out.nDepth+1);
+            dPrioritySum += (double)out.tx->tx->vout[out.i].nValue  * (out.nDepth+1);
             nInputSum    += nInputSize;
 
             // transaction hash
-            uint256 txhash = out.tx->GetHash();
+            uint256 txhash = out.tx->tx->GetHash();
             itemOutput->setText(COLUMN_TXHASH, QString::fromStdString(txhash.GetHex()));
 
             // vout index

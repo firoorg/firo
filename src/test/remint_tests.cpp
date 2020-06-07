@@ -4,6 +4,7 @@
 #include "primitives/transaction.h"
 #include "random.h"
 #include "sync.h"
+#include "net.h"
 #include "utilstrencodings.h"
 #include "utilmoneystr.h"
 #include "test/test_bitcoin.h"
@@ -15,7 +16,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "miner.h"
 #include "pubkey.h"
 #include "random.h"
@@ -41,8 +42,14 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_to_sigma_remint_tests, ZerocoinTestingSetup200
 BOOST_AUTO_TEST_CASE(remint_basic_test)
 {
     string denomination;
-    vector<uint256> vtxid;
     std::vector<string> denominations = {"1", "10", "25", "50", "100", "100"};
+
+    struct CommitTxHelper {
+        CReserveKey key;
+        CValidationState state;
+
+        CommitTxHelper() : key(pwalletMain), state() {}
+    } commitTxHelper[4];
 
     string stringError;
     CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
@@ -55,11 +62,11 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
     // Mint 1 XZC zerocoin and remint it on wrong fork
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, "1"), stringError + " - Create Mint failed");
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     CBlockIndex *forkBlockIndex = chainActive.Tip();
     // Get to the sigma portion
     for (int i=0; i<200; i++)
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
 
     CWalletTx remintOnWrongForkTx;
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1, &remintOnWrongForkTx), stringError + " - Remint failed");
@@ -79,13 +86,13 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // Clear mempool serials and retry
     zerocoinState->mempoolCoinSerials.clear();
     sigmaState->Reset();
-    pwalletMain->CommitTransaction(dupSerialTx);
+    pwalletMain->CommitTransaction(dupSerialTx, commitTxHelper[0].key, g_connman.get(), commitTxHelper[0].state);
     // Mempool should contain two remint transactions both having the same serial
     BOOST_CHECK(mempool.size() == 2);
 
     // Try to form a block - should fail
     try {
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
         BOOST_FAIL("Block is created despite having double spend in it");
     }
     catch (std::runtime_error &err) {
@@ -97,7 +104,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     zerocoinState->mempoolCoinSerials.clear();
 
     // Try to change destination sigma mint for the remint transaction. Should fail because metadata signature is wrong
-    CWalletTx txCopy = remintOnWrongForkTx;
+    CWalletTx wtxCopy = remintOnWrongForkTx;
     sigma::Params *sigmaParams = sigma::Params::get_default();
 
     sigma::PrivateCoin fakeCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1, ZEROCOIN_TX_VERSION_3);
@@ -112,15 +119,17 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     CTxOut sigmaTxOut;
     sigmaTxOut.scriptPubKey = sigmaMintScript;
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, sigmaTxOut.nValue);
+    CMutableTransaction txCopy = *wtxCopy.tx;
     txCopy.vout[0] = sigmaTxOut;
+    wtxCopy.tx = MakeTransactionRef(txCopy);
 
-    pwalletMain->CommitTransaction(txCopy);
+    pwalletMain->CommitTransaction(wtxCopy, commitTxHelper[1].key, g_connman.get(), commitTxHelper[1].state);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Transaction is accepted despite having forged destination");
 
-    pwalletMain->CommitTransaction(remintOnWrongForkTx);
+    pwalletMain->CommitTransaction(remintOnWrongForkTx, commitTxHelper[2].key, g_connman.get(), commitTxHelper[2].state);
     BOOST_CHECK(mempool.size() == 1);
 
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     // Invalidate chain
     {
@@ -142,28 +151,28 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
         //Verify Mint gets in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Zerocoin mint was not added to mempool");
 
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
     }
 
     for (int i=0; i<5; i++)
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
 
     // spend coin for 100 xzc
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "100", false, true), stringError + " - 100 xzc spend failed");
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, "Incorrect used coin serial state after zerocoin spend");
     CBigNum zcSpentSerial = *zerocoinState->usedCoinSerials.begin();
 
     // get to the sigma portion
     for (int i=0; i<200; i++) {
-        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(scriptPubKey);
     }
     // Intentionally do not remint the second 100
     for (int i=0; i<5; i++) {
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)atoi(denominations[i].c_str())), stringError + " - Remint failed");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Zerocoin remint was not added to mempool");
         for (int i=0; i<5; i++)
-            CreateAndProcessBlock({}, scriptPubKey);
+            CreateAndProcessBlock(scriptPubKey);
     }
 
     // test if sigma mints are spendable
@@ -171,7 +180,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
     for (int i=0; i<5; i++)
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
 
     // try double spend by modifying wallet and list of spent serials
     //Temporary disable usedCoinSerials check to force double spend in mempool
@@ -199,7 +208,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // Restore state and generate a block. TestBlockValidity() should fail due to seen serial
     zerocoinState->usedCoinSerials = tempSerials;
     try {
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
         BOOST_FAIL("Block is created despite having double spend in it");
     }
     catch (std::runtime_error &err) {
@@ -209,7 +218,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // clear mempool
     mempool.clear();
     // Block should be created now
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     // Temporarily remove spent coin from the list of spent serials
     zerocoinState->usedCoinSerials.erase(zcSpentSerial);
@@ -220,7 +229,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // Restore state and verify that it fails to get into the block because it was spent as zerocoin
     zerocoinState->usedCoinSerials = tempSerials;
     try {
-        CreateAndProcessBlock({}, scriptPubKey);
+        CreateAndProcessBlock(scriptPubKey);
         BOOST_FAIL("Block is created despite having double spend in it");
     }
     catch (std::runtime_error &err) {
@@ -230,10 +239,10 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // clear mempool again
     mempool.clear();
     // Block should be created now
-    CreateAndProcessBlock({}, scriptPubKey);
+    CreateAndProcessBlock(scriptPubKey);
 
     // We've got remint saved that references zerocoin mint from the wrong fork. It shouldn't validate now
-    pwalletMain->CommitTransaction(remintOnWrongForkTx);
+    pwalletMain->CommitTransaction(remintOnWrongForkTx, commitTxHelper[3].key, g_connman.get(), commitTxHelper[3].state);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Remint for non-existent mint was added to the mempool");
 }
 
@@ -251,7 +260,7 @@ BOOST_AUTO_TEST_CASE(remint_blacklist)
 
     // get to the sigma portion
     for (int i=0; i<400; i++) {
-        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(scriptPubKey);
     }
 
     // make an additional entry to the black list

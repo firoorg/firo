@@ -41,6 +41,18 @@
         <source>&amp;Delete</source>
         <translation>&amp;ลบ</translation>
     </message>
+    <message>
+        <source>Choose the address to send coins to</source>
+        <translation>เลือกที่อยู่เพื่อส่งเหรียญไปไว้</translation>
+    </message>
+    <message>
+        <source>Choose the address to receive coins with</source>
+        <translation>เลือกที่อยู่เพื่อส่งเหรียญไปไว้</translation>
+    </message>
+    <message>
+        <source>Sending addresses</source>
+        <translation>ส่งที่อยู่</translation>
+    </message>
     </context>
 <context>
     <name>AddressTableModel</name>
@@ -151,11 +163,11 @@
     </message>
     <message>
         <source>&amp;Sending addresses...</source>
-        <translation>&amp;Address สำหรับส่ง zcoins</translation>
+        <translation>&amp;ที่เก็บเงิน ที่จะส่ง zcoin</translation>
     </message>
     <message>
         <source>&amp;Receiving addresses...</source>
-        <translation>&amp;Address ที่ใช้รับ zcoins</translation>
+        <translation>&amp;ที่เก็บเงิน ที่จะรับ zcoin</translation>
     </message>
     <message>
         <source>Open &amp;URI...</source>
@@ -219,7 +231,7 @@
     </message>
     <message>
         <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>สร้างลายเซ็นสำหรับข้อความด้วย Zcoin address เพื่อยันยันว่าคุณคือเจ้าของ Address</translation>
+        <translation>เซ็นชื่อด้วยข้อความ ที่เก็บ Zcoin เพื่อแสดงว่าท่านเป็นเจ้าของ zcoin นี้จริง</translation>
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
@@ -243,19 +255,19 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>สร้างแบบฟอร์มการชำระเงิน (QR codes และ URI)</translation>
+        <translation>เรียกเก็บ การชำระเงิน (สร้าง QR codes และ zcoin: URIs)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
-        <translation>แสดงรายการ Address ที่ถูกใช้ในการส่ง</translation>
+        <translation>แสดงรายการ ที่เก็บเงินที่จะส่ง zcoin ออก และป้ายชื่อ ที่ใช้ไปแล้ว</translation>
     </message>
     <message>
         <source>Show the list of used receiving addresses and labels</source>
-        <translation>แสดงรายการ Address ที่ถูกใช้ในการรับ</translation>
+        <translation>แสดงรายการ ที่เก็บเงินที่จะรับ zcoin เข้า และป้ายชื่อ ที่ใช้ไปแล้ว</translation>
     </message>
     <message>
         <source>Open a zcoin: URI or payment request</source>
-        <translation>เปิด URI zcoin: หรือแบบฟอร์มการชำระเงิน</translation>
+        <translation>เปิด zcoin: URI หรือ การเรียกเก็บเงิน (การเรียกให้ชำระเงิน)</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -273,33 +285,9 @@
         <source>Processing blocks on disk...</source>
         <translation>กำลังดำเนินการกับบล็อกในดิสก์...</translation>
     </message>
-    <message>
-        <source>No block source available...</source>
-        <translation>ไม่มีบล็อกเริ่มต้น ให้ใช้ได้...</translation>
-    </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
         <translation><numerusform>%n บล็อกในประวัติรายการ ได้รับการดำเนินการเรียบร้อยแล้ว</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n ชั่วโมง</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n day(s)</source>
-        <translation><numerusform>%n วัน</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n week(s)</source>
-        <translation><numerusform>%n สัปดาห์</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 และ %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n year(s)</source>
-        <translation><numerusform>%n ปี</numerusform></translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -387,7 +375,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>กระเป๋าเงินถูก &lt;b&gt;เข้ารหัส&lt;/b&gt; และในปัจจุบัน &lt;b&gt;ล็อค &lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -405,10 +393,6 @@
     <message>
         <source>Amount:</source>
         <translation>จำนวน:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>ความเร่งด่วน:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -462,10 +446,6 @@
         <source>Confirmed</source>
         <translation>ยืนยันแล้ว</translation>
     </message>
-    <message>
-        <source>Priority</source>
-        <translation>ระดับความสำคัญ</translation>
-    </message>
     </context>
 <context>
     <name>EditAddressDialog</name>
@@ -499,6 +479,10 @@
     <message>
         <source>name</source>
         <translation>ชื่อ</translation>
+    </message>
+    <message>
+        <source>Directory already exists. Add %1 if you intend to create a new directory here.</source>
+        <translation>ไดเร็กทอรี่มีอยู่แล้ว ใส่เพิ่ม %1 หากท่านต้องการสร้างไดเร็กทอรี่ใหม่ที่นี่</translation>
     </message>
     <message>
         <source>Path already exists, and is not a directory.</source>
@@ -607,6 +591,13 @@
         <translation><numerusform>(ต้องการพื้นที่ %n GB)</numerusform></translation>
     </message>
 </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>รูป</translation>
+    </message>
+    </context>
 <context>
     <name>OpenURIDialog</name>
     <message>
@@ -812,6 +803,13 @@
         <source>Amount</source>
         <translation>จำนวน</translation>
     </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 และ %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -849,10 +847,6 @@
     <message>
         <source>Amount:</source>
         <translation>จำนวน:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>ความเร่งด่วน</translation>
     </message>
     <message>
         <source>Fee:</source>

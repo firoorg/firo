@@ -1,17 +1,17 @@
-// Copyright (c) 2013-2015 The Bitcoin Core developers
+// Copyright (c) 2013-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "consensus/validation.h"
 #include "data/sighash.json.h"
 #include "hash.h"
-#include "main.h" // For CheckTransaction
-#include "random.h"
+#include "validation.h" // For CheckTransaction
 #include "script/interpreter.h"
 #include "script/script.h"
 #include "serialize.h"
 #include "streams.h"
 #include "test/test_bitcoin.h"
+#include "test/test_random.h"
 #include "util.h"
 #include "utilstrencodings.h"
 #include "version.h"
@@ -30,7 +30,6 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
     static const uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
     if (nIn >= txTo.vin.size())
     {
-        printf("ERROR: SignatureHash(): nIn=%d out of range\n", nIn);
         return one;
     }
     CMutableTransaction txTmp(txTo);
@@ -61,7 +60,6 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
         unsigned int nOut = nIn;
         if (nOut >= txTmp.vout.size())
         {
-            printf("ERROR: SignatureHash(): nOut=%d out of range\n", nOut);
             return one;
         }
         txTmp.vout.resize(nOut+1);
@@ -184,7 +182,7 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
         std::string raw_tx, raw_script, sigHashHex;
         int nIn, nHashType;
         uint256 sh;
-        CTransaction tx;
+        CTransactionRef tx;
         CScript scriptCode = CScript();
 
         try {
@@ -199,7 +197,7 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
           stream >> tx;
 
           CValidationState state;
-          BOOST_CHECK_MESSAGE(CheckTransaction(tx, state, tx.GetHash(), false, INT_MAX), strTest);
+          BOOST_CHECK_MESSAGE(CheckTransaction(*tx, state, true, tx->GetHash(), false, INT_MAX), strTest);
           BOOST_CHECK(state.IsValid());
 
           std::vector<unsigned char> raw = ParseHex(raw_script);
@@ -209,7 +207,7 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
           continue;
         }
 
-        sh = SignatureHash(scriptCode, tx, nIn, nHashType, 0, SIGVERSION_BASE);
+        sh = SignatureHash(scriptCode, *tx, nIn, nHashType, 0, SIGVERSION_BASE);
         BOOST_CHECK_MESSAGE(sh.GetHex() == sigHashHex, strTest);
     }
 }
