@@ -31,6 +31,7 @@
 #include "init.h"
 #include "rpc/server.h"
 #include "scheduler.h"
+#include "stacktraces.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "warnings.h"
@@ -192,7 +193,7 @@ private:
     CScheduler scheduler;
 
     /// Pass fatal exception message to UI thread
-    void handleRunawayException(const std::exception *e);
+    void handleRunawayException(const std::exception_ptr e);
 };
 
 /** Main Bitcoin application object */
@@ -263,7 +264,7 @@ BitcoinCore::BitcoinCore():
 {
 }
 
-void BitcoinCore::handleRunawayException(const std::exception *e)
+void BitcoinCore::handleRunawayException(const std::exception_ptr e)
 {
     PrintExceptionContinue(e, "Runaway exception");
     Q_EMIT runawayException(QString::fromStdString(GetWarnings("gui")));
@@ -291,10 +292,9 @@ void BitcoinCore::initialize()
         }
         int rv = AppInitMain(threadGroup, scheduler);
         Q_EMIT initializeResult(rv);
-    } catch (const std::exception& e) {
-        handleRunawayException(&e);
-    } catch (...) {
-        handleRunawayException(NULL);
+    }
+    catch (...) {
+        handleRunawayException(std::current_exception());
     }
 }
 
@@ -308,10 +308,9 @@ void BitcoinCore::shutdown()
         Shutdown();
         qDebug() << __func__ << ": Shutdown finished";
         Q_EMIT shutdownResult(1);
-    } catch (const std::exception& e) {
-        handleRunawayException(&e);
-    } catch (...) {
-        handleRunawayException(NULL);
+    }
+    catch (...) {
+        handleRunawayException(std::current_exception());
     }
 }
 
@@ -539,6 +538,9 @@ WId BitcoinApplication::getMainWinId() const
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
+    RegisterPrettyTerminateHander();
+    RegisterPrettySignalHandlers();
+    
     SetupEnvironment();
 
     /// 1. Parse command-line options. These take precedence over anything else.
@@ -714,11 +716,8 @@ int main(int argc, char *argv[])
         app.exec();
         app.requestShutdown();
         app.exec();
-    } catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "Runaway exception");
-        app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
     } catch (...) {
-        PrintExceptionContinue(NULL, "Runaway exception");
+        PrintExceptionContinue(std::current_exception(), "Runaway exception");
         app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
     }
     return app.getReturnValue();
