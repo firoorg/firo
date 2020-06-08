@@ -28,6 +28,7 @@
 
 #ifdef ENABLE_CLIENTAPI
 #include "client-api/settings.h"
+#include "client-api/server.h"
 #endif
 
 /* Introduction text for doxygen: */
@@ -116,18 +117,14 @@ bool AppInit(int argc, char* argv[])
         }
         // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
         try {
-            bool fApi = false;
-#ifdef ENABLE_CLIENTAPI
-            fApi = GetBoolArg("-clientapi", false);
-#endif
-            SelectParams(fApi ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
+            SelectParams(GetBoolArg("-clientapi", false) ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
         } catch (const std::exception& e) {
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
 #ifdef ENABLE_CLIENTAPI
         int port = GetArg("-rpcport", BaseParams().RPCPort());
-        if(fApi && IsZMQPort(port)){
+        if(GetBoolArg("-clientapi", false) && IsZMQPort(port)){
             fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
             exit(EXIT_FAILURE);
         }
@@ -192,8 +189,11 @@ bool AppInit(int argc, char* argv[])
         InitLogging();
         InitParameterInteraction();
 #ifdef ENABLE_CLIENTAPI
-        if(fApi)
+        if(GetBoolArg("-clientapi", false)){
             ReadAPISettingsFile();
+            if (!StartAPI())
+                return false;
+        }
 #endif
         fRet = AppInitMain(threadGroup, scheduler);
         LogPrintf("AppInit done!\n");

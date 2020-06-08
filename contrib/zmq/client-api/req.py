@@ -35,14 +35,14 @@ def params(args):
     passphrase = sys.argv[5]
 
 def get_auth(auth, function_id):
-    if(function_id=="apistatus"):
+    if(function_id=="apiStatus"):
       return False
     else:
       return auth
 
 def get_port(network, auth, function_id):
     port = ""
-    if(function_id=="apistatus"):
+    if(function_id=="apiStatus"):
         return "25558"
     if(network=="mainnet"):
         port = "1555"
@@ -58,7 +58,7 @@ def get_port(network, auth, function_id):
 
 def get_function(function_id, passphrase):
     if(function_id=="apiStatus"):
-        return apistatus()
+        return api_status()
     if(function_id=="backup"):
         return backup()
     if(function_id=="balance"):

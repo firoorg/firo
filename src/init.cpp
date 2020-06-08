@@ -1537,21 +1537,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-#ifdef ENABLE_CLIENTAPI
-    fApi = GetBoolArg("-clientapi", false);
-
-    if(fApi){
-        if (!StartAPI())
-            return false;        
-
-        CreatePaymentRequestFile();
-        CreateZerocoinFile();
-
-        bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-        CZMQAbstract::CreateCerts(resetapicerts);
-    }
-#endif
-
     int64_t nStart;
 
     // ********************************************************* Step 5: verify wallet database integrity
@@ -1718,7 +1703,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
 #ifdef ENABLE_CLIENTAPI
+    fApi = GetBoolArg("-clientapi", false);
     if(fApi){
+        CreatePaymentRequestFile();
+        CreateZerocoinFile();
+
+        bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
+        CZMQAbstract::CreateCerts(resetapicerts);
         pzmqPublisherInterface = pzmqPublisherInterface->Create();
         pzmqReplierInterface = pzmqReplierInterface->Create();
 
