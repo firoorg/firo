@@ -1411,79 +1411,6 @@ UniValue getinfoex(const JSONRPCRequest& request)
     return info;
 }
 
-#include <iostream>
-
-UniValue getaddressstatistics(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1 || !request.params[0].isStr())
-        throw runtime_error(
-            "getaddressstatistics\n"
-            "Returns addresses balance statistics information.\n"
-            "\nArguments: top100 | total\n"
-            "{\n"
-            "  \"total\" Requests a sum of all address balances\n"
-            "  \"top100\" Requests top 100 richest balances\n"
-            "}\n"
-
-            "\nExamples:\n"
-            + HelpExampleCli("getaddressstatistics", "total")
-            + HelpExampleCli("getaddressstatistics", "total")
-        );
-
-    std::map<CAmount, CAddressIndexBase> addrBalances;
-    if(!pblocktree->ReadAddressBalances(addrBalances))
-        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read from the database");
-
-    std::string action = request.params[0].getValStr();
-
-    UniValue result;
-
-    if(action == "top100") {
-        result.setArray();
-        auto iter = addrBalances.rbegin();
-        for(size_t i = 0; i < std::min(addrBalances.size(), 100UL); ++i)
-        {
-            auto const & addrInfo = iter->second;
-            std::string addr;
-            switch(addrInfo.addressType) {
-                case AddressType::payToPubKeyHash:
-                    addr = CBitcoinAddress(CKeyID(addrInfo.addressHash)).ToString();
-                    break;
-                case AddressType::payToScriptHash:
-                    addr = CBitcoinAddress(CScriptID(addrInfo.addressHash)).ToString();
-                    break;
-                case AddressType::zerocoinMint:
-                    addr = "Zeromint";
-                    break;
-                case AddressType::zerocoinSpend:
-                    addr = "Zerospend";
-                    break;
-                default:
-                    addr = "Error";
-            }
-
-            UniValue balance;
-            balance.setObject();
-            balance.pushKV(addr, iter->first);
-            ++iter;
-            result.push_back(balance);
-        }
-        return result;
-    }
-    if(action == "total") {
-        CAmount balance = 0;
-
-        for(auto const & bal : addrBalances)
-            balance += bal.first;
-
-        result.setObject();
-        result.pushKV("total", balance);
-        return result;
-    }
-
-    throw runtime_error("Unrecognized parameters.");
-}
-
 static UniValue RPCLockedMemoryInfo()
 {
     LockedPool::Stats stats = LockedPoolManager::Instance().stats();
@@ -1570,7 +1497,6 @@ static const CRPCCommand commands[] =
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
     { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 
-    { "hidden",             "getaddressstatistics",   &getaddressstatistics,   false },
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
     { "hidden",             "echojson",               &echo,                  true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
