@@ -143,8 +143,6 @@ public:
     int GetBlockIndexVersion(uint256 const & blockHash);
     bool AddTotalSupply(CAmount const & supply);
     bool ReadTotalSupply(CAmount & supply);
-    bool UpdateAddressBalances(std::map<CAddressIndexBase, CAmount> const & balances);
-    bool ReadAddressBalances(std::map<CAmount, CAddressIndexBase> & balances);
 };
 
 
