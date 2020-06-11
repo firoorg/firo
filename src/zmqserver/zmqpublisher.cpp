@@ -296,9 +296,11 @@ bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
 }
 
 bool CZMQMasternodeEvent::NotifyMasternodeUpdate(CDeterministicMNCPtr masternode) {
-    request.replace("data", BuildDMNListEntry(pwalletMain, masternode, true));
-    Execute();
-
+    // Only publish if synced.
+    if(znodeSyncInterface.GetBlockchainSynced()){
+        request.replace("data", BuildDMNListEntry(pwalletMain, masternode, true));
+        Execute();
+    }
     return true;
 }
 
