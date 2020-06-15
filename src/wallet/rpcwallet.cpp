@@ -84,7 +84,7 @@ bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
 
 void EnsureSigmaWalletIsAvailable()
 {
-    if (!pwalletMain->zwallet) {
+    if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
     }
 }

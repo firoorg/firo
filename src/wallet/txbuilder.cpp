@@ -39,7 +39,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee)
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, CWalletDB& walletdb)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -172,7 +172,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         if (change > 0) {
             // get changes outputs
             std::vector<CTxOut> changes;
-            CAmount addToFee = GetChanges(changes, change);
+            CAmount addToFee = GetChanges(changes, change, walletdb);
             if(addToFee > 0)
                 fChangeAddedToFee = true;
             fee += addToFee;

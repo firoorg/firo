@@ -520,7 +520,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
  * @param seedId (optional) seedId of the key to use for mint generation.
  * @return sucess
  */
-bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const int32_t& nCount, CKeyID& seedId, bool nWriteChain)
+bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const int32_t& nCount, CKeyID& seedId, bool fWriteChain)
 {
     LOCK(pwalletMain->cs_wallet);
     CKey key;
@@ -530,7 +530,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
         int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX];
         if(nCount==chainIndex){
             // If chainIndex is the same as n (ie. we are generating next available key), generate a new key.
-            pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX, nWriteChain);
+            pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX, fWriteChain);
         }
         else if(nCount<chainIndex){
             // if it's less than the current chain index, we are regenerating the mintpool. get the key at n

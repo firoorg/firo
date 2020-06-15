@@ -102,7 +102,7 @@ struct CompareByAmount
 
 static void EnsureMintWalletAvailable()
 {
-    if (!pwalletMain->zwallet) {
+    if (!pwalletMain || !pwalletMain->zwallet) {
         throw std::logic_error("Sigma feature requires HD wallet");
     }
 }
@@ -175,7 +175,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild) {
     return pubkey;
 }
 
-CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool nWriteChain)
+CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
 {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     bool fCompressed = CanSupportFeature(FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
@@ -242,7 +242,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool nWriteChain)
         secret = childKey.key;
 
         // update the chain model in the database
-        if(nWriteChain){
+        if(fWriteChain){
             if (!CWalletDB(strWalletFile).WriteHDChain(hdChain))
                 throw std::runtime_error(std::string(__func__) + ": Writing HD chain model failed");
         }
@@ -5646,8 +5646,8 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
 
     // create transaction
     SigmaSpendBuilder builder(*this, *zwallet, coinControl);
-
-    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee);
+    CWalletDB walletdb(strWalletFile);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
     selected = builder.selected;
     changes = builder.changes;
 

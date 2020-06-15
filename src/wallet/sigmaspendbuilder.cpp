@@ -160,7 +160,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     return total;
 }
 
-CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount)
+CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb)
 {
     outputs.clear();
     changes.clear();
@@ -168,7 +168,6 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
     auto params = sigma::Params::get_default();
 
     CHDMint hdMint;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
