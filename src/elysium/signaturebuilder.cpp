@@ -46,7 +46,7 @@ ECDSASignature SigmaV1SignatureBuilder::Sign(CKey &key) const
         throw std::runtime_error("Fail to sign payload");
     }
 
-    return ECDSASignature::Parse(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
+    return ECDSASignature::ParseDER(ECDSAContext::CreateSignContext(), sig.data(), sig.size());
 }
 
 bool SigmaV1SignatureBuilder::Verify(CPubKey const &pubKey, ECDSASignature const &signature) const
