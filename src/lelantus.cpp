@@ -773,9 +773,9 @@ void CLelantusTxInfo::Complete() {
 /*
  * Util funtions
  */
-size_t HasCoinInBlock(CBlockIndex *index, int id) {
+size_t CountCoinInBlock(CBlockIndex *index, int id) {
     return index->lelantusMintedPubCoins.count(id) > 0
-        ? index->lelantusMintedPubCoins[id].size() > 0 : 0;
+        ? index->lelantusMintedPubCoins[id].size() : 0;
 }
 
 /******************************************************************************/
@@ -931,8 +931,7 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
             coinGroup.lastBlock = index;
         }
         coinGroup.nCoins += blockMints.size();
-    }
-    else {
+    } else {
         auto& newCoinGroup = coinGroups[++latestCoinId];
 
         CBlockIndex *first;
@@ -1012,8 +1011,8 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
             do {
                 prevBlockContainMints = prevBlockContainMints->pprev;
             } while (prevBlockContainMints
-                && HasCoinInBlock(prevBlockContainMints, coins.first) <= 0
-                && (prevGroupCount = HasCoinInBlock(prevBlockContainMints, coins.first - 1)) <= 0);
+                && CountCoinInBlock(prevBlockContainMints, coins.first) == 0
+                && (prevGroupCount = CountCoinInBlock(prevBlockContainMints, coins.first - 1)) == 0);
 
             isEdgedBlock = prevGroupCount > 0 && (coinGroup.nCoins - prevGroupCount) < startGroupSize;
         }
@@ -1120,9 +1119,9 @@ int CLelantusState::GetCoinSetForSpend(
 
         // check coins in group coinGroupID - 1 in the case that using coins from prev group.
         int id = 0;
-        if (HasCoinInBlock(block, coinGroupID)) {
+        if (CountCoinInBlock(block, coinGroupID)) {
             id = coinGroupID;
-        } else if (HasCoinInBlock(block, coinGroupID - 1)) {
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
             id = coinGroupID - 1;
         }
 

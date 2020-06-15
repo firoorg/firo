@@ -89,7 +89,7 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
 /*
  * Util functions
  */
-size_t HasCoinInBlock(CBlockIndex const *index, int id);
+size_t CountCoinInBlock(CBlockIndex const *index, int id);
 
 /*
  * State of minted/spent coins as extracted from the index

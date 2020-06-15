@@ -738,6 +738,145 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
     BOOST_CHECK(result->Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
 }
 
+BOOST_AUTO_TEST_CASE(coingroup)
+{
+    GenerateBlocks(1000);
+
+    // util function
+    auto reconnect = [](CBlock const &block) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        LOCK(mempool.cs);
+
+        std::shared_ptr<CBlock const> sharedBlock =
+        std::make_shared<CBlock const>(block);
+
+        CValidationState state;
+        ActivateBestChain(state, ::Params(), sharedBlock);
+    };
+
+    struct {
+        // expected state.
+        std::vector<PublicCoin> coins;
+
+        // first group
+        CBlockIndex *first = nullptr;
+        CBlockIndex *last = nullptr;
+
+        int lastId = 0;
+        size_t lastGroupCoins = 0;
+
+        // real state
+        CLelantusState *state;
+
+        void Verify(std::string stateName = "") const {
+            auto const &mints = state->GetMints();
+            BOOST_CHECK_EQUAL(coins.size(), mints.size());
+            for (auto const &c : coins) {
+                BOOST_CHECK_MESSAGE(mints.count(c), "public is not found on state : " + stateName);
+            }
+
+            auto retrievedId = state->GetLatestCoinID();
+
+            CLelantusState::LelantusCoinGroupInfo group;
+            state->GetCoinGroupInfo(retrievedId, group);
+
+            BOOST_CHECK_EQUAL(lastId, retrievedId);
+            BOOST_CHECK_EQUAL(first, group.firstBlock);
+            BOOST_CHECK_EQUAL(last, group.lastBlock);
+            BOOST_CHECK_EQUAL(lastGroupCoins, group.nCoins);
+        }
+    } checker;
+    checker.state = lelantusState;
+
+    lelantusState->~CLelantusState();
+    new (lelantusState) CLelantusState(65, 16);
+    lelantusState->Reset();
+
+    // logic
+    std::vector<CMutableTransaction> txs;
+    std::vector<lelantus::PrivateCoin> coins;
+    auto hdMints = GenerateMints(std::vector<CAmount>(66, 1), txs, coins, true, true);
+
+    auto txRange = [&](size_t start, size_t end) -> std::vector<CMutableTransaction> {
+        std::vector<CMutableTransaction> rangeTxs;
+        for (auto i = start; i < end && i < txs.size(); i++) {
+            rangeTxs.push_back(txs[i]);
+        }
+
+        return rangeTxs;
+    };
+
+    std::vector<PublicCoin> pubCoins;
+    for (auto const &hdMint : hdMints) {
+        pubCoins.push_back(hdMint.GetPubcoinValue());
+    }
+
+    auto emptyChecker = checker;
+    emptyChecker.Verify();
+
+    // add one block
+    auto idx1 = GenerateBlock(txRange(0, 1));
+    auto block1 = GetCBlock(idx1);
+
+    checker.coins.push_back(pubCoins[0]);
+    checker.lastId = 1;
+    checker.first = idx1;
+    checker.last = idx1;
+    checker.lastGroupCoins = 1;
+    checker.Verify();
+
+    // add more
+    auto idx2 = GenerateBlock(txRange(1, 32));
+    auto block2 = GetCBlock(idx2);
+
+    checker.coins.insert(checker.coins.end(), pubCoins.begin() + 1, pubCoins.begin() + 32);
+    checker.last = idx2;
+    checker.lastGroupCoins = 32;
+    checker.Verify();
+
+    auto cacheIdx2Checker = checker;
+
+    // add more to fill group
+    auto idx3 = GenerateBlock(txRange(32, 65));
+    auto block3 = GetCBlock(idx3);
+
+    checker.coins.insert(checker.coins.end(), pubCoins.begin() + 32, pubCoins.begin() + 65);
+    checker.last = idx3;
+    checker.lastGroupCoins = 65;
+    checker.Verify();
+
+    auto cacheIdx3Checker = checker;
+
+    // add one more to create new group
+    auto idx4 = GenerateBlock(txRange(65, 66));
+    auto block4 = GetCBlock(idx4);
+
+    checker.coins.push_back(pubCoins[65]);
+    checker.lastId = 2;
+    checker.lastGroupCoins = 34;
+    checker.first = idx3;
+    checker.last = idx4;
+
+    checker.Verify();
+
+    // remove last block check coingroup
+    DisconnectBlocks(1);
+    cacheIdx3Checker.Verify();
+
+    // remove one more block
+    DisconnectBlocks(1);
+    cacheIdx2Checker.Verify();
+
+    // reconnect them all and check state
+    reconnect(block2);
+    reconnect(block3);
+    checker.Verify();
+
+    lelantusState->~CLelantusState();
+    new (lelantusState) CLelantusState();
+    lelantusState->Reset();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 };
