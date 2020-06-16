@@ -28,11 +28,11 @@
 #include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
-#include "bip47/PaymentCode.h"
-#include "bip47/SecretPoint.h"
-#include "bip47/PaymentAddress.h"
-#include "bip47/Bip47Account.h"
-#include "bip47/Bip47Util.h"
+#include "bip47/paymentcode.h"
+#include "bip47/secretpoint.h"
+#include "bip47/paymentaddress.h"
+#include "bip47/account.h"
+#include "bip47/utils.h"
 
 
 #include <znode-payments.h>
@@ -4442,14 +4442,14 @@ UniValue getnewpcode(const JSONRPCRequest& request) {
 
 
 
-UniValue getMyPaymentCode(const JSONRPCRequest& request) {
+UniValue getmypaymentcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() >= 1)
         throw runtime_error(
-                "getMyPaymentCode\n" 
+                "getmypaymentcode\n" 
                 "return payment Code"
         );
 
@@ -4461,14 +4461,14 @@ UniValue getMyPaymentCode(const JSONRPCRequest& request) {
     return pwallet->getPaymentCode();
 }
 
-UniValue getMyNotificationAddress(const JSONRPCRequest& request) {
+UniValue getmynotificationaddress(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() >= 1)
         throw runtime_error(
-                "getMyNotificationAddress\n" 
+                "getmynotificationaddress\n" 
                 "return notificatioinAddress"
         );
 
@@ -4480,14 +4480,14 @@ UniValue getMyNotificationAddress(const JSONRPCRequest& request) {
     return pwallet->getNotifiactionAddress();
 }
 
-UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request) {
+UniValue getnotificationaddressfrompaymentcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
-                "getNotificationAddressFromPaymentCode <Payment Code>\n" 
+                "getnotificationaddressfrompaymentcode <Payment Code>\n" 
                 "return notificatioinAddress of Payment Code"
         );
 
@@ -4500,14 +4500,14 @@ UniValue getNotificationAddressFromPaymentCode(const JSONRPCRequest& request) {
     return bip47Account.getNotificationAddress().ToString();
 }
 
-UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request) {
+UniValue getpaymentcodefromnotificationtx(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
-                "getPaymentCodeFromNotificationTx <txid of notification tx>\n" 
+                "getpaymentcodefromnotificationtx <txid of notification tx>\n" 
                 "return paymentcode of recieved"
         );
 
@@ -4551,41 +4551,6 @@ UniValue getPaymentCodeFromNotificationTx(const JSONRPCRequest& request) {
     
     
     return wtx.GetHash().GetHex();
-}
-
-UniValue SecretPointCheck(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
-        return NullUniValue;
-    
-    LOCK2(cs_main, pwallet->cs_wallet);
-    
-    if(SecretPoint::SelfTest(pwallet))
-    {
-        return "true";
-    }
-    else
-    {
-        return "false";
-    }
-    
-}
-
-UniValue PaymentAddressSelfCheck(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
-        return NullUniValue;
-    
-    LOCK2(cs_main, pwallet->cs_wallet);
-    
-    if(PaymentAddress::SelfTest(pwallet))
-    {
-        return "true";
-    }
-    else
-    {
-        return "false";
-    }
 }
 
 UniValue validatepcode(const JSONRPCRequest& request)
@@ -4646,7 +4611,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
             Bip47PaymentChannel *pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(*pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
-            ret.push_back(Pair("OutGoingAddress Size", pchannel->getOutgoingAddresses().size()));
+            ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if(pchannel->getIncomingAddresses().size() == 0) {
                 PaymentAddress paddr = BIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
@@ -4655,7 +4620,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
                 ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
             } else {
                 LogPrintf("current Incoming Address size = %d\n", pchannel->getIncomingAddresses().size());
-                ret.push_back(Pair("IncomingAddress Size", pchannel->getIncomingAddresses().size()));
+                ret.push_back(Pair("IncomingAddress Size", int64_t(pchannel->getIncomingAddresses().size())));
             }
         } 
         else
@@ -5249,19 +5214,16 @@ static const CRPCCommand commands[] =
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
     { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
-
-    // new RPC functions for payment code
-    { "wallet",             "getnewpcode",            &getnewpcode,            true  },
-    { "wallet",             "getMyPaymentCode",       &getMyPaymentCode,       true  },
-    { "wallet",             "getMyNotificationAddress",       &getMyNotificationAddress,       true  },
-    { "wallet",             "getNotificationAddressFromPaymentCode",       &getNotificationAddressFromPaymentCode,       true  },
-    { "wallet",             "sendtopcode",            &sendtopcode,            false },
-    { "wallet",             "listreceivedbypcode",    &listreceivedbypcode,    false },
-    { "wallet",             "getreceivedbypcode",     &getreceivedbypcode,     false },
-    { "wallet",             "getPaymentCodeFromNotificationTx",     &getPaymentCodeFromNotificationTx,     false },
-    { "wallet",             "SecretPointCheck",     &SecretPointCheck,     false },
-    { "wallet",             "PaymentAddressSelfCheck",     &PaymentAddressSelfCheck,     false },
-    { "wallet",              "validatepcode",       &validatepcode,      true  },
+    
+    { "wallet",             "getnewpcode",                           &getnewpcode,                             true  },
+    { "wallet",             "getmypaymentcode",                      &getmypaymentcode,                        true  },
+    { "wallet",             "getmynotificationaddress",              &getmynotificationaddress,                true  },
+    { "wallet",             "getnotificationaddressfrompaymentcode", &getnotificationaddressfrompaymentcode,   true  },
+    { "wallet",             "sendtopcode",                           &sendtopcode,                             false },
+    { "wallet",             "listreceivedbypcode",                   &listreceivedbypcode,                     false },
+    { "wallet",             "getreceivedbypcode",                    &getreceivedbypcode,                      false },
+    { "wallet",             "getpaymentcodefromnotificationtx",      &getpaymentcodefromnotificationtx,        false },
+    { "wallet",             "validatepcode",                         &validatepcode,                           true  },
 
 };
 

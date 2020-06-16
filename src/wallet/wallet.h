@@ -29,8 +29,8 @@
 
 #include "primitives/zerocoin.h"
 
-#include "bip47/Bip47Account.h"
-#include "bip47/Bip47PaymentChannel.h"
+#include "bip47/paymentcode.h"
+#include "bip47/account.h"
 
 
 #include <algorithm>

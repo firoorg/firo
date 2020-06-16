@@ -41,25 +41,17 @@
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
+#include "hdmint/tracker.h"
 #include "rpc/protocol.h"
 
-#include "hdmint/tracker.h"
+#include "bip47/secretpoint.h"
+#include "bip47/paymentaddress.h"
 
 #include <assert.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
-
-#include "bip47/SecretPoint.h"
-#include "bip47/PaymentCode.h"
-#include "bip47/bip47_common.h"
-#include "bip47/Bip47Account.h"
-#include "bip47/Bip47PaymentChannel.h"
-#include "bip47/Bip47ChannelAddress.h"
-#include "bip47/Bip47Address.h"
-#include "bip47/Bip47Util.h"
-#include "bip47/PaymentAddress.h"
 
 using namespace std;
 

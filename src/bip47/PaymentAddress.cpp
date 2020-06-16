@@ -1,7 +1,7 @@
-#include "PaymentAddress.h"
-#include "PaymentCode.h"
-#include "bip47_common.h"
-#include "Bip47Util.h"
+#include "bip47/paymentaddress.h"
+#include "bip47/paymentcode.h"
+#include "bip47/common.h"
+#include "bip47/utils.h"
 
 
 
@@ -189,7 +189,7 @@ CKey PaymentAddress::getReceiveECKey(Scalar s)
     
     vector<unsigned char> ppkeybytes = ParseHex(newKeyS.GetHex());
     pkey.Set(ppkeybytes.begin(), ppkeybytes.end(), true);
-    LogPrintf( "getReceiveECKey validate key is %s\n", pkey.IsValid() ? "true":"false") ;
+    LogPrintf( "getReceiveECKey validate key is %s\n", pkey.IsValid() ? "true":"false");
     return pkey;
 }
 
@@ -203,69 +203,6 @@ secp_primitives::Scalar PaymentAddress::secretPoint()
 {
     return secp_primitives::Scalar(hashSharedSecret().data());
 
-}
-
-
-/**
- * @selfTest
- * 
- * Glossary Of Definitions:
- * @incoming_address
- * 
- * b`  .pubkey : The incoming address is the Zcoin address with which the receiver expects to be paid.
- * 
- * @outgoing_address
- * 
- * B` : The outgoing address is the Zcoin address which the sender is going to send a transaction,
- *   with the expectation that the receiver will get this deposit.
- * 
- * 
- * This function is the one of UnitTest that can able to check the PaymentAddress generate incoming and outgoing addresses derived between alice and bob payment codes.
- * 
- * Calculate the New Public Key as    B` = B + Gs
- * Calcualte the New Private Key as   b` = b + s
- * 
- * B is pubkey derived from payment code of reciever (This shared from bob to Alice via payment code)
- * b is the private key dervived from payment code of reciever (This is only bob knows)
- * 
- * s is Shared Secret between alice and bob    calcaulted via Bob pubkey and Alice private or Bob private key and alice public key
- * 
- * G is the generator point of EC params
- * 
- * Now the checkable point is that
- * 
- * New found public key B` is verifiable from new found private key b`
- * 
- * key.VerifyPubKey(pubkey)
- * 
- * @Status false
- * @expect result true
- *  
- * */
-
-bool PaymentAddress::SelfTest(CWallet* pwallet)
-{
-    
-    PaymentCode toPcode("PM8TJK7t44xGE2DSbFGCk2wCypTzeq3L5i5r5iUGyNruaFLMCshtANUiBN1d9LCyQ9JrfDt3LFwRPSRkWPFBJAT7kdJgCaLDc3kQpQuwEVWxa6UmpR64");
-    
-    PaymentAddress payaddr = BIP47Util::getPaymentAddress(toPcode, 0, pwallet->getBip47Account(0).keyPrivAt(0));
-    
-    CExtPubKey extPubkey = pwallet->getBip47Account(0).keyAt(0);
-    CExtKey extKey = pwallet->getBip47Account(0).keyPrivAt(0);
-    CExtPubKey neutPubkey = extKey.Neuter();
-    
-    LogPrintf("extPubkey = %s\nneutPubkey = %s\n", extPubkey.pubkey.GetHash().GetHex(), neutPubkey.pubkey.GetHash().GetHex());
-    
-    
-    CPubKey pubkey = payaddr.getReceiveECPubKey();
-    CBitcoinAddress addr(pubkey.GetID());
-    LogPrintf("Self Test Address get is %s\n", addr.ToString());
-    
-    CKey key = payaddr.getReceiveECKey();
-    if (key.VerifyPubKey(pubkey))
-        return true;
-    return false;
-    
 }
 
 

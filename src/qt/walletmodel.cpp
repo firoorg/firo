@@ -28,10 +28,10 @@
 #include "sigma.h"
 #include "sigma/coin.h"
 
-#include "bip47/PaymentCode.h"
-#include "bip47/Bip47Account.h"
-#include "bip47/SecretPoint.h"
-#include "bip47/Bip47Util.h"
+#include "bip47/paymentcode.h"
+#include "bip47/account.h"
+#include "bip47/secretpoint.h"
+#include "bip47/utils.h"
 
 #include <stdint.h>
 

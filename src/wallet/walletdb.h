@@ -14,8 +14,9 @@
 #include "streams.h"
 #include "key.h"
 
-#include "../hdmint/hdmint.h"
-#include "../hdmint/mintpool.h"
+#include "hdmint/hdmint.h"
+#include "hdmint/mintpool.h"
+#include "bip47/paymentchannel.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -30,8 +31,6 @@
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
-
-#include "bip47/Bip47PaymentChannel.h"
 
 static const bool DEFAULT_FLUSHWALLET = true;
 static const uint32_t ORIGINAL_KEYPATH_SIZE = 0x4; // m/0'/0'/<n> is the original keypath
@@ -51,6 +50,7 @@ class CZerocoinEntry;
 class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
+class Bip47PaymentChannel;
 
 /** Error statuses for the wallet database */
 enum DBErrors

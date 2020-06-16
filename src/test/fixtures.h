@@ -6,6 +6,28 @@
 
 #include <boost/test/unit_test.hpp>
 
+struct TestDerivation {
+    std::string pub;
+    std::string prv;
+    unsigned int nChild;
+};
+
+struct TestVector {
+    std::string strHexMaster;
+    std::vector<TestDerivation> vDerive;
+
+    TestVector(std::string strHexMasterIn) : strHexMaster(strHexMasterIn) {}
+
+    TestVector& operator()(std::string pub, std::string prv, unsigned int nChild) {
+        vDerive.push_back(TestDerivation());
+        TestDerivation &der = vDerive.back();
+        der.pub = pub;
+        der.prv = prv;
+        der.nChild = nChild;
+        return *this;
+    }
+};
+
 inline bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {

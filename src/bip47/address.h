@@ -5,24 +5,24 @@
 
 #ifndef BIP47ADDRESS_H
 #define BIP47ADDRESS_H
-#include "bip47_common.h"
+#include "bip47/common.h"
 #include "serialize.h"
 #include "clientversion.h"
 
 class Bip47Address {
     private:
-     String address;
+     std::string address;
      int index = 0;
      bool seen = false;
     public:
         Bip47Address();
-        Bip47Address(String v_address, int v_index);
-        Bip47Address(String v_address, int v_index, bool v_seen) ;
-        String getAddress() ;
-        int getIndex() ;
-        bool isSeen() ;
-        void setSeen(bool v_seen) ;
-        virtual String toString() ;
+        Bip47Address(std::string v_address, int v_index);
+        Bip47Address(std::string v_address, int v_index, bool v_seen);
+        std::string getAddress();
+        int getIndex();
+        bool isSeen();
+        void setSeen(bool v_seen);
+        virtual std::string toString();
         
         ADD_SERIALIZE_METHODS;
         template <typename Stream, typename Operation>

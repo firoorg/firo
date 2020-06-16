@@ -1,4 +1,6 @@
-#include "bip47_common.h"
+
+#include "bip47/common.h"
+
 unsigned char* Bip47_common::arraycopy(const unsigned char *source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
     return (unsigned char*)memcpy(dest_arr + destPos,source_arr + sourcePos , len);
 }
@@ -32,8 +34,8 @@ unsigned char* Bip47_common::copyOfRange(const std::vector<unsigned char> &origi
     if (newLength < 0)
         throw std::runtime_error(from + " > " + to);
     result = std::vector<unsigned char>(newLength);
-    int len = original.size() - from ;
-    if(len > newLength) len = newLength ;
+    int len = original.size() - from;
+    if(len > newLength) len = newLength;
     arraycopy(original, from, result, 0, len);
     return result.data();
 }

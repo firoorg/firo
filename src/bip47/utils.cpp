@@ -1,11 +1,11 @@
-#include "Bip47Util.h"
-#include "wallet/wallet.h"
-#include "PaymentCode.h"
+#include "bip47/utils.h"
+#include "bip47/paymentcode.h"
 #include "SecretPoint.h"
 #include "primitives/transaction.h"
-#include "PaymentAddress.h"
+#include "bip47/paymentaddress.h"
 #include <vector>
 #include "uint256.h"
+#include "wallet/wallet.h"
 
 using namespace std;
 

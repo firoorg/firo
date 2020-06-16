@@ -1,8 +1,8 @@
-#include "Bip47PaymentChannel.h"
+#include "bip47/paymentchannel.h"
+#include "bip47/utils.h"
+#include "bip47/address.h"
+#include "bip47/paymentaddress.h"
 #include "wallet/wallet.h"
-#include "Bip47Util.h"
-#include "Bip47Address.h"
-#include "PaymentAddress.h"
 
 
 
@@ -26,7 +26,7 @@ currentIncomingIndex(-1)
 }
 
 Bip47PaymentChannel::Bip47PaymentChannel(string v_paymentCode, string v_label) {
-    paymentCode = v_paymentCode ;
+    paymentCode = v_paymentCode;
     label = v_label;
 }
 

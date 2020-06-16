@@ -1,7 +1,7 @@
-#ifndef BIP47ACCOUNT_H
-#define BIP47ACCOUNT_H
-#include "bip47_common.h"
-#include "PaymentCode.h"
+#ifndef ZCOIN_BIP47ACCOUNT_H
+#define ZCOIN_BIP47ACCOUNT_H
+#include "bip47/common.h"
+#include "bip47/paymentcode.h"
 #include "key.h"
 #include "pubkey.h"
 
@@ -15,10 +15,10 @@ class Bip47Account {
     public:
     Bip47Account() {accountId=0;}
     Bip47Account(CExtKey &coinType, int identity);
-    Bip47Account(String strPaymentCode);
+    Bip47Account(std::string strPaymentCode);
 
-    bool SetPaymentCodeString(String strPaymentCode);
-    String getStringPaymentCode();
+    bool SetPaymentCodeString(std::string strPaymentCode);
+    std::string getStringPaymentCode();
 
     CBitcoinAddress getNotificationAddress();
 
@@ -35,4 +35,4 @@ class Bip47Account {
 
 };
 
-#endif
+#endif // ZCOIN_BIP47ACCOUNT_H

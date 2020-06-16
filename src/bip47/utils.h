@@ -1,10 +1,13 @@
-#ifndef BIP47UTIL_H
-#define BIP47UTIL_H
-#include "bip47_common.h"
-#include "wallet/wallet.h"
+#ifndef ZCOIN_BIP47UTIL_H
+#define ZCOIN_BIP47UTIL_H
+#include "key.h"
 
 class PaymentCode;
 class PaymentAddress;
+class CWallet;
+class CTxOut;
+class CTxIn;
+class CTransaction;
 
 class BIP47Util {
     public:
@@ -18,4 +21,4 @@ class BIP47Util {
     static PaymentAddress getSendAddress(CWallet* pbip47Wallet, PaymentCode &pcode_to, int idx);
 
 };
-#endif
+#endif // ZCOIN_BIP47UTIL_H

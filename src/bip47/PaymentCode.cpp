@@ -1,5 +1,8 @@
-#include "PaymentCode.h"
-#include "Bip47ChannelAddress.h"
+
+#include "bip47/paymentcode.h"
+#include "bip47/channeladdress.h"
+#include "util.h"
+
 int PaymentCode::PUBLIC_KEY_Y_OFFSET = 2;
 int PaymentCode::PUBLIC_KEY_X_OFFSET = 3;
 int PaymentCode::CHAIN_OFFSET = 35;
@@ -11,7 +14,7 @@ PaymentCode::PaymentCode() :
     pubkey ( 33 ),chain ( 32 )
 {
 }
-PaymentCode::PaymentCode ( String payment_code ) :
+PaymentCode::PaymentCode ( std::string payment_code ) :
     pubkey ( 33 ),chain ( 32 )
 {
     strPaymentCode = payment_code;
@@ -94,18 +97,18 @@ std::vector<unsigned char> PaymentCode::decode()
         LogPrintf ( "PaymentCode::decode error\n" );
 
     }
-    return temp ;
+    return temp;
 }
 
 std::vector<unsigned char> PaymentCode::decodeChecked()
 {
-    std::vector<unsigned char> temp ;
+    std::vector<unsigned char> temp;
 
     if ( !DecodeBase58Check ( strPaymentCode,temp ) ) {
         LogPrintf ( "PaymentCode::decodeChecked error\n" );
 
     }
-    return temp ;
+    return temp;
 }
 
 std::vector<unsigned char>& PaymentCode::getPubKey()
@@ -118,7 +121,7 @@ std::vector<unsigned char>& PaymentCode::getChain()
     return chain;
 }
 
-String PaymentCode::toString()
+std::string PaymentCode::toString()
 {
     return strPaymentCode;
 }
@@ -144,10 +147,10 @@ std::vector<unsigned char> PaymentCode::blind ( std::vector<unsigned char> paylo
     Bip47_common::arraycopy ( payload, 35, chain, 0, 32 );
     Bip47_common::arraycopy ( mask, 0, buf0, 0, 32 );
     Bip47_common::arraycopy ( mask, 32, buf1, 0, 32 );
-    std::vector<unsigned char> temp1 ;
-    std::vector<unsigned char> temp2 ;
-    temp1 = vector_xor ( pubkey, buf0 ) ;
-    temp2 = vector_xor ( chain, buf1 ) ;
+    std::vector<unsigned char> temp1;
+    std::vector<unsigned char> temp2;
+    temp1 = vector_xor ( pubkey, buf0 );
+    temp2 = vector_xor ( chain, buf1 );
     Bip47_common::arraycopy ( temp1, 0, ret, 3, 32 );
     Bip47_common::arraycopy ( temp2, 0, ret, 35, 32 );
     return ret;
@@ -156,7 +159,7 @@ std::vector<unsigned char> PaymentCode::blind ( std::vector<unsigned char> paylo
 bool PaymentCode::parse()
 {
     std::vector<unsigned char> pcBytes;
-    if ( !DecodeBase58Check ( strPaymentCode, pcBytes ) ) return false ;
+    if ( !DecodeBase58Check ( strPaymentCode, pcBytes ) ) return false;
     if ( pcBytes[0] != 0x47 ) {
         LogPrintf ( "invalid payment code version" );
         return false;

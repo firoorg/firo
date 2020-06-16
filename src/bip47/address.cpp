@@ -1,16 +1,18 @@
-#include "Bip47Address.h"
+
+#include "bip47/address.h"
+
 Bip47Address::Bip47Address(){}
-Bip47Address::Bip47Address(String v_address, int v_index){
+Bip47Address::Bip47Address(std::string v_address, int v_index){
     address = v_address;
     index = v_index;
 }
-Bip47Address::Bip47Address(String v_address, int v_index, bool v_seen) {
+Bip47Address::Bip47Address(std::string v_address, int v_index, bool v_seen) {
     address = v_address;
     index = v_index;
     seen = v_seen;
 }
 
-String Bip47Address::getAddress() {
+std::string Bip47Address::getAddress() {
     return address;
 }
 
@@ -26,6 +28,6 @@ void Bip47Address::setSeen(bool v_seen) {
     seen = v_seen;
 }
 
-String Bip47Address::toString() {
+std::string Bip47Address::toString() {
     return address;
 }

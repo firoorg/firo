@@ -1,5 +1,7 @@
-#include "Bip47Account.h"
-#include "PaymentCode.h"
+
+#include "bip47/account.h"
+#include "bip47/paymentcode.h"
+#include "util.h"
 
 Bip47Account::Bip47Account(CExtKey &coinType, int identity) {
     accountId = identity;
@@ -10,15 +12,15 @@ Bip47Account::Bip47Account(CExtKey &coinType, int identity) {
     paymentCode = PaymentCode(key.pubkey.begin(), (const unsigned char*)key.chaincode.begin());
 }
 
-Bip47Account::Bip47Account(String strPaymentCode) {
+Bip47Account::Bip47Account(std::string strPaymentCode) {
     accountId = 0;
     SetPaymentCodeString(strPaymentCode);
 }
 
-bool Bip47Account::SetPaymentCodeString(String strPaymentCode)
+bool Bip47Account::SetPaymentCodeString(std::string strPaymentCode)
 {
     if (!PaymentCode::createMasterPubKeyFromPaymentCode(strPaymentCode, this->key)) {
-        throw std::runtime_error("createMasterPubKeyFromPaymentCode return false while SetPaymentCodeString.\n");
+        throw std::runtime_error("createMasterPubKeyFromPaymentCode return false while SetPaymentCodestd::string.\n");
     }
 
     paymentCode = PaymentCode(strPaymentCode);
@@ -79,7 +81,7 @@ bool Bip47Account::isValid()
     return true;
 }
 
-String Bip47Account::getStringPaymentCode() 
+std::string Bip47Account::getStringPaymentCode() 
 {
     return paymentCode.toString();
 }
@@ -92,7 +94,7 @@ CBitcoinAddress Bip47Account::getNotificationAddress() {
 }
 
 CExtPubKey Bip47Account::getNotificationKey() {
-    CExtPubKey result ;
+    CExtPubKey result;
     if(key.Derive(result,0))
         return result;
     throw std::runtime_error("Bip47Account getNotificationKey Problem");
@@ -124,7 +126,7 @@ Bip47ChannelAddress Bip47Account::addressAt(int idx) {
 }
 
 CExtPubKey Bip47Account::keyAt(int idx) {
-    CExtPubKey result ;
+    CExtPubKey result;
     if(!key.Derive(result,idx))
     {
         LogPrintf("keyAt error in Bip47Account\n");
