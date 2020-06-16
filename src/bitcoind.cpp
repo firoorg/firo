@@ -76,6 +76,11 @@ bool AppInit(int argc, char* argv[])
     // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
     ParseParameters(argc, argv);
 
+     if (IsArgSet("-printcrashinfo")) {
+        std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
+        return true;
+    }
+
     // Process help and version before taking care about datadir
     if (IsArgSet("-?") || IsArgSet("-h") ||  IsArgSet("-help") || IsArgSet("-version"))
     {

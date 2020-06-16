@@ -78,6 +78,12 @@ static int AppInitRPC(int argc, char* argv[])
     // Parameters
     //
     ParseParameters(argc, argv);
+
+    if (IsArgSet("-printcrashinfo")) {
+        std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
+        return true;
+    }
+
     if (argc<2 || IsArgSet("-?") || IsArgSet("-h") || IsArgSet("-help") || IsArgSet("-version")) {
         std::string strUsage = strprintf(_("%s RPC client version"), _(PACKAGE_NAME)) + " " + FormatFullVersion() + "\n";
         if (!IsArgSet("-version")) {

@@ -591,6 +591,13 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
     translationInterface.Translate.connect(Translate);
 
+    if (IsArgSet("-printcrashinfo")) {
+        auto crashInfo = GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", ""));
+        std::cout << crashInfo << std::endl;
+        QMessageBox::critical(0, QObject::tr(PACKAGE_NAME), QString::fromStdString(crashInfo));
+        return EXIT_SUCCESS;
+    }
+
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
     if (IsArgSet("-?") || IsArgSet("-h") || IsArgSet("-help") || IsArgSet("-version"))
