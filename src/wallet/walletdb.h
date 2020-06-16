@@ -50,7 +50,7 @@ class CZerocoinEntry;
 class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
-class Bip47PaymentChannel;
+class CBIP47PaymentChannel;
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -106,51 +106,6 @@ public:
         }
     }
 };
-
-/**
- * CBip47HDChain
- */
-
-/* simple HD chain data model */
-class CBip47HDChain
-{
-public:
-    uint32_t nExternalChainCounter; // VERSION_BASIC
-    vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
-    CKeyID masterKeyID; //!< master key hash160
-
-    static const int VERSION_BASIC = 1;
-    static const int VERSION_WITH_BIP47 = 10;
-    static const int CURRENT_VERSION = VERSION_WITH_BIP47;
-    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
-    int nVersion;
-
-    CBip47HDChain() { SetNull(); }
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-
-        READWRITE(this->nVersion);
-        nVersion = this->nVersion;
-        READWRITE(nExternalChainCounter);
-        READWRITE(masterKeyID);
-        if(this->nVersion >= VERSION_WITH_BIP47){
-            READWRITE(nExternalChainCounters);
-        }
-    }
-
-    void SetNull()
-    {
-        nVersion = CBip47HDChain::CURRENT_VERSION;
-        masterKeyID.SetNull();
-        nExternalChainCounter = 0;
-        for(int index=0;index<N_CHANGES;index++){
-            nExternalChainCounters.push_back(0);
-        }
-    }
-};
-
 
 class CKeyMetadata
 {
@@ -344,9 +299,9 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     // @bip47 channel data write
-    bool WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId);
+    bool WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId);
     
-    void ListBip47PaymentChannel(std::map <string, Bip47PaymentChannel> &mPchannels);
+    void ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel> &mPchannels);
 
     /// Write destination data key,value tuple to database
     bool WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);

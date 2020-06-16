@@ -618,7 +618,7 @@ public:
         cachedPaymentCodeTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const PAIRTYPE(string, Bip47PaymentChannel)& item, wallet->m_Bip47channels)
+            BOOST_FOREACH(const PAIRTYPE(string, CBIP47PaymentChannel)& item, wallet->m_Bip47channels)
             {
                 const string& address = item.first;
                 PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Sending;
@@ -802,7 +802,7 @@ bool PaymentCodeTableModel::setData(const QModelIndex &index, const QVariant &va
         } else if(index.column() == Address) {
             std::string newAddress = value.toString().toStdString();
             // Refuse to set invalid address, set error status and return false
-            if(!PaymentCode(newAddress).isValid())
+            if(!CPaymentCode(newAddress).isValid())
             {
                 editStatus = INVALID_PAYMENTCODE;
                 return false;
@@ -930,7 +930,7 @@ QString PaymentCodeTableModel::labelForAddress(const QString &address) const
 {
     {
         LOCK(wallet->cs_wallet);
-        std::map<string, Bip47PaymentChannel>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
+        std::map<string, CBIP47PaymentChannel>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
         if (mi != wallet->m_Bip47channels.end())
         {
             return QString::fromStdString(mi->second.getLabel());

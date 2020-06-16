@@ -175,7 +175,7 @@ bool SendCoinsEntry::isPaymentCode()
     std::string address = ui->payTo->text().toStdString();
     if (address.empty())
         return false;
-    PaymentCode pcode(address);
+    CPaymentCode pcode(address);
     return pcode.isValid();
     
 }

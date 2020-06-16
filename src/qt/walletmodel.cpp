@@ -332,7 +332,7 @@ bool WalletModel::validateAddress(const QString &address)
 
 bool WalletModel::validatePaymentCode(const QString &pCode)
 {
-    PaymentCode paymentCode(pCode.toStdString());
+    CPaymentCode paymentCode(pCode.toStdString());
     return paymentCode.isValid();
 }
 
@@ -540,7 +540,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
 
 
-    Bip47Account toBip47Account;
+    CBIP47Account toCBIP47Account;
 
     // Pre-check input data for validity
     Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
@@ -559,7 +559,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
         }
 
         // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code];
-        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+        CBIP47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
 
         // If channel already sent notifcation transaction. lgtm [cpp/commented-out-code]
         if (channel->isNotificationTransactionSent()) {
@@ -583,9 +583,9 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             LogPrintf("Payment Notification Transaction Still Not Sent\n");
             isNotificationTx = true;
 
-            toBip47Account.SetPaymentCodeString(rcp.address.toStdString());
+            toCBIP47Account.SetPaymentCodeString(rcp.address.toStdString());
 
-            CBitcoinAddress ntAddress = toBip47Account.getNotificationAddress();
+            CBitcoinAddress ntAddress = toCBIP47Account.getNotificationAddress();
 
 
 
@@ -638,7 +638,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             vector<unsigned char> pubKeyBytes;
             
-            if (!BIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
+            if (!CBIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
             }
@@ -653,7 +653,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             
             wallet->GetKey(designatedPubKey.GetID(), privKey);
-            CPubKey pubkey = toBip47Account.getNotificationKey().pubkey;
+            CPubKey pubkey = toCBIP47Account.getNotificationKey().pubkey;
             vector<unsigned char> dataPriv(privKey.size());
             vector<unsigned char> dataPub(pubkey.size());
 
@@ -671,10 +671,10 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
             LogPrintf("Get Mask from payment code\n");
-            vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+            vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 
             LogPrintf("Get op_return bytes via blind\n");
-            vector<unsigned char> op_return = PaymentCode::blind(pwalletMain->getBip47Account(0).getPaymentCode().getPayload(), mask);
+            vector<unsigned char> op_return = CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
 
             CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
             CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
@@ -683,7 +683,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
             
-            if (!BIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
+            if (!CBIP47Util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
             }
@@ -763,11 +763,11 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
     {
         std::string pcodestr = rcp.address.toStdString();
         std::string strLabel = rcp.label.toStdString();
-        Bip47PaymentChannel pchannel(pcodestr, strLabel);
+        CBIP47PaymentChannel pchannel(pcodestr, strLabel);
 
         // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
-        wallet->addToBip47PaymentChannel(pchannel);
-        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+        wallet->addToCBIP47PaymentChannel(pchannel);
+        CBIP47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
@@ -781,7 +781,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
             channel->incrementOutgoingIndex();
             
         }
-        wallet->saveBip47PaymentChannelData(pcodestr);
+        wallet->saveCBIP47PaymentChannelData(pcodestr);
         paymentCodeTableModel->refreshModel();
 
         Q_EMIT coinsSent(wallet, rcp, transaction_array);
@@ -1354,7 +1354,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendPCodeTransaction(
         
         
         // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code] ;
-        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+        CBIP47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
         
         // If channel already sent notifcation transaction.
         if (channel->isNotificationTransactionSent())
@@ -1504,11 +1504,11 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         // Don't touch the address book when we have a payment request
         std::string pcodestr = rcp.address.toStdString();
         std::string strLabel = rcp.label.toStdString();
-        Bip47PaymentChannel pchannel(pcodestr, strLabel);
+        CBIP47PaymentChannel pchannel(pcodestr, strLabel);
 
         // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
-        wallet->addToBip47PaymentChannel(pchannel);
-        Bip47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+        wallet->addToCBIP47PaymentChannel(pchannel);
+        CBIP47PaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
@@ -1521,7 +1521,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
             channel->incrementOutgoingIndex();
             
         }
-        wallet->saveBip47PaymentChannelData(pcodestr);
+        wallet->saveCBIP47PaymentChannelData(pcodestr);
         paymentCodeTableModel->refreshModel();
         Q_EMIT coinsSent(wallet, rcp, transaction_array);
     }

@@ -1426,24 +1426,24 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
 }
 
 
-bool CWalletDB::WriteBip47PaymentChannel(const Bip47PaymentChannel& pchannel, const string& channelId)
+bool CWalletDB::WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId)
 {
     nWalletDBUpdateCounter++;
-    return Write(std::make_pair(std::string("Bip47PaymentChannel"), channelId), pchannel);
+    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), channelId), pchannel);
 }
 
-void CWalletDB::ListBip47PaymentChannel(std::map <string, Bip47PaymentChannel> &mPchannels)
+void CWalletDB::ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel> &mPchannels)
 {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
-        throw runtime_error("CWalletDB::ListBip47PaymentChannel() : cannot create DB cursor");
+        throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
     while (true) {
         // Read next record
         LogPrintf("Create CDataStream ssKey\n");
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("Bip47PaymentChannel"), string(""));
+            ssKey << make_pair(string("CBIP47PaymentChannel"), string(""));
         LogPrintf("Create CDataStream ssValue\n");
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         LogPrintf("ReadAtCursor sskey and ssValue\n");
@@ -1453,19 +1453,19 @@ void CWalletDB::ListBip47PaymentChannel(std::map <string, Bip47PaymentChannel> &
             break;
         else if (ret != 0) {
             pcursor->close();
-            throw runtime_error("CWalletDB::ListBip47PaymentChannel() : error scanning DB");
+            throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : error scanning DB");
         }
         LogPrintf("Unserialize sskey and ssValue\n");
         // Unserialize
         string strType;
         ssKey >> strType;
         LogPrintf("strType is %s\n", strType);
-        if (strType != "Bip47PaymentChannel")
+        if (strType != "CBIP47PaymentChannel")
             break;
         std::string value;
         ssKey >> value;
         LogPrintf("value is %s\n", value);
-        Bip47PaymentChannel pchannel;
+        CBIP47PaymentChannel pchannel;
         LogPrintf("ssValue Size is %d\n", ssValue.size());
         ssValue >> pchannel;
         LogPrintf("Get Pchannl %s\n", pchannel.getPaymentCode());

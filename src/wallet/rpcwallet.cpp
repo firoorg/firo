@@ -4399,14 +4399,14 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
-UniValue getnewpcode(const JSONRPCRequest& request) {
+UniValue getnewpaymentcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
-                "getnewpcode ( \"address\" )\n"
+                "getnewpaymentcode ( \"address\" )\n"
                 "\nReturns a new Zcoin payment code for receiving payments.\n"
                 "If 'address' is specified (DEPRECATED), it is added to the address book \n"
                 "so payments received with the payment code will be credited to 'address'.\n"
@@ -4415,8 +4415,8 @@ UniValue getnewpcode(const JSONRPCRequest& request) {
                 "\nResult:\n"
                 "\"paymentcode\"    (string) The new Zcoin paymentcode\n"
                 "\nExamples:\n"
-                + HelpExampleCli("getnewpcode", "")
-                + HelpExampleRpc("getnewpcode", "")
+                + HelpExampleCli("getnewpaymentcode", "")
+                + HelpExampleRpc("getnewpaymentcode", "")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -4477,7 +4477,7 @@ UniValue getmynotificationaddress(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
 
     
-    return pwallet->getNotifiactionAddress();
+    return pwallet->getNotificationAddress();
 }
 
 UniValue getnotificationaddressfrompaymentcode(const JSONRPCRequest& request) {
@@ -4495,7 +4495,7 @@ UniValue getnotificationaddressfrompaymentcode(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
 
-    Bip47Account bip47Account(request.params[0].get_str());
+    CBIP47Account bip47Account(request.params[0].get_str());
 
     return bip47Account.getNotificationAddress().ToString();
 }
@@ -4525,14 +4525,14 @@ UniValue getpaymentcodefromnotificationtx(const JSONRPCRequest& request) {
 
     if(pwallet->isNotificationTransaction(tx))
     {
-        PaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx);
+        CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx);
         if (pcode.isValid())
         {
             bool needsSaving = pwallet->savePaymentCode(pcode);
             if(needsSaving)
             {
-                LogPrintf("saveBip47PaymentChannelData\n");
-                pwallet->saveBip47PaymentChannelData(pcode.toString());
+                LogPrintf("saveCBIP47PaymentChannelData\n");
+                pwallet->saveCBIP47PaymentChannelData(pcode.toString());
             }
 
             return pcode.toString();
@@ -4588,15 +4588,15 @@ UniValue validatepcode(const JSONRPCRequest& request)
 #endif
 
     std::string strPcode = request.params[0].get_str();
-    PaymentCode paymentCode(strPcode);
-    Bip47Account bip47Account(strPcode);
+    CPaymentCode paymentCode(strPcode);
+    CBIP47Account bip47Account(strPcode);
     bool isValid = paymentCode.isValid();
-    bool walletBip47AccountValid = pwallet->getBip47Account(0).isValid();
+    bool walletCBIP47AccountValid = pwallet->getBIP47Account(0).isValid();
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
     ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
-    ret.push_back(Pair("Wallet Account isvalid", walletBip47AccountValid));
+    ret.push_back(Pair("Wallet Account isvalid", walletCBIP47AccountValid));
     
     if(pwallet->getPaymentCode().compare(strPcode) == 0)
     {
@@ -4607,13 +4607,13 @@ UniValue validatepcode(const JSONRPCRequest& request)
         ret.push_back(Pair("IsMine", false));
         if(pwallet->m_Bip47channels.count(strPcode) > 0 )
         {
-            ret.push_back(Pair("Exist in Bip47PaymentChannel", true));
-            Bip47PaymentChannel *pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
+            ret.push_back(Pair("Exist in CBIP47PaymentChannel", true));
+            CBIP47PaymentChannel *pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(*pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if(pchannel->getIncomingAddresses().size() == 0) {
-                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
+                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4625,12 +4625,12 @@ UniValue validatepcode(const JSONRPCRequest& request)
         } 
         else
         {
-            ret.push_back(Pair("Exist in Bip47PaymentChannel", false));
-            Bip47PaymentChannel pchannel(strPcode);
+            ret.push_back(Pair("Exist in CBIP47PaymentChannel", false));
+            CBIP47PaymentChannel pchannel(strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if(pchannel.getIncomingAddresses().size() == 0) {
-                PaymentAddress paddr = BIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
+                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4649,14 +4649,14 @@ UniValue validatepcode(const JSONRPCRequest& request)
 
 
 
-UniValue sendtopcode(const JSONRPCRequest& request) {
+UniValue sendtopaymentcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw runtime_error(
-                "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+                "sendtopaymentcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
                 "\nSend an amount to a given address.\n"
                 + HelpRequiringPassphrase(pwallet) +
                 "\nArguments:\n"
@@ -4670,7 +4670,7 @@ UniValue sendtopcode(const JSONRPCRequest& request) {
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    PaymentCode paymentCode(request.params[0].get_str());
+    CPaymentCode paymentCode(request.params[0].get_str());
     if (!paymentCode.isValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
 
@@ -4682,7 +4682,7 @@ UniValue sendtopcode(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     
-    Bip47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
+    CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
     
     if (channel->isNotificationTransactionSent()) 
     {
@@ -5215,11 +5215,11 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
     
-    { "wallet",             "getnewpcode",                           &getnewpcode,                             true  },
+    { "wallet",             "getnewpaymentcode",                     &getnewpaymentcode,                       true  },
     { "wallet",             "getmypaymentcode",                      &getmypaymentcode,                        true  },
     { "wallet",             "getmynotificationaddress",              &getmynotificationaddress,                true  },
     { "wallet",             "getnotificationaddressfrompaymentcode", &getnotificationaddressfrompaymentcode,   true  },
-    { "wallet",             "sendtopcode",                           &sendtopcode,                             false },
+    { "wallet",             "sendtopaymentcode",                     &sendtopaymentcode,                       false },
     { "wallet",             "listreceivedbypcode",                   &listreceivedbypcode,                     false },
     { "wallet",             "getreceivedbypcode",                    &getreceivedbypcode,                      false },
     { "wallet",             "getpaymentcodefromnotificationtx",      &getpaymentcodefromnotificationtx,        false },

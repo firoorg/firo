@@ -1,23 +1,23 @@
     #include "bip47/channeladdress.h"
-    Bip47ChannelAddress::Bip47ChannelAddress(){
+    CBIP47ChannelAddress::CBIP47ChannelAddress(){
 
     }
-    Bip47ChannelAddress::Bip47ChannelAddress(CExtPubKey &cKey, int child) {
+    CBIP47ChannelAddress::CBIP47ChannelAddress(CExtPubKey &cKey, int child) {
         
         childNum = child;
         CExtPubKey dk;
         if(!cKey.Derive(dk, childNum)){
-            throw std::runtime_error("Bip47ChannelAddress::Bip47ChannelAddress(CBaseChainParams *v_params, CExtPubKey &cKey, int child) is failed.\n");
+            throw std::runtime_error("CBIP47ChannelAddress::CBIP47ChannelAddress(CBaseChainParams *v_params, CExtPubKey &cKey, int child) creation failed.\n");
         }
         ecKey = dk;
 
         pubKey = std::vector<unsigned char>(ecKey.pubkey.begin(),ecKey.pubkey.end());
     }
   
-    std::vector<unsigned char>& Bip47ChannelAddress::getPubKey() {
+    std::vector<unsigned char>& CBIP47ChannelAddress::getPubKey() {
         return pubKey;
     }
 
-    std::string Bip47ChannelAddress::getPath() {
+    std::string CBIP47ChannelAddress::getPath() {
         return strPath;
     }

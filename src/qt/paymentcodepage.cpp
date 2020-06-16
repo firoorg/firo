@@ -56,7 +56,7 @@ void PaymentcodePage::loadPaymentCode()
 {
     QString paymentCodeStr = QString::fromStdString(pwalletMain->getPaymentCode());
     ui->paymentcodeLabel->setText(paymentCodeStr);
-    QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pwalletMain->getNotifiactionAddress());
+    QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pwalletMain->getNotificationAddress());
     ui->paymentcodeLabel->setToolTip(notificationAddress);
     
     

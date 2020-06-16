@@ -166,12 +166,12 @@ BOOST_FIXTURE_TEST_SUITE(bip47_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(payment_address)
 {
     
-    PaymentCode toPcode("PM8TJK7t44xGE2DSbFGCk2wCypTzeq3L5i5r5iUGyNruaFLMCshtANUiBN1d9LCyQ9JrfDt3LFwRPSRkWPFBJAT7kdJgCaLDc3kQpQuwEVWxa6UmpR64");
+    CPaymentCode toPcode("PM8TJK7t44xGE2DSbFGCk2wCypTzeq3L5i5r5iUGyNruaFLMCshtANUiBN1d9LCyQ9JrfDt3LFwRPSRkWPFBJAT7kdJgCaLDc3kQpQuwEVWxa6UmpR64");
     
-    PaymentAddress payaddr = BIP47Util::getPaymentAddress(toPcode, 0, pwalletMain->getBip47Account(0).keyPrivAt(0));
+    CPaymentAddress payaddr = CBIP47Util::getPaymentAddress(toPcode, 0, pwalletMain->getBIP47Account(0).keyPrivAt(0));
     
-    CExtPubKey extPubkey = pwalletMain->getBip47Account(0).keyAt(0);
-    CExtKey extKey = pwalletMain->getBip47Account(0).keyPrivAt(0);
+    CExtPubKey extPubkey = pwalletMain->getBIP47Account(0).keyAt(0);
+    CExtKey extKey = pwalletMain->getBIP47Account(0).keyPrivAt(0);
     CExtPubKey neutPubkey = extKey.Neuter();
     
     printf("extPubkey = %s\nneutPubkey = %s\n", extPubkey.pubkey.GetHash().GetHex().c_str(), neutPubkey.pubkey.GetHash().GetHex().c_str());
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_CASE(chaincode)
     std::copy(pubkey.pubkey.begin(), pubkey.pubkey.end(), alicepubkey);
     std::copy(pubkey.chaincode.begin(), pubkey.chaincode.end(), alicechian);
     printf("creating PaymentCode...");
-    PaymentCode alicePcode(alicepubkey, alicechian);
+    CPaymentCode alicePcode(alicepubkey, alicechian);
     printf("\n Payment code of alice \n%s\n", alicePcode.toString().c_str());
 
 
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(chaincode)
     printf("Pubkey value is %s\n", b58pubkey.ToString().c_str());
 
     std::string strPcode = "PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA";
-    PaymentCode paymentCode(strPcode);
+    CPaymentCode paymentCode(strPcode);
     CPubKey masterPubkey = paymentCode.getPubKey();
     printf("\n master pubkey size %d\n", masterPubkey.size());
 
@@ -277,8 +277,6 @@ BOOST_AUTO_TEST_CASE(secret_point)
     
     pubkey1.Set(pubkeyPcode.begin(), pubkeyPcode.end());
     pubkey2.Set(scriptSigPub.begin(), scriptSigPub.end());
-
-
 
     std::vector<unsigned char> key1bytes(key1.begin(), key1.end());
     std::vector<unsigned char> key2bytes(key2.begin(), key2.end());

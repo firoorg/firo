@@ -9,15 +9,13 @@
 #include "serialize.h"
 #include "clientversion.h"
 
-class Bip47Address {
-    private:
-     std::string address;
-     int index = 0;
-     bool seen = false;
+class CBIP47Address {
+
     public:
-        Bip47Address();
-        Bip47Address(std::string v_address, int v_index);
-        Bip47Address(std::string v_address, int v_index, bool v_seen);
+        CBIP47Address();
+        CBIP47Address(std::string v_address, int v_index);
+        CBIP47Address(std::string v_address, int v_index, bool v_seen);
+        
         std::string getAddress();
         int getIndex();
         bool isSeen();
@@ -31,6 +29,12 @@ class Bip47Address {
             READWRITE(index);
             READWRITE(seen);
         }
+
+    private:
+        std::string address;
+        int index = 0;
+        bool seen = false;
+
 };
 
 #endif

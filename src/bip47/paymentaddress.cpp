@@ -5,84 +5,84 @@
 
 
 
-PaymentAddress::PaymentAddress()
+CPaymentAddress::CPaymentAddress()
 {
     index = 0;
 
 }
-PaymentAddress::PaymentAddress(PaymentCode paymentCode_t)
+CPaymentAddress::CPaymentAddress(CPaymentCode paymentCode_t)
 {
     paymentCode = paymentCode_t;
     index = 0;
     
 }
 
-PaymentCode PaymentAddress::getPaymentCode() {
+CPaymentCode CPaymentAddress::getPaymentCode() {
     return paymentCode;
 }
 
-void PaymentAddress::setPaymentCode(PaymentCode paymentCode_t) {
+void CPaymentAddress::setPaymentCode(CPaymentCode paymentCode_t) {
     paymentCode = paymentCode_t;
 }
-int PaymentAddress::getIndex() {
+int CPaymentAddress::getIndex() {
     return index;
 }
 
-void PaymentAddress::setIndex(int index_t) {
+void CPaymentAddress::setIndex(int index_t) {
     index = index_t;
 }
 
-vector<unsigned char> PaymentAddress::getPrivKey() {
+vector<unsigned char> CPaymentAddress::getPrivKey() {
     return privKey;
 }
 
-void PaymentAddress::setIndexAndPrivKey(int index_t, vector<unsigned char> privKey_t) {
+void CPaymentAddress::setIndexAndPrivKey(int index_t, vector<unsigned char> privKey_t) {
     index = index_t;
     privKey = privKey_t;
 }
 
-void PaymentAddress::setPrivKey(vector<unsigned char> privKey_t) {
+void CPaymentAddress::setPrivKey(vector<unsigned char> privKey_t) {
     privKey = privKey_t;
 }
 
-CPubKey PaymentAddress::getSendECKey()
+CPubKey CPaymentAddress::getSendECKey()
 {
     return getSendECKey(getSecretPoint());
 }
 
-CKey PaymentAddress::getReceiveECKey()
+CKey CPaymentAddress::getReceiveECKey()
 {
     return getReceiveECKey(getSecretPoint());
 }
 
-CPubKey PaymentAddress::getReceiveECPubKey()
+CPubKey CPaymentAddress::getReceiveECPubKey()
 {
     return getReceiveECPubKey(getSecretPoint());
 }
 
-GroupElement PaymentAddress::get_sG()
+GroupElement CPaymentAddress::get_sG()
 {
     return get_sG(getSecretPoint());
 }
 
-SecretPoint PaymentAddress::getSharedSecret() {
+SecretPoint CPaymentAddress::getSharedSecret() {
     return sharedSecret();
 }
 
-Scalar PaymentAddress::getSecretPoint() {
+Scalar CPaymentAddress::getSecretPoint() {
     return secretPoint();
 }
 
 
-// GetECPoint from the public keys derived in PaymentCode 
-GroupElement PaymentAddress::getECPoint(bool isMine) {
+// GetECPoint from the public keys derived in CPaymentCode 
+GroupElement CPaymentAddress::getECPoint(bool isMine) {
     
     
     
     vector<unsigned char> pubkeybytes;
     if(isMine)
     {
-        pubkeybytes = pwalletMain->getBip47Account(0).getPaymentCode().addressAt(index).getPubKey();
+        pubkeybytes = pwalletMain->getBIP47Account(0).getPaymentCode().addressAt(index).getPubKey();
     }
     else
     {
@@ -106,7 +106,7 @@ GroupElement PaymentAddress::getECPoint(bool isMine) {
 
 
 
-std::vector<unsigned char> PaymentAddress::hashSharedSecret() {
+std::vector<unsigned char> CPaymentAddress::hashSharedSecret() {
 
     std::vector<unsigned char> shardbytes = getSharedSecret().ECDHSecretAsBytes();
     LogPrintf("Hash Shared Secret: %s\n", HexStr(shardbytes));
@@ -114,7 +114,7 @@ std::vector<unsigned char> PaymentAddress::hashSharedSecret() {
     return shardbytes;
 }
 
-GroupElement PaymentAddress::get_sG(Scalar s) {
+GroupElement CPaymentAddress::get_sG(Scalar s) {
 
     GroupElement g = GroupElement("55066263022277343669578718895168534326250603453777594175500187360389116729240",
                              "32670510020758816978083085130507043184471273380659243275938904335757337482424");
@@ -122,7 +122,7 @@ GroupElement PaymentAddress::get_sG(Scalar s) {
     return g * s;
 }
 
-CPubKey PaymentAddress::getSendECKey(Scalar s)
+CPubKey CPaymentAddress::getSendECKey(Scalar s)
 {
     LogPrintf("getSendECKey:SecretPoint = %s\n", s.GetHex());
     
@@ -151,7 +151,7 @@ CPubKey PaymentAddress::getSendECKey(Scalar s)
     return pkey;
 }
 
-CPubKey PaymentAddress::getReceiveECPubKey(Scalar s)
+CPubKey CPaymentAddress::getReceiveECPubKey(Scalar s)
 {
     LogPrintf("getSendECKey:SecretPoint = %s\n", s.GetHex());
     
@@ -180,7 +180,7 @@ CPubKey PaymentAddress::getReceiveECPubKey(Scalar s)
     return pkey;
 }
 
-CKey PaymentAddress::getReceiveECKey(Scalar s)
+CKey CPaymentAddress::getReceiveECKey(Scalar s)
 {
     Scalar privKeyValue(privKey.data());
     Scalar newKeyS = privKeyValue + s;
@@ -193,13 +193,13 @@ CKey PaymentAddress::getReceiveECKey(Scalar s)
     return pkey;
 }
 
-SecretPoint PaymentAddress::sharedSecret()
+SecretPoint CPaymentAddress::sharedSecret()
 {
     SecretPoint secP(privKey, paymentCode.addressAt(index).getPubKey());
     return secP;
 }
 
-secp_primitives::Scalar PaymentAddress::secretPoint()
+secp_primitives::Scalar CPaymentAddress::secretPoint()
 {
     return secp_primitives::Scalar(hashSharedSecret().data());
 

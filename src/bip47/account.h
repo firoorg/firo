@@ -1,3 +1,4 @@
+
 #ifndef ZCOIN_BIP47ACCOUNT_H
 #define ZCOIN_BIP47ACCOUNT_H
 #include "bip47/common.h"
@@ -5,33 +6,34 @@
 #include "key.h"
 #include "pubkey.h"
 
-class Bip47Account {
-    private:
-    CExtKey prvkey;
-    CExtPubKey key;
-    int accountId;
-    PaymentCode paymentCode;
+class CBIP47Account {
 
     public:
-    Bip47Account() {accountId=0;}
-    Bip47Account(CExtKey &coinType, int identity);
-    Bip47Account(std::string strPaymentCode);
+        CBIP47Account() {accountId=0;}
+        CBIP47Account(CExtKey &coinType, int identity);
+        CBIP47Account(std::string strPaymentCode);
 
-    bool SetPaymentCodeString(std::string strPaymentCode);
-    std::string getStringPaymentCode();
+        bool SetPaymentCodeString(std::string strPaymentCode);
+        std::string getStringPaymentCode();
 
-    CBitcoinAddress getNotificationAddress();
+        CBitcoinAddress getNotificationAddress();
 
-    CExtPubKey getNotificationKey();
-    CExtKey getNotificationPrivKey();
+        CExtPubKey getNotificationKey();
+        CExtKey getNotificationPrivKey();
 
-    PaymentCode getPaymentCode();
+        CPaymentCode getPaymentCode();
 
-    Bip47ChannelAddress addressAt(int idx);
+        CBIP47ChannelAddress addressAt(int idx);
 
-    CExtPubKey keyAt(int idx);
-    CExtKey keyPrivAt(int idx);
-    bool isValid();
+        CExtPubKey keyAt(int idx);
+        CExtKey keyPrivAt(int idx);
+        bool isValid();
+
+    private:
+        CExtKey prvkey;
+        CExtPubKey key;
+        int accountId;
+        CPaymentCode paymentCode;
 
 };
 

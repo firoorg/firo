@@ -15,16 +15,18 @@
 #include "bip47/utils.h"
 #include "utilstrencodings.h"
 
+#define HARDENED_BIT 0x80000000
+
 class Bip47_common {
+
     public:
-    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-    static unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
-    static bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
+	    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+	    static unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+	    static bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
 
 };
-#define HARDENED_BIT    0x80000000
 
 #endif // ZCOIN_BIP47COMMON_H

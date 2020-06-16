@@ -1,6 +1,6 @@
 #include "bip47/utils.h"
 #include "bip47/paymentcode.h"
-#include "SecretPoint.h"
+#include "secretpoint.h"
 #include "primitives/transaction.h"
 #include "bip47/paymentaddress.h"
 #include <vector>
@@ -9,7 +9,7 @@
 
 using namespace std;
 
-bool BIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
+bool CBIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
     for(int i = 0; i < tx.vout.size(); i++) {
         if (tx.vout[i].scriptPubKey[0] == OP_RETURN) {
             txout = tx.vout[i];
@@ -20,12 +20,12 @@ bool BIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
 }
 
 
-bool BIP47Util::isValidNotificationTransactionOpReturn(CTxOut txout) {
+bool CBIP47Util::isValidNotificationTransactionOpReturn(CTxOut txout) {
     vector<unsigned char> op_date;
     return getOpCodeData(txout, op_date);
 }
 
-bool BIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
+bool CBIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
     CScript::const_iterator pc = txout.scriptPubKey.begin();
     vector<unsigned char> data;
     
@@ -47,7 +47,7 @@ bool BIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
     }
 }
 
-bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, PaymentCode &paymentCode) {
+bool CBIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode) {
     // tx.vin[0].scriptSig
 //     CWalletTx wtx(pwalletMain, tx);
 
@@ -76,7 +76,7 @@ bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> pr
 
     if (!getScriptSigPubkey(tx.vin[0], pubKeyBytes))
     {
-        LogPrintf("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
+        LogPrintf("Bip47Utiles CPaymentCode ScriptSig GetPubkey error\n");
         return false;
     }
     
@@ -93,14 +93,14 @@ bool BIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> pr
     uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
     LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
-    vector<unsigned char> mask = PaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
-    vector<unsigned char> payload = PaymentCode::blind(op_data, mask);
-    PaymentCode pcode(payload.data(), payload.size());
+    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+    vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
+    CPaymentCode pcode(payload.data(), payload.size());
     paymentCode = pcode;
     return true;
 }
 
-bool BIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
+bool CBIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
 {
 
     LogPrintf("ScriptSig size = %d\n", txin.scriptSig.size());
@@ -152,21 +152,21 @@ bool BIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByte
     return false;
 }
 
-PaymentAddress BIP47Util::getPaymentAddress(PaymentCode &pcode, int idx, CExtKey extkey) {
+CPaymentAddress CBIP47Util::getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey) {
     CKey prvkey = extkey.key;
     
     vector<unsigned char> ppkeybytes(prvkey.begin(), prvkey.end());
     
     
-    PaymentAddress paddr(pcode, idx, ppkeybytes);
+    CPaymentAddress paddr(pcode, idx, ppkeybytes);
     return paddr;
     
 }
 
-PaymentAddress BIP47Util::getReceiveAddress(CWallet* pbip47Wallet, PaymentCode &pcode_from, int idx)
+CPaymentAddress CBIP47Util::getReceiveAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
 {
-    PaymentAddress pm_address;
-    CExtKey accEkey = pbip47Wallet->getBip47Account(0).keyPrivAt(idx);
+    CPaymentAddress pm_address;
+    CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(idx);
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_from, 0, accEkey);
@@ -174,10 +174,10 @@ PaymentAddress BIP47Util::getReceiveAddress(CWallet* pbip47Wallet, PaymentCode &
     return pm_address;
 }
 
-PaymentAddress BIP47Util::getSendAddress(CWallet* pbip47Wallet, PaymentCode &pcode_to, int idx)
+CPaymentAddress CBIP47Util::getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx)
 {
-    PaymentAddress pm_address;
-    CExtKey accEkey = pbip47Wallet->getBip47Account(0).keyPrivAt(0);
+    CPaymentAddress pm_address;
+    CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(0);
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_to, idx, accEkey);
