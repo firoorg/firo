@@ -26,6 +26,7 @@
 #include "consensus/validation.h"
 #include "sigma.h"
 #include "sigma/coin.h"
+#include "lelantus.h"
 
 #include <stdint.h>
 
@@ -1038,6 +1039,32 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
 
     if (strError != "") {
         throw std::range_error(strError);
+    }
+}
+
+void WalletModel::lelantusMint(CAmount n, CCoinControl const *coinControl)
+{
+    if (!lelantus::IsLelantusAllowed()) {
+        throw std::runtime_error("Lelantus is not activated yet");
+    }
+
+    if (!lelantus::IsAvailableToMint(n)) {
+        throw std::invalid_argument("Amount to mint is invalid");
+    }
+
+    const auto &params = lelantus::Params::get_default();
+
+    lelantus::PrivateCoin coin(params, n);
+
+    CHDMint hdMint;
+    auto recipient = CWallet::CreateLelantusMintRecipient(coin, hdMint);
+
+    CWalletTx wtx;
+
+    auto errorMsg = pwalletMain->MintAndStoreLelantus(recipient, coin, hdMint, wtx, false, coinControl);
+
+    if (errorMsg != "") {
+        throw std::runtime_error(errorMsg);
     }
 }
 
