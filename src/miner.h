@@ -170,6 +170,10 @@ private:
     CAmount nSigmaSpendAmount;
     size_t nSigmaSpendInputs;
 
+    // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
+    // same block with spend transaction
+    CTxMemPool::setEntries txsDependingOnPrivacyTxOutput;
+
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
@@ -218,6 +222,9 @@ private:
 
     /** Zcoin: fill in founders' reward and znode payout outputs */
     void FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP);
+
+    /** Fill txDependingOnPrivacyTxOutput set */
+    void FillBlackListForBlockTemplate();
 };
 
 /** Modify the extranonce in a block */
