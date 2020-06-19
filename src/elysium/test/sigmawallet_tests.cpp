@@ -7,7 +7,7 @@
 #include "../walletmodels.h"
 
 #include "../../key.h"
-#include "../../main.h"
+#include "../../validation.h"
 #include "../../utiltime.h"
 #include "../../validationinterface.h"
 

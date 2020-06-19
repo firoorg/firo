@@ -222,10 +222,6 @@
         <translation>Deschide un zcoin: URI sau cerere de plată</translation>
     </message>
     <message>
-        <source>%1 and %2</source>
-        <translation>%1 și %2</translation>
-    </message>
-    <message>
         <source>%1 behind</source>
         <translation>%1 în urmă</translation>
     </message>
@@ -289,7 +285,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>Portofelul este &lt;b&gt;criptat&lt;/b&gt; și în prezent &lt;b&gt;blocat&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -307,10 +303,6 @@
     <message>
         <source>Amount:</source>
         <translation>Cantitate:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritate:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -351,10 +343,6 @@
     <message>
         <source>Confirmed</source>
         <translation>Confirmat</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>Prioritate</translation>
     </message>
     </context>
 <context>
@@ -412,6 +400,9 @@
         <source>%n GB of free space available</source>
         <translation><numerusform>%n GB de spațiu liber disponibil</numerusform><numerusform>%n GB de spațiu liber disponibil</numerusform><numerusform>%n GB de spațiu liber disponibil</numerusform></translation>
     </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
     </context>
 <context>
     <name>OpenURIDialog</name>
@@ -483,6 +474,10 @@
         <translation>Tor</translation>
     </message>
     <message>
+        <source>&amp;Window</source>
+        <translation>&amp;Fereastra</translation>
+    </message>
+    <message>
         <source>&amp;OK</source>
         <translation>&amp;OK</translation>
     </message>
@@ -542,6 +537,13 @@
         <source>Amount</source>
         <translation>Cantitate</translation>
     </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 și %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -652,6 +654,10 @@
 <context>
     <name>ReceiveCoinsDialog</name>
     <message>
+        <source>&amp;Message:</source>
+        <translation>&amp;Mesaj:</translation>
+    </message>
+    <message>
         <source>Show</source>
         <translation>Arată</translation>
     </message>
@@ -683,10 +689,6 @@
     <message>
         <source>Amount:</source>
         <translation>Cantitate:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritate:</translation>
     </message>
     <message>
         <source>Fee:</source>

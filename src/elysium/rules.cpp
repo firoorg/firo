@@ -10,7 +10,7 @@
 #include "version.h"
 
 #include "../chainparams.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../script/standard.h"
 #include "../uint256.h"
 #include "../ui_interface.h"
@@ -132,7 +132,7 @@ CMainConsensusParams::CMainConsensusParams()
 
     // Sigma releated
     SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
-    SIGMA_SPENDV1_FEATURE_BLOCK = 264165; // 4 May 2020
+    SIGMA_SPENDV1_FEATURE_BLOCK = 281532; // 1 July 2020
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 212000;

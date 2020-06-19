@@ -6,7 +6,7 @@
 #include "property.h"
 #include "sigmaprimitives.h"
 
-#include "../main.h"
+#include "../validation.h"
 #include "../serialize.h"
 
 #include <boost/filesystem.hpp>
@@ -107,7 +107,7 @@ public:
         ADD_SERIALIZE_METHODS;
 
         template <typename Stream, typename Operation>
-        inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        inline void SerializationOp(Stream& s, Operation ser_action) {
             auto sigmaStatus = static_cast<uint8_t>(this->sigmaStatus);
 
             READWRITE(issuer);

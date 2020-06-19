@@ -10,6 +10,7 @@
 #include <secp256k1.h>
 
 #include <array>
+#include <stdexcept>
 #include <vector>
 
 namespace elysium {
@@ -25,7 +26,8 @@ public:
     ECDSASignature(secp256k1_ecdsa_signature const &sig);
 
 public:
-    static ECDSASignature Parse(ECDSAContext const &context, unsigned char const *signature, size_t len);
+    static ECDSASignature ParseCompact(ECDSAContext const &context, unsigned char const *signature);
+    static ECDSASignature ParseDER(ECDSAContext const &context, unsigned char const *signature, size_t len);
 
 public:
     std::vector<unsigned char> GetCompact(ECDSAContext const &context) const;
@@ -35,7 +37,7 @@ public:
     /** serialize as compact
      */
     template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const
+    void Serialize(Stream& s) const
     {
         if (!Valid()) {
             throw std::logic_error("ECDSA Signature is invalid");
@@ -49,7 +51,7 @@ public:
     /** unserialize compact
      */
     template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion)
+    void Unserialize(Stream& s)
     {
         std::array<uint8_t, COMPACT_SIZE> buffer;
         s.read(reinterpret_cast<char*>(buffer.data()), buffer.size());

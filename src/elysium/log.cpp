@@ -227,11 +227,11 @@ int LogFilePrint(const std::string& str)
  */
 void InitDebugLogLevels()
 {
-    if (!mapArgs.count("-elysiumdebug")) {
+    if (!IsArgSet("-elysiumdebug")) {
         return;
     }
 
-    const std::vector<std::string>& debugLevels = mapMultiArgs["-elysiumdebug"];
+    const std::vector<std::string>& debugLevels = mapMultiArgs.at("-elysiumdebug");
 
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") elysium_debug_parser_data = true;

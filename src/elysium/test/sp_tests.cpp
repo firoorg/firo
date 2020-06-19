@@ -1,7 +1,7 @@
 #include "../sp.h"
 
 #include "../../test/test_bitcoin.h"
-#include "../../main.h"
+#include "../../validation.h"
 #include "../../miner.h"
 #include "../../wallet/wallet.h"
 

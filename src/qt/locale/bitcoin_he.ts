@@ -318,14 +318,6 @@
         <translation>מעבד בלוקים על הדיסק...</translation>
     </message>
     <message>
-        <source>No block source available...</source>
-        <translation>אין מקור מקטעים זמין…</translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 ו%2</translation>
-    </message>
-    <message>
         <source>%1 behind</source>
         <translation>%1 מאחור</translation>
     </message>
@@ -373,7 +365,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>הארנק &lt;b&gt;מוצפן&lt;/b&gt; ו&lt;b&gt;נעול&lt;/b&gt; כרגע</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -391,10 +383,6 @@
     <message>
         <source>Amount:</source>
         <translation>סכום:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>עדיפות:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -447,10 +435,6 @@
     <message>
         <source>Confirmed</source>
         <translation>מאושר</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>עדיפות</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -534,6 +518,10 @@
         <translation>התחל ממוזער</translation>
     </message>
     <message>
+        <source>Show splash screen on startup (default: %u)</source>
+        <translation>הצג מסך פתיחה בעת הפעלה (ברירת מחדל: %u)</translation>
+    </message>
+    <message>
         <source>Reset all settings changed in the GUI</source>
         <translation>איפוס כל שינויי הגדרות התצוגה</translation>
     </message>
@@ -563,6 +551,21 @@
     <message>
         <source>Error</source>
         <translation>שגיאה</translation>
+    </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>טופס</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>זמן המקטע האחרון</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>הסתר</translation>
     </message>
     </context>
 <context>
@@ -851,11 +854,7 @@
         <source>User Agent</source>
         <translation>סוכן משתמש</translation>
     </message>
-    <message>
-        <source>Ping Time</source>
-        <translation>זמן המענה</translation>
-    </message>
-</context>
+    </context>
 <context>
     <name>QObject</name>
     <message>
@@ -894,7 +893,14 @@
         <source>%1 ms</source>
         <translation>%1 מילישניות</translation>
     </message>
-</context>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 ו%2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
+    </context>
 <context>
     <name>QRImageWidget</name>
     </context>
@@ -1085,8 +1091,8 @@
         <translation>ניקוי מסוף הבקרה</translation>
     </message>
     <message>
-        <source>Ban Node for</source>
-        <translation>חסום משתמש ל</translation>
+        <source>1 &amp;hour</source>
+        <translation>1 שעה</translation>
     </message>
     <message>
         <source>1 &amp;day</source>
@@ -1297,10 +1303,6 @@
         <translation>סכום:</translation>
     </message>
     <message>
-        <source>Priority:</source>
-        <translation>עדיפות:</translation>
-    </message>
-    <message>
         <source>Fee:</source>
         <translation>עמלה:</translation>
     </message>
@@ -1347,10 +1349,6 @@
     <message>
         <source>Custom:</source>
         <translation>מותאם אישית:</translation>
-    </message>
-    <message>
-        <source>Confirmation time:</source>
-        <translation>זמן האישור:</translation>
     </message>
     <message>
         <source>normal</source>
@@ -1650,10 +1648,6 @@
         <translation>ריצה כסוכן ברקע וקבלת פקודות</translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>קבלת חיבורים מבחוץ (בררת מחדל: 1 ללא ‎-proxy או ‎-connect)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>ליבת ביטקוין</translation>
     </message>
@@ -1674,18 +1668,6 @@
         <translation>ביצוע פקודה כאשר העברה בארנק משתנה (%s ב־cmd יוחלף ב־TxID)</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>זוהי בניית ניסיון טרום-שחרור - השימוש בה על אחריותך - אין להשתמש לצורך כריה או יישומי מסחר</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>אזהרה: נראה שלא כל הרשת מסכימה! נראה שישנם כורים שנתקלים בבעיות.</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>אזהרה: נראה שישנה אי־הסכמה בינינו לבין שאר העמיתים שלנו! יתכן שעדיף לשדרג או שכל שאר העמיתים צריכים לשדרג.</translation>
-    </message>
-    <message>
         <source>&lt;category&gt; can be:</source>
         <translation>&lt;קטגוריה&gt; יכולה להיות:</translation>
     </message>
@@ -1696,10 +1678,6 @@
     <message>
         <source>Change index out of range</source>
         <translation>אינדקס העודף מחוץ לתחום</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>התחבר רק לצמתים המצוינים</translation>
     </message>
     <message>
         <source>Connection options:</source>
@@ -1872,10 +1850,6 @@
     <message>
         <source>Transaction amount too small</source>
         <translation>סכום ההעברה קטן מדי</translation>
-    </message>
-    <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>סכומי ההעברות חייבים להיות חיוביים</translation>
     </message>
     <message>
         <source>Transaction too large for fee policy</source>

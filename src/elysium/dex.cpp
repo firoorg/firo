@@ -14,7 +14,7 @@
 #include "elysium/uint256_extensions.h"
 
 #include "arith_uint256.h"
-#include "main.h"
+#include "validation.h"
 #include "tinyformat.h"
 #include "uint256.h"
 

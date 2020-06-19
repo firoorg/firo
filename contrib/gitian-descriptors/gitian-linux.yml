@@ -1,5 +1,5 @@
 ---
-name: "zcoin-linux-0.13.8"
+name: "zcoin-linux-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -31,6 +31,7 @@ packages:
 - "bsdmainutils"
 - "ca-certificates"
 - "python"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"

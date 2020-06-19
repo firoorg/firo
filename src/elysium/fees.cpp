@@ -14,7 +14,7 @@
 
 #include "leveldb/db.h"
 
-#include "main.h"
+#include "validation.h"
 
 #include <limits.h>
 #include <stdint.h>

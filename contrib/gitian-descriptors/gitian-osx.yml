@@ -1,5 +1,5 @@
 ---
-name: "zcoin-osx-0.13.8"
+name: "zcoin-osx-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -27,6 +27,7 @@ packages:
 - "python-dev"
 - "python-setuptools"
 - "fonts-tuffy"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
