@@ -44,17 +44,10 @@ public:
         std::vector<CHDMint> mints;
 
         for (auto a : amounts) {
-            lelantus::PrivateCoin coin(params, a);
-            mints.emplace_back();
-            auto &mint = mints.back();
-
-            auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
-
-            CWalletTx wtx;
-            auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
-            txs.emplace_back(wtx);
-
-            zwalletMain->GetTracker().AddLelantus(mint, true);
+            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+            auto result = pwalletMain->MintAndStoreLelantus(a, wtxAndFee, mints);
+            for(const auto& itr : wtxAndFee)
+                txs.emplace_back(itr.first);
 
             if (result != "") {
                 throw std::runtime_error("Fail to generate mints " + result);
@@ -98,37 +91,33 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     GenerateBlocks(110);
     auto amount = 1 * COIN;
 
-    lelantus::PrivateCoin coin(params, amount);
-    CHDMint m;
-
-    auto rec = CWallet::CreateLelantusMintRecipient(coin, m);
-
-    CWalletTx wtx;
-    auto result = pwalletMain->MintAndStoreLelantus(rec, coin, m, wtx);
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> mints;
+    auto result = pwalletMain->MintAndStoreLelantus(amount, wtxAndFee, mints);
 
     BOOST_CHECK_EQUAL("", result);
-    auto tx = wtx.tx.get();
 
-    BOOST_CHECK(tx->IsLelantusMint());
-    BOOST_CHECK(tx->IsLelantusTransaction());
-    BOOST_CHECK(mempool.exists(tx->GetHash()));
+    size_t mintAmount = 0;
+    for(const auto& wtx : wtxAndFee) {
+        auto tx = wtx.first.tx.get();
 
-    // verify outputs
-    BOOST_CHECK_EQUAL(2, tx->vout.size());
+        BOOST_CHECK(tx->IsLelantusMint());
+        BOOST_CHECK(tx->IsLelantusTransaction());
+        BOOST_CHECK(mempool.exists(tx->GetHash()));
 
-    size_t mintCount = 0;
-    for (auto const &out : tx->vout) {
-        if (out.scriptPubKey.IsLelantusMint()) {
-            BOOST_CHECK_EQUAL(amount, out.nValue);
-            mintCount++;
+
+        for (auto const &out : tx->vout) {
+            if (out.scriptPubKey.IsLelantusMint()) {
+                mintAmount += out.nValue;
+            }
         }
+
+        // verify tx
+        CMutableTransaction mtx(*tx);
+        BOOST_CHECK(GenerateBlock({mtx}));
     }
 
-    BOOST_CHECK_EQUAL(1, mintCount);
-
-    // verify tx
-    CMutableTransaction mtx(*tx);
-    BOOST_CHECK(GenerateBlock({mtx}));
+    BOOST_CHECK_EQUAL(amount, mintAmount);
 }
 
 BOOST_AUTO_TEST_CASE(get_and_list_mints)

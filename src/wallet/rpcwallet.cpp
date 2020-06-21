@@ -3090,7 +3090,7 @@ UniValue mintlelantus(const JSONRPCRequest& request)
                 "\"transactionid\"  (string) The transaction id.\n"
                 "\nExamples:\n"
                 + HelpExampleCli("mint", "0.15")
-                + HelpExampleCli("mint", "100.9")
+                + HelpExampleCli("MintAndStoreLelantusmint", "100.9")
                 + HelpExampleRpc("mint", "0.15")
         );
 
@@ -3106,23 +3106,19 @@ UniValue mintlelantus(const JSONRPCRequest& request)
     CAmount nAmount = AmountFromValue(request.params[0]);
     LogPrintf("rpcWallet.mintlelantus() nAmount = %d \n", nAmount);
 
-    if (!lelantus::IsAvailableToMint(nAmount)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
-    }
-    const auto& lelantusParams = lelantus::Params::get_default();
-    lelantus::PrivateCoin privCoin(lelantusParams, nAmount);
-
-    CHDMint vDMint;
-    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, vDMint);
-
-    CWalletTx wtx;
-
-    std::string strError = pwalletMain->MintAndStoreLelantus(recipient, privCoin, vDMint, wtx);
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> mints;
+    std::string strError = pwalletMain->MintAndStoreLelantus(nAmount, wtxAndFee, mints);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
-    return wtx.GetHash().GetHex();
+    UniValue result(UniValue::VARR);
+    for(const auto& wtx : wtxAndFee) {
+        result.push_back(wtx.first.GetHash().GetHex());
+    }
+
+    return result;
 }
 
 UniValue mintzerocoin(const JSONRPCRequest& request)
