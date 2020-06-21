@@ -992,7 +992,7 @@ public:
     bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                         CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
                                         CReserveKey& reservekey, int& nChangePosInOut,
-                                        std::string& strFailReason, const CCoinControl *coinControl, bool sign = true);
+                                        std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
     bool CreateSigmaSpendTransaction(
         std::string& thirdPartyaddress,
@@ -1058,7 +1058,8 @@ public:
             const CAmount& value,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             std::vector<CHDMint>& mints,
-            bool fAskFee=false,
+            bool autoMintAll = false,
+            bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);

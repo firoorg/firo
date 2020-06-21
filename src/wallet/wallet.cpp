@@ -5560,7 +5560,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                              CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
                                              CReserveKey& reservekey, int& nChangePosInOut,
-                                             std::string& strFailReason, const CCoinControl *coinControl, bool sign)
+                                             std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll, bool sign)
 {
     const auto& lelantusParams = lelantus::Params::get_default();
 
@@ -5591,7 +5591,10 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                 LogPrintf("nFeeRet=%s\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
-                CAmount nValueToSelect = std::min(::Params().GetConsensus().nMaxValueLelantusMint, std::min(valueToMint, itr->first));
+                CAmount nValueToSelect = std::min(::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
+
+                if(!autoMintAll)
+                    nValueToSelect = std::min(nValueToSelect, valueToMint);
 
                 // Start with no fee and loop until there is enough fee
                 while (true)
@@ -5832,10 +5835,11 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                 wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
                 nAllFeeRet += nFeeRet;
                 dMints.push_back(dMint);
-
-                valueToMint -= nValueToSelect;
-                if(valueToMint == 0)
-                    break;
+                if(!autoMintAll) {
+                    valueToMint -= nValueToSelect;
+                    if (valueToMint == 0)
+                        break;
+                }
             }
         }
     }
@@ -7284,6 +7288,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
 std::string CWallet::MintAndStoreLelantus(const CAmount& value,
                                           std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                           std::vector<CHDMint>& mints,
+                                          bool autoMintAll,
                                           bool fAskFee,
                                           const CCoinControl *coinControl) {
     string strError;
@@ -7307,7 +7312,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
     int nChangePosRet = -1;
 
     std::vector<CHDMint> dMints;
-    if (!CreateLelantusMintTransactions(value, wtxAndFee, nFeeRequired, dMints, reservekey, nChangePosRet, strError, coinControl)) {
+    if (!CreateLelantusMintTransactions(value, wtxAndFee, nFeeRequired, dMints, reservekey, nChangePosRet, strError, coinControl, autoMintAll)) {
         return strError;
     }
 

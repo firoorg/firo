@@ -3090,7 +3090,7 @@ UniValue mintlelantus(const JSONRPCRequest& request)
                 "\"transactionid\"  (string) The transaction id.\n"
                 "\nExamples:\n"
                 + HelpExampleCli("mint", "0.15")
-                + HelpExampleCli("MintAndStoreLelantusmint", "100.9")
+                + HelpExampleCli("mint", "100.9")
                 + HelpExampleRpc("mint", "0.15")
         );
 
@@ -3109,6 +3109,40 @@ UniValue mintlelantus(const JSONRPCRequest& request)
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> mints;
     std::string strError = pwalletMain->MintAndStoreLelantus(nAmount, wtxAndFee, mints);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    UniValue result(UniValue::VARR);
+    for(const auto& wtx : wtxAndFee) {
+        result.push_back(wtx.first.GetHash().GetHex());
+    }
+
+    return result;
+}
+
+UniValue autoMintlelantus(const JSONRPCRequest& request) {
+    if (!EnsureWalletIsAvailable(request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "This function automatically mints all unspent transparent funds\n"
+        );
+
+    EnsureWalletIsUnlocked();
+    EnsureLelantusWalletIsAvailable();
+
+    // Ensure Lelantus mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> mints;
+    std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFee, mints, true);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -4972,6 +5006,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false },
     { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintlelantus",             &mintlelantus,             false },
+    { "wallet",             "autoMintlelantus",         &autoMintlelantus,         false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "mintmanyzerocoin",         &mintmanyzerocoin,         false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
