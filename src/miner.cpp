@@ -505,7 +505,7 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
         mempool.CalculateDescendants(it, descendants);
         // Insert all descendants (not yet in block) into the modified set
         BOOST_FOREACH(CTxMemPool::txiter desc, descendants) {
-            if (alreadyAdded.count(desc))
+            if (alreadyAdded.count(desc) || txBlackList.count(desc) > 0)
                 continue;
             ++nDescendantsUpdated;
             modtxiter mit = mapModifiedTx.find(desc);
@@ -535,7 +535,7 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
 bool BlockAssembler::SkipMapTxEntry(CTxMemPool::txiter it, indexed_modified_transaction_set &mapModifiedTx, CTxMemPool::setEntries &failedTx)
 {
     assert (it != mempool.mapTx.end());
-    if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it) || txsDependingOnPrivacyTxOutput.count(it))
+    if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it) || txBlackList.count(it))
         return true;
     return false;
 }
@@ -717,7 +717,7 @@ void BlockAssembler::addPriorityTxs()
          mi != mempool.mapTx.end(); ++mi)
     {
         // Skip transactions depending on privacy tx outputs in the mempool
-        if (txsDependingOnPrivacyTxOutput.count(mi))
+        if (txBlackList.count(mi))
             continue;
 
         double dPriority = mi->GetPriority(nHeight);
@@ -855,17 +855,27 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
 }
 
 void BlockAssembler::FillBlackListForBlockTemplate() {
-    // Find all privacy transactions in the mempool
     for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
             mi != mempool.mapTx.end(); ++mi)
     {
-        if (txsDependingOnPrivacyTxOutput.count(mi) > 0)
+        if (txBlackList.count(mi) > 0)
             continue;
 
-        if (mi->GetTx().IsSigmaSpend()) {
-            mempool.CalculateDescendants(mi, txsDependingOnPrivacyTxOutput);
+        const CTransaction &tx = mi->GetTx();
+
+        // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
+        // same block with spend transaction
+        if (tx.IsSigmaSpend()) {
+            mempool.CalculateDescendants(mi, txBlackList);
             // remove privacy transaction itself
-            txsDependingOnPrivacyTxOutput.erase(mi);
+            txBlackList.erase(mi);
+        }
+
+        // ProRegTx referencing external collateral can't be in same block with the collateral itself
+        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+            CProRegTx proTx;
+            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() && mempool.get(proTx.collateralOutpoint.hash))
+                mempool.CalculateDescendants(mi, txBlackList);
         }
     }
 }
