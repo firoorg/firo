@@ -436,7 +436,13 @@ public:
 
     bool IsCoinBase() const
     {
-        return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)));
+        return (vin.size() == 1
+            && vin[0].prevout.IsNull()
+            && (vin[0].scriptSig.size() == 0
+                || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND
+                && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT
+                && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLIT)
+            ));
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
@@ -504,7 +510,7 @@ struct CMutableTransaction
     {
         return !(a == b);
     }
-    
+
     bool HasWitness() const
     {
         for (size_t i = 0; i < vin.size(); i++) {

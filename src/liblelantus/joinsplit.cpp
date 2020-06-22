@@ -36,6 +36,8 @@ JoinSplit::JoinSplit(const Params *p,
 
         if(!getIndex(Cin[i].first.getPublicCoin(), set->second, index))
             throw ZerocoinException("No such coin in this anonymity set");
+
+        groupIds.push_back(Cin[i].second);
         indexes.emplace_back(index);
     }
 
@@ -96,10 +98,11 @@ void JoinSplit::updateMetaData(const std::vector<std::pair<PrivateCoin, uint32_t
 }
 
 bool JoinSplit::Verify(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-        const std::vector<PublicCoin>& Cout,
-        const Scalar& Vout,
-        const uint256& txHash) const {
+    const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+    const std::vector<PublicCoin>& Cout,
+    const Scalar& Vout,
+    const uint256& txHash) const {
+
     std::vector<uint256> groupBlockHashes;
     groupBlockHashes.reserve(coinGroupIdAndBlockHash.size());
 

@@ -590,7 +590,9 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     else
     {
         for (const auto& txin : tx.vin)
-            if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend() || txin.IsZerocoinRemint()))
+            if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend()
+                || txin.IsZerocoinRemint()
+                || txin.IsLelantusJoinSplit() ))
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
         if (tx.IsZerocoinV3SigmaTransaction()) {
@@ -2429,7 +2431,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         nInputs += tx.vin.size();
 
-        if(tx.IsLelantusJoinSplit() && nInputs > 1)
+        if(tx.IsLelantusJoinSplit() && tx.vin.size() > 1)
             return state.DoS(100, error("ConnectBlock(): invalid joinsplit tx"),
                              REJECT_INVALID, "bad-txns-input-invalid");
 
@@ -2473,6 +2475,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 }
             }
 
+            // TODO: remove this check out of this function because of deadlock potential
             // Check transaction against zerocoin state
             if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get(), block.lelantusTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),

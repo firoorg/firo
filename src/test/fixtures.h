@@ -1,8 +1,10 @@
+#include "hdmint/hdmint.h"
 #include "primitives/transaction.h"
 #include "test/test_bitcoin.h"
 #include "zerocoin.h"
 #include "test/testutil.h"
 #include "consensus/params.h"
+#include "liblelantus/coin.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -45,6 +47,33 @@ struct MtpMalformedTestingSetup : public ZerocoinTestingSetupBase {
 
     CBlock CreateAndProcessBlock(
         const CScript&, bool);
+};
+
+struct LelantusTestingSetup : public TestChain100Setup {
+public:
+    LelantusTestingSetup();
+
+public:
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {});
+    void GenerateBlocks(size_t blocks);
+    std::vector<CHDMint> GenerateMints(
+        std::vector<CAmount> const &amounts,
+        std::vector<CMutableTransaction> &txs,
+        bool useHDMints = false,
+        bool buildTxs = true);
+
+    std::vector<CHDMint> GenerateMints(
+        std::vector<CAmount> const &amounts,
+        std::vector<CMutableTransaction> &txs,
+        std::vector<lelantus::PrivateCoin> &coins,
+        bool useHDMints = false,
+        bool buildTxs = true);
+
+    CPubKey GenerateAddress();
+
+public:
+    lelantus::Params const *params;
+    CScript script;
 };
 
 // for the duration of the test set network type to testnet

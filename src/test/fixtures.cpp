@@ -150,65 +150,153 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
     }
 
 MtpMalformedTestingSetup::MtpMalformedTestingSetup()
+{
+    CPubKey newKey;
+    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+
+    string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
+    pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
+                            ( "receive"));
+
+    scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
+    bool mtp = false;
+    CBlock b;
+    for (int i = 0; i < 150; i++)
     {
-        CPubKey newKey;
-        BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
-
-        string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
-        pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
-                               ( "receive"));
-
-        scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
-        bool mtp = false;
-        CBlock b;
-        for (int i = 0; i < 150; i++)
+        b = CreateAndProcessBlock(scriptPubKey, mtp);
+        coinbaseTxns.push_back(*b.vtx[0]);
+        LOCK(cs_main);
         {
-            b = CreateAndProcessBlock(scriptPubKey, mtp);
-            coinbaseTxns.push_back(*b.vtx[0]);
-            LOCK(cs_main);
-            {
-                LOCK(pwalletMain->cs_wallet);
-                pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
-            }
+            LOCK(pwalletMain->cs_wallet);
+            pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
         }
     }
+}
 
-        CBlock MtpMalformedTestingSetup::CreateBlock(
-            const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
-        const CChainParams& chainparams = Params();
-        std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed);
-        CBlock block = pblocktemplate->block;
+CBlock MtpMalformedTestingSetup::CreateBlock(
+    const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
+    const CChainParams& chainparams = Params();
+    std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed);
+    CBlock block = pblocktemplate->block;
 
-        // IncrementExtraNonce creates a valid coinbase and merkleRoot
-        unsigned int extraNonce = 0;
-        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
+    // IncrementExtraNonce creates a valid coinbase and merkleRoot
+    unsigned int extraNonce = 0;
+    IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
 
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
+        ++block.nNonce;
+    }
+    if(mtp) {
+        while (!CheckMerkleTreeProof(block, chainparams.GetConsensus())){
+            block.mtpHashValue = mtp::hash(block, Params().GetConsensus().powLimit);
+        }
+    }
+    else {
         while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
             ++block.nNonce;
         }
-        if(mtp) {
-            while (!CheckMerkleTreeProof(block, chainparams.GetConsensus())){
-                block.mtpHashValue = mtp::hash(block, Params().GetConsensus().powLimit);
-            }
-        }
-        else {
-            while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-                ++block.nNonce;
-            }
-        }
-
-        //delete pblocktemplate;
-        return block;
     }
 
+    //delete pblocktemplate;
+    return block;
+}
 
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKeyMtpMalformed, and try to add it to the current chain.
-    CBlock MtpMalformedTestingSetup::CreateAndProcessBlock(
-            const CScript& scriptPubKeyMtpMalformed,
-            bool mtp = false) {
+// Create a new block with just given transactions, coinbase paying to
+// scriptPubKeyMtpMalformed, and try to add it to the current chain.
+CBlock MtpMalformedTestingSetup::CreateAndProcessBlock(
+        const CScript& scriptPubKeyMtpMalformed,
+        bool mtp = false) {
 
-        CBlock block = CreateBlock(scriptPubKeyMtpMalformed, mtp);
-        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
-        return block;
+    CBlock block = CreateBlock(scriptPubKeyMtpMalformed, mtp);
+    BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
+    return block;
+}
+
+LelantusTestingSetup::LelantusTestingSetup() :
+    params(lelantus::Params::get_default()) {
+    CPubKey key;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        key = pwalletMain->GenerateNewKey();
     }
+
+    script = GetScriptForDestination(key.GetID());
+}
+
+CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns) {
+    // NOTE: work around for deadlock problem, remove this when resolved
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK(mempool.cs);
+    auto last = chainActive.Tip();
+
+    CreateAndProcessBlock(txns, script);
+    auto block = chainActive.Tip();
+
+    if (block != last) {
+        pwalletMain->ScanForWalletTransactions(block, true);
+    }
+
+    return block != last ? block : nullptr;
+}
+
+void LelantusTestingSetup::GenerateBlocks(size_t blocks) {
+    while (--blocks) {
+        GenerateBlock();
+    }
+}
+
+std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts,
+    std::vector<CMutableTransaction> &txs,
+    bool useHDMints,
+    bool buildTxs) {
+
+    std::vector<lelantus::PrivateCoin> coins;
+    return GenerateMints(amounts, txs, coins, useHDMints, buildTxs);
+}
+
+std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts,
+    std::vector<CMutableTransaction> &txs,
+    std::vector<lelantus::PrivateCoin> &coins,
+    bool useHdMints,
+    bool buildTxs) {
+
+    std::vector<CHDMint> mints;
+
+    for (auto a : amounts) {
+        coins.emplace_back(params, a);
+        auto &coin = coins.back();
+
+        if (useHdMints) {
+            CHDMint hdmint;
+            zwalletMain->GenerateLelantusMint(coin, hdmint);
+        }
+
+        mints.emplace_back();
+        auto &mint = mints.back();
+
+        auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
+
+        if (buildTxs) {
+            CWalletTx wtx;
+            auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
+            txs.emplace_back(wtx);
+
+            if (result != "") {
+            throw std::runtime_error("Fail to generate mints " + result);
+        }
+        }
+
+        if (useHdMints) {
+            zwalletMain->GetTracker().AddLelantus(mint, true);
+        }
+    }
+
+    return mints;
+}
+
+CPubKey LelantusTestingSetup::GenerateAddress() {
+    LOCK(pwalletMain->cs_wallet);
+    return pwalletMain->GenerateNewKey();
+}

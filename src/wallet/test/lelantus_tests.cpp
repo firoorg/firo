@@ -1,68 +1,11 @@
+#include "../../test/fixtures.h"
 #include "../../validation.h"
 
 #include "../wallet.h"
 
-#include "wallet_test_fixture.h"
-
 #include <boost/test/unit_test.hpp>
 
-class LelantusWalletTestingSetup : public TestChain100Setup {
-public:
-    LelantusWalletTestingSetup() :
-        params(lelantus::Params::get_default()) {
-
-        CPubKey key;
-        {
-            LOCK(pwalletMain->cs_wallet);
-            key = pwalletMain->GenerateNewKey();
-        }
-
-        script = GetScriptForDestination(key.GetID());
-    }
-
-public:
-    bool GenerateBlock(std::vector<CMutableTransaction> const &txns = {}) {
-        auto last = chainActive.Tip();
-
-        CreateAndProcessBlock(txns, script);
-        auto block = chainActive.Tip();
-
-        if (block != last) {
-            pwalletMain->ScanForWalletTransactions(block, true);
-        }
-
-        return block != last;
-    }
-
-    void GenerateBlocks(size_t blocks) {
-        while (--blocks) {
-            GenerateBlock();
-        }
-    }
-
-    std::vector<CHDMint> GenerateMints(std::vector<CAmount> const &amounts, std::vector<CMutableTransaction> &txs) {
-        std::vector<CHDMint> mints;
-
-        for (auto a : amounts) {
-            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-            auto result = pwalletMain->MintAndStoreLelantus(a, wtxAndFee, mints);
-            for(const auto& itr : wtxAndFee)
-                txs.emplace_back(itr.first);
-
-            if (result != "") {
-                throw std::runtime_error("Fail to generate mints " + result);
-            }
-        }
-
-        return mints;
-    }
-
-public:
-    lelantus::Params const *params;
-    CScript script;
-};
-
-BOOST_FIXTURE_TEST_SUITE(wallet_lelantus_tests, LelantusWalletTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(wallet_lelantus_tests, LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
 {

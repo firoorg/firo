@@ -298,7 +298,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         DenominationToInteger(meta.denom, amount);
         dMint.SetAmount(amount);
 
-        if (!walletdb.WriteHDMint(dMint, false))
+        if (!walletdb.WriteHDMint(dMint.GetPubCoinHash(), dMint, false))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
 
         pwalletMain->NotifyZerocoinChanged(
@@ -362,7 +362,7 @@ bool CHDMintTracker::UpdateState(const CLelantusMintMeta& meta)
     dMint.SetUsed(meta.isUsed);
     dMint.SetAmount(meta.amount);
 
-    if (!walletdb.WriteHDMint(dMint, true))
+    if (!walletdb.WriteHDMint(meta.GetPubCoinValueHash(), dMint, true))
         return error("%s: failed to update Lelantus mint when writing to db", __func__);
 
     pwalletMain->NotifyZerocoinChanged(
@@ -412,7 +412,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
         CT_UPDATED);
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteHDMint(dMint, false);
+        CWalletDB(strWalletFile).WriteHDMint(meta.GetPubCoinValueHash(), dMint, false);
 }
 
 void CHDMintTracker::AddLelantus(const CHDMint& dMint, bool isNew, bool isArchived)
@@ -436,7 +436,7 @@ void CHDMintTracker::AddLelantus(const CHDMint& dMint, bool isNew, bool isArchiv
             CT_UPDATED);
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteHDMint(dMint, true);
+        CWalletDB(strWalletFile).WriteHDMint(meta.GetPubCoinValueHash(), dMint, true);
 }
 
 void CHDMintTracker::Add(const CSigmaEntry& sigma, bool isNew, bool isArchived)
@@ -1133,9 +1133,9 @@ list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bo
 std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
     std::vector<CMintMeta> setMints;
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    CWalletDB walletdb(strWalletFile);
     if (fLoad) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        CWalletDB walletdb(strWalletFile);
         std::list<CSigmaEntry> listMintsDB;
         walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){

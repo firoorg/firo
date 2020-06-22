@@ -283,7 +283,7 @@ public:
     bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
     bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
 
-    bool WriteHDMint(const CHDMint& dMint,  bool isLelantus);
+    bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);
     bool ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
     bool EraseHDMint(const CHDMint& dMint);
     bool HasHDMint(const secp_primitives::GroupElement& pub);
