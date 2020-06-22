@@ -15,15 +15,15 @@ pipeline {
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
                 dir('dist') {
-                    sh './configure --enable-elysium --enable-tests'
+                    sh './configure --enable-elysium --enable-tests --enable-lcov'
                     sh 'make -j6'
                 }
             }
         }
-        stage('Test') {
+        stage('Test & Coverage') {
             steps {
                 dir('dist') {
-                    sh 'make check'
+                    sh 'make cov -j6'
                 }
             }
         }
