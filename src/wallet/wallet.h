@@ -811,6 +811,8 @@ public:
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
 
+    void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
+
     bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }
 
     /**
@@ -987,6 +989,10 @@ public:
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl=NULL);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
+    bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+                                        CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
+                                        CReserveKey& reservekey, int& nChangePosInOut,
+                                        std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
     bool CreateSigmaSpendTransaction(
         std::string& thirdPartyaddress,
@@ -1049,11 +1055,11 @@ public:
         const CCoinControl *coinControl = NULL);
 
     std::string MintAndStoreLelantus(
-            const CRecipient& recipient,
-            const lelantus::PrivateCoin& privCoin,
-            const CHDMint& dMint,
-            CWalletTx& wtxNew,
-            bool fAskFee=false,
+            const CAmount& value,
+            std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+            std::vector<CHDMint>& mints,
+            bool autoMintAll = false,
+            bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
