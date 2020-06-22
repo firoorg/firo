@@ -15,7 +15,7 @@ pipeline {
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
                 dir('dist') {
-                    sh './configure --enable-exodus --enable-tests'
+                    sh './configure --enable-elysium --enable-tests'
                     sh 'make -j6'
                 }
             }
@@ -30,7 +30,7 @@ pipeline {
         stage('RPC Tests') {
             steps {
                 dir('dist') {
-                    sh 'TIMEOUT=600 qa/pull-tester/run-bitcoind-for-test.sh qa/pull-tester/rpc-tests.py -extended'
+                    sh 'qa/pull-tester/rpc-tests.py -extended'
                 }
             }
         }

@@ -37,7 +37,7 @@ Project's website.
 
 COMMAND-LINE OPTIONS
 --------------------
-[[opt-h]] **-h**, **-help**::
+[[opt-h]] **-h**, **--help**::
     Display a short help message and exit.
 
 [[opt-f]] **-f** __FILE__::
@@ -151,8 +151,8 @@ instance, you can tell Tor to start listening for SOCKS connections on port
 9999 by passing --SocksPort 9999 or SocksPort 9999 to it on the command line,
 or by putting "SocksPort 9999" in the configuration file.  You will need to
 quote options with spaces in them: if you want Tor to log all debugging
-messages to debug.log, you will probably need to say --Log 'debug file
-debug.log'.
+messages to debug.log, you will probably need to say **--Log** `"debug file
+debug.log"`.
 
 Options on the command line override those in configuration files. See the
 next section for more information.
@@ -211,10 +211,14 @@ GENERAL OPTIONS
     Note that this option, and other bandwidth-limiting options, apply to TCP
     data only: They do not count TCP headers or DNS traffic. +
  +
+    Tor uses powers of two, not powers of ten, so 1 GByte is
+    1024*1024*1024 bytes as opposed to 1 billion bytes. +
+ +
     With this option, and in other options that take arguments in bytes,
     KBytes, and so on, other formats are also supported. Notably, "KBytes" can
     also be written as "kilobytes" or "kb"; "MBytes" can be written as
     "megabytes" or "MB"; "kbits" can be written as "kilobits"; and so forth.
+    Case doesn't matter.
     Tor also accepts "byte" and "bit" in the singular.
     The prefixes "tera" and "T" are also recognized.
     If no units are given, we default to bytes.
@@ -447,13 +451,18 @@ GENERAL OPTIONS
     setting for DataDirectoryGroupReadable when the CacheDirectory is the
     same as the DataDirectory, and 0 otherwise. (Default: auto)
 
-[[FallbackDir]] **FallbackDir** __ipv4address__:__port__ orport=__port__ id=__fingerprint__ [weight=__num__] [ipv6=**[**__ipv6address__**]**:__orport__]::
-    When we're unable to connect to any directory cache for directory info
-    (usually because we don't know about any yet) we try a directory authority.
-    Clients also simultaneously try a FallbackDir, to avoid hangs on client
-    startup if a directory authority is down. Clients retry FallbackDirs more
-    often than directory authorities, to reduce the load on the directory
-    authorities.
+[[FallbackDir]] **FallbackDir** __ipv4address__:__dirport__ orport=__orport__ id=__fingerprint__ [weight=__num__] [ipv6=**[**__ipv6address__**]**:__orport__]::
+    When tor is unable to connect to any directory cache for directory info
+    (usually because it doesn't know about any yet) it tries a hard-coded
+    directory. Relays try one directory authority at a time. Clients try
+    multiple directory authorities and FallbackDirs, to avoid hangs on
+    startup if a hard-coded directory is down. Clients wait for a few seconds
+    between each attempt, and retry FallbackDirs more often than directory
+    authorities, to reduce the load on the directory authorities.  +
+ +
+    FallbackDirs should be stable relays with stable IP addresses, ports,
+    and identity keys. They must have a DirPort. +
+ +
     By default, the directory authorities are also FallbackDirs. Specifying a
     FallbackDir replaces Tor's default hard-coded FallbackDirs (if any).
     (See the **DirAuthority** entry for an explanation of each flag.)
@@ -463,30 +472,30 @@ GENERAL OPTIONS
     FallbackDir line is present, it replaces the hard-coded FallbackDirs,
     regardless of the value of UseDefaultFallbackDirs.) (Default: 1)
 
-[[DirAuthority]] **DirAuthority** [__nickname__] [**flags**] __ipv4address__:__port__ __fingerprint__::
+[[DirAuthority]] **DirAuthority** [__nickname__] [**flags**] __ipv4address__:__dirport__ __fingerprint__::
     Use a nonstandard authoritative directory server at the provided address
     and port, with the specified key fingerprint. This option can be repeated
     many times, for multiple authoritative directory servers. Flags are
     separated by spaces, and determine what kind of an authority this directory
     is. By default, an authority is not authoritative for any directory style
-    or version unless an appropriate flag is given.
+    or version unless an appropriate flag is given. +
+ +
     Tor will use this authority as a bridge authoritative directory if the
-    "bridge" flag is set. If a flag "orport=**port**" is given, Tor will use the
-    given port when opening encrypted tunnels to the dirserver. If a flag
-    "weight=**num**" is given, then the directory server is chosen randomly
-    with probability proportional to that weight (default 1.0). If a
+    "bridge" flag is set. If a flag "orport=**orport**" is given, Tor will
+    use the given port when opening encrypted tunnels to the dirserver. If a
+    flag "weight=**num**" is given, then the directory server is chosen
+    randomly with probability proportional to that weight (default 1.0). If a
     flag "v3ident=**fp**" is given, the dirserver is a v3 directory authority
     whose v3 long-term signing key has the fingerprint **fp**. Lastly,
     if an "ipv6=**[**__ipv6address__**]**:__orport__" flag is present, then
-    the directory
-    authority is listening for IPv6 connections on the indicated IPv6 address
-    and OR Port. +
+    the directory authority is listening for IPv6 connections on the
+    indicated IPv6 address and OR Port. +
  +
     Tor will contact the authority at __ipv4address__ to
-    download directory documents. The provided __port__ value is a dirport;
-    clients ignore this in favor of the specified "orport=" value.  If an
-    IPv6 ORPort is supplied, Tor will
-    also download directory documents at the IPv6 ORPort. +
+    download directory documents. Clients always use the ORPort. Relays
+    usually use the DirPort, but will use the ORPort in some circumstances.
+    If an IPv6 ORPort is supplied, clients will also download directory
+    documents at the IPv6 ORPort, if they are configured to use IPv6. +
  +
     If no **DirAuthority** line is given, Tor will use the default directory
     authorities. NOTE: this option is intended for setting up a private Tor
@@ -658,7 +667,16 @@ GENERAL OPTIONS
     debug, info, notice, warn, and err. We advise using "notice" in most cases,
     since anything more verbose may provide sensitive information to an
     attacker who obtains the logs. If only one severity level is given, all
-    messages of that level or higher will be sent to the listed destination.
+    messages of that level or higher will be sent to the listed destination. +
+ +
+    Some low-level logs may be sent from signal handlers, so their destination
+    logs must be signal-safe. These low-level logs include backtraces,
+    logging function errors, and errors in code called by logging functions.
+    Signal-safe logs are always sent to stderr or stdout. They are also sent to
+    a limited number of log files that are configured to log messages at error
+    severity from the bug or general domains. They are never sent as syslogs,
+    android logs, control port log events, or to any API-based log
+    destinations.
 
 [[Log2]] **Log** __minSeverity__[-__maxSeverity__] **file** __FILENAME__::
     As above, but send log messages to the listed filename. The
@@ -683,7 +701,7 @@ GENERAL OPTIONS
     The currently recognized domains are: general, crypto, net, config, fs,
     protocol, mm, http, app, control, circ, rend, bug, dir, dirserv, or, edge,
     acct, hist, handshake, heartbeat, channel, sched, guard, consdiff, dos,
-    process, pt, and btrack.
+    process, pt, btrack, and mesg.
     Domain names are case-insensitive. +
  +
     For example, "`Log [handshake]debug [~net,~mm]info notice stdout`" sends
@@ -959,6 +977,20 @@ The following options are useful only for clients (that is, if
     this option. This option should be offered via the UI to mobile users
     for use where bandwidth may be expensive. (Default: 0)
 
+[[CircuitPadding]] **CircuitPadding** **0**|**1**::
+    If set to 0, Tor will not pad client circuits with additional cover
+    traffic. Only clients may set this option. This option should be offered
+    via the UI to mobile users for use where bandwidth may be expensive. If
+    set to 1, padding will be negotiated as per the consensus and relay
+    support (unlike ConnectionPadding, CircuitPadding cannot be force-enabled).
+    (Default: 1)
+
+[[ReducedCircuitPadding]] **ReducedCircuitPadding** **0**|**1**::
+    If set to 1, Tor will only use circuit padding algorithms that have low
+    overhead. Only clients may set this option. This option should be offered
+    via the UI to mobile users for use where bandwidth may be expensive.
+    (Default: 0)
+
 [[ExcludeNodes]] **ExcludeNodes** __node__,__node__,__...__::
     A list of identity fingerprints, country codes, and address
     patterns of nodes to avoid when building a circuit. Country codes are
@@ -1060,8 +1092,8 @@ The following options are useful only for clients (that is, if
 [[StrictNodes]] **StrictNodes** **0**|**1**::
     If StrictNodes is set to 1, Tor will treat solely the ExcludeNodes option
     as a requirement to follow for all the circuits you generate, even if
-    doing so will break functionality for you (StrictNodes applies to neither
-    ExcludeExitNodes nor to ExitNodes, nor to MiddleNodes).  If StrictNodes
+    doing so will break functionality for you (StrictNodes does not apply to
+    ExcludeExitNodes, ExitNodes, MiddleNodes, or MapAddress).  If StrictNodes
     is set to 0, Tor will still try to avoid nodes in the ExcludeNodes list,
     but it will err on the side of avoiding unexpected errors.
     Specifically, StrictNodes 0 tells Tor that it is okay to use an excluded
@@ -1114,7 +1146,7 @@ The following options are useful only for clients (that is, if
     information) to port 80.
 
 [[HidServAuth]] **HidServAuth** __onion-address__ __auth-cookie__ [__service-name__]::
-    Client authorization for a hidden service. Valid onion addresses contain 16
+    Client authorization for a v2 hidden service. Valid onion addresses contain 16
     characters in a-z2-7 plus ".onion", and valid auth cookies contain 22
     characters in A-Za-z0-9+/. The service name is only used for internal
     purposes, e.g., for Tor controllers. This option may be used multiple times
@@ -1157,7 +1189,9 @@ The following options are useful only for clients (that is, if
     "MapAddress \*.example.com \*.example.com.torserver.exit". (Note the
     leading "*." in each part of the directive.) You can also redirect all
     subdomains of a domain to a single address. For example, "MapAddress
-    *.example.com www.example.com". +
+    *.example.com www.example.com". If the specified exit is not available,
+    or the exit can not connect to the site, Tor will fail any connections
+    to the mapped address.+
  +
     NOTES:
 
@@ -1184,6 +1218,15 @@ The following options are useful only for clients (that is, if
 
     4. Using a wildcard to match only part of a string (as in *ample.com) is
     also invalid.
+
+    5. Tor maps hostnames and IP addresses separately. If you MapAddress
+       a DNS name, but use an IP address to connect, then Tor will ignore the
+       DNS name mapping.
+
+    6. MapAddress does not apply to redirects in the application protocol.
+       For example, HTTP redirects and alt-svc headers will ignore mappings
+       for the original address. You can use a wildcard mapping to handle
+       redirects within the same site.
 
 [[NewCircuitPeriod]] **NewCircuitPeriod** __NUM__::
     Every NUM seconds consider whether to build a new circuit. (Default: 30
@@ -1429,10 +1472,9 @@ The following options are useful only for clients (that is, if
     default to 3 if the consensus parameter isn't set.  (Default: 0)
 
 [[GuardLifetime]] **GuardLifetime**  __N__ **days**|**weeks**|**months**::
-    If nonzero, and UseEntryGuards is set, minimum time to keep a guard before
-    picking a new one. If zero, we use the GuardLifetime parameter from the
-    consensus directory.  No value here may  be less than 1 month or greater
-    than 5 years; out-of-range values are clamped. (Default: 0)
+    If UseEntryGuards is set, minimum time to keep a guard on our guard list
+    before  picking a new one.  If less than one day, we use defaults from the
+    consensus directory.  (Default: 0)
 
 [[SafeSocks]] **SafeSocks** **0**|**1**::
     When this option is enabled, Tor will reject application connections that
@@ -1914,10 +1956,6 @@ is non-zero):
     would like its bridge address to be given out. Set it to "none" if
     you want BridgeDB to avoid distributing your bridge address, or "any" to
     let BridgeDB decide. (Default: any)
- +
-    Note: as of Oct 2017, the BridgeDB part of this option is not yet
-    implemented.  Until BridgeDB is updated to obey this option, your
-    bridge will make this request, but it will not (yet) be obeyed.
 
 [[ContactInfo]] **ContactInfo** __email_address__::
     Administrative contact information for this relay or bridge. This line
@@ -1939,13 +1977,14 @@ is non-zero):
     exit according to the ExitPolicy option, the ReducedExitPolicy option,
     or the default ExitPolicy (if no other exit policy option is specified). +
  +
-    If ExitRelay is set to 0, no traffic is allowed to
-    exit, and the ExitPolicy and ReducedExitPolicy options are ignored. +
+    If ExitRelay is set to 0, no traffic is allowed to exit, and the
+    ExitPolicy, ReducedExitPolicy, and IPv6Exit options are ignored. +
  +
-    If ExitRelay is set to "auto", then Tor checks the ExitPolicy and
-    ReducedExitPolicy options. If either is set, Tor behaves as if ExitRelay
-    were set to 1. If neither exit policy option is set, Tor behaves as if
-    ExitRelay were set to 0. (Default: auto)
+    If ExitRelay is set to "auto", then Tor checks the ExitPolicy,
+    ReducedExitPolicy, and IPv6Exit options. If at least one of these options
+    is set, Tor behaves as if ExitRelay were set to 1. If none of these exit
+    policy options are set, Tor behaves as if ExitRelay were set to 0.
+    (Default: auto)
 
 [[ExitPolicy]] **ExitPolicy** __policy__,__policy__,__...__::
     Set an exit policy for this server. Each policy is of the form
@@ -2140,8 +2179,9 @@ is non-zero):
     (Default: 0)
 
 [[IPv6Exit]] **IPv6Exit** **0**|**1**::
-    If set, and we are an exit node, allow clients to use us for IPv6
-    traffic. (Default: 0)
+    If set, and we are an exit node, allow clients to use us for IPv6 traffic.
+    When this option is set and ExitRelay is auto, we act as if ExitRelay
+    is 1. (Default: 0)
 
 [[MaxOnionQueueDelay]] **MaxOnionQueueDelay** __NUM__ [**msec**|**second**]::
     If we have more onionskins queued for processing than we can process in
@@ -2252,9 +2292,9 @@ is non-zero):
     using a given calculation rule (see: AccountingStart, AccountingRule).
     Useful if you need to stay under a specific bandwidth. By default, the
     number used for calculation is the max of either the bytes sent or
-    received. For example, with AccountingMax set to 1 GByte, a server
-    could send 900 MBytes and receive 800 MBytes and continue running.
-    It will only hibernate once one of the two reaches 1 GByte. This can
+    received. For example, with AccountingMax set to 1 TByte, a server
+    could send 900 GBytes and receive 800 GBytes and continue running.
+    It will only hibernate once one of the two reaches 1 TByte. This can
     be changed to use the sum of the both bytes received and sent by setting
     the AccountingRule option to "sum" (total bandwidth in/out). When the
     number of bytes remaining gets low, Tor will stop accepting new connections
@@ -2265,7 +2305,12 @@ is non-zero):
     enabling hibernation is preferable to setting a low bandwidth, since
     it provides users with a collection of fast servers that are up some
     of the time, which is more useful than a set of slow servers that are
-    always "available".
+    always "available". +
+ +
+    Note that (as also described in the Bandwidth section) Tor uses
+    powers of two, not powers of ten: 1 GByte is 1024*1024*1024, not
+    one billion. Be careful: some internet service providers might count
+    GBytes differently.
 
 [[AccountingRule]] **AccountingRule** **sum**|**max**|**in**|**out**::
     How we determine when our AccountingMax has been reached (when we
@@ -2341,7 +2386,8 @@ is non-zero):
     When this option is enabled and BridgeRelay is also enabled, and we have
     GeoIP data, Tor keeps a per-country count of how many client
     addresses have contacted it so that it can help the bridge authority guess
-    which countries have blocked access to it. (Default: 1)
+    which countries have blocked access to it. If ExtraInfoStatistics is
+    enabled, it will be published as part of extra-info document. (Default: 1)
 
 [[ServerDNSRandomizeCase]] **ServerDNSRandomizeCase** **0**|**1**::
     When this option is set, Tor sets the case of each character randomly in
@@ -2423,6 +2469,10 @@ is non-zero):
 [[ExtraInfoStatistics]] **ExtraInfoStatistics** **0**|**1**::
     When this option is enabled, Tor includes previously gathered statistics in
     its extra-info documents that it uploads to the directory authorities.
+    Disabling this option also removes bandwidth usage statistics, and
+    GeoIPFile and GeoIPv6File hashes from the extra-info file. Bridge
+    ServerTransportPlugin lines are always includes in the extra-info file,
+    because they are required by BridgeDB.
     (Default: 1)
 
 [[ExtendAllowPrivateAddresses]] **ExtendAllowPrivateAddresses** **0**|**1**::
@@ -2690,12 +2740,6 @@ on the public Tor network.
     multiple times: the values from multiple lines are spliced together. When
     this is set then **VersioningAuthoritativeDirectory** should be set too.
 
-[[RecommendedPackages]] **RecommendedPackages** __PACKAGENAME__ __VERSION__ __URL__ __DIGESTTYPE__**=**__DIGEST__ ::
-    Adds "package" line to the directory authority's vote.  This information
-    is used to vote on the correct URL and digest for the released versions
-    of different Tor-related packages, so that the consensus can certify
-    them.  This line may appear any number of times.
-
 [[RecommendedClientVersions]] **RecommendedClientVersions** __STRING__::
     STRING is a comma-separated list of Tor versions currently believed to be
     safe for clients to use. This information is included in version 2
@@ -2881,10 +2925,23 @@ on the public Tor network.
     before it will treat advertised bandwidths as wholly
     unreliable. (Default: 500)
 
+[[AuthDirRejectRequestsUnderLoad]] **AuthDirRejectRequestsUnderLoad** **0**|**1**::
+    If set, the directory authority will start rejecting directory requests
+    from non relay connections by sending a 503 error code if it is under
+    bandwidth pressure (reaching the configured limit if any). Relays will
+    always tried to be answered even if this is on. (Default: 1)
+
+
 HIDDEN SERVICE OPTIONS
 ----------------------
 
-The following options are used to configure a hidden service.
+The following options are used to configure a hidden service. Some options
+apply per service and some apply for the whole tor instance.
+
+The next section describes the per service options that can only be set
+**after** the **HiddenServiceDir** directive
+
+**PER SERVICE OPTIONS:**
 
 [[HiddenServiceDir]] **HiddenServiceDir** __DIRECTORY__::
     Store data files for a hidden service in DIRECTORY. Every hidden service
@@ -2910,18 +2967,12 @@ The following options are used to configure a hidden service.
     connects to that VIRTPORT, one of the TARGETs from those lines will be
     chosen at random. Note that address-port pairs have to be comma-separated.
 
-[[PublishHidServDescriptors]] **PublishHidServDescriptors** **0**|**1**::
-    If set to 0, Tor will run any hidden services you configure, but it won't
-    advertise them to the rendezvous directory. This option is only useful if
-    you're using a Tor controller that handles hidserv publishing for you.
-    (Default: 1)
-
 [[HiddenServiceVersion]] **HiddenServiceVersion** **2**|**3**::
     A list of rendezvous service descriptor versions to publish for the hidden
     service. Currently, versions 2 and 3 are supported. (Default: 3)
 
 [[HiddenServiceAuthorizeClient]] **HiddenServiceAuthorizeClient** __auth-type__ __client-name__,__client-name__,__...__::
-    If configured, the hidden service is accessible for authorized clients
+    If configured, the v2 hidden service is accessible for authorized clients
     only. The auth-type can either be \'basic' for a general-purpose
     authorization protocol or \'stealth' for a less scalable protocol that also
     hides service activity from unauthorized clients. Only clients that are
@@ -2942,7 +2993,7 @@ The following options are used to configure a hidden service.
 
 [[HiddenServiceExportCircuitID]] **HiddenServiceExportCircuitID** __protocol__::
    The onion service will use the given protocol to expose the global circuit
-   identifier of each inbound client circuit via the selected protocol. The only
+   identifier of each inbound client circuit. The only
    protocol supported right now \'haproxy'. This option is only for v3
    services. (Default: none) +
  +
@@ -2959,12 +3010,12 @@ The following options are used to configure a hidden service.
  +
       global_circuit_id = (0xAA << 24) + (0xBB << 16) + (0xCC << 8) + 0xDD; +
  +
-   In the case above, where the last 32-bit is 0xffffffff, the global circuit
+   In the case above, where the last 32-bits are 0xffffffff, the global circuit
    identifier would be 4294967295. You can use this value together with Tor's
-   control port where it is possible to terminate a circuit given the global
-   circuit identifier. For more information about this see controls-spec.txt. +
+   control port to terminate particular circuits using their global
+   circuit identifiers. For more information about this see control-spec.txt. +
  +
-   The HAProxy version 1 proxy protocol is described in detail at
+   The HAProxy version 1 protocol is described in detail at
    https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 
 [[HiddenServiceMaxStreams]] **HiddenServiceMaxStreams** __N__::
@@ -2993,6 +3044,38 @@ The following options are used to configure a hidden service.
 [[HiddenServiceNumIntroductionPoints]] **HiddenServiceNumIntroductionPoints** __NUM__::
     Number of introduction points the hidden service will have. You can't
     have more than 10 for v2 service and 20 for v3. (Default: 3)
+
+[[HiddenServiceEnableIntroDoSDefense]] **HiddenServiceEnableIntroDoSDefense** **0**|**1**::
+    Enable DoS defense at the intropoint level. When this is enabled, the
+    rate and burst parameter (see below) will be sent to the intro point which
+    will then use them to apply rate limiting for introduction request to this
+    service.
+  +
+    The introduction point honors the consensus parameters except if this is
+    specifically set by the service operator using this option. The service
+    never looks at the consensus parameters in order to enable or disable this
+    defense. (Default: 0)
+
+[[HiddenServiceEnableIntroDoSRatePerSec]] **HiddenServiceEnableIntroDoSRatePerSec** __NUM__::
+    The allowed client introduction rate per second at the introduction
+    point. If this option is 0, it is considered infinite and thus if
+    **HiddenServiceEnableIntroDoSDefense** is set, it then effectively
+    disables the defenses. (Default: 25)
+
+[[HiddenServiceEnableIntroDoSBurstPerSec]] **HiddenServiceEnableIntroDoSBurstPerSec** __NUM__::
+    The allowed client introduction burst per second at the introduction
+    point. If this option is 0, it is considered infinite and thus if
+    **HiddenServiceEnableIntroDoSDefense** is set, it then effectively
+    disables the defenses. (Default: 200)
+
+
+**PER INSTANCE OPTIONS:**
+
+[[PublishHidServDescriptors]] **PublishHidServDescriptors** **0**|**1**::
+    If set to 0, Tor will run any hidden services you configure, but it won't
+    advertise them to the rendezvous directory. This option is only useful if
+    you're using a Tor controller that handles hidserv publishing for you.
+    (Default: 1)
 
 [[HiddenServiceSingleHopMode]] **HiddenServiceSingleHopMode** **0**|**1**::
     **Experimental - Non Anonymous** Hidden Services on a tor instance in
@@ -3033,31 +3116,42 @@ Client Authorization
 
 (Version 3 only)
 
-To configure client authorization on the service side, the
-"<HiddenServiceDir>/authorized_clients/" directory needs to exist. Each file
-in that directory should be suffixed with ".auth" (i.e. "alice.auth"; the
-file name is irrelevant) and its content format MUST be:
+Service side:
 
-        <auth-type>:<key-type>:<base32-encoded-public-key>
+  To configure client authorization on the service side, the
+  "<HiddenServiceDir>/authorized_clients/" directory needs to exist. Each file
+  in that directory should be suffixed with ".auth" (i.e. "alice.auth"; the
+  file name is irrelevant) and its content format MUST be:
 
-The supported <auth-type> are: "descriptor". The supported <key-type> are:
-"x25519". The <base32-encoded-public-key> is the base32 representation of
-the raw key bytes only (32 bytes for x25519).
+          <auth-type>:<key-type>:<base32-encoded-public-key>
 
-Each file MUST contain one line only. Any malformed file will be
-ignored. Client authorization will only be enabled for the service if tor
-successfully loads at least one authorization file.
+  The supported <auth-type> are: "descriptor". The supported <key-type> are:
+  "x25519". The <base32-encoded-public-key> is the base32 representation of
+  the raw key bytes only (32 bytes for x25519).
 
-Note that once you've configured client authorization, anyone else with the
-address won't be able to access it from this point on. If no authorization is
-configured, the service will be accessible to anyone with the onion address.
+  Each file MUST contain one line only. Any malformed file will be
+  ignored. Client authorization will only be enabled for the service if tor
+  successfully loads at least one authorization file.
 
-Revoking a client can be done by removing their ".auth" file, however the
-revocation will be in effect only after the tor process gets restarted even if
-a SIGHUP takes place.
+  Note that once you've configured client authorization, anyone else with the
+  address won't be able to access it from this point on. If no authorization is
+  configured, the service will be accessible to anyone with the onion address.
 
-See the Appendix G in the rend-spec-v3.txt file of
-https://spec.torproject.org/[torspec] for more information.
+  Revoking a client can be done by removing their ".auth" file, however the
+  revocation will be in effect only after the tor process gets restarted even if
+  a SIGHUP takes place.
+
+Client side:
+
+  To access a v3 onion service with client authorization as a client, make sure
+  you have ClientOnionAuthDir set in your torrc. Then, in the
+  <ClientOnionAuthDir> directory, create an .auth_private file for the onion
+  service corresponding to this key (i.e. 'bob_onion.auth_private').  The
+  contents of the <ClientOnionAuthDir>/<user>.auth_private file should look like:
+
+      <56-char-onion-addr-without-.onion-part>:descriptor:x25519:<x25519 private key in base32>
+
+For more information, please see https://2019.www.torproject.org/docs/tor-onion-service.html.en#ClientAuthorization .
 
 TESTING NETWORK OPTIONS
 -----------------------

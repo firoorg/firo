@@ -11,9 +11,9 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 from test_framework.mininode import sha256, ripemd160, CTransaction, CTxIn, COutPoint, CTxOut
 from test_framework.address import script_to_p2sh, key_to_p2pkh
-from test_framework.script import CScript, OP_HASH160, OP_CHECKSIG, OP_0, hash160, OP_EQUAL, OP_DUP, OP_EQUALVERIFY, OP_1, OP_2, OP_CHECKMULTISIG
+from test_framework.script import CScript, OP_HASH160, OP_CHECKSIG, OP_0, hash160, OP_EQUAL, OP_DUP, OP_EQUALVERIFY, OP_1, OP_2, OP_CHECKMULTISIG, OP_TRUE
 from io import BytesIO
-from test_framework.mininode import FromHex
+from test_framework.mininode import ToHex, FromHex, COIN
 
 NODE_0 = 0
 NODE_1 = 1
@@ -39,7 +39,7 @@ def addlength(script):
     return scriptlen + script
 
 def create_witnessprogram(version, node, utxo, pubkey, encode_p2sh, amount):
-    pkscript = witness_script(version, pubkey);
+    pkscript = witness_script(version, pubkey)
     if (encode_p2sh):
         p2sh_hash = bytes_to_hex_str(ripemd160(sha256(hex_str_to_bytes(pkscript))))
         pkscript = "a914"+p2sh_hash+"87"
@@ -78,9 +78,10 @@ def find_unspent(node, min_value):
 
 class SegWitTest(BitcoinTestFramework):
 
-    def setup_chain(self):
-        print("Initializing test directory "+self.options.tmpdir)
-        initialize_chain_clean(self.options.tmpdir, 3)
+    def __init__(self):
+        super().__init__()
+        self.setup_clean_chain = True
+        self.num_nodes = 3
 
     def setup_network(self):
         self.nodes = []
@@ -129,10 +130,14 @@ class SegWitTest(BitcoinTestFramework):
         print("Verify sigops are counted in GBT with pre-BIP141 rules before the fork")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         tmpl = self.nodes[0].getblocktemplate({})
+        assert(tmpl['sizelimit'] == 1000000)
+        assert('weightlimit' not in tmpl)
         assert(tmpl['sigoplimit'] == 20000)
         assert(tmpl['transactions'][0]['hash'] == txid)
         assert(tmpl['transactions'][0]['sigops'] == 2)
         tmpl = self.nodes[0].getblocktemplate({'rules':['segwit']})
+        assert(tmpl['sizelimit'] == 1000000)
+        assert('weightlimit' not in tmpl)
         assert(tmpl['sigoplimit'] == 20000)
         assert(tmpl['transactions'][0]['hash'] == txid)
         assert(tmpl['transactions'][0]['sigops'] == 2)
@@ -240,22 +245,60 @@ class SegWitTest(BitcoinTestFramework):
         print("Verify sigops are counted in GBT with BIP141 rules after the fork")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         tmpl = self.nodes[0].getblocktemplate({'rules':['segwit']})
+        assert(tmpl['sizelimit'] >= 3999577)  # actual maximum size is lower due to minimum mandatory non-witness data
+        assert(tmpl['weightlimit'] == 4000000)
         assert(tmpl['sigoplimit'] == 80000)
         assert(tmpl['transactions'][0]['txid'] == txid)
         assert(tmpl['transactions'][0]['sigops'] == 8)
 
-        print("Verify non-segwit miners get a valid GBT response after the fork")
-        send_to_witness(1, self.nodes[0], find_unspent(self.nodes[0], 50), self.pubkey[0], False, Decimal("49.998"))
-        try:
-            tmpl = self.nodes[0].getblocktemplate({})
-            assert(len(tmpl['transactions']) == 1)  # Doesn't include witness tx
-            assert(tmpl['sigoplimit'] == 20000)
-            assert(tmpl['transactions'][0]['hash'] == txid)
-            assert(tmpl['transactions'][0]['sigops'] == 2)
-            assert(('!segwit' in tmpl['rules']) or ('segwit' not in tmpl['rules']))
-        except JSONRPCException:
-            # This is an acceptable outcome
-            pass
+        self.nodes[0].generate(1) # Mine a block to clear the gbt cache
+
+        print("Non-segwit miners are able to use GBT response after activation.")
+        # Create a 3-tx chain: tx1 (non-segwit input, paying to a segwit output) ->
+        #                      tx2 (segwit input, paying to a non-segwit output) ->
+        #                      tx3 (non-segwit input, paying to a non-segwit output).
+        # tx1 is allowed to appear in the block, but no others.
+        txid1 = send_to_witness(1, self.nodes[0], find_unspent(self.nodes[0], 50), self.pubkey[0], False, Decimal("49.996"))
+        hex_tx = self.nodes[0].gettransaction(txid)['hex']
+        tx = FromHex(CTransaction(), hex_tx)
+        assert(tx.wit.is_null()) # This should not be a segwit input
+        assert(txid1 in self.nodes[0].getrawmempool())
+
+        # Now create tx2, which will spend from txid1.
+        tx = CTransaction()
+        tx.vin.append(CTxIn(COutPoint(int(txid1, 16), 0), b''))
+        tx.vout.append(CTxOut(int(49.99*COIN), CScript([OP_TRUE])))
+        tx2_hex = self.nodes[0].signrawtransaction(ToHex(tx))['hex']
+        txid2 = self.nodes[0].sendrawtransaction(tx2_hex)
+        tx = FromHex(CTransaction(), tx2_hex)
+        assert(not tx.wit.is_null())
+
+        # Now create tx3, which will spend from txid2
+        tx = CTransaction()
+        tx.vin.append(CTxIn(COutPoint(int(txid2, 16), 0), b""))
+        tx.vout.append(CTxOut(int(49.95*COIN), CScript([OP_TRUE]))) # Huge fee
+        tx.calc_sha256()
+        txid3 = self.nodes[0].sendrawtransaction(ToHex(tx))
+        assert(tx.wit.is_null())
+        assert(txid3 in self.nodes[0].getrawmempool())
+
+        # Now try calling getblocktemplate() without segwit support.
+        template = self.nodes[0].getblocktemplate()
+
+        # Check that tx1 is the only transaction of the 3 in the template.
+        template_txids = [ t['txid'] for t in template['transactions'] ]
+        assert(txid2 not in template_txids and txid3 not in template_txids)
+        assert(txid1 in template_txids)
+
+        # Check that running with segwit support results in all 3 being included.
+        template = self.nodes[0].getblocktemplate({"rules": ["segwit"]})
+        template_txids = [ t['txid'] for t in template['transactions'] ]
+        assert(txid1 in template_txids)
+        assert(txid2 in template_txids)
+        assert(txid3 in template_txids)
+
+        # Mine a block to clear the gbt cache again.
+        self.nodes[0].generate(1)
 
         print("Verify behaviour of importaddress, addwitnessaddress and listunspent")
 

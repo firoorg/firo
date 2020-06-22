@@ -7,8 +7,8 @@
 
 #include "guiutil.h"
 
-#include "exodus/exodus.h"
-#include "exodus/sp.h"
+#include "elysium/elysium.h"
+#include "elysium/sp.h"
 
 #include "base58.h"
 
@@ -26,7 +26,7 @@
 using std::ostringstream;
 using std::string;
 
-using namespace exodus;
+using namespace elysium;
 
 LookupSPDialog::LookupSPDialog(QWidget *parent) :
     QDialog(parent),
@@ -323,7 +323,7 @@ void LookupSPDialog::updateDisplayedProperty()
     }
     else
     {
-       if (propertyId == 1) { tokenLabel = " EXODUS"; } else { tokenLabel = " TEXODUS"; }
+       if (propertyId == 1) { tokenLabel = " ELYSIUM"; } else { tokenLabel = " TELYSIUM"; }
     }
     if (divisible) { strTotalTokens = FormatDivisibleMP(totalTokens); } else { strTotalTokens = FormatIndivisibleMP(totalTokens); }
     if (divisible) { strWalletTokens = FormatDivisibleMP(walletTokens); } else { strWalletTokens = FormatIndivisibleMP(walletTokens); }
@@ -388,7 +388,7 @@ void LookupSPDialog::updateDisplayedProperty()
     }
     else
     {
-        ui->issuanceTypeLabel->setText("Exodus");
+        ui->issuanceTypeLabel->setText("Elysium");
         if (fixedIssuance) ui->issuanceTypeLabel->setText("Fixed");
         if (manualIssuance) ui->issuanceTypeLabel->setText("Manual");
         // hide crowdinfo

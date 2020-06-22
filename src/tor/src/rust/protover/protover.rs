@@ -26,7 +26,7 @@ const FIRST_TOR_VERSION_TO_ADVERTISE_PROTOCOLS: &'static str = "0.2.9.3-alpha";
 /// before concluding that someone is trying to DoS us
 ///
 /// C_RUST_COUPLED: protover.c `MAX_PROTOCOLS_TO_EXPAND`
-const MAX_PROTOCOLS_TO_EXPAND: usize = (1 << 16);
+const MAX_PROTOCOLS_TO_EXPAND: usize = 1 << 16;
 
 /// The maximum size an `UnknownProtocol`'s name may be.
 pub(crate) const MAX_PROTOCOL_NAME_LENGTH: usize = 100;
@@ -47,6 +47,7 @@ pub enum Protocol {
     Microdesc,
     Relay,
     Padding,
+    FlowCtrl,
 }
 
 impl fmt::Display for Protocol {
@@ -75,6 +76,7 @@ impl FromStr for Protocol {
             "Microdesc" => Ok(Protocol::Microdesc),
             "Relay" => Ok(Protocol::Relay),
             "Padding" => Ok(Protocol::Padding),
+            "FlowCtrl" => Ok(Protocol::FlowCtrl),
             _ => Err(ProtoverError::UnknownProtocol),
         }
     }
@@ -166,7 +168,8 @@ pub(crate) fn get_supported_protocols_cstr() -> &'static CStr {
              LinkAuth=3 \
              Microdesc=1-2 \
              Relay=1-2 \
-             Padding=1"
+             Padding=2 \
+             FlowCtrl=1"
         )
     } else {
         cstr!(
@@ -180,7 +183,8 @@ pub(crate) fn get_supported_protocols_cstr() -> &'static CStr {
              LinkAuth=1,3 \
              Microdesc=1-2 \
              Relay=1-2 \
-             Padding=1"
+             Padding=2 \
+             FlowCtrl=1"
         )
     }
 }

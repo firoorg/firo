@@ -951,7 +951,7 @@ handle_get_current_consensus(dir_connection_t *conn,
     goto done;
   }
 
-  if (global_write_bucket_low(TO_CONN(conn), size_guess, 2)) {
+  if (connection_dir_is_global_write_low(TO_CONN(conn), size_guess)) {
     log_debug(LD_DIRSERV,
               "Client asked for network status lists, but we've been "
               "writing too many bytes lately. Sending 503 Dir busy.");
@@ -1060,7 +1060,7 @@ handle_get_status_vote(dir_connection_t *conn, const get_handler_args_t *args)
         }
       });
 
-    if (global_write_bucket_low(TO_CONN(conn), estimated_len, 2)) {
+    if (connection_dir_is_global_write_low(TO_CONN(conn), estimated_len)) {
       write_short_http_response(conn, 503, "Directory busy, try again later");
       goto vote_done;
     }
@@ -1072,13 +1072,11 @@ handle_get_status_vote(dir_connection_t *conn, const get_handler_args_t *args)
       if (compress_method != NO_METHOD) {
         conn->compress_state = tor_compress_new(1, compress_method,
                            choose_compression_level(estimated_len));
-        SMARTLIST_FOREACH(items, const char *, c,
-                 connection_buf_add_compress(c, strlen(c), conn, 0));
-        connection_buf_add_compress("", 0, conn, 1);
-      } else {
-        SMARTLIST_FOREACH(items, const char *, c,
-                         connection_buf_add(c, strlen(c), TO_CONN(conn)));
       }
+
+      SMARTLIST_FOREACH(items, const char *, c,
+                        connection_dir_buf_add(c, strlen(c), conn,
+                                               c_sl_idx == c_sl_len - 1));
     } else {
       SMARTLIST_FOREACH(dir_items, cached_dir_t *, d,
           connection_buf_add(compress_method != NO_METHOD ?
@@ -1121,7 +1119,7 @@ handle_get_microdesc(dir_connection_t *conn, const get_handler_args_t *args)
       write_short_http_response(conn, 404, "Not found");
       goto done;
     }
-    if (global_write_bucket_low(TO_CONN(conn), size_guess, 2)) {
+    if (connection_dir_is_global_write_low(TO_CONN(conn), size_guess)) {
       log_info(LD_DIRSERV,
                "Client asked for server descriptors, but we've been "
                "writing too many bytes lately. Sending 503 Dir busy.");
@@ -1219,7 +1217,7 @@ handle_get_descriptor(dir_connection_t *conn, const get_handler_args_t *args)
         msg = "Not found";
       write_short_http_response(conn, 404, msg);
     } else {
-      if (global_write_bucket_low(TO_CONN(conn), size_guess, 2)) {
+      if (connection_dir_is_global_write_low(TO_CONN(conn), size_guess)) {
         log_info(LD_DIRSERV,
                  "Client asked for server descriptors, but we've been "
                  "writing too many bytes lately. Sending 503 Dir busy.");
@@ -1315,9 +1313,8 @@ handle_get_keys(dir_connection_t *conn, const get_handler_args_t *args)
     SMARTLIST_FOREACH(certs, authority_cert_t *, c,
                       len += c->cache_info.signed_descriptor_len);
 
-    if (global_write_bucket_low(TO_CONN(conn),
-                                compress_method != NO_METHOD ? len/2 : len,
-                                2)) {
+    if (connection_dir_is_global_write_low(TO_CONN(conn),
+                                compress_method != NO_METHOD ? len/2 : len)) {
       write_short_http_response(conn, 503, "Directory busy, try again later");
       goto keys_done;
     }
@@ -1329,19 +1326,13 @@ handle_get_keys(dir_connection_t *conn, const get_handler_args_t *args)
     if (compress_method != NO_METHOD) {
       conn->compress_state = tor_compress_new(1, compress_method,
                                               choose_compression_level(len));
-      SMARTLIST_FOREACH(certs, authority_cert_t *, c,
-            connection_buf_add_compress(
-                c->cache_info.signed_descriptor_body,
-                c->cache_info.signed_descriptor_len,
-                conn, 0));
-      connection_buf_add_compress("", 0, conn, 1);
-    } else {
-      SMARTLIST_FOREACH(certs, authority_cert_t *, c,
-            connection_buf_add(c->cache_info.signed_descriptor_body,
-                                    c->cache_info.signed_descriptor_len,
-                                    TO_CONN(conn)));
     }
-  keys_done:
+
+    SMARTLIST_FOREACH(certs, authority_cert_t *, c,
+          connection_dir_buf_add(c->cache_info.signed_descriptor_body,
+                                 c->cache_info.signed_descriptor_len,
+                                 conn, c_sl_idx == c_sl_len - 1));
+ keys_done:
     smartlist_free(certs);
     goto done;
   }
@@ -1398,9 +1389,11 @@ handle_get_hs_descriptor_v3(dir_connection_t *conn,
   const char *pubkey_str = NULL;
   const char *url = args->url;
 
-  /* Reject unencrypted dir connections */
-  if (!connection_dir_is_encrypted(conn)) {
-    write_short_http_response(conn, 404, "Not found");
+  /* Reject non anonymous dir connections (which also tests if encrypted). We
+   * do not allow single hop clients to query an HSDir. */
+  if (!connection_dir_is_anonymous(conn)) {
+    write_short_http_response(conn, 503,
+                              "Rejecting single hop HS v3 descriptor request");
     goto done;
   }
 
@@ -1640,10 +1633,15 @@ directory_handle_command_post,(dir_connection_t *conn, const char *headers,
     goto done;
   }
 
-  /* Handle HS descriptor publish request. */
-  /* XXX: This should be disabled with a consensus param until we want to
-   * the prop224 be deployed and thus use. */
-  if (connection_dir_is_encrypted(conn) && !strcmpstart(url, "/tor/hs/")) {
+  /* Handle HS descriptor publish request. We force an anonymous connection
+   * (which also tests for encrypted). We do not allow single-hop client to
+   * post a descriptor onto an HSDir. */
+  if (!strcmpstart(url, "/tor/hs/")) {
+    if (!connection_dir_is_anonymous(conn)) {
+      write_short_http_response(conn, 503,
+                                "Rejecting single hop HS descriptor post");
+      goto done;
+    }
     const char *msg = "HS descriptor stored successfully.";
 
     /* We most probably have a publish request for an HS descriptor. */

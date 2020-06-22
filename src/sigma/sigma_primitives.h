@@ -26,7 +26,7 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void generate_challenge(const std::vector<GroupElement>& group_elements, 
+    static void generate_challenge(const std::vector<GroupElement>& group_elements,
                                    Exponent& result_out);
 
     /** \brief Adds a factor of (x*x + a) to the given polynomial in coefficients.

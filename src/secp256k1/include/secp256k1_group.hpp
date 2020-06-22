@@ -64,14 +64,14 @@ public:
     unsigned GetSerializeSize(int nType = 0, int nVersion = 0) const { return memoryRequired(); }
 
     template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const {
+    void Serialize(Stream& s) const {
         unsigned char buffer[serialize_size];
         serialize(buffer);
         s.write(reinterpret_cast<char *>(buffer), sizeof(buffer));
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion) {
+    void Unserialize(Stream& s) {
         unsigned char buffer[serialize_size];
         s.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
         deserialize(buffer);

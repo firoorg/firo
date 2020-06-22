@@ -1,4 +1,4 @@
-#include "main.h"
+#include "validation.h"
 #include "sigma.h"
 #include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
@@ -141,10 +141,10 @@ bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
     for (const auto& tx : block.vtx) {
         // Check zerocoin to sigma remints against the same limit as sigma spends
 
-        auto txSpendsValue = tx.IsZerocoinRemint() ? CoinRemintToV3::GetAmount(tx) : GetSpendAmount(tx);
+        auto txSpendsValue = tx->IsZerocoinRemint() ? CoinRemintToV3::GetAmount(*tx) : GetSpendAmount(*tx);
         size_t txSpendsAmount = 0;
 
-        for (const auto& in : tx.vin) {
+        for (const auto& in : tx->vin) {
             if (in.IsSigmaSpend() || in.IsZerocoinRemint()) {
                 txSpendsAmount++;
             }
@@ -525,9 +525,8 @@ void RemoveSigmaSpendsReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex
         }
     }
     for (const CTransaction& tx: txn_to_remove) {
-        std::list<CTransaction> removed;
         // Remove txn from mempool.
-        pool.removeRecursive(tx, removed);
+        pool.removeRecursive(tx);
         LogPrintf("DisconnectTipSigma: removed sigma spend which referenced a removed blockchain tip.");
     }
 }
@@ -537,7 +536,7 @@ void DisconnectTipSigma(CBlock& block, CBlockIndex *pindexDelete) {
 
     // Also remove from mempool sigma spends that reference given block hash.
     RemoveSigmaSpendsReferencingBlock(mempool, pindexDelete);
-    RemoveSigmaSpendsReferencingBlock(stempool, pindexDelete);
+    RemoveSigmaSpendsReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
@@ -637,9 +636,9 @@ bool ConnectBlockSigma(
 bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block){
     secp_primitives::GroupElement txPubCoinValue;
     // cycle transaction hashes, looking for this pubcoin.
-    BOOST_FOREACH(CTransaction tx, block.vtx){
+    BOOST_FOREACH(CTransactionRef tx, block.vtx){
         uint32_t nIndex = 0;
-        for (const CTxOut &txout: tx.vout) {
+        for (const CTxOut &txout: tx->vout) {
             if (txout.scriptPubKey.IsSigmaMint()){
 
                 // If you wonder why +1, go to file wallet.cpp and read the comments in function
@@ -648,7 +647,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
                                                       txout.scriptPubKey.end());
                 txPubCoinValue.deserialize(&coin_serialised[0]);
                 if(pubCoinValue==txPubCoinValue){
-                    outPoint = COutPoint(tx.GetHash(), nIndex);
+                    outPoint = COutPoint(tx->GetHash(), nIndex);
                     return true;
                 }
             }

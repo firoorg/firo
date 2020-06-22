@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -47,13 +47,16 @@ public Q_SLOTS:
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
     void setSigmaBalance();
-    //void updateExodus();
-    //void reinitExodus();
+    //void updateElysium();
+    //void reinitElysium();
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
-    void exodusTransactionClicked(const uint256& txid);
+    void outOfSyncWarningClicked();
+#ifdef ENABLE_ELYSIUM
+    void elysiumTransactionClicked(const uint256& txid);
+#endif
 
 private:
     Ui::OverviewPage *ui;
@@ -79,6 +82,7 @@ private Q_SLOTS:
     void handleEnabledTorChanged();
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
+    void handleOutOfSyncWarningClicks();
     void updateCoins(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
 };
 

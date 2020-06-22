@@ -10,10 +10,32 @@ namespace sigma {
 
 template <class Exponent, class GroupElement>
 class R1Proof {
+public:
+    GroupElement A_;
+    GroupElement C_;
+    GroupElement D_;
+    std::vector<Exponent> f_;
+    Exponent ZA_;
+    Exponent ZC_;
 
 public:
     R1Proof() = default;
 
+public:
+    bool operator==(R1Proof const &other) const {
+        return A_ == other.A_ &&
+            C_ == other.C_ &&
+            D_ == other.D_ &&
+            f_ == other.f_ &&
+            ZA_ == other.ZA_ &&
+            ZC_ == other.ZC_;
+    }
+
+    bool operator!=(R1Proof const &other) const {
+        return !(*this == other);
+    }
+
+public:
     inline int memoryRequired(int n, int m) const {
         return A_.memoryRequired() * 3 + ZA_.memoryRequired() * (m*(n - 1) + 2);
     }
@@ -41,7 +63,7 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(A_);
         READWRITE(C_);
         READWRITE(D_);
@@ -49,13 +71,6 @@ public:
         READWRITE(ZA_);
         READWRITE(ZC_);
     }
-
-    GroupElement A_;
-    GroupElement C_;
-    GroupElement D_;
-    std::vector<Exponent> f_;
-    Exponent ZA_;
-    Exponent ZC_;
 };
 
 } // namespace sigma

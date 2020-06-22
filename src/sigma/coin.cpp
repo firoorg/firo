@@ -197,10 +197,6 @@ bool PublicCoin::validate() const{
     return this->value.isMember() && !this->value.isInfinity();
 }
 
-size_t PublicCoin::GetSerializeSize(int nType, int nVersion) const{
-    return value.memoryRequired() + sizeof(int);
-}
-
 //class PrivateCoin
 PrivateCoin::PrivateCoin(const Params* p, CoinDenomination denomination, int version)
     : params(p)
