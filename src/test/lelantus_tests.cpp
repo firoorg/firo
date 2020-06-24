@@ -268,9 +268,8 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
         }
     }
 
-    GenerateBlock({txs[0]});
+    auto blockIdx = GenerateBlock({txs[0]});
 
-    auto blockIdx = chainActive.Tip();
     CBlock block;
     BOOST_CHECK(ReadBlockFromDisk(block, blockIdx, ::Params().GetConsensus()));
 
@@ -563,7 +562,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     // join split
     txs.clear();
-    mints = GenerateMints({10 * CENT, 11 * CENT, 100 * CENT}, txs, true);
+    mints = GenerateMints({10 * CENT, 11 * CENT, 100 * CENT}, txs);
     GenerateBlock(txs);
     GenerateBlocks(10);
 
@@ -696,9 +695,10 @@ BOOST_AUTO_TEST_CASE(spend_limitation_per_block)
 
 BOOST_AUTO_TEST_CASE(parse_joinsplit)
 {
-    std::vector<CMutableTransaction> txs;
-    std::vector<PrivateCoin> coins;
-    GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN}, txs, coins, true, false);
+    // std::vector<CMutableTransaction> txs;
+    // std::vector<PrivateCoin> coins;
+    // GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN}, txs, coins);
+    auto coins = GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN});
 
     JoinSplitScriptGenerator g;
     g.params = params;
@@ -795,7 +795,7 @@ BOOST_AUTO_TEST_CASE(coingroup)
     // logic
     std::vector<CMutableTransaction> txs;
     std::vector<lelantus::PrivateCoin> coins;
-    auto hdMints = GenerateMints(std::vector<CAmount>(66, 1), txs, coins, true, true);
+    auto hdMints = GenerateMints(std::vector<CAmount>(66, 1), txs, coins);
 
     auto txRange = [&](size_t start, size_t end) -> std::vector<CMutableTransaction> {
         std::vector<CMutableTransaction> rangeTxs;

@@ -661,7 +661,13 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins,
+        CAmount nTargetValue,
+        std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
+        CAmount& nValueRet,
+        const CCoinControl *coinControl = NULL,
+        AvailableCoinsType nCoinType = ALL_COINS,
+        bool fUseInstantSend = false) const;
 
     CWalletDB *pwalletdbEncryption;
 

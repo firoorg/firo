@@ -16,6 +16,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
+#include "sigma/openssl_context.h"
 #include "validation.h"
 #include "miner.h"
 #include "pubkey.h"
@@ -245,55 +246,66 @@ void LelantusTestingSetup::GenerateBlocks(size_t blocks) {
     }
 }
 
-std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
-    std::vector<CAmount> const &amounts,
-    std::vector<CMutableTransaction> &txs,
-    bool useHDMints,
-    bool buildTxs) {
+std::vector<lelantus::PrivateCoin> LelantusTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts) {
+
+    auto const &p = lelantus::Params::get_default();
 
     std::vector<lelantus::PrivateCoin> coins;
-    return GenerateMints(amounts, txs, coins, useHDMints, buildTxs);
+    for (auto a : amounts) {
+        std::vector<unsigned char> k(32);
+        GetRandBytes(k.data(), k.size());
+
+        secp256k1_pubkey pubkey;
+
+        if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, k.data())) {
+            throw std::runtime_error("Fail to create public key");
+        }
+
+        auto serial = lelantus::PrivateCoin::serialNumberFromSerializedPublicKey(
+            OpenSSLContext::get_context(), &pubkey);
+
+        Scalar randomness;
+        randomness.randomize();
+
+        coins.emplace_back(p, serial, a, randomness, 0);
+        coins.back().setEcdsaSeckey(k);
+    }
+
+    return coins;
+}
+
+std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts,
+    std::vector<CMutableTransaction> &txs) {
+
+    std::vector<lelantus::PrivateCoin> coins;
+    return GenerateMints(amounts, txs, coins);
 }
 
 std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
     std::vector<CAmount> const &amounts,
     std::vector<CMutableTransaction> &txs,
-    std::vector<lelantus::PrivateCoin> &coins,
-    bool useHdMints,
-    bool buildTxs) {
+    std::vector<lelantus::PrivateCoin> &coins) {
 
-    std::vector<CHDMint> mints;
+    std::vector<CHDMint> hdMints;
 
     for (auto a : amounts) {
-        coins.emplace_back(params, a);
-        auto &coin = coins.back();
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        std::vector<CHDMint> mints;
+        auto result = pwalletMain->MintAndStoreLelantus(a, wtxAndFee, mints);
 
-        if (useHdMints) {
-            CHDMint hdmint;
-            zwalletMain->GenerateLelantusMint(coin, hdmint);
+        if (result != "") {
+            throw std::runtime_error(_("Fail to generate mints, ") + result);
         }
 
-        mints.emplace_back();
-        auto &mint = mints.back();
+        txs.emplace_back(wtxAndFee.front().first);
 
-        auto rec = CWallet::CreateLelantusMintRecipient(coin, mint);
-
-        if (buildTxs) {
-            CWalletTx wtx;
-            auto result = pwalletMain->MintAndStoreLelantus(rec, coin, mint, wtx);
-            txs.emplace_back(wtx);
-
-            if (result != "") {
-            throw std::runtime_error("Fail to generate mints " + result);
-        }
-        }
-
-        if (useHdMints) {
-            zwalletMain->GetTracker().AddLelantus(mint, true);
-        }
+        hdMints.insert(hdMints.end(), mints.begin(), mints.end());
+        zwalletMain->GetTracker().AddLelantus(hdMints.back(), true);
     }
 
-    return mints;
+    return hdMints;
 }
 
 CPubKey LelantusTestingSetup::GenerateAddress() {

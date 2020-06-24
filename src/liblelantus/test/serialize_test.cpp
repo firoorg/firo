@@ -1,9 +1,11 @@
 #include "../lelantus_prover.h"
 #include "../lelantus_verifier.h"
 
+#include "lelantus_test_fixture.h"
+
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(lelantus_serialize_tests)
+BOOST_FIXTURE_TEST_SUITE(lelantus_serialize_tests, lelantus::LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(serialize)
 {

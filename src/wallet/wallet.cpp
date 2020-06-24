@@ -3766,7 +3766,14 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+bool CWallet::SelectCoins(
+    const vector<COutput>& vAvailableCoins,
+    CAmount nTargetValue,
+    set<pair<const CWalletTx*, unsigned int>> &setCoinsRet,
+    CAmount& nValueRet,
+    const CCoinControl* coinControl,
+    AvailableCoinsType nCoinType,
+    bool fUseInstantSend) const
 {
     if (nCoinType == ONLY_DENOMINATED)
         return false;
@@ -3979,7 +3986,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
 
     {
-        std::set<std::pair<const CWalletTx*,unsigned int> > setCoins;
+        std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
         LOCK2(cs_main, cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
@@ -5559,17 +5566,26 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
     return true;
 }
 
-bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-                                             CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
-                                             CReserveKey& reservekey, int& nChangePosInOut,
-                                             std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll, bool sign)
+bool CWallet::CreateLelantusMintTransactions(
+    CAmount valueToMint,
+    std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+    CAmount& nAllFeeRet,
+    std::vector<CHDMint>& dMints,
+    CReserveKey& reservekey,
+    int& nChangePosInOut,
+    std::string& strFailReason,
+    const CCoinControl *coinControl,
+    bool autoMintAll,
+    bool sign)
 {
     const auto& lelantusParams = lelantus::Params::get_default();
 
     int nChangePosRequest = nChangePosInOut;
+
     CWalletTx wtxNew;
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
+
     CMutableTransaction txNew;
     txNew.nLockTime = chainActive.Height();
     if (GetRandInt(10) == 0)
@@ -5584,23 +5600,35 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
-            while(!valueAndUTXO.empty()) {
+            while (!valueAndUTXO.empty()) {
                 CWalletTx wtx = wtxNew;
                 CMutableTransaction tx = txNew;
                 CHDMint dMint;
 
-                int nFeeRet = payTxFee.GetFeePerK();
+                auto nFeeRet = payTxFee.GetFeePerK();
                 LogPrintf("nFeeRet=%s\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
-                CAmount nValueToSelect = std::min(::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
 
-                if(!autoMintAll)
-                    nValueToSelect = std::min(nValueToSelect, valueToMint);
+                CAmount valueToMintInTx = std::min(::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
+
+                if (!autoMintAll)
+                    valueToMintInTx = std::min(valueToMintInTx, valueToMint);
+
+                CAmount valueToSelect = valueToMintInTx + nFeeRet;
+                CAmount mintedValue = valueToMintInTx;
 
                 // Start with no fee and loop until there is enough fee
                 while (true)
                 {
+                    if (autoMintAll) {
+                        valueToSelect = valueToMintInTx;
+                        mintedValue = valueToMintInTx - nFeeRet;
+                    } else {
+                        valueToSelect = valueToMintInTx + nFeeRet;
+                        mintedValue = valueToMintInTx;
+                    }
+
                     nChangePosInOut = nChangePosRequest;
                     tx.vin.clear();
                     tx.vout.clear();
@@ -5608,11 +5636,8 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                     wtx.fFromMe = true;
                     wtx.changes.clear();
 
-                    CAmount nValue = nValueToSelect - nFeeRet;
-
-                    lelantus::PrivateCoin privCoin(lelantusParams, nValue);
-                    CHDMint vDMint;
-                    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, vDMint);
+                    lelantus::PrivateCoin privCoin(lelantusParams, mintedValue);
+                    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, dMint);
 
                     double dPriority = 0;
                     // vouts to the payees
@@ -5626,16 +5651,17 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                     tx.vout.push_back(txout);
 
                     // Choose coins to use
-                    set<pair<const CWalletTx*,unsigned int> > setCoins;
+                    std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
                     CAmount nValueIn = 0;
-                    if (!SelectCoins(itr->second, nValueToSelect, setCoins, nValueIn, coinControl))
+                    if (!SelectCoins(itr->second, valueToSelect, setCoins, nValueIn, coinControl))
                     {
-                        if (nValueIn < nValueToSelect) {
+                        if (nValueIn < valueToSelect) {
                             strFailReason = _("Insufficient funds");
                         }
                         return false;
                     }
-                    for(auto pcoin : setCoins)
+
+                    for (auto const &pcoin : setCoins)
                     {
                         CAmount nCredit = pcoin.first->tx->vout[pcoin.second].nValue;
                         //The coin age after the next block (depth+1) is used instead of the current,
@@ -5649,7 +5675,7 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                         dPriority += (double)nCredit * age;
                     }
 
-                    CAmount nChange = nValueIn - nValueToSelect;
+                    CAmount nChange = nValueIn - valueToSelect - nFeeRet;
 
                     if (nChange > 0) {
                         // Fill a vout to ourself
@@ -5710,7 +5736,7 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                             if (nChangePosInOut == -1)
                             {
                                 // Insert change txn at random position:
-                                nChangePosInOut = GetRandInt(tx.vout.size()+1);
+                                nChangePosInOut = GetRandInt(tx.vout.size());
                             }
                             else if ((unsigned int)nChangePosInOut > tx.vout.size())
                             {
@@ -5739,7 +5765,7 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                     CTransaction txNewConst(tx);
                     for(const auto& coin : setCoins)
                     {
-                        bool signSuccess;
+                        bool signSuccess = false;
                         const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                         SignatureData sigdata;
                         if (sign)
@@ -5838,7 +5864,7 @@ bool CWallet::CreateLelantusMintTransactions(CAmount valueToMint, std::vector<st
                 nAllFeeRet += nFeeRet;
                 dMints.push_back(dMint);
                 if(!autoMintAll) {
-                    valueToMint -= nValueToSelect;
+                    valueToMint -= mintedValue;
                     if (valueToMint == 0)
                         break;
                 }
