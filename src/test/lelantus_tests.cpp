@@ -695,9 +695,6 @@ BOOST_AUTO_TEST_CASE(spend_limitation_per_block)
 
 BOOST_AUTO_TEST_CASE(parse_joinsplit)
 {
-    // std::vector<CMutableTransaction> txs;
-    // std::vector<PrivateCoin> coins;
-    // GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN}, txs, coins);
     auto coins = GenerateMints({1 * COIN, 10 * COIN, 1 * COIN, 1 * COIN});
 
     JoinSplitScriptGenerator g;

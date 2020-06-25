@@ -2646,12 +2646,15 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
 CRecipient CWallet::CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
-        CHDMint& vDMint)
+        CHDMint& vDMint,
+        bool generate)
 {
     EnsureMintWalletAvailable();
 
-    // Generate and store secrets deterministically in the following function.
-    zwalletMain->GenerateLelantusMint(coin, vDMint);
+    if (generate) {
+        // Generate and store secrets deterministically in the following function.
+        zwalletMain->GenerateLelantusMint(coin, vDMint);
+    }
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Lelantus 'MINT' transaction along with a series of currency inputs
@@ -5582,14 +5585,13 @@ bool CWallet::CreateLelantusMintTransactions(
 
     int nChangePosRequest = nChangePosInOut;
 
+    // Create transaction template
     CWalletTx wtxNew;
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
 
     CMutableTransaction txNew;
     txNew.nLockTime = chainActive.Height();
-    if (GetRandInt(10) == 0)
-        txNew.nLockTime = std::max(0, (int) txNew.nLockTime - GetRandInt(100));
 
     assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
@@ -5601,8 +5603,14 @@ bool CWallet::CreateLelantusMintTransactions(
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
             while (!valueAndUTXO.empty()) {
+
+                // initialize
                 CWalletTx wtx = wtxNew;
                 CMutableTransaction tx = txNew;
+
+                if (GetRandInt(10) == 0)
+                    tx.nLockTime = std::max(0, (int) tx.nLockTime - GetRandInt(100));
+
                 CHDMint dMint;
 
                 auto nFeeRet = payTxFee.GetFeePerK();
@@ -5612,20 +5620,22 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CAmount valueToMintInTx = std::min(::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
 
-                if (!autoMintAll)
+                if (!autoMintAll) {
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);
+                }
 
-                CAmount valueToSelect = valueToMintInTx + nFeeRet;
+                CAmount nValueToSelect = valueToMintInTx + nFeeRet;
                 CAmount mintedValue = valueToMintInTx;
 
+                std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
+
                 // Start with no fee and loop until there is enough fee
-                while (true)
-                {
+                while (true) {
                     if (autoMintAll) {
-                        valueToSelect = valueToMintInTx;
+                        nValueToSelect = valueToMintInTx;
                         mintedValue = valueToMintInTx - nFeeRet;
                     } else {
-                        valueToSelect = valueToMintInTx + nFeeRet;
+                        nValueToSelect = valueToMintInTx + nFeeRet;
                         mintedValue = valueToMintInTx;
                     }
 
@@ -5636,33 +5646,36 @@ bool CWallet::CreateLelantusMintTransactions(
                     wtx.fFromMe = true;
                     wtx.changes.clear();
 
+                    setCoins.clear();
+
+                    // create recipient using random private coin to mock script sig
                     lelantus::PrivateCoin privCoin(lelantusParams, mintedValue);
-                    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, dMint);
+                    auto recipient = CWallet::CreateLelantusMintRecipient(privCoin, dMint, false);
 
                     double dPriority = 0;
-                    // vouts to the payees
+
+                    // vout to create mint
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
-                    LogPrintf("txout:%s\n", txout.ToString());
 
                     if (txout.IsDust(::minRelayTxFee)) {
-                            strFailReason = _("Transaction amount too small");
+                        strFailReason = _("Transaction amount too small");
                         return false;
                     }
+
                     tx.vout.push_back(txout);
 
                     // Choose coins to use
-                    std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
+
                     CAmount nValueIn = 0;
-                    if (!SelectCoins(itr->second, valueToSelect, setCoins, nValueIn, coinControl))
-                    {
-                        if (nValueIn < valueToSelect) {
+                    if (!SelectCoins(itr->second, nValueToSelect, setCoins, nValueIn, coinControl)) {
+
+                        if (nValueIn < nValueToSelect) {
                             strFailReason = _("Insufficient funds");
                         }
                         return false;
                     }
 
-                    for (auto const &pcoin : setCoins)
-                    {
+                    for (auto const &pcoin : setCoins) {
                         CAmount nCredit = pcoin.first->tx->vout[pcoin.second].nValue;
                         //The coin age after the next block (depth+1) is used instead of the current,
                         //reflecting an assumption the user would accept a bit more delay for
@@ -5675,7 +5688,7 @@ bool CWallet::CreateLelantusMintTransactions(
                         dPriority += (double)nCredit * age;
                     }
 
-                    CAmount nChange = nValueIn - valueToSelect - nFeeRet;
+                    CAmount nChange = nValueIn - nValueToSelect;
 
                     if (nChange > 0) {
                         // Fill a vout to ourself
@@ -5699,8 +5712,7 @@ bool CWallet::CreateLelantusMintTransactions(
                         }
 
                         // no coin control: send change to newly generated address
-                        else
-                        {
+                        else {
                             // Note: We use a new key here to keep it from being obvious which side is the change.
                             //  The drawback is that by not reusing a previous key, the change may be lost if a
                             //  backup is restored, if the backup doesn't have the new private key for the change.
@@ -5725,78 +5737,63 @@ bool CWallet::CreateLelantusMintTransactions(
 
                         // Never create dust outputs; if we would, just
                         // add the dust to the fee.
-                        if (newTxOut.IsDust(::minRelayTxFee))
-                        {
+                        if (newTxOut.IsDust(::minRelayTxFee)) {
                             nChangePosInOut = -1;
                             nFeeRet += nChange;
                             reservekey.ReturnKey();
-                        }
-                        else
-                        {
-                            if (nChangePosInOut == -1)
-                            {
+                        } else {
+
+                            if (nChangePosInOut == -1) {
+
                                 // Insert change txn at random position:
                                 nChangePosInOut = GetRandInt(tx.vout.size());
-                            }
-                            else if ((unsigned int)nChangePosInOut > tx.vout.size())
-                            {
+                            } else if ((unsigned int)nChangePosInOut > tx.vout.size()) {
+
                                 strFailReason = _("Change index out of range");
                                 return false;
                             }
 
-                            vector<CTxOut>::iterator position = tx.vout.begin()+nChangePosInOut;
+                            vector<CTxOut>::iterator position = tx.vout.begin() + nChangePosInOut;
                             tx.vout.insert(position, newTxOut);
                             wtx.changes.insert(static_cast<uint32_t>(nChangePosInOut));
                         }
-                    }
-                    else
+                    } else {
                         reservekey.ReturnKey();
+                    }
 
                     // Fill vin
                     //
                     // Note how the sequence number is set to max()-1 so that the
                     // nLockTime set above actually works.
-                    for(const auto& coin : setCoins)
-                        tx.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript(),
-                                                  std::numeric_limits<unsigned int>::max()-1));
-
-                    // Sign
-                    int nIn = 0;
-                    CTransaction txNewConst(tx);
-                    for(const auto& coin : setCoins)
-                    {
-                        bool signSuccess = false;
-                        const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
-                        SignatureData sigdata;
-                        if (sign)
-                            signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, SIGHASH_ALL), scriptPubKey, sigdata);
-                        else
-                            signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
-
-                        if (!signSuccess)
-                        {
-                            strFailReason = _("Signing transaction failed");
-                            return false;
-                        } else {
-                            UpdateTransaction(tx, nIn, sigdata);
-                        }
-                        nIn++;
+                    for (const auto& coin : setCoins) {
+                        tx.vin.push_back(CTxIn(
+                            coin.first->GetHash(),
+                            coin.second,
+                            CScript(),
+                            std::numeric_limits<unsigned int>::max() - 1));
                     }
+
+                    // Fill in dummy signatures for fee calculation.
+                    if (!DummySignTx(tx, setCoins)) {
+                        strFailReason = _("Signing transaction failed");
+                        return false;
+                    }
+
                     unsigned int nBytes = GetVirtualTransactionSize(tx);
-                    // Remove scriptSigs if we used dummy signatures for fee calculation
-                    if (!sign) {
-                        for(CTxIn & vin : tx.vin)
-                        vin.scriptSig = CScript();
-                    }
-                    // Embed the constructed transaction data in wtx.
-                    wtx.SetTx(MakeTransactionRef(std::move(tx)));
 
                     // Limit size
-                    if (GetTransactionWeight(*wtx.tx) >= MAX_STANDARD_TX_WEIGHT) {
+                    CTransaction txConst(tx);
+                    if (GetTransactionWeight(txConst) >= MAX_STANDARD_TX_WEIGHT) {
                         strFailReason = _("Transaction too large");
                         return false;
                     }
-                    dPriority = wtx.tx->ComputePriority(dPriority, nBytes);
+                    dPriority = txConst.ComputePriority(dPriority, nBytes);
+
+                    // Remove scriptSigs to eliminate the fee calculation dummy signatures
+                    for (auto &vin : tx.vin) {
+                        vin.scriptSig = CScript();
+                        vin.scriptWitness.SetNull();
+                    }
 
                     // Can we complete this as a free transaction?
                     if (fSendFreeTransactions && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE) {
@@ -5832,8 +5829,23 @@ bool CWallet::CreateLelantusMintTransactions(
                                 }
                             }
                         }
-                        if(itr->second.empty())
+
+                        if(itr->second.empty()) {
                             valueAndUTXO.erase(itr);
+                        }
+
+                        // Generate hdMint
+                        recipient = CWallet::CreateLelantusMintRecipient(privCoin, dMint);
+
+                        // vout to mint
+                        txout = CTxOut(recipient.nAmount, recipient.scriptPubKey);
+                        LogPrintf("txout: %s\n", txout.ToString());
+
+                        for (size_t i = 0; i != tx.vout.size(); i++) {
+                            if (tx.vout[i].scriptPubKey.IsLelantusMint()) {
+                                tx.vout[i] = txout;
+                            }
+                        }
 
                         break; // Done, enough fee included.
                     }
@@ -5859,6 +5871,30 @@ bool CWallet::CreateLelantusMintTransactions(
                         return false;
                     }
                 }
+
+                // Sign
+                int nIn = 0;
+                CTransaction txNewConst(tx);
+                for (const auto& coin : setCoins) {
+                    bool signSuccess = false;
+                    const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
+                    SignatureData sigdata;
+                    if (sign)
+                        signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, SIGHASH_ALL), scriptPubKey, sigdata);
+                    else
+                        signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
+
+                    if (!signSuccess)
+                    {
+                        strFailReason = _("Signing transaction failed");
+                        return false;
+                    } else {
+                        UpdateTransaction(tx, nIn, sigdata);
+                    }
+                    nIn++;
+                }
+
+                wtx.SetTx(MakeTransactionRef(std::move(tx)));
 
                 wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
                 nAllFeeRet += nFeeRet;

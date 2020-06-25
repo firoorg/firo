@@ -919,7 +919,8 @@ public:
 
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
-        CHDMint& vDMint);
+        CHDMint& vDMint,
+        bool generate = true);
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
