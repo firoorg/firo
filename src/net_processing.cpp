@@ -32,7 +32,6 @@
 
 #include "spork.h"
 #include "instantx.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 
@@ -980,18 +979,6 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_SPORK:
         return fEvoZnodes || mapSporks.count(inv.hash);
 
-    case MSG_ZNODE_PAYMENT_VOTE:
-        return fEvoZnodes || znpayments.mapZnodePaymentVotes.count(inv.hash);
-
-    case MSG_ZNODE_PAYMENT_BLOCK:
-        if (!fEvoZnodes)
-        {
-            BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-            return mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.find(mi->second->nHeight) != znpayments.mapZnodeBlocks.end();
-        }
-        else
-            return true;
-
     case MSG_ZNODE_ANNOUNCE:
         return fEvoZnodes || (mnodeman.mapSeenZnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash));
 
@@ -1278,35 +1265,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         ss.reserve(1000);
                         ss << mapSporks[inv.hash];
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
-                    if(znpayments.HasVerifiedPaymentVote(inv.hash)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << znpayments.mapZnodePaymentVotes[inv.hash];
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
-                    BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                    LOCK(cs_mapZnodeBlocks);
-                    if (mi != mapBlockIndex.end() && znpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
-                        BOOST_FOREACH(CZnodePayee& payee, znpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
-                            std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
-                            BOOST_FOREACH(uint256& hash, vecVoteHashes) {
-                                if(znpayments.HasVerifiedPaymentVote(hash)) {
-                                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                                    ss.reserve(1000);
-                                    ss << znpayments.mapZnodePaymentVotes[hash];
-                                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ZNODEPAYMENTVOTE, ss));
-                                }
-                            }
-                        }
                         pushed = true;
                     }
                 }
@@ -3156,7 +3114,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // legacy znodes
             if (!fEvoZnodes) {
                 mnodeman.ProcessMessage(pfrom, command, vRecv);
-                znpayments.ProcessMessage(pfrom, command, vRecv);
                 sporkManager.ProcessSpork(pfrom, command, vRecv);
                 znodeSync.ProcessMessage(pfrom, command, vRecv);
             }

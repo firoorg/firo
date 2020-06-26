@@ -95,7 +95,6 @@
 #include <event2/event.h>
 #include <event2/thread.h>
 #include "activeznode.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "znodeconfig.h"
@@ -273,8 +272,6 @@ void Shutdown()
     GenerateBitcoins(false, 0, Params());
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     flatdb1.Dump(mnodeman);
-    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    flatdb2.Dump(znpayments);
     
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
@@ -2125,10 +2122,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         if (mnodeman.size()) {
             uiInterface.InitMessage(_("Loading Znode payment cache..."));
-            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-            if (!flatdb2.Load(znpayments)) {
-                return InitError("Failed to load znode payments cache from znpayments.dat");
-            }
         } else {
             uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
         }
@@ -2262,75 +2255,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
 
-    // ********************************************************* Step 13a: update block tip in Zcoin modules
-
-    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
-
-    if (!fEvoZnodes) {
-        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-        // but don't call it directly to prevent triggering of other listeners like zmq etc.
-        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-        // governance.UpdatedBlockTip(chainActive.Tip());
-    }
-
-    // ********************************************************* Step 13b: start legacy znodes thread
-
-    // TODO: remove this code after switch to evo is done
-    if (!fEvoZnodes)
-    {
-        threadGroup.create_thread([] {
-
-            RenameThread("znode-tick");
-
-            if (fLiteMode)
-                return;
-
-            unsigned int nTick = 0;
-
-            while (true) {
-                MilliSleep(1000);
-
-                {
-                    LOCK(cs_main);
-                    // shut legacy znode down if past 6 blocks of DIP3 enforcement
-                    if (chainActive.Height()-6 >= Params().GetConsensus().DIP0003EnforcementHeight)
-                        break;
-                }
-                    
-                znodeSync.ProcessTick();
-
-                if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
-                    nTick++;
-
-                    LOCK(cs_main);
-
-                    // make sure to check all znodes first
-                    mnodeman.Check();
-
-                    mnodeman.ProcessPendingMnvRequests(*g_connman);
-
-                    // check if we should activate or ping every few minutes,
-                    // slightly postpone first run to give net thread a chance to connect to some peers
-                    if (nTick % ZNODE_MIN_MNP_SECONDS == 15)
-                        activeZnode.ManageState();
-
-                    if (nTick % 60 == 0) {
-                        mnodeman.ProcessZnodeConnections();
-                        mnodeman.CheckAndRemove();
-                        znpayments.CheckAndRemove();
-                        instantsend.CheckAndRemove();
-                    }
-                    if (fMasternodeMode && (nTick % (60 * 5) == 0)) {
-                        mnodeman.DoFullVerificationStep();
-                    }
-                }
-            }
-        });
-    }
+    // ********************************************************* Step 13: Znode - obsoleted
 
     // ********************************************************* Step 14: finished
 

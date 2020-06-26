@@ -4,8 +4,6 @@
 
 #include "activeznode.h"
 #include "addrman.h"
-//#include "governance.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
@@ -432,30 +430,12 @@ void CZnodeMan::Clear()
 
 int CZnodeMan::CountZnodes(int nProtocolVersion)
 {
-    LOCK(cs);
-    int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
-
-    BOOST_FOREACH(CZnode& mn, vZnodes) {
-        if(mn.nProtocolVersion < nProtocolVersion) continue;
-        nCount++;
-    }
-
-    return nCount;
+    return 0;
 }
 
 int CZnodeMan::CountEnabled(int nProtocolVersion)
 {
-    LOCK(cs);
-    int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
-
-    BOOST_FOREACH(CZnode& mn, vZnodes) {
-        if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
-        nCount++;
-    }
-
-    return nCount;
+    return 0;
 }
 
 /* Only IPv4 znodes are allowed in 12.1, saving this for later
@@ -609,22 +589,6 @@ char* CZnodeMan::GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterS
         sprintf(reasonStr, "false: 'not valid for payment'");
         return reasonStr;
     }
-    // //check protocol version
-    if (mn.nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
-        // LogPrintf("Invalid nProtocolVersion!\n");
-        // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
-        // LogPrintf("znpayments.GetMinZnodePaymentsProto=%s!\n", znpayments.GetMinZnodePaymentsProto());
-        char* reasonStr = new char[256];
-        sprintf(reasonStr, "false: 'Invalid nProtocolVersion', nProtocolVersion=%d", mn.nProtocolVersion);
-        return reasonStr;
-    }
-    //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-    if (znpayments.IsScheduled(mn, nBlockHeight)) {
-        // LogPrintf("znpayments.IsScheduled!\n");
-        char* reasonStr = new char[256];
-        sprintf(reasonStr, "false: 'is scheduled'");
-        return reasonStr;
-    }
     //it's too new, wait for a cycle
     if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
         // LogPrintf("it's too new, wait for a cycle!\n");
@@ -756,44 +720,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
 
 CZnode* CZnodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
 {
-    LOCK(cs);
-
-    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
-
-    int nCountEnabled = CountEnabled(nProtocolVersion);
-    int nCountNotExcluded = nCountEnabled - vecToExclude.size();
-
-    LogPrintf("CZnodeMan::FindRandomNotInVec -- %d enabled znodes, %d znodes to choose from\n", nCountEnabled, nCountNotExcluded);
-    if(nCountNotExcluded < 1) return NULL;
-
-    // fill a vector of pointers
-    std::vector<CZnode*> vpZnodesShuffled;
-    BOOST_FOREACH(CZnode &mn, vZnodes) {
-        vpZnodesShuffled.push_back(&mn);
-    }
-
-    InsecureRand insecureRand;
-    // shuffle pointers
-    std::random_shuffle(vpZnodesShuffled.begin(), vpZnodesShuffled.end(), insecureRand);
-    bool fExclude;
-
-    // loop through
-    BOOST_FOREACH(CZnode* pmn, vpZnodesShuffled) {
-        if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
-        fExclude = false;
-        BOOST_FOREACH(const CTxIn &txinToExclude, vecToExclude) {
-            if(pmn->vin.prevout == txinToExclude.prevout) {
-                fExclude = true;
-                break;
-            }
-        }
-        if(fExclude) continue;
-        // found the one not in vecToExclude
-        LogPrint("znode", "CZnodeMan::FindRandomNotInVec -- found, znode=%s\n", pmn->vin.prevout.ToStringShort());
-        return pmn;
-    }
-
-    LogPrint("znode", "CZnodeMan::FindRandomNotInVec -- failed\n");
     return NULL;
 }
 
@@ -1682,27 +1608,6 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
 
 void CZnodeMan::UpdateLastPaid()
 {
-    LOCK(cs);
-    if(fLiteMode) return;
-    if(!pCurrentBlockIndex) {
-        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
-        return;
-    }
-
-    static bool IsFirstRun = true;
-    // Do full scan on first run or if we are not a znode
-    // (MNs should update this info on every block, so limited scan should be enough for them)
-    int nMaxBlocksToScanBack = (IsFirstRun || !fMasternodeMode) ? znpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
-
-    LogPrint("znpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
-                             pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
-
-    BOOST_FOREACH(CZnode& mn, vZnodes) {
-        mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
-    }
-
-    // every time is like the first time if winners list is not synced
-    IsFirstRun = !znodeSync.IsWinnersListSynced();
 }
 
 void CZnodeMan::CheckAndRebuildZnodeIndex()

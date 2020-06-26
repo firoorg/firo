@@ -51,7 +51,6 @@
 #include "mtpstate.h"
 
 #include "instantx.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "coins.h"
@@ -2507,30 +2506,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                REJECT_INVALID, "bad-cb-amount");
 
     std::string strError = "";
-    if (deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
-        // evo znodes
-        if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-            return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
-        }
-       
-        if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
-            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
-            return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
-                                    REJECT_INVALID, "bad-cb-payee");
-        }
+    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
+        return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
-    else {
-        // legacy znodes
-        if (!IsZnodeBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-            return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
-        }
 
-        if (!IsZnodeBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
-            mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-            return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
-                            REJECT_INVALID, "bad-cb-payee");
-        }
-
+    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
+        mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
+                                REJECT_INVALID, "bad-cb-payee");
     }
 
     if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
@@ -2802,12 +2785,6 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
-
-    if (pindexNew->nHeight < chainParams.GetConsensus().DIP0003EnforcementHeight) {
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-    }
 
     // New best block
     txpools.AddTransactionsUpdated(1);

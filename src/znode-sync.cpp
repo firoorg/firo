@@ -6,7 +6,6 @@
 #include "checkpoints.h"
 #include "validation.h"
 #include "znode.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
@@ -366,7 +365,6 @@ void CZnodeSync::ProcessTick() {
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
 
-                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
 
                 mnodeman.DsegUpdate(pnode);
@@ -396,27 +394,11 @@ void CZnodeSync::ProcessTick() {
                     return;
                 }
 
-                // check for data
-                // if znpayments already has enough blocks and votes, switch to the next asset
-                // try to fetch data from at least two peers though
-                if (nRequestedZnodeAttempt > 1 && znpayments.IsEnoughData()) {
-                    LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- found enough data\n", nTick, nRequestedZnodeAssets);
-                    SwitchToNextAsset();
-                    g_connman->ReleaseNodeVector(vNodesCopy);
-                    return;
-                }
-
                 // only request once from each peer
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
 
-                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
-
-                // ask node for all payment votes it has (new nodes will only return votes for future payments)
-                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, znpayments.GetStorageLimit()));
-                // ask node for missing pieces only (old nodes will not be asked)
-                znpayments.RequestLowDataPaymentBlocks(pnode);
 
                 g_connman->ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
