@@ -95,6 +95,8 @@
 #include <event2/thread.h>
 #include "netfulfilledman.h"
 #include "flat-database.h"
+#include "instantx.h"
+#include "spork.h"
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -1990,7 +1992,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError("Enabling Znode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
-
 
     // evo znode system
     if(fLiteMode && fMasternodeMode) {
