@@ -2,7 +2,7 @@
 
 #include "evo/deterministicmns.h"
 #include "znode.h"
-#include "znodesync-interface.h"
+#include "masternode-sync.h"
 #include "chain.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
@@ -41,7 +41,7 @@ bool NotifyZnodeWarning::shouldShow()
        znodeConfig.getCount() == 0 ||                         // no legacy znodes detected
        !CZnode::IsLegacyWindow(chainActive.Tip()->nHeight) || // outside of legacy window
        !pwalletMain ||                                        // wallet not yet loaded
-       !znodeSyncInterface.IsSynced())                        // znode state not yet synced
+       !masternodeSync.IsSynced())                        // znode state not yet synced
         return false;
 
     // get Znode entries.

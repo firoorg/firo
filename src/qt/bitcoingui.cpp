@@ -38,7 +38,7 @@
 
 #include "znode.h"
 #include "evo/deterministicmns.h"
-#include "znodesync-interface.h"
+#include "masternode-sync.h"
 #include "znodelist.h"
 #include "masternodelist.h"
 #include "notifyznodewarning.h"
@@ -1024,7 +1024,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     }
 #endif // ENABLE_WALLET
 
-    if (!znodeSyncInterface.IsBlockchainSynced())
+    if (!masternodeSync.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
@@ -1078,7 +1078,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         return;
 
     // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(!znodeSyncInterface.IsBlockchainSynced())
+    if(!masternodeSync.IsBlockchainSynced())
         return;
 
     // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
@@ -1095,7 +1095,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         walletFrame->showOutOfSyncWarning(false);
 #endif // ENABLE_WALLET
 
-    if(znodeSyncInterface.IsSynced()) {
+    if(masternodeSync.IsSynced()) {
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
@@ -1115,7 +1115,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
     }
 
-    strSyncStatus = QString(znodeSyncInterface.GetSyncStatus().c_str());
+    strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
     progressBarLabel->setText(strSyncStatus);
     tooltip = strSyncStatus + QString("<br>") + tooltip;
 
