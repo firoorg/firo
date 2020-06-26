@@ -88,6 +88,21 @@ UniValue getNewAddress()
     return CBitcoinAddress(keyID).ToString();
 }
 
+
+UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    std::string address = "";
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    if(!walletdb.ReadPaymentRequestAddress(address)){
+       address = getNewAddress().get_str();
+       walletdb.WritePaymentRequestAddress(address);
+    }
+    return address;
+}
+
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {   
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -397,9 +412,10 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "send",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
-    { "send",            "txFee",           &txfee,                   true,      false,           false  },
-    { "send",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
+    { "send",            "paymentRequest",         &paymentrequest,         true,      false,           false  },
+    { "send",            "paymentRequestAddress",  &paymentrequestaddress,  true,      false,           false  },
+    { "send",            "txFee",                  &txfee,                  true,      false,           false  },
+    { "send",            "sendZcoin",              &sendzcoin,              true,      true,            false  }
 
 };
 

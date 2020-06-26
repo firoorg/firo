@@ -207,8 +207,12 @@ public:
     bool WriteBestBlock(const CBlockLocator& locator);
     bool ReadBestBlock(CBlockLocator& locator);
 
+#ifdef ENABLE_CLIENTAPI
     bool WriteShowMnemonicsWarning(bool shouldShow);
     bool ReadShowMnemonicsWarning();
+    bool WritePaymentRequestAddress(const std::string& address);
+    bool ReadPaymentRequestAddress(std::string address);
+#endif
 
     bool WriteOrderPosNext(int64_t nOrderPosNext);
 
