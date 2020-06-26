@@ -102,7 +102,6 @@
 #include "flat-database.h"
 #include "instantx.h"
 #include "spork.h"
-#include "darksend.h"
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -2015,18 +2014,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
             return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
         }
-
-        std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
-        if (!strZnodePrivKey.empty()) {
-            if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
-                                                  activeZnode.pubKeyZnode))
-                return InitError(_("Invalid znodeprivkey. Please see documentation."));
-
-            LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
-        } else {
-            return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
-        }
     }
 
     LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
@@ -2088,26 +2075,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // ********************************************************* Step 10b: PrivateSend (some of its functions are required for legacy znode operation)
-
-    nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
-    nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
-    darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
-
-    fEnablePrivateSend = false;
-//    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
-//    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
-//    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
-//    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
-//    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
-//    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
-
-    fEnableInstantSend = false;
-//    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
-//    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
-//    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
-
-    darkSendPool.InitDenominations();
-
+    // Obsoleted
     // ********************************************************* Step 10c: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE

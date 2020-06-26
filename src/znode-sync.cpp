@@ -10,7 +10,6 @@
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"
-#include "darksend.h"
 #include "net_processing.h"
 #include "netmessagemaker.h"
 #include "util.h"

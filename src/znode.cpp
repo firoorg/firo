@@ -9,7 +9,6 @@
 #include "znode.h"
 #include "znode-sync.h"
 #include "znodeman.h"
-#include "darksend.h"
 #include "util.h"
 #include "net.h"
 #include "netbase.h"
@@ -426,13 +425,6 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
         return false;
     }
 
-    //TODO
-    if (!darkSendSigner.GetKeysFromSecret(strKeyZnode, keyZnodeNew, pubKeyZnodeNew)) {
-        strErrorRet = strprintf("Invalid znode key %s", strKeyZnode);
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
-
     if (!pwalletMain->GetZnodeVinAndKeys(txin, pubKeyCollateralAddressNew, keyCollateralAddressNew, strTxHash, strOutputIndex)) {
         strErrorRet = strprintf("Could not allocate txin %s:%s for znode %s", strTxHash, strOutputIndex, strService);
         LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
@@ -642,14 +634,6 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
 
     LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO verified\n");
 
-    // make sure the vout that was signed is related to the transaction that spawned the Znode
-    //  - this is expensive, so it's only done once per Znode
-    if (!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
-        LogPrintf("CZnodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
-        nDos = 33;
-        return false;
-    }
-
     // verify that sig time is legit in past
     // should be at least not earlier than block when 1000 XZC tx got nZnodeMinimumConfirmations
     uint256 hashBlock = uint256();
@@ -682,16 +666,6 @@ bool CZnodeBroadcast::Sign(CKey &keyCollateralAddress) {
                  pubKeyCollateralAddress.GetID().ToString() + pubKeyZnode.GetID().ToString() +
                  boost::lexical_cast<std::string>(nProtocolVersion);
 
-    if (!darkSendSigner.SignMessage(strMessage, vchSig, keyCollateralAddress)) {
-        LogPrintf("CZnodeBroadcast::Sign -- SignMessage() failed\n");
-        return false;
-    }
-
-    if (!darkSendSigner.VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
-        LogPrintf("CZnodeBroadcast::Sign -- VerifyMessage() failed, error: %s\n", strError);
-        return false;
-    }
-
     return true;
 }
 
@@ -705,12 +679,6 @@ bool CZnodeBroadcast::CheckSignature(int &nDos) {
                  boost::lexical_cast<std::string>(nProtocolVersion);
 
     LogPrint("znode", "CZnodeBroadcast::CheckSignature -- strMessage: %s  pubKeyCollateralAddress address: %s  sig: %s\n", strMessage, CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString(), EncodeBase64(&vchSig[0], vchSig.size()));
-
-    if (!darkSendSigner.VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
-        LogPrintf("CZnodeBroadcast::CheckSignature -- Got bad Znode announce signature, error: %s\n", strError);
-        nDos = 100;
-        return false;
-    }
 
     return true;
 }
@@ -738,16 +706,6 @@ bool CZnodePing::Sign(CKey &keyZnode, CPubKey &pubKeyZnode) {
     sigTime = GetAdjustedTime();
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
 
-    if (!darkSendSigner.SignMessage(strMessage, vchSig, keyZnode)) {
-        LogPrintf("CZnodePing::Sign -- SignMessage() failed\n");
-        return false;
-    }
-
-    if (!darkSendSigner.VerifyMessage(pubKeyZnode, vchSig, strMessage, strError)) {
-        LogPrintf("CZnodePing::Sign -- VerifyMessage() failed, error: %s\n", strError);
-        return false;
-    }
-
     return true;
 }
 
@@ -756,11 +714,6 @@ bool CZnodePing::CheckSignature(CPubKey &pubKeyZnode, int &nDos) {
     std::string strError = "";
     nDos = 0;
 
-    if (!darkSendSigner.VerifyMessage(pubKeyZnode, vchSig, strMessage, strError)) {
-        LogPrintf("CZnodePing::CheckSignature -- Got bad Znode ping signature, znode=%s, error: %s\n", vin.prevout.ToStringShort(), strError);
-        nDos = 33;
-        return false;
-    }
     return true;
 }
 

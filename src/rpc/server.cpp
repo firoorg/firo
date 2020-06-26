@@ -335,7 +335,6 @@ static const CRPCCommand vRPCCommands[] =
         /* Zcoin features */
     { "zcoin",               "znsync",                &znsync,                 true  },
     { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
-    { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
 };
 
 CRPCTable::CRPCTable()
