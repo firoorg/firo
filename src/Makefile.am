@@ -195,7 +195,6 @@ BITCOIN_CORE_H = \
   limitedmap.h \
   threadinterrupt.h \
   znode.h \
-  znode-payments.h \
   znode-sync.h \
   masternode-utils.h \
   znodeman.h \
@@ -466,7 +465,6 @@ libbitcoin_wallet_a_SOURCES = \
   darksend.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
-  znode-payments.cpp \
   znode-sync.cpp \
   masternode-sync.cpp \
   znodesync-interface.cpp \

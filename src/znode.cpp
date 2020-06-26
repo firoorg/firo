@@ -6,9 +6,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "init.h"
-//#include "governance.h"
 #include "znode.h"
-#include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "darksend.h"
@@ -234,19 +232,6 @@ void CZnode::Check(bool fForce) {
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
 
-    // znode doesn't meet payment protocol requirements ...
-    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
-                          // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
-                          (fOurZnode && (nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1 || nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2));
-
-    if (fRequireUpdate) {
-        nActiveState = ZNODE_UPDATE_REQUIRED;
-        if (nActiveStatePrev != nActiveState) {
-            LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-        }
-        return;
-    }
-
     // keep old znodes on start, give them a chance to receive updates...
     bool fWaitForPing = !znodeSync.IsZnodeListSynced() && !IsPingedWithin(ZNODE_MIN_MNP_SECONDS);
 
@@ -425,53 +410,6 @@ int CZnode::GetCollateralAge() {
 }
 
 void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack) {
-    if (!pindex) {
-        LogPrintf("CZnode::UpdateLastPaid pindex is NULL\n");
-        return;
-    }
-
-    const Consensus::Params &params = Params().GetConsensus();
-    const CBlockIndex *BlockReading = pindex;
-
-    CScript mnpayee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-    LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
-
-    LOCK(cs_mapZnodeBlocks);
-
-    for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
-//        LogPrintf("znpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", znpayments.mapZnodeBlocks.count(BlockReading->nHeight));
-//        LogPrintf("znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
-        if (znpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
-            znpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
-            // LogPrintf("i=%s, BlockReading->nHeight=%s\n", i, BlockReading->nHeight);
-            CBlock block;
-            if (!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
-            {
-                LogPrintf("ReadBlockFromDisk failed\n");
-                continue;
-            }
-            bool fMTP = BlockReading->nHeight > 0 && BlockReading->nTime >= params.nMTPSwitchTime;
-            CAmount nZnodePayment = GetZnodePayment(params, fMTP);
-
-            BOOST_FOREACH(CTxOut txout, block.vtx[0]->vout)
-            if (mnpayee == txout.scriptPubKey && nZnodePayment == txout.nValue) {
-                nBlockLastPaid = BlockReading->nHeight;
-                nTimeLastPaid = BlockReading->nTime;
-                LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
-                return;
-            }
-        }
-
-        if (BlockReading->pprev == NULL) {
-            assert(BlockReading);
-            break;
-        }
-        BlockReading = BlockReading->pprev;
-    }
-
-    // Last payment for this znode wasn't found in latest znpayments blocks
-    // or it was found in znpayments blocks but wasn't found in the blockchain.
-    // LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
 }
 
 bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, std::string strTxHash, std::string strOutputIndex, std::string &strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline) {
@@ -537,7 +475,6 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
         return false;
     }
 
-    int nHeight = chainActive.Height();
     mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, LEGACY_ZNODES_PROTOCOL_VERSION);
 
     if (!mnbRet.IsValidNetAddr()) {
@@ -579,11 +516,6 @@ bool CZnodeBroadcast::SimpleCheck(int &nDos) {
     if (lastPing == CZnodePing() || !lastPing.SimpleCheck(nDos)) {
         // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
         nActiveState = ZNODE_EXPIRED;
-    }
-
-    if (nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- ignoring outdated Znode: znode=%s  nProtocolVersion=%d\n", vin.prevout.ToStringShort(), nProtocolVersion);
-        return false;
     }
 
     CScript pubkeyScript;

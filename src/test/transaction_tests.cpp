@@ -23,7 +23,6 @@
 #include "utilstrencodings.h"
 #include "znodeman.h"
 #include "znode-sync.h"
-#include "znode-payments.h"
 
 #include <map>
 #include <string>

@@ -253,8 +253,6 @@ std::string CInv::GetCommand() const
     case MSG_TXLOCK_REQUEST:        return cmd.append(NetMsgType::TXLOCKREQUEST);
     case MSG_TXLOCK_VOTE:           return cmd.append(NetMsgType::TXLOCKVOTE);
     case MSG_SPORK:                 return cmd.append(NetMsgType::SPORK);
-    case MSG_ZNODE_PAYMENT_VOTE:    return cmd.append(NetMsgType::ZNODEPAYMENTVOTE);
-    case MSG_ZNODE_PAYMENT_BLOCK:   return cmd.append(NetMsgType::ZNODEPAYMENTBLOCK);
     case MSG_ZNODE_ANNOUNCE:        return cmd.append(NetMsgType::MNANNOUNCE);
     case MSG_ZNODE_PING:            return cmd.append(NetMsgType::MNPING);
     case MSG_DSTX:                  return cmd.append(NetMsgType::DSTX);
