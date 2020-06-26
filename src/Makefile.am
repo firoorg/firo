@@ -185,8 +185,6 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
-  darksend.h \
-  darksend-relay.h \
   init.h \
   instantx.h \
   key.h \
@@ -460,7 +458,6 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   activemasternode.cpp \
-  darksend.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
   znode-sync.cpp \

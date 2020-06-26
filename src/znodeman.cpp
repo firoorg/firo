@@ -7,7 +7,6 @@
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
-#include "darksend.h"
 #include "netmessagemaker.h"
 #include "net.h"
 #include "net_processing.h"
@@ -832,13 +831,6 @@ void CZnodeMan::ProcessZnodeConnections()
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
 
     LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes) {
-        if(pnode->fZnode) {
-            if(darkSendPool.pSubmittedToZnode != NULL && pnode->addr == darkSendPool.pSubmittedToZnode->addr) continue;
-            // LogPrintf("Closing Znode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
-            pnode->fDisconnect = true;
-        }
-    }
 }
 
 std::pair<CService, std::set<uint256> > CZnodeMan::PopScheduledMnbRequestConnection()
@@ -1244,19 +1236,6 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
 
     std::string strMessage = strprintf("%s%d%s", activeZnode.service.ToString(), mnv.nonce, blockHash.ToString());
 
-    if(!darkSendSigner.SignMessage(strMessage, mnv.vchSig1, activeZnode.keyZnode)) {
-        LogPrintf("ZnodeMan::SendVerifyReply -- SignMessage() failed\n");
-        return;
-    }
-
-    std::string strError;
-
-    if(!darkSendSigner.VerifyMessage(activeZnode.pubKeyZnode, mnv.vchSig1, strMessage, strError)) {
-        LogPrintf("ZnodeMan::SendVerifyReply -- VerifyMessage() failed, error: %s\n", strError);
-        return;
-    }
-
-    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
 }
 
@@ -1308,46 +1287,6 @@ void CZnodeMan::ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv)
         std::vector<CZnode*> vpZnodesToBan;
         std::vector<CZnode>::iterator it = vZnodes.begin();
         std::string strMessage1 = strprintf("%s%d%s", pnode->addr.ToString(), mnv.nonce, blockHash.ToString());
-        while(it != vZnodes.end()) {
-            if(CAddress(it->addr, NODE_NETWORK) == pnode->addr) {
-                if(darkSendSigner.VerifyMessage(it->pubKeyZnode, mnv.vchSig1, strMessage1, strError)) {
-                    // found it!
-                    prealZnode = &(*it);
-                    if(!it->IsPoSeVerified()) {
-                        it->DecreasePoSeBanScore();
-                    }
-                    netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
-
-                    // we can only broadcast it if we are an activated znode
-                    if(activeZnode.vin == CTxIn()) continue;
-                    // update ...
-                    mnv.addr = it->addr;
-                    mnv.vin1 = it->vin;
-                    mnv.vin2 = activeZnode.vin;
-                    std::string strMessage2 = strprintf("%s%d%s%s%s", mnv.addr.ToString(), mnv.nonce, blockHash.ToString(),
-                                            mnv.vin1.prevout.ToStringShort(), mnv.vin2.prevout.ToStringShort());
-                    // ... and sign it
-                    if(!darkSendSigner.SignMessage(strMessage2, mnv.vchSig2, activeZnode.keyZnode)) {
-                        LogPrintf("ZnodeMan::ProcessVerifyReply -- SignMessage() failed\n");
-                        return;
-                    }
-
-                    std::string strError;
-
-                    if(!darkSendSigner.VerifyMessage(activeZnode.pubKeyZnode, mnv.vchSig2, strMessage2, strError)) {
-                        LogPrintf("ZnodeMan::ProcessVerifyReply -- VerifyMessage() failed, error: %s\n", strError);
-                        return;
-                    }
-
-                    mWeAskedForVerification[pnode->addr] = mnv;
-                    mnv.Relay();
-
-                } else {
-                    vpZnodesToBan.push_back(&(*it));
-                }
-            }
-            ++it;
-        }
         // no real znode found?...
         if(!prealZnode) {
             // this should never be the case normally,
@@ -1437,16 +1376,6 @@ void CZnodeMan::ProcessVerifyBroadcast(CNode* pnode, const CZnodeVerification& m
 
         if(pmn1->addr != mnv.addr) {
             LogPrintf("CZnodeMan::ProcessVerifyBroadcast -- addr %s do not match %s\n", mnv.addr.ToString(), pnode->addr.ToString());
-            return;
-        }
-
-        if(darkSendSigner.VerifyMessage(pmn1->pubKeyZnode, mnv.vchSig1, strMessage1, strError)) {
-            LogPrintf("ZnodeMan::ProcessVerifyBroadcast -- VerifyMessage() for znode1 failed, error: %s\n", strError);
-            return;
-        }
-
-        if(darkSendSigner.VerifyMessage(pmn2->pubKeyZnode, mnv.vchSig2, strMessage2, strError)) {
-            LogPrintf("ZnodeMan::ProcessVerifyBroadcast -- VerifyMessage() for znode2 failed, error: %s\n", strError);
             return;
         }
 

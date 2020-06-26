@@ -4,7 +4,6 @@
 #include "znode-sync.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
-#include "darksend.h"
 #include "rpc/server.h"
 #include "util.h"
 #include "utilmoneystr.h"
@@ -14,77 +13,6 @@
 #include <fstream>
 #include <iomanip>
 #include <univalue.h>
-
-UniValue privatesend(const JSONRPCRequest &request) {
-    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
-
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "privatesend \"command\"\n"
-                        "\nArguments:\n"
-                        "1. \"command\"        (string or set of strings, required) The command to execute\n"
-                        "\nAvailable commands:\n"
-                        "  start       - Start mixing\n"
-                        "  stop        - Stop mixing\n"
-                        "  reset       - Reset mixing\n"
-        );
-
-    if (request.params[0].get_str() == "start") {
-        {
-            LOCK(pwallet->cs_wallet);
-            EnsureWalletIsUnlocked(pwallet);
-        }
-
-        if (fMasternodeMode)
-            return "Mixing is not supported from znodes";
-
-        fEnablePrivateSend = true;
-        bool result = darkSendPool.DoAutomaticDenominating();
-        return "Mixing " +
-               (result ? "started successfully" : ("start failed: " + darkSendPool.GetStatus() + ", will retry"));
-    }
-
-    if (request.params[0].get_str() == "stop") {
-        fEnablePrivateSend = false;
-        return "Mixing was stopped";
-    }
-
-    if (request.params[0].get_str() == "reset") {
-        darkSendPool.ResetPool();
-        return "Mixing was reset";
-    }
-
-    return "Unknown command, please see \"help privatesend\"";
-}
-
-UniValue getpoolinfo(const JSONRPCRequest &request) {
-    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
-
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getpoolinfo\n"
-                        "Returns an object containing mixing pool related information.\n");
-
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("state", darkSendPool.GetStateString()));
-//    obj.push_back(Pair("mixing_mode",       fPrivateSendMultiSession ? "multi-session" : "normal"));
-    obj.push_back(Pair("queue", darkSendPool.GetQueueSize()));
-    obj.push_back(Pair("entries", darkSendPool.GetEntriesCount()));
-    obj.push_back(Pair("status", darkSendPool.GetStatus()));
-
-    if (darkSendPool.pSubmittedToZnode) {
-        obj.push_back(Pair("outpoint", darkSendPool.pSubmittedToZnode->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("addr", darkSendPool.pSubmittedToZnode->addr.ToString()));
-    }
-
-    if (pwallet) {
-        obj.push_back(Pair("keys_left", pwallet->nKeysLeftSinceAutoBackup));
-        obj.push_back(Pair("warnings", pwallet->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
-                                       ? "WARNING: keypool is almost depleted!" : ""));
-    }
-
-    return obj;
-}
 
 bool DecodeHexVecMnb(std::vector <CZnodeBroadcast> &vecMnb, std::string strHexMnb) {
 
