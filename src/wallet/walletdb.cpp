@@ -107,6 +107,18 @@ bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
     return true;
 }
 
+#ifdef ENABLE_CLIENTAPI
+bool CWalletDB::WritePaymentRequestAddress(const std::string& address) {
+    nWalletDBUpdateCounter++;
+    return Write(std::string("paymentrequestaddress"), address);
+}
+
+bool CWalletDB::ReadPaymentRequestAddress(std::string address) {
+    nWalletDBUpdateCounter++;
+    return Read(std::string("paymentrequestaddress"), address);
+}
+#endif
+
 bool CWalletDB::WriteShowMnemonicsWarning(bool shouldShow) {
     nWalletDBUpdateCounter++;
     return Write(std::string("mnemonicswarning"), shouldShow);

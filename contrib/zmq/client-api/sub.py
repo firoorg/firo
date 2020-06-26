@@ -10,7 +10,7 @@ from os.path import expanduser
 from getpass import getuser
 
 ############ START DEFAULTS #########################
-network = "testnet"
+network = "regtest"
 auth = True
 os = "mac"
 ############ END DEFAULTS ###########################
