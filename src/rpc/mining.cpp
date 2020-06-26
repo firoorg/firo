@@ -19,11 +19,11 @@
 #include "rpc/server.h"
 #include "txmempool.h"
 #include "util.h"
-#include "znodesync-interface.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
 #include "masternode-payments.h"
+#include "masternode-sync.h"
 
 #include <memory>
 #include <stdint.h>
@@ -540,7 +540,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin is downloading blocks...");
 
-    if (Params().GetConsensus().IsMain() && !znodeSyncInterface.IsSynced())
+    if (Params().GetConsensus().IsMain() && !masternodeSync.IsSynced())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin Core is syncing with network...");
 
     static unsigned int nTransactionsUpdatedLast;

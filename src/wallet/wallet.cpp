@@ -37,7 +37,7 @@
 #include "validation.h"
 #include "instantx.h"
 #include "znode.h"
-#include "znodesync-interface.h"
+#include "masternode-sync.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
@@ -4383,7 +4383,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         return false;
     }
 
-    if (!params.IsRegtest() && !znodeSyncInterface.IsBlockchainSynced()) {
+    if (!params.IsRegtest() && !masternodeSync.IsBlockchainSynced()) {
         stringError = "Blockchain is not synced";
         return false;
     }

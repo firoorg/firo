@@ -284,7 +284,6 @@ BITCOIN_CORE_H = \
   masternode-meta.h \
   masternode-payments.h \
   masternode-sync.h \
-  znodesync-interface.h \
   saltedhasher.h \
   unordered_lru_cache.h \
   llmq/quorums.h \
@@ -399,7 +398,6 @@ libbitcoin_server_a_SOURCES = \
   masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
-  znodesync-interface.cpp \
   masternode-utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -467,7 +465,6 @@ libbitcoin_wallet_a_SOURCES = \
   znode.cpp \
   znode-sync.cpp \
   masternode-sync.cpp \
-  znodesync-interface.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
   hdmint/mintpool.cpp \
