@@ -12,10 +12,11 @@ from getpass import getuser
 ############ START DEFAULTS #########################
 function_id = "" # see 'get_function' for possible values. edit "data" object in each function as is needed
 auth = True
-os = "mac"
-network = "testnet"
+os = "ubuntu"
+network = "regtest"
 passphrase = "passphrase"
 ############ END DEFAULTS ###########################
+
 
 ############ START UTIL FUNCTIONS ###################
 def params(args):
@@ -73,54 +74,58 @@ def get_function(function_id, passphrase):
         return list_mints(passphrase)
     if(function_id=="lockCoins"):
         return lock_coin()
-    if(function_id=="masternode_list"):
+    if(function_id=="masternodeList"):
         return masternode_list()
     if(function_id=="mint"):
         return mint(passphrase)
+    if(function_id=="paymentRequest"):
+        return payment_request()
+    if(function_id=="paymentRequestAddress"):
+        return payment_request_address()
     if(function_id=="privateTxFee"):
-        return private_tx_fee();
+        return private_tx_fee()
     if(function_id=="readAddressBook"):
-        return read_address_book();
+        return read_address_book()
     if(function_id=="rebroadcast"):
-        return rebroadcast();
+        return rebroadcast()
     if(function_id=="rpc_initial"):
-        return rpc_initial();
+        return rpc_initial()
     if(function_id=="rpc_create"):
-        return rpc_create();
+        return rpc_create()
     if(function_id=="sendPrivate"):
-        return send_private(passphrase);
+        return send_private(passphrase)
     if(function_id=="sendZcoin"):
-        return send_zcoin(passphrase);
+        return send_zcoin(passphrase)
     if(function_id=="setPassphrase_update"):
-        return set_passphrase_update(passphrase);
+        return set_passphrase_update(passphrase)
     if(function_id=="setPassphrase_create"):
-        return set_passphrase_create(passphrase);
+        return set_passphrase_create(passphrase)
     if(function_id=="setting_initial"):
-        return setting_initial();
+        return setting_initial()
     if(function_id=="setting_create"):
-        return setting_create();
+        return setting_create()
     if(function_id=="setting_update"):
-        return setting_update();
+        return setting_update()
     if(function_id=="setting_get"):
-        return setting_get();
+        return setting_get()
     if(function_id=="showMnemonics"):
-        return show_mnemonics();
+        return show_mnemonics()
     if(function_id=="stateWallet"):
-        return state_wallet();
+        return state_wallet()
     if(function_id=="txFee"):
-        return tx_fee();
+        return tx_fee()
     if(function_id=="unlockWallet"):
-        return unlock_wallet();
+        return unlock_wallet()
     if(function_id=="verifyMnemonicValidity"):
-        return verify_mnemonic_validity();
+        return verify_mnemonic_validity()
     if(function_id=="apiStatus"):
-        return write_show_mnemonic_warning();
+        return write_show_mnemonic_warning()
     if(function_id=="writeShowMnemonicWarning"):
-        return znode_control(passphrase);
+        return znode_control(passphrase)
     if(function_id=="znodeControl"):
-        return znode_key();
+        return znode_key()
     if(function_id=="znodeKey"):
-        return znode_list();
+        return znode_list()
 
     raise ValueError('Incorrect function_id string passed.')
 
@@ -135,11 +140,11 @@ def get_datadir(os):
 
 def get_network_directory(network):
     if(network=="mainnet"):
-        return "";
+        return ""
     if(network=="testnet"):
-        return "testnet3/";
+        return "testnet3/"
     if(network=="regtest"):
-        return "regtest/";
+        return "regtest/"
     raise ValueError('Incorrect network string passed.') 
 
 def format(request):
@@ -261,15 +266,36 @@ def mint(passphrase):
     request["auth"] = auth
     return format(str(request))
 
+def payment_request():
+    request = {}
+    data = {}
+    data["amount"] = 1
+    data["label"] = "test_label"
+    data["message"] = "test_message"
+    data["address"] = "TCe9ccb62S5wQtyNaSoo9iG91cbirL2Vuc"
+    # formulate request
+    request["collection"] = "paymentRequest"
+    request["type"] = "create"
+    request["data"] = data
+    return format(str(request))
+
+def payment_request_address():
+    request = {}
+    data = {}
+    # formulate request
+    request["type"] = "none"
+    request["collection"] = "paymentRequestAddress"
+    request["data"] = data
+    return format(str(request))
+
 def private_tx_fee():
     request = {}
-    auth = {}
     data = {}
     outputs = []
     output = {}
     output["address"] = "TXQvbAsNKTGsKsk3279QsgGF2Uvbyc1vXm"
     output["amount"] = 100000000
-    outputs.add(output)
+    outputs.append(output)
     data["outputs"] = outputs
     data["label"] = "private_tx_fee label"
     data["subtractFeeFromAmount"] = False
@@ -319,7 +345,7 @@ def send_private(passphrase):
     auth["passphrase"] = passphrase
     output["address"] = "TXQvbAsNKTGsKsk3279QsgGF2Uvbyc1vXm"
     output["amount"] = 100000000
-    outputs.add(output)
+    outputs.append(output)
     coin_control["selected"] = ""
     data["outputs"] = outputs
     data["label"] = "send_private label"
@@ -417,14 +443,14 @@ def setting_get():
     settings = []
     setting_0 = ""
     setting_1 = ""
-    settings.add(setting_0, setting_1)
+    settings.append(setting_0, setting_1)
     data["settings"] = settings
     request["type"] = "update"
     request["collection"] = "setting"
     request["data"] = data
     return format(str(request))
 
-def show_mnemonics(passphrase):
+def show_mnemonics():
     request = {}
     auth = {}
     auth["passphrase"] = "passphrase"

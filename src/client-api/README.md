@@ -46,6 +46,7 @@ A function with one or more operations.
 | [lockWallet](#lockwallet)                                         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                                                     | Mint 1 or more Sigma mints. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest)                                 | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
+| [paymentRequestAddress](#paymentrequestaddress)                   | read the next payment request address. 🔐 | - | – |
 | [privateTxFee](#privatetxfee)                                     | Gets the transaction fee and inputs required for the private spend data passed. | 🔐 | - | – |
 | [readAddressBook](#readaddressbook)                               | Read the addresses from the wallet address book. | 🔐 | - | - |
 | [readWalletMnemonicWarningState](#readwalletmnemonicwarningstate) | Read mnemonic status from the wallet database. | 🔐 | - | - |
@@ -567,6 +568,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
     data: {
         amount: INT (OPTIONAL),
+        address: STRING,
         label: STRING,
         message: STRING
     }
@@ -653,6 +655,25 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     meta:{
         status: 200
     }
+```
+
+### `paymentRequestAddress`
+`none`:
+```
+    data: {
+    }
+```
+
+*Returns:*
+```
+{
+    data: {
+        address: STRING
+    },
+    meta:{
+        status: 200
+    }
+}
 ```
 
 ### `privateTxFee`

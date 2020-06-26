@@ -113,9 +113,14 @@ bool CWalletDB::WritePaymentRequestAddress(const std::string& address) {
     return Write(std::string("paymentrequestaddress"), address);
 }
 
-bool CWalletDB::ReadPaymentRequestAddress(std::string address) {
+bool CWalletDB::ReadPaymentRequestAddress(std::string& address) {
     nWalletDBUpdateCounter++;
     return Read(std::string("paymentrequestaddress"), address);
+}
+
+bool CWalletDB::ErasePaymentRequestAddress() {
+    nWalletDBUpdateCounter++;
+    return Erase(std::string("paymentrequestaddress"));
 }
 #endif
 

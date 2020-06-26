@@ -94,13 +94,15 @@ UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& 
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
+    UniValue ret(UniValue::VOBJ);
     std::string address = "";
     CWalletDB walletdb(pwalletMain->strWalletFile);
     if(!walletdb.ReadPaymentRequestAddress(address)){
        address = getNewAddress().get_str();
        walletdb.WritePaymentRequestAddress(address);
     }
-    return address;
+    ret.push_back(Pair("address", address));
+    return ret;
 }
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -294,39 +296,43 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             break;
         }
         case Create: {     
-            UniValue newAddress = "";
-            if (!find_value(data, "address").isNull()) {
-                if (find_value(data, "address").get_str() != "") {
-                    newAddress = find_value(data, "address");
-                }
-            }
-
-            if(newAddress.get_str()=="")
-                newAddress = getNewAddress();
 
             milliseconds secs = duration_cast< milliseconds >(
                  system_clock::now().time_since_epoch()
             );
             UniValue createdAt = secs.count();
 
-            entry.push_back(Pair("address", newAddress.get_str()));
+            std::string paymentRequestAddress;
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
             entry.push_back(Pair("state", "active"));
 
             try{
+                paymentRequestAddress = find_value(data, "address").get_str();
                 entry.push_back(Pair("amount", find_value(data, "amount")));
+                entry.push_back(Pair("address", paymentRequestAddress));
                 entry.push_back(Pair("message", find_value(data, "message").get_str()));
                 entry.push_back(Pair("label", find_value(data, "label").get_str()));
             }catch (const std::exception& e){
                 throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
             }
             
-            paymentRequestData.push_back(Pair(newAddress.get_str(), entry));
+            CWalletDB walletdb(pwalletMain->strWalletFile);
+            std::string nextPaymentRequestAddress;
+            if(!walletdb.ReadPaymentRequestAddress(nextPaymentRequestAddress))
+                throw runtime_error("Could not retrieve wallet payment address.");
+
+            if(nextPaymentRequestAddress != paymentRequestAddress)
+                throw runtime_error("Payment request address passed does not match wallet.");
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
             }
             returnEntry = true;
+
+            // remove payment request address
+            if(!walletdb.ErasePaymentRequestAddress())
+                throw runtime_error("Could not reset payment request address.");
+                    
             break;
         }
         case Delete: {

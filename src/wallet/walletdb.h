@@ -211,7 +211,8 @@ public:
     bool WriteShowMnemonicsWarning(bool shouldShow);
     bool ReadShowMnemonicsWarning();
     bool WritePaymentRequestAddress(const std::string& address);
-    bool ReadPaymentRequestAddress(std::string address);
+    bool ReadPaymentRequestAddress(std::string& address);
+    bool ErasePaymentRequestAddress();
 #endif
 
     bool WriteOrderPosNext(int64_t nOrderPosNext);
