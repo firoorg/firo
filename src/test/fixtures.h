@@ -54,8 +54,8 @@ public:
     LelantusTestingSetup();
 
 public:
-    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {});
-    void GenerateBlocks(size_t blocks);
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {}, CScript *script = nullptr);
+    void GenerateBlocks(size_t blocks, CScript *script = nullptr);
 
     std::vector<lelantus::PrivateCoin> GenerateMints(
         std::vector<CAmount> const &amounts);

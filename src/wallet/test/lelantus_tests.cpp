@@ -112,4 +112,57 @@ BOOST_AUTO_TEST_CASE(get_and_list_mints)
     BOOST_CHECK(!pwalletMain->GetMint(fakeSerial, entry));
 }
 
+BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
+{
+    // utils
+    auto countMintsBalance = [&](std::vector<std::pair<CWalletTx, CAmount>> const &wtxs) -> CAmount {
+
+        CAmount s = 0;
+        for (auto const &w : wtxs) {
+            for (auto const &out : w.first.tx->vout) {
+                if (out.scriptPubKey.IsLelantusMint()) {
+                    s += out.nValue;
+                }
+            }
+        }
+
+        return s;
+    };
+
+    size_t blocksNeeded = 200;
+    std::vector<CScript> scripts;
+
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        while (blocksNeeded != 0) {
+            auto key = pwalletMain->GenerateNewKey();
+            scripts.push_back(GetScriptForDestination(key.GetID()));
+
+            auto blockCount = std::min(size_t(10), blocksNeeded);
+
+            GenerateBlocks(blockCount, &scripts.back());
+
+            blocksNeeded -= blockCount;
+        }
+    }
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> hdMints;
+
+    // Produce just one txs
+    auto result = pwalletMain->MintAndStoreLelantus(10 * COIN, wtxAndFee, hdMints);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_EQUAL(1, wtxAndFee.size());
+    BOOST_CHECK_EQUAL(10 * COIN, countMintsBalance(wtxAndFee));
+
+    // Produce more than one txs
+    wtxAndFee.clear();
+    hdMints.clear();
+
+    result = pwalletMain->MintAndStoreLelantus(600 * COIN, wtxAndFee, hdMints);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_GT(wtxAndFee.size(), 1);
+    BOOST_CHECK_EQUAL(600 * COIN, countMintsBalance(wtxAndFee));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

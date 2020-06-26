@@ -5618,25 +5618,27 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 auto itr = valueAndUTXO.begin();
 
-                CAmount valueToMintInTx = std::min(::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
+                CAmount valueToMintInTx = std::min(
+                    ::Params().GetConsensus().nMaxValueLelantusMint,
+                    itr->first);
 
                 if (!autoMintAll) {
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);
                 }
 
-                CAmount nValueToSelect = valueToMintInTx + nFeeRet;
-                CAmount mintedValue = valueToMintInTx;
+                CAmount nValueToSelect, mintedValue;
 
                 std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
 
                 // Start with no fee and loop until there is enough fee
                 while (true) {
-                    if (autoMintAll) {
+                    nValueToSelect = valueToMintInTx + nFeeRet;
+                    mintedValue = valueToMintInTx;
+
+                    // if have no enough coins in this group then subtract fee from mint
+                    if (nValueToSelect > itr->first) {
                         nValueToSelect = valueToMintInTx;
                         mintedValue = valueToMintInTx - nFeeRet;
-                    } else {
-                        nValueToSelect = valueToMintInTx + nFeeRet;
-                        mintedValue = valueToMintInTx;
                     }
 
                     nChangePosInOut = nChangePosRequest;

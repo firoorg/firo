@@ -224,13 +224,13 @@ LelantusTestingSetup::LelantusTestingSetup() :
     script = GetScriptForDestination(key.GetID());
 }
 
-CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns) {
+CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
     // NOTE: work around for deadlock problem, remove this when resolved
     LOCK2(cs_main, pwalletMain->cs_wallet);
     LOCK(mempool.cs);
     auto last = chainActive.Tip();
 
-    CreateAndProcessBlock(txns, script);
+    CreateAndProcessBlock(txns, script ? *script : this->script);
     auto block = chainActive.Tip();
 
     if (block != last) {
@@ -240,9 +240,9 @@ CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction
     return block != last ? block : nullptr;
 }
 
-void LelantusTestingSetup::GenerateBlocks(size_t blocks) {
+void LelantusTestingSetup::GenerateBlocks(size_t blocks, CScript *script) {
     while (--blocks) {
-        GenerateBlock();
+        GenerateBlock({}, script);
     }
 }
 
