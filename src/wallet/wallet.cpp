@@ -3129,7 +3129,7 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
                 // CHECKING PROCESS
                 BOOST_FOREACH(const CSigmaEntry &ownCoinItem, listOwnCoins) {
                    if (ownCoinItem.value == pubCoin && ownCoinItem.IsUsed == false &&
-                        ownCoinItem.randomness != uint64_t(0) && ownCoinItem.serialNumber != uint64_t(0)) {
+                        ownCoinItem.randomness != Scalar(unsigned(0)) && ownCoinItem.serialNumber != Scalar(unsigned(0))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
                         LogPrintf("-->OK\n");
                     }

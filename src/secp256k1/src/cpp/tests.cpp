@@ -1,105 +1,307 @@
-#if defined HAVE_CONFIG_H
-#include "libsecp256k1-config.h"
+#ifdef HAVE_CONFIG_H
+#include "../libsecp256k1-config.h"
 #endif
 
-#include <iostream>
+#ifndef ENABLE_OPENSSL_TESTS
+#error C++ tests required OpenSSL
+#endif
 
-#include "../secp256k1.c"
-#include "../include/secp256k1.h"
-
-#include "../util.h"
-
-#ifdef ENABLE_OPENSSL_TESTS
+#include <secp256k1.hpp>
+#include <secp256k1_ecmult.hpp>
 #include <secp256k1_group.hpp>
 #include <secp256k1_scalar.hpp>
-#endif
 
-int main(int argc, char* argv[])
-{
-#ifdef ENABLE_OPENSSL_TESTS
-    std::vector<std::pair<const char*, const char*>> testcases;
-    testcases.push_back(std::make_pair("9216064434961179932092223867844635691966339998754536116709681652691785432045",
-        "33986433546870000256104618635743654523665060392313886665479090285075695067131"));
-    testcases.push_back(std::make_pair("50204771751011461524623624559944050110546921468100198079190811223951215371253",
-        "33986433546870000256104618635743654523665060392313886665479090285075695067131"));
-    testcases.push_back(std::make_pair("7143275630583997983432964947790981761478339235433352888289260750805571589245",
-        "11700086115751491157288596384709446578503357013980342842588483174733971680454"));
-    testcases.push_back(std::make_pair("7143275630583997983432964947790981761478339235433352888289260750805571589245",
-        "-11700086115751491157288596384709446578503357013980342842588483174733971680454"));
+#include <openssl/rand.h>
 
-    std::vector<std::pair<const char*, const char*>> hexTestcases;
-    hexTestcases.push_back(std::make_pair("14601b8cdf761d4ed94554865ef0ef5c451e275f3dfc0a667fea04fa5a833bed",
-        "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb"));
-    hexTestcases.push_back(std::make_pair("6efee4d1ba231acfee2391dc5ded838cee89235af14b8a4f494e4734cb1323f5",
-        "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb"));
-    hexTestcases.push_back(std::make_pair("fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
-        "19de0399d7578731a20abff9283e66117f8cc02be53c4cc86eb5ac3378c36cc6"));
-    hexTestcases.push_back(std::make_pair("fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
-        "e621fc6628a878ce5df54006d7c199ee80733fd41ac3b337914a53cc873c933a"));
+#include <exception>
+#include <iostream>
+#include <ostream>
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
-    std::vector<const char*> expecteds;
-    expecteds.push_back(
-        "(9216064434961179932092223867844635691966339998754536116709681652691785432045,"
-        "33986433546870000256104618635743654523665060392313886665479090285075695067131)");
-    expecteds.push_back(
-        "(50204771751011461524623624559944050110546921468100198079190811223951215371253,"
-        "33986433546870000256104618635743654523665060392313886665479090285075695067131)");
-    expecteds.push_back(
-        "(7143275630583997983432964947790981761478339235433352888289260750805571589245,"
-        "11700086115751491157288596384709446578503357013980342842588483174733971680454)");
-    expecteds.push_back(
-        "(7143275630583997983432964947790981761478339235433352888289260750805571589245,"
-        "-11700086115751491157288596384709446578503357013980342842588483174733971680454)");
+#include <stddef.h>
+#include <stdlib.h>
 
+namespace {
 
-    std::vector<const char*> expectedHexs;
-    expectedHexs.push_back(
-        "(14601b8cdf761d4ed94554865ef0ef5c451e275f3dfc0a667fea04fa5a833bed,"
-        "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb)");
-    expectedHexs.push_back(
-        "(6efee4d1ba231acfee2391dc5ded838cee89235af14b8a4f494e4734cb1323f5,"
-        "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb)");
-    expectedHexs.push_back(
-        "(fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d,"
-        "19de0399d7578731a20abff9283e66117f8cc02be53c4cc86eb5ac3378c36cc6)");
-    expectedHexs.push_back(
-        "(fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d,"
-        "e621fc6628a878ce5df54006d7c199ee80733fd41ac3b337914a53cc873c933a)");
+struct assertion_failed : public std::runtime_error {
+    assertion_failed(const std::string& reason) : runtime_error("Assertion failed: " + reason) {}
+    assertion_failed(const std::string& expected, const std::string& actual) : assertion_failed("Expected = " + expected + ", Actual = " + actual) {}
+};
 
-    for (int i = 0; i < testcases.size(); i++) {
-        auto& t = testcases[i];
-        secp_primitives::GroupElement g(t.first, t.second);
+template<typename Exception, typename Statement>
+void assert_throw(const std::string& err, Statement statement) {
+    try {
+        statement();
+        throw assertion_failed(err);
+    } catch (Exception&) {
+    }
+}
 
-        if (expecteds[i] != g.tostring()) {
-            std::cout<< "expected:" << expecteds[i] << ", get: " << g.tostring() << std::endl;
-            return EXIT_FAILURE;
+void ecmult_multiple_multiplication() {
+    static const size_t sizes[] = {1, 4, 20, 57, 136, 235, 1260, 4420, 7880, 16050, 10, 100, 1000, 5000};
+
+    for (auto size : sizes) {
+        std::vector<secp_primitives::GroupElement> gens;
+        std::vector<secp_primitives::Scalar> scalars;
+        secp_primitives::GroupElement expect;
+
+        gens.reserve(size);
+        scalars.reserve(size);
+
+        for (size_t i = 0; i < size; i++) {
+            gens.emplace_back();
+            scalars.emplace_back();
+
+            gens[i].randomize();
+            scalars[i].randomize();
+
+            expect += gens[i] * scalars[i];
         }
 
-        if (expectedHexs[i] != "" && expectedHexs[i] != g.GetHex()) {
-            std::cout<< "expected[hex]:" << expectedHexs[i] << ", get: " << g.GetHex() << std::endl;
-            return EXIT_FAILURE;
+        secp_primitives::MultiExponent multiexponent(gens, scalars);
+        auto actual = multiexponent.get_multiple();
+
+        if (actual != expect) {
+            throw assertion_failed(expect.tostring(), actual.tostring());
         }
     }
+}
 
-    for (int i = 0; i < hexTestcases.size(); i++) {
-        auto& t = hexTestcases[i];
-        secp_primitives::GroupElement g(t.first, t.second, 16);
+void ge_construct_default() {
+    secp_primitives::GroupElement v;
+    auto actual = v.tostring();
 
-        if (expecteds[i] != g.tostring()) {
-            std::cout<< "expected:" << expecteds[i] << ", get: " << g.tostring() << std::endl;
-            return EXIT_FAILURE;
+    if (actual != "O") {
+        throw assertion_failed("O", actual);
+    }
+}
+
+void ge_construct_from_string() {
+    struct testcase {
+        unsigned base;
+        const char *x;
+        const char *y;
+    };
+
+    static const testcase cases[] = {
+        {
+            .base = 10,
+            .x = "9216064434961179932092223867844635691966339998754536116709681652691785432045",
+            .y = "33986433546870000256104618635743654523665060392313886665479090285075695067131"
+        },
+        {
+            .base = 10,
+            .x = "50204771751011461524623624559944050110546921468100198079190811223951215371253",
+            .y = "33986433546870000256104618635743654523665060392313886665479090285075695067131"
+        },
+        {
+            .base = 10,
+            .x = "7143275630583997983432964947790981761478339235433352888289260750805571589245",
+            .y = "11700086115751491157288596384709446578503357013980342842588483174733971680454"
+        },
+        {
+            .base = 10,
+            .x = "7143275630583997983432964947790981761478339235433352888289260750805571589245",
+            .y = "-11700086115751491157288596384709446578503357013980342842588483174733971680454"
+        },
+        {
+            .base = 16,
+            .x = "14601b8cdf761d4ed94554865ef0ef5c451e275f3dfc0a667fea04fa5a833bed",
+            .y = "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb"
+        },
+        {
+            .base = 16,
+            .x = "6efee4d1ba231acfee2391dc5ded838cee89235af14b8a4f494e4734cb1323f5",
+            .y = "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb"
+        },
+        {
+            .base = 16,
+            .x = "fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
+            .y = "19de0399d7578731a20abff9283e66117f8cc02be53c4cc86eb5ac3378c36cc6"
+        },
+        {
+            .base = 16,
+            .x = "fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
+            .y = "e621fc6628a878ce5df54006d7c199ee80733fd41ac3b337914a53cc873c933a"
         }
+    };
 
-        if (expectedHexs[i] != "" && expectedHexs[i] != g.GetHex()) {
-            std::cout<< "expected[hex]:" << expectedHexs[i] << ", get: " << g.GetHex() << std::endl;
-            return EXIT_FAILURE;
+    for (auto& c : cases) {
+        secp_primitives::GroupElement v(c.x, c.y, c.base);
+        auto expect = std::string("(") + c.x + ',' + c.y + ')';
+        auto actual = v.tostring(c.base);
+
+        if (actual != expect) {
+            throw assertion_failed(expect, actual);
         }
     }
+}
 
-    // test scalar infinite loop bugs on GCC 8
-    secp_primitives::Scalar scalar;
-    scalar.randomize();
-#endif
+void ge_construct_from_other() {
+    secp_primitives::GroupElement v;
+
+    v.randomize();
+
+    secp_primitives::GroupElement c(v);
+
+    if (c != v) {
+        throw assertion_failed(v.tostring(), c.tostring());
+    }
+}
+
+void scalar_construct_default() {
+    secp_primitives::Scalar v;
+    auto actual = v.tostring();
+
+    if (actual != "0") {
+        throw assertion_failed("0", actual);
+    }
+}
+
+void scalar_construct_from_int() {
+    secp_primitives::Scalar v(50000);
+    auto actual = v.tostring();
+
+    if (actual != "50000") {
+        throw assertion_failed("50000", actual);
+    }
+}
+
+void scalar_construct_from_bin() {
+    static const unsigned char zero[32] = { 0 };
+    static const unsigned char one[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+    static const unsigned char max_positive[32] = { 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    static const unsigned char max_negative[32] = { 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    static const unsigned char overflow[32] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+    std::string actual;
+
+    if ((actual = secp_primitives::Scalar(zero).tostring()) != "0") {
+        throw assertion_failed("0", actual);
+    }
+
+    if ((actual = secp_primitives::Scalar(one).tostring()) != "1") {
+        throw assertion_failed("1", actual);
+    }
+
+    if ((actual = secp_primitives::Scalar(max_positive).tostring()) != "57896044618658097711785492504343953926634992332820282019728792003956564819967") {
+        throw assertion_failed("57896044618658097711785492504343953926634992332820282019728792003956564819967", actual);
+    }
+
+    if ((actual = secp_primitives::Scalar(max_negative).tostring()) != "57896044618658097711785492504343953926634992332820282019728792003956564819968") {
+        throw assertion_failed("57896044618658097711785492504343953926634992332820282019728792003956564819968", actual);
+    }
+
+    assert_throw<std::overflow_error>("Not overflowed", [] () {
+        secp_primitives::Scalar v(overflow);
+    });
+}
+
+void scalar_construct_from_other() {
+    secp_primitives::Scalar v(99);
+    secp_primitives::Scalar c(v);
+
+    if (c != v) {
+        throw assertion_failed(v.tostring(), c.tostring());
+    }
+}
+
+void scalar_multiplication() {
+    secp_primitives::Scalar v(50000), m(2), r;
+    std::string actual;
+
+    r = v * m;
+    v *= m;
+    v *= m;
+
+    if ((actual = r.tostring()) != "100000") {
+        throw assertion_failed("100000", actual);
+    }
+
+    if ((actual = v.tostring()) != "200000") {
+        throw assertion_failed("200000", actual);
+    }
+}
+
+} // unnamed namespace
+
+int main(int argc, char *argv[]) {
+    std::unordered_set<std::string> selected;
+    secp256k1_context *ctx;
+    size_t total;
+    std::string current;
+
+    for (int i = 1; i < argc; i++) {
+        selected.insert(argv[i]);
+    }
+
+    // setup test environment
+    ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
+    if (!ctx) {
+        std::cerr << "Failed to create secp256k1's context." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    try {
+        secp256k1::initialize(ctx, [] (unsigned char *buf, size_t size) {
+            while (!RAND_bytes(buf, size));
+        });
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        secp256k1_context_destroy(ctx);
+        return EXIT_FAILURE;
+    }
+
+    // execute tests
+    struct testcase {
+        const char *name;
+        void (*func) ();
+    };
+
+    #define TESTCASE(func) { #func, func }
+
+    static const testcase cases[] = {
+        TESTCASE(ecmult_multiple_multiplication),
+        TESTCASE(ge_construct_default),
+        TESTCASE(ge_construct_from_string),
+        TESTCASE(ge_construct_from_other),
+        TESTCASE(scalar_construct_default),
+        TESTCASE(scalar_construct_from_int),
+        TESTCASE(scalar_construct_from_bin),
+        TESTCASE(scalar_construct_from_other),
+        TESTCASE(scalar_multiplication)
+    };
+
+    total = 0;
+
+    try {
+        for (auto& c : cases) {
+            if (!selected.empty() && !selected.count(c.name)) {
+                continue;
+            }
+
+            std::cout << "Running " << c.name << "..." << std::endl;
+
+            current = c.name;
+            c.func();
+
+            total++;
+        }
+    } catch (std::exception& e) {
+        std::cerr << '[' << current << "] " << e.what() << std::endl;
+        secp256k1::terminate();
+        secp256k1_context_destroy(ctx);
+        return EXIT_FAILURE;
+    }
+
+    secp256k1::terminate();
+    secp256k1_context_destroy(ctx);
+
+    std::cout << std::endl << "Total tests: " << total << '.' << std::endl;
 
     return EXIT_SUCCESS;
 }

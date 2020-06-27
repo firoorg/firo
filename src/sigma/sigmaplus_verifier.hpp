@@ -70,7 +70,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
     // if fPadding is true last index is special
     for (std::size_t i = 0; i < (fPadding ? N-1 : N); ++i) {
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
+        Exponent f_i(unsigned(1));
         for(int j = 0; j < m; ++j){
             f_i *= f[j*n + I[j]];
         }
@@ -93,7 +93,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
          *     \right]
          */
 
-        Exponent pow(uint64_t(1));
+        Exponent pow(unsigned(1));
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
         vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
         for (int j = m - 1; j >= 0; j--) {
@@ -101,9 +101,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             pow *= f[j * n + I[j]];
         }
 
-        Exponent xj(uint64_t(1));;    // x^j
+        Exponent xj(unsigned(1));;    // x^j
         for (int j = 0; j < m; j++) {
-            Exponent fi_sum(uint64_t(0));
+            Exponent fi_sum(unsigned(0));
             for (int i = I[j] + 1; i < n; i++)
                 fi_sum += f[j*n + i];
             pow += fi_sum * xj * f_part_product[m - j - 1];
@@ -116,14 +116,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
     GroupElement t1 = mult.get_multiple();
 
     GroupElement t2;
-    Exponent x_k(uint64_t(1));
+    Exponent x_k(unsigned(1));
     for(int k = 0; k < m; ++k){
         t2 += (Gk[k] * (x_k.negate()));
         x_k *= challenge_x;
     }
 
     GroupElement left(t1 + t2);
-    if (left != SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], proof.z_)) {
+    if (left != SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(unsigned(0)), h_[0], proof.z_)) {
         LogPrintf("Sigma spend failed due to final proof verification failure.");
         return false;
     }

@@ -35,9 +35,11 @@ public:
     secp_primitives::GroupElement g;
     unsigned m, n;
     std::vector<secp_primitives::GroupElement> h;
+    secp256k1_context *ctx;
 
 public:
     SigmaParams(const secp_primitives::GroupElement& g, unsigned m, unsigned n);
+    ~SigmaParams();
 };
 
 class SigmaPrivateKey

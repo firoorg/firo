@@ -3837,7 +3837,7 @@ UniValue listsigmamints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
-        if (fAllStatus || zerocoinItem.IsUsed || (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0))) {
+        if (fAllStatus || zerocoinItem.IsUsed || (zerocoinItem.randomness != Scalar(unsigned(0)) && zerocoinItem.serialNumber != Scalar(unsigned(0)))) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", zerocoinItem.id));
             entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
@@ -4062,7 +4062,7 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
             continue;
         }
 
-        if (zerocoinItem.serialNumber != uint64_t(0)) {
+        if (zerocoinItem.serialNumber != Scalar(unsigned(0))) {
             LogPrintf("zerocoinItem.serialNumber = %s\n", zerocoinItem.serialNumber.GetHex());
             if (zerocoinItem.serialNumber == coinSerial) {
                 LogPrintf("setmintzerocoinstatus Found!\n");

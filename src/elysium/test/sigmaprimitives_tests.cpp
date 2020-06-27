@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(private_key)
 
 BOOST_AUTO_TEST_CASE(private_key_validation)
 {
-    secp_primitives::Scalar zero(uint64_t(0));
+    secp_primitives::Scalar zero(unsigned(0));
     secp_primitives::Scalar s(1), r(2);
 
     SigmaPrivateKey validCoin(s, r);

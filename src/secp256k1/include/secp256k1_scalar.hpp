@@ -3,134 +3,109 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
 
-#include <inttypes.h>
 #include <stddef.h>
 
 namespace secp_primitives {
 
-// A wrapper over scalar value of Secp library.
+/**
+ * A C++ wrapper over scalar value.
+ **/
 class Scalar final {
 public:
+    static constexpr size_t serialize_size = 32;
 
+public:
+    struct Data;
+
+public:
     Scalar();
-    // Constructor from interger.
-    Scalar(uint64_t value);
-
-    // Copy constructor
+    explicit Scalar(unsigned value);
+    explicit Scalar(const unsigned char *bin);
+    Scalar(const Data& d);
     Scalar(const Scalar& other);
-
-    Scalar(const unsigned char* str);
-
     ~Scalar();
 
-    Scalar& set(const Scalar& other);
-
+    Scalar& operator=(unsigned v);
+    Scalar& operator=(const unsigned char *bin);
     Scalar& operator=(const Scalar& other);
 
-    Scalar& operator=(unsigned int i);
-
-    Scalar& operator=(const unsigned char *bin);
-
     Scalar operator*(const Scalar& other) const;
-
     Scalar& operator*=(const Scalar& other);
-
     Scalar operator+(const Scalar& other) const;
-
     Scalar& operator+=(const Scalar& other);
-
     Scalar operator-(const Scalar& other) const;
-
     Scalar& operator-=(const Scalar& other);
 
     bool operator==(const Scalar& other) const;
     bool operator!=(const Scalar& other) const;
 
-    Scalar inverse() const;
-
-    Scalar negate() const;
-
-    Scalar square() const;
-
-    Scalar exponent(const Scalar& exp) const;
-    Scalar exponent(uint64_t exponent) const;
-
-    Scalar& randomize();
-
-    Scalar& memberFromSeed(unsigned char* seed);
-
-    Scalar& generate(unsigned char* buff);
-
-    Scalar& mod_p();
-
-    Scalar hash(const unsigned char* data,size_t len);
+    const Data& get_data() const { return *data; }
+    void get_bits(std::vector<bool>& bits) const;
 
     bool isMember() const;
 
     bool isZero() const;
 
-    // Returns the secp object inside it.
-    const void * get_value() const;
+    Scalar& mod_p();
+    Scalar inverse() const;
+    Scalar negate() const;
+    Scalar square() const;
+    Scalar exponent(unsigned exp) const;
+    Scalar exponent(const Scalar& exp) const;
 
-    friend std::ostream& operator<< ( std::ostream& os, const Scalar& c) {
-        os << c.tostring();
-    return os;
-    }
+    void SetHex(const std::string& hex);
+    Scalar& generate(const unsigned char *bin);
+    Scalar& memberFromSeed(unsigned char *seed);
+    Scalar& randomize();
 
-    std::string tostring() const;
-
-    static constexpr size_t memoryRequired() { return 32; }
-
-    unsigned char* serialize(unsigned char* buffer) const;
-    unsigned const char* deserialize(unsigned const char* buffer);
+    Scalar hash(const unsigned char *data, size_t len);
 
     std::string GetHex() const;
-    void SetHex(const std::string& str);
+    std::string tostring(unsigned base = 10) const;
 
-    // These functions are for READWRITE() in serialize.h
+    static constexpr size_t memoryRequired() { return serialize_size; }
+    unsigned char * serialize(unsigned char *buffer) const;
+    unsigned const char * deserialize(unsigned const char *buffer);
 
-    template<typename Stream>
-    inline void Serialize(Stream& s) const {
-        constexpr int size = memoryRequired();
-        unsigned char buffer[size];
-        serialize(buffer);
-        char* b = (char*)buffer;
-        s.write(b, size);
+    unsigned GetSerializeSize(int nType = 0, int nVersion = 0) const {
+        return memoryRequired();
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s) {
-        constexpr int size = memoryRequired();
-        unsigned char buffer[size];
-        char* b = (char*)buffer;
-        s.read(b, size);
+    void Serialize(Stream& s) const {
+        unsigned char buffer[serialize_size];
+        serialize(buffer);
+        s.write(reinterpret_cast<char *>(buffer), sizeof(buffer));
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        unsigned char buffer[serialize_size];
+        s.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
         deserialize(buffer);
     }
 
-    void get_bits(std::vector<bool>& bits) const;
-
 private:
-    // Constructor from secp object.
-    Scalar(const void *value);
-
-private:
-    void *value_; // secp256k1_scalar
-
+    std::unique_ptr<Data> data;
 };
 
 } // namespace secp_primitives
 
 namespace std {
 
-using namespace secp_primitives;
+template<typename Char, typename Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const secp_primitives::Scalar& c) {
+    return os << c.tostring();
+}
 
 template<>
-struct hash<Scalar> {
-    size_t operator()(const Scalar& s) const {
+struct hash<secp_primitives::Scalar> {
+    size_t operator()(const secp_primitives::Scalar& s) const {
         array<unsigned char, 32> d;
         s.serialize(d.data());
         return hash<string>()(string(d.begin(), d.end()));

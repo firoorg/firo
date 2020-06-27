@@ -1,5 +1,5 @@
 #include "../sigma_primitives.h"
-
+#include "../params.h"
 #include "../../secp256k1/include/secp256k1_group.hpp"
 #include "../../secp256k1/include/secp256k1_scalar.hpp"
 

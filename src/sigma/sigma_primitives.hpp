@@ -36,9 +36,9 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
         num /= n;
         for (uint64_t i = 0; i < n; ++i) {
             if(i == rem)
-                out.push_back(Exponent(uint64_t(1)));
+                out.push_back(Exponent(unsigned(1)));
             else
-                out.push_back(Exponent(uint64_t(0)));
+                out.push_back(Exponent(unsigned(0)));
         }
     }
 }

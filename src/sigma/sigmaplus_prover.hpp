@@ -80,7 +80,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         std::vector<uint64_t> lj = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(l, n_, m_);
 
         std::vector<Exponent> p_i_sum;
-        p_i_sum.emplace_back(uint64_t(1));
+        p_i_sum.emplace_back(unsigned(1));
         std::vector<std::vector<Exponent>> partial_p_s;
 
         // Pre-calculate product parts and calculate p_s(x) at the same time, put the latter into p_i_sum
@@ -91,10 +91,10 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
         for (int j = 0; j < m_; j++) {
             // \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i}x+a_{j,i})
-            Exponent a_sum(uint64_t(0));
+            Exponent a_sum(unsigned(0));
             for (int i = I[j] + 1; i < n_; i++)
                 a_sum += a[j * n_ + i];
-            Exponent x_sum(uint64_t(lj[j] >= I[j]+1 ? 1 : 0));
+            Exponent x_sum(unsigned(lj[j] >= I[j]+1 ? 1 : 0));
 
             // Multiply by \prod_{k=j}^{m-1}(\delta_{l_k,s_k}x+a_{k,s_k})
             std::vector<Exponent> &polynomial = partial_p_s[m_ - j - 1];
@@ -119,7 +119,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         }
         secp_primitives::MultiExponent mult(commits, P_i);
         GroupElement c_k = mult.get_multiple();
-        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k]);
+        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(unsigned(0)), h_[0], Pk[k]);
         Gk.emplace_back(c_k);
     }
     proof_out.Gk_ = Gk;
@@ -135,9 +135,9 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
     //computing z
     Exponent z;
-    z = r * x.exponent(uint64_t(m_));
+    z = r * x.exponent(unsigned(m_));
     Exponent sum;
-    Exponent x_k(uint64_t(1));
+    Exponent x_k(unsigned(1));
     for (int k = 0; k < m_; ++k) {
         sum += (Pk[k] * x_k);
         x_k *= x;

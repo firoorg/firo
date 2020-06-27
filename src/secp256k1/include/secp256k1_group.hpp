@@ -3,7 +3,8 @@
 
 #include "secp256k1_scalar.hpp"
 
-#include <cstddef>
+#include <functional>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -14,28 +15,23 @@ namespace secp_primitives {
 
 class GroupElement final {
 public:
-    static constexpr std::size_t serialize_size = 34;
+    static constexpr size_t serialize_size = 34;
 
 public:
+    struct Data;
 
+public:
   GroupElement();
-
   ~GroupElement();
-
   GroupElement(const GroupElement& other);
-
-  GroupElement(const char* x,const char* y,  int base = 10);
-
-  GroupElement& set(const GroupElement& other);
-
+  GroupElement(const char* x, const char* y, unsigned base = 10);
+  GroupElement(const Data& d);
   GroupElement& operator=(const GroupElement& other);
 
   // Operator for multiplying with a scalar number.
-  GroupElement operator*(const Scalar& multiplier) const;
-
+  GroupElement operator*(const Scalar& scalar) const;
   // Operator for multiplying with a scalar number.
-  GroupElement& operator*=(const Scalar& multiplier);
-
+  GroupElement& operator*=(const Scalar& scalar);
   // Operator for adding to another element.
   GroupElement operator+(const GroupElement& other) const;
 
@@ -43,86 +39,71 @@ public:
   GroupElement& operator+=(const GroupElement& other);
 
   GroupElement inverse() const;
-
   void square();
 
-  bool operator==(const GroupElement&other) const;
+  bool operator==(const GroupElement& other) const;
 
-  bool operator!=(const GroupElement&other) const;
+  bool operator!=(const GroupElement& other) const;
+
+  const Data& get_data() const { return *data; }
+  size_t hash() const;
+  std::vector<unsigned char> getvch() const;
+  void sha256(unsigned char *result) const;
 
   bool isMember() const;
 
   bool isInfinity() const;
 
-  GroupElement& generate(unsigned char* seed);
 
-  void sha256(unsigned char* result) const;
-
-  void randomize();
-
-  std::string tostring() const;
-
-  std::string GetHex() const;
-
-  friend std::ostream& operator<< ( std::ostream& os, const GroupElement& s ) {
-        os << s.tostring() ;
-        return os;
-  }
-
-  static constexpr size_t memoryRequired() { return serialize_size; }
-  unsigned char* serialize() const;
-  unsigned char* serialize(unsigned char* buffer) const;
-  unsigned const char* deserialize(unsigned const char* buffer);
-
-  // These functions are for READWRITE() in serialize.h
-  template<typename Stream>
-  inline void Serialize(Stream& s) const {
-        constexpr int size = memoryRequired();
-        unsigned char buffer[size];
-        serialize(buffer);
-        char* b = (char*)buffer;
-        s.write(b, size);
-  }
-
-  template<typename Stream>
-  inline void Unserialize(Stream& s) {
-        constexpr int size = memoryRequired();
-        unsigned char buffer[size];
-        char* b = (char*)buffer;
-        s.read(b, size);
-        deserialize(buffer);
-  }
-
-  //function name like in CBignum
-  std::vector<unsigned char> getvch() const;
-
-  std::size_t hash() const;
 
   GroupElement& set_base_g();
+  GroupElement& generate(const unsigned char *seed);
+  void randomize();
 
-  friend class MultiExponent;
+  std::string GetHex() const;
+  std::string tostring(unsigned base = 10) const;
+
+  static constexpr size_t memoryRequired() { return serialize_size; }
+  unsigned char * serialize() const;
+  unsigned char * serialize(unsigned char *buffer) const;
+  unsigned const char * deserialize(unsigned const char *buffer);
+
+  unsigned GetSerializeSize(int nType = 0, int nVersion = 0) const { return memoryRequired(); }
+
+  template<typename Stream>
+  void Serialize(Stream& s) const {
+      unsigned char buffer[serialize_size];
+      serialize(buffer);
+      s.write(reinterpret_cast<char *>(buffer), sizeof(buffer));
+  }
+
+  template<typename Stream>
+  void Unserialize(Stream& s) {
+      unsigned char buffer[serialize_size];
+      s.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+      deserialize(buffer);
+  }
+
 private:
-    // Returns the secp object inside it.
-    const void * get_value() const;
-
-    GroupElement(const void *g);
-
-private:
-    void *g_; // secp256k1_gej
-
+    std::unique_ptr<Data> data;
 };
 
 } // namespace secp_primitives
 
 namespace std {
-    template<>
-    struct hash<secp_primitives::GroupElement>
-    {
-        size_t operator()(const secp_primitives::GroupElement& g) const
-        {
-            return g.hash();
-        }
-    };
+
+template<typename Char, typename Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const secp_primitives::GroupElement& ge) {
+    return os << (ge.tostring());
+}
+
+template<>
+struct hash<secp_primitives::GroupElement> {
+    size_t operator()(const secp_primitives::GroupElement& v) const {
+        return v.hash();
+    }
+};
+
 } // namespace std
 
 #endif // SECP256K1_GROUP_HPP

@@ -1,84 +1,103 @@
-#include <secp256k1_ecmult.hpp>
+#include "ecmult.hpp"
 
-#include "../include/secp256k1.h"
-#include "../field.h"
-#include "../field_impl.h"
-#include "../group.h"
-#include "../group_impl.h"
-#include "../scalar.h"
+#include "group.hpp"
+#include "scalar.hpp"
+#include "secp256k1.hpp"
+
 #include "../scalar_impl.h"
-#include "../ecmult.h"
+#include "../field_impl.h"
+#include "../group_impl.h"
 #include "../ecmult_impl.h"
-#include "../src/scratch_impl.h"
-#include "../src/ecmult_impl.h"
+#include "../scratch_impl.h"
+#include "../util.h"
 
+#include <new>
+#include <stdexcept>
+#include <string>
 
-typedef struct {
-    secp256k1_scalar *sc;
-    secp256k1_gej *pt;
-} ecmult_multi_data;
+#include <stddef.h>
 
-int ecmult_multi_callback(secp256k1_scalar *sc, secp256k1_gej *pt, size_t idx, void *cbdata) {
-    ecmult_multi_data *data = (ecmult_multi_data*) cbdata;
-    *sc = data->sc[idx];
-    *pt = data->pt[idx];
+namespace {
+
+void error_handler(const char *text, void *data) {
+    try {
+        reinterpret_cast<::std::string *>(data)->assign(text);
+    } catch (...) {
+        // this is called by C so we don't want C++ exception to go upper
+    }
+}
+
+int multi_handler(secp256k1_scalar *sc, secp256k1_ge *pt, size_t idx, void *data) {
+    auto d = reinterpret_cast<const ::secp_primitives::MultiExponent::Data *>(data);
+    auto ge = d->pt[idx]; // make a copy due to secp256k1_ge_set_gej need to modify it
+
+    *sc = d->sc[idx];
+    secp256k1_ge_set_gej(pt, &ge);
+
     return 1;
 }
 
+} // unnamed namespace
+
 namespace secp_primitives {
 
-MultiExponent::MultiExponent(const MultiExponent& other)
-        : sc_(new secp256k1_scalar[other.n_points])
-        , pt_(new secp256k1_gej[other.n_points])
-        , n_points(other.n_points)
-{
-    for(int i = 0; i < n_points; ++i)
-    {
-        (reinterpret_cast<secp256k1_scalar *>(sc_))[i] = (reinterpret_cast<secp256k1_scalar *>(other.sc_))[i];
-        (reinterpret_cast<secp256k1_gej *>(pt_))[i] = (reinterpret_cast<secp256k1_gej *>(other.pt_))[i];
+MultiExponent::MultiExponent(const std::vector<GroupElement>& generators, const std::vector<Scalar>& powers) : data(new Data()) {
+    if (generators.size() != powers.size()) {
+        throw std::invalid_argument("Number of generators and powers is mismatched");
+    }
+
+    data->sc.reserve(generators.size());
+    data->pt.reserve(generators.size());
+
+    for (size_t i = 0; i < generators.size(); i++) {
+        data->sc.push_back(powers[i].get_data().value);
+        data->pt.push_back(generators[i].get_data().value);
     }
 }
 
-MultiExponent::MultiExponent(const std::vector<GroupElement>& generators, const std::vector<Scalar>& powers){
-    sc_ = new secp256k1_scalar[powers.size()];
-    pt_ = new secp256k1_gej[generators.size()];
-    n_points = generators.size();
-    for(int i = 0; i < n_points; ++i)
-    {
-        (reinterpret_cast<secp256k1_scalar *>(sc_))[i] = *reinterpret_cast<const secp256k1_scalar *>(powers[i].get_value());
-        (reinterpret_cast<secp256k1_gej *>(pt_))[i] = *reinterpret_cast<const secp256k1_gej *>(generators[i].get_value());
-    }
+MultiExponent::MultiExponent(const MultiExponent& other) : data(new Data(*other.data)) {
 }
 
-MultiExponent::~MultiExponent(){
-    delete []reinterpret_cast<secp256k1_scalar *>(sc_);
-    delete []reinterpret_cast<secp256k1_gej *>(pt_);
+MultiExponent::~MultiExponent() {
+    // don't remove this destructor otherwise it will inlined on the outside and cause linking error due to
+    // MultiExponent::Data is incomplete type
+}
+
+MultiExponent& MultiExponent::operator=(const MultiExponent& other) {
+    *data = *other.data;
+    return *this;
 }
 
 GroupElement MultiExponent::get_multiple() {
-    secp256k1_gej r;
-
-    ecmult_multi_data data;
-    data.sc = reinterpret_cast<secp256k1_scalar *>(sc_);
-    data.pt = reinterpret_cast<secp256k1_gej *>(pt_);
-
+    std::string err;
+    auto eh = secp256k1_callback{.fn = error_handler, .data = &err};
     secp256k1_scratch *scratch;
-    if (n_points > ECMULT_PIPPENGER_THRESHOLD) {
-        int bucket_window = secp256k1_pippenger_bucket_window(n_points);
-        size_t scratch_size = secp256k1_pippenger_scratch_size(n_points, bucket_window);
-        scratch = secp256k1_scratch_create(NULL, scratch_size + PIPPENGER_SCRATCH_OBJECTS*ALIGNMENT);
+    GroupElement::Data r;
+    int status;
+
+    if (data->sc.size() > ECMULT_PIPPENGER_THRESHOLD) {
+        auto bucket_window = secp256k1_pippenger_bucket_window(data->sc.size());
+        auto scratch_size = secp256k1_pippenger_scratch_size(data->sc.size(), bucket_window);
+        scratch = secp256k1_scratch_create(&eh, scratch_size + PIPPENGER_SCRATCH_OBJECTS * ALIGNMENT);
     } else {
-        size_t scratch_size = secp256k1_strauss_scratch_size(n_points);
-        scratch = secp256k1_scratch_create(NULL, scratch_size + STRAUSS_SCRATCH_OBJECTS*ALIGNMENT);
+        auto scratch_size = secp256k1_strauss_scratch_size(data->sc.size());
+        scratch = secp256k1_scratch_create(&eh, scratch_size + STRAUSS_SCRATCH_OBJECTS * ALIGNMENT);
     }
 
-    secp256k1_ecmult_context ctx;
+    if (!scratch) {
+        // no need to grab the reason from err due to it is always out of memory, also bad_alloc does not accept the message
+        throw std::bad_alloc();
+    }
 
-    secp256k1_ecmult_multi_var(&ctx, scratch, &r, NULL, ecmult_multi_callback, &data, n_points);
+    status = secp256k1_ecmult_multi_var(&eh, &secp256k1::default_context->ecmult_ctx, scratch, &r.value, nullptr, multi_handler, data.get(), data->sc.size());
+    secp256k1_scratch_destroy(&eh, scratch);
 
-    secp256k1_scratch_destroy(scratch);
+    if (!status) {
+        // we can safely use err as the reason due to the only case secp256k1_scratch_destroy will fail is we pass invalid scratch
+        throw std::runtime_error(err);
+    }
 
-    return  reinterpret_cast<secp256k1_scalar *>(&r);
+    return r;
 }
 
-}// namespace secp_primitives
+} // namespace secp_primitives
