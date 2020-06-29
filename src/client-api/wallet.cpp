@@ -182,6 +182,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     list<COutputEntry> listSent;
     CBitcoinAddress addr;
     string addrStr;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
     wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
 
@@ -310,6 +311,10 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));
+                // Also check here if the address is the next payment request address. if so, remove.
+                std::string paymentRequestAddress;
+                if(walletdb.ReadPaymentRequestAddress(paymentRequestAddress) && addrStr==paymentRequestAddress)
+                    walletdb.ErasePaymentRequestAddress();
             }
             if (wtx.IsCoinBase())
             {
