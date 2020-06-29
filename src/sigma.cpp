@@ -30,7 +30,7 @@ namespace sigma {
 
 static CSigmaState sigmaState;
 
-static bool CheckSigmaSpendSerial(
+bool CheckSigmaSpendSerial(
         CValidationState &state,
         CSigmaTxInfo *sigmaTxInfo,
         const Scalar &serial,

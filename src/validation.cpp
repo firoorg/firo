@@ -599,7 +599,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
 
         if(tx.IsLelantusTransaction()) {
-            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, lelantusTxInfo))
+            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
                 return false;
         }
 

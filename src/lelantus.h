@@ -63,6 +63,7 @@ bool CheckLelantusTransaction(
 	int nHeight,
 	bool isCheckWallet,
 	bool fStatefulSigmaCheck,
+    sigma::CSigmaTxInfo* sigmaTxInfo,
 	CLelantusTxInfo* lelantusTxInfo);
 
 void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);

@@ -168,12 +168,26 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
 
         // get coins
         spendCoins.clear();
+        sigmaSpendCoins.clear();
 
         auto& consensusParams = Params().GetConsensus();
-        CAmount changeToMint;
-        if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint,
-                                    consensusParams.nMaxLelantusInputPerTransaction, consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
-            throw InsufficientFunds();
+        CAmount changeToMint = 0;
+
+        std::vector<sigma::CoinDenomination> denomChanges;
+        if(!wallet.GetCoinsToSpend(required, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                consensusParams.nMaxLelantusInputPerTransaction, consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
+            if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint,
+                                            consensusParams.nMaxLelantusInputPerTransaction,
+                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
+                throw InsufficientFunds();
+            }
+        } else {
+            for(const auto& demon : denomChanges) {
+                int64_t intDenom;
+                sigma::DenominationToInteger(demon, intDenom);
+                changeToMint += intDenom;
+            }
+            isSigmaToLelantusJoinSplit = true;
         }
 
         // get outputs
@@ -309,49 +323,110 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     auto params = lelantus::Params::get_default();
 
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
-    std::vector<lelantus::PublicCoin> pCoins;
     coins.reserve(spendCoins.size());
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
     std::vector<uint256> groupBlockHashes;
-    for(const auto& spend : spendCoins) {
-        // construct public part of the mint
-        lelantus::PublicCoin pub(spend.value);
-        // construct private part of the mint
-        lelantus::PrivateCoin priv(params, spend.amount);
-        priv.setVersion(LELANTUS_TX_VERSION_4);
-        priv.setSerialNumber(spend.serialNumber);
-        priv.setRandomness(spend.randomness);
-        priv.setEcdsaSeckey(spend.ecdsaSecretKey);
-        priv.setPublicCoin(pub);
+    int version = 0;
 
-        // get coin group
-        int groupId;
+    if(!isSigmaToLelantusJoinSplit) {
+        version = LELANTUS_TX_VERSION_4;
+        for (const auto &spend : spendCoins) {
+            // construct public part of the mint
+            lelantus::PublicCoin pub(spend.value);
+            // construct private part of the mint
+            lelantus::PrivateCoin priv(params, spend.amount);
+            priv.setVersion(version);
+            priv.setSerialNumber(spend.serialNumber);
+            priv.setRandomness(spend.randomness);
+            priv.setEcdsaSeckey(spend.ecdsaSecretKey);
+            priv.setPublicCoin(pub);
 
-        std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(pub);
+            // get coin group
+            int groupId;
 
-        if (groupId < 0) {
-            throw std::runtime_error(_("One of minted coin does not found in the chain"));
+            std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(pub);
+
+            if (groupId < 0) {
+                throw std::runtime_error(_("One of minted coin does not found in the chain"));
+            }
+
+            coins.emplace_back(make_pair(priv, groupId));
+
+            if (anonymity_sets.count(groupId) == 0) {
+                std::vector<lelantus::PublicCoin> set;
+                uint256 blockHash;
+                if (state->GetCoinSetForSpend(
+                        &chainActive,
+                        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+                        groupId,
+                        blockHash,
+                        set) < 2)
+                    throw std::runtime_error(
+                            _("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+                groupBlockHashes.push_back(blockHash);
+                anonymity_sets[groupId] = set;
+            }
         }
 
-        coins.emplace_back(make_pair(priv, groupId));
 
-        if(anonymity_sets.count(groupId) == 0) {
-            std::vector<lelantus::PublicCoin> set;
-            uint256 blockHash;
-            if(state->GetCoinSetForSpend(
-                    &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
-                    groupId,
-                    blockHash,
-                    set) < 2)
-                throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
-            groupBlockHashes.push_back(blockHash);
-            anonymity_sets[groupId] = set;
+    }
+    else {
+        version = SIGMA_TO_LELANTUS_JOINSPLIT;
+        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+        for (const auto &spend : sigmaSpendCoins) {
+            int64_t denom = spend.get_denomination_value();
+            // construct public part of the mint
+            sigma::PublicCoin pub(spend.value, spend.get_denomination());
+            // construct private part of the mint
+            lelantus::PrivateCoin priv(params, denom);
+            priv.setVersion(version);
+            priv.setSerialNumber(spend.serialNumber);
+            priv.setRandomness(spend.randomness);
+            priv.setEcdsaSeckey(spend.ecdsaSecretKey);
+            lelantus::PublicCoin lPub(spend.value + params->get_h1() * denom);
+            priv.setPublicCoin(lPub);
+
+            // get coin group
+            int groupId;
+
+            std::tie(std::ignore, groupId) = sigmaState->GetMintedCoinHeightAndId(pub);
+
+            if (groupId < 0 || groupId != spend.id) {
+                throw std::runtime_error(_("One of minted coin does not found in the chain"));
+            }
+
+            //this way we are remembering denomination and group id in one field as we have no demomination in Lelantus
+            // with dividing by 1000 we just making maximum denomiation fit into uint32
+            coins.emplace_back(make_pair(priv, denom / 1000 + groupId));
+
+
+            if (anonymity_sets.count(denom / 1000 + groupId) == 0) {
+                std::vector<sigma::PublicCoin> group;
+                uint256 blockHash;
+                if (sigmaState->GetCoinSetForSpend(
+                        &chainActive,
+                        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+                        spend.get_denomination(),
+                        groupId,
+                        blockHash,
+                        group) < 2)
+                    throw std::runtime_error(
+                            _("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+                std::vector<lelantus::PublicCoin> set;
+                set.reserve(group.size());
+                for(auto& coin : group) {
+                    set.push_back(coin.getValue() + params->get_h1() * denom);
+                }
+                groupBlockHashes.push_back(blockHash);
+                anonymity_sets[denom / 1000 + groupId] = set;
+            }
         }
+
+
     }
 
     lelantus::JoinSplit joinSplit(params, coins, anonymity_sets, Vout, Cout, fee, groupBlockHashes, txHash);
-    joinSplit.setVersion(LELANTUS_TX_VERSION_4);
+    joinSplit.setVersion(version);
 
     std::vector<lelantus::PublicCoin>  pCout;
     pCout.reserve(Cout.size());
@@ -367,7 +442,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     CScript script;
 
-    script << OP_SIGMASPEND;
+    script << OP_LELANTUSJOINSPLIT;
     script.insert(script.end(), serialized.begin(), serialized.end());
 
     tx.vin[0].scriptSig = script;
