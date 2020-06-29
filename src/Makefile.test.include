@@ -81,6 +81,7 @@ BITCOIN_TESTS = \
   liblelantus/test/challenge_generator_tests.cpp \
   liblelantus/test/coin_tests.cpp \
   liblelantus/test/inner_product_test.cpp \
+  liblelantus/test/joinsplit_tests.cpp \
   liblelantus/test/lelantus_primitives_tests.cpp \
   liblelantus/test/lelantus_test.cpp \
   liblelantus/test/lelantus_test_fixture.cpp \
@@ -120,6 +121,7 @@ BITCOIN_TESTS = \
   test/hash_tests.cpp \
   test/key_tests.cpp \
   test/lelantus_tests.cpp \
+  test/lelantus_state_tests.cpp \
   test/limitedmap_tests.cpp \
   test/main_tests.cpp \
   test/mbstring_tests.cpp \

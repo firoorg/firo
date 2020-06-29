@@ -88,6 +88,11 @@ bool BuildLelantusStateFromIndex(CChain *chain);
 std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin);
 
 /*
+ * Util functions
+ */
+size_t CountCoinInBlock(CBlockIndex const *index, int id);
+
+/*
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
@@ -105,7 +110,9 @@ public:
     };
 
 public:
-    CLelantusState();
+    CLelantusState(
+        size_t maxCoinInGroup = ZC_LELANTUS_MAX_MINT_NUM,
+        size_t startGroupSize = ZC_LELANTUS_SET_START_SIZE);
 
     // Add mints in block, automatically assigning id to it
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
@@ -182,6 +189,13 @@ public:
     bool IsSurgeConditionDetected() const;
 
 private:
+    size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
+
+private:
+    // Group Limit
+    size_t maxCoinInGroup;
+    size_t startGroupSize;
+
     // Collection of coin groups. Map from id to LelantusCoinGroupInfo structure
     std::unordered_map<int, LelantusCoinGroupInfo> coinGroups;
 
@@ -204,6 +218,9 @@ private:
         void AddSpend(Scalar const & serial, int coinGroupId);
         void RemoveSpend(Scalar const & serial);
 
+        void AddExtendedMints(int group, size_t mints);
+        void RemoveExtendedMints(int group);
+
         void Reset();
 
         mint_info_container const & GetMints() const;
@@ -219,9 +236,9 @@ private:
         std::atomic<bool> & surgeCondition;
 
         typedef std::map<int, size_t> metainfo_container_t;
-        metainfo_container_t mintMetaInfo, spendMetaInfo;
+        metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
-        void CheckSurgeCondition(int groupId);
+        void CheckSurgeCondition();
     };
 
     Containers containers;
