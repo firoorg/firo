@@ -1,4 +1,5 @@
 Zcoin
+===============
 
 [![Financial Contributors on Open Collective](https://opencollective.com/zcoin/all/badge.svg?label=financial+contributors)](https://opencollective.com/zcoin) [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
@@ -72,6 +73,7 @@ docker start zcoind
 ```
 
 Linux Build Instructions and Notes
+==================================
 
 Dependencies
 ----------------------
