@@ -5599,8 +5599,11 @@ bool CWallet::CreateLelantusMintTransactions(
     {
         LOCK2(cs_main, cs_wallet);
         {
+            std::list<CWalletTx> cacheWtxs;
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
+
+            std::random_shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), GetRandInt);
 
             while (!valueAndUTXO.empty()) {
 
@@ -5632,13 +5635,13 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 // Start with no fee and loop until there is enough fee
                 while (true) {
-                    nValueToSelect = valueToMintInTx + nFeeRet;
                     mintedValue = valueToMintInTx;
+                    nValueToSelect = mintedValue + nFeeRet;
 
                     // if have no enough coins in this group then subtract fee from mint
                     if (nValueToSelect > itr->first) {
-                        nValueToSelect = valueToMintInTx;
-                        mintedValue = valueToMintInTx - nFeeRet;
+                        mintedValue -= nFeeRet;
+                        nValueToSelect = mintedValue + nFeeRet;
                     }
 
                     nChangePosInOut = nChangePosRequest;
@@ -5899,6 +5902,31 @@ bool CWallet::CreateLelantusMintTransactions(
                 wtx.SetTx(MakeTransactionRef(std::move(tx)));
 
                 wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
+
+                if (nChangePosInOut >= 0) {
+                    // Cache wtx to somewhere because COutput use pointer of it.
+                    cacheWtxs.push_back(wtx);
+                    auto &wtx = cacheWtxs.back();
+
+                    COutput out(&wtx, nChangePosInOut, wtx.GetDepthInMainChain(false), true, true);
+                    auto val = wtx.tx->vout[nChangePosInOut].nValue;
+
+                    bool added = false;
+                    for (auto &utxos : valueAndUTXO) {
+                        auto const &o = utxos.second.front();
+                        if (o.tx->tx->vout[o.i].scriptPubKey == wtx.tx->vout[nChangePosInOut].scriptPubKey) {
+                            utxos.first += val;
+                            utxos.second.push_back(out);
+
+                            added = true;
+                        }
+                    }
+
+                    if (!added) {
+                        valueAndUTXO.push_back({val, {out}});
+                    }
+                }
+
                 nAllFeeRet += nFeeRet;
                 dMints.push_back(dMint);
                 if(!autoMintAll) {
