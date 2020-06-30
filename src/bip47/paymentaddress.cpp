@@ -1,6 +1,5 @@
 #include "bip47/paymentaddress.h"
 #include "bip47/paymentcode.h"
-#include "bip47/common.h"
 #include "bip47/utils.h"
 
 

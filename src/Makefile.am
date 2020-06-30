@@ -275,7 +275,6 @@ BITCOIN_CORE_H = \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
-  bip47/common.h \
   bip47/account.h \
   bip47/address.h \
   bip47/paymentchannel.h \
@@ -499,7 +498,6 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
   primitives/zerocoin.cpp \
-  bip47/common.cpp \
   bip47/account.cpp \
   bip47/address.cpp \
   bip47/paymentchannel.cpp \

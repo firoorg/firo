@@ -657,8 +657,8 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             vector<unsigned char> dataPriv(privKey.size());
             vector<unsigned char> dataPub(pubkey.size());
 
-            Bip47_common::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
-            Bip47_common::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
+            CBIP47Util::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
+            CBIP47Util::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
             LogPrintf("Generate Secret Point\n");
             SecretPoint secretPoint(dataPriv, dataPub);

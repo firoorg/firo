@@ -10,7 +10,7 @@ class CPaymentAddress
     public:
         CPaymentAddress();
         CPaymentAddress(CPaymentCode paymentCode_t);
-        CPaymentAddress(CPaymentCode paymentCode_t, int index_t, vector<unsigned char> privKey_t): paymentCode(paymentCode_t), index(index_t), privKey(privKey_t) {};
+        CPaymentAddress(CPaymentCode paymentCode_t, int index_t, vector<unsigned char> privKey_t): index(index_t), privKey(privKey_t), paymentCode(paymentCode_t) {};
         ~CPaymentAddress() {};
         
         CPaymentCode getPaymentCode();

@@ -1,6 +1,6 @@
 #ifndef ZCOIN_BIP47SECRETPOINT_H
 #define ZCOIN_BIP47SECRETPOINT_H
-#include "bip47/common.h"
+#include "bip47/utils.h"
 #include "key.h"
 #include "pubkey.h"
 #include "sigma/openssl_context.h"

@@ -25,28 +25,28 @@ CPaymentCode::CPaymentCode (std::string payment_code) : pubkey(PUBLIC_KEY_COMPRE
 CPaymentCode::CPaymentCode (unsigned char* payload, int length) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
     if ( length == PAYLOAD_LEN ) {
-        Bip47_common::arraycopy ( payload, PUBLIC_KEY_Y_OFFSET, pubkey, 0, PUBLIC_KEY_COMPRESSED_LEN );
-        Bip47_common::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
+        CBIP47Util::arraycopy ( payload, PUBLIC_KEY_Y_OFFSET, pubkey, 0, PUBLIC_KEY_COMPRESSED_LEN );
+        CBIP47Util::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
         strPaymentCode = makeV1();
     }
 }
 
 CPaymentCode::CPaymentCode (std::vector<unsigned char> &v_pubkey, std::vector<unsigned char> &v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
-    Bip47_common::arraycopy ( v_pubkey.data(),0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
-    Bip47_common::arraycopy ( v_chaincode.data(),0,chaincode, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( v_pubkey.data(),0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
+    CBIP47Util::arraycopy ( v_chaincode.data(),0,chaincode, 0, PUBLIC_KEY_X_LEN );
     strPaymentCode = makeV1();
 }
 CPaymentCode::CPaymentCode (unsigned char* v_pubkey, unsigned char* v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
-    Bip47_common::arraycopy ( v_pubkey,0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
-    Bip47_common::arraycopy ( v_chaincode,0,chaincode, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( v_pubkey,0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
+    CBIP47Util::arraycopy ( v_chaincode,0,chaincode, 0, PUBLIC_KEY_X_LEN );
     strPaymentCode = makeV1();
 }
 CPaymentCode::CPaymentCode ( const unsigned char* v_pubkey,  const unsigned char *v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
-    Bip47_common::arraycopy (v_pubkey,    0, pubkey,    0, PUBLIC_KEY_COMPRESSED_LEN);
-    Bip47_common::arraycopy (v_chaincode, 0, chaincode, 0, PUBLIC_KEY_X_LEN);
+    CBIP47Util::arraycopy (v_pubkey,    0, pubkey,    0, PUBLIC_KEY_COMPRESSED_LEN);
+    CBIP47Util::arraycopy (v_chaincode, 0, chaincode, 0, PUBLIC_KEY_X_LEN);
     strPaymentCode = makeV1();
 }
 
@@ -76,7 +76,7 @@ std::vector<unsigned char> CPaymentCode::getPayload()
     }
 
     std::vector<unsigned char> payload ( PAYLOAD_LEN );
-    Bip47_common::arraycopy ( pcBytes, 1, payload, 0, payload.size() );
+    CBIP47Util::arraycopy ( pcBytes, 1, payload, 0, payload.size() );
     return payload;
 }
 
@@ -140,17 +140,17 @@ std::vector<unsigned char> CPaymentCode::blind ( std::vector<unsigned char> payl
     std::vector<unsigned char> chaincode ( CHAIN_CODE_LEN );
     std::vector<unsigned char> buf0 ( PUBLIC_KEY_X_LEN );
     std::vector<unsigned char> buf1 ( PUBLIC_KEY_X_LEN );
-    Bip47_common::arraycopy ( payload, 0, ret, 0, PAYLOAD_LEN );
-    Bip47_common::arraycopy ( payload, PUBLIC_KEY_X_OFFSET, pubkey, 0, PUBLIC_KEY_X_LEN );
-    Bip47_common::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
-    Bip47_common::arraycopy ( mask, 0, buf0, 0, PUBLIC_KEY_X_LEN );
-    Bip47_common::arraycopy ( mask, PUBLIC_KEY_X_LEN, buf1, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( payload, 0, ret, 0, PAYLOAD_LEN );
+    CBIP47Util::arraycopy ( payload, PUBLIC_KEY_X_OFFSET, pubkey, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( mask, 0, buf0, 0, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( mask, PUBLIC_KEY_X_LEN, buf1, 0, PUBLIC_KEY_X_LEN );
     std::vector<unsigned char> temp1;
     std::vector<unsigned char> temp2;
     temp1 = vector_xor ( pubkey, buf0 );
     temp2 = vector_xor ( chaincode, buf1 );
-    Bip47_common::arraycopy ( temp1, 0, ret, PUBLIC_KEY_X_OFFSET, PUBLIC_KEY_X_LEN );
-    Bip47_common::arraycopy ( temp2, 0, ret, CHAIN_OFFSET, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( temp1, 0, ret, PUBLIC_KEY_X_OFFSET, PUBLIC_KEY_X_LEN );
+    CBIP47Util::arraycopy ( temp2, 0, ret, CHAIN_OFFSET, PUBLIC_KEY_X_LEN );
     return ret;
 }
 
@@ -164,12 +164,12 @@ bool CPaymentCode::parse()
         LogPrintf ( "invalid payment code version" );
         return false;
     } else {
-        Bip47_common::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET, pubkey, 0,  PUBLIC_KEY_COMPRESSED_LEN );
+        CBIP47Util::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET, pubkey, 0,  PUBLIC_KEY_COMPRESSED_LEN );
         if ( pubkey[0] != 2 && pubkey[0] != 3 ) {
             LogPrintf ( "invalid public key" );
             return false;
         } else {
-            Bip47_common::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET+PUBLIC_KEY_COMPRESSED_LEN, chaincode, 0, PUBLIC_KEY_X_LEN );
+            CBIP47Util::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET+PUBLIC_KEY_COMPRESSED_LEN, chaincode, 0, PUBLIC_KEY_X_LEN );
         }
     }
     return true;
@@ -195,10 +195,10 @@ string CPaymentCode::make (int version)
 
     payload[0] = ( unsigned char ) version;
     payload[1] = 0;
-    Bip47_common::arraycopy ( pubkey, 0, payload, PUBLIC_KEY_Y_OFFSET, pubkey.size() );
-    Bip47_common::arraycopy ( chaincode, 0, payload, CHAIN_OFFSET, chaincode.size() );
+    CBIP47Util::arraycopy ( pubkey, 0, payload, PUBLIC_KEY_Y_OFFSET, pubkey.size() );
+    CBIP47Util::arraycopy ( chaincode, 0, payload, CHAIN_OFFSET, chaincode.size() );
     payment_code[0] = 0x47;
-    Bip47_common::arraycopy ( payload, 0, payment_code, 1, payload.size() );
+    CBIP47Util::arraycopy ( payload, 0, payment_code, 1, payload.size() );
 
 
     return EncodeBase58Check ( payment_code );

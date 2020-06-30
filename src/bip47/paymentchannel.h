@@ -1,6 +1,6 @@
 #ifndef ZCOIN_BIP47CHANNEL_H
 #define ZCOIN_BIP47CHANNEL_H
-#include "bip47/common.h"
+#include "bip47/utils.h"
 #include "bip47/address.h"
 #include <string>
 #include "serialize.h"

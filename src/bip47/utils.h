@@ -1,6 +1,17 @@
 #ifndef ZCOIN_BIP47UTIL_H
 #define ZCOIN_BIP47UTIL_H
 #include "key.h"
+#include <iostream>
+#include <list>
+#include <stdio.h>
+#include <string.h>
+#include <vector>
+#include <openssl/sha.h>
+#include "uint256.h"
+#include "bip47/utils.h"
+#include "utilstrencodings.h"
+
+#define HARDENED_BIT 0x80000000
 
 class CPaymentCode;
 class CPaymentAddress;
@@ -11,6 +22,12 @@ class CTransaction;
 
 class CBIP47Util {
     public:
+		static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+	    static unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+	    static bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
 	    static bool isValidNotificationTransactionOpReturn(CTxOut txout);
 	    static bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
 	    static bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode);

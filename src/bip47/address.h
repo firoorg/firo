@@ -5,36 +5,36 @@
 
 #ifndef BIP47ADDRESS_H
 #define BIP47ADDRESS_H
-#include "bip47/common.h"
-#include "serialize.h"
+#include "bip47/utils.h"
 #include "clientversion.h"
+#include "serialize.h"
 
-class CBIP47Address {
+class CBIP47Address
+{
+public:
+    CBIP47Address(){}
+    CBIP47Address(std::string v_address, int v_index): address(v_address), index(v_index) {}
+    CBIP47Address(std::string v_address, int v_index, bool v_seen): address(v_address), index(v_index), seen(v_seen) {}
 
-    public:
-        CBIP47Address();
-        CBIP47Address(std::string v_address, int v_index);
-        CBIP47Address(std::string v_address, int v_index, bool v_seen);
-        
-        std::string getAddress();
-        int getIndex();
-        bool isSeen();
-        void setSeen(bool v_seen);
-        virtual std::string toString();
-        
-        ADD_SERIALIZE_METHODS;
-        template <typename Stream, typename Operation>
-        inline void SerializationOp(Stream& s, Operation ser_action) {
-            READWRITE(address);
-            READWRITE(index);
-            READWRITE(seen);
-        }
+    std::string getAddress();
+    int getIndex();
+    bool isSeen();
+    void setSeen(bool v_seen);
+    virtual std::string toString();
 
-    private:
-        std::string address;
-        int index = 0;
-        bool seen = false;
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(address);
+        READWRITE(index);
+        READWRITE(seen);
+    }
 
+private:
+    std::string address;
+    int index = 0;
+    bool seen = false;
 };
 
 #endif

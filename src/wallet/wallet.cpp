@@ -1881,8 +1881,8 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
         vector<unsigned char> dataPriv(privKey.size());
         vector<unsigned char> dataPub(pubkey.size());
 
-        Bip47_common::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
-        Bip47_common::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
+        CBIP47Util::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
+        CBIP47Util::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
         LogPrintf("Generate Secret Point\n"); 
         SecretPoint secretPoint(dataPriv, dataPub); // Generate Secret Point
@@ -2059,8 +2059,7 @@ CBitcoinAddress CWallet::getAddressOfReceived(CTransaction tx)
 
 CBitcoinAddress CWallet::getAddressOfSent(CTransaction tx)
 {
-    isminefilter filter = ISMINE_ALL;  // surpress false alarm on filter use lgtm [cpp/unused-local-variable]
-    for (int i = 0; i < tx.vout.size(); i++) {
+    for (int i = 0; i < (int)tx.vout.size(); i++) {
         try
         {
             if(tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
@@ -2254,7 +2253,7 @@ bool CWallet::generateNewBip47IncomingAddress(string address)
     std::vector<CBIP47Address>::iterator l_it = income_addresses.begin();
     while(l_it != income_addresses.end()) 
     {
-        if(!l_it->getAddress().compare(address) == 0) 
+        if(l_it->getAddress().compare(address)) 
         {
             continue;
         }
@@ -2262,7 +2261,7 @@ bool CWallet::generateNewBip47IncomingAddress(string address)
         {
             return false;
         }
-       CPaymentCode pcode(pcodestr);
+        CPaymentCode pcode(pcodestr);
         int nextIndex = pchannel->getCurrentIncomingIndex() + 1;
         CKey nkey = CBIP47Util::getReceiveAddress(this, pcode, nextIndex).getReceiveECKey();
         CPubKey npkey = nkey.GetPubKey();
@@ -2383,7 +2382,7 @@ bool CWallet::importBip47PendingKeys()
 {
     if(IsLocked())
         return false;
-    for(int i = 0; i < m_Bip47PendingKeys.size(); i++)
+    for(int i = 0; i < (int)m_Bip47PendingKeys.size(); i++)
     {
         importKey(m_Bip47PendingKeys[i]);
     }
@@ -6656,11 +6655,6 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 nValue += denomination_value;
                 LogPrintf("denomination: %s\n", *it);
 
-               // Fill vin
-
-                // Set up the Zerocoin Params object
-                sigma::Params* zcParams = sigma::Params::get_default(); // lgtm [cpp/unused-local-variable]
-
                 // Select not yet used coin from the wallet with minimal possible id
                 CSigmaEntry coinToUse;
                 sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
@@ -6885,7 +6879,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 }
             }
 
-            for(int i = 0; i < txNew.vin.size(); i++){
+            for(int i = 0; i < (int)txNew.vin.size(); i++){
                 // We use incomplete transaction hash as metadata.
                 sigma::SpendMetaData metaDataNew(tempStorages[i].serializedId, tempStorages[i].blockHash, txTempNew.GetHash());
                 spends[i].updateMetaData(tempStorages[i].privateCoin, metaDataNew);

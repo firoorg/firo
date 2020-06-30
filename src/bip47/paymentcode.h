@@ -1,6 +1,6 @@
 #ifndef ZCOIN_BIP47PAYMENTCODE_H
 #define ZCOIN_BIP47PAYMENTCODE_H
-#include "bip47/common.h"
+#include "bip47/utils.h"
 #include "base58.h"
 #include "crypto/hmac_sha512.h"
 #include "bip47/channeladdress.h"
