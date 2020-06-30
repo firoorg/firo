@@ -5574,7 +5574,7 @@ bool CWallet::CreateLelantusMintTransactions(
     std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
     CAmount& nAllFeeRet,
     std::vector<CHDMint>& dMints,
-    CReserveKey& reservekey,
+    std::list<CReserveKey>& reservekeys,
     int& nChangePosInOut,
     std::string& strFailReason,
     const CCoinControl *coinControl,
@@ -5610,6 +5610,9 @@ bool CWallet::CreateLelantusMintTransactions(
                 // initialize
                 CWalletTx wtx = wtxNew;
                 CMutableTransaction tx = txNew;
+
+                reservekeys.emplace_back(this);
+                auto &reservekey = reservekeys.back();
 
                 if (GetRandInt(10) == 0)
                     tx.nLockTime = std::max(0, (int) tx.nLockTime - GetRandInt(100));
@@ -5751,7 +5754,7 @@ bool CWallet::CreateLelantusMintTransactions(
                             if (nChangePosInOut == -1) {
 
                                 // Insert change txn at random position:
-                                nChangePosInOut = GetRandInt(tx.vout.size());
+                                nChangePosInOut = GetRandInt(tx.vout.size() + 1);
                             } else if ((unsigned int)nChangePosInOut > tx.vout.size()) {
 
                                 strFailReason = _("Change index out of range");
@@ -7400,13 +7403,13 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
-    CReserveKey reservekey(this);
     int64_t nFeeRequired = 0;
 
     int nChangePosRet = -1;
 
     std::vector<CHDMint> dMints;
-    if (!CreateLelantusMintTransactions(value, wtxAndFee, nFeeRequired, dMints, reservekey, nChangePosRet, strError, coinControl, autoMintAll)) {
+    std::list<CReserveKey> reservekeys;
+    if (!CreateLelantusMintTransactions(value, wtxAndFee, nFeeRequired, dMints, reservekeys, nChangePosRet, strError, coinControl, autoMintAll)) {
         return strError;
     }
 
@@ -7418,8 +7421,9 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
     CValidationState state;
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
+    auto reservekey = reservekeys.begin();
     for(size_t i = 0; i < wtxAndFee.size(); i++) {
-        if (!CommitTransaction(wtxAndFee[i].first, reservekey, g_connman.get(), state)) {
+        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         } else {

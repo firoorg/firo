@@ -223,6 +223,17 @@ BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
     BOOST_CHECK_GT(balance, countMintsBalance(wtxAndFee));
     BOOST_CHECK_EQUAL(balance, countMintsBalance(wtxAndFee, true));
     BOOST_CHECK_EQUAL(0, pwalletMain->GetBalance());
+
+    // Scripts of all changes should unique
+    std::set<CScript> changeScripts;
+    for (auto const &wtx : wtxAndFee) {
+        for (auto const &out : wtx.first.tx->vout) {
+            if (!out.scriptPubKey.IsLelantusMint()) {
+                BOOST_CHECK(!changeScripts.count(out.scriptPubKey));
+                changeScripts.insert(out.scriptPubKey);
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
