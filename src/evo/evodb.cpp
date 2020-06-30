@@ -39,3 +39,13 @@ void CEvoDB::WriteBestBlock(const uint256& hash)
 {
     Write(EVODB_BEST_BLOCK, hash);
 }
+
+void CEvoDB::CommitTransaction(CurTransaction & tx) {
+    LOCK(cs);
+    tx.Commit();
+}
+
+void CEvoDB::ClearTransaction(CurTransaction & tx) {
+    LOCK(cs);
+    tx.Clear();
+}
