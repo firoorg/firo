@@ -13,7 +13,7 @@ from getpass import getuser
 function_id = "" # see 'get_function' for possible values. edit "data" object in each function as is needed
 auth = True
 os = "ubuntu"
-network = "regtest"
+network = "mainnet"
 passphrase = "passphrase"
 ############ END DEFAULTS ###########################
 
@@ -124,7 +124,7 @@ def get_function(function_id, passphrase):
         return znode_control(passphrase)
     if(function_id=="znodeControl"):
         return znode_key()
-    if(function_id=="znodeKey"):
+    if(function_id=="znodeList"):
         return znode_list()
 
     raise ValueError('Incorrect function_id string passed.')

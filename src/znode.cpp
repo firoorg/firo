@@ -772,7 +772,8 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
             RelayZNode();
         }
         znodeSync.AddedZnodeList();
-        GetMainSignals().UpdatedZnode(*pmn);
+        if(pmn->IsMyZnode())
+            GetMainSignals().UpdatedZnode(*pmn);
     }
 
     return true;
@@ -1022,7 +1023,8 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
         // let's bump sync timeout
         LogPrint("znode", "CZnodePing::CheckAndUpdate -- bumping sync timeout, znode=%s\n", vin.prevout.ToStringShort());
         znodeSync.AddedZnodeList();
-        GetMainSignals().UpdatedZnode(*pmn);
+        if(pmn->IsMyZnode())
+            GetMainSignals().UpdatedZnode(*pmn);
     }
 
     // let's store this ping as the last one
