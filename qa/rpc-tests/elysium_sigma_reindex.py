@@ -54,13 +54,16 @@ class ElysiumSigmaReindexTest(ElysiumTestFramework):
         assert_equal(2, len(confirmed_mints))
         assert_equal(2, len(unconfirmed_mints))
 
+        blockcount = self.nodes[0].getblockcount()
+
         # restart with reindexing
         stop_node(self.nodes[0], 0)
         self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium', '-reindex'])
-        connect_nodes(self.nodes[0], 1)
 
-        sync_blocks(self.nodes)
-        time.sleep(1)
+        while self.nodes[0].getblockcount() < blockcount:
+            time.sleep(0.1)
+
+        connect_nodes(self.nodes[0], 1)
 
         reindexed_confirmed_mints = self.nodes[0].elysium_listmints()
         self.compare_mints(confirmed_mints, reindexed_confirmed_mints)
@@ -73,7 +76,6 @@ class ElysiumSigmaReindexTest(ElysiumTestFramework):
         self.nodes[0].elysium_sendspend(self.addrs[0], sigma_property, 1)
 
         self.nodes[0].generate(1)
-        sync_blocks(self.nodes)
 
         # all mints should be spend
         remaining_mints = self.nodes[0].elysium_listmints()
