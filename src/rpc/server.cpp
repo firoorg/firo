@@ -334,7 +334,6 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
         /* Zcoin features */
     { "zcoin",               "znsync",                &znsync,                 true  },
-    { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
 };
 
 CRPCTable::CRPCTable()
