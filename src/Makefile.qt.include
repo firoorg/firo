@@ -105,7 +105,6 @@ QT_FORMS_UI = \
   qt/forms/manualmintdialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
-  qt/forms/znodelist.ui \
   qt/forms/masternodelist.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
@@ -156,7 +155,6 @@ QT_MOC_CPP = \
   qt/moc_notifymnemonic.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
-  qt/moc_znodelist.cpp \
   qt/moc_masternodelist.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
@@ -244,7 +242,6 @@ BITCOIN_QT_H = \
   qt/notifyznodewarning.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
-  qt/znodelist.h \
   qt/masternodelist.h \
   qt/modaloverlay.h \
   qt/networkstyle.h \
@@ -434,7 +431,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletframe.cpp \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
-  qt/znodelist.cpp \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
   qt/zc2sigmapage.cpp \
