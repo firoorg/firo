@@ -19,6 +19,7 @@
 #include <QObject>
 
 class AddressTableModel;
+class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -132,6 +133,7 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
+    LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
@@ -243,7 +245,7 @@ public:
     void checkSigmaAmount(bool forced);
 
     // Lelantus
-    void lelantusMint(CAmount n, CCoinControl const *coinControl = nullptr);
+    void lelantusMint(CAmount value, bool mintAll = false, CCoinControl const *coinControl = nullptr);
 
     std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
@@ -257,6 +259,7 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
 

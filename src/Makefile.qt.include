@@ -135,6 +135,7 @@ QT_FORMS_UI = \
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
+  qt/moc_automintdialog.cpp \
   qt/moc_zerocoinpage.cpp \
   qt/moc_sigmadialog.cpp \
   qt/moc_sigmacoincontroldialog.cpp \
@@ -197,7 +198,8 @@ QT_MOC_CPP = \
   qt/moc_metadexcanceldialog.cpp \
   qt/moc_tradehistorydialog.cpp \
   qt/moc_zc2sigmapage.cpp \
-  qt/moc_zc2sigmamodel.cpp
+  qt/moc_zc2sigmamodel.cpp \
+  qt/moc_lelantusmodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -293,7 +295,8 @@ BITCOIN_QT_H = \
   qt/sendmpdialog.h \
   qt/elysium_qtutils.h \
   qt/zc2sigmapage.h \
-  qt/zc2sigmamodel.h
+  qt/zc2sigmamodel.h \
+  qt/lelantusmodel.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -441,7 +444,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
   qt/zc2sigmapage.cpp \
-  qt/zc2sigmamodel.cpp
+  qt/zc2sigmamodel.cpp \
+  qt/lelantusmodel.cpp
 
 ZCOIN_QT_ELYSIUM_CPP = \
   qt/elyassetsdialog.cpp \

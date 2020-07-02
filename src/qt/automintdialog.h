@@ -15,18 +15,22 @@ class AutoMintDialog : public QDialog
 
 public:
     explicit AutoMintDialog(QWidget *parent = 0);
+    ~AutoMintDialog();
 
 public:
-    void accept();
     int exec();
     void setModel(WalletModel *model);
 
 private Q_SLOTS:
-    void cancelEvent();
+    void accept();
+    void reject();
 
 private:
     Ui::AutoMintDialog *ui;
     WalletModel *model;
+    LelantusModel *lelantusModel;
+
+    void ensureLelantusModel();
 };
 
 #endif // ZCOIN_QT_AUTOMINT_H

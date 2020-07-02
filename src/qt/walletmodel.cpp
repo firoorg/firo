@@ -8,6 +8,7 @@
 #include "consensus/validation.h"
 #include "guiconstants.h"
 #include "guiutil.h"
+#include "lelantusmodel.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
@@ -38,6 +39,7 @@
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0),
+    lelantusModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
@@ -48,6 +50,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fForceCheckBalanceChanged = false;
 
     addressTableModel = new AddressTableModel(wallet, this);
+    lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
 
@@ -466,6 +469,11 @@ OptionsModel *WalletModel::getOptionsModel()
 AddressTableModel *WalletModel::getAddressTableModel()
 {
     return addressTableModel;
+}
+
+LelantusModel *WalletModel::getLelantusModel()
+{
+    return lelantusModel;
 }
 
 TransactionTableModel *WalletModel::getTransactionTableModel()
@@ -1042,29 +1050,22 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
     }
 }
 
-void WalletModel::lelantusMint(CAmount n, CCoinControl const *coinControl)
+void WalletModel::lelantusMint(CAmount value, bool mintAll, CCoinControl const *coinControl)
 {
     if (!lelantus::IsLelantusAllowed()) {
         throw std::runtime_error("Lelantus is not activated yet");
     }
 
-    if (!lelantus::IsAvailableToMint(n)) {
+    if (!lelantus::IsAvailableToMint(value)) {
         throw std::invalid_argument("Amount to mint is invalid");
     }
 
-    const auto &params = lelantus::Params::get_default();
-
-    lelantus::PrivateCoin coin(params, n);
-
-    CHDMint hdMint;
-    auto recipient = CWallet::CreateLelantusMintRecipient(coin, hdMint);
-
-    CWalletTx wtx;
-
-    auto errorMsg = pwalletMain->MintAndStoreLelantus(recipient, coin, hdMint, wtx, false, coinControl);
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
+    std::vector<CHDMint> hdMints;
+    auto errorMsg = pwalletMain->MintAndStoreLelantus(value, wtxAndFees, hdMints, mintAll);
 
     if (errorMsg != "") {
-        throw std::runtime_error(errorMsg);
+        throw std::runtime_error("Fail to mint and store, " + errorMsg);
     }
 }
 

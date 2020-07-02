@@ -5,25 +5,27 @@
 #include "walletview.h"
 
 #include "addressbookpage.h"
-#include "zerocoinpage.h"
-#include "sigmadialog.h"
-#include "zc2sigmapage.h"
 #include "askpassphrasedialog.h"
+#include "automintdialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiutil.h"
+#include "lelantusmodel.h"
+#include "metadexcanceldialog.h"
+#include "metadexdialog.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
-#include "metadexcanceldialog.h"
-#include "metadexdialog.h"
+#include "sigmadialog.h"
 #include "signverifymessagedialog.h"
 #include "tradehistorydialog.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
+#include "zc2sigmapage.h"
+#include "zerocoinpage.h"
 
 #include "ui_interface.h"
 
@@ -264,7 +266,7 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
         // Pass through transaction notifications
         connect(this, SIGNAL(incomingTransaction(QString,int,CAmount,QString,QString,QString)), gui, SLOT(incomingTransaction(QString,int,CAmount,QString,QString,QString)));
 
-        // Connect HD enabled state signal 
+        // Connect HD enabled state signal
         connect(this, SIGNAL(hdEnabledStatusChanged(int)), gui, SLOT(setHDStatus(int)));
     }
 }
@@ -350,6 +352,11 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
 
         // Show progress dialog
         connect(_walletModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
+
+        auto lelantusModel = _walletModel->getLelantusModel();
+        if (lelantusModel) {
+            connect(lelantusModel, SIGNAL(askUserToMint()), this, SLOT(askUserToMint()));
+        }
     }
 }
 
@@ -622,4 +629,25 @@ void WalletView::showProgress(const QString &title, int nProgress)
 void WalletView::requestedSyncWarningInfo()
 {
     Q_EMIT outOfSyncWarningClicked();
+}
+
+void WalletView::askUserToMint()
+{
+    if (!walletModel) {
+        return;
+    }
+
+    auto lelantusModel = walletModel->getLelantusModel();
+    if (!lelantusModel) {
+        return;
+    }
+
+    if (!isActiveWindow()) {
+        lelantusModel->resumeAutoMint(false);
+        return;
+    }
+
+    AutoMintDialog dlg(this);
+    dlg.setModel(walletModel);
+    dlg.exec();
 }
