@@ -225,8 +225,6 @@ private Q_SLOTS:
     void gotoHistoryPage();
     /** Switch directly to Zcoin history tab */
     void gotoBitcoinHistoryTab();
-    /** Switch to znode page */
-    void gotoZnodePage();
     /** Switch to masternode page */
     void gotoMasternodePage();
     /** Switch to receive coins page */

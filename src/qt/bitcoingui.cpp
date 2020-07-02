@@ -39,7 +39,6 @@
 #include "znode.h"
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
-#include "znodelist.h"
 #include "masternodelist.h"
 #include "notifyznodewarning.h"
 #include "elysium_qtutils.h"
@@ -415,8 +414,6 @@ void BitcoinGUI::createActions()
 #endif
 
 #ifdef ENABLE_WALLET
-    connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -862,13 +859,6 @@ void BitcoinGUI::gotoToolboxPage()
     if (walletFrame) walletFrame->gotoToolboxPage();
 }
 #endif
-
-void BitcoinGUI::gotoZnodePage()
-{
-    QSettings settings;
-    znodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoZnodePage();
-}
 
 void BitcoinGUI::gotoMasternodePage()
 {
