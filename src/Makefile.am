@@ -421,7 +421,6 @@ libbitcoin_server_a_SOURCES = \
   rpc/misc.cpp \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
-  rpc/rpcznode.cpp \
   rpc/server.cpp \
   rpc/rpcevo.cpp \
   rpc/rpcquorums.cpp \
