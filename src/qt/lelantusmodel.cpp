@@ -82,7 +82,6 @@ void LelantusModel::setupAutoMint()
         LOCK2(cs_main, pwalletMain->cs_wallet);
         mintable = getMintableAmount();
     }
-    std::cout << "mintable : " << mintable << std::endl;
 
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
     if (mintable > 0) {
@@ -123,14 +122,40 @@ void LelantusModel::stopAutoMint()
     pollTimer->stop();
 }
 
+void LelantusModel::unlockWallet(SecureString const &passphase, size_t secs)
+{
+    LOCK(wallet->cs_wallet);
+    wallet->Unlock(passphase);
+}
+
+void LelantusModel::lockWallet()
+{
+    LOCK(wallet->cs_wallet);
+    wallet->Lock();
+}
+
 CAmount LelantusModel::mintAll()
 {
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    // TODO : dont use global
+    LOCK2(cs_main, wallet->cs_wallet);
+
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> hdMints;
 
-    auto str = pwalletMain->MintAndStoreLelantus(0, wtxAndFee, hdMints, true);
+    auto str = wallet->MintAndStoreLelantus(0, wtxAndFee, hdMints, true);
+    if (str != "") {
+        throw std::runtime_error("Fail to mint all public balance, " + str);
+    }
+
+    CAmount s = 0;
+    for (auto const &wtx : wtxAndFee) {
+        for (auto const &out : wtx.first.tx->vout) {
+            if (out.scriptPubKey.IsLelantusMint()) {
+                s += out.nValue;
+            }
+        }
+    }
+
+    return s;
 }
 
 void LelantusModel::updateTransaction(uint256 hash)

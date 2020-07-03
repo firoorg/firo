@@ -39,6 +39,8 @@ public:
         QDateTime until = QDateTime());
 
     void stopAutoMint();
+    void unlockWallet(SecureString const &passphase, size_t secs);
+    void lockWallet();
 
     CAmount mintAll();
 

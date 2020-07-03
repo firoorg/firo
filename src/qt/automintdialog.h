@@ -29,6 +29,8 @@ private:
     Ui::AutoMintDialog *ui;
     WalletModel *model;
     LelantusModel *lelantusModel;
+    bool requiredPassphase;
+    bool locked;
 
     void ensureLelantusModel();
 };

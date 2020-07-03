@@ -13,7 +13,9 @@ AutoMintDialog::AutoMintDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AutoMintDialog),
     model(0),
-    lelantusModel(0)
+    lelantusModel(0),
+    requiredPassphase(true),
+    locked(false)
 {
     cs_main.lock();
     pwalletMain->cs_wallet.lock();
@@ -25,6 +27,10 @@ AutoMintDialog::AutoMintDialog(QWidget *parent) :
 
 AutoMintDialog::~AutoMintDialog()
 {
+    if (locked) {
+        lelantusModel->lockWallet();
+    }
+
     if (lelantusModel) {
         lelantusModel->cs.unlock();
     }
@@ -37,18 +43,31 @@ void AutoMintDialog::accept()
 {
     ensureLelantusModel();
 
+    if (requiredPassphase) {
+        auto rawPassphase = ui->passEdit->text().toStdString();
+        SecureString passphase(rawPassphase.begin(), rawPassphase.end());
+        lelantusModel->unlockWallet(passphase, 0);
+        locked = true;
+    }
+
     ui->warningLabel->setText(QString("Minting..."));
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);
     ui->warningLabel->repaint();
 
-    lelantusModel->mintAll();
+    try {
+        lelantusModel->mintAll();
+        auto t = QDateTime::currentDateTime();
+        t = t.addSecs(WAITING_TIME);
 
-    auto t = QDateTime::currentDateTime();
-    t = t.addSecs(WAITING_TIME);
+        lelantusModel->resumeAutoMint(true, t);
+    } catch (std::runtime_error const &e) {
+        std::cout << "mintAll : " << e.what() << std::endl;
+        ui->warningLabel->setText(QString());
 
-    lelantusModel->resumeAutoMint(true, t);
+        lelantusModel->resumeAutoMint(false);
+    }
 
     QDialog::accept();
 }
@@ -93,6 +112,7 @@ void AutoMintDialog::setModel(WalletModel *model)
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
+        requiredPassphase = false;
     }
 
     {
