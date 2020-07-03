@@ -40,7 +40,6 @@ namespace NetMsgType {
     const char *GETBLOCKTXN="getblocktxn";
     const char *BLOCKTXN="blocktxn";
     const char *DANDELIONTX="dandeliontx";
-//znode
     const char *SYNCSTATUSCOUNT="ssc";
     const char *GETMNLISTDIFF="getmnlistd";
     const char *MNLISTDIFF="mnlistdiff";
