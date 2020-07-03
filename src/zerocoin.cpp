@@ -8,7 +8,6 @@
 #include "definition.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
-#include "znode-sync.h"
 #include "sigma/remint.h"
 
 #include <atomic>

@@ -31,7 +31,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "znode-sync.h"
 #include "zerocoin.h"
 #include "sigma.h"
 #include "sigma/remint.h"

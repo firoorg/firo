@@ -5,7 +5,6 @@
 #include "activeznode.h"
 #include "consensus/consensus.h"
 #include "znode.h"
-#include "znode-sync.h"
 #include "protocol.h"
 #include "netbase.h"
 
@@ -22,12 +21,6 @@ void CActiveZnode::ManageState() {
     LogPrint("znode", "CActiveZnode::ManageState -- Start\n");
     if (!fMasternodeMode) {
         LogPrint("znode", "CActiveZnode::ManageState -- Not a znode, returning\n");
-        return;
-    }
-
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !znodeSync.IsBlockchainSynced()) {
-        nState = ACTIVE_ZNODE_SYNC_IN_PROCESS;
-        LogPrintf("CActiveZnode::ManageState -- %s: %s\n", GetStateString(), GetStatus());
         return;
     }
 

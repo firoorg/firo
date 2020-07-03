@@ -25,7 +25,6 @@
 #include "wallet.h"
 #include "walletdb.h"
 #include "hdmint/tracker.h"
-#include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
 #include "masternode-payments.h"
