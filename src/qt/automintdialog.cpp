@@ -15,7 +15,8 @@ AutoMintDialog::AutoMintDialog(QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    locked(false)
+    locked(false),
+    amountToMint(0)
 {
     cs_main.lock();
     pwalletMain->cs_wallet.lock();
@@ -63,9 +64,7 @@ void AutoMintDialog::accept()
 
         lelantusModel->resumeAutoMint(true, t);
     } catch (std::runtime_error const &e) {
-        std::cout << "mintAll : " << e.what() << std::endl;
-        ui->warningLabel->setText(QString());
-
+        // TODO: show error
         lelantusModel->resumeAutoMint(false);
     }
 
@@ -76,8 +75,11 @@ int AutoMintDialog::exec()
 {
     ensureLelantusModel();
 
-    if (lelantusModel->getMintableAmount() == 0) {
-        lelantusModel->resumeAutoMint(false);
+    if (amountToMint == 0) {
+        auto t = QDateTime::currentDateTime();
+        t = t.addSecs(10);
+
+        lelantusModel->resumeAutoMint(false, t);
         return 0;
     }
 
@@ -116,9 +118,9 @@ void AutoMintDialog::setModel(WalletModel *model)
     }
 
     {
-        auto amount = lelantusModel->getMintableAmount();
+        amountToMint = lelantusModel->getMintableAmount();
         auto text = ui->warningLabel->text();
-        text.replace("AMOUNT", BitcoinUnits::format(BitcoinUnit::BTC, amount));
+        text.replace("AMOUNT", BitcoinUnits::format(BitcoinUnit::BTC, amountToMint));
         ui->warningLabel->setText(text);
     }
 }

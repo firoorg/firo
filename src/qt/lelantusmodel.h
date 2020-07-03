@@ -51,9 +51,12 @@ private:
 
     QTimer *pollTimer;
     QTimer *startTimer;
+    QTimer *checkPendingTxTimer;
 
     AutoMintState autoMintState = AutoMintState::Disabled;
     QDateTime disableAutoMintUntil;
+
+    std::vector<uint256> pendingTransactions;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
@@ -64,6 +67,7 @@ Q_SIGNALS:
     void askUserToMint();
 
 public Q_SLOTS:
+    void checkPendingTransactions();
     void checkAutoMint();
 
     void updateTransaction(uint256 hash);

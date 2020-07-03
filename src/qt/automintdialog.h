@@ -31,6 +31,7 @@ private:
     LelantusModel *lelantusModel;
     bool requiredPassphase;
     bool locked;
+    CAmount amountToMint;
 
     void ensureLelantusModel();
 };
