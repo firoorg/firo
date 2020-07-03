@@ -8,7 +8,6 @@
 #include "init.h"
 #include "znode.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 #include "util.h"
 #include "net.h"
 #include "netbase.h"
@@ -129,34 +128,6 @@ CZnode::CZnode(const CZnodeBroadcast &mnb) :
 // When a new znode broadcast is sent, update our information
 //
 bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
-    if (mnb.sigTime <= sigTime && !mnb.fRecovery) return false;
-
-    pubKeyZnode = mnb.pubKeyZnode;
-    sigTime = mnb.sigTime;
-    vchSig = mnb.vchSig;
-    nProtocolVersion = mnb.nProtocolVersion;
-    addr = mnb.addr;
-    nPoSeBanScore = 0;
-    nPoSeBanHeight = 0;
-    nTimeLastChecked = 0;
-    int nDos = 0;
-    if (mnb.lastPing == CZnodePing() || (mnb.lastPing != CZnodePing() && mnb.lastPing.CheckAndUpdate(this, true, nDos))) {
-        lastPing = mnb.lastPing;
-        mnodeman.mapSeenZnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
-    }
-    // if it matches our Znode privkey...
-    if (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode) {
-        nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
-        if (nProtocolVersion == LEGACY_ZNODES_PROTOCOL_VERSION) {
-            // ... and PROTOCOL_VERSION, then we've been remotely activated ...
-            activeZnode.ManageState();
-        } else {
-            // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
-            // but also do not ban the node we get this message from
-            LogPrintf("CZnode::UpdateFromNewBroadcast -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", nProtocolVersion, LEGACY_ZNODES_PROTOCOL_VERSION);
-            return false;
-        }
-    }
     return true;
 }
 
@@ -166,18 +137,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
 // and get paid this block
 //
 arith_uint256 CZnode::CalculateScore(const uint256 &blockHash) {
-    uint256 aux = ArithToUint256(UintToArith256(vin.prevout.hash) + vin.prevout.n);
-
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << blockHash;
-    arith_uint256 hash2 = UintToArith256(ss.GetHash());
-
-    CHashWriter ss2(SER_GETHASH, PROTOCOL_VERSION);
-    ss2 << blockHash;
-    ss2 << aux;
-    arith_uint256 hash3 = UintToArith256(ss2.GetHash());
-
-    return (hash3 > hash2 ? hash3 - hash2 : hash2 - hash3);
+    return arith_uint256();
 }
 
 void CZnode::Check(bool fForce) {
@@ -218,7 +178,6 @@ void CZnode::Check(bool fForce) {
     } else if (nPoSeBanScore >= ZNODE_POSE_BAN_MAX_SCORE) {
         nActiveState = ZNODE_POSE_BAN;
         // ban for the whole payment cycle
-        nPoSeBanHeight = nHeight + mnodeman.size();
         LogPrintf("CZnode::Check -- Znode %s is banned till block %d now\n", vin.prevout.ToStringShort(), nPoSeBanHeight);
         return;
     }
@@ -253,7 +212,7 @@ void CZnode::Check(bool fForce) {
             return;
         }
 
-        bool fWatchdogActive = znodeSync.IsSynced() && mnodeman.IsWatchdogActive();
+        bool fWatchdogActive = znodeSync.IsSynced();
         bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > ZNODE_WATCHDOG_MAX_SECONDS));
 
 //        LogPrint("znode", "CZnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetTime()=%d, fWatchdogExpired=%d\n",
@@ -608,9 +567,6 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     {
         TRY_LOCK(cs_main, lockMain);
         if (!lockMain) {
-            // not mnb fault, let it to be checked again later
-            LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Failed to aquire lock, addr=%s", addr.ToString());
-            mnodeman.mapSeenZnodeBroadcast.erase(GetHash());
             return false;
         }
 
@@ -627,7 +583,6 @@ bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
             LogPrintf("CZnodeBroadcast::CheckOutpoint -- Znode UTXO must have at least %d confirmations, znode=%s\n",
                       Params().GetConsensus().nZnodeMinimumConfirmations, vin.prevout.ToStringShort());
             // maybe we miss few blocks, let this mnb to be checked again later
-            mnodeman.mapSeenZnodeBroadcast.erase(GetHash());
             return false;
         }
     }
@@ -684,9 +639,6 @@ bool CZnodeBroadcast::CheckSignature(int &nDos) {
 }
 
 void CZnodeBroadcast::RelayZNode() {
-    LogPrintf("CZnodeBroadcast::RelayZNode\n");
-    CInv inv(MSG_ZNODE_ANNOUNCE, GetHash());
-    g_connman->RelayInv(inv);
 }
 
 CZnodePing::CZnodePing(CTxIn &vinNew) {
@@ -807,9 +759,6 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
     // and update mnodeman.mapSeenZnodeBroadcast.lastPing which is probably outdated
     CZnodeBroadcast mnb(*pmn);
     uint256 hash = mnb.GetHash();
-    if (mnodeman.mapSeenZnodeBroadcast.count(hash)) {
-        mnodeman.mapSeenZnodeBroadcast[hash].second.lastPing = *this;
-    }
 
     pmn->Check(true); // force update, ignoring cache
     if (!pmn->IsEnabled()) return false;
@@ -821,8 +770,6 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 }
 
 void CZnodePing::Relay() {
-    CInv inv(MSG_ZNODE_PING, GetHash());
-    g_connman->RelayInv(inv);
 }
 
 //void CZnode::AddGovernanceVote(uint256 nGovernanceObjectHash)

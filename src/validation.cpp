@@ -52,7 +52,6 @@
 
 #include "instantx.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 #include "coins.h"
 
 #include "sigma/coinspend.h"

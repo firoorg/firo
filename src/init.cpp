@@ -96,7 +96,6 @@
 #include <event2/thread.h>
 #include "activeznode.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 #include "znodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"
@@ -269,8 +268,6 @@ void Shutdown()
     zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    flatdb1.Dump(mnodeman);
     
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
@@ -2080,21 +2077,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
     bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
-    if (!fIgnoreCacheFiles) {
-        // Legacy znodes cache
-        uiInterface.InitMessage(_("Loading znode cache..."));
-        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-        if (!flatdb1.Load(mnodeman)) {
-            return InitError("Failed to load znode cache from zncache.dat");
-        }
-
-        if (mnodeman.size()) {
-            uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        } else {
-            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
-        }
-    }
-
     if (!fIgnoreCacheFiles) {
         // Evo znode cache
         boost::filesystem::path pathDB = GetDataDir();

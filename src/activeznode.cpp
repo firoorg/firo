@@ -6,7 +6,6 @@
 #include "consensus/consensus.h"
 #include "znode.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 #include "protocol.h"
 #include "netbase.h"
 
@@ -110,37 +109,6 @@ std::string CActiveZnode::GetTypeString() const {
 }
 
 bool CActiveZnode::SendZnodePing() {
-    if (!fPingerEnabled) {
-        LogPrint("znode",
-                 "CActiveZnode::SendZnodePing -- %s: znode ping service is disabled, skipping...\n",
-                 GetStateString());
-        return false;
-    }
-
-    if (!mnodeman.Has(vin)) {
-        strNotCapableReason = "Znode not in znode list";
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
-        LogPrintf("CActiveZnode::SendZnodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
-        return false;
-    }
-
-    CZnodePing mnp(vin);
-    if (!mnp.Sign(keyZnode, pubKeyZnode)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- ERROR: Couldn't sign Znode Ping\n");
-        return false;
-    }
-
-    // Update lastPing for our znode in Znode list
-    if (mnodeman.IsZnodePingedWithin(vin, ZNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- Too early to send Znode Ping\n");
-        return false;
-    }
-
-    mnodeman.SetZnodeLastPing(vin, mnp);
-
-    LogPrintf("CActiveZnode::SendZnodePing -- Relaying ping, collateral=%s\n", vin.ToString());
-    mnp.Relay();
-
     return true;
 }
 
@@ -281,40 +249,6 @@ void CActiveZnode::ManageStateInitial() {
 }
 
 void CActiveZnode::ManageStateRemote() {
-    LogPrint("znode",
-             "CActiveZnode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyZnode.GetID() = %s\n",
-             GetStatus(), fPingerEnabled, GetTypeString(), pubKeyZnode.GetID().ToString());
-
-    mnodeman.CheckZnode(pubKeyZnode);
-    znode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
-
-    if (infoMn.fInfoValid) {
-        if (service != infoMn.addr) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
-            // LogPrintf("service: %s\n", service.ToString());
-            // LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
-            strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this znode changed recently.";
-            LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
-            return;
-        }
-        if (!CZnode::IsValidStateForAutoStart(infoMn.nActiveState)) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
-            strNotCapableReason = strprintf("Znode in %s state", CZnode::StateToString(infoMn.nActiveState));
-            LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
-            return;
-        }
-        if (nState != ACTIVE_ZNODE_STARTED) {
-            LogPrintf("CActiveZnode::ManageStateRemote -- STARTED!\n");
-            vin = infoMn.vin;
-            service = infoMn.addr;
-            fPingerEnabled = true;
-            nState = ACTIVE_ZNODE_STARTED;
-        }
-    } else {
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
-        strNotCapableReason = "Znode not in znode list";
-        LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
-    }
 }
 
 void CActiveZnode::ManageStateLocal() {
@@ -357,8 +291,6 @@ void CActiveZnode::ManageStateLocal() {
 
         //update to znode list
         LogPrintf("CActiveZnode::ManageStateLocal -- Update Znode List\n");
-        mnodeman.UpdateZnodeList(mnb);
-        mnodeman.NotifyZnodeUpdates();
 
         //send to all peers
         LogPrintf("CActiveZnode::ManageStateLocal -- Relay broadcast, vin=%s\n", vin.ToString());

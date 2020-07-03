@@ -448,8 +448,6 @@ public:
 
     void Relay() const
     {
-        CInv inv(MSG_ZNODE_VERIFY, GetHash());
-        g_connman->RelayInv(inv);
     }
 };
 

@@ -44,11 +44,6 @@ namespace NetMsgType {
     const char *TXLOCKVOTE="txlvote";
     const char *SPORK="spork";
     const char *GETSPORKS="getsporks";
-    const char *ZNODEPAYMENTVOTE="mnw";
-    const char *ZNODEPAYMENTBLOCK="mnwb";
-    const char *ZNODEPAYMENTSYNC="mnget";
-    const char *MNANNOUNCE="mnb";
-    const char *MNPING="mnp";
     const char *DSACCEPT="dsa";
     const char *DSVIN="dsi";
     const char *DSFINALTX="dsf";
@@ -117,13 +112,8 @@ const static std::string allNetMessageTypes[] = {
     //znode
     NetMsgType::TXLOCKREQUEST,
     NetMsgType::TXLOCKVOTE,
-    NetMsgType::ZNODEPAYMENTVOTE,
-    NetMsgType::ZNODEPAYMENTBLOCK,
-    NetMsgType::ZNODEPAYMENTSYNC,
     NetMsgType::SPORK,
     NetMsgType::GETSPORKS,
-    NetMsgType::MNANNOUNCE,
-    NetMsgType::MNPING,
     NetMsgType::DSEG,
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
@@ -253,10 +243,7 @@ std::string CInv::GetCommand() const
     case MSG_TXLOCK_REQUEST:        return cmd.append(NetMsgType::TXLOCKREQUEST);
     case MSG_TXLOCK_VOTE:           return cmd.append(NetMsgType::TXLOCKVOTE);
     case MSG_SPORK:                 return cmd.append(NetMsgType::SPORK);
-    case MSG_ZNODE_ANNOUNCE:        return cmd.append(NetMsgType::MNANNOUNCE);
-    case MSG_ZNODE_PING:            return cmd.append(NetMsgType::MNPING);
     case MSG_DSTX:                  return cmd.append(NetMsgType::DSTX);
-    case MSG_ZNODE_VERIFY:          return cmd.append(NetMsgType::MNVERIFY);
 
     case MSG_QUORUM_FINAL_COMMITMENT:       return cmd.append(NetMsgType::QFCOMMITMENT);
     case MSG_QUORUM_CONTRIB:                return cmd.append(NetMsgType::QCONTRIB);

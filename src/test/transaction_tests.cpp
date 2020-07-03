@@ -21,7 +21,6 @@
 #include "script/script_error.h"
 #include "script/standard.h"
 #include "utilstrencodings.h"
-#include "znodeman.h"
 #include "znode-sync.h"
 
 #include <map>
