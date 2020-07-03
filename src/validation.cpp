@@ -51,7 +51,6 @@
 #include "mtpstate.h"
 
 #include "instantx.h"
-#include "znode-sync.h"
 #include "coins.h"
 
 #include "sigma/coinspend.h"
@@ -4290,9 +4289,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     CValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
-
-    if (pindex->nHeight < chainparams.GetConsensus().DIP0003EnforcementHeight)
-        znodeSync.IsBlockchainSynced(true);
 
     return true;
 }

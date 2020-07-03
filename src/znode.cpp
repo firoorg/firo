@@ -7,7 +7,6 @@
 #include "consensus/validation.h"
 #include "init.h"
 #include "znode.h"
-#include "znode-sync.h"
 #include "util.h"
 #include "net.h"
 #include "netbase.h"
@@ -141,112 +140,6 @@ arith_uint256 CZnode::CalculateScore(const uint256 &blockHash) {
 }
 
 void CZnode::Check(bool fForce) {
-    LOCK(cs);
-
-    if (ShutdownRequested()) return;
-
-    if (!fForce && (GetTime() - nTimeLastChecked < ZNODE_CHECK_SECONDS)) return;
-    nTimeLastChecked = GetTime();
-
-    LogPrint("znode", "CZnode::Check -- Znode %s is in %s state\n", vin.prevout.ToStringShort(), GetStateString());
-
-    //once spent, stop doing the checks
-    if (IsOutpointSpent()) return;
-
-    int nHeight = 0;
-    if (!fUnitTest) {
-        TRY_LOCK(cs_main, lockMain);
-        if (!lockMain) return;
-
-        Coin coin;
-        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
-            nActiveState = ZNODE_OUTPOINT_SPENT;
-            LogPrint("znode", "CZnode::Check -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
-            return;
-        }
-
-        nHeight = chainActive.Height();
-    }
-
-    if (IsPoSeBanned()) {
-        if (nHeight < nPoSeBanHeight) return; // too early?
-        // Otherwise give it a chance to proceed further to do all the usual checks and to change its state.
-        // Znode still will be on the edge and can be banned back easily if it keeps ignoring mnverify
-        // or connect attempts. Will require few mnverify messages to strengthen its position in mn list.
-        LogPrintf("CZnode::Check -- Znode %s is unbanned and back in list now\n", vin.prevout.ToStringShort());
-        DecreasePoSeBanScore();
-    } else if (nPoSeBanScore >= ZNODE_POSE_BAN_MAX_SCORE) {
-        nActiveState = ZNODE_POSE_BAN;
-        // ban for the whole payment cycle
-        LogPrintf("CZnode::Check -- Znode %s is banned till block %d now\n", vin.prevout.ToStringShort(), nPoSeBanHeight);
-        return;
-    }
-
-    int nActiveStatePrev = nActiveState;
-    bool fOurZnode = fMasternodeMode && activeZnode.pubKeyZnode == pubKeyZnode;
-
-    // znode doesn't meet payment protocol requirements ...
-/*    bool fRequireUpdate = nProtocolVersion < znpayments.GetMinZnodePaymentsProto() ||
-                          // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
-                          (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
-
-    // keep old znodes on start, give them a chance to receive updates...
-    bool fWaitForPing = !znodeSync.IsZnodeListSynced() && !IsPingedWithin(ZNODE_MIN_MNP_SECONDS);
-
-    if (fWaitForPing && !fOurZnode) {
-        // ...but if it was already expired before the initial check - return right away
-        if (IsExpired() || IsWatchdogExpired() || IsNewStartRequired()) {
-            LogPrint("znode", "CZnode::Check -- Znode %s is in %s state, waiting for ping\n", vin.prevout.ToStringShort(), GetStateString());
-            return;
-        }
-    }
-
-    // don't expire if we are still in "waiting for ping" mode unless it's our own znode
-    if (!fWaitForPing || fOurZnode) {
-
-        if (!IsPingedWithin(ZNODE_NEW_START_REQUIRED_SECONDS)) {
-            nActiveState = ZNODE_NEW_START_REQUIRED;
-            if (nActiveStatePrev != nActiveState) {
-                LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-            }
-            return;
-        }
-
-        bool fWatchdogActive = znodeSync.IsSynced();
-        bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > ZNODE_WATCHDOG_MAX_SECONDS));
-
-//        LogPrint("znode", "CZnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetTime()=%d, fWatchdogExpired=%d\n",
-//                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
-
-        if (fWatchdogExpired) {
-            nActiveState = ZNODE_WATCHDOG_EXPIRED;
-            if (nActiveStatePrev != nActiveState) {
-                LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-            }
-            return;
-        }
-
-        if (!IsPingedWithin(ZNODE_EXPIRATION_SECONDS)) {
-            nActiveState = ZNODE_EXPIRED;
-            if (nActiveStatePrev != nActiveState) {
-                LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-            }
-            return;
-        }
-    }
-
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
-        nActiveState = ZNODE_PRE_ENABLED;
-        if (nActiveStatePrev != nActiveState) {
-            LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-        }
-        return;
-    }
-
-    nActiveState = ZNODE_ENABLED; // OK
-    if (nActiveStatePrev != nActiveState) {
-        LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
-    }
 }
 
 bool CZnode::IsLegacyWindow(int height) {
@@ -378,11 +271,6 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     CPubKey pubKeyZnodeNew;
     CKey keyZnodeNew;
     //need correct blocks to send ping
-    if (!fOffline && !znodeSync.IsBlockchainSynced()) {
-        strErrorRet = "Sync in progress. Must wait until sync is complete to start Znode";
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
 
     if (!pwalletMain->GetZnodeVinAndKeys(txin, pubKeyCollateralAddressNew, keyCollateralAddressNew, strTxHash, strOutputIndex)) {
         strErrorRet = strprintf("Could not allocate txin %s:%s for znode %s", strTxHash, strOutputIndex, strService);
@@ -546,7 +434,6 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
             pmn->Check();
             RelayZNode();
         }
-        znodeSync.AddedZnodeList();
     }
 
     return true;
@@ -746,11 +633,6 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     // if we are still syncing and there was no known ping for this mn for quite a while
     // (NOTE: assuming that ZNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
-    if (!znodeSync.IsZnodeListSynced() && !pmn->IsPingedWithin(ZNODE_EXPIRATION_SECONDS / 2)) {
-        // let's bump sync timeout
-        LogPrint("znode", "CZnodePing::CheckAndUpdate -- bumping sync timeout, znode=%s\n", vin.prevout.ToStringShort());
-        znodeSync.AddedZnodeList();
-    }
 
     // let's store this ping as the last one
     LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping accepted, znode=%s\n", vin.prevout.ToStringShort());

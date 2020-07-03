@@ -32,7 +32,6 @@
 
 #include "spork.h"
 #include "instantx.h"
-#include "znode-sync.h"
 
 #include "masternode-payments.h"
 #include "masternode-sync.h"

@@ -7,7 +7,7 @@
 #include "coins.h"
 #include "guiutil.h"
 #include "init.h"
-#include "znode-sync.h"
+#include "masternode-sync.h"
 #include "netbase.h"
 #include "sync.h"
 #include "validation.h"
@@ -130,7 +130,7 @@ void MasternodeList::updateDIP3ListScheduled()
             fFilterUpdatedDIP3 = false;
         }
     } else if (mnListChanged) {
-        int64_t nMnListUpdateSecods = znodeSync.IsBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS*10;
+        int64_t nMnListUpdateSecods = masternodeSync.IsBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS*10;
         int64_t nSecondsToWait = nTimeUpdatedDIP3 - GetTime() + nMnListUpdateSecods;
 
         if (nSecondsToWait <= 0) {
