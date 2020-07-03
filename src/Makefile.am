@@ -195,7 +195,6 @@ BITCOIN_CORE_H = \
   znode.h \
   znode-sync.h \
   masternode-utils.h \
-  znodeman.h \
   znodeconfig.h \
   mbstring.h \
   memusage.h \
@@ -462,7 +461,6 @@ libbitcoin_wallet_a_SOURCES = \
   znode-sync.cpp \
   masternode-sync.cpp \
   znodeconfig.cpp \
-  znodeman.cpp \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
   sigma.cpp \

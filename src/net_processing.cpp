@@ -33,7 +33,6 @@
 #include "spork.h"
 #include "instantx.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 
 #include "masternode-payments.h"
 #include "masternode-sync.h"
@@ -979,15 +978,6 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_SPORK:
         return fEvoZnodes || mapSporks.count(inv.hash);
 
-    case MSG_ZNODE_ANNOUNCE:
-        return fEvoZnodes || (mnodeman.mapSeenZnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash));
-
-    case MSG_ZNODE_PING:
-        return fEvoZnodes || mnodeman.mapSeenZnodePing.count(inv.hash);
-
-    case MSG_ZNODE_VERIFY:
-        return fEvoZnodes || mnodeman.mapSeenZnodeVerification.count(inv.hash);
-
     case MSG_QUORUM_FINAL_COMMITMENT:
         return !fEvoZnodes || llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
     case MSG_QUORUM_CONTRIB:
@@ -1265,36 +1255,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         ss.reserve(1000);
                         ss << mapSporks[inv.hash];
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
-                    if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeBroadcast[inv.hash].second;
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNANNOUNCE, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_ZNODE_PING) {
-                    if(mnodeman.mapSeenZnodePing.count(inv.hash)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodePing[inv.hash];
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNPING, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_ZNODE_VERIFY) {
-                    if(mnodeman.mapSeenZnodeVerification.count(inv.hash)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeVerification[inv.hash];
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::MNVERIFY, ss));
                         pushed = true;
                     }
                 }
@@ -3109,31 +3069,19 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // TODO: remove this temporary solution
             std::string command = strCommand;
 
-            bool fEvoZnodes = deterministicMNManager->IsDIP3Enforced();
-
-            // legacy znodes
-            if (!fEvoZnodes) {
-                mnodeman.ProcessMessage(pfrom, command, vRecv);
-                sporkManager.ProcessSpork(pfrom, command, vRecv);
-                znodeSync.ProcessMessage(pfrom, command, vRecv);
-            }
-
             // these functions must be called in transition window
             CMNAuth::ProcessMessage(pfrom, strCommand, vRecv, connman);
 
-            // evo znodes
-            if (fEvoZnodes) {
-                masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
-                //privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
-                //instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
-                //governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
-                llmq::quorumBlockProcessor->ProcessMessage(pfrom, strCommand, vRecv, connman);
-                llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-                llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-                llmq::quorumSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-                //llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
-                //llmq::quorumInstantSendManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-            }
+            masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
+            //privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
+            //instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
+            //governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumBlockProcessor->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            //llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            //llmq::quorumInstantSendManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
         } else {
             // Ignore unknown commands for extensibility
             LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);

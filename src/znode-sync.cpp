@@ -7,7 +7,6 @@
 #include "validation.h"
 #include "znode.h"
 #include "znode-sync.h"
-#include "znodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"
 #include "net_processing.h"
@@ -250,7 +249,7 @@ void CZnodeSync::ProcessTick() {
     if (!pCurrentBlockIndex) return;
 
     //the actual count of znodes we have currently
-    int nMnCount = mnodeman.CountZnodes();
+    int nMnCount = 0;
 
     LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
 
@@ -309,10 +308,7 @@ void CZnodeSync::ProcessTick() {
             if (nRequestedZnodeAttempt <= 2) {
                 g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
             } else if (nRequestedZnodeAttempt < 4) {
-                mnodeman.DsegUpdate(pnode);
             } else if (nRequestedZnodeAttempt < 6) {
-                int nMnCount = mnodeman.CountZnodes();
-                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
             }
@@ -365,8 +361,6 @@ void CZnodeSync::ProcessTick() {
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
 
                 nRequestedZnodeAttempt++;
-
-                mnodeman.DsegUpdate(pnode);
 
                 g_connman->ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
