@@ -43,7 +43,6 @@ CZnode::CZnode() :
         addr(),
         pubKeyCollateralAddress(),
         pubKeyZnode(),
-        lastPing(),
         vchSig(),
         sigTime(GetAdjustedTime()),
         nLastDsq(0),
@@ -64,7 +63,6 @@ CZnode::CZnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNe
         addr(addrNew),
         pubKeyCollateralAddress(pubKeyCollateralAddressNew),
         pubKeyZnode(pubKeyZnodeNew),
-        lastPing(),
         vchSig(),
         sigTime(GetAdjustedTime()),
         nLastDsq(0),
@@ -85,7 +83,6 @@ CZnode::CZnode(const CZnode &other) :
         addr(other.addr),
         pubKeyCollateralAddress(other.pubKeyCollateralAddress),
         pubKeyZnode(other.pubKeyZnode),
-        lastPing(other.lastPing),
         vchSig(other.vchSig),
         sigTime(other.sigTime),
         nLastDsq(other.nLastDsq),
@@ -100,35 +97,6 @@ CZnode::CZnode(const CZnode &other) :
         nPoSeBanHeight(other.nPoSeBanHeight),
         fAllowMixingTx(other.fAllowMixingTx),
         fUnitTest(other.fUnitTest) {}
-
-CZnode::CZnode(const CZnodeBroadcast &mnb) :
-        vin(mnb.vin),
-        addr(mnb.addr),
-        pubKeyCollateralAddress(mnb.pubKeyCollateralAddress),
-        pubKeyZnode(mnb.pubKeyZnode),
-        lastPing(mnb.lastPing),
-        vchSig(mnb.vchSig),
-        sigTime(mnb.sigTime),
-        nLastDsq(0),
-        nTimeLastChecked(0),
-        nTimeLastPaid(0),
-        nTimeLastWatchdogVote(mnb.sigTime),
-        nActiveState(mnb.nActiveState),
-        nCacheCollateralBlock(0),
-        nBlockLastPaid(0),
-        nProtocolVersion(mnb.nProtocolVersion),
-        nPoSeBanScore(0),
-        nPoSeBanHeight(0),
-        fAllowMixingTx(true),
-        fUnitTest(false) {}
-
-//CSporkManager sporkManager;
-//
-// When a new znode broadcast is sent, update our information
-//
-bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
-    return true;
-}
 
 //
 // Deterministically calculate a given "score" for a Znode depending on how close it's hash is to
@@ -181,7 +149,6 @@ znode_info_t CZnode::GetInfo() {
     info.nTimeLastChecked = nTimeLastChecked;
     info.nTimeLastPaid = nTimeLastPaid;
     info.nTimeLastWatchdogVote = nTimeLastWatchdogVote;
-    info.nTimeLastPing = lastPing.sigTime;
     info.nActiveState = nActiveState;
     info.nProtocolVersion = nProtocolVersion;
     info.fInfoValid = true;
@@ -231,10 +198,6 @@ std::string CZnode::ToString() const {
     str += " ";
     str += CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
     str += " ";
-    str += std::to_string(lastPing == CZnodePing() ? sigTime : lastPing.sigTime);
-    str += " ";
-    str += std::to_string(lastPing == CZnodePing() ? 0 : lastPing.sigTime - sigTime);
-    str += " ";
     str += std::to_string(nBlockLastPaid);
     str += "}\n";
     return str;
@@ -262,396 +225,6 @@ int CZnode::GetCollateralAge() {
 
 void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack) {
 }
-
-bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, std::string strTxHash, std::string strOutputIndex, std::string &strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline) {
-    LogPrintf("CZnodeBroadcast::Create\n");
-    CTxIn txin;
-    CPubKey pubKeyCollateralAddressNew;
-    CKey keyCollateralAddressNew;
-    CPubKey pubKeyZnodeNew;
-    CKey keyZnodeNew;
-    //need correct blocks to send ping
-
-    // TODO: upgrade dash
-
-    CService service = LookupNumeric(strService.c_str());
-    int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (service.GetPort() != mainnetDefaultPort) {
-            strErrorRet = strprintf("Invalid port %u for znode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort);
-            LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-            return false;
-        }
-    } else if (service.GetPort() == mainnetDefaultPort) {
-        strErrorRet = strprintf("Invalid port %u for znode %s, %d is the only supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort);
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
-
-    return Create(txin, LookupNumeric(strService.c_str()), keyCollateralAddressNew, pubKeyCollateralAddressNew, keyZnodeNew, pubKeyZnodeNew, strErrorRet, mnbRet);
-}
-
-bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet) {
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
-    LogPrint("znode", "CZnodeBroadcast::Create -- pubKeyCollateralAddressNew = %s, pubKeyZnodeNew.GetID() = %s\n",
-             CBitcoinAddress(pubKeyCollateralAddressNew.GetID()).ToString(),
-             pubKeyZnodeNew.GetID().ToString());
-
-
-    CZnodePing mnp(txin);
-    if (!mnp.Sign(keyZnodeNew, pubKeyZnodeNew)) {
-        strErrorRet = strprintf("Failed to sign ping, znode=%s", txin.prevout.ToStringShort());
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        mnbRet = CZnodeBroadcast();
-        return false;
-    }
-
-    mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, LEGACY_ZNODES_PROTOCOL_VERSION);
-
-    if (!mnbRet.IsValidNetAddr()) {
-        strErrorRet = strprintf("Invalid IP address, znode=%s", txin.prevout.ToStringShort());
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        mnbRet = CZnodeBroadcast();
-        return false;
-    }
-
-    mnbRet.lastPing = mnp;
-    if (!mnbRet.Sign(keyCollateralAddressNew)) {
-        strErrorRet = strprintf("Failed to sign broadcast, znode=%s", txin.prevout.ToStringShort());
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        mnbRet = CZnodeBroadcast();
-        return false;
-    }
-
-    return true;
-}
-
-bool CZnodeBroadcast::SimpleCheck(int &nDos) {
-    nDos = 0;
-
-    // make sure addr is valid
-    if (!IsValidNetAddr()) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- Invalid addr, rejected: znode=%s  addr=%s\n",
-                  vin.prevout.ToStringShort(), addr.ToString());
-        return false;
-    }
-
-    // make sure signature isn't in the future (past is OK)
-    if (sigTime > GetAdjustedTime() + 60 * 60) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- Signature rejected, too far into the future: znode=%s\n", vin.prevout.ToStringShort());
-        nDos = 1;
-        return false;
-    }
-
-    // empty ping or incorrect sigTime/unknown blockhash
-    if (lastPing == CZnodePing() || !lastPing.SimpleCheck(nDos)) {
-        // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
-        nActiveState = ZNODE_EXPIRED;
-    }
-
-    CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-
-    if (pubkeyScript.size() != 25) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- pubKeyCollateralAddress has the wrong size\n");
-        nDos = 100;
-        return false;
-    }
-
-    CScript pubkeyScript2;
-    pubkeyScript2 = GetScriptForDestination(pubKeyZnode.GetID());
-
-    if (pubkeyScript2.size() != 25) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- pubKeyZnode has the wrong size\n");
-        nDos = 100;
-        return false;
-    }
-
-    if (!vin.scriptSig.empty()) {
-        LogPrintf("CZnodeBroadcast::SimpleCheck -- Ignore Not Empty ScriptSig %s\n", vin.ToString());
-        nDos = 100;
-        return false;
-    }
-
-    int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (addr.GetPort() != mainnetDefaultPort) return false;
-    } else if (addr.GetPort() == mainnetDefaultPort) return false;
-
-    return true;
-}
-
-bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
-    nDos = 0;
-
-    if (pmn->sigTime == sigTime && !fRecovery) {
-        // mapSeenZnodeBroadcast in CZnodeMan::CheckMnbAndUpdateZnodeList should filter legit duplicates
-        // but this still can happen if we just started, which is ok, just do nothing here.
-        return false;
-    }
-
-    // this broadcast is older than the one that we already have - it's bad and should never happen
-    // unless someone is doing something fishy
-    if (pmn->sigTime > sigTime) {
-        LogPrintf("CZnodeBroadcast::Update -- Bad sigTime %d (existing broadcast is at %d) for Znode %s %s\n",
-                  sigTime, pmn->sigTime, vin.prevout.ToStringShort(), addr.ToString());
-        return false;
-    }
-
-    pmn->Check();
-
-    // znode is banned by PoSe
-    if (pmn->IsPoSeBanned()) {
-        LogPrintf("CZnodeBroadcast::Update -- Banned by PoSe, znode=%s\n", vin.prevout.ToStringShort());
-        return false;
-    }
-
-    // IsVnAssociatedWithPubkey is validated once in CheckOutpoint, after that they just need to match
-    if (pmn->pubKeyCollateralAddress != pubKeyCollateralAddress) {
-        LogPrintf("CZnodeBroadcast::Update -- Got mismatched pubKeyCollateralAddress and vin\n");
-        nDos = 33;
-        return false;
-    }
-
-    if (!CheckSignature(nDos)) {
-        LogPrintf("CZnodeBroadcast::Update -- CheckSignature() failed, znode=%s\n", vin.prevout.ToStringShort());
-        return false;
-    }
-
-    // if ther was no znode broadcast recently or if it matches our Znode privkey...
-    return true;
-}
-
-bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
-    // we are a znode with the same vin (i.e. already activated) and this mnb is ours (matches our Znode privkey)
-    // so nothing to do here for us
-    if (!CheckSignature(nDos)) {
-        LogPrintf("CZnodeBroadcast::CheckOutpoint -- CheckSignature() failed, znode=%s\n", vin.prevout.ToStringShort());
-        return false;
-    }
-
-    {
-        TRY_LOCK(cs_main, lockMain);
-        if (!lockMain) {
-            return false;
-        }
-
-        Coin coin;
-        if (!pcoinsTip->GetCoin(vin.prevout, coin) || coin.out.IsNull() || coin.IsSpent()) {
-            LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-        if (coin.out.nValue != ZNODE_COIN_REQUIRED * COIN) {
-            LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO should have 1000 XZC, znode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-        if (chainActive.Height() - coin.nHeight + 1 < Params().GetConsensus().nZnodeMinimumConfirmations) {
-            LogPrintf("CZnodeBroadcast::CheckOutpoint -- Znode UTXO must have at least %d confirmations, znode=%s\n",
-                      Params().GetConsensus().nZnodeMinimumConfirmations, vin.prevout.ToStringShort());
-            // maybe we miss few blocks, let this mnb to be checked again later
-            return false;
-        }
-    }
-
-    LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO verified\n");
-
-    // verify that sig time is legit in past
-    // should be at least not earlier than block when 1000 XZC tx got nZnodeMinimumConfirmations
-    uint256 hashBlock = uint256();
-    CTransactionRef tx2;
-    GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
-    {
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex *pMNIndex = (*mi).second; // block for 1000 XZC tx -> 1 confirmation
-            CBlockIndex *pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nZnodeMinimumConfirmations - 1]; // block where tx got nZnodeMinimumConfirmations
-            if (pConfIndex->GetBlockTime() > sigTime) {
-                LogPrintf("CZnodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Znode %s %s\n",
-                          sigTime, Params().GetConsensus().nZnodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-bool CZnodeBroadcast::Sign(CKey &keyCollateralAddress) {
-    std::string strError;
-    std::string strMessage;
-
-    sigTime = GetAdjustedTime();
-
-    strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) +
-                 pubKeyCollateralAddress.GetID().ToString() + pubKeyZnode.GetID().ToString() +
-                 boost::lexical_cast<std::string>(nProtocolVersion);
-
-    return true;
-}
-
-bool CZnodeBroadcast::CheckSignature(int &nDos) {
-    std::string strMessage;
-    std::string strError = "";
-    nDos = 0;
-
-    strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) +
-                 pubKeyCollateralAddress.GetID().ToString() + pubKeyZnode.GetID().ToString() +
-                 boost::lexical_cast<std::string>(nProtocolVersion);
-
-    LogPrint("znode", "CZnodeBroadcast::CheckSignature -- strMessage: %s  pubKeyCollateralAddress address: %s  sig: %s\n", strMessage, CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString(), EncodeBase64(&vchSig[0], vchSig.size()));
-
-    return true;
-}
-
-void CZnodeBroadcast::RelayZNode() {
-}
-
-CZnodePing::CZnodePing(CTxIn &vinNew) {
-    LOCK(cs_main);
-    if (!chainActive.Tip() || chainActive.Height() < 12) return;
-
-    vin = vinNew;
-    blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
-    sigTime = GetAdjustedTime();
-    vchSig = std::vector < unsigned char > ();
-}
-
-bool CZnodePing::Sign(CKey &keyZnode, CPubKey &pubKeyZnode) {
-    std::string strError;
-    std::string strZNodeSignMessage;
-
-    sigTime = GetAdjustedTime();
-    std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
-
-    return true;
-}
-
-bool CZnodePing::CheckSignature(CPubKey &pubKeyZnode, int &nDos) {
-    std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
-    std::string strError = "";
-    nDos = 0;
-
-    return true;
-}
-
-bool CZnodePing::SimpleCheck(int &nDos) {
-    // don't ban by default
-    nDos = 0;
-
-    if (sigTime > GetAdjustedTime() + 60 * 60) {
-        LogPrintf("CZnodePing::SimpleCheck -- Signature rejected, too far into the future, znode=%s\n", vin.prevout.ToStringShort());
-        nDos = 1;
-        return false;
-    }
-
-    {
-//        LOCK(cs_main);
-        AssertLockHeld(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(blockHash);
-        if (mi == mapBlockIndex.end()) {
-            LogPrint("znode", "CZnodePing::SimpleCheck -- Znode ping is invalid, unknown block hash: znode=%s blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
-            // maybe we stuck or forked so we shouldn't ban this node, just fail to accept this ping
-            // TODO: or should we also request this block?
-            return false;
-        }
-    }
-    LogPrint("znode", "CZnodePing::SimpleCheck -- Znode ping verified: znode=%s  blockHash=%s  sigTime=%d\n", vin.prevout.ToStringShort(), blockHash.ToString(), sigTime);
-    return true;
-}
-
-bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) {
-    // don't ban by default
-    nDos = 0;
-
-    if (!SimpleCheck(nDos)) {
-        return false;
-    }
-
-    if (pmn == NULL) {
-        LogPrint("znode", "CZnodePing::CheckAndUpdate -- Couldn't find Znode entry, znode=%s\n", vin.prevout.ToStringShort());
-        return false;
-    }
-
-    if (!fFromNewBroadcast) {
-        if (pmn->IsUpdateRequired()) {
-            LogPrint("znode", "CZnodePing::CheckAndUpdate -- znode protocol is outdated, znode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-
-        if (pmn->IsNewStartRequired()) {
-            LogPrint("znode", "CZnodePing::CheckAndUpdate -- znode is completely expired, new start is required, znode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-    }
-
-    {
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(blockHash);
-        if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
-            // LogPrintf("CZnodePing::CheckAndUpdate -- Znode ping is invalid, block hash is too old: znode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
-            // nDos = 1;
-            return false;
-        }
-    }
-
-    LogPrint("znode", "CZnodePing::CheckAndUpdate -- New ping: znode=%s  blockHash=%s  sigTime=%d\n", vin.prevout.ToStringShort(), blockHash.ToString(), sigTime);
-
-    // LogPrintf("mnping - Found corresponding mn for vin: %s\n", vin.prevout.ToStringShort());
-    // update only if there is no known ping for this znode or
-    // last ping was more then ZNODE_MIN_MNP_SECONDS-60 ago comparing to this one
-    if (pmn->IsPingedWithin(ZNODE_MIN_MNP_SECONDS - 60, sigTime)) {
-        LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping arrived too early, znode=%s\n", vin.prevout.ToStringShort());
-        //nDos = 1; //disable, this is happening frequently and causing banned peers
-        return false;
-    }
-
-    if (!CheckSignature(pmn->pubKeyZnode, nDos)) return false;
-
-    // so, ping seems to be ok
-
-    // if we are still syncing and there was no known ping for this mn for quite a while
-    // (NOTE: assuming that ZNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
-
-    // let's store this ping as the last one
-    LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping accepted, znode=%s\n", vin.prevout.ToStringShort());
-    pmn->lastPing = *this;
-
-    // and update mnodeman.mapSeenZnodeBroadcast.lastPing which is probably outdated
-    CZnodeBroadcast mnb(*pmn);
-    uint256 hash = mnb.GetHash();
-
-    pmn->Check(true); // force update, ignoring cache
-    if (!pmn->IsEnabled()) return false;
-
-    LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping acceepted and relayed, znode=%s\n", vin.prevout.ToStringShort());
-    Relay();
-
-    return true;
-}
-
-void CZnodePing::Relay() {
-}
-
-//void CZnode::AddGovernanceVote(uint256 nGovernanceObjectHash)
-//{
-//    if(mapGovernanceObjectsVotedOn.count(nGovernanceObjectHash)) {
-//        mapGovernanceObjectsVotedOn[nGovernanceObjectHash]++;
-//    } else {
-//        mapGovernanceObjectsVotedOn.insert(std::make_pair(nGovernanceObjectHash, 1));
-//    }
-//}
-
-//void CZnode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
-//{
-//    std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.find(nGovernanceObjectHash);
-//    if(it == mapGovernanceObjectsVotedOn.end()) {
-//        return;
-//    }
-//    mapGovernanceObjectsVotedOn.erase(it);
-//}
 
 void CZnode::UpdateWatchdogVoteTime() {
     LOCK(cs);

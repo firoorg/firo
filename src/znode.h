@@ -13,8 +13,6 @@
 #include "utiltime.h"
 
 class CZnode;
-class CZnodeBroadcast;
-class CZnodePing;
 
 static const int ZNODE_CHECK_SECONDS               =   5;
 static const int ZNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
@@ -46,73 +44,6 @@ private:
 
 #define ZNODE_MIN_MNP_SECONDS CZnodeTimings::MinMnpSeconds()
 #define ZNODE_NEW_START_REQUIRED_SECONDS CZnodeTimings::NewStartRequiredSeconds()
-
-//
-// The Znode Ping Class : Contains a different serialize method for sending pings from znodes throughout the network
-//
-
-class CZnodePing
-{
-public:
-    CTxIn vin;
-    uint256 blockHash;
-    int64_t sigTime; //mnb message times
-    std::vector<unsigned char> vchSig;
-    //removed stop
-
-    CZnodePing() :
-        vin(),
-        blockHash(),
-        sigTime(0),
-        vchSig()
-        {}
-
-    CZnodePing(CTxIn& vinNew);
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(vin);
-        READWRITE(blockHash);
-        READWRITE(sigTime);
-        READWRITE(vchSig);
-    }
-
-    uint256 GetHash() const
-    {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << vin;
-        ss << sigTime;
-        return ss.GetHash();
-    }
-
-    bool IsExpired() { return GetTime() - sigTime > ZNODE_NEW_START_REQUIRED_SECONDS; }
-
-    bool Sign(CKey& keyZnode, CPubKey& pubKeyZnode);
-    bool CheckSignature(CPubKey& pubKeyZnode, int &nDos);
-    bool SimpleCheck(int& nDos);
-    bool CheckAndUpdate(CZnode* pmn, bool fFromNewBroadcast, int& nDos);
-    void Relay();
-
-    CZnodePing& operator=(const CZnodePing &from)
-    {
-        vin = from.vin;
-        blockHash = from.blockHash;
-        sigTime = from.sigTime;
-        vchSig = from.vchSig;
-        return *this;
-    }
-    friend bool operator==(const CZnodePing& a, const CZnodePing& b)
-    {
-        return a.vin == b.vin && a.blockHash == b.blockHash;
-    }
-    friend bool operator!=(const CZnodePing& a, const CZnodePing& b)
-    {
-        return !(a == b);
-    }
-
-};
 
 struct znode_info_t
 {
@@ -173,7 +104,6 @@ public:
     CService addr;
     CPubKey pubKeyCollateralAddress;
     CPubKey pubKeyZnode;
-    CZnodePing lastPing;
     std::vector<unsigned char> vchSig;
     int64_t sigTime; //mnb message time
     int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
@@ -194,7 +124,6 @@ public:
 
     CZnode();
     CZnode(const CZnode& other);
-    CZnode(const CZnodeBroadcast& mnb);
     CZnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyZnodeNew, int nProtocolVersionIn);
 
     ADD_SERIALIZE_METHODS;
@@ -206,7 +135,6 @@ public:
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
         READWRITE(pubKeyZnode);
-        READWRITE(lastPing);
         READWRITE(vchSig);
         READWRITE(sigTime);
         READWRITE(nLastDsq);
@@ -235,7 +163,6 @@ public:
         swap(first.addr, second.addr);
         swap(first.pubKeyCollateralAddress, second.pubKeyCollateralAddress);
         swap(first.pubKeyZnode, second.pubKeyZnode);
-        swap(first.lastPing, second.lastPing);
         swap(first.vchSig, second.vchSig);
         swap(first.sigTime, second.sigTime);
         swap(first.nLastDsq, second.nLastDsq);
@@ -256,20 +183,13 @@ public:
     // CALCULATE A RANK AGAINST OF GIVEN BLOCK
     arith_uint256 CalculateScore(const uint256& blockHash);
 
-    bool UpdateFromNewBroadcast(CZnodeBroadcast& mnb);
-
     void Check(bool fForce = false);
 
     bool IsBroadcastedWithin(int nSeconds) { return GetAdjustedTime() - sigTime < nSeconds; }
 
     bool IsPingedWithin(int nSeconds, int64_t nTimeToCheckAt = -1)
     {
-        if(lastPing == CZnodePing()) return false;
-
-        if(nTimeToCheckAt == -1) {
-            nTimeToCheckAt = GetAdjustedTime();
-        }
-        return nTimeToCheckAt - lastPing.sigTime < nSeconds;
+        return false;
     }
 
     bool IsEnabled() { return nActiveState == ZNODE_ENABLED; }
@@ -340,56 +260,6 @@ public:
 };
 
 
-//
-// The Znode Broadcast Class : Contains a different serialize method for sending znodes through the network
-//
-
-class CZnodeBroadcast : public CZnode
-{
-public:
-
-    bool fRecovery;
-
-    CZnodeBroadcast() : CZnode(), fRecovery(false) {}
-    CZnodeBroadcast(const CZnode& mn) : CZnode(mn), fRecovery(false) {}
-    CZnodeBroadcast(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyZnodeNew, int nProtocolVersionIn) :
-        CZnode(addrNew, vinNew, pubKeyCollateralAddressNew, pubKeyZnodeNew, nProtocolVersionIn), fRecovery(false) {}
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(vin);
-        READWRITE(addr);
-        READWRITE(pubKeyCollateralAddress);
-        READWRITE(pubKeyZnode);
-        READWRITE(vchSig);
-        READWRITE(sigTime);
-        READWRITE(nProtocolVersion);
-        READWRITE(lastPing);
-    }
-
-    uint256 GetHash() const
-    {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << vin;
-        ss << pubKeyCollateralAddress;
-        ss << sigTime;
-        return ss.GetHash();
-    }
-
-    /// Create Znode broadcast, needs to be relayed manually after that
-    static bool Create(CTxIn vin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet);
-    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline = false);
-
-    bool SimpleCheck(int& nDos);
-    bool Update(CZnode* pmn, int& nDos);
-    bool CheckOutpoint(int& nDos);
-
-    bool Sign(CKey& keyCollateralAddress);
-    bool CheckSignature(int& nDos);
-    void RelayZNode();
-};
 
 class CZnodeVerification
 {
