@@ -2,7 +2,6 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "init.h"
@@ -10,6 +9,7 @@
 #include "util.h"
 #include "net.h"
 #include "netbase.h"
+#include "base58.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -272,12 +272,6 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     CKey keyZnodeNew;
     //need correct blocks to send ping
 
-    if (!pwalletMain->GetZnodeVinAndKeys(txin, pubKeyCollateralAddressNew, keyCollateralAddressNew, strTxHash, strOutputIndex)) {
-        strErrorRet = strprintf("Could not allocate txin %s:%s for znode %s", strTxHash, strOutputIndex, strService);
-        LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
-
     // TODO: upgrade dash
 
     CService service = LookupNumeric(strService.c_str());
@@ -427,25 +421,12 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
     }
 
     // if ther was no znode broadcast recently or if it matches our Znode privkey...
-    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fMasternodeMode && pubKeyZnode == activeZnode.pubKeyZnode)) {
-        // take the newest entry
-        LogPrintf("CZnodeBroadcast::Update -- Got UPDATED Znode entry: addr=%s\n", addr.ToString());
-        if (pmn->UpdateFromNewBroadcast((*this))) {
-            pmn->Check();
-            RelayZNode();
-        }
-    }
-
     return true;
 }
 
 bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     // we are a znode with the same vin (i.e. already activated) and this mnb is ours (matches our Znode privkey)
     // so nothing to do here for us
-    if (fMasternodeMode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
-        return false;
-    }
-
     if (!CheckSignature(nDos)) {
         LogPrintf("CZnodeBroadcast::CheckOutpoint -- CheckSignature() failed, znode=%s\n", vin.prevout.ToStringShort());
         return false;
