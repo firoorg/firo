@@ -435,7 +435,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     }
     for (const auto& dmn : diff.addedMNs) {
         assert(dmn->internalId == result.GetTotalRegisteredCount());
-        result.AddMN(dmn);
+        result.AddMN(dmn, false);
         result.SetTotalRegisteredCount(result.GetTotalRegisteredCount() + 1);
     }
     for (const auto& p : diff.updatedMNs) {
@@ -446,7 +446,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     return result;
 }
 
-void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
+void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fPublish)
 {
     assert(!mnMap.find(dmn->proTxHash));
     mnMap = mnMap.set(dmn->proTxHash, dmn);
@@ -461,7 +461,8 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
     }
 
 #ifdef ENABLE_CLIENTAPI
-    GetMainSignals().UpdatedMasternode(dmn);
+    if(fPublish)
+        GetMainSignals().UpdatedMasternode(dmn);
 #endif
 }
 
@@ -476,10 +477,6 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CD
     UpdateUniqueProperty(dmn, oldState->addr, pdmnState->addr);
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
-
-#ifdef ENABLE_CLIENTAPI
-    GetMainSignals().UpdatedMasternode(dmn);
-#endif
 }
 
 void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
@@ -538,9 +535,6 @@ void CDeterministicMNManager::UpdateNextPayments(CDeterministicMNList& mnList) {
 
         if(currentPayment != nextPayment){
             nextPayments.emplace(dmn->proTxHash, nextPayment);
-#ifdef ENABLE_CLIENTAPI
-            GetMainSignals().UpdatedMasternode(dmn);
-#endif
         }
     }
 }
@@ -568,9 +562,6 @@ void CDeterministicMNManager::UpdateStatuses(CDeterministicMNList& mnList) {
 
         if(currentStatus != nextStatus){
             statuses.emplace(dmn->proTxHash, nextStatus);
-#ifdef ENABLE_CLIENTAPI
-            GetMainSignals().UpdatedMasternode(dmn);
-#endif
         }
 
     });

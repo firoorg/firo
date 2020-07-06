@@ -41,6 +41,7 @@ protected:
     void NumConnectionsChanged();
     void UpdateSyncStatus();
     void NotifyZnodeList();
+    void NotifyMasternodeList();
     void NotifyAPIStatus();
     void UpdatedZnode(CZnode &znode);
     void UpdatedMasternode(CDeterministicMNCPtr masternode);

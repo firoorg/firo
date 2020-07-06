@@ -468,7 +468,7 @@ public:
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
     CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
-    void AddMN(const CDeterministicMNCPtr& dmn);
+    void AddMN(const CDeterministicMNCPtr& dmn, bool fPublish=true);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateDiff& stateDiff);

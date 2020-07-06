@@ -42,10 +42,17 @@ class CZMQThreadPublisher : public CZMQAbstractPublisher
 public:
     static void* Thread(){
         LogPrintf("CZMQAbstractPublisher Thread started.\n");
-        const int PUBLISH_TIME_SECS = 1;
+        const int STATUS_TIME_SECS = 1;
+        const int MASTERNODE_TIME_SECS = 60;
+        int counter = 0;
         while(true){
-            boost::this_thread::sleep_for(boost::chrono::seconds(PUBLISH_TIME_SECS));
+            boost::this_thread::sleep_for(boost::chrono::seconds(STATUS_TIME_SECS));
             GetMainSignals().NotifyAPIStatus();
+            counter++;
+            if(counter==MASTERNODE_TIME_SECS){
+                GetMainSignals().NotifyMasternodeList();
+                counter = 0;
+            }
         }
     };
 };
@@ -99,6 +106,14 @@ class CZMQWalletSegmentEvent : virtual public CZMQAbstractPublisher
     */
 public:
     bool NotifyWalletSegment(const std::string &segment);
+};
+
+class CZMQMasternodeListEvent : virtual public CZMQAbstractPublisher
+{
+    /* Masternode List notification
+    */
+public:
+    bool NotifyMasternodeList();
 };
 
 class CZMQZnodeListEvent : virtual public CZMQAbstractPublisher
@@ -204,6 +219,13 @@ class CZMQWalletSegmentTopic : public CZMQWalletSegmentEvent
 public:
     void SetTopic(){ topic = "address";}
     void SetMethod(){ method= "walletSegment";}
+};
+
+class CZMQMasternodeListTopic : public CZMQMasternodeListEvent
+{
+public:
+    void SetTopic(){ topic = "masternodeList";}
+    void SetMethod(){ method= "masternodeList";}
 };
 
 class CZMQZnodeListTopic : public CZMQZnodeListEvent

@@ -11,7 +11,7 @@ from getpass import getuser
 
 ############ START DEFAULTS #########################
 network = "regtest"
-auth = True
+auth = 1
 os = "mac"
 ############ END DEFAULTS ###########################
 
@@ -23,7 +23,7 @@ def params(args):
     if(len(args) > 1):
         network = sys.argv[1]
     if(len(args) > 2):
-        auth = sys.argv[2]
+        auth = int(sys.argv[2])
     if(len(args) > 3):
         os = sys.argv[3]
 
@@ -72,9 +72,10 @@ if __name__ == "__main__":
     # Prepare our context and sockets
     ctx = zmq.Context.instance()
     socket = ctx.socket(zmq.SUB)
-
+    
     # Setup authentication
-    if(auth):
+    if(auth is 1):
+        print("auth is set")
         os_dir = get_os_datadir(os) + get_network_directory(network) + "certificates"
 
         # Load keys from file into JSONS
@@ -102,6 +103,7 @@ if __name__ == "__main__":
     socket.setsockopt(zmq.SUBSCRIBE, b"settings")
     socket.setsockopt(zmq.SUBSCRIBE, b"walletSegment")
     socket.setsockopt(zmq.SUBSCRIBE, b"masternode")
+    socket.setsockopt(zmq.SUBSCRIBE, b"masternodeList")
 
 
     # print any publisher events

@@ -212,13 +212,19 @@ bool CZMQWalletSegmentEvent::NotifyWalletSegment(const std::string &segment)
     return true;
 }
 
-bool CZMQZnodeListEvent::NotifyZnodeList()
+bool CZMQMasternodeListEvent::NotifyMasternodeList()
 {
     request.push_back(Pair("type", "initial"));
     Execute();
     return true;
 }
 
+bool CZMQZnodeListEvent::NotifyZnodeList()
+{
+    request.push_back(Pair("type", "initial"));
+    Execute();
+    return true;
+}
 
 bool CZMQConnectionsEvent::NotifyConnections()
 {
@@ -261,24 +267,6 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
-    // We always publish on an update to wallet tx's
-    if(topic=="address"){
-        CBlock block;
-        if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
-            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-        }
-        BOOST_FOREACH(const CTransactionRef tx, block.vtx)
-        {
-            const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
-            if(wtx){
-                request.replace("data", pindex->ToJSON());
-                Execute();
-                return true;
-            }
-        }
-        return true;
-    }
-
     // If synced, always publish, if not, every 100 blocks (for better sync speed).
     if(znodeSyncInterface.GetBlockchainSynced() || pindex->nHeight%100==0){
         request.replace("data", pindex->ToJSON());

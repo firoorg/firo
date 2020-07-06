@@ -47,6 +47,11 @@ bool CZMQAbstract::NotifyWalletSegment(const std::string &segment)
     return true;
 }
 
+bool CZMQAbstract::NotifyMasternodeList()
+{
+    return true;
+}
+
 bool CZMQAbstract::NotifyZnodeList()
 {
     return true;

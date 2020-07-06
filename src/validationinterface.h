@@ -67,6 +67,7 @@ protected:
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
     virtual void NotifyZnodeList() {}
+    virtual void NotifyMasternodeList() {}
     virtual void UpdatedBalance() {}
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
     virtual void WalletSegment(const std::string &) {}
@@ -136,6 +137,8 @@ struct CMainSignals {
     boost::signals2::signal<void (std::string)> UpdatedSettings;
     /** Notifies listeners of API status */
     boost::signals2::signal<void ()> NotifyAPIStatus;
+    /** Notifies listeners of Masternode list */
+    boost::signals2::signal<void ()> NotifyMasternodeList;
     /** Notifies listeners of Znode list */
     boost::signals2::signal<void ()> NotifyZnodeList;
     /** Notifies listeners of balance */

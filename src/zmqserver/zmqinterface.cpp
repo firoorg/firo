@@ -151,6 +151,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
         "pubsettings",
         "pubstatus",
         "pubznodelist",
+        "pubmasternodelist",
         "pubwalletsegment",
     };
 
@@ -164,6 +165,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     factories["pubwalletsegment"] = CZMQAbstract::Create<CZMQWalletSegmentTopic>;
     factories["pubznodelist"] = CZMQAbstract::Create<CZMQZnodeListTopic>;
+    factories["pubmasternodelist"] = CZMQAbstract::Create<CZMQMasternodeListTopic>;
     
     BOOST_FOREACH(string pubIndex, pubIndexes)
     {
@@ -238,6 +240,26 @@ void CZMQPublisherInterface::WalletSegment(const std::string &segment)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyWalletSegment(segment))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::NotifyMasternodeList()
+{
+    if(APIIsInWarmup())
+        return;
+
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyMasternodeList())
         {
             i++;
         }

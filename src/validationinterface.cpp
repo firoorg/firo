@@ -34,6 +34,7 @@ void RegisterValidationInterface(CValidationInterface* pwalletIn) {
     g_signals.UpdatedSettings.connect(boost::bind(&CValidationInterface::UpdatedSettings, pwalletIn, _1));
     g_signals.NotifyAPIStatus.connect(boost::bind(&CValidationInterface::NotifyAPIStatus, pwalletIn));
     g_signals.NotifyZnodeList.connect(boost::bind(&CValidationInterface::NotifyZnodeList, pwalletIn));
+    g_signals.NotifyMasternodeList.connect(boost::bind(&CValidationInterface::NotifyMasternodeList, pwalletIn));
     g_signals.UpdatedBalance.connect(boost::bind(&CValidationInterface::UpdatedBalance, pwalletIn));
     g_signals.NewPoWValidBlock.connect(boost::bind(&CValidationInterface::NewPoWValidBlock, pwalletIn, _1, _2));
     g_signals.WalletSegment.connect(boost::bind(&CValidationInterface::WalletSegment, pwalletIn, _1));
@@ -60,6 +61,7 @@ void UnregisterValidationInterface(CValidationInterface* pwalletIn) {
     g_signals.UpdatedSettings.disconnect(boost::bind(&CValidationInterface::UpdatedSettings, pwalletIn, _1));
     g_signals.NotifyAPIStatus.disconnect(boost::bind(&CValidationInterface::NotifyAPIStatus, pwalletIn));
     g_signals.NotifyZnodeList.disconnect(boost::bind(&CValidationInterface::NotifyZnodeList, pwalletIn));
+    g_signals.NotifyMasternodeList.disconnect(boost::bind(&CValidationInterface::NotifyMasternodeList, pwalletIn));
     g_signals.UpdatedBalance.disconnect(boost::bind(&CValidationInterface::UpdatedBalance, pwalletIn));
     g_signals.NewPoWValidBlock.disconnect(boost::bind(&CValidationInterface::NewPoWValidBlock, pwalletIn, _1, _2));
     g_signals.WalletSegment.disconnect(boost::bind(&CValidationInterface::WalletSegment, pwalletIn, _1));
@@ -86,6 +88,7 @@ void UnregisterAllValidationInterfaces() {
     g_signals.UpdatedSettings.disconnect_all_slots();
     g_signals.NotifyAPIStatus.disconnect_all_slots();
     g_signals.NotifyZnodeList.disconnect_all_slots();
+    g_signals.NotifyMasternodeList.disconnect_all_slots();
     g_signals.UpdatedBalance.disconnect_all_slots();
     g_signals.NewPoWValidBlock.disconnect_all_slots();
     g_signals.WalletSegment.disconnect_all_slots();
