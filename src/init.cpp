@@ -94,7 +94,6 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/thread.h>
-#include "activeznode.h"
 #include "znodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"

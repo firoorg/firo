@@ -1,7 +1,6 @@
 #include "masternodelist.h"
 #include "ui_masternodelist.h"
 
-#include "activeznode.h"
 #include "clientmodel.h"
 #include "clientversion.h"
 #include "coins.h"

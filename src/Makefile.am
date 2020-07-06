@@ -145,7 +145,6 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
-  activeznode.h \
   activemasternode.h \
   addressindex.h \
   spentindex.h \
@@ -453,7 +452,6 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
-  activeznode.cpp \
   activemasternode.cpp \
   hdmint/hdmint.cpp \
   znode.cpp \
