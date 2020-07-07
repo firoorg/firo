@@ -36,7 +36,6 @@
 #include "ui_interface.h"
 #include "util.h"
 
-#include "znode.h"
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"

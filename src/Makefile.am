@@ -191,7 +191,6 @@ BITCOIN_CORE_H = \
   dbwrapper.h \
   limitedmap.h \
   threadinterrupt.h \
-  znode.h \
   masternode-utils.h \
   znodeconfig.h \
   mbstring.h \
@@ -454,7 +453,6 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
   hdmint/hdmint.cpp \
-  znode.cpp \
   masternode-sync.cpp \
   znodeconfig.cpp \
   hdmint/mintpool.cpp \

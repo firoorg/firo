@@ -163,7 +163,6 @@ struct Params {
     //int nBudgetPaymentsStartBlock;
     //int nBudgetPaymentsCycleBlocks;
     //int nBudgetPaymentsWindowBlocks;
-    int nZnodeMinimumConfirmations;
     int nZnodePaymentsStartBlock;
     //int nZnodePaymentsIncreaseBlock;
     //int nZnodePaymentsIncreasePeriod; // in blocks

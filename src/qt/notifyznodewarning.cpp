@@ -1,7 +1,6 @@
 #include "notifyznodewarning.h"
 
 #include "evo/deterministicmns.h"
-#include "znode.h"
 #include "masternode-sync.h"
 #include "chain.h"
 #include "znodeconfig.h"
