@@ -978,6 +978,9 @@ bool CDeterministicMNManager::IsDIP3Enforced(int nHeight)
     LOCK(cs);
 
     if (nHeight == -1) {
+	if (!tipIndex) {
+	    return false;
+	}
         nHeight = tipIndex->nHeight;
     }
 
