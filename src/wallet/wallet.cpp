@@ -36,12 +36,12 @@
 #include "utilmoneystr.h"
 #include "validation.h"
 #include "instantx.h"
-#include "znode.h"
 #include "masternode-sync.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
+#include "spork.h"
 
 #include "hdmint/tracker.h"
 
@@ -2881,6 +2881,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 
 void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const
 {
+    static const int ZNODE_COIN_REQUIRED = 1000;
     vCoins.clear();
 
     {
