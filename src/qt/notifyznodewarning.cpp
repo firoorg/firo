@@ -35,6 +35,7 @@ void NotifyZnodeWarning::notify()
 bool NotifyZnodeWarning::shouldShow()
 {
 #ifdef ENABLE_WALLET
+    return znodeConfig.getCount() > 0;
 #endif
     return false;
 }

@@ -54,11 +54,7 @@ namespace NetMsgType {
     const char *DSQUEUE="dsq";
     const char *DSEG="dseg";
     const char *SYNCSTATUSCOUNT="ssc";
-    const char *MNVERIFY="mnv";
     const char *TXLOCKREQUEST="ix";
-    const char *MNGOVERNANCESYNC="govsync";
-    const char *MNGOVERNANCEOBJECT="govobj";
-    const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
     const char *GETMNLISTDIFF="getmnlistd";
     const char *MNLISTDIFF="mnlistdiff";
     const char *QSENDRECSIGS="qsendrecsigs";
@@ -118,7 +114,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
     NetMsgType::SYNCSTATUSCOUNT,
-    NetMsgType::MNVERIFY,
     NetMsgType::QSENDRECSIGS,
     NetMsgType::QFCOMMITMENT,
     NetMsgType::QCONTRIB,
