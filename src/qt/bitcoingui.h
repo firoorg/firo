@@ -121,7 +121,6 @@ private:
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
     QAction *zc2SigmaAction;
-    QAction *znodeAction;
     QAction *masternodeAction;
 
     QSystemTrayIcon *trayIcon;
