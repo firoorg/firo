@@ -20,8 +20,11 @@ UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, b
     UniValue ret(UniValue::VOBJ);
     CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
     mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-        std::string proTxHash = dmn->proTxHash.ToString();
-        ret.push_back(Pair(proTxHash, BuildDMNListEntry(pwalletMain, dmn, true)));
+        if(deterministicMNManager->GetUpdates()[dmn->proTxHash]){
+            std::string proTxHash = dmn->proTxHash.ToString();
+            ret.push_back(Pair(proTxHash, BuildDMNListEntry(pwalletMain, dmn, true)));
+            deterministicMNManager->GetUpdates().emplace(dmn->proTxHash, false);
+        }
     });
     return ret;
 }

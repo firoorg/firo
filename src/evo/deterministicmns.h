@@ -637,6 +637,7 @@ private:
     std::map<uint256, CDeterministicMNList> mnListsCache;
     std::map<uint256, int> nextPayments;
     std::map<uint256, std::string> statuses;
+    std::map<uint256, bool> updates;
     const CBlockIndex* tipIndex{nullptr};
 
 public:
@@ -664,6 +665,9 @@ public:
     }
     std::map<uint256, std::string>& GetStatuses() {
         return statuses;
+    }
+    std::map<uint256, bool>& GetUpdates() {
+        return updates;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n

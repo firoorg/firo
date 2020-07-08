@@ -477,6 +477,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CD
     UpdateUniqueProperty(dmn, oldState->addr, pdmnState->addr);
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
+    deterministicMNManager->GetUpdates().emplace(dmn->proTxHash, true);
 }
 
 void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
@@ -509,6 +510,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     }
     mnMap = mnMap.erase(proTxHash);
     mnInternalIdMap = mnInternalIdMap.erase(dmn->internalId);
+    deterministicMNManager->GetUpdates().emplace(dmn->proTxHash, true);
 }
 
 CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
@@ -535,6 +537,7 @@ void CDeterministicMNManager::UpdateNextPayments(CDeterministicMNList& mnList) {
 
         if(currentPayment != nextPayment){
             nextPayments.emplace(dmn->proTxHash, nextPayment);
+            updates.emplace(dmn->proTxHash, true);
         }
     }
 }
@@ -562,8 +565,8 @@ void CDeterministicMNManager::UpdateStatuses(CDeterministicMNList& mnList) {
 
         if(currentStatus != nextStatus){
             statuses.emplace(dmn->proTxHash, nextStatus);
+            updates.emplace(dmn->proTxHash, true);
         }
-
     });
 }
 

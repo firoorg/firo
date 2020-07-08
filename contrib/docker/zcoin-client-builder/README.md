@@ -8,9 +8,9 @@ cd zcoin
 
 #### make Linux
 ```
-make distclean && \
+make distclean || true && \
 ./autogen.sh && \
-./configure --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu --enable-clientapi ----enable-crash-hooks --disable-gui && \
+./configure --prefix=$(pwd)/depends/x86_64-unknown-linux-gnu --enable-clientapi --enable-crash-hooks --disable-gui && \
 make clean && \
 make -j`nproc`
 ```
@@ -24,9 +24,9 @@ cp src/zcoin-tx ../zcoin-client/assets/core/linux
 
 #### make Windows
 ```
-make distclean && \
+make distclean || true && \
 ./autogen.sh && \
-./configure --prefix=$(pwd)/depends/x86_64-w64-mingw32 --enable-clientapi ----enable-crash-hooks --disable-gui --enable-reduce-exports && \
+./configure --prefix=$(pwd)/depends/x86_64-w64-mingw32 --enable-clientapi --enable-crash-hooks --disable-gui --enable-reduce-exports && \
 make clean && \
 make -j`nproc`
 ```
@@ -51,9 +51,9 @@ cd ../zcoin
 #### make Mac
 
 ```
-make distclean && \
+make distclean || true && \
 ./autogen.sh && \
-./configure --prefix=$(pwd)/depends/x86_64-apple-darwin11 --enable-clientapi ----enable-crash-hooks --disable-gui && \
+./configure --prefix=$(pwd)/depends/x86_64-apple-darwin11 --enable-clientapi --enable-crash-hooks --disable-gui && \
 make clean && \
 make -j`nproc`
 ```
