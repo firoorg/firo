@@ -53,11 +53,18 @@ JoinSplit::JoinSplit(const Params *p,
     coinGroupIdAndBlockHash = m.coinGroupIdAndBlockHash;
 }
 
+JoinSplit::~JoinSplit() {
+    for(uint8_t i = 0; i < coinNum; i++)
+    {
+        free(ecdsaSignatures[i]);
+        free(ecdsaPubkeys[i]);
+    }
+}
+
 void JoinSplit::signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize) {
     // Proves that the coin is correct w.r.t. serial number and hidden coin secret
     // (This proof is bound to the coin 'metadata', i.e., transaction hash)
     uint256 metahash = signatureHash(m, coutSize);
-
 
     ecdsaSignatures.resize(Cin.size());
     ecdsaPubkeys.resize(Cin.size());
@@ -68,8 +75,8 @@ void JoinSplit::signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>
         size_t pubkeyLen = 33;
         secp256k1_ecdsa_signature sig;
 
-        ecdsaSignatures[i].resize(64);
-        ecdsaPubkeys[i].resize(33);
+        ecdsaSignatures[i] = new unsigned char[64];
+        ecdsaPubkeys[i] = new unsigned char[33];
 
         // TODO timing channel, since secp256k1_ec_pubkey_serialize does not expect its output to be secret.
         // See main_impl.h of ecdh module on secp256k1
@@ -79,7 +86,7 @@ void JoinSplit::signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>
         }
         if (1 != secp256k1_ec_pubkey_serialize(
                 OpenSSLContext::get_context(),
-                &this->ecdsaPubkeys[i][0], &pubkeyLen, &pubkey, SECP256K1_EC_COMPRESSED)) {
+                ecdsaPubkeys[i], &pubkeyLen, &pubkey, SECP256K1_EC_COMPRESSED)) {
             throw std::invalid_argument("Unable to serialize public key");
         }
 
@@ -89,7 +96,7 @@ void JoinSplit::signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>
             throw std::invalid_argument("Unable to sign with EcdsaSeckey.");
         }
         if (1 != secp256k1_ecdsa_signature_serialize_compact(
-                OpenSSLContext::get_context(), &this->ecdsaSignatures[i][0], &sig)) {
+                OpenSSLContext::get_context(), ecdsaSignatures[i], &sig)) {
             throw std::invalid_argument("Unable to serialize ecdsa_signature.");
         }
 
@@ -120,17 +127,10 @@ bool JoinSplit::Verify(
 
     for(size_t i = 0; i < serialNumbers.size(); i++) {
         // Verify ecdsa_signature, to make sure someone did not change the output of transaction.
-        // Check sizes
-        if (this->ecdsaPubkeys[i].size() != 33 || this->ecdsaSignatures[i].size() != 64) {
-            LogPrintf("Lelantus joinsplit failed due to incorrect size of ecdsaSignature.");
-            return false;
-        }
-
-        // Verify signature
         secp256k1_pubkey pubkey;
         secp256k1_ecdsa_signature signature;
 
-        if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
+        if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i], 33)) {
             LogPrintf("Lelantus joinsplit failed due to unable to parse ecdsaPubkey.");
             return false;
         }
@@ -142,7 +142,7 @@ bool JoinSplit::Verify(
             return false;
         }
 
-        if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignatures[i].data()) ) {
+        if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignatures[i]) ) {
             LogPrintf("Lelantus joinsplit failed due to signature cannot be parsed.");
             return false;
         }

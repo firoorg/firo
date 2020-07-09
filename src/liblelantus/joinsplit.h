@@ -24,6 +24,8 @@ public:
               const std::vector<uint256>& groupBlockHashes,
               const uint256& txHash);
 
+    ~JoinSplit();
+
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<PublicCoin>& Cout,
                 const Scalar& Vout,
@@ -65,23 +67,17 @@ public:
             groupIds.resize(coinNum);
             ecdsaSignatures.resize(coinNum);
             ecdsaPubkeys.resize(coinNum);
+            for (uint8_t i = 0; i < coinNum; ++i) {
+                ecdsaSignatures[i] = new unsigned char[64];
+                ecdsaPubkeys[i] = new unsigned char[33];
+            }
         }
 
         for(uint8_t i = 0; i < coinNum; i++)
         {
             READWRITE(groupIds[i]);
-            size_t sigSize = 64;
-            size_t pubKeySize = 33;
-            if (ser_action.ForRead())
-            {
-                ecdsaSignatures[i].resize(sigSize);
-                ecdsaPubkeys[i].resize(pubKeySize);
-            }
-
-            for (size_t j = 0; j < sigSize; j++)
-                READWRITE(ecdsaSignatures[i][j]);
-            for (size_t j = 0; j < pubKeySize; j++)
-                READWRITE(ecdsaPubkeys[i][j]);
+            READWRITE(FLATDATA(ecdsaSignatures[i]));
+            READWRITE(FLATDATA(ecdsaPubkeys[i]));
         }
 
         READWRITE(coinGroupIdAndBlockHash);
@@ -92,7 +88,7 @@ public:
             serialNumbers.resize(coinNum);
             for(size_t i = 0; i < coinNum; i++) {
                 secp256k1_pubkey pubkey;
-                if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
+                if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i], 33)) {
                     throw std::invalid_argument("Lelantus joinsplit unserialize failed due to unable to parse ecdsaPubkey.");
                 }
 
@@ -108,8 +104,8 @@ private:
     uint8_t coinNum;
     std::vector<Scalar> serialNumbers;
     std::vector<uint32_t> groupIds;
-    std::vector<std::vector<unsigned char>> ecdsaSignatures;
-    std::vector<std::vector<unsigned char>> ecdsaPubkeys;
+    std::vector<unsigned char*> ecdsaSignatures;
+    std::vector<unsigned char*> ecdsaPubkeys;
     std::vector<std::pair<uint32_t, uint256>> coinGroupIdAndBlockHash;
     uint64_t fee;
 
