@@ -63,7 +63,7 @@
     </message>
     <message>
         <source>These are your Zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>Detta är dina Zcoin adresser för att skicka betalningar. Kolla alltid summan och den mottagande adressen innan du skickar zcoins.</translation>
+        <translation>Detta är dina Zcoin adresser för att skicka betalningar. Kolla alltid summan och den mottagande adressen innan du skickar Zcoins.</translation>
     </message>
     <message>
         <source>These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
@@ -169,8 +169,8 @@ Var vänlig och försök igen.</translation>
         <translation>Bekräfta kryptering av plånbok</translation>
     </message>
     <message>
-        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR BITCOINS&lt;/b&gt;!</source>
-        <translation>VARNING: Om du krypterar din plånbok och glömmer ditt lösenord, kommer du att &lt;b&gt;FÖRLORA ALLA DINA BITCOIN&lt;/b&gt;!</translation>
+        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR ZCOINS&lt;/b&gt;!</source>
+        <translation>VARNING: Om du krypterar din plånbok och glömmer ditt lösenord, kommer du att &lt;b&gt;FÖRLORA ALLA DINA ZCOIN&lt;/b&gt;!</translation>
     </message>
     <message>
         <source>Are you sure you wish to encrypt your wallet?</source>
@@ -319,6 +319,22 @@ Var vänlig och försök igen.</translation>
         <translation>Öppna &amp;URI...</translation>
     </message>
     <message>
+        <source>Click to disable network activity.</source>
+        <translation>Klicka för att inaktivera nätverksaktivitet.</translation>
+    </message>
+    <message>
+        <source>Network activity disabled.</source>
+        <translation>Nätverksaktivitet inaktiverad.</translation>
+    </message>
+    <message>
+        <source>Click to enable network activity again.</source>
+        <translation>Klicka för att aktivera nätverksaktivitet igen.</translation>
+    </message>
+    <message>
+        <source>Syncing Headers (%1%)...</source>
+        <translation>Synkar huvuden (%1%)...</translation>
+    </message>
+    <message>
         <source>Reindexing blocks on disk...</source>
         <translation>Återindexerar block på disken...</translation>
     </message>
@@ -430,33 +446,9 @@ Var vänlig och försök igen.</translation>
         <source>Processing blocks on disk...</source>
         <translation>Bearbetar block på disken...</translation>
     </message>
-    <message>
-        <source>No block source available...</source>
-        <translation>Ingen block-källa tillgänglig...</translation>
-    </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
         <translation><numerusform>Bearbetade %n block av transaktionshistoriken.</numerusform><numerusform>Bearbetade %n block av transaktionshistoriken.</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n timme</numerusform><numerusform>%n timmar</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n day(s)</source>
-        <translation><numerusform>%n dag</numerusform><numerusform>%n dagar</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n week(s)</source>
-        <translation><numerusform>%n vecka</numerusform><numerusform>%n veckor</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 och %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n year(s)</source>
-        <translation><numerusform>%n år</numerusform><numerusform>%n år</numerusform></translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -493,6 +485,10 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>%1 client</source>
         <translation>%1-klient</translation>
+    </message>
+    <message>
+        <source>Connecting to peers...</source>
+        <translation>Ansluter till noder...</translation>
     </message>
     <message>
         <source>Catching up...</source>
@@ -544,6 +540,10 @@ Var vänlig och försök igen.</translation>
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>Denna plånbok är &lt;b&gt;krypterad&lt;/b&gt; och för närvarande &lt;b&gt;låst&lt;/b&gt;</translation>
     </message>
+    <message>
+        <source>A fatal error occurred. Zcoin can no longer continue safely and will quit.</source>
+        <translation>Ett kritiskt fel uppstod. Zcoin kan inte fortsätta att köra säkert och kommer att avslutas.</translation>
+    </message>
 </context>
 <context>
     <name>CoinControlDialog</name>
@@ -562,10 +562,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Amount:</source>
         <translation>Belopp:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritet:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -620,10 +616,6 @@ Var vänlig och försök igen.</translation>
         <translation>Bekräftad</translation>
     </message>
     <message>
-        <source>Priority</source>
-        <translation>Prioritet</translation>
-    </message>
-    <message>
         <source>Copy address</source>
         <translation>Kopiera adress</translation>
     </message>
@@ -634,6 +626,18 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Copy amount</source>
         <translation>Kopiera belopp</translation>
+    </message>
+    <message>
+        <source>Copy transaction ID</source>
+        <translation>Kopiera transaktions-ID</translation>
+    </message>
+    <message>
+        <source>yes</source>
+        <translation>ja</translation>
+    </message>
+    <message>
+        <source>no</source>
+        <translation>nej</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -662,6 +666,10 @@ Var vänlig och försök igen.</translation>
         <source>&amp;Address</source>
         <translation>&amp;Adress</translation>
     </message>
+    <message>
+        <source>Could not unlock wallet.</source>
+        <translation>Kunde inte låsa upp plånboken.</translation>
+    </message>
     </context>
 <context>
     <name>FreespaceChecker</name>
@@ -675,7 +683,7 @@ Var vänlig och försök igen.</translation>
     </message>
     <message>
         <source>Directory already exists. Add %1 if you intend to create a new directory here.</source>
-        <translation>Katalogen finns redan. Läggtill %1 om du vill skapa en ny katalog här.</translation>
+        <translation>Katalogen finns redan. Lägg till %1 om du vill skapa en ny katalog här.</translation>
     </message>
     <message>
         <source>Path already exists, and is not a directory.</source>
@@ -782,6 +790,41 @@ Var vänlig och försök igen.</translation>
     <message numerus="yes">
         <source>(of %n GB needed)</source>
         <translation><numerusform>(av %n GB behövs)</numerusform><numerusform>(av %n GB behövs)</numerusform></translation>
+    </message>
+</context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>Formulär</translation>
+    </message>
+    <message>
+        <source>Number of blocks left</source>
+        <translation>Antal block kvar</translation>
+    </message>
+    <message>
+        <source>Unknown...</source>
+        <translation>Okänt...</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Sista blocktid</translation>
+    </message>
+    <message>
+        <source>Progress</source>
+        <translation>Förlopp</translation>
+    </message>
+    <message>
+        <source>calculating...</source>
+        <translation>beräknar...</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Göm</translation>
+    </message>
+    <message>
+        <source>Unknown. Syncing Headers (%1)...</source>
+        <translation>Okänd. Synkar huvuden (%1)...</translation>
     </message>
 </context>
 <context>
@@ -1115,6 +1158,18 @@ Var vänlig och försök igen.</translation>
 </context>
 <context>
     <name>PaymentServer</name>
+    <message>
+        <source>URI handling</source>
+        <translation>URI-hantering</translation>
+    </message>
+    <message>
+        <source>Refund from %1</source>
+        <translation>Återbetalning från %1</translation>
+    </message>
+    <message>
+        <source>Bad response from server %1</source>
+        <translation>Felaktigt svar från server %1</translation>
+    </message>
     </context>
 <context>
     <name>PeerTableModel</name>
@@ -1127,8 +1182,8 @@ Var vänlig och försök igen.</translation>
         <translation>Nod/Tjänst</translation>
     </message>
     <message>
-        <source>Ping Time</source>
-        <translation>Pingtid</translation>
+        <source>Ping</source>
+        <translation>Ping</translation>
     </message>
 </context>
 <context>
@@ -1168,6 +1223,41 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>%1 ms</source>
         <translation>%1 ms</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n second(s)</source>
+        <translation><numerusform>%n sekund</numerusform><numerusform>%n sekunder</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation><numerusform>%n minut</numerusform><numerusform>%n minuter</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n hour(s)</source>
+        <translation><numerusform>%n timme</numerusform><numerusform>%n timmar</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n day(s)</source>
+        <translation><numerusform>%n dag</numerusform><numerusform>%n dagar</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n week(s)</source>
+        <translation><numerusform>%n vecka</numerusform><numerusform>%n veckor</numerusform></translation>
+    </message>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 och %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n year(s)</source>
+        <translation><numerusform>%n år</numerusform><numerusform>%n år</numerusform></translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
+    <message>
+        <source>Error: %1</source>
+        <translation>Fel: %1</translation>
     </message>
 </context>
 <context>
@@ -1376,14 +1466,6 @@ Var vänlig och försök igen.</translation>
         <translation>Rensa konsollen</translation>
     </message>
     <message>
-        <source>&amp;Disconnect Node</source>
-        <translation>&amp;Koppla från nod</translation>
-    </message>
-    <message>
-        <source>Ban Node for</source>
-        <translation>Banna nod i</translation>
-    </message>
-    <message>
         <source>1 &amp;hour</source>
         <translation>1 &amp;timme</translation>
     </message>
@@ -1398,10 +1480,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>1 &amp;year</source>
         <translation>1 &amp;år</translation>
-    </message>
-    <message>
-        <source>&amp;Unban Node</source>
-        <translation>&amp;Ta bort ban från nod</translation>
     </message>
     <message>
         <source>Welcome to the %1 RPC console.</source>
@@ -1535,8 +1613,16 @@ Var vänlig och försök igen.</translation>
         <translation>Ta bort</translation>
     </message>
     <message>
+        <source>Copy URI</source>
+        <translation>Kopiera URI</translation>
+    </message>
+    <message>
         <source>Copy label</source>
         <translation>Kopiera etikett</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Kopiera meddelande</translation>
     </message>
     <message>
         <source>Copy amount</source>
@@ -1562,6 +1648,14 @@ Var vänlig och försök igen.</translation>
         <translation>&amp;Spara Bild...</translation>
     </message>
     <message>
+        <source>Payment information</source>
+        <translation>Betalinformaton</translation>
+    </message>
+    <message>
+        <source>URI</source>
+        <translation>URI</translation>
+    </message>
+    <message>
         <source>Address</source>
         <translation>Adress</translation>
     </message>
@@ -1569,16 +1663,32 @@ Var vänlig och försök igen.</translation>
         <source>Label</source>
         <translation>Etikett</translation>
     </message>
+    <message>
+        <source>Message</source>
+        <translation>Meddelande</translation>
+    </message>
     </context>
 <context>
     <name>RecentRequestsTableModel</name>
+    <message>
+        <source>Date</source>
+        <translation>Datum</translation>
+    </message>
     <message>
         <source>Label</source>
         <translation>Etikett</translation>
     </message>
     <message>
+        <source>Message</source>
+        <translation>Meddelande</translation>
+    </message>
+    <message>
         <source>(no label)</source>
         <translation>(Ingen etikett)</translation>
+    </message>
+    <message>
+        <source>(no message)</source>
+        <translation>(inget meddelande)</translation>
     </message>
     </context>
 <context>
@@ -1614,10 +1724,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Amount:</source>
         <translation>Belopp:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioritet:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -1668,8 +1774,8 @@ Var vänlig och försök igen.</translation>
         <translation>totalt minst</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
-        <translation>Att betala endast den minsta avgiften är bara bra så länge det är mindre transaktionsvolym än utrymme i blocken. Men tänk på att det kan hamna i en aldrig bekräftar transaktion när det finns mer efterfrågan på Zcoin transaktioner än nätverket kan bearbeta.</translation>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <translation>Att betala endast den minsta avgiften är bara bra så länge det är mindre transaktionsvolym än utrymme i blocken. Men tänk på att det kan hamna i en aldrig bekräftar transaktion när det finns mer efterfrågan på zcoin transaktioner än nätverket kan bearbeta.</translation>
     </message>
     <message>
         <source>(read the tooltip)</source>
@@ -1686,10 +1792,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
         <translation>(Smartavgiften är inte initierad än. Detta tar vanligen några block...)</translation>
-    </message>
-    <message>
-        <source>Confirmation time:</source>
-        <translation>Bekräftelsetid:</translation>
     </message>
     <message>
         <source>normal</source>
@@ -1734,6 +1836,18 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Copy amount</source>
         <translation>Kopiera belopp</translation>
+    </message>
+    <message>
+        <source>%1 to %2</source>
+        <translation>%1 till %2</translation>
+    </message>
+    <message>
+        <source>or</source>
+        <translation>eller</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n block(s)</source>
+        <translation><numerusform>%n block</numerusform><numerusform>%n block</numerusform></translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -1821,7 +1935,11 @@ Var vänlig och försök igen.</translation>
     </context>
 <context>
     <name>SendConfirmationDialog</name>
-    </context>
+    <message>
+        <source>Yes</source>
+        <translation>Ja</translation>
+    </message>
+</context>
 <context>
     <name>ShutdownWindow</name>
     <message>
@@ -1919,7 +2037,19 @@ Var vänlig och försök igen.</translation>
         <source>Reset all verify message fields</source>
         <translation>Rensa alla fält</translation>
     </message>
-    </context>
+    <message>
+        <source>Message signed.</source>
+        <translation>Meddelande signerat.</translation>
+    </message>
+    <message>
+        <source>The signature could not be decoded.</source>
+        <translation>Signaturen kunde inte avkodas.</translation>
+    </message>
+    <message>
+        <source>Message verified.</source>
+        <translation>Meddelande verifierat.</translation>
+    </message>
+</context>
 <context>
     <name>SplashScreen</name>
     <message>
@@ -1936,6 +2066,18 @@ Var vänlig och försök igen.</translation>
 </context>
 <context>
     <name>TransactionDesc</name>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Datum</translation>
+    </message>
+    <message>
+        <source>Message</source>
+        <translation>Meddelande</translation>
+    </message>
     </context>
 <context>
     <name>TransactionDescDialog</name>
@@ -1947,6 +2089,10 @@ Var vänlig och försök igen.</translation>
 <context>
     <name>TransactionTableModel</name>
     <message>
+        <source>Date</source>
+        <translation>Datum</translation>
+    </message>
+    <message>
         <source>Label</source>
         <translation>Etikett</translation>
     </message>
@@ -1957,6 +2103,18 @@ Var vänlig och försök igen.</translation>
     </context>
 <context>
     <name>TransactionView</name>
+    <message>
+        <source>Enter address or label to search</source>
+        <translation>Ange en adress eller etikett att söka efter</translation>
+    </message>
+    <message>
+        <source>Min amount</source>
+        <translation>Minsta belopp</translation>
+    </message>
+    <message>
+        <source>Abandon transaction</source>
+        <translation>Avbryt transaktionen</translation>
+    </message>
     <message>
         <source>Copy address</source>
         <translation>Kopiera adress</translation>
@@ -1970,8 +2128,16 @@ Var vänlig och försök igen.</translation>
         <translation>Kopiera belopp</translation>
     </message>
     <message>
+        <source>Copy transaction ID</source>
+        <translation>Kopiera transaktions-ID</translation>
+    </message>
+    <message>
         <source>Comma separated file (*.csv)</source>
         <translation>Kommaseparerad fil (*.csv)</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Datum</translation>
     </message>
     <message>
         <source>Label</source>
@@ -2037,10 +2203,6 @@ Var vänlig och försök igen.</translation>
         <translation>Beskärning: sista plånbokssynkroniseringen ligger utanför beskuren data. Du måste använda -reindex (ladda ner hela blockkedjan igen eftersom noden beskurits)</translation>
     </message>
     <message>
-        <source>Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, &gt;%u = target size in MiB to use for block files)</source>
-        <translation>Minska lagringsbehovet genom att beskära (ta bort) gamla block. Detta läge är inkompatibelt med -txindex och -rescan. Varning: Ändras denna inställning måste hela blockkedjan laddas ner igen. (förvalt: 0 = inaktivera beskärning av block, &gt;%u = målstorlek i MiB att använda för blockfiler)</translation>
-    </message>
-    <message>
         <source>Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again.</source>
         <translation>Omskanningar kan inte göras i beskuret läge. Du måste använda -reindex vilket kommer ladda ner hela blockkedjan igen.</translation>
     </message>
@@ -2065,16 +2227,12 @@ Var vänlig och försök igen.</translation>
         <translation>Kunde inte starta HTTP-server. Se avlusningsloggen för detaljer.</translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>Acceptera anslutningar utifrån (förvalt: 1 om ingen -proxy eller -connect)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>Zcoin Core</translation>
     </message>
     <message>
-        <source>-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available.</source>
-        <translation>-fallbackfee är satt väldigt högt! Detta är avgiften du kan komma att betala om uppskattad avgift inte finns tillgänglig.</translation>
+        <source>The %s developers</source>
+        <translation>%s-utvecklarna</translation>
     </message>
     <message>
         <source>A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)</source>
@@ -2095,14 +2253,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup</source>
         <translation>Ta bort alla plånbokstransaktioner och återskapa bara dom som är en del av blockkedjan genom att ange -rescan vid uppstart</translation>
-    </message>
-    <message>
-        <source>Distributed under the MIT software license, see the accompanying file COPYING or &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</source>
-        <translation>Distribuerad under MIT mjukvarulicens, se den bifogade filen COPYING eller &lt;http://www.opensource.org/licenses/mit-license.php&gt;.</translation>
-    </message>
-    <message>
-        <source>Equivalent bytes per sigop in transactions for relay and mining (default: %u)</source>
-        <translation>Samma antal byte per sigop i transaktioner som vi reläar och bryter (förvalt: %u)</translation>
     </message>
     <message>
         <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
@@ -2141,28 +2291,12 @@ Var vänlig och försök igen.</translation>
         <translation>Blockdatabasen innehåller ett block som verkar vara från framtiden. Detta kan vara på grund av att din dators datum och tid är felaktiga. Bygg bara om blockdatabasen om du är säker på att datorns datum och tid är korrekt</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Detta är ett förhands testbygge - använd på egen risk - använd inte för mining eller handels applikationer</translation>
-    </message>
-    <message>
         <source>Unable to rewind the database to a pre-fork state. You will need to redownload the blockchain</source>
         <translation>Kan inte spola tillbaka databasen till obeskärt läge. Du måste ladda ner blockkedjan igen</translation>
     </message>
     <message>
         <source>Use UPnP to map the listening port (default: 1 when listening and no -proxy)</source>
         <translation>Använd UPnP för att mappa den lyssnande porten (förvalt: 1 när lyssning aktiverat och utan -proxy)</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>Varning: Nätverket verkar inte vara helt överens! Några miners verkar ha problem.</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>Varning: Vi verkar inte helt överens med våra peers! Du kan behöva uppgradera, eller andra noder kan behöva uppgradera.</translation>
-    </message>
-    <message>
-        <source>Whitelist peers connecting from the given netmask or IP address. Can be specified multiple times.</source>
-        <translation>Vitlista klienter som ansluter från angivna nätmasker eller IP-adresser. Kan specificeras flera gånger.</translation>
     </message>
     <message>
         <source>You need to rebuild the database using -reindex-chainstate to change -txindex</source>
@@ -2199,10 +2333,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Change index out of range</source>
         <translation>Förändringsindexet utom räckhåll</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>Koppla enbart upp till den/de specificerade noden/noder</translation>
     </message>
     <message>
         <source>Connection options:</source>
@@ -2365,10 +2495,6 @@ Var vänlig och försök igen.</translation>
         <translation>Sätt databasens cachestorlek i megabyte (%d till %d, förvalt: %d)</translation>
     </message>
     <message>
-        <source>Set maximum BIP141 block weight (default: %d)</source>
-        <translation>Sätt maximal BIP141 blockvikt (förvalt: %d)</translation>
-    </message>
-    <message>
         <source>Set maximum block size in bytes (default: %d)</source>
         <translation>Sätt maximal blockstorlek i byte (förvalt: %d)</translation>
     </message>
@@ -2473,10 +2599,6 @@ Var vänlig och försök igen.</translation>
         <translation>Maximal storlek på data i databärartransaktioner som vi reläar och bryter (förvalt: %u) </translation>
     </message>
     <message>
-        <source>Query for peer addresses via DNS lookup, if low on addresses (default: 1 unless -connect)</source>
-        <translation>Sök efter klientadresser med DNS sökningen, om det finns otillräckligt med adresser (förvalt: 1 om inte -connect)</translation>
-    </message>
-    <message>
         <source>Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)</source>
         <translation>Slumpa autentiseringen för varje proxyanslutning. Detta möjliggör Tor ström-isolering (förvalt: %u)</translation>
     </message>
@@ -2487,10 +2609,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>The transaction amount is too small to send after the fee has been deducted</source>
         <translation>Transaktionen är för liten att skicka efter det att avgiften har dragits</translation>
-    </message>
-    <message>
-        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit &lt;https://www.openssl.org/&gt; and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
-        <translation>Denna produkten innehåller mjukvara utvecklad av OpenSSL Project för användning i OpenSSL Toolkit &lt;https://www.openssl.org/&gt; och kryptografisk mjukvara utvecklad av Eric Young samt UPnP-mjukvara skriven av Thomas Bernard.</translation>
     </message>
     <message>
         <source>Use hierarchical deterministic key generation (HD) after BIP32. Only has effect during wallet creation/first start</source>
@@ -2605,10 +2723,6 @@ Var vänlig och försök igen.</translation>
         <translation>Transaktions belopp för liten</translation>
     </message>
     <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>Transaktionens belopp måste vara positiva</translation>
-    </message>
-    <message>
         <source>Transaction too large for fee policy</source>
         <translation>Transaktionen är för stor för avgiftspolicyn</translation>
     </message>
@@ -2673,12 +2787,12 @@ Var vänlig och försök igen.</translation>
         <translation>-maxtxfee är väldigt högt satt! Så höga avgifter kan komma att betalas för en enstaka transaktion.</translation>
     </message>
     <message>
-        <source>-paytxfee is set very high! This is the transaction fee you will pay if you send a transaction.</source>
-        <translation>-paytxfee är väldigt högt satt! Det här är avgiften du kommer betala om du skickar en transaktion.</translation>
-    </message>
-    <message>
         <source>Do not keep transactions in the mempool longer than &lt;n&gt; hours (default: %u)</source>
         <translation>Håll inte transaktioner i minnespoolen längre än &lt;n&gt; timmar (förvalt: %u)</translation>
+    </message>
+    <message>
+        <source>Equivalent bytes per sigop in transactions for relay and mining (default: %u)</source>
+        <translation>Samma antal byte per sigop i transaktioner som vi reläar och bryter (förvalt: %u)</translation>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)</source>
@@ -2723,10 +2837,6 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)</source>
         <translation>Använd separat SOCKS5 proxy för att nå kollegor via dolda tjänster i Tor (förvalt: -%s)</translation>
-    </message>
-    <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. This option can be specified multiple times</source>
-        <translation>Användarnamn och hashat lösenord för JSON-RPC-anslutningar. Fältet &lt;userpw&gt; kommer i formatet: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Ett kanoniskt pythonskript finns inkluderat i share/rpcuser. Detta alternativ kan anges flera gånger</translation>
     </message>
     <message>
         <source>Warning: Unknown block versions being mined! It's possible unknown rules are in effect</source>
@@ -2795,6 +2905,10 @@ Var vänlig och försök igen.</translation>
     <message>
         <source>Set key pool size to &lt;n&gt; (default: %u)</source>
         <translation>Sätt storleken på nyckelpoolen till &lt;n&gt; (förvalt: %u)</translation>
+    </message>
+    <message>
+        <source>Set maximum BIP141 block weight (default: %d)</source>
+        <translation>Sätt maximal BIP141 blockvikt (förvalt: %d)</translation>
     </message>
     <message>
         <source>Set the number of threads to service RPC calls (default: %d)</source>

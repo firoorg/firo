@@ -95,7 +95,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(IsUsed);
         READWRITE(randomness);
         READWRITE(serialNumber);
@@ -116,7 +116,8 @@ public:
             }
         }
         else {
-            READWRITE(nVersion);
+            int streamVersion = s.GetVersion();
+            READWRITE(streamVersion);
             READWRITE(ecdsaSecretKey);
             READWRITE(IsUsedForRemint);
         }
@@ -196,7 +197,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(IsUsed);
         READWRITE(randomness);
         READWRITE(serialNumber);
@@ -212,7 +213,8 @@ public:
             }
         }
         else {
-            READWRITE(nVersion);
+            int streamVersion = s.GetVersion();
+            READWRITE(streamVersion);
             READWRITE(ecdsaSecretKey);
         }
     }
@@ -259,7 +261,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(coinSerial);
         READWRITE(hashTx);
         READWRITE(pubCoin);
@@ -310,7 +312,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(coinSerial);
         READWRITE(hashTx);
         READWRITE(pubCoin);

@@ -1,5 +1,5 @@
 ---
-name: "zcoin-linux-0.13.8"
+name: "zcoin-linux-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -31,6 +31,7 @@ packages:
 - "bsdmainutils"
 - "ca-certificates"
 - "python"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
@@ -170,7 +171,7 @@ script: |
     mkdir src/obj
     cp ../src/obj/build.h src/obj/
 
-    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-exodus --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" LDFLAGS="${HOST_LDFLAGS}"
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-elysium --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" LDFLAGS="${HOST_LDFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
 

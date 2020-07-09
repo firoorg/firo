@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015 The Bitcoin Core developers
+# Copyright (c) 2015-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -289,6 +289,7 @@ class BIP68_112_113Test(ComparisonTestFramework):
         # BIP113 test transaction will be modified before each use to put in appropriate block time
         bip113tx_v1 = self.create_transaction(self.nodes[0], bip113input, self.nodeaddress, Decimal("49.98"))
         bip113tx_v1.vin[0].nSequence = 0xFFFFFFFE
+        bip113tx_v1.nVersion = 1
         bip113tx_v2 = self.create_transaction(self.nodes[0], bip113input, self.nodeaddress, Decimal("49.98"))
         bip113tx_v2.vin[0].nSequence = 0xFFFFFFFE
         bip113tx_v2.nVersion = 2

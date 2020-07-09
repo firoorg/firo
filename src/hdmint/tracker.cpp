@@ -12,7 +12,7 @@
 #include "wallet/walletdb.h"
 #include "hdmint/wallet.h"
 #include "libzerocoin/Zerocoin.h"
-#include "main.h"
+#include "validation.h"
 #include "sigma.h"
 #include "txmempool.h"
 
@@ -374,14 +374,12 @@ void CHDMintTracker::SetPubcoinNotUsed(const uint256& hashPubcoin)
  */
 bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial){
     for(auto& mempoolTxid : setMempool){
-        auto it = mempool.mapTx.find(mempoolTxid);
-        if (it == mempool.mapTx.end()){
-            it = stempool.mapTx.find(mempoolTxid);
-            if (it == stempool.mapTx.end())
-                continue;
+        CTransactionRef ptx = txpools.get(mempoolTxid);
+        if(!ptx) {
+            continue;
         }
 
-        const CTransaction &tx = it->GetTx();
+        const CTransaction &tx = *ptx;
         for (const CTxIn& txin : tx.vin) {
             if (txin.IsSigmaSpend()) {
                 std::unique_ptr<sigma::CoinSpend> spend;
@@ -442,7 +440,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
     if ((mint.nHeight==-1) || (mint.nId==-1) || !isMintInChain || isUsed != mint.isUsed) {
-        CTransaction tx;
+        CTransactionRef tx;
         uint256 hashBlock;
 
         // Txid will be marked 0 if there is no knowledge of the final tx hash yet
@@ -785,8 +783,7 @@ std::set<uint256> CHDMintTracker::GetMempoolTxids(){
     setMempool.clear();
     {
         LOCK(mempool.cs);
-        mempool.getTransactions(setMempool);
-        stempool.getTransactions(setMempool);
+        txpools.getTransactions(setMempool);
     }
     return setMempool;
 }

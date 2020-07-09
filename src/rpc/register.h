@@ -11,8 +11,8 @@
 
 #include "util.h"
 
-#ifdef ENABLE_EXODUS
-#include "../exodus/exodus.h"
+#ifdef ENABLE_ELYSIUM
+#include "../elysium/elysium.h"
 #endif
 
 /** These are in one header file to avoid creating tons of single-function
@@ -29,17 +29,23 @@ void RegisterMiscRPCCommands(CRPCTable &tableRPC);
 void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 /** Register raw transaction RPC commands */
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
+/** Register evo znode RPC commands */
+void RegisterMasternodeRPCCommands(CRPCTable &tableRPC);
+/** Register Evo RPC commands */
+void RegisterEvoRPCCommands(CRPCTable &tableRPC);
+/** Register Quorums RPC commands */
+void RegisterQuorumsRPCCommands(CRPCTable &tableRPC);
 
-/** Register Exodus data retrieval RPC commands */
-void RegisterExodusDataRetrievalRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium data retrieval RPC commands */
+void RegisterElysiumDataRetrievalRPCCommands(CRPCTable &tableRPC);
 #ifdef ENABLE_WALLET
-/** Register Exodus transaction creation RPC commands */
-void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium transaction creation RPC commands */
+void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC);
 #endif
-/** Register Exodus payload creation RPC commands */
-void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC);
-/** Register Exodus raw transaction RPC commands */
-void RegisterExodusRawTransactionRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium payload creation RPC commands */
+void RegisterElysiumPayloadCreationRPCCommands(CRPCTable &tableRPC);
+/** Register Elysium raw transaction RPC commands */
+void RegisterElysiumRawTransactionRPCCommands(CRPCTable &tableRPC);
 
 static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 {
@@ -48,15 +54,19 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiscRPCCommands(tableRPC);
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
+    RegisterMasternodeRPCCommands(tableRPC);
 
-#ifdef ENABLE_EXODUS
-    if (isExodusEnabled()) {
-        RegisterExodusDataRetrievalRPCCommands(tableRPC);
-        RegisterExodusPayloadCreationRPCCommands(tableRPC);
-        RegisterExodusRawTransactionRPCCommands(tableRPC);
+    RegisterEvoRPCCommands(tableRPC);
+    RegisterQuorumsRPCCommands(tableRPC);
+
+#ifdef ENABLE_ELYSIUM
+    if (isElysiumEnabled()) {
+        RegisterElysiumDataRetrievalRPCCommands(tableRPC);
+        RegisterElysiumPayloadCreationRPCCommands(tableRPC);
+        RegisterElysiumRawTransactionRPCCommands(tableRPC);
 
 #ifdef ENABLE_WALLET
-        RegisterExodusTransactionCreationRPCCommands(tableRPC);
+        RegisterElysiumTransactionCreationRPCCommands(tableRPC);
 #endif
     }
 #endif

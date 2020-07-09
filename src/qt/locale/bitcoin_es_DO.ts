@@ -238,10 +238,6 @@
         <translation>&amp;Opciones de linea de comando</translation>
     </message>
     <message>
-        <source>No block source available...</source>
-        <translation>Ninguna fuente de bloques disponible ...</translation>
-    </message>
-    <message>
         <source>%1 behind</source>
         <translation>%1 atrás</translation>
     </message>
@@ -289,7 +285,7 @@
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
         <translation>El monedero está &lt;b&gt;cifrado&lt;/b&gt; y actualmente &lt;b&gt;bloqueado&lt;/b&gt;</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -303,10 +299,6 @@
     <message>
         <source>Amount:</source>
         <translation>Cuantía:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioridad:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -347,10 +339,6 @@
     <message>
         <source>Confirmed</source>
         <translation>Confirmado</translation>
-    </message>
-    <message>
-        <source>Priority</source>
-        <translation>Prioridad</translation>
     </message>
     </context>
 <context>
@@ -435,6 +423,17 @@
     <message>
         <source>Error</source>
         <translation>Error</translation>
+    </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>Desde</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Hora del último bloque</translation>
     </message>
     </context>
 <context>
@@ -642,6 +641,9 @@
         <source>N/A</source>
         <translation>N/D</translation>
     </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
     </context>
 <context>
     <name>QRImageWidget</name>
@@ -863,10 +865,6 @@
     <message>
         <source>Amount:</source>
         <translation>Cuantía:</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>Prioridad:</translation>
     </message>
     <message>
         <source>Fee:</source>
@@ -1125,10 +1123,6 @@
 </translation>
     </message>
     <message>
-        <source>Accept connections from outside (default: 1 if no -proxy or -connect)</source>
-        <translation>Aceptar conexiones desde el exterior (predeterminado: 1 si no -proxy o -connect)</translation>
-    </message>
-    <message>
         <source>Zcoin Core</source>
         <translation>Núcleo de Zcoin</translation>
     </message>
@@ -1141,28 +1135,12 @@
         <translation>Ejecutar comando cuando una transacción del monedero cambia (%s en cmd se remplazará por TxID)</translation>
     </message>
     <message>
-        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Esta es una versión de pre-prueba - utilícela bajo su propio riesgo. No la utilice para usos comerciales o de minería.</translation>
-    </message>
-    <message>
-        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
-        <translation>Atención: ¡Parece que la red no está totalmente de acuerdo! Algunos mineros están presentando inconvenientes.</translation>
-    </message>
-    <message>
-        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
-        <translation>Atención: ¡Parece que no estamos completamente de acuerdo con nuestros pares! Podría necesitar una actualización, u otros nodos podrían necesitarla.</translation>
-    </message>
-    <message>
         <source>&lt;category&gt; can be:</source>
         <translation>&lt;category&gt; puede ser:</translation>
     </message>
     <message>
         <source>Block creation options:</source>
         <translation>Opciones de creación de bloques:</translation>
-    </message>
-    <message>
-        <source>Connect only to the specified node(s)</source>
-        <translation>Conectar sólo a los nodos (o nodo) especificados</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>
@@ -1263,10 +1241,6 @@
     <message>
         <source>Transaction amount too small</source>
         <translation>Monto de la transacción muy pequeño</translation>
-    </message>
-    <message>
-        <source>Transaction amounts must be positive</source>
-        <translation>Montos de transacciones deben ser positivos</translation>
     </message>
     <message>
         <source>Transaction too large</source>

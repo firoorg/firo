@@ -20,8 +20,8 @@ class MempoolPackagesTest(BitcoinTestFramework):
 
     def setup_network(self):
         self.nodes = []
-        self.nodes.append(start_node(0, self.options.tmpdir, ["-maxorphantx=1000", "-relaypriority=0", "-debug"]))
-        self.nodes.append(start_node(1, self.options.tmpdir, ["-maxorphantx=1000", "-relaypriority=0", "-limitancestorcount=5", "-debug"]))
+        self.nodes.append(start_node(0, self.options.tmpdir, ["-maxorphantx=1000", "-debug"]))
+        self.nodes.append(start_node(1, self.options.tmpdir, ["-maxorphantx=1000", "-limitancestorcount=5", "-debug"]))
         connect_nodes(self.nodes[0], 1)
         self.is_network_split = False
         self.sync_all()
@@ -101,6 +101,18 @@ class MempoolPackagesTest(BitcoinTestFramework):
         for x in v_descendants.keys():
             assert_equal(mempool[x], v_descendants[x])
         assert(chain[0] not in v_descendants.keys())
+
+        # Check that ancestor modified fees includes fee deltas from
+        # prioritisetransaction
+        self.nodes[0].prioritisetransaction(chain[0], 0, 1000)
+        mempool = self.nodes[0].getrawmempool(True)
+        ancestor_fees = 0
+        for x in chain:
+            ancestor_fees += mempool[x]['fee']
+            assert_equal(mempool[x]['ancestorfees'], ancestor_fees * COIN + 1000)
+        
+        # Undo the prioritisetransaction for later tests
+        self.nodes[0].prioritisetransaction(chain[0], 0, -1000)
 
         # Check that descendant modified fees includes fee deltas from
         # prioritisetransaction

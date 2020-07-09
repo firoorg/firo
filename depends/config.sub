@@ -263,7 +263,7 @@ case $basic_machine in
 	| fido | fr30 | frv | ft32 \
 	| h8300 | h8500 | hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
 	| hexagon \
-	| i370 | i860 | i960 | ia16 | ia64 \
+	| i370 | i860 | i960 | ia64 \
 	| ip2k | iq2000 \
 	| k1om \
 	| le32 | le64 \
