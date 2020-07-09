@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Auto Mint</string>
+   <string>Anonymize Funds</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="sizeConstraint">
@@ -32,13 +32,20 @@
    <item>
     <widget class="QLabel" name="warningLabel">
      <property name="text">
-      <string notr="true">Do you need to convert AMOUNT XZC to privacy coins?</string>
+      <string notr="true">You have incoming transaction(s)!</string>
      </property>
      <property name="textFormat">
       <enum>Qt::RichText</enum>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="lockWarningLabel">
+     <property name="text">
+      <string>Unlock your wallet to anonymize these funds.</string>
      </property>
     </widget>
    </item>
@@ -64,7 +71,7 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
+     <item row="2" column="1">
       <widget class="QLabel" name="capsLabel">
        <property name="font">
         <font>
@@ -77,6 +84,13 @@
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QCheckBox" name="lockCheckBox">
+       <property name="text">
+        <string>Lock wallet immediately after anonymizing</string>
        </property>
       </widget>
      </item>

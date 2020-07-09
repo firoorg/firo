@@ -29,20 +29,35 @@ public:
     ~LelantusModel();
 
 public:
-    mutable CCriticalSection cs;
     OptionsModel *getOptionsModel();
     CAmount getMintableAmount();
 
     void startAutoMint();
-    void resumeAutoMint(
-        bool successToMint,
-        QDateTime until = QDateTime());
-
     void stopAutoMint();
+
     void unlockWallet(SecureString const &passphase, size_t secs);
     void lockWallet();
 
     CAmount mintAll();
+
+public:
+    mutable CCriticalSection cs;
+
+Q_SIGNALS:
+    void askUserToMint();
+
+public Q_SLOTS:
+    void checkPendingTransactions();
+    void checkAutoMint();
+
+    void updateTransaction(uint256 hash);
+    void start();
+
+private:
+    void subscribeToCoreSignals();
+    void unsubscribeFromCoreSignals();
+
+    void setupAutoMint();
 
 private:
     OptionsModel *optionsModel;
@@ -57,21 +72,6 @@ private:
     QDateTime disableAutoMintUntil;
 
     std::vector<uint256> pendingTransactions;
-
-    void subscribeToCoreSignals();
-    void unsubscribeFromCoreSignals();
-
-    void setupAutoMint();
-
-Q_SIGNALS:
-    void askUserToMint();
-
-public Q_SLOTS:
-    void checkPendingTransactions();
-    void checkAutoMint();
-
-    void updateTransaction(uint256 hash);
-    void start();
 };
 
 #endif // ZCOIN_QT_LELANTUSMODEL_H

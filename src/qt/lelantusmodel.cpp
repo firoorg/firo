@@ -36,7 +36,7 @@ LelantusModel::LelantusModel(
     pollTimer = new QTimer(this);
     checkPendingTxTimer = new QTimer(this);
 
-    QTimer::singleShot(30 * 1000, this, SLOT(start()));
+    QTimer::singleShot(20 * 1000, this, SLOT(start()));
 
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
     connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
@@ -108,25 +108,7 @@ void LelantusModel::setupAutoMint()
 void LelantusModel::startAutoMint()
 {
     LOCK(cs);
-    pollTimer->start(1000);
-}
-
-void LelantusModel::resumeAutoMint(bool successToMint, QDateTime since)
-{
-    LOCK(cs);
-    if (since.isValid()) {
-        disableAutoMintUntil = since;
-    }
-
-    if (successToMint) {
-        // success to mint then wait for new funds.
-        autoMintState = AutoMintState::WaitingIncomingFund;
-    } else {
-        // fail to mint then wait user to back to screen and ask again.
-        autoMintState = AutoMintState::WaitingUserToActivate;
-    }
-
-    pollTimer->start(POLLING_TIMEOUT);
+    pollTimer->start(MODEL_UPDATE_DELAY);
 }
 
 void LelantusModel::stopAutoMint()

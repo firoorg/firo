@@ -22,7 +22,7 @@ AutoMintDialog::AutoMintDialog(QWidget *parent) :
     pwalletMain->cs_wallet.lock();
 
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Mint");
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Ask me later");
 }
 
@@ -59,13 +59,8 @@ void AutoMintDialog::accept()
 
     try {
         lelantusModel->mintAll();
-        auto t = QDateTime::currentDateTime();
-        t = t.addSecs(WAITING_TIME);
-
-        lelantusModel->resumeAutoMint(true, t);
     } catch (std::runtime_error const &e) {
         // TODO: show error
-        lelantusModel->resumeAutoMint(false);
     }
 
     QDialog::accept();
@@ -76,10 +71,7 @@ int AutoMintDialog::exec()
     ensureLelantusModel();
 
     if (amountToMint == 0) {
-        auto t = QDateTime::currentDateTime();
-        t = t.addSecs(10);
-
-        lelantusModel->resumeAutoMint(false, t);
+        lelantusModel->startAutoMint();
         return 0;
     }
 
@@ -89,11 +81,6 @@ int AutoMintDialog::exec()
 void AutoMintDialog::reject()
 {
     ensureLelantusModel();
-    auto t = QDateTime::currentDateTime();
-    t = t.addSecs(WAITING_TIME);
-
-    lelantusModel->resumeAutoMint(false, t);
-
     QDialog::reject();
 }
 
@@ -115,13 +102,6 @@ void AutoMintDialog::setModel(WalletModel *model)
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         requiredPassphase = false;
-    }
-
-    {
-        amountToMint = lelantusModel->getMintableAmount();
-        auto text = ui->warningLabel->text();
-        text.replace("AMOUNT", BitcoinUnits::format(BitcoinUnit::BTC, amountToMint));
-        ui->warningLabel->setText(text);
     }
 }
 
