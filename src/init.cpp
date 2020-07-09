@@ -2264,17 +2264,21 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 13a: update block tip in Zcoin modules
 
-    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+    bool fEvoZnodes = false;
+    {
+        LOCK(cs_main);
+        fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
 
-    if (!fEvoZnodes) {
-        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-        // but don't call it directly to prevent triggering of other listeners like zmq etc.
-        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-        // governance.UpdatedBlockTip(chainActive.Tip());
+        if (!fEvoZnodes) {
+            // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+            // but don't call it directly to prevent triggering of other listeners like zmq etc.
+            // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+            mnodeman.UpdatedBlockTip(chainActive.Tip());
+            //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+            znpayments.UpdatedBlockTip(chainActive.Tip());
+            znodeSync.UpdatedBlockTip(chainActive.Tip());
+            // governance.UpdatedBlockTip(chainActive.Tip());
+        }
     }
 
     // ********************************************************* Step 13b: start legacy znodes thread
