@@ -138,11 +138,11 @@ BOOST_AUTO_TEST_CASE(build_with_no_subtract_fee)
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
     BOOST_CHECK_EQUAL(builder.amountsRequested.back(), 30 + fee);
 
-    BOOST_CHECK_EQUAL(tx.vout.size(), 2);
-    BOOST_CHECK(tx.vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
-    BOOST_CHECK_EQUAL(tx.vout[0].nValue, 10);
-    BOOST_CHECK(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
-    BOOST_CHECK_EQUAL(tx.vout[1].nValue, 20);
+    BOOST_CHECK_EQUAL(tx.tx->vout.size(), 2);
+    BOOST_CHECK(tx.tx->vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
+    BOOST_CHECK_EQUAL(tx.tx->vout[0].nValue, 10);
+    BOOST_CHECK(tx.tx->vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
+    BOOST_CHECK_EQUAL(tx.tx->vout[1].nValue, 20);
 }
 
 BOOST_AUTO_TEST_CASE(build_with_subtract_fee)
@@ -162,11 +162,11 @@ BOOST_AUTO_TEST_CASE(build_with_subtract_fee)
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
     BOOST_CHECK_EQUAL(builder.amountsRequested.back(), 30);
 
-    BOOST_CHECK_EQUAL(tx.vout.size(), 2);
-    BOOST_CHECK(tx.vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
-    BOOST_CHECK_EQUAL(tx.vout[0].nValue, 10 - (fee / 2 + fee % 2));
-    BOOST_CHECK(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
-    BOOST_CHECK_EQUAL(tx.vout[1].nValue, 20 - fee / 2);
+    BOOST_CHECK_EQUAL(tx.tx->vout.size(), 2);
+    BOOST_CHECK(tx.tx->vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
+    BOOST_CHECK_EQUAL(tx.tx->vout[0].nValue, 10 - (fee / 2 + fee % 2));
+    BOOST_CHECK(tx.tx->vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
+    BOOST_CHECK_EQUAL(tx.tx->vout[1].nValue, 20 - fee / 2);
 }
 
 BOOST_AUTO_TEST_CASE(build_with_changes)
@@ -214,18 +214,18 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
         BOOST_CHECK_GT(call.second, 0);
     }
 
-    BOOST_CHECK_EQUAL(tx.vin.size(), 2);
-    BOOST_CHECK(tx.vin[0].scriptSig == in1);
-    BOOST_CHECK(tx.vin[0].prevout == out1);
-    BOOST_CHECK_EQUAL(tx.vin[0].nSequence, 1);
-    BOOST_CHECK(tx.vin[1].scriptSig == in2);
-    BOOST_CHECK(tx.vin[1].prevout == out2);
-    BOOST_CHECK_EQUAL(tx.vin[1].nSequence, 2);
+    BOOST_CHECK_EQUAL(tx.tx->vin.size(), 2);
+    BOOST_CHECK(tx.tx->vin[0].scriptSig == in1);
+    BOOST_CHECK(tx.tx->vin[0].prevout == out1);
+    BOOST_CHECK_EQUAL(tx.tx->vin[0].nSequence, 1);
+    BOOST_CHECK(tx.tx->vin[1].scriptSig == in2);
+    BOOST_CHECK(tx.tx->vin[1].prevout == out2);
+    BOOST_CHECK_EQUAL(tx.tx->vin[1].nSequence, 2);
 
-    BOOST_CHECK_EQUAL(tx.vout.size(), 3);
-    BOOST_CHECK(std::find_if(tx.vout.begin(), tx.vout.end(), [](const CTxOut& o) { return o.nValue == 4; }) != tx.vout.end());
-    BOOST_CHECK(std::find_if(tx.vout.begin(), tx.vout.end(), [](const CTxOut& o) { return o.nValue == 10; }) != tx.vout.end());
-    BOOST_CHECK(std::find_if(tx.vout.begin(), tx.vout.end(), [](const CTxOut& o) { return o.nValue == 20; }) != tx.vout.end());
+    BOOST_CHECK_EQUAL(tx.tx->vout.size(), 3);
+    BOOST_CHECK(std::find_if(tx.tx->vout.begin(), tx.tx->vout.end(), [](const CTxOut& o) { return o.nValue == 4; }) != tx.tx->vout.end());
+    BOOST_CHECK(std::find_if(tx.tx->vout.begin(), tx.tx->vout.end(), [](const CTxOut& o) { return o.nValue == 10; }) != tx.tx->vout.end());
+    BOOST_CHECK(std::find_if(tx.tx->vout.begin(), tx.tx->vout.end(), [](const CTxOut& o) { return o.nValue == 20; }) != tx.tx->vout.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,7 +1,7 @@
 Zcoin
 ===============
 
-[![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
+[![Financial Contributors on Open Collective](https://opencollective.com/zcoin/all/badge.svg?label=financial+contributors)](https://opencollective.com/zcoin) [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/zcoinofficial/zcoin/releases)
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
@@ -83,7 +83,7 @@ Dependencies
 
 2.  Install required packages
 
-        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libgmp-dev cmake
 
 3.  Install Berkeley DB 4.8
 
@@ -127,3 +127,33 @@ See (doc/build-macos.md) for instructions on building on macOS.
 Windows (64/32 bit) Build Instructions and Notes
 =====================================
 See (doc/build-windows.md) for instructions on building on Windows 64/32 bit.
+
+## Contributors
+
+### Code Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="https://github.com/zcoinofficial/zcoin/graphs/contributors"><img src="https://opencollective.com/zcoin/contributors.svg?width=890&button=false" /></a>
+
+### Financial Contributors
+
+Become a financial contributor and help us sustain our community. [[Contribute](https://opencollective.com/zcoin/contribute)]
+
+#### Individuals
+
+<a href="https://opencollective.com/zcoin"><img src="https://opencollective.com/zcoin/individuals.svg?width=890"></a>
+
+#### Organizations
+
+Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/zcoin/contribute)]
+
+<a href="https://opencollective.com/zcoin/organization/0/website"><img src="https://opencollective.com/zcoin/organization/0/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/1/website"><img src="https://opencollective.com/zcoin/organization/1/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/2/website"><img src="https://opencollective.com/zcoin/organization/2/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/3/website"><img src="https://opencollective.com/zcoin/organization/3/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/4/website"><img src="https://opencollective.com/zcoin/organization/4/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/5/website"><img src="https://opencollective.com/zcoin/organization/5/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/6/website"><img src="https://opencollective.com/zcoin/organization/6/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/7/website"><img src="https://opencollective.com/zcoin/organization/7/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/8/website"><img src="https://opencollective.com/zcoin/organization/8/avatar.svg"></a>
+<a href="https://opencollective.com/zcoin/organization/9/website"><img src="https://opencollective.com/zcoin/organization/9/avatar.svg"></a>

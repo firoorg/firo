@@ -93,13 +93,8 @@ public:
 
     // These functions are for READWRITE() in serialize.h
 
-    unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
-    {
-        return memoryRequired();
-    }
-
     template<typename Stream>
-    inline void Serialize(Stream& s, int nType, int nVersion) const {
+    inline void Serialize(Stream& s) const {
         constexpr int size = memoryRequired();
         unsigned char buffer[size];
         serialize(buffer);
@@ -108,7 +103,7 @@ public:
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s, int nType, int nVersion) {
+    inline void Unserialize(Stream& s) {
         constexpr int size = memoryRequired();
         unsigned char buffer[size];
         char* b = (char*)buffer;

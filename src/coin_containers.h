@@ -32,18 +32,18 @@ struct CSpendCoinInfo {
 
     static CSpendCoinInfo make(CoinDenomination denomination,  int coinGroupId);
 
-    size_t GetSerializeSize(int nType, int nVersion) const {
+    size_t GetSerializeSize() const {
         return 2 *sizeof(int64_t);
     }
     template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const {
+    void Serialize(Stream& s) const {
         int64_t tmp = int64_t(denomination);
         s << tmp;
         tmp = coinGroupId;
         s << tmp;
     }
     template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion) {
+    void Unserialize(Stream& s) {
         int64_t tmp;
         s >> tmp; denomination = CoinDenomination(tmp);
         s >> tmp; coinGroupId = int(tmp);

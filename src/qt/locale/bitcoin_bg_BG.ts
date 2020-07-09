@@ -41,10 +41,78 @@
         <source>&amp;Delete</source>
         <translation>Изтрий</translation>
     </message>
-    </context>
+    <message>
+        <source>Choose the address to send coins to</source>
+        <translation>Избери адреса на който да пратиш монети</translation>
+    </message>
+    <message>
+        <source>Choose the address to receive coins with</source>
+        <translation>Избери адреса на който да получиш монети</translation>
+    </message>
+    <message>
+        <source>C&amp;hoose</source>
+        <translation>Избери</translation>
+    </message>
+    <message>
+        <source>Sending addresses</source>
+        <translation>Адрес за пращане</translation>
+    </message>
+    <message>
+        <source>Receiving addresses</source>
+        <translation>Адрес за получаване</translation>
+    </message>
+    <message>
+        <source>These are your Zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <translation>Тези са вашите Биткойн адреси за изпращане на монети. Винаги проверявайте количеството и получаващия адрес преди изпращане. </translation>
+    </message>
+    <message>
+        <source>These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
+        <translation>Това са вашите Биткойн адреси за получаване на монети. Препоръчително е да ползвате нов адрес на всяка транзакция.</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Address</source>
+        <translation>Копирай адрес</translation>
+    </message>
+    <message>
+        <source>Copy &amp;Label</source>
+        <translation>Копирай етикет</translation>
+    </message>
+    <message>
+        <source>&amp;Edit</source>
+        <translation>Редактирай</translation>
+    </message>
+    <message>
+        <source>Export Address List</source>
+        <translation>Изнеси лист с адреси</translation>
+    </message>
+    <message>
+        <source>Comma separated file (*.csv)</source>
+        <translation>Comma separated file (*.csv)</translation>
+    </message>
+    <message>
+        <source>Exporting Failed</source>
+        <translation>Изнасянето се провали</translation>
+    </message>
+    <message>
+        <source>There was an error trying to save the address list to %1. Please try again.</source>
+        <translation>Получи се грешка при запазването на листа с адреси към %1. Моля опитайте пак.</translation>
+    </message>
+</context>
 <context>
     <name>AddressTableModel</name>
-    </context>
+    <message>
+        <source>Label</source>
+        <translation>Етикет</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Адрес</translation>
+    </message>
+    <message>
+        <source>(no label)</source>
+        <translation>(без етикет)</translation>
+    </message>
+</context>
 <context>
     <name>AskPassphraseDialog</name>
     <message>
@@ -62,6 +130,34 @@
     <message>
         <source>Repeat new passphrase</source>
         <translation>Повтори парола</translation>
+    </message>
+    <message>
+        <source>Encrypt wallet</source>
+        <translation>Криптирай портфейл</translation>
+    </message>
+    <message>
+        <source>This operation needs your wallet passphrase to unlock the wallet.</source>
+        <translation>Тази операция изисква вашата парола на портфейла за отключването на портфейла.</translation>
+    </message>
+    <message>
+        <source>Unlock wallet</source>
+        <translation>Отключи портфейла</translation>
+    </message>
+    <message>
+        <source>This operation needs your wallet passphrase to decrypt the wallet.</source>
+        <translation>Тази операция изисква вашата парола на портфейла за декриптирането на портфейла.</translation>
+    </message>
+    <message>
+        <source>Decrypt wallet</source>
+        <translation>Декриптирай портфейл</translation>
+    </message>
+    <message>
+        <source>Change passphrase</source>
+        <translation>Промени парола</translation>
+    </message>
+    <message>
+        <source>Confirm wallet encryption</source>
+        <translation>Потвърди криптирането на порфейла</translation>
     </message>
     </context>
 <context>
@@ -168,6 +264,10 @@
     </context>
 <context>
     <name>CoinControlDialog</name>
+    <message>
+        <source>(no label)</source>
+        <translation>(без етикет)</translation>
+    </message>
     </context>
 <context>
     <name>EditAddressDialog</name>
@@ -180,6 +280,9 @@
     </context>
 <context>
     <name>Intro</name>
+    </context>
+<context>
+    <name>ModalOverlay</name>
     </context>
 <context>
     <name>OpenURIDialog</name>
@@ -200,6 +303,9 @@
     <name>QObject</name>
     </context>
 <context>
+    <name>QObject::QObject</name>
+    </context>
+<context>
     <name>QRImageWidget</name>
     </context>
 <context>
@@ -210,13 +316,33 @@
     </context>
 <context>
     <name>ReceiveRequestDialog</name>
+    <message>
+        <source>Address</source>
+        <translation>Адрес</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>Етикет</translation>
+    </message>
     </context>
 <context>
     <name>RecentRequestsTableModel</name>
+    <message>
+        <source>Label</source>
+        <translation>Етикет</translation>
+    </message>
+    <message>
+        <source>(no label)</source>
+        <translation>(без етикет)</translation>
+    </message>
     </context>
 <context>
     <name>SendCoinsDialog</name>
-    </context>
+    <message>
+        <source>(no label)</source>
+        <translation>(без етикет)</translation>
+    </message>
+</context>
 <context>
     <name>SendCoinsEntry</name>
     </context>
@@ -243,9 +369,33 @@
     </context>
 <context>
     <name>TransactionTableModel</name>
+    <message>
+        <source>Label</source>
+        <translation>Етикет</translation>
+    </message>
+    <message>
+        <source>(no label)</source>
+        <translation>(без етикет)</translation>
+    </message>
     </context>
 <context>
     <name>TransactionView</name>
+    <message>
+        <source>Comma separated file (*.csv)</source>
+        <translation>Comma separated file (*.csv)</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>Етикет</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Адрес</translation>
+    </message>
+    <message>
+        <source>Exporting Failed</source>
+        <translation>Изнасянето се провали</translation>
+    </message>
     </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -258,6 +408,14 @@
     </context>
 <context>
     <name>WalletView</name>
+    <message>
+        <source>&amp;Export</source>
+        <translation>Изнеси</translation>
+    </message>
+    <message>
+        <source>Export the data in the current tab to a file</source>
+        <translation>Изнеси данните в избрания раздел към файл</translation>
+    </message>
     </context>
 <context>
     <name>zcoin-core</name>

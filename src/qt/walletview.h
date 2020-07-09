@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,10 +11,11 @@
 
 #include "amount.h"
 #include "znodelist.h"
+#include "masternodelist.h"
 #include "sigmadialog.h"
 
-#ifdef ENABLE_EXODUS
-#include "exoassetsdialog.h"
+#ifdef ENABLE_ELYSIUM
+#include "elyassetsdialog.h"
 #endif
 
 #include <QStackedWidget>
@@ -78,7 +79,7 @@ public:
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     void setupToolboxPage();
 #endif
     void setupSigmaPage();
@@ -88,12 +89,12 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-#ifdef ENABLE_EXODUS
-    ExoAssetsDialog *exoAssetsPage;
+#ifdef ENABLE_ELYSIUM
+    ElyAssetsDialog *elyAssetsPage;
     QWidget *toolboxPage;
-    TXHistoryDialog *exodusTransactionsView;
+    TXHistoryDialog *elysiumTransactionsView;
     QTabWidget *transactionTabs;
-    SendMPDialog *sendExodusView;
+    SendMPDialog *sendElysiumView;
     QTabWidget *sendCoinsTabs;
 #endif
     QWidget *transactionsPage;
@@ -114,6 +115,7 @@ private:
     TransactionView *zcoinTransactionList;
     QWidget *zcoinTransactionsView;
     ZnodeList *znodeListPage;
+    MasternodeList *masternodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -121,15 +123,15 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_EXODUS
+#ifdef ENABLE_ELYSIUM
     /** Switch to ExoAssets page */
-    void gotoExoAssetsPage();
+    void gotoElyAssetsPage();
     /** Switch to utility page */
     void gotoToolboxPage();
-    /** Switch specifically to exodus tx history tab */
-    void gotoExodusHistoryTab();
-    /** Switch to exodus tx history tab and focus on specific transaction */
-    void focusExodusTransaction(const uint256& txid);
+    /** Switch specifically to elysium tx history tab */
+    void gotoElysiumHistoryTab();
+    /** Switch to elysium tx history tab and focus on specific transaction */
+    void focusElysiumTransaction(const uint256& txid);
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
@@ -139,6 +141,8 @@ public Q_SLOTS:
     void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to znode page */
     void gotoZnodePage();
+    /** Switch to masternode page */
+    void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
@@ -180,6 +184,9 @@ public Q_SLOTS:
     /** Show progress dialog e.g. for rescan */
     void showProgress(const QString &title, int nProgress);
 
+    /** User has requested more information about the out of sync state */
+    void requestedSyncWarningInfo();
+
 Q_SIGNALS:
     /** Signal that we want to show the main window */
     void showNormalIfMinimized();
@@ -187,8 +194,12 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
     /** Encryption status of wallet changed */
     void encryptionStatusChanged(int status);
+    /** HD-Enabled status of wallet changed (only possible during startup) */
+    void hdEnabledStatusChanged(int hdEnabled);
     /** Notify that a new transaction appeared */
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
+    /** Notify that the out of sync warning icon has been pressed */
+    void outOfSyncWarningClicked();
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

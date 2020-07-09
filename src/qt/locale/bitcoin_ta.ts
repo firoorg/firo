@@ -121,14 +121,6 @@
         <source>&amp;Help</source>
         <translation>&amp;உதவி</translation>
     </message>
-    <message numerus="yes">
-        <source>%n hour(s)</source>
-        <translation><numerusform>%n மணி</numerusform><numerusform>%n மணி</numerusform></translation>
-    </message>
-    <message>
-        <source>%1 and %2</source>
-        <translation>%1 மற்றும் %2</translation>
-    </message>
     <message>
         <source>%1 behind</source>
         <translation>%1 பின்னால்</translation>
@@ -185,10 +177,6 @@
         <translation>விலை:</translation>
     </message>
     <message>
-        <source>Priority:</source>
-        <translation>முன்னுரிமை</translation>
-    </message>
-    <message>
         <source>Fee:</source>
         <translation>கட்டணம்:</translation>
     </message>
@@ -216,10 +204,6 @@
         <source>Confirmed</source>
         <translation>உறுதியாக</translation>
     </message>
-    <message>
-        <source>Priority</source>
-        <translation>முன்னுரிமை</translation>
-    </message>
     </context>
 <context>
     <name>EditAddressDialog</name>
@@ -243,6 +227,17 @@
     <message>
         <source>Error</source>
         <translation>தவறு</translation>
+    </message>
+    </context>
+<context>
+    <name>ModalOverlay</name>
+    <message>
+        <source>Form</source>
+        <translation>படிவம்</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>மறை</translation>
     </message>
     </context>
 <context>
@@ -355,11 +350,7 @@
         <source>User Agent</source>
         <translation>பயனர் முகவர்</translation>
     </message>
-    <message>
-        <source>Ping Time</source>
-        <translation>பிங் நேரம்</translation>
-    </message>
-</context>
+    </context>
 <context>
     <name>QObject</name>
     <message>
@@ -386,7 +377,14 @@
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
-</context>
+    <message>
+        <source>%1 and %2</source>
+        <translation>%1 மற்றும் %2</translation>
+    </message>
+    </context>
+<context>
+    <name>QObject::QObject</name>
+    </context>
 <context>
     <name>QRImageWidget</name>
     </context>
@@ -587,10 +585,6 @@
     <message>
         <source>Amount:</source>
         <translation>விலை</translation>
-    </message>
-    <message>
-        <source>Priority:</source>
-        <translation>முன்னுரிமை</translation>
     </message>
     <message>
         <source>Fee:</source>

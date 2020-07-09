@@ -16,7 +16,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "miner.h"
 #include "pubkey.h"
 #include "random.h"
@@ -77,8 +77,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -121,8 +119,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
@@ -277,8 +273,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]);
-        printf("Testing denominations %s and %s\n",
-               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         denominationPairs.clear();
@@ -304,7 +298,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 
         for(int i = 0; i < ZC_MINT_CONFIRMATIONS; i++){
             int previousHeight = chainActive.Height();
-            b = CreateAndProcessBlock({}, scriptPubKey);
+            b = CreateAndProcessBlock(scriptPubKey);
             BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         }
     }

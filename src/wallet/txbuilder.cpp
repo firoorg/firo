@@ -1,7 +1,7 @@
 #include "txbuilder.h"
 
 #include "../amount.h"
-#include "../main.h"
+#include "../validation.h"
 #include "../policy/policy.h"
 #include "../random.h"
 #include "../script/script.h"
@@ -116,7 +116,6 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
 
         tx.vin.clear();
         tx.vout.clear();
-        tx.wit.SetNull();
 
         result.fFromMe = true;
         result.changes.clear();
@@ -222,14 +221,14 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         }
 
         // check fee
-        static_cast<CTransaction&>(result) = CTransaction(tx);
+        result.SetTx(MakeTransactionRef(tx));
 
-        if (GetTransactionWeight(result) >= MAX_STANDARD_TX_WEIGHT) {
+        if (GetTransactionWeight(tx) >= MAX_STANDARD_TX_WEIGHT) {
             throw std::runtime_error(_("Transaction too large"));
         }
 
         // check fee
-        unsigned size = GetVirtualTransactionSize(result);
+        unsigned size = GetVirtualTransactionSize(tx);
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
         feeNeeded = AdjustFee(feeNeeded, size);
 
@@ -249,7 +248,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
         LockPoints lp;
-        CTxMemPoolEntry entry(tx, 0, 0, 0, 0, false, 0, false, 0, lp);
+        CTxMemPoolEntry entry(MakeTransactionRef(tx), 0, 0, 0, 0, false, 0, lp);
         CTxMemPool::setEntries setAncestors;
         size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
         size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;

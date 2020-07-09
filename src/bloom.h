@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The Bitcoin Core developers
+// Copyright (c) 2012-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,8 +10,10 @@
 #include <vector>
 
 class COutPoint;
+class CScript;
 class CTransaction;
 class uint256;
+class uint160;
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
 static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
@@ -57,6 +59,10 @@ private:
     CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak);
     friend class CRollingBloomFilter;
 
+    // Check matches for arbitrary script data elements
+    bool CheckScript(const CScript& script) const;
+    // Check additional matches for special transactions
+    bool CheckSpecialTransactionMatchesAndUpdate(const CTransaction& tx);
 public:
     /**
      * Creates a new bloom filter which will provide the given fp rate when filled with the given number of elements
@@ -73,7 +79,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vData);
         READWRITE(nHashFuncs);
         READWRITE(nTweak);
@@ -87,6 +93,7 @@ public:
     bool contains(const std::vector<unsigned char>& vKey) const;
     bool contains(const COutPoint& outpoint) const;
     bool contains(const uint256& hash) const;
+    bool contains(const uint160& hash) const;
 
     void clear();
     void reset(unsigned int nNewTweak);

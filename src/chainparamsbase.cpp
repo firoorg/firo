@@ -92,14 +92,14 @@ void SelectBaseParams(const std::string& chain)
 
 std::string ChainNameFromCommandLine()
 {
-    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
-        , testNet = GetOptBoolArg("-testnet");
+    bool fRegTest = GetBoolArg("-regtest", false);
+    bool fTestNet = GetBoolArg("-testnet", false);
 
-    if (testNet && regTest && *testNet && *regTest)
+    if (fTestNet && fRegTest)
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (regTest && *regTest)
+    if (fRegTest)
         return CBaseChainParams::REGTEST;
-    if (testNet && *testNet)
+    if (fTestNet)
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
 }

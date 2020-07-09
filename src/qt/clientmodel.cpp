@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,6 +12,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "clientversion.h"
+#include "validation.h"
 #include "net.h"
 #include "txmempool.h"
 #include "ui_interface.h"
@@ -28,15 +29,17 @@ static const int64_t nClientStartupTime = GetTime();
 static int64_t nLastHeaderTipUpdateNotification = 0;
 static int64_t nLastBlockTipUpdateNotification = 0;
 
-ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
+ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent),
-    optionsModel(optionsModel),
+    optionsModel(_optionsModel),
     peerTableModel(0),
     banTableModel(0),
     pollTimer(0),
-    lockedExodusStateChanged(false),
-    lockedExodusBalanceChanged(false)
+    lockedElysiumStateChanged(false),
+    lockedElysiumBalanceChanged(false)
 {
+    cachedBestHeaderHeight = -1;
+    cachedBestHeaderTime = -1;
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
     pollTimer = new QTimer(this);
@@ -53,16 +56,40 @@ ClientModel::~ClientModel()
 
 int ClientModel::getNumConnections(unsigned int flags) const
 {
-    LOCK(cs_vNodes);
-    if (flags == CONNECTIONS_ALL) // Shortcut if we want total
-        return vNodes.size();
+    CConnman::NumConnections connections = CConnman::CONNECTIONS_NONE;
 
-    int nNum = 0;
-    BOOST_FOREACH(const CNode* pnode, vNodes)
-        if (flags & (pnode->fInbound ? CONNECTIONS_IN : CONNECTIONS_OUT))
-            nNum++;
+    if(flags == CONNECTIONS_IN)
+        connections = CConnman::CONNECTIONS_IN;
+    else if (flags == CONNECTIONS_OUT)
+        connections = CConnman::CONNECTIONS_OUT;
+    else if (flags == CONNECTIONS_ALL)
+        connections = CConnman::CONNECTIONS_ALL;
 
-    return nNum;
+    if(g_connman)
+         return g_connman->GetNodeCount(connections);
+    return 0;
+}
+
+void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
+{
+    LOCK(cs_mnlinst);
+    if (mnListCached.GetBlockHash() == mnList.GetBlockHash()) {
+        return;
+    }
+    mnListCached = mnList;
+    Q_EMIT masternodeListChanged();
+}
+
+CDeterministicMNList ClientModel::getMasternodeList() const
+{
+    LOCK(cs_mnlinst);
+    return mnListCached;
+}
+
+void ClientModel::refreshMasternodeList()
+{
+    LOCK(cs_mnlinst);
+    setMasternodeList(deterministicMNManager->GetListAtChainTip());
 }
 
 int ClientModel::getNumBlocks() const
@@ -71,14 +98,44 @@ int ClientModel::getNumBlocks() const
     return chainActive.Height();
 }
 
+int ClientModel::getHeaderTipHeight() const
+{
+    if (cachedBestHeaderHeight == -1) {
+        // make sure we initially populate the cache via a cs_main lock
+        // otherwise we need to wait for a tip update
+        LOCK(cs_main);
+        if (pindexBestHeader) {
+            cachedBestHeaderHeight = pindexBestHeader->nHeight;
+            cachedBestHeaderTime = pindexBestHeader->GetBlockTime();
+        }
+    }
+    return cachedBestHeaderHeight;
+}
+
+int64_t ClientModel::getHeaderTipTime() const
+{
+    if (cachedBestHeaderTime == -1) {
+        LOCK(cs_main);
+        if (pindexBestHeader) {
+            cachedBestHeaderHeight = pindexBestHeader->nHeight;
+            cachedBestHeaderTime = pindexBestHeader->GetBlockTime();
+        }
+    }
+    return cachedBestHeaderTime;
+}
+
 quint64 ClientModel::getTotalBytesRecv() const
 {
-    return CNode::GetTotalBytesRecv();
+    if(!g_connman)
+        return 0;
+    return g_connman->GetTotalBytesRecv();
 }
 
 quint64 ClientModel::getTotalBytesSent() const
 {
-    return CNode::GetTotalBytesSent();
+    if(!g_connman)
+        return 0;
+    return g_connman->GetTotalBytesSent();
 }
 
 QDateTime ClientModel::getLastBlockDate() const
@@ -109,7 +166,7 @@ double ClientModel::getVerificationProgress(const CBlockIndex *tipIn) const
         LOCK(cs_main);
         tip = chainActive.Tip();
     }
-    return Checkpoints::GuessVerificationProgress(Params().Checkpoints(), tip);
+    return GuessVerificationProgress(Params().TxData(), tip);
 }
 
 void ClientModel::updateTimer()
@@ -126,48 +183,53 @@ void ClientModel::updateNumConnections(int numConnections)
 }
 
 
-void ClientModel::invalidateExodusState()
+void ClientModel::invalidateElysiumState()
 {
-    Q_EMIT reinitExodusState();
+    Q_EMIT reinitElysiumState();
 }
 
-void ClientModel::updateExodusState()
+void ClientModel::updateElysiumState()
 {
-    lockedExodusStateChanged = false;
-    Q_EMIT refreshExodusState();
+    lockedElysiumStateChanged = false;
+    Q_EMIT refreshElysiumState();
 }
 
-bool ClientModel::tryLockExodusStateChanged()
+bool ClientModel::tryLockElysiumStateChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusStateChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumStateChanged) {
         return false;
     }
 
-    lockedExodusStateChanged = true;
+    lockedElysiumStateChanged = true;
     return true;
 }
 
-void ClientModel::updateExodusBalance()
+void ClientModel::updateElysiumBalance()
 {
-    lockedExodusBalanceChanged = false;
-    Q_EMIT refreshExodusBalance();
+    lockedElysiumBalanceChanged = false;
+    Q_EMIT refreshElysiumBalance();
 }
 
-bool ClientModel::tryLockExodusBalanceChanged()
+bool ClientModel::tryLockElysiumBalanceChanged()
 {
-    // Try to avoid Exodus queuing too many messages for the UI
-    if (lockedExodusBalanceChanged) {
+    // Try to avoid Elysium queuing too many messages for the UI
+    if (lockedElysiumBalanceChanged) {
         return false;
     }
 
-    lockedExodusBalanceChanged = true;
+    lockedElysiumBalanceChanged = true;
     return true;
 }
 
-void ClientModel::updateExodusPending(bool pending)
+void ClientModel::updateElysiumPending(bool pending)
 {
-    Q_EMIT refreshExodusPending(pending);
+    Q_EMIT refreshElysiumPending(pending);
+}
+
+void ClientModel::updateNetworkActive(bool networkActive)
+{
+    Q_EMIT networkActiveChanged(networkActive);
 }
 
 void ClientModel::updateAlert()
@@ -190,6 +252,21 @@ enum BlockSource ClientModel::getBlockSource() const
         return BLOCK_SOURCE_NETWORK;
 
     return BLOCK_SOURCE_NONE;
+}
+
+void ClientModel::setNetworkActive(bool active)
+{
+    if (g_connman) {
+         g_connman->SetNetworkActive(active);
+    }
+}
+
+bool ClientModel::getNetworkActive() const
+{
+    if (g_connman) {
+        return g_connman->GetNetworkActive();
+    }
+    return false;
 }
 
 QString ClientModel::getStatusBarWarnings() const
@@ -243,32 +320,32 @@ void ClientModel::updateBanlist()
 }
 
 // Handlers for core signals
-static void ExodusStateInvalidated(ClientModel *clientmodel)
+static void ElysiumStateInvalidated(ClientModel *clientmodel)
 {
     // This will be triggered if a reorg invalidates the state
-    QMetaObject::invokeMethod(clientmodel, "invalidateExodusState", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(clientmodel, "invalidateElysiumState", Qt::QueuedConnection);
 }
 
-static void ExodusStateChanged(ClientModel *clientmodel)
+static void ElysiumStateChanged(ClientModel *clientmodel)
 {
-    // This will be triggered for each block that contains Exodus layer transactions
-    if (clientmodel->tryLockExodusStateChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateExodusState", Qt::QueuedConnection);
+    // This will be triggered for each block that contains Elysium layer transactions
+    if (clientmodel->tryLockElysiumStateChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateElysiumState", Qt::QueuedConnection);
     }
 }
 
-static void ExodusBalanceChanged(ClientModel *clientmodel)
+static void ElysiumBalanceChanged(ClientModel *clientmodel)
 {
     // Triggered when a balance for a wallet address changes
-    if (clientmodel->tryLockExodusBalanceChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateExodusBalance", Qt::QueuedConnection);
+    if (clientmodel->tryLockElysiumBalanceChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateElysiumBalance", Qt::QueuedConnection);
     }
 }
 
-static void ExodusPendingChanged(ClientModel *clientmodel, bool pending)
+static void ElysiumPendingChanged(ClientModel *clientmodel, bool pending)
 {
-    // Triggered when Exodus pending map adds/removes transactions
-    QMetaObject::invokeMethod(clientmodel, "updateExodusPending", Qt::QueuedConnection, Q_ARG(bool, pending));
+    // Triggered when Elysium pending map adds/removes transactions
+    QMetaObject::invokeMethod(clientmodel, "updateElysiumPending", Qt::QueuedConnection, Q_ARG(bool, pending));
 }
 
 static void ShowProgress(ClientModel *clientmodel, const std::string &title, int nProgress)
@@ -286,10 +363,21 @@ static void NotifyNumConnectionsChanged(ClientModel *clientmodel, int newNumConn
                               Q_ARG(int, newNumConnections));
 }
 
-static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, int count, double nSyncProgress)
+static void NotifyMasternodeListChanged(ClientModel *clientmodel, const CDeterministicMNList& newList)
 {
-    QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection, Q_ARG(int, count),
+    clientmodel->setMasternodeList(newList);
+}
+
+static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
+{
+    QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
                               Q_ARG(double, nSyncProgress));
+}
+
+static void NotifyNetworkActiveChanged(ClientModel *clientmodel, bool networkActive)
+{
+    QMetaObject::invokeMethod(clientmodel, "updateNetworkActive", Qt::QueuedConnection,
+                              Q_ARG(bool, networkActive));
 }
 
 static void NotifyAlertChanged(ClientModel *clientmodel)
@@ -315,6 +403,11 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
 
     int64_t& nLastUpdateNotification = fHeader ? nLastHeaderTipUpdateNotification : nLastBlockTipUpdateNotification;
 
+    if (fHeader) {
+        // cache best headers time and height to reduce future cs_main locks
+        clientmodel->cachedBestHeaderHeight = pIndex->nHeight;
+        clientmodel->cachedBestHeaderTime = pIndex->GetBlockTime();
+    }
     // if we are in-sync, update the UI regardless of last update time
     if (!initialSync || now - nLastUpdateNotification > MODEL_UPDATE_DELAY) {
         //pass a async signal to the UI thread
@@ -332,17 +425,19 @@ void ClientModel::subscribeToCoreSignals()
     // Connect signals to client
     uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.NotifyNetworkActiveChanged.connect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.connect(boost::bind(BannedListChanged, this));
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
-    uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
+    uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
-    // Connect Exodus signals
-    uiInterface.ExodusStateChanged.connect(boost::bind(ExodusStateChanged, this));
-    uiInterface.ExodusPendingChanged.connect(boost::bind(ExodusPendingChanged, this, _1));
-    uiInterface.ExodusBalanceChanged.connect(boost::bind(ExodusBalanceChanged, this));
-    uiInterface.ExodusStateInvalidated.connect(boost::bind(ExodusStateInvalidated, this));
+    // Connect Elysium signals
+    uiInterface.ElysiumStateChanged.connect(boost::bind(ElysiumStateChanged, this));
+    uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, _1));
+    uiInterface.ElysiumBalanceChanged.connect(boost::bind(ElysiumBalanceChanged, this));
+    uiInterface.ElysiumStateInvalidated.connect(boost::bind(ElysiumStateInvalidated, this));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -350,15 +445,17 @@ void ClientModel::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.NotifyNetworkActiveChanged.disconnect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.disconnect(boost::bind(BannedListChanged, this));
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
-    uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
+    uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
-    // Disconnect Exodus signals
-    uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
-    uiInterface.ExodusPendingChanged.disconnect(boost::bind(ExodusPendingChanged, this, _1));
-    uiInterface.ExodusBalanceChanged.disconnect(boost::bind(ExodusBalanceChanged, this));
-	uiInterface.ExodusStateInvalidated.disconnect(boost::bind(ExodusStateInvalidated, this));
+    // Disconnect Elysium signals
+    uiInterface.ElysiumStateChanged.disconnect(boost::bind(ElysiumStateChanged, this));
+    uiInterface.ElysiumPendingChanged.disconnect(boost::bind(ElysiumPendingChanged, this, _1));
+    uiInterface.ElysiumBalanceChanged.disconnect(boost::bind(ElysiumBalanceChanged, this));
+	uiInterface.ElysiumStateInvalidated.disconnect(boost::bind(ElysiumStateInvalidated, this));
 }
