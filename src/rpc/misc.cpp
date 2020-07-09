@@ -985,14 +985,17 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     uint256 blockHash;
     std::vector<sigma::PublicCoin> coins;
 
-    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    sigmaState->GetCoinSetForSpend(
-            &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-            denomination,
-            coinGroupId,
-            blockHash,
-            coins);
+    {
+        LOCK(cs_main);
+        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+        sigmaState->GetCoinSetForSpend(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                denomination,
+                coinGroupId,
+                blockHash,
+                coins);
+    }
 
     UniValue serializedCoins(UniValue::VARR);
     for(sigma::PublicCoin const & coin : coins) {
@@ -1046,7 +1049,11 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
         sigma::CoinDenomination denomination;
         sigma::IntegerToDenomination(intDenom, denomination);
 
-        std::pair<int, int> coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
+        std::pair<int, int> coinHeightAndId;
+        {
+            LOCK(cs_main);
+            coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
+        }
         UniValue metaData(UniValue::VOBJ);
         metaData.pushKV(to_string(coinHeightAndId.first), coinHeightAndId.second);
         ret.push_back(metaData);
@@ -1067,7 +1074,11 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
         );
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    auto serials = sigmaState->GetSpends();
+    sigma::spend_info_container serials;
+    {
+        LOCK(cs_main);
+        serials = sigmaState->GetSpends();
+    }
 
     UniValue serializedSerials(UniValue::VARR);
     for ( auto it = serials.begin(); it != serials.end(); ++it )
@@ -1098,7 +1109,11 @@ UniValue getlatestcoinids(const JSONRPCRequest& request)
         );
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds = sigmaState->GetLatestCoinIds();
+    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
+    {
+        LOCK(cs_main);
+        latestCoinIds = sigmaState->GetLatestCoinIds();
+    }
 
     UniValue ret(UniValue::VARR);
     for (const auto& it : latestCoinIds ) {
