@@ -205,7 +205,6 @@ class DIP3Test(BitcoinTestFramework):
         mn.operatorAddr = blsKey['public']
         mn.votingAddr = mn.ownerAddr
         mn.blsMnkey = blsKey['secret']
-        mn.znodePrivKey = node.znode("genkey")
 
         return mn
 
@@ -250,7 +249,7 @@ class DIP3Test(BitcoinTestFramework):
     def start_mn(self, mn):
         while len(self.nodes) <= mn.idx:
             self.nodes.append(None)
-        extra_args = ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey, '-znodeprivkey=%s' % mn.znodePrivKey]
+        extra_args = ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
         n = start_node(mn.idx, self.options.tmpdir, extra_args, redirect_stderr=True)
         self.nodes[mn.idx] = n
         for i in range(0, self.num_nodes):
