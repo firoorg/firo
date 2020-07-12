@@ -22,21 +22,17 @@ public:
     size_t GetSerializeSize() const;
 
     template<typename Stream>
-    inline void Serialize(Stream& s, int nType, int nVersion) const {
-        int size =  GetSerializeSize();
-        unsigned char buffer[size];
-        value.serialize(buffer);
-        char* b = (char*)buffer;
-        s.write(b, size);
+    inline void Serialize(Stream& s) const {
+        std::vector<unsigned char> buffer(GetSerializeSize());
+        value.serialize(buffer.data());
+        s.write((const char *)buffer.data(), buffer.size());
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s, int nType, int nVersion) {
-        int size =  GetSerializeSize();
-        unsigned char buffer[size];
-        char* b = (char*)buffer;
-        s.read(b, size);
-        value.deserialize(buffer);
+    inline void Unserialize(Stream& s) {
+        std::vector<unsigned char> buffer(GetSerializeSize());
+        s.read((char *)buffer.data(), buffer.size());
+        value.deserialize(buffer.data());
     }
 
 private:
