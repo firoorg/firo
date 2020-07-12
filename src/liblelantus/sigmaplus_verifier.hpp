@@ -72,15 +72,15 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     Exponent pow(uint64_t(1));
     std::vector<uint64_t> I = LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
     vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
-    for (int j = m - 1; j >= 0; j--) {
+    for (int64_t j = m - 1; j >= 0; j--) {
         f_part_product.push_back(pow);
         pow *= f_[j * n + I[j]];
     }
 
     NthPower<Exponent> xj(x);
-    for (int j = 0; j < m; j++) {
+    for (uint64_t j = 0; j < m; j++) {
         Exponent fi_sum(uint64_t(0));
-        for (int i = I[j] + 1; i < n; i++)
+        for (uint64_t i = I[j] + 1; i < n; i++)
             fi_sum += f_[j*n + i];
         pow += fi_sum * xj.pow * f_part_product[m - j - 1];
         xj.go_next();

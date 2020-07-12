@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     std::vector<secp_primitives::Scalar> v_s;
     std::vector<secp_primitives::GroupElement> V;
-    for(int i = 0; i < m; ++i){
+    for(uint64_t i = 0; i < m; ++i){
         v_s.emplace_back(701 + i);
         V.push_back(g_gen * v_s.back() +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
     }
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
 
     auto testF = [&] (std::vector<Scalar> const v_s) {
         std::vector<GroupElement> V;
-        for (int i = 0; i < m; ++i) {
+        for (uint64_t i = 0; i < m; ++i) {
             V.push_back(g_gen * v_s[i] +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
         }
 
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
 
     // All values are out of range
     std::vector<Scalar> vs;
-    for(int i = 0; i < m; ++i){
+    for(uint64_t i = 0; i < m; ++i){
         vs.emplace_back(17 + i);
     }
     testF(vs);
