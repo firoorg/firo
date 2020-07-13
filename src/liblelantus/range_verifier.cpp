@@ -40,7 +40,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     group_elements2.emplace_back(proof.T2);
     LelantusPrimitives::generate_challenge(group_elements2, x_u);
 
-    auto log_n = (int)std::log2(n * m);
+    auto log_n = RangeProof::int_log2(n * m);
     const InnerProductProof& innerProductProof = proof.innerProductProof;
     std::vector<Scalar> x_j, x_j_inv;
     x_j.resize(log_n);

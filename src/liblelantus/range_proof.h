@@ -9,8 +9,18 @@ namespace lelantus {
 class RangeProof{
 public:
 
+    static inline int int_log2(uint64_t number) {
+        assert(number != 0);
+
+        int l2 = 0;
+        while ((number >>= 1) != 0)
+            l2++;
+
+        return l2;
+    }
+
     inline std::size_t memoryRequired(int n, int m) const {
-        int size = (int)std::log2(n * m);
+        int size = int_log2(n * m);
         return A.memoryRequired() * 4
                + T_x1.memoryRequired() * 3
                + innerProductProof.memoryRequired(size);
