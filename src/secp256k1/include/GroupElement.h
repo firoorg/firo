@@ -59,7 +59,9 @@ public:
 
   GroupElement& generate(unsigned char* seed);
 
- void sha256(unsigned char* result) const;
+  void normalSha256(unsigned char* result) const;
+
+  void sha256(unsigned char* result) const;
 
   void randomize();
 
