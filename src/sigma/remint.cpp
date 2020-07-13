@@ -115,7 +115,7 @@ CAmount CoinRemintToV3::GetAmount(const CTransaction &tx) {
     try {
         CDataStream serData(std::vector<unsigned char>(tx.vin[0].scriptSig.begin()+1, tx.vin[0].scriptSig.end()), SER_NETWORK, PROTOCOL_VERSION);
         CoinRemintToV3 remint(serData);
-        return (int)remint.getDenomination() * COIN;
+        return (int)remint.getDenomination();
     }
     catch (const std::ios_base::failure &) {
         return 0;        

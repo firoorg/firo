@@ -15,10 +15,6 @@
 #define vNodes (g_connman->vNodes)
 #define cs_vNodes (g_connman->cs_vNodes)
 
-// TODO: upgrade to new dash, remove this hack
-#define vNodes (g_connman->vNodes)
-#define cs_vNodes (g_connman->cs_vNodes)
-
 extern CWallet *pwalletMain;
 
 // Keep track of the active Znode

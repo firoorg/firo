@@ -18,10 +18,6 @@ using namespace elysium;
 
 /*
 
-// TODO: redo test with immutable mapMultiArgs
-
-/*
-
 // Is only temporarily modified and restored after each test
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;

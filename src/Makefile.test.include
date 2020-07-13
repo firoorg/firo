@@ -97,6 +97,13 @@ BITCOIN_TESTS = \
   sigma/test/r1_test.cpp \
   sigma/test/serialize_test.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
+  test/zerocoin_tests.cpp \
+  test/zerocoin_tests2.cpp \
+  test/zerocoin_tests3.cpp \
+  test/zerocoin_tests2_v3.cpp \
+  test/zerocoin_tests3_v3.cpp \
+  test/remint_tests.cpp \
+  test/znode_tests.cpp \
   test/addrman_tests.cpp \
   test/allocator_tests.cpp \
   test/amount_tests.cpp \
@@ -119,6 +126,7 @@ BITCOIN_TESTS = \
   test/getarg_tests.cpp \
   test/hash_tests.cpp \
   test/key_tests.cpp \
+  test/dbwrapper_tests.cpp \
   test/lelantus_tests.cpp \
   test/lelantus_state_tests.cpp \
   test/limitedmap_tests.cpp \
