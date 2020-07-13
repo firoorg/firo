@@ -28,11 +28,11 @@ private:
             const std::vector<size_t>& indexes,
             Scalar& x,
             std::vector<Scalar>& Yk_sum,
-            std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs);
+            std::vector<SigmaPlusProof>& sigma_proofs);
 
     void generate_bulletproofs(
             const std::vector <PrivateCoin>& Cout,
-            RangeProof<Scalar, GroupElement>& bulletproofs);
+            RangeProof& bulletproofs);
 
 private:
     const Params* params;

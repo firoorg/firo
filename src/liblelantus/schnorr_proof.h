@@ -5,7 +5,6 @@
 
 namespace lelantus {
 
-template <class Exponent, class GroupElement>
 class SchnorrProof{
 public:
     inline std::size_t memoryRequired() const {
@@ -34,8 +33,8 @@ public:
 
 public:
     GroupElement u;
-    Exponent P1;
-    Exponent T1;
+    Scalar P1;
+    Scalar T1;
 };
 }//namespace lelantus
 

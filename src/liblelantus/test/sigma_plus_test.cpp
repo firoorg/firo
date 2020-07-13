@@ -23,9 +23,9 @@ public:
     };
 
 public:
-    typedef SigmaPlusProver<Scalar, GroupElement> Prover;
-    typedef SigmaPlusProof<Scalar, GroupElement> Proof;
-    typedef SigmaPlusVerifier<Scalar, GroupElement> Verifier;
+    typedef SigmaPlusProver Prover;
+    typedef SigmaPlusProof Proof;
+    typedef SigmaPlusVerifier Verifier;
 
 public:
     SigmaPlusTests() {}

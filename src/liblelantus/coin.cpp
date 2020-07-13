@@ -144,7 +144,7 @@ void PrivateCoin::randomize() {
 
 void PrivateCoin::mintCoin(uint64_t v) {
     value = v;
-    GroupElement commit = LelantusPrimitives<Scalar, GroupElement>::double_commit(
+    GroupElement commit = LelantusPrimitives::double_commit(
             params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);
     publicCoin = PublicCoin(commit);
 }

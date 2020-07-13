@@ -42,9 +42,9 @@ public:
     }
 
 public:
-    std::vector<SigmaPlusProof<Scalar, GroupElement>> sigma_proofs;
-    RangeProof<Scalar, GroupElement> bulletproofs;
-    SchnorrProof<Scalar, GroupElement> schnorrProof;
+    std::vector<SigmaPlusProof> sigma_proofs;
+    RangeProof bulletproofs;
+    SchnorrProof schnorrProof;
 };
 }//namespace lelantus
 

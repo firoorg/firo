@@ -5,7 +5,6 @@
 
 namespace lelantus {
 
-template<class Exponent, class GroupElement>
 class RangeVerifier {
 public:
     //g_vector and h_vector are being kept by reference, be sure it will not be modified from outside
@@ -17,10 +16,10 @@ public:
             , const std::vector<GroupElement>& h_vector
             , uint64_t n);
 
-    bool verify_batch(const std::vector<GroupElement>& V, const RangeProof<Exponent, GroupElement>& proof);
+    bool verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof);
 
 private:
-    bool membership_checks(const RangeProof<Exponent, GroupElement>& proof);
+    bool membership_checks(const RangeProof& proof);
 
 private:
     GroupElement g;
@@ -32,7 +31,5 @@ private:
 };
 
 }//namespace lelantus
-
-#include "range_verifier.hpp"
 
 #endif //ZCOIN_LIBLELANTUS_RANGE_VERIFIER_H

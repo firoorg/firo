@@ -2,7 +2,6 @@
 
 namespace lelantus {
 
-
 SpendMetaData::SpendMetaData(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymitySets,
         const std::vector<uint256>& groupBlockHashes,

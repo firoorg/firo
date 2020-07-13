@@ -25,13 +25,13 @@ private:
     bool verify_sigma(
             const std::vector<std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<Scalar>>& Sin,
-            const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
+            const std::vector<SigmaPlusProof> &sigma_proofs,
             Scalar& x,
             Scalar& zV,
             Scalar& zR);
     bool verify_rangeproof(
             const std::vector<PublicCoin>& Cout,
-            const RangeProof<Scalar, GroupElement>& bulletproofs);
+            const RangeProof& bulletproofs);
     bool verify_schnorrproof(
             const Scalar& x,
             const Scalar& zV,

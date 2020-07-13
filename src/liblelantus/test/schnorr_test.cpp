@@ -25,8 +25,8 @@ BOOST_FIXTURE_TEST_SUITE(lelantus_schnorr_proof_tests, SchnorrProofTests)
 
 BOOST_AUTO_TEST_CASE(serialization)
 {
-    SchnorrProver<Scalar, GroupElement> prover(g, h);
-    SchnorrProof<Scalar, GroupElement> proof;
+    SchnorrProver prover(g, h);
+    SchnorrProof proof;
     prover.proof(P, T, proof);
 
     std::vector<unsigned char> buffer;
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(serialization)
 
     proof.serialize(buffer.data());
 
-    SchnorrProof<Scalar, GroupElement> deserialized;
+    SchnorrProof deserialized;
     deserialized.deserialize(buffer.data());
 
     BOOST_CHECK(proof.u == deserialized.u);
@@ -44,28 +44,28 @@ BOOST_AUTO_TEST_CASE(serialization)
 
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
-    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+    auto y = LelantusPrimitives::commit(g, P, h, T);
 
-    SchnorrProver<Scalar, GroupElement> prover(g, h);
-    SchnorrProof<Scalar, GroupElement> proof;
+    SchnorrProver prover(g, h);
+    SchnorrProof proof;
     prover.proof(P, T, proof);
 
-    SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
+    SchnorrVerifier verifier(g, h);
     BOOST_CHECK(verifier.verify(y ,proof));
 }
 
 BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
 {
-    auto y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+    auto y = LelantusPrimitives::commit(g, P, h, T);
 
-    SchnorrProver<Scalar, GroupElement> prover(g, h);
-    SchnorrProof<Scalar, GroupElement> proof;
+    SchnorrProver prover(g, h);
+    SchnorrProof proof;
     prover.proof(P, T, proof);
 
     GroupElement fakeY;
     fakeY.randomize();
 
-    SchnorrVerifier<Scalar, GroupElement> verifier(g, h);
+    SchnorrVerifier verifier(g, h);
     BOOST_CHECK(!verifier.verify(fakeY, proof));
 
     auto fakeProof = proof;

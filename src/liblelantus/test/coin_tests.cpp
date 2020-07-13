@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(privatecoin)
     std::vector<unsigned char> seckey(32, 0);
 
     // calculate commitment
-    auto commitment = LelantusPrimitives<Scalar, GroupElement>::double_commit(
+    auto commitment = LelantusPrimitives::double_commit(
         params->get_g(), serial,
         params->get_h1(), priv.getV(),
         params->get_h0(), randomness);

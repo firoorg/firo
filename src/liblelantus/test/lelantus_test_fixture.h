@@ -11,7 +11,7 @@ namespace lelantus {
 
 class LelantusTestingSetup {
 protected:
-    typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
+    typedef LelantusPrimitives Primitives;
 
 public:
     GroupElement ComputeMultiExponent(std::vector<GroupElement> const &gs, std::vector<Scalar> const &s) const {

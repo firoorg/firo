@@ -1,7 +1,8 @@
-namespace lelantus {
+#include "range_verifier.h"
 
-template<class Exponent, class GroupElement>
-RangeVerifier<Exponent, GroupElement>::RangeVerifier(
+namespace lelantus {
+    
+RangeVerifier::RangeVerifier(
         const GroupElement& g,
         const GroupElement& h1,
         const GroupElement& h2,
@@ -16,61 +17,60 @@ RangeVerifier<Exponent, GroupElement>::RangeVerifier(
         , n (n)
 {}
 
-template<class Exponent, class GroupElement>
-bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<GroupElement>& V, const RangeProof<Exponent, GroupElement>& proof) {
+bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof) {
     if(!membership_checks(proof))
         return false;
     uint64_t m = V.size();
 
     //computing challenges
-    Exponent x, x_u, y, z;
+    Scalar x, x_u, y, z;
 
     std::vector<GroupElement> group_elements = {proof.A,proof.S};
     std::vector<GroupElement> group_elements2 = {proof.S,proof.A};
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, y);
+    LelantusPrimitives::generate_challenge(group_elements, y);
 
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, z);
+    LelantusPrimitives::generate_challenge(group_elements2, z);
 
     group_elements.emplace_back(proof.T1);
     group_elements.emplace_back(proof.T2);
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
-    Exponent x_neg = x.negate();
+    LelantusPrimitives::generate_challenge(group_elements, x);
+    Scalar x_neg = x.negate();
 
     group_elements2.emplace_back(proof.T1);
     group_elements2.emplace_back(proof.T2);
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
+    LelantusPrimitives::generate_challenge(group_elements2, x_u);
 
     auto log_n = (int)std::log2(n * m);
-    const InnerProductProof<Exponent, GroupElement>& innerProductProof = proof.innerProductProof;
-    std::vector<Exponent> x_j, x_j_inv;
+    const InnerProductProof& innerProductProof = proof.innerProductProof;
+    std::vector<Scalar> x_j, x_j_inv;
     x_j.resize(log_n);
     x_j_inv.reserve(log_n);
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements_i, x_j[i]);
+        LelantusPrimitives::generate_challenge(group_elements_i, x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
 
-    Exponent z_square_neg = (z.square()).negate();
-    Exponent delta = LelantusPrimitives<Exponent, GroupElement>::delta(y, z, n, m);
+    Scalar z_square_neg = (z.square()).negate();
+    Scalar delta = LelantusPrimitives::delta(y, z, n, m);
 
     //check line 97
     GroupElement V_z;
-    NthPower<Exponent> z_m(z);
+    NthPower z_m(z);
     for (std::size_t j = 0; j < m; ++j)
     {
         V_z += V[j] * (z_square_neg * z_m.pow);
         z_m.go_next();
     }
 
-    std::vector<Exponent> l_r;
+    std::vector<Scalar> l_r;
     l_r.resize(n * m * 2);
-    NthPower<Exponent> y_n_(y.inverse());
-    NthPower<Exponent> z_j(z, z.square());
+    NthPower y_n_(y.inverse());
+    NthPower z_j(z, z.square());
 
-    NthPower<Exponent> two_n_(uint64_t(2));
-    std::vector<Exponent> two_n;
+    NthPower two_n_(uint64_t(2));
+    std::vector<Scalar> two_n;
     two_n.reserve(n);
     for (uint64_t k = 0; k < n; ++k)
     {
@@ -83,8 +83,8 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
         for (uint64_t k = 0; k < n; ++k)
         {
             uint64_t i = t * n + k;
-            Exponent x_il(uint64_t(1));
-            Exponent x_ir(uint64_t(1));
+            Scalar x_il(uint64_t(1));
+            Scalar x_ir(uint64_t(1));
             for (int j = 0; j < log_n; ++j)
             {
                 if ((i >> j) & 1) {
@@ -104,13 +104,13 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     }
 
     //check lines  98 and 105
-    Exponent c;
+    Scalar c;
     c.randomize();
 
     std::vector<GroupElement> points;
     points.insert(points.end(), g_.begin(), g_.end());
     points.insert(points.end(), h_.begin(), h_.end());
-    std::vector<Exponent> exponents(l_r);
+    std::vector<Scalar> exponents(l_r);
 
     points.emplace_back(g);
     exponents.emplace_back((innerProductProof.c_ - delta) * c + x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_));
@@ -119,7 +119,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     points.emplace_back(h2);
     exponents.emplace_back(proof.T_x2 * c);
     points.emplace_back(proof.A);
-    exponents.emplace_back(Exponent(uint64_t(1)).negate());
+    exponents.emplace_back(Scalar(uint64_t(1)).negate());
     points.emplace_back(V_z);
     exponents.emplace_back(c);
     points.emplace_back(proof.T1);
@@ -129,7 +129,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     points.emplace_back(proof.S);
     exponents.emplace_back(x_neg);
 
-    std::vector<Exponent> x_j_sq_neg;
+    std::vector<Scalar> x_j_sq_neg;
     x_j_sq_neg.resize(2 * log_n);
     for (int j = 0; j < log_n; ++j)
     {
@@ -149,8 +149,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     return true;
 }
 
-template<class Exponent, class GroupElement>
-bool RangeVerifier<Exponent, GroupElement>::membership_checks(const RangeProof<Exponent, GroupElement>& proof) {
+bool RangeVerifier::membership_checks(const RangeProof& proof) {
     if(!(proof.A.isMember()
          && proof.S.isMember()
          && proof.T1.isMember()

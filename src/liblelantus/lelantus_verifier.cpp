@@ -41,14 +41,14 @@ bool LelantusVerifier::verify(
 bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<Scalar>>& Sin,
-        const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
+        const std::vector<SigmaPlusProof> &sigma_proofs,
         Scalar& x,
         Scalar& zV,
         Scalar& zR) {
 
 
-    LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
-    SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
+    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, x);
+    SigmaPlusVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
 
     if(Sin.size() != anonymity_sets.size())
@@ -62,7 +62,7 @@ bool LelantusVerifier::verify_sigma(
         for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
             C_.emplace_back(anonymity_sets[k][j].getValue());
 
-        std::vector<SigmaPlusProof<Scalar, GroupElement>> sigma_proofs_k;
+        std::vector<SigmaPlusProof> sigma_proofs_k;
         for (std::size_t i = 0; i < Sin[k].size(); ++i, ++t) {
             zV += sigma_proofs[t].zV_;
             zR += sigma_proofs[t].zR_;
@@ -77,7 +77,7 @@ bool LelantusVerifier::verify_sigma(
 
 bool LelantusVerifier::verify_rangeproof(
         const std::vector<PublicCoin>& Cout,
-        const RangeProof<Scalar, GroupElement>& bulletproofs) {
+        const RangeProof& bulletproofs) {
 
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size();
@@ -99,7 +99,7 @@ bool LelantusVerifier::verify_rangeproof(
     for (std::size_t i = Cout.size(); i < m; ++i)
         V.push_back(GroupElement());
 
-    RangeVerifier <Scalar, GroupElement> rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
+    RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     if (!rangeVerifier.verify_batch(V, bulletproofs))
         return false;
     return true;
@@ -122,9 +122,9 @@ bool LelantusVerifier::verify_schnorrproof(
     A += params->get_h1() * ((Vout + f) * x.exponent(params->get_sigma_m()));
 
     GroupElement B = (params->get_h1() * (Vin * x.exponent(params->get_sigma_m())))
-                     + LelantusPrimitives<Scalar, GroupElement>::double_commit(params->get_g(), uint64_t(0), params->get_h1(), zV, params->get_h0(), zR);
+                     + LelantusPrimitives::double_commit(params->get_g(), uint64_t(0), params->get_h1(), zV, params->get_h0(), zR);
 
-    NthPower<Scalar> x_k(x);
+    NthPower x_k(x);
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());
     for (int k = 0; k < params->get_sigma_m(); ++k)
@@ -145,8 +145,8 @@ bool LelantusVerifier::verify_schnorrproof(
         Comm += Comm_t;
     }
     B += Comm;
-    SchnorrVerifier<Scalar, GroupElement> schnorrVerifier(params->get_g(), params->get_h0());
-    const SchnorrProof<Scalar, GroupElement>& schnorrProof = proof.schnorrProof;
+    SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0());
+    const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
     if(!schnorrVerifier.verify(Y, schnorrProof))
         return false;

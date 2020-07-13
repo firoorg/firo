@@ -5,8 +5,7 @@
 #include <cmath>
 
 namespace lelantus {
-
-template<class Exponent, class GroupElement>
+    
 class RangeProof{
 public:
 
@@ -57,10 +56,10 @@ public:
     GroupElement S;
     GroupElement T1;
     GroupElement T2;
-    Exponent T_x1;
-    Exponent T_x2;
-    Exponent u;
-    InnerProductProof<Exponent, GroupElement> innerProductProof;
+    Scalar T_x1;
+    Scalar T_x2;
+    Scalar u;
+    InnerProductProof innerProductProof;
 
 };
 }//namespace lelantus

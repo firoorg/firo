@@ -33,8 +33,8 @@ void test(uint64_t n, uint64_t m, secp_primitives::Scalar& v){
     }
 
     std::clock_t proof_start = std::clock();
-    lelantus::RangeProver<secp_primitives::Scalar, secp_primitives::GroupElement> rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
-    lelantus::RangeProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
+    lelantus::RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+    lelantus::RangeProof proof;
     rangeProver.batch_proof(v_s, serials, randoms, proof);
     std::cout << "n = " << n << "m = " << m;
     std::cout << " Proof size  " << proof.memoryRequired(n, m) ;
@@ -43,7 +43,7 @@ void test(uint64_t n, uint64_t m, secp_primitives::Scalar& v){
     std::cout << " Proof time  " << duration_clock << " μs ";
 
 
-    lelantus::RangeVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
+    lelantus::RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
     std::clock_t verify_start = std::clock();
     rangeVerifier.verify_batch(V, proof);
     duration_clock = ( std::clock() - verify_start );

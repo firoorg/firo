@@ -6,7 +6,6 @@
 
 namespace lelantus {
 
-template<class Exponent, class GroupElement>
 class SigmaPlusProof{
 public:
     SigmaPlusProof() = default;
@@ -83,13 +82,13 @@ public:
     GroupElement B_;
     GroupElement C_;
     GroupElement D_;
-    std::vector<Exponent> f_;
-    Exponent ZA_;
-    Exponent ZC_;
+    std::vector<Scalar> f_;
+    Scalar ZA_;
+    Scalar ZC_;
     std::vector<GroupElement> Gk_;
     std::vector<GroupElement> Qk;
-    Exponent zV_;
-    Exponent zR_;
+    Scalar zV_;
+    Scalar zR_;
 };
 
 } //namespace lelantus

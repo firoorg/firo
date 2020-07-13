@@ -7,7 +7,6 @@
 namespace lelantus {
 
 // Storage of the proof.
-template <class Exponent, class GroupElement>
 class InnerProductProof {
 public:
 
@@ -49,9 +48,9 @@ public:
         READWRITE(R_);
     }
 
-    Exponent a_;
-    Exponent b_;
-    Exponent c_;
+    Scalar a_;
+    Scalar b_;
+    Scalar c_;
     std::vector<GroupElement> L_;
     std::vector<GroupElement> R_;
 };
