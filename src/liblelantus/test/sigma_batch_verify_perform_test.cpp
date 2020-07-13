@@ -1,5 +1,5 @@
-#include "../sigmaplus_prover.h"
-#include "../sigmaplus_verifier.h"
+#include "../sigmaextended_prover.h"
+#include "../sigmaextended_verifier.h"
 #include <chrono>
 #include <ctime>
 
@@ -12,9 +12,9 @@ void generate_batch_proofs(
         std::vector<secp_primitives::GroupElement>& commits,
         secp_primitives::Scalar& x,
         std::vector<secp_primitives::Scalar>& serials,
-        std::vector<lelantus::SigmaPlusProof<>& proofs){
+        std::vector<lelantus::SigmaExtendedProof<>& proofs){
 
-    lelantus::SigmaPlusProver< prover(g,h_gens, n, m);
+    lelantus::SigmaExtendedProver< prover(g,h_gens, n, m);
     int M_ = M;
     std::vector<secp_primitives::Scalar> v_;
     std::vector<secp_primitives::Scalar> r_;
@@ -59,7 +59,7 @@ void generate_batch_proofs(
     a.resize(N);
 
     for(int i = 0; i < serials.size(); ++i){
-        lelantus::SigmaPlusProof< proof;
+        lelantus::SigmaExtendedProof< proof;
         proofs.push_back(proof);
         std::vector<secp_primitives::GroupElement> commits_;
         secp_primitives::GroupElement gs = g * serials[i].negate();
@@ -95,11 +95,11 @@ void test_batch(int N, int n, int M)
     std::vector<secp_primitives::GroupElement> commits;
     std::vector<secp_primitives::Scalar> serials;
     secp_primitives::Scalar x;
-    std::vector<lelantus::SigmaPlusProof<> proofs;
+    std::vector<lelantus::SigmaExtendedProof<> proofs;
 
     generate_batch_proofs(g, h_gens, N, n, m, M, commits, x, serials, proofs);
 
-    lelantus::SigmaPlusVerifier< verifier(g, h_gens, n, m);
+    lelantus::SigmaExtendedVerifier< verifier(g, h_gens, n, m);
 
 
     std::clock_t verify_start = std::clock();
@@ -125,7 +125,7 @@ void write(const std::vector<T>& obj, const std::string& path){
     fclose(out);
 }
 
-void write_proofs(const std::vector<lelantus::SigmaPlusProof<>& proofs, const std::string& path) {
+void write_proofs(const std::vector<lelantus::SigmaExtendedProof<>& proofs, const std::string& path) {
     int size = proofs[0].memoryRequired() * proofs.size();
     unsigned char buffer[size];
     unsigned char* current = buffer;
@@ -138,8 +138,8 @@ void write_proofs(const std::vector<lelantus::SigmaPlusProof<>& proofs, const st
     fclose(out);
 }
 
-void read_proofs(const std::string& path,int  n, int m, int M, std::vector<lelantus::SigmaPlusProof<>& proofs_) {
-    lelantus::SigmaPlusProof< proof;
+void read_proofs(const std::string& path,int  n, int m, int M, std::vector<lelantus::SigmaExtendedProof<>& proofs_) {
+    lelantus::SigmaExtendedProof< proof;
     int size = proof.memoryRequired(n, m) * M;
     unsigned char buffer[size];
     FILE* in = fopen(path.c_str(), "rb");
@@ -149,7 +149,7 @@ void read_proofs(const std::string& path,int  n, int m, int M, std::vector<lelan
 
     unsigned  char* current = buffer;
     for(int i = 0; i < M; ++i) {
-        lelantus::SigmaPlusProof< p;
+        lelantus::SigmaExtendedProof< p;
         current = p.deserialize(current, n, m);
         proofs_.push_back(p);
     }
@@ -196,7 +196,7 @@ void create_write_proofs(int N, int n, int M)
     std::vector<secp_primitives::GroupElement> commits;
     std::vector<secp_primitives::Scalar> serials;
     secp_primitives::Scalar x;
-    std::vector<lelantus::SigmaPlusProof<> proofs;
+    std::vector<lelantus::SigmaExtendedProof<> proofs;
 
     generate_batch_proofs(g, h_, N, n, m, M, commits, x, serials, proofs);
 
@@ -226,7 +226,7 @@ void read_batch_verify(int N, int n, int M){
     get_params(n, m, g, h_);
 
     std::clock_t serialize_start = std::clock();
-    std::vector<lelantus::SigmaPlusProof<> proofs;
+    std::vector<lelantus::SigmaExtendedProof<> proofs;
     std::string path_proofs = "src/gtest/" + std::to_string(N) + "proofs.txt";
     read_proofs(path_proofs, n, m, M, proofs);
 
@@ -248,7 +248,7 @@ void read_batch_verify(int N, int n, int M){
     fclose(in_x);
     x.deserialize(buffer_x);
 
-    lelantus::SigmaPlusVerifier< verifier(g, h_, n, m);
+    lelantus::SigmaExtendedVerifier< verifier(g, h_, n, m);
 
 
     std::clock_t verify_start = std::clock();

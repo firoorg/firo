@@ -675,11 +675,11 @@ liblelantus_a_SOURCES = \
   liblelantus/lelantus_prover.cpp \
   liblelantus/lelantus_verifier.h \
   liblelantus/lelantus_verifier.cpp \
-  liblelantus/sigmaplus_proof.h \
-  liblelantus/sigmaplus_prover.h \
-  liblelantus/sigmaplus_prover.cpp \
-  liblelantus/sigmaplus_verifier.h \
-  liblelantus/sigmaplus_verifier.cpp \
+  liblelantus/sigmaextended_proof.h \
+  liblelantus/sigmaextended_prover.h \
+  liblelantus/sigmaextended_prover.cpp \
+  liblelantus/sigmaextended_verifier.h \
+  liblelantus/sigmaextended_verifier.cpp \
   liblelantus/schnorr_proof.h \
   liblelantus/schnorr_prover.h \
   liblelantus/schnorr_prover.cpp \

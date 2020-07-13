@@ -4,7 +4,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <secp256k1/include/MultiExponent.h>
-#include "sigmaplus_proof.h"
+#include "sigmaextended_proof.h"
 #include "lelantus_proof.h"
 #include "schnorr_proof.h"
 #include "innerproduct_proof.h"
@@ -63,7 +63,7 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void generate_Lelantus_challange(const std::vector<SigmaPlusProof>& proofs, Scalar& result_out);
+    static void generate_Lelantus_challange(const std::vector<SigmaExtendedProof>& proofs, Scalar& result_out);
 
     static void new_factor(const Scalar& x, const Scalar& a, std::vector<Scalar>& coefficients);
 //// functions for bulletproofs

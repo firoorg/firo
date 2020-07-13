@@ -41,14 +41,14 @@ bool LelantusVerifier::verify(
 bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<Scalar>>& Sin,
-        const std::vector<SigmaPlusProof> &sigma_proofs,
+        const std::vector<SigmaExtendedProof> &sigma_proofs,
         Scalar& x,
         Scalar& zV,
         Scalar& zR) {
 
 
     LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, x);
-    SigmaPlusVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
+    SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
 
     if(Sin.size() != anonymity_sets.size())
@@ -62,7 +62,7 @@ bool LelantusVerifier::verify_sigma(
         for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
             C_.emplace_back(anonymity_sets[k][j].getValue());
 
-        std::vector<SigmaPlusProof> sigma_proofs_k;
+        std::vector<SigmaExtendedProof> sigma_proofs_k;
         for (std::size_t i = 0; i < Sin[k].size(); ++i, ++t) {
             zV += sigma_proofs[t].zV_;
             zR += sigma_proofs[t].zR_;

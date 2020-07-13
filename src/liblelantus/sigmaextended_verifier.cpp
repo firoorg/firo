@@ -1,8 +1,8 @@
-#include "sigmaplus_verifier.h"
+#include "sigmaextended_verifier.h"
 
 namespace lelantus {
 
-SigmaPlusVerifier::SigmaPlusVerifier(
+SigmaExtendedVerifier::SigmaExtendedVerifier(
         const GroupElement& g,
         const std::vector<GroupElement>& h_gens,
         uint64_t n,
@@ -13,9 +13,9 @@ SigmaPlusVerifier::SigmaPlusVerifier(
         , m(m){
 }
 
-bool  SigmaPlusVerifier::verify(
+bool  SigmaExtendedVerifier::verify(
         const std::vector<GroupElement>& commits,
-        const SigmaPlusProof& proof) const {
+        const SigmaExtendedProof& proof) const {
     Scalar x;
     std::vector<GroupElement> group_elements = {proof.A_, proof.B_, proof.C_, proof.D_};
     group_elements.insert(group_elements.end(), proof.Gk_.begin(), proof.Gk_.end());
@@ -24,10 +24,10 @@ bool  SigmaPlusVerifier::verify(
     return verify(commits, x, proof);
 }
 
-bool  SigmaPlusVerifier::verify(
+bool  SigmaExtendedVerifier::verify(
         const std::vector<GroupElement>& commits,
         const Scalar& x,
-        const SigmaPlusProof& proof) const {
+        const SigmaExtendedProof& proof) const {
     if (commits.empty())
         return false;
 
@@ -106,11 +106,11 @@ bool  SigmaPlusVerifier::verify(
     return true;
 }
 
-bool SigmaPlusVerifier::batchverify(
+bool SigmaExtendedVerifier::batchverify(
         const std::vector<GroupElement>& commits,
         const Scalar& x,
         const std::vector<Scalar>& serials,
-        const vector<SigmaPlusProof>& proofs) const {
+        const vector<SigmaExtendedProof>& proofs) const {
     int M = proofs.size();
     int N = commits.size();
 
@@ -228,7 +228,7 @@ bool SigmaPlusVerifier::batchverify(
     return true;
 }
 
-bool SigmaPlusVerifier::membership_checks(const SigmaPlusProof& proof) const {
+bool SigmaExtendedVerifier::membership_checks(const SigmaExtendedProof& proof) const {
     if(!(proof.A_.isMember() &&
          proof.B_.isMember() &&
          proof.C_.isMember() &&
@@ -264,8 +264,8 @@ bool SigmaPlusVerifier::membership_checks(const SigmaPlusProof& proof) const {
     return true;
 }
 
-bool SigmaPlusVerifier::compute_fs(
-        const SigmaPlusProof& proof,
+bool SigmaExtendedVerifier::compute_fs(
+        const SigmaExtendedProof& proof,
         const Scalar& x,
         std::vector<Scalar>& f_) const {
     for(unsigned int j = 0; j < proof.f_.size(); ++j) {
@@ -289,8 +289,8 @@ bool SigmaPlusVerifier::compute_fs(
     return true;
 }
 
-bool SigmaPlusVerifier::abcd_checks(
-        const SigmaPlusProof& proof,
+bool SigmaExtendedVerifier::abcd_checks(
+        const SigmaExtendedProof& proof,
         const Scalar& x,
         const std::vector<Scalar>& f_) const {
     Scalar c;

@@ -1,14 +1,14 @@
-#ifndef ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H
-#define ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H
+#ifndef ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROOF_H
+#define ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROOF_H
 
 #include <vector>
 #include "params.h"
 
 namespace lelantus {
 
-class SigmaPlusProof{
+class SigmaExtendedProof{
 public:
-    SigmaPlusProof() = default;
+    SigmaExtendedProof() = default;
 
     inline std::size_t memoryRequired() const {
         return B_.memoryRequired() * 4
@@ -56,4 +56,4 @@ public:
 
 } //namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_SIGMAPLUS_PROOF_H
+#endif //ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROOF_H

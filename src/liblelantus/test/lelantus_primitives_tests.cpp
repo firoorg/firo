@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(convert_to_nal)
 
 BOOST_AUTO_TEST_CASE(generate_lelantus_challange)
 {
-    std::vector<SigmaPlusProof> proofs(2);
+    std::vector<SigmaExtendedProof> proofs(2);
     auto gs = GenerateGroupElements(proofs.size() * 8);
     auto it = gs.begin();
 

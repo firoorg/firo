@@ -1,5 +1,5 @@
-#include "../sigmaplus_prover.h"
-#include "../sigmaplus_verifier.h"
+#include "../sigmaextended_prover.h"
+#include "../sigmaextended_verifier.h"
 #include <chrono>
 #include <ctime>
 #include <iostream>
@@ -16,7 +16,7 @@ void test( int N, int n, int index){
     secp_primitives::Scalar v, r;
     v.randomize();
     r.randomize();
-    lelantus::SigmaPlusProver prover(g,h_gens, n, m);
+    lelantus::SigmaExtendedProver prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     for(int i = 0; i < N; ++i){
@@ -35,7 +35,7 @@ void test( int N, int n, int index){
 
     std::clock_t proof_start = std::clock();
 
-    lelantus::SigmaPlusProof proof;
+    lelantus::SigmaExtendedProof proof;
     prover.proof(commits, index, v, r, proof);
     std::cout <<"N = " << N << " n = " << n << "m = " <<m;
     std::cout << " Proof size  " << proof.memoryRequired() ;
@@ -45,7 +45,7 @@ void test( int N, int n, int index){
 
 
     std::clock_t verify_start = std::clock();
-    lelantus::SigmaPlusVerifier verifier(g, h_gens, n, m);
+    lelantus::SigmaExtendedVerifier verifier(g, h_gens, n, m);
     verifier.verify(commits, proof);
 
     duration_clock = ( std::clock() - verify_start ) / (CLOCKS_PER_SEC / 1000);

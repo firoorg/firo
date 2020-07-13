@@ -1,8 +1,8 @@
-#include "sigmaplus_prover.h"
+#include "sigmaextended_prover.h"
 
 namespace lelantus {
 
-SigmaPlusProver::SigmaPlusProver(
+SigmaExtendedProver::SigmaExtendedProver(
         const GroupElement& g,
         const std::vector<GroupElement>& h_gens,
         uint64_t n,
@@ -13,12 +13,12 @@ SigmaPlusProver::SigmaPlusProver(
         , m_(m) {
 }
 
-void SigmaPlusProver::proof(
+void SigmaExtendedProver::proof(
         const std::vector<GroupElement>& commits,
         int l,
         const Scalar& v,
         const Scalar& r,
-        SigmaPlusProof& proof_out) {
+        SigmaExtendedProof& proof_out) {
     Scalar rA, rB, rC, rD;
     rA.randomize();
     rB.randomize();
@@ -40,7 +40,7 @@ void SigmaPlusProver::proof(
     sigma_response(sigma, a, rA, rB, rC, rD, v, r, Tk, Pk, x, proof_out);
 }
 
-void SigmaPlusProver::sigma_commit(
+void SigmaExtendedProver::sigma_commit(
         const std::vector<GroupElement>& commits,
         int l,
         const Scalar& rA,
@@ -52,7 +52,7 @@ void SigmaPlusProver::sigma_commit(
         std::vector<Scalar>& Pk,
         std::vector<Scalar>& Yk,
         std::vector<Scalar>& sigma,
-        SigmaPlusProof& proof_out) {
+        SigmaExtendedProof& proof_out) {
     std::size_t setSize = commits.size();
     assert(setSize > 0);
     LelantusPrimitives::convert_to_sigma(l, n_, m_, sigma);
@@ -177,7 +177,7 @@ void SigmaPlusProver::sigma_commit(
     }
 }
 
-void SigmaPlusProver::sigma_response(
+void SigmaExtendedProver::sigma_response(
         const std::vector<Scalar>& sigma,
         const std::vector<Scalar>& a,
         const Scalar& rA,
@@ -189,7 +189,7 @@ void SigmaPlusProver::sigma_response(
         const std::vector<Scalar>& Tk,
         const std::vector<Scalar>& Pk,
         const Scalar& x,
-        SigmaPlusProof& proof_out) {
+        SigmaExtendedProof& proof_out) {
 
     //f
     proof_out.f_.reserve(m_ * (n_ - 1));

@@ -64,8 +64,8 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<size_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
-        std::vector<SigmaPlusProof>& sigma_proofs) {
-    SigmaPlusProver sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
+        std::vector<SigmaExtendedProof>& sigma_proofs) {
+    SigmaExtendedProver sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
     sigma_proofs.resize(Cin.size());
     std::size_t N = Cin.size();
     std::vector<Scalar> rA, rB, rC, rD;

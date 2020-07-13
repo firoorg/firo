@@ -27,7 +27,7 @@ public:
     }
 
 public:
-    std::vector<SigmaPlusProof> sigma_proofs;
+    std::vector<SigmaExtendedProof> sigma_proofs;
     RangeProof bulletproofs;
     SchnorrProof schnorrProof;
 };

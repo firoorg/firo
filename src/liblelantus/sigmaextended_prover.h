@@ -1,20 +1,20 @@
-#ifndef ZCOIN_LIBLELANTUS_SIGMAPLUS_PROVER_H
-#define ZCOIN_LIBLELANTUS_SIGMAPLUS_PROVER_H
+#ifndef ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROVER_H
+#define ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROVER_H
 
 #include "lelantus_primitives.h"
 
 namespace lelantus {
 
-class SigmaPlusProver{
+class SigmaExtendedProver{
 
 public:
-    SigmaPlusProver(const GroupElement& g,
+    SigmaExtendedProver(const GroupElement& g,
                     const std::vector<GroupElement>& h_gens, uint64_t n, uint64_t m);
     void proof(const std::vector<GroupElement>& commits,
                int l,
                const Scalar& v,
                const Scalar& r,
-               SigmaPlusProof& proof_out);
+               SigmaExtendedProof& proof_out);
     void sigma_commit(
             const std::vector<GroupElement>& commits,
             int l,
@@ -27,7 +27,7 @@ public:
             std::vector<Scalar>& Pk,
             std::vector<Scalar>& Yk,
             std::vector<Scalar>& sigma,
-            SigmaPlusProof& proof_out);
+            SigmaExtendedProof& proof_out);
 
     void sigma_response(
             const std::vector<Scalar>& sigma,
@@ -41,7 +41,7 @@ public:
             const std::vector<Scalar>& Tk,
             const std::vector<Scalar>& Pk,
             const Scalar& x,
-            SigmaPlusProof& proof_out);
+            SigmaExtendedProof& proof_out);
 
 
 private:
@@ -53,4 +53,4 @@ private:
 
 }//namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_SIGMAPLUS_PROVER_H
+#endif //ZCOIN_LIBLELANTUS_SIGMAEXTENDED_PROVER_H

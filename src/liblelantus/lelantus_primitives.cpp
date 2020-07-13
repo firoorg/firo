@@ -79,7 +79,7 @@ std::vector<uint64_t> LelantusPrimitives::convert_to_nal(
 }
 
 void  LelantusPrimitives::generate_Lelantus_challange(
-        const std::vector<SigmaPlusProof>& proofs,
+        const std::vector<SigmaExtendedProof>& proofs,
         Scalar& result_out) {
     if (proofs.size() > 0) {
         ChallengeGenerator challengeGenerator;
