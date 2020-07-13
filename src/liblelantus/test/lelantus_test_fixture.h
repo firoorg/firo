@@ -9,12 +9,13 @@
 
 namespace lelantus {
 
-class LelantusTestingSetup {
+class LelantusTestingSetup : public BasicTestingSetup {
 protected:
     typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
 
 public:
-    LelantusTestingSetup() : params(Params::get_default()) {
+    LelantusTestingSetup(const std::string& chainName = CBaseChainParams::MAIN)
+        : BasicTestingSetup(chainName), params(Params::get_default()) {
     }
 
 public:

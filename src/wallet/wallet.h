@@ -661,7 +661,13 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins,
+        CAmount nTargetValue,
+        std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
+        CAmount& nValueRet,
+        const CCoinControl *coinControl = NULL,
+        AvailableCoinsType nCoinType = ALL_COINS,
+        bool fUseInstantSend = false) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -913,7 +919,8 @@ public:
 
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
-        CHDMint& vDMint);
+        CHDMint& vDMint,
+        bool generate = true);
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
@@ -991,7 +998,7 @@ public:
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
     bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                         CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
-                                        CReserveKey& reservekey, int& nChangePosInOut,
+                                        std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
     bool CreateSigmaSpendTransaction(
