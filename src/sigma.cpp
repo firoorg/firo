@@ -274,9 +274,11 @@ bool CheckSigmaSpendTransaction(
         // This list of public coins is required by function "Verify" of CoinSpend.
         std::vector<sigma::PublicCoin> anonymity_set;
         while(true) {
-            BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
-                    index->sigmaMintedPubCoins[denominationAndId]) {
-                anonymity_set.push_back(pubCoinValue);
+            if (index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
+                BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
+                        index->sigmaMintedPubCoins[denominationAndId]) {
+                    anonymity_set.push_back(pubCoinValue);
+                }
             }
             if (index == coinGroup.firstBlock)
                 break;
@@ -847,6 +849,9 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
         const sigma::CoinDenomination denomination = it.first;
         const std::vector<sigma::PublicCoin>& mintsWithThisDenom = it.second;
 
+        if (mintsWithThisDenom.empty())
+            continue;
+
         if (latestCoinIds[denomination] < 1)
             latestCoinIds[denomination] = 1;
         auto mintCoinGroupId = latestCoinIds[denomination];
@@ -894,14 +899,16 @@ void CSigmaState::AddBlock(CBlockIndex *index) {
     BOOST_FOREACH(
         const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int), vector<sigma::PublicCoin>) &pubCoins,
             index->sigmaMintedPubCoins) {
-        if (!pubCoins.second.empty()) {
-            SigmaCoinGroupInfo& coinGroup = coinGroups[pubCoins.first];
 
-            if (coinGroup.firstBlock == NULL)
-                coinGroup.firstBlock = index;
-            coinGroup.lastBlock = index;
-            coinGroup.nCoins += pubCoins.second.size();
-        }
+        if (pubCoins.second.empty())
+            continue;
+
+        SigmaCoinGroupInfo& coinGroup = coinGroups[pubCoins.first];
+
+        if (coinGroup.firstBlock == NULL)
+            coinGroup.firstBlock = index;
+        coinGroup.lastBlock = index;
+        coinGroup.nCoins += pubCoins.second.size();
 
         latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
         BOOST_FOREACH(const sigma::PublicCoin &coin, pubCoins.second) {
@@ -923,6 +930,9 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
         SigmaCoinGroupInfo   &coinGroup = coinGroups[coin.first];
         int  nMintsToForget = coin.second.size();
 
+        if (nMintsToForget == 0)
+            continue;
+
         assert(coinGroup.nCoins >= nMintsToForget);
 
         if ((coinGroup.nCoins -= nMintsToForget) == 0) {
@@ -941,7 +951,8 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
             do {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->sigmaMintedPubCoins.count(coin.first) == 0);
+            } while (coinGroup.lastBlock->sigmaMintedPubCoins.count(coin.first) == 0 ||
+                        coinGroup.lastBlock->sigmaMintedPubCoins[coin.first].size() == 0);
         }
     }
 
@@ -1030,7 +1041,8 @@ int CSigmaState::GetCoinSetForSpend(
     for (CBlockIndex *block = coinGroup.lastBlock;
             ;
             block = block->pprev) {
-        if (block->sigmaMintedPubCoins[denomAndId].size() > 0) {
+        if (block->sigmaMintedPubCoins.count(denomAndId) > 0 &&
+                block->sigmaMintedPubCoins[denomAndId].size() > 0) {
             if (block->nHeight <= maxHeight) {
                 if (numberOfCoins == 0) {
                     // latest block satisfying given conditions

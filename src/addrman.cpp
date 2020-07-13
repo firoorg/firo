@@ -351,8 +351,8 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             int nKBucket = RandomInt(ADDRMAN_TRIED_BUCKET_COUNT);
             int nKBucketPos = RandomInt(ADDRMAN_BUCKET_SIZE);
             while (vvTried[nKBucket][nKBucketPos] == -1) {
-                nKBucket = (nKBucket + insecure_rand.rand32()) % ADDRMAN_TRIED_BUCKET_COUNT;
-                nKBucketPos = (nKBucketPos + insecure_rand.rand32()) % ADDRMAN_BUCKET_SIZE;
+                nKBucket = (nKBucket + insecure_rand.randbits(ADDRMAN_TRIED_BUCKET_COUNT_LOG2)) % ADDRMAN_TRIED_BUCKET_COUNT;
+                nKBucketPos = (nKBucketPos + insecure_rand.randbits(ADDRMAN_BUCKET_SIZE_LOG2)) % ADDRMAN_BUCKET_SIZE;
             }
             int nId = vvTried[nKBucket][nKBucketPos];
             assert(mapInfo.count(nId) == 1);
@@ -368,8 +368,8 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             int nUBucket = RandomInt(ADDRMAN_NEW_BUCKET_COUNT);
             int nUBucketPos = RandomInt(ADDRMAN_BUCKET_SIZE);
             while (vvNew[nUBucket][nUBucketPos] == -1) {
-                nUBucket = (nUBucket + insecure_rand.rand32()) % ADDRMAN_NEW_BUCKET_COUNT;
-                nUBucketPos = (nUBucketPos + insecure_rand.rand32()) % ADDRMAN_BUCKET_SIZE;
+                nUBucket = (nUBucket + insecure_rand.randbits(ADDRMAN_NEW_BUCKET_COUNT_LOG2)) % ADDRMAN_NEW_BUCKET_COUNT;
+                nUBucketPos = (nUBucketPos + insecure_rand.randbits(ADDRMAN_BUCKET_SIZE_LOG2)) % ADDRMAN_BUCKET_SIZE;
             }
             int nId = vvNew[nUBucket][nUBucketPos];
             assert(mapInfo.count(nId) == 1);
@@ -516,6 +516,23 @@ void CAddrMan::SetServices_(const CService& addr, ServiceFlags nServices)
 
     // update info
     info.nServices = nServices;
+}
+
+CAddrInfo CAddrMan::GetAddressInfo_(const CService& addr)
+{
+    CAddrInfo* pinfo = Find(addr);
+
+    // if not found, bail out
+    if (!pinfo)
+        return CAddrInfo();
+
+    CAddrInfo& info = *pinfo;
+
+    // check whether we are talking about the exact same CService (including same port)
+    if (info != addr)
+        return CAddrInfo();
+
+    return *pinfo;
 }
 
 int CAddrMan::RandomInt(int nMax){

@@ -14,6 +14,7 @@
 #include "net.h"
 #include "net_processing.h"
 #include "util.h"
+#include "txmempool.h"
 
 #define cs_vNodes (g_connman->cs_vNodes)
 #define vNodes (g_connman->vNodes)
@@ -212,7 +213,7 @@ void CZnodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     }
     mWeAskedForZnodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, vin));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::DSEG, vin));
 }
 
 void CZnodeMan::Check()
@@ -318,7 +319,7 @@ void CZnodeMan::CheckAndRemove()
     }
     {
         // no need for cm_main below
-        LOCK(cs);
+        LOCK2(cs_main, cs);
 
         std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > >::iterator itMnbRequest = mMnbRecoveryRequests.begin();
         while(itMnbRequest != mMnbRecoveryRequests.end()){
@@ -433,7 +434,7 @@ int CZnodeMan::CountZnodes(int nProtocolVersion)
 {
     LOCK(cs);
     int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
+    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
         if(mn.nProtocolVersion < nProtocolVersion) continue;
@@ -447,7 +448,7 @@ int CZnodeMan::CountEnabled(int nProtocolVersion)
 {
     LOCK(cs);
     int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
+    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
         if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
@@ -462,14 +463,12 @@ int CZnodeMan::CountByIP(int nNetworkType)
 {
     LOCK(cs);
     int nNodeCount = 0;
-
     BOOST_FOREACH(CZnode& mn, vZnodes)
         if ((nNetworkType == NET_IPV4 && mn.addr.IsIPv4()) ||
             (nNetworkType == NET_TOR  && mn.addr.IsTor())  ||
             (nNetworkType == NET_IPV6 && mn.addr.IsIPv6())) {
                 nNodeCount++;
         }
-
     return nNodeCount;
 }
 */
@@ -487,12 +486,27 @@ void CZnodeMan::DsegUpdate(CNode* pnode)
             }
         }
     }
-    
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::DSEG, CTxIn()));
+
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::DSEG, CTxIn()));
     int64_t askAgain = GetTime() + DSEG_UPDATE_SECONDS;
     mWeAskedForZnodeList[pnode->addr] = askAgain;
 
     LogPrint("znode", "CZnodeMan::DsegUpdate -- asked %s for the list\n", pnode->addr.ToString());
+}
+
+CZnode* CZnodeMan::Find(const std::string &txHash, const std::string &outputIndex)
+{
+    LOCK(cs);
+
+    BOOST_FOREACH(CZnode& mn, vZnodes)
+    {
+        COutPoint outpoint = mn.vin.prevout;
+
+        if(txHash==outpoint.hash.ToString().substr(0,64) &&
+           outputIndex==to_string(outpoint.n))
+            return &mn;
+    }
+    return NULL;
 }
 
 CZnode* CZnodeMan::Find(const CScript &payee)
@@ -594,17 +608,17 @@ char* CZnodeMan::GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterS
         return reasonStr;
     }
     // //check protocol version
-    if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+    if (mn.nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
         // LogPrintf("Invalid nProtocolVersion!\n");
         // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
-        // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+        // LogPrintf("znpayments.GetMinZnodePaymentsProto=%s!\n", znpayments.GetMinZnodePaymentsProto());
         char* reasonStr = new char[256];
         sprintf(reasonStr, "false: 'Invalid nProtocolVersion', nProtocolVersion=%d", mn.nProtocolVersion);
         return reasonStr;
     }
     //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-    if (mnpayments.IsScheduled(mn, nBlockHeight)) {
-        // LogPrintf("mnpayments.IsScheduled!\n");
+    if (znpayments.IsScheduled(mn, nBlockHeight)) {
+        // LogPrintf("znpayments.IsScheduled!\n");
         char* reasonStr = new char[256];
         sprintf(reasonStr, "false: 'is scheduled'");
         return reasonStr;
@@ -643,7 +657,8 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(bool fFilterSigTime, int& nCoun
 CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
 {
     // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
-    LOCK2(cs_main,cs);
+    LOCK2(cs_main, mempool.cs);
+    LOCK(cs);
 
     CZnode *pBestZnode = NULL;
     std::vector<std::pair<int, CZnode*> > vecZnodeLastPaid;
@@ -663,17 +678,17 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
             continue;
         }
         // //check protocol version
-        if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+        if (mn.nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
             // LogPrintf("Invalid nProtocolVersion!\n");
             // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
-            // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+            // LogPrintf("znpayments.GetMinZnodePaymentsProto=%s!\n", znpayments.GetMinZnodePaymentsProto());
             LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'invalid nProtocolVersion'\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
         }
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if (mnpayments.IsScheduled(mn, nBlockHeight)) {
-            // LogPrintf("mnpayments.IsScheduled!\n");
+        if (znpayments.IsScheduled(mn, nBlockHeight)) {
+            // LogPrintf("znpayments.IsScheduled!\n");
             LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'IsScheduled'\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
@@ -693,7 +708,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), mn.GetCollateralAge(), nMnCount);
             continue;
         }*/
-        char* reasonStr = GetNotQualifyReason(mn, nBlockHeight, fFilterSigTime, nMnCount);
+        char* reasonStr = GetNotQualifyReason(mn, nBlockHeight, fFilterSigTime & (Params().NetworkIDString() != CBaseChainParams::REGTEST), nMnCount);
         if (reasonStr != NULL) {
             LogPrint("znodeman", "Znode, %s, addr(%s), qualify %s\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), reasonStr);
@@ -741,7 +756,7 @@ CZnode* CZnodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, in
 {
     LOCK(cs);
 
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
+    nProtocolVersion = nProtocolVersion == -1 ? znpayments.GetMinZnodePaymentsProto() : nProtocolVersion;
 
     int nCountEnabled = CountEnabled(nProtocolVersion);
     int nCountNotExcluded = nCountEnabled - vecToExclude.size();
@@ -945,7 +960,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         if (CheckMnbAndUpdateZnodeList(pfrom, mnb, nDos)) {
             // use announced Znode as a peer
-            //addrman.Add(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
+            g_connman->AddNewAddress(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
         } else if(nDos > 0) {
             Misbehaving(pfrom->GetId(), nDos);
         }
@@ -1029,7 +1044,8 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         BOOST_FOREACH(CZnode& mn, vZnodes) {
             if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
-            if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
+            if (Params().NetworkIDString() != CBaseChainParams::REGTEST)
+                if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network znode
             if (mn.IsUpdateRequired()) continue; // do not send outdated znodes
 
             LogPrint("znode", "DSEG -- Sending Znode entry: znode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());
@@ -1050,7 +1066,7 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
         }
 
         if(vin == CTxIn()) {
-            g_connman->PushMessage(pfrom, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount));
+            g_connman->PushMessage(pfrom, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount));
             LogPrintf("DSEG -- Sent %d Znode invs to peer %d\n", nInvCount, pfrom->id);
             return;
         }
@@ -1087,11 +1103,11 @@ void CZnodeMan::DoFullVerificationStep()
 
     std::vector<std::pair<int, CZnode> > vecZnodeRanks = GetZnodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
 
-    // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
-    // through GetHeight() signal in ConnectNode
-    LOCK2(cs_main, cs);
-
+    std::vector<CAddress> vAddr;
     int nCount = 0;
+
+    {
+    LOCK2(cs_main, cs);
 
     int nMyRank = -1;
     int nRanksTotal = (int)vecZnodeRanks.size();
@@ -1143,13 +1159,20 @@ void CZnodeMan::DoFullVerificationStep()
         }
         LogPrint("znode", "CZnodeMan::DoFullVerificationStep -- Verifying znode %s rank %d/%d address %s\n",
                     it->second.vin.prevout.ToStringShort(), it->first, nRanksTotal, it->second.addr.ToString());
-        if(SendVerifyRequest(CAddress(it->second.addr, NODE_NETWORK), vSortedByAddr)) {
-            nCount++;
-            if(nCount >= MAX_POSE_CONNECTIONS) break;
+        CAddress addr = CAddress(it->second.addr, NODE_NETWORK);
+        if(CheckVerifyRequestAddr(addr, *g_connman)) {
+            vAddr.push_back(addr);
+            if((int)vAddr.size() >= MAX_POSE_CONNECTIONS) break;
         }
         nOffset += MAX_POSE_CONNECTIONS;
         if(nOffset >= (int)vecZnodeRanks.size()) break;
         it += MAX_POSE_CONNECTIONS;
+    }
+
+    } // LOCK2(cs_main, cs)
+
+    for (const auto& addr : vAddr) {
+        PrepareVerifyRequest(addr, *g_connman);
     }
 
     LogPrint("znode", "CZnodeMan::DoFullVerificationStep -- Sent verification requests to %d znodes\n", nCount);
@@ -1213,35 +1236,66 @@ void CZnodeMan::CheckSameAddr()
     }
 }
 
-bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode*>& vSortedByAddr)
+bool CZnodeMan::CheckVerifyRequestAddr(const CAddress& addr, CConnman& connman)
 {
     if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
         // we already asked for verification, not a good idea to do this too often, skip it
-        LogPrint("znode", "CZnodeMan::SendVerifyRequest -- too many requests, skipping... addr=%s\n", addr.ToString());
+        LogPrint("znode", "CZnodeMan::%s -- too many requests, skipping... addr=%s\n", __func__, addr.ToString());
         return false;
     }
 
-    // TODO: upgrade dash
-/*    CNode* pnode = ConnectNode(addr, NULL, false, true);
-    if(pnode == NULL) {
-        LogPrintf("CZnodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
-        return false;
+    return !connman.IsMasternodeOrDisconnectRequested(addr);
+}
+
+void CZnodeMan::PrepareVerifyRequest(const CAddress& addr, CConnman& connman)
+{
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
     }
 
-    netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
+    connman.AddPendingMasternode(addr);
     // use random nonce, store it and require node to reply with correct one later
-    CZnodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
-    mWeAskedForVerification[addr] = mnv;
-    LogPrintf("CZnodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
-*/
-    return true;
+    CZnodeVerification mnv(addr, GetRandInt(999999), nHeight - 1);
+    LOCK(cs_mapPendingMNV);
+    mapPendingMNV.insert(std::make_pair(addr, std::make_pair(GetTime(), mnv)));
+    LogPrintf("CZnodeMan::%s -- verifying node using nonce %d addr=%s\n", __func__, mnv.nonce, addr.ToString());
+}
+
+void CZnodeMan::ProcessPendingMnvRequests(CConnman& connman)
+{
+    LOCK(cs_mapPendingMNV);
+
+    std::map<CService, std::pair<int64_t, CZnodeVerification> >::iterator itPendingMNV = mapPendingMNV.begin();
+
+    while (itPendingMNV != mapPendingMNV.end()) {
+        bool fDone = connman.ForNode(itPendingMNV->first, [&](CNode* pnode) {
+            netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
+            // use random nonce, store it and require node to reply with correct one later
+            mWeAskedForVerification[pnode->addr] = itPendingMNV->second.second;
+            LogPrint("znode", "-- verifying node using nonce %d addr=%s\n", itPendingMNV->second.second.nonce, pnode->addr.ToString());
+            CNetMsgMaker msgMaker(LEGACY_ZNODES_PROTOCOL_VERSION);
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNVERIFY, itPendingMNV->second.second));
+            return true;
+        });
+
+        int64_t nTimeAdded = itPendingMNV->second.first;
+        if (fDone || (GetTime() - nTimeAdded > 15)) {
+            if (!fDone) {
+                LogPrint("znode", "CZnodeMan::%s -- failed to connect to %s\n", __func__, itPendingMNV->first.ToString());
+            }
+            mapPendingMNV.erase(itPendingMNV++);
+        } else {
+            ++itPendingMNV;
+        }
+    }
 }
 
 void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
 {
     // only znodes can sign this, why would someone ask regular node?
-    if(!fZNode) {
+    if(!fMasternodeMode) {
         // do not ban, malicious node might be using my IP
         // and trying to confuse the node which tries to verify it
         return;
@@ -1274,7 +1328,7 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
         return;
     }
 
-    g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
+    g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::MNVERIFY, mnv));
     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
 }
 
@@ -1601,9 +1655,9 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
         Add(mnb);
         znodeSync.AddedZnodeList();
         // if it matches our Znode privkey...
-        if(fZNode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
+        if(fMasternodeMode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
             mnb.nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
-            if(mnb.nProtocolVersion == PROTOCOL_VERSION) {
+            if(mnb.nProtocolVersion == LEGACY_ZNODES_PROTOCOL_VERSION) {
                 // ... and PROTOCOL_VERSION, then we've been remotely activated ...
                 LogPrintf("CZnodeMan::CheckMnbAndUpdateZnodeList -- Got NEW Znode entry: znode=%s  sigTime=%lld  addr=%s\n",
                             mnb.vin.prevout.ToStringShort(), mnb.sigTime, mnb.addr.ToString());
@@ -1611,7 +1665,7 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
             } else {
                 // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
                 // but also do not ban the node we get this message from
-                LogPrintf("CZnodeMan::CheckMnbAndUpdateZnodeList -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", mnb.nProtocolVersion, PROTOCOL_VERSION);
+                LogPrintf("CZnodeMan::CheckMnbAndUpdateZnodeList -- wrong PROTOCOL_VERSION, re-activate your MN: message nProtocolVersion=%d  PROTOCOL_VERSION=%d\n", mnb.nProtocolVersion, LEGACY_ZNODES_PROTOCOL_VERSION);
                 return false;
             }
         }
@@ -1636,9 +1690,9 @@ void CZnodeMan::UpdateLastPaid()
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a znode
     // (MNs should update this info on every block, so limited scan should be enough for them)
-    int nMaxBlocksToScanBack = (IsFirstRun || !fZNode) ? mnpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
+    int nMaxBlocksToScanBack = (IsFirstRun || !fMasternodeMode) ? znpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
 
-    LogPrint("mnpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
+    LogPrint("znpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
                              pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
@@ -1745,7 +1799,7 @@ bool CZnodeMan::IsZnodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTim
 
 void CZnodeMan::SetZnodeLastPing(const CTxIn& vin, const CZnodePing& mnp)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     CZnode* pMN = Find(vin);
     if(!pMN)  {
         return;
@@ -1767,7 +1821,7 @@ void CZnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 
     CheckSameAddr();
 
-    if(fZNode) {
+    if(fMasternodeMode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
         UpdateLastPaid();
     }

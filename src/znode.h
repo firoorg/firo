@@ -18,13 +18,35 @@ class CZnodePing;
 
 static const int ZNODE_CHECK_SECONDS               =   5;
 static const int ZNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
-static const int ZNODE_MIN_MNP_SECONDS             =  10 * 60; //PRE_ENABLE_TIME
 static const int ZNODE_EXPIRATION_SECONDS          =  65 * 60;
 static const int ZNODE_WATCHDOG_MAX_SECONDS        = 120 * 60;
-static const int ZNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
 static const int ZNODE_COIN_REQUIRED  = 1000;
 
 static const int ZNODE_POSE_BAN_MAX_SCORE          = 5;
+
+class CZnodeTimings {
+    struct Mainnet {
+        static const int ZnodeMinMnpSeconds                =  10 * 60; //PRE_ENABLE_TIME
+        static const int ZnodeNewStartRequiredSeconds      = 180 * 60;
+    };
+    struct Regtest {
+        static const int ZnodeMinMnpSeconds                = 30;
+        static const int ZnodeNewStartRequiredSeconds      = 60;
+    };
+public:
+    static int MinMnpSeconds();
+    static int NewStartRequiredSeconds();
+private:
+    static CZnodeTimings & Inst();
+    CZnodeTimings();
+    CZnodeTimings(CZnodeTimings const &)=delete;
+    void operator=(CZnodeTimings const &)=delete;
+    int minMnp, newStartRequired;
+};
+
+#define ZNODE_MIN_MNP_SECONDS CZnodeTimings::MinMnpSeconds()
+#define ZNODE_NEW_START_REQUIRED_SECONDS CZnodeTimings::NewStartRequiredSeconds()
+
 //
 // The Znode Ping Class : Contains a different serialize method for sending pings from znodes throughout the network
 //
@@ -57,19 +79,6 @@ public:
         READWRITE(vchSig);
     }
 
-    void swap(CZnodePing& first, CZnodePing& second) // nothrow
-    {
-        // enable ADL (not necessary in our case, but good practice)
-        using std::swap;
-
-        // by swapping the members of two classes,
-        // the two classes are effectively swapped
-        swap(first.vin, second.vin);
-        swap(first.blockHash, second.blockHash);
-        swap(first.sigTime, second.sigTime);
-        swap(first.vchSig, second.vchSig);
-    }
-
     uint256 GetHash() const
     {
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
@@ -86,9 +95,12 @@ public:
     bool CheckAndUpdate(CZnode* pmn, bool fFromNewBroadcast, int& nDos);
     void Relay();
 
-    CZnodePing& operator=(CZnodePing from)
+    CZnodePing& operator=(const CZnodePing &from)
     {
-        swap(*this, from);
+        vin = from.vin;
+        blockHash = from.blockHash;
+        sigTime = from.sigTime;
+        vchSig = from.vchSig;
         return *this;
     }
     friend bool operator==(const CZnodePing& a, const CZnodePing& b)
@@ -280,6 +292,8 @@ public:
     }
 
     bool IsValidForPayment();
+
+    static bool IsLegacyWindow(int height);
 
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);

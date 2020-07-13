@@ -1,5 +1,5 @@
 ---
-name: "zcoin-win-0.14.8"
+name: "zcoin-win-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -22,6 +22,7 @@ packages:
 - "ca-certificates"
 - "python"
 - "rename"
+- "cmake"
 remotes:
 - "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
@@ -152,7 +153,7 @@ script: |
     mkdir src/obj
     cp ../src/obj/build.h src/obj/
 
-    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-exodus --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-elysium --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
     make deploy

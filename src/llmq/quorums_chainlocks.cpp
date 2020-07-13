@@ -45,7 +45,7 @@ void CChainLocksHandler::Start()
         EnforceBestChainLock();
         // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
         TrySignChainTip();
-    }, 5000);
+    }, 5);
 }
 
 void CChainLocksHandler::Stop()
@@ -209,7 +209,7 @@ void CChainLocksHandler::CheckActiveState()
     bool fDIP0008Active;
     {
         LOCK(cs_main);
-        fDIP0008Active = VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
+        fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
     }
 
     LOCK(cs);

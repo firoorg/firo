@@ -18,11 +18,15 @@
 #include "utiltime.h"
 #include "version.h"
 
+#include "evo/specialtx.h"
+#include "evo/providertx.h"
+#include "evo/deterministicmns.h"
+
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
-                                 int64_t _nTime, double _entryPriority, unsigned int _entryHeight,
+                                 int64_t _nTime, unsigned int _entryHeight,
                                  CAmount _inChainInputValue,
                                  bool _spendsCoinbase, int64_t _sigOpsCost, LockPoints lp):
-    tx(_tx), nFee(_nFee), nTime(_nTime), entryPriority(_entryPriority), entryHeight(_entryHeight),
+    tx(_tx), nFee(_nFee), nTime(_nTime), entryHeight(_entryHeight),
     inChainInputValue(_inChainInputValue),
     spendsCoinbase(_spendsCoinbase), sigOpCost(_sigOpsCost), lockPoints(lp)
 {
@@ -49,16 +53,6 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
 CTxMemPoolEntry::CTxMemPoolEntry(const CTxMemPoolEntry& other)
 {
     *this = other;
-}
-
-double
-CTxMemPoolEntry::GetPriority(unsigned int currentHeight) const
-{
-    double deltaPriority = ((double)(currentHeight-entryHeight)*inChainInputValue)/nModSize;
-    double dResult = entryPriority + deltaPriority;
-    if (dResult < 0) // This should only happen if it was called with a height below entry height
-        dResult = 0;
-    return dResult;
 }
 
 void CTxMemPoolEntry::UpdateFeeDelta(int64_t newFeeDelta)
@@ -368,17 +362,10 @@ CTxMemPool::~CTxMemPool()
     delete minerPolicyEstimator;
 }
 
-void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
+bool CTxMemPool::isSpent(const COutPoint& outpoint)
 {
     LOCK(cs);
-
-    auto it = mapNextTx.lower_bound(COutPoint(hashTx, 0));
-
-    // iterate over all COutPoints in mapNextTx whose hash equals the provided hashTx
-    while (it != mapNextTx.end() && it->first->hash == hashTx) {
-        coins.Spend(it->first->n); // and remove those outputs from coins
-        it++;
-    }
+    return mapNextTx.count(outpoint);
 }
 
 void CTxMemPool::getTransactions(std::set<uint256>& setTxid)
@@ -460,6 +447,53 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
     vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
     newit->vTxHashesIdx = vTxHashes.size() - 1;
 
+    // Invalid ProTxes should never get this far because transactions should be
+    // fully checked by AcceptToMemoryPool() at this point, so we just assume that
+    // everything is fine here.
+    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+        CProRegTx proTx;
+        bool ok = GetTxPayload(tx, proTx);
+        assert(ok);
+        if (!proTx.collateralOutpoint.hash.IsNull()) {
+            mapProTxRefs.emplace(tx.GetHash(), proTx.collateralOutpoint.hash);
+        }
+        mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
+        mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx.GetHash());
+        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
+        if (!proTx.collateralOutpoint.hash.IsNull()) {
+            mapProTxCollaterals.emplace(proTx.collateralOutpoint, tx.GetHash());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        CProUpServTx proTx;
+        bool ok = GetTxPayload(tx, proTx);
+        assert(ok);
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
+        mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        CProUpRegTx proTx;
+        bool ok = GetTxPayload(tx, proTx);
+        assert(ok);
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
+        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
+        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
+        assert(dmn);
+        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        if (dmn->pdmnState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
+            newit->isKeyChangeProTx = true;
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        bool ok = GetTxPayload(tx, proTx);
+        assert(ok);
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
+        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
+        assert(dmn);
+        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
+            newit->isKeyChangeProTx = true;
+        }
+    }
+
     return true;
 }
 
@@ -471,14 +505,59 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint() || it->GetTx().IsLelantusJoinSplit());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
-        if (vTxHashes.size() > 1) {
-            vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
-            vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
-            vTxHashes.pop_back();
-            if (vTxHashes.size() * 2 < vTxHashes.capacity())
-                vTxHashes.shrink_to_fit();
-        } else
-            vTxHashes.clear();
+    }
+    if (vTxHashes.size() > 1) {
+        vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
+        vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
+        vTxHashes.pop_back();
+        if (vTxHashes.size() * 2 < vTxHashes.capacity())
+            vTxHashes.shrink_to_fit();
+    } else
+        vTxHashes.clear();
+
+    auto eraseProTxRef = [&](const uint256& proTxHash, const uint256& txHash) {
+        auto its = mapProTxRefs.equal_range(proTxHash);
+        for (auto it = its.first; it != its.second;) {
+            if (it->second == txHash) {
+                it = mapProTxRefs.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+
+    if (it->GetTx().nType == TRANSACTION_PROVIDER_REGISTER) {
+        CProRegTx proTx;
+        if (!GetTxPayload(it->GetTx(), proTx)) {
+            assert(false);
+        }
+        if (!proTx.collateralOutpoint.IsNull()) {
+            eraseProTxRef(it->GetTx().GetHash(), proTx.collateralOutpoint.hash);
+        }
+        mapProTxAddresses.erase(proTx.addr);
+        mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
+        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+        mapProTxCollaterals.erase(proTx.collateralOutpoint);
+    } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        CProUpServTx proTx;
+        if (!GetTxPayload(it->GetTx(), proTx)) {
+            assert(false);
+        }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
+        mapProTxAddresses.erase(proTx.addr);
+    } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        CProUpRegTx proTx;
+        if (!GetTxPayload(it->GetTx(), proTx)) {
+            assert(false);
+        }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
+        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+    } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        if (!GetTxPayload(it->GetTx(), proTx)) {
+            assert(false);
+        }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
     }
 
     totalTxSize -= it->GetTxSize();
@@ -503,7 +582,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
             continue;
         }
 
-        const CTxOut &prevout = view.GetOutputFor(input);
+        const CTxOut &prevout = view.AccessCoin(input.prevout).out;
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
             CMempoolAddressDeltaKey key(AddressType::payToScriptHash, uint160(hashBytes), txhash, j, 1);
@@ -582,7 +661,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
             continue;
         }
 
-        const CTxOut &prevout = view.GetOutputFor(input);
+        const CTxOut &prevout = view.AccessCoin(input.prevout).out;
         uint160 addressHash;
         AddressType addressType;
 
@@ -716,9 +795,9 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
                 indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
                 if (it2 != mapTx.end())
                     continue;
-                const CCoins *coins = pcoins->AccessCoins(txin.prevout.hash);
-                if (nCheckFrequency != 0) assert(coins);
-                if (!coins || (coins->IsCoinBase() && ((signed long)nMemPoolHeight) - coins->nHeight < COINBASE_MATURITY)) {
+                const Coin &coin = pcoins->AccessCoin(txin.prevout);
+                if (nCheckFrequency != 0) assert(!coin.IsSpent());
+                if (coin.IsSpent() || (coin.IsCoinBase() && ((signed long)nMemPoolHeight) - coin.nHeight < COINBASE_MATURITY)) {
                     txToRemove.insert(it);
                     break;
                 }
@@ -752,6 +831,145 @@ void CTxMemPool::removeConflicts(const CTransaction &tx)
     }
 }
 
+void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CKeyID &keyId)
+{
+    if (mapProTxPubKeyIDs.count(keyId)) {
+        uint256 conflictHash = mapProTxPubKeyIDs[keyId];
+        if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+            removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
+    }
+}
+
+void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CBLSPublicKey &pubKey)
+{
+    if (mapProTxBlsPubKeyHashes.count(pubKey.GetHash())) {
+        uint256 conflictHash = mapProTxBlsPubKeyHashes[pubKey.GetHash()];
+        if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+            removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
+    }
+}
+
+void CTxMemPool::removeProTxCollateralConflicts(const CTransaction &tx, const COutPoint &collateralOutpoint)
+{
+    if (mapProTxCollaterals.count(collateralOutpoint)) {
+        uint256 conflictHash = mapProTxCollaterals[collateralOutpoint];
+        if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+            removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
+    }
+}
+
+void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
+{
+    // Remove TXs that refer to a MN for which the collateral was spent
+    auto removeSpentCollateralConflict = [&](const uint256& proTxHash) {
+        // Can't use equal_range here as every call to removeRecursive might invalidate iterators
+        while (true) {
+            auto it = mapProTxRefs.find(proTxHash);
+            if (it == mapProTxRefs.end()) {
+                break;
+            }
+            auto conflictIt = mapTx.find(it->second);
+            if (conflictIt != mapTx.end()) {
+                removeRecursive(conflictIt->GetTx(), MemPoolRemovalReason::CONFLICT);
+            } else {
+                // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
+                // But lets be on the safe side and not run into an endless loop...
+                LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s", __func__, proTxHash.ToString(), it->second.ToString());
+                mapProTxRefs.erase(it);
+            }
+        }
+    };
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    for (const auto& in : tx.vin) {
+        auto collateralIt = mapProTxCollaterals.find(in.prevout);
+        if (collateralIt != mapProTxCollaterals.end()) {
+            // These are not yet mined ProRegTxs
+            removeSpentCollateralConflict(collateralIt->second);
+        }
+        auto dmn = mnList.GetMNByCollateral(in.prevout);
+        if (dmn) {
+            // These are updates refering to a mined ProRegTx
+            removeSpentCollateralConflict(dmn->proTxHash);
+        }
+    }
+}
+
+void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash)
+{
+    std::set<uint256> conflictingTxs;
+    for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+        auto txit = mapTx.find(its.first->second);
+        if (txit == mapTx.end()) {
+            continue;
+        }
+        if (txit->validForProTxKey != newKeyHash) {
+            conflictingTxs.emplace(txit->GetTx().GetHash());
+        }
+    }
+    for (const auto& txHash : conflictingTxs) {
+        auto& tx = mapTx.find(txHash)->GetTx();
+        removeRecursive(tx, MemPoolRemovalReason::CONFLICT);
+    }
+}
+
+void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
+{
+    removeProTxSpentCollateralConflicts(tx);
+
+    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+        CProRegTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return;
+        }
+
+        if (mapProTxAddresses.count(proTx.addr)) {
+            uint256 conflictHash = mapProTxAddresses[proTx.addr];
+            if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+                removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+            }
+        }
+        removeProTxPubKeyConflicts(tx, proTx.keyIDOwner);
+        removeProTxPubKeyConflicts(tx, proTx.pubKeyOperator);
+        if (!proTx.collateralOutpoint.hash.IsNull()) {
+            removeProTxCollateralConflicts(tx, proTx.collateralOutpoint);
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        CProUpServTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return;
+        }
+
+        if (mapProTxAddresses.count(proTx.addr)) {
+            uint256 conflictHash = mapProTxAddresses[proTx.addr];
+            if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+                removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+            }
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        CProUpRegTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return;
+        }
+
+        removeProTxPubKeyConflicts(tx, proTx.pubKeyOperator);
+        removeProTxKeyChangedConflicts(tx, proTx.proTxHash, ::SerializeHash(proTx.pubKeyOperator));
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return;
+        }
+
+        removeProTxKeyChangedConflicts(tx, proTx.proTxHash, ::SerializeHash(CBLSPublicKey()));
+    }
+}
+
 /**
  * Called when a block is connected. Removes from mempool and updates the miner fee estimator.
  */
@@ -778,6 +996,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
             RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
         }
         removeConflicts(*tx);
+        removeProTxConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
     lastRollingFeeUpdate = GetTime();
@@ -789,6 +1008,8 @@ void CTxMemPool::_clear()
     mapLinks.clear();
     mapTx.clear();
     mapNextTx.clear();
+    mapProTxAddresses.clear();
+    mapProTxPubKeyIDs.clear();
     totalTxSize = 0;
     cachedInnerUsage = 0;
     lastRollingFeeUpdate = GetTime();
@@ -848,8 +1069,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
                         parentSigOpCost += it2->GetSigOpCost();
                     }
                 } else {
-                    const CCoins* coins = pcoins->AccessCoins(txin.prevout.hash);
-                    assert(coins && coins->IsAvailable(txin.prevout.n));
+                    assert(pcoins->HaveCoin(txin.prevout));
                 }
                 // Check whether its inputs are marked in mapNextTx.
                 auto it3 = mapNextTx.find(txin.prevout);
@@ -902,6 +1122,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
         else {
             CValidationState state;
             bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
+                    Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
+
                 Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
             assert(fCheckResult);
             UpdateCoins(tx, mempoolDuplicate, 1000000);
@@ -1031,6 +1253,94 @@ TxMempoolInfo CTxMemPool::info(const uint256& hash) const
     return GetInfo(i);
 }
 
+bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
+    LOCK(cs);
+
+    auto hasKeyChangeInMempool = [&](const uint256& proTxHash) {
+        for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+            auto txit = mapTx.find(its.first->second);
+            if (txit == mapTx.end()) {
+                continue;
+            }
+            if (txit->isKeyChangeProTx) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+        CProRegTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+        if (mapProTxAddresses.count(proTx.addr) || mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash()))
+            return true;
+        if (!proTx.collateralOutpoint.hash.IsNull()) {
+            if (mapProTxCollaterals.count(proTx.collateralOutpoint)) {
+                // there is another ProRegTx that refers to the same collateral
+                return true;
+            }
+            if (mapNextTx.count(proTx.collateralOutpoint)) {
+                // there is another tx that spends the collateral
+                return true;
+            }
+        }
+        return false;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        CProUpServTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+        auto it = mapProTxAddresses.find(proTx.addr);
+        return it != mapProTxAddresses.end() && it->second != proTx.proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        CProUpRegTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+
+        // this method should only be called with validated ProTxs
+        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn) {
+            LogPrintf("%s: ERROR: Masternode is not in the list, proTxHash: %s", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // only allow one operator key change in the mempool
+        if (dmn->pdmnState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
+            if (hasKeyChangeInMempool(proTx.proTxHash)) {
+                return true;
+            }
+        }
+
+        auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
+        return it != mapProTxBlsPubKeyHashes.end() && it->second != proTx.proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return true; // i.e. can't decode payload == conflict
+        }
+
+        // this method should only be called with validated ProTxs
+        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
+        if (!dmn) {
+            LogPrintf("%s: ERROR: Masternode is not in the list, proTxHash: %s", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // only allow one operator key change in the mempool
+        if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
+            if (hasKeyChangeInMempool(proTx.proTxHash)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 CFeeRate CTxMemPool::estimateFee(int nBlocks) const
 {
     LOCK(cs);
@@ -1144,26 +1454,40 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
 
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
 
-bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) const {
+bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     // If an entry in the mempool exists, always return that one, as it's guaranteed to never
     // conflict with the underlying cache, and it cannot have pruned entries (as it contains full)
     // transactions. First checking the underlying cache risks returning a pruned entry instead.
-    CTransactionRef ptx = mempool.get(txid);
+    CTransactionRef ptx = mempool.get(outpoint.hash);
     if (ptx) {
-        coins = CCoins(*ptx, MEMPOOL_HEIGHT);
-        return true;
+        if (outpoint.n < ptx->vout.size()) {
+            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
+            return true;
+        } else {
+            return false;
+        }
     }
-    return (base->GetCoins(txid, coins) && !coins.IsPruned());
+    return (base->GetCoin(outpoint, coin) && !coin.IsSpent());
 }
 
-bool CCoinsViewMemPool::HaveCoins(const uint256 &txid) const {
-    return mempool.exists(txid) || base->HaveCoins(txid);
+bool CCoinsViewMemPool::HaveCoin(const COutPoint &outpoint) const {
+    return mempool.exists(outpoint) || base->HaveCoin(outpoint);
 }
 
 size_t CTxMemPool::DynamicMemoryUsage() const {
     LOCK(cs);
     // Estimate the overhead of mapTx to be 15 pointers + an allocation, as no exact formula for boost::multi_index_contained is implemented.
     return memusage::MallocUsage(sizeof(CTxMemPoolEntry) + 15 * sizeof(void*)) * mapTx.size() + memusage::DynamicUsage(mapNextTx) + memusage::DynamicUsage(mapDeltas) + memusage::DynamicUsage(mapLinks) + memusage::DynamicUsage(vTxHashes) + cachedInnerUsage;
+}
+
+double CTxMemPool::UsedMemoryShare() const
+{
+    // use 1000000 instead of real bytes number in megabyte because of
+    // this param is calculated in such way in other places (see AppInit
+    // function in src/init.cpp or mempoolInfoToJSON function in
+    // src/rpc/blockchain.cpp)
+    size_t maxmempool = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
+    return double(DynamicMemoryUsage()) / maxmempool;
 }
 
 void CTxMemPool::RemoveStaged(setEntries &stage, bool updateDescendants, MemPoolRemovalReason reason) {
@@ -1268,7 +1592,7 @@ void CTxMemPool::trackPackageRemoved(const CFeeRate& rate) {
     }
 }
 
-void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<uint256>* pvNoSpendsRemaining) {
+void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<COutPoint>* pvNoSpendsRemaining) {
     LOCK(cs);
 
     unsigned nTxnRemoved = 0;
@@ -1299,11 +1623,10 @@ void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<uint256>* pvNoSpendsRe
         if (pvNoSpendsRemaining) {
             BOOST_FOREACH(const CTransaction& tx, txn) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-                    if (exists(txin.prevout.hash))
-                        continue;
-                    auto iter = mapNextTx.lower_bound(COutPoint(txin.prevout.hash, 0));
-                    if (iter == mapNextTx.end() || iter->first->hash != txin.prevout.hash)
-                        pvNoSpendsRemaining->push_back(txin.prevout.hash);
+                    if (exists(txin.prevout.hash)) continue;
+                    if (!mapNextTx.count(txin.prevout)) {
+                        pvNoSpendsRemaining->push_back(txin.prevout);
+                    }
                 }
             }
         }
@@ -1388,3 +1711,5 @@ void CTxPoolAggregate::removeRecursive(const CTransaction &tx, MemPoolRemovalRea
     mempool.removeRecursive(tx, reason);
     stemTxPool.removeRecursive(tx, reason);
 }
+
+SaltedTxidHasher::SaltedTxidHasher() : k0(GetRand(std::numeric_limits<uint64_t>::max())), k1(GetRand(std::numeric_limits<uint64_t>::max())) {}

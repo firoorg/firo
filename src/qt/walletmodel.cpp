@@ -659,6 +659,16 @@ void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
     rhs.relock = false;
 }
 
+bool WalletModel::IsSpendable(const CTxDestination& dest) const
+{
+    return IsMine(*wallet, dest) & ISMINE_SPENDABLE;
+}
+
+bool WalletModel::IsSpendable(const CScript& script) const
+{
+    return IsMine(*wallet, script) & ISMINE_SPENDABLE;
+}
+
 bool WalletModel::getPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const
 {
     return wallet->GetPubKey(address, vchPubKeyOut);
@@ -785,6 +795,18 @@ void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
     wallet->ListLockedCoins(vOutpts);
 }
 
+void WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    wallet->ListProTxCoins(vOutpts);
+}
+
+bool WalletModel::hasMasternode()
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    return wallet->HasMasternode();
+}
+
 void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests)
 {
     LOCK(wallet->cs_wallet);
@@ -844,9 +866,14 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
         return false;
 
     CCoinsViewCache &view = *pcoinsTip;
-    const CCoins* existingCoins = view.AccessCoins(hash);
+    bool fHaveChain = false;
+    for (size_t i=0; i<wtx->tx->vout.size() && !fHaveChain; i++) {
+        if (view.HaveCoin(COutPoint(hash, i)))
+            fHaveChain = true;
+    }
+
     bool fHaveMempool = mempool.exists(hash);
-    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
         CValidationState state;

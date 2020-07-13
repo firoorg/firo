@@ -39,7 +39,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
     }
 
     if (pindexPrev) {
-        bool fDIP0008Active = VersionBitsState(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
+        bool fDIP0008Active = pindexPrev->nHeight >= Params().GetConsensus().DIP0008Height;
         if (fDIP0008Active && cbTx.nVersion < 2) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-version");
         }
@@ -247,4 +247,16 @@ void CCbTx::ToJson(UniValue& obj) const
     if (nVersion >= 2) {
         obj.push_back(Pair("merkleRootQuorums", merkleRootQuorums.ToString()));
     }
+}
+
+
+bool CbtxToJson(const CTransaction& tx, UniValue& obj) {
+    CCbTx cbTx;
+    if (GetTxPayload(tx.vExtraPayload, cbTx)) {
+        UniValue cbTxObj;
+        cbTx.ToJson(cbTxObj);
+        obj.push_back(Pair("cbTx", cbTxObj));
+        return true;
+    }
+    return false;
 }

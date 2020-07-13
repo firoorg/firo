@@ -16,8 +16,11 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "netmessagemaker.h"
 
 #include <boost/lexical_cast.hpp>
+
+#define cs_vNodes (g_connman->cs_vNodes)
 
 int nPrivateSendRounds = DEFAULT_PRIVATESEND_ROUNDS;
 int nPrivateSendAmount = DEFAULT_PRIVATESEND_AMOUNT;
@@ -173,7 +176,7 @@ std::string CDarksendPool::GetStatus() {
 // Check the mixing progress and send client updates if a Znode
 //
 void CDarksendPool::CheckPool() {
-    if (fZNode) {
+    if (fMasternodeMode) {
         LogPrint("privatesend", "CDarksendPool::CheckPool -- entries count %lu\n", GetEntriesCount());
 
         // If entries are full, create finalized transaction
@@ -283,8 +286,6 @@ bool CDarksendPool::IsInputScriptSigValid(const CTxIn &txin) {
 bool CDarksendPool::IsCollateralValid(const CTransaction &txCollateral) {
     return true;
 }
-
-
 //
 // Add a clients transaction to the pool
 //
@@ -553,6 +554,15 @@ std::string CDarksendPool::GetMessageByID(PoolMessage nMessageID) {
 }
 
 bool CDarkSendSigner::IsVinAssociatedWithPubkey(const CTxIn &txin, const CPubKey &pubkey) {
+    CScript payee;
+    payee = GetScriptForDestination(pubkey.GetID());
+
+    CTransactionRef tx;
+    uint256 hash;
+    if (GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
+        BOOST_FOREACH(CTxOut out, tx->vout)
+        if (out.nValue == ZNODE_COIN_REQUIRED * COIN && out.scriptPubKey == payee) return true;
+    }
     return false;
 }
 
@@ -614,7 +624,7 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn &txin) {
 }
 
 bool CDarksendQueue::Sign() {
-    if (!fZNode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
 
@@ -643,7 +653,7 @@ bool CDarksendQueue::Relay() {
 }
 
 bool CDarksendBroadcastTx::Sign() {
-    if (!fZNode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
 

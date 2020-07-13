@@ -10,6 +10,8 @@
 
 #include <atomic>
 
+#include "evo/deterministicmns.h"
+
 class AddressTableModel;
 class BanTableModel;
 class OptionsModel;
@@ -59,6 +61,10 @@ public:
     long getMempoolSize() const;
     //! Return the dynamic memory usage of the mempool
     size_t getMempoolDynamicUsage() const;
+
+    void setMasternodeList(const CDeterministicMNList& mnList);
+    CDeterministicMNList getMasternodeList() const;
+    void refreshMasternodeList();    
     
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
@@ -86,10 +92,10 @@ public:
     // caches for the best header
     mutable std::atomic<int> cachedBestHeaderHeight;
     mutable std::atomic<int64_t> cachedBestHeaderTime;
-    
-    // Try to avoid Exodus queuing too many messages
-    bool tryLockExodusStateChanged();
-    bool tryLockExodusBalanceChanged();
+
+    // Try to avoid Elysium queuing too many messages
+    bool tryLockElysiumStateChanged();
+    bool tryLockElysiumBalanceChanged();
 
 private:
     OptionsModel *optionsModel;
@@ -98,27 +104,34 @@ private:
 
     QTimer *pollTimer;
 
+    // The cache for mn list is not technically needed because CDeterministicMNManager
+    // caches it internally for recent blocks but it's not enough to get consistent
+    // representation of the list in UI during initial sync/reindex, so we cache it here too.
+    mutable CCriticalSection cs_mnlinst; // protects mnListCached
+    CDeterministicMNList mnListCached;
+
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
-    // Locks for Exodus state changes
-    bool lockedExodusStateChanged;
-    bool lockedExodusBalanceChanged;
+    // Locks for Elysium state changes
+    bool lockedElysiumStateChanged;
+    bool lockedElysiumBalanceChanged;
 
 Q_SIGNALS:
     void numConnectionsChanged(int count);
+    void masternodeListChanged() const;
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
     void networkActiveChanged(bool networkActive);
     void alertsChanged(const QString &warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
-    void additionalDataSyncProgressChanged(int count, double nSyncProgress);
+    void additionalDataSyncProgressChanged(double nSyncProgress);
 
-    // Additional Exodus signals
-    void reinitExodusState();
-    void refreshExodusState();
-    void refreshExodusBalance();
-    void refreshExodusPending(bool pending);
+    // Additional Elysium signals
+    void reinitElysiumState();
+    void refreshElysiumState();
+    void refreshElysiumBalance();
+    void refreshElysiumPending(bool pending);
 
     //! Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
@@ -133,11 +146,11 @@ public Q_SLOTS:
     void updateAlert();
     void updateBanlist();
 
-    // Additional Exodus slots
-    void invalidateExodusState();
-    void updateExodusState();
-    void updateExodusBalance();
-    void updateExodusPending(bool pending);
+    // Additional Elysium slots
+    void invalidateElysiumState();
+    void updateElysiumState();
+    void updateElysiumBalance();
+    void updateElysiumPending(bool pending);
 };
 
 #endif // BITCOIN_QT_CLIENTMODEL_H

@@ -99,10 +99,11 @@ const uint32_t BIP44_INDEX = 0x2C;
 const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_MINT_INDEX = 0x2;
-#ifdef ENABLE_EXODUS
-const uint32_t BIP44_EXODUS_MINT_INDEX = 0x3;
+#ifdef ENABLE_ELYSIUM
+const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
+const uint32_t BIP44_ELYSIUM_MINT_INDEX_V1 = 0x4;
 #endif
-const uint32_t BIP44_MINT_VALUE_INDEX = 0x4;
+const uint32_t BIP44_MINT_VALUE_INDEX = 0x5;
 
 class CBlockIndex;
 class CCoinControl;
@@ -303,7 +304,7 @@ public:
     bool IsCoinBase() const { return tx->IsCoinBase(); }
 };
 
-/**
+/** 
  * A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -647,7 +648,7 @@ enum MintAlgorithm {
     SIGMA = 2
 };
 
-/**
+/** 
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -689,6 +690,8 @@ private:
     TxSpends mapTxSpends;
     void AddToSpends(const COutPoint& outpoint, const uint256& wtxid);
     void AddToSpends(const uint256& wtxid);
+
+    std::set<COutPoint> setWalletUTXO;
 
     /* Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
     void MarkConflicted(const uint256& hashBlock, const uint256& hashTx);
@@ -830,6 +833,9 @@ public:
     void UnlockCoin(const COutPoint& output);
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
+    void ListProTxCoins(std::vector<COutPoint>& vOutpts);
+
+    bool HasMasternode();
 
     // znode
     /// Get 1000 XZC output and keys which can be used for the Znode
@@ -876,13 +882,16 @@ public:
     //! Adds a watch-only address to the store, without saving it to disk (used by LoadWallet)
     bool LoadWatchOnly(const CScript &dest);
 
+    //! Holds a timestamp at which point the wallet is scheduled (externally) to be relocked. Caller must arrange for actual relocking to occur via Lock().
+    int64_t nRelockTime;
+    
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
-    /**
+    /** 
      * Increment the next transaction order id
      * @return next transaction order id
      */
@@ -1189,6 +1198,7 @@ public:
     void SetBestChain(const CBlockLocator& loc) override;
 
     DBErrors LoadWallet(bool& fFirstRunRet);
+    void AutoLockMasternodeCollaterals();
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
 
@@ -1201,7 +1211,7 @@ public:
 
     bool DelAddressBook(const CTxDestination& address);
 
-    void UpdatedTransaction(const uint256 &hashTx) override;
+    bool UpdatedTransaction(const uint256 &hashTx) override;
 
     void Inventory(const uint256 &hash) override
     {
@@ -1219,7 +1229,7 @@ public:
         LOCK(cs_wallet);
         mapRequestCount[hash] = 0;
     };
-
+    
     unsigned int GetKeyPoolSize()
     {
         AssertLockHeld(cs_wallet); // setKeyPool
@@ -1248,8 +1258,8 @@ public:
 
     //! Verify the wallet database and perform salvage if required
     static bool Verify();
-
-    /**
+    
+    /** 
      * Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -1258,7 +1268,7 @@ public:
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
 
-    /**
+    /** 
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
      */
@@ -1355,7 +1365,7 @@ public:
 };
 
 
-/**
+/** 
  * Account information.
  * Stored in wallet with key "acc"+string account name.
  */

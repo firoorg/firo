@@ -76,7 +76,7 @@ public:
     static const int VERSION_WITH_BIP44 = 10;
     static const int VERSION_WITH_BIP39 = 11;
     static const int CURRENT_VERSION = VERSION_WITH_BIP39;
-    static const int N_CHANGES = 4; // standard = 0/1, mint = 2, exodus = 3
+    static const int N_CHANGES = 5; // standard = 0/1, mint = 2, elysium = 3, elysiumv1 = 4
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -88,7 +88,7 @@ public:
         READWRITE(this->nVersion);
         READWRITE(nExternalChainCounter);
         READWRITE(masterKeyID);
-        if(this->nVersion >= VERSION_WITH_BIP44){
+        if (this->nVersion >= VERSION_WITH_BIP44) {
             READWRITE(nExternalChainCounters);
             nExternalChainCounters.resize(N_CHANGES);
         }
@@ -302,79 +302,167 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-#ifdef ENABLE_EXODUS
+    static void IncrementUpdateCounter();
+    static unsigned int GetUpdateCounter();    
 
+#ifdef ENABLE_ELYSIUM
+
+public:
     template<class MintPool>
-    bool ReadExodusMintPool(MintPool &mintPool)
+    bool ReadElysiumMintPoolV0(MintPool &mintPool)
     {
         return Read(std::string("exodus_mint_pool"), mintPool);
     }
 
     template<class MintPool>
-    bool WriteExodusMintPool(MintPool const &mintPool)
+    bool WriteElysiumMintPoolV0(MintPool const &mintPool)
     {
         return Write(std::string("exodus_mint_pool"), mintPool, true);
     }
 
-    bool HasExodusMintPool()
+    bool HasElysiumMintPoolV0()
     {
         return Exists(std::string("exodus_mint_pool"));
     }
 
     template<class Key, class MintID>
-    bool ReadExodusMintID(const Key& k, MintID &id)
+    bool ReadElysiumMintIdV0(const Key& k, MintID &id)
     {
         return Read(std::make_pair(std::string("exodus_mint_id"), k), id);
     }
 
     template<class Key, class MintID>
-    bool WriteExodusMintID(const Key& k, const MintID &id)
+    bool WriteElysiumMintIdV0(const Key& k, const MintID &id)
     {
         return Write(std::make_pair(std::string("exodus_mint_id"), k), id);
     }
 
     template<class Key>
-    bool HasExodusMintID(const Key& k)
+    bool HasElysiumMintIdV0(const Key& k)
     {
         return Exists(std::make_pair(std::string("exodus_mint_id"), k));
     }
 
     template<class Key>
-    bool EraseExodusMintID(const Key& k)
+    bool EraseElysiumMintIdV0(const Key& k)
     {
         return Erase(std::make_pair(std::string("exodus_mint_id"), k));
     }
 
     template<class K, class V>
-    bool ReadExodusMint(const K& k, V& v)
+    bool ReadElysiumMintV0(const K& k, V& v)
     {
         return Read(std::make_pair(std::string("exodus_mint"), k), v);
     }
 
     template<class K>
-    bool HasExodusMint(const K& k)
+    bool HasElysiumMintV0(const K& k)
     {
         return Exists(std::make_pair(std::string("exodus_mint"), k));
     }
 
     template<class K, class V>
-    bool WriteExodusMint(const K &k, const V &v)
+    bool WriteElysiumMintV0(const K &k, const V &v)
     {
         return Write(std::make_pair(std::string("exodus_mint"), k), v, true);
     }
 
     template<class K>
-    bool EraseExodusMint(const K& k)
+    bool EraseElysiumMintV0(const K& k)
     {
         return Erase(std::make_pair(std::string("exodus_mint"), k));
     }
 
     template<typename K, typename V, typename InsertF>
-    void ListExodusMints(InsertF insertF)
+    void ListElysiumMintsV0(InsertF insertF)
+    {
+        ListEntries<K, V, InsertF>(string("exodus_mint"), insertF);
+    }
+
+    // version 1
+    template<class MintPool>
+    bool ReadElysiumMintPoolV1(MintPool &mintPool)
+    {
+        return Read(std::string("exodus_mint_pool_v1"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteElysiumMintPoolV1(MintPool const &mintPool)
+    {
+        return Write(std::string("exodus_mint_pool_v1"), mintPool, true);
+    }
+
+    bool HasElysiumMintPoolV1()
+    {
+        return Exists(std::string("exodus_mint_pool_v1"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadElysiumMintIdV1(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_id_v1"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteElysiumMintIdV1(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_id_v1"), k), id);
+    }
+
+    template<class Key>
+    bool HasElysiumMintIdV1(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_id_v1"), k));
+    }
+
+    template<class Key>
+    bool EraseElysiumMintIdV1(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_id_v1"), k));
+    }
+
+    template<class K, class V>
+    bool ReadElysiumMintV1(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("exodus_mint_v1"), k), v);
+    }
+
+    template<class K>
+    bool HasElysiumMintV1(const K& k)
+    {
+        return Exists(std::make_pair(std::string("exodus_mint_v1"), k));
+    }
+
+    template<class K, class V>
+    bool WriteElysiumMintV1(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("exodus_mint_v1"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseElysiumMintV1(const K& k)
+    {
+        return Erase(std::make_pair(std::string("exodus_mint_v1"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListElysiumMintsV1(InsertF insertF)
+    {
+        ListEntries<K, V, InsertF>(string("exodus_mint_v1"), insertF);
+    }
+
+#endif
+
+private:
+    CWalletDB(const CWalletDB&);
+    void operator=(const CWalletDB&);
+
+    template<typename K, typename V, typename InsertF>
+    void ListEntries(std::string const &prefix, InsertF insertF)
     {
         auto cursor = GetCursor();
         if (!cursor) {
-            throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+            throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
         bool setRange = true;
@@ -383,7 +471,7 @@ public:
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             if (setRange) {
-                ssKey << std::make_pair(string("exodus_mint"), K());
+                ssKey << std::make_pair(prefix, K());
             }
 
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
@@ -394,13 +482,13 @@ public:
                 break;
             } else if (ret != 0) {
                 cursor->close();
-                throw runtime_error(std::string(__func__)+" : error scanning DB");
+                throw std::runtime_error(std::string(__func__)+" : error scanning DB");
             }
 
             // Unserialize
-            std::string type;
-            ssKey >> type;
-            if (type != "exodus_mint") {
+            std::string itemType;
+            ssKey >> itemType;
+            if (itemType != prefix) {
                 break;
             }
 
@@ -415,13 +503,6 @@ public:
 
         cursor->close();
     }
-#endif
-
-    static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();
-private:
-    CWalletDB(const CWalletDB&);
-    void operator=(const CWalletDB&);
 };
 
 void ThreadFlushWalletDB();

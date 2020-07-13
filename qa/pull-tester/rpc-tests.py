@@ -101,22 +101,20 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
-    # lelantus
     'lelantus_mint.py',
-    # exodus
-    'exodus_create_denomination.py',
-    'exodus_property_creation_fee.py',
-    'exodus_sendmint.py',
-    'exodus_sendmint_wallet_encryption.py',
-    'exodus_sendspend.py',
-    'exodus_sigma_reindex.py',
-    'exodus_sigma_reorg.py',
+    'elysium_create_denomination.py',
+    'elysium_property_creation_fee.py',
+    'elysium_sendmint.py',
+    'elysium_sendmint_wallet_encryption.py',
+    'elysium_sendspend.py',
+    'elysium_sendspend_wallet_encryption.py',
+    'elysium_sigma_reindex.py',
+    'elysium_sigma_reorg.py',
+    'elysium_walletrecovery.py',
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
-    'wallet-hd.py',
-    'walletbackup.py',
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',
     # 'p2p-dandelion.py',
@@ -134,7 +132,6 @@ testScripts = [
     # 'listtransactions.py',
     # vv Tests less than 60s vv
     # 'sendheaders.py',
-    'zapwallettxes.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
     # 'merkle_blocks.py',
@@ -142,7 +139,6 @@ testScripts = [
     # 'abandonconflict.py',
     # 'bip68-112-113-p2p.py',
     # 'rawtransactions.py',
-    'reindex.py',
     # vv Tests less than 30s vv
     # 'mempool_resurrect_test.py',
     # 'txn_doublespend.py --mineblock',
@@ -179,7 +175,7 @@ testScripts = [
     'wallet_dumpnonhd.py',
     'wallet_dumpsigma.py',
     'wallet_dumpzerocoin.py',
-    'transations_verification_after_restart.py',
+    'transactions_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
     'sigma_nonhd_wallet.py',
@@ -199,7 +195,15 @@ testScripts = [
     'sigma_mintspend.py',
     'sigma_blocklimit.py',
     'hdmint_mempool_zap.py',
-    'sigma_zapwalletmints_unconf_trans.py'
+    'sigma_zapwalletmints_unconf_trans.py',
+    'znode_check_payments.py',
+    'znode_check_status.py',
+
+    # Evo Znodes
+    'dip3-deterministicmns.py'
+
+    # Unstable tests
+    #, 'dip4-coinbasemerkleroots.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

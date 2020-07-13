@@ -259,7 +259,7 @@ void CZnodeSync::ProcessTick() {
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
     LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(pCurrentBlockIndex->nHeight, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     // RESET SYNCING INCASE OF FAILURE
     {
@@ -304,17 +304,17 @@ void CZnodeSync::ProcessTick() {
         // they are temporary and should be considered unreliable for a sync process.
         // Inbound connection this early is most likely a "znode" connection
         // initialted from another node, so skip it too.
-        if (pnode->fZnode || (fZNode && pnode->fInbound)) continue;
+        if (pnode->fZnode || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
         if (Params().NetworkIDString() == CBaseChainParams::REGTEST) {
             if (nRequestedZnodeAttempt <= 2) {
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS)); //get current network sporks
             } else if (nRequestedZnodeAttempt < 4) {
                 mnodeman.DsegUpdate(pnode);
             } else if (nRequestedZnodeAttempt < 6) {
                 int nMnCount = mnodeman.CountZnodes();
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
             }
@@ -339,7 +339,7 @@ void CZnodeSync::ProcessTick() {
                 // only request once from each peer
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
                 // get current network sporks
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS));
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::GETSPORKS));
                 LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- requesting sporks from peer %d\n", nTick, nRequestedZnodeAssets, pnode->id);
                 continue; // always get sporks first, switch to the next node without waiting for the next tick
             }
@@ -366,7 +366,7 @@ void CZnodeSync::ProcessTick() {
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
 
-                if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
+                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
 
                 mnodeman.DsegUpdate(pnode);
@@ -378,7 +378,7 @@ void CZnodeSync::ProcessTick() {
             // MNW : SYNC ZNODE PAYMENT VOTES FROM OTHER CONNECTED CLIENTS
 
             if (nRequestedZnodeAssets == ZNODE_SYNC_MNW) {
-                LogPrint("mnpayments", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
+                LogPrint("znpayments", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
                 // check for timeout first
                 // This might take a lot longer than ZNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
                 // but that should be OK and it should timeout eventually.
@@ -397,9 +397,9 @@ void CZnodeSync::ProcessTick() {
                 }
 
                 // check for data
-                // if mnpayments already has enough blocks and votes, switch to the next asset
+                // if znpayments already has enough blocks and votes, switch to the next asset
                 // try to fetch data from at least two peers though
-                if (nRequestedZnodeAttempt > 1 && mnpayments.IsEnoughData()) {
+                if (nRequestedZnodeAttempt > 1 && znpayments.IsEnoughData()) {
                     LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- found enough data\n", nTick, nRequestedZnodeAssets);
                     SwitchToNextAsset();
                     g_connman->ReleaseNodeVector(vNodesCopy);
@@ -410,13 +410,13 @@ void CZnodeSync::ProcessTick() {
                 if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
 
-                if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
+                if (pnode->nVersion < znpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
 
                 // ask node for all payment votes it has (new nodes will only return votes for future payments)
-                g_connman->PushMessage(pnode, CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, mnpayments.GetStorageLimit()));
+                g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, znpayments.GetStorageLimit()));
                 // ask node for missing pieces only (old nodes will not be asked)
-                mnpayments.RequestLowDataPaymentBlocks(pnode);
+                znpayments.RequestLowDataPaymentBlocks(pnode);
 
                 g_connman->ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need

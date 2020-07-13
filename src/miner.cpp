@@ -44,6 +44,15 @@
 #include <queue>
 #include <unistd.h>
 
+#include "masternode-payments.h"
+
+#include "evo/specialtx.h"
+#include "evo/cbtx.h"
+#include "evo/simplifiedmns.h"
+#include "evo/deterministicmns.h"
+
+#include "llmq/quorums_blockprocessor.h"
+
 using namespace std;
 #include <utility>
 
@@ -153,11 +162,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-
+    
     int64_t nTimeStart = GetTimeMicros();
 
     // fMTP is always true currently
-    const Consensus::Params &params = Params().GetConsensus();
+    const Consensus::Params &params = chainparams.GetConsensus();
 
     resetBlock();
 
@@ -176,6 +185,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     CBlockIndex* pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
 
+    bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
+
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
@@ -190,6 +201,19 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                        ? nMedianTimePast
                        : pblock->GetBlockTime();
 
+    if (fDIP0003Active_context) {
+        for (auto& p : chainparams.GetConsensus().llmqs) {
+            CTransactionRef qcTx;
+            if (llmq::quorumBlockProcessor->GetMinableCommitmentTx(p.first, nHeight, qcTx)) {
+                pblock->vtx.emplace_back(qcTx);
+                pblocktemplate->vTxFees.emplace_back(0);
+                pblocktemplate->vTxSigOpsCost.emplace_back(0);
+                nBlockSize += qcTx->GetTotalSize();
+                ++nBlockTx;
+            }
+        }
+    }
+
     // Decide whether to include witness transactions
     // This is only needed in case the witness softfork activation is reverted
     // (which would require a very deep reorganization) or when
@@ -197,6 +221,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // TODO: replace this with a call to main to assess validity of a mempool
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = IsWitnessEnabled(pindexPrev, chainparams.GetConsensus()) && fMineWitnessTx;
+
+    FillBlackListForBlockTemplate();
 
     addPriorityTxs();
     int nPackagesSelected = 0;
@@ -209,16 +235,68 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nLastBlockSize = nBlockSize;
     nLastBlockWeight = nBlockWeight;
 
+    CAmount nBlockSubsidy = GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
+
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
+
+    coinbaseTx.vout[0].nValue = nFees + nBlockSubsidy;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
     FillFoundersReward(coinbaseTx, fMTP);
+
+    if (fDIP0003Active_context) {
+        coinbaseTx.vin[0].scriptSig = CScript() << OP_RETURN;
+
+        coinbaseTx.nVersion = 3;
+        coinbaseTx.nType = TRANSACTION_COINBASE;
+
+        CCbTx cbTx;
+
+        /*
+        if (fDIP0008Active_context) {
+            cbTx.nVersion = 2;
+        } else {
+        */
+            cbTx.nVersion = 1;
+        /*
+        }
+        */
+
+        cbTx.nHeight = nHeight;
+
+        CValidationState state;
+        if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state)) {
+            throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
+        }
+        /*
+        if (fDIP0008Active_context) {
+            if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {
+                throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
+            }
+        }
+        */
+
+        SetTxPayload(coinbaseTx, cbTx);
+    }
+        
+    if (nHeight >= params.DIP0003EnforcementHeight) {
+        std::vector<CTxOut> sbPayments;
+        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
+    }
+    else {
+        // Update coinbase transaction with additional info about znode and governance payments,
+        // get some info back to pass to getblocktemplate
+        if (nHeight >= params.nZnodePaymentsStartBlock) {
+            CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
+            coinbaseTx.vout[0].nValue -= znodePayment;
+            FillZnodeBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+        }
+    }
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -454,11 +532,16 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
 {
     int nDescendantsUpdated = 0;
     BOOST_FOREACH(const CTxMemPool::txiter it, alreadyAdded) {
+        // do not add descendants for sigma spend transaction
+        // it is not allowed to have sigma spend output consumed in the same block
+        if (it->GetTx().IsSigmaSpend())
+            continue;
+
         CTxMemPool::setEntries descendants;
         mempool.CalculateDescendants(it, descendants);
         // Insert all descendants (not yet in block) into the modified set
         BOOST_FOREACH(CTxMemPool::txiter desc, descendants) {
-            if (alreadyAdded.count(desc))
+            if (alreadyAdded.count(desc) || txBlackList.count(desc) > 0)
                 continue;
             ++nDescendantsUpdated;
             modtxiter mit = mapModifiedTx.find(desc);
@@ -488,7 +571,7 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
 bool BlockAssembler::SkipMapTxEntry(CTxMemPool::txiter it, indexed_modified_transaction_set &mapModifiedTx, CTxMemPool::setEntries &failedTx)
 {
     assert (it != mempool.mapTx.end());
-    if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it))
+    if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it) || txBlackList.count(it))
         return true;
     return false;
 }
@@ -669,6 +752,10 @@ void BlockAssembler::addPriorityTxs()
     for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
          mi != mempool.mapTx.end(); ++mi)
     {
+        // Skip transactions depending on privacy tx outputs in the mempool
+        if (txBlackList.count(mi))
+            continue;
+
         double dPriority = mi->GetPriority(nHeight);
         CAmount dummy;
         mempool.ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
@@ -801,13 +888,31 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
             coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
         }
     }
+}
 
-    // Update coinbase transaction with additional info about znode and governance payments,
-    // get some info back to pass to getblocktemplate
-    if (nHeight >= params.nZnodePaymentsStartBlock) {
-        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
-        coinbaseTx.vout[0].nValue -= znodePayment;
-        FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+void BlockAssembler::FillBlackListForBlockTemplate() {
+    for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
+            mi != mempool.mapTx.end(); ++mi)
+    {
+        if (txBlackList.count(mi) > 0)
+            continue;
+
+        const CTransaction &tx = mi->GetTx();
+
+        // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
+        // same block with spend transaction
+        if (tx.IsSigmaSpend()) {
+            mempool.CalculateDescendants(mi, txBlackList);
+            // remove privacy transaction itself
+            txBlackList.erase(mi);
+        }
+
+        // ProRegTx referencing external collateral can't be in same block with the collateral itself
+        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+            CProRegTx proTx;
+            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() && mempool.get(proTx.collateralOutpoint.hash))
+                mempool.CalculateDescendants(mi, txBlackList);
+        }
     }
 }
 
@@ -858,14 +963,14 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("BitcoinMiner: generated block is stale");
+            return error("ZcoinMiner: generated block is stale");
     }
 
     // Inform about the new block
     GetMainSignals().BlockFound(pblock->GetHash());
 
     // Process this block the same as if we had received it from another node
-    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(pblock), true, NULL))
+    if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(new CBlock(*pblock)), true, NULL))
         return error("ZcoinMiner: ProcessNewBlock, block not accepted");
 
     return true;
@@ -904,6 +1009,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
+                                chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight ||
                                 chainActive.Height() < params.nZnodePaymentsStartBlock ||
                                 mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
                     }
@@ -983,6 +1089,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         free(scratchpad);
                     }
 
+                    boost::this_thread::interruption_point();
+                    
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {
@@ -1004,8 +1112,6 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     if ((pblock->nNonce & 0xFF) == 0)
                         break;
                 }
-                // Check for stop or if block needs to be rebuilt
-                boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
                 if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 && chainparams.MiningRequiresPeers())
                     break;

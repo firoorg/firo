@@ -10,6 +10,8 @@
 #include "pubkey.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "evo/evodb.h"
+#include "evo/deterministicmns.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -47,17 +49,30 @@ class CScript;
 // 100-block REGTEST-mode block chain
 //
 struct TestChain100Setup : public TestingSetup {
-    TestChain100Setup();
+    TestChain100Setup(int nBlocks = 100);
 
+    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey);
+    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns, const CKey& scriptKey);
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey);
+                                 const CScript& scriptPubKey, bool * processBlockResult = nullptr);
+
+    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
+                                 const CKey& scriptKey, bool * processBlockResult = nullptr);
 
     ~TestChain100Setup();
 
     std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
+};
+
+struct TestChainDIP3Setup : public TestChain100Setup {
+    TestChainDIP3Setup() : TestChain100Setup(850) {}
+};
+
+struct TestChainDIP3BeforeActivationSetup : public TestChain100Setup {
+    TestChainDIP3BeforeActivationSetup() : TestChain100Setup(498) {}
 };
 
 class CTxMemPoolEntry;
@@ -91,4 +106,5 @@ struct TestMemPoolEntryHelper
 };
 
 std::string bitcoin_address_to_zcoin(const std::string address);
+size_t FindZnodeOutput(CTransaction const & tx);
 #endif

@@ -266,8 +266,26 @@ extern const char *DSFINALTX;
 extern const char *TXLOCKVOTE;
 extern const char *DSTX;
 extern const char *TXLOCKREQUEST;
-
-
+extern const char *MNGOVERNANCESYNC;
+extern const char *MNGOVERNANCEOBJECT;
+extern const char *MNGOVERNANCEOBJECTVOTE;
+extern const char *GETMNLISTDIFF;
+extern const char *MNLISTDIFF;
+extern const char *QSENDRECSIGS;
+extern const char *QFCOMMITMENT;
+extern const char *QCONTRIB;
+extern const char *QCOMPLAINT;
+extern const char *QJUSTIFICATION;
+extern const char *QPCOMMITMENT;
+extern const char *QWATCH;
+extern const char *QSIGSESANN;
+extern const char *QSIGSHARESINV;
+extern const char *QGETSIGSHARES;
+extern const char *QBSIGSHARES;
+extern const char *QSIGREC;
+extern const char *CLSIG;
+extern const char *ISLOCK;
+extern const char *MNAUTH;
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -372,6 +390,17 @@ enum GetDataMsg
     MSG_TXLOCK_VOTE,
     MSG_DSTX,
     DSQUEUE,
+
+    MSG_QUORUM_FINAL_COMMITMENT = 21,
+    /* MSG_QUORUM_DUMMY_COMMITMENT = 22, */ // was shortly used on testnet/devnet/regtest
+    MSG_QUORUM_CONTRIB = 23,
+    MSG_QUORUM_COMPLAINT = 24,
+    MSG_QUORUM_JUSTIFICATION = 25,
+    MSG_QUORUM_PREMATURE_COMMITMENT = 26,
+    /* MSG_QUORUM_DEBUG_STATUS = 27, */ // was shortly used on testnet/devnet/regtest
+    MSG_QUORUM_RECOVERED_SIG = 28,
+    MSG_CLSIG = 29,
+    MSG_ISLOCK = 30,
 };
 
 /** inv message data */

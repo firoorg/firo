@@ -113,7 +113,6 @@ BITCOIN_TESTS = \
   test/compress_tests.cpp \
   test/crypto_tests.cpp \
   test/cuckoocache_tests.cpp \
-  test/dbwrapper_tests.cpp \
   test/DoS_tests.cpp \
   test/fixtures.cpp \
   test/fixtures.h \
@@ -139,7 +138,7 @@ BITCOIN_TESTS = \
   test/pmt_tests.cpp \
   test/prevector_tests.cpp \
   test/raii_event_tests.cpp \
-  test/remint_tests.cpp \
+  test/random_tests.cpp \
   test/reverselock_tests.cpp \
   test/rpc_tests.cpp \
   test/sanity_tests.cpp \
@@ -171,12 +170,10 @@ BITCOIN_TESTS = \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
   test/util_tests.cpp \
-  test/zerocoin_tests2.cpp \
-  test/zerocoin_tests2_v3.cpp \
-  test/zerocoin_tests3.cpp \
-  test/zerocoin_tests3_v3.cpp \
-  test/zerocoin_tests.cpp \
-  test/znode_tests.cpp
+  test/multiexponentation_test.cpp 
+#  test/evo_deterministicmns_tests.cpp \
+#  test/evo_simplifiedmns_tests.cpp \
+#  test/bls_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -231,12 +228,10 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/core/libtor-app.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
-
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
-test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBLELANTUS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
+test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS) $(LIBBLSSIG_INCLUDES)
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBLELANTUS)  $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
   $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
-
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
 test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET)
@@ -250,11 +245,14 @@ test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 #
 
+test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
+EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
+
 # test_bitcoin_fuzzy binary #
 test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
 test_test_bitcoin_fuzzy_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 test_test_bitcoin_fuzzy_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-test_test_bitcoin_fuzzy_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)  $(LIBZCOIN_SIGMA)
+test_test_bitcoin_fuzzy_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(LIBZCOIN_SIGMA)
 
 test_test_bitcoin_fuzzy_LDADD = \
   $(LIBUNIVALUE) \
@@ -268,6 +266,9 @@ test_test_bitcoin_fuzzy_LDADD = \
 
 test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
+
+test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
+EXTRA_test_test_bitcoin_fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
 

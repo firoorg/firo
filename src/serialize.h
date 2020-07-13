@@ -242,6 +242,9 @@ template<typename Stream> inline void Unserialize(Stream& s, double& a  ) { a = 
 template<typename Stream> inline void Serialize(Stream& s, bool a)    { char f=a; ser_writedata8(s, f); }
 template<typename Stream> inline void Unserialize(Stream& s, bool& a) { char f=ser_readdata8(s); a=f; }
 
+template <typename T> size_t GetSerializeSize(const T& t, int nType, int nVersion = 0);
+template <typename S, typename T> size_t GetSerializeSize(const S& s, const T& t);
+
 /**
  * Please note that Zcoin drops support for big-endian architectures and thus these functions are simple read/writes
  * It significantly improves MTP structures serialization performance
@@ -408,6 +411,10 @@ I ReadVarInt(Stream& is)
 }
 
 #define FLATDATA(obj) REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
+#define FIXEDBITSET(obj, size) REF(CFixedBitSet(REF(obj), (size)))
+#define DYNBITSET(obj) REF(CDynamicBitSet(REF(obj)))
+#define FIXEDVARINTSBITSET(obj, size) REF(CFixedVarIntsBitSet(REF(obj), (size)))
+#define AUTOBITSET(obj, size) REF(CAutoBitSet(REF(obj), (size)))
 #define VARINT(obj) REF(WrapVarInt(REF(obj)))
 #define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
@@ -449,6 +456,162 @@ public:
     void Unserialize(Stream& s)
     {
         s.read(pbegin, pend - pbegin);
+    }
+};
+
+class CFixedBitSet
+{
+protected:
+    std::vector<bool>& vec;
+    size_t size;
+
+public:
+    CFixedBitSet(std::vector<bool>& vecIn, size_t sizeIn) : vec(vecIn), size(sizeIn) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        std::vector<unsigned char> vBytes((size + 7) / 8);
+        size_t ms = std::min(size, vec.size());
+        for (size_t p = 0; p < ms; p++)
+            vBytes[p / 8] |= vec[p] << (p % 8);
+        s.write((char*)vBytes.data(), vBytes.size());
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        vec.resize(size);
+
+        std::vector<unsigned char> vBytes((size + 7) / 8);
+        s.read((char*)vBytes.data(), vBytes.size());
+        for (size_t p = 0; p < size; p++)
+            vec[p] = (vBytes[p / 8] & (1 << (p % 8))) != 0;
+        if (vBytes.size() * 8 != size) {
+            size_t rem = vBytes.size() * 8 - size;
+            uint8_t m = ~(uint8_t)(0xff >> rem);
+            if (vBytes[vBytes.size() - 1] & m) {
+                throw std::ios_base::failure("Out-of-range bits set");
+            }
+        }
+    }
+};
+
+class CDynamicBitSet
+{
+protected:
+    std::vector<bool>& vec;
+
+public:
+    explicit CDynamicBitSet(std::vector<bool>& vecIn) : vec(vecIn) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        WriteCompactSize(s, vec.size());
+        CFixedBitSet(REF(vec), vec.size()).Serialize(s);
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        vec.resize(ReadCompactSize(s));
+        CFixedBitSet(vec, vec.size()).Unserialize(s);
+    }
+};
+
+/**
+ * Stores a fixed size bitset as a series of VarInts. Each VarInt is an offset from the last entry and the sum of the
+ * last entry and the offset gives an index into the bitset for a set bit. The series of VarInts ends with a 0.
+ */
+class CFixedVarIntsBitSet
+{
+protected:
+    std::vector<bool>& vec;
+    size_t size;
+
+public:
+    CFixedVarIntsBitSet(std::vector<bool>& vecIn, size_t sizeIn) : vec(vecIn), size(sizeIn) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        int32_t last = -1;
+        for (int32_t i = 0; i < (int32_t)vec.size(); i++) {
+            if (vec[i]) {
+                WriteVarInt<Stream, uint32_t>(s, (uint32_t)(i - last));
+                last = i;
+            }
+        }
+        WriteVarInt(s, 0); // stopper
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        vec.assign(size, false);
+
+        int32_t last = -1;
+        while(true) {
+            uint32_t offset = ReadVarInt<Stream, uint32_t>(s);
+            if (offset == 0) {
+                break;
+            }
+            int32_t idx = last + offset;
+            if (idx >= (int32_t)size) {
+                throw std::ios_base::failure("out of bounds index");
+            }
+            if (last != -1 && idx <= last) {
+                throw std::ios_base::failure("offset overflow");
+            }
+            vec[idx] = true;
+            last = idx;
+        }
+    }
+};
+
+/**
+ * Serializes either as a CFixedBitSet or CFixedVarIntsBitSet, depending on which would give a smaller size
+ */
+class CAutoBitSet
+{
+protected:
+    std::vector<bool>& vec;
+    size_t size;
+
+public:
+    explicit CAutoBitSet(std::vector<bool>& vecIn, size_t sizeIn) : vec(vecIn), size(sizeIn) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        assert(vec.size() == size);
+
+        size_t size1 = ::GetSerializeSize(s, CFixedBitSet(vec, size));
+        size_t size2 = ::GetSerializeSize(s, CFixedVarIntsBitSet(vec, size));
+
+        if (size1 < size2) {
+            ser_writedata8(s, 0);
+            s << FIXEDBITSET(vec, vec.size());
+        } else {
+            ser_writedata8(s, 1);
+            s << FIXEDVARINTSBITSET(vec, vec.size());
+        }
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        uint8_t isVarInts = ser_readdata8(s);
+        if (isVarInts != 0 && isVarInts != 1) {
+            throw std::ios_base::failure("invalid value for isVarInts byte");
+        }
+
+        if (!isVarInts) {
+            s >> FIXEDBITSET(vec, size);
+        } else {
+            s >> FIXEDVARINTSBITSET(vec, size);
+        }
     }
 };
 
@@ -560,16 +723,52 @@ template<typename Stream, typename K, typename T> void Serialize(Stream& os, con
 template<typename Stream, typename K, typename T> void Unserialize(Stream& is, std::pair<K, T>& item);
 
 /**
- * 3 tuples
+ * tuple
  */
-template<typename Stream, typename T0, typename T1, typename T2> void Serialize(Stream& os, const std::tuple<T0, T1, T2>& item);
-template<typename Stream, typename T0, typename T1, typename T2> void Unserialize(Stream& is, std::tuple<T0, T1, T2>& item);
+template<typename Stream, int index, typename... Ts>
+struct SerializeTuple {
+    void operator() (Stream&s, std::tuple<Ts...>& t) {
+        SerializeTuple<Stream, index - 1, Ts...>{}(s, t);
+        s << std::get<index>(t);
+    }
+};
 
-/**
- * 4 tuple
- */
-template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Serialize(Stream& os, const std::tuple<T0, T1, T2, T3>& item);
-template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item);
+template<typename Stream, typename... Ts>
+struct SerializeTuple<Stream, 0, Ts...> {
+    void operator() (Stream&s, std::tuple<Ts...>& t) {
+        s << std::get<0>(t);
+    }
+};
+
+template<typename Stream, int index, typename... Ts>
+struct DeserializeTuple {
+    void operator() (Stream&s, std::tuple<Ts...>& t) {
+        DeserializeTuple<Stream, index - 1, Ts...>{}(s, t);
+        s >> std::get<index>(t);
+    }
+};
+
+template<typename Stream, typename... Ts>
+struct DeserializeTuple<Stream, 0, Ts...> {
+    void operator() (Stream&s, std::tuple<Ts...>& t) {
+        s >> std::get<0>(t);
+    }
+};
+
+
+template<typename Stream, typename... Elements>
+void Serialize(Stream& os, const std::tuple<Elements...>& item)
+{
+    const auto size = std::tuple_size<std::tuple<Elements...>>::value;
+    SerializeTuple<Stream, size - 1, Elements...>{}(os, const_cast<std::tuple<Elements...>&>(item));
+}
+
+template<typename Stream, typename... Elements>
+void Unserialize(Stream& is, std::tuple<Elements...>& item)
+{
+    const auto size = std::tuple_size<std::tuple<Elements...>>::value;
+    DeserializeTuple<Stream, size - 1, Elements...>{}(is, item);
+}
 
 /**
  * shared_ptr
@@ -1049,7 +1248,7 @@ inline void WriteCompactSize(CSizeComputer &s, uint64_t nSize)
 }
 
 template <typename T>
-size_t GetSerializeSize(const T& t, int nType, int nVersion=0)
+size_t GetSerializeSize(const T& t, int nType, int nVersion)
 {
     return (CSizeComputer(nType, nVersion) << t).size();
 }

@@ -909,6 +909,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto params = sigma::Params::get_default();
+    chainActive.SetTip(NULL);
 
     CBlockIndex index0 = CreateBlockIndex(0);
     chainActive.SetTip(&index0);
@@ -943,10 +944,12 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
 
     chainActive.SetTip(&index2);
 
+    std::vector<CBlockIndex> indices;
+    indices.reserve(101);
     for(int i =3 ;i<=100;i++){
-		CBlockIndex index = CreateBlockIndex(i);
-        chainActive.SetTip(&index);
-	}
+        indices.emplace_back(CreateBlockIndex(i));
+        chainActive.SetTip(&indices.back());
+    }
 
     sigma::BuildSigmaStateFromIndex(&chainActive);
 
@@ -985,20 +988,21 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     BOOST_CHECK_MESSAGE(notFoundGroupHeightAndID == std::make_pair(-1,-1),"Expect not found return -1,-1");
 
     sigmaState->Reset();
+    chainActive.SetTip(NULL);
 }
 
 BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto params = sigma::Params::get_default();
+    chainActive.SetTip(NULL);
 
-    std::vector<CBlockIndex> indexs;
-    indexs.resize(101);
+    std::vector<CBlockIndex> indices;
+    indices.reserve(101);
     for(int i =0 ;i<=100;i++){
-		CBlockIndex index = CreateBlockIndex(i);
-        chainActive.SetTip(&index);
-        indexs[i] = index;
-	}
+        indices.emplace_back(CreateBlockIndex(i));
+        chainActive.SetTip(&indices.back());
+    }
 
     sigma::BuildSigmaStateFromIndex(&chainActive);
 
@@ -1022,6 +1026,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
     BOOST_CHECK_MESSAGE(notFoundGroupHeightAndID == std::make_pair(-1,-1),"Expect not found return -1,-1");
 
     sigmaState->Reset();
+    chainActive.SetTip(NULL);
 }
 
 
@@ -1029,6 +1034,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     sigma::Params* params = sigma::Params::get_default();
+    chainActive.SetTip(NULL);
     int nextIndex = 0;
     std::vector<CBlockIndex> indexes;
     indexes.resize(101);
@@ -1107,6 +1113,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     BOOST_CHECK_MESSAGE(blockHash_out == indexes[2].GetBlockHash(), "Unexpected blockhash for denom 1.");
 
     sigmaState->Reset();
+    chainActive.SetTip(NULL);
 }
 
 namespace {
