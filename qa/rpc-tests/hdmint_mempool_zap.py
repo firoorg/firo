@@ -65,7 +65,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
         bitcoind_processes[0].wait()
 
         self.nodes[0] = start_node(0,self.options.tmpdir, configuration)
-
+        time.sleep(1) # rescan time
         sigma_mints2 = self.list_unspent_sigma_mints()
 
         assert sigma_mints2 == sigma_mints1, \
@@ -78,7 +78,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
         bitcoind_processes[0].wait()
 
         self.nodes[0] = start_node(0, self.options.tmpdir, configuration)
-
+        time.sleep(1) # rescan time
         sigma_mints3 = self.list_unspent_sigma_mints()
 
         assert sigma_mints3 == sigma_mints1, \

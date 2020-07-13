@@ -1,5 +1,5 @@
 ---
-name: "zcoin-win-0.14.8"
+name: "zcoin-win-0.14.0"
 enable_cache: true
 suites:
 - "bionic"

@@ -50,7 +50,6 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStr
 
         if(!spork.CheckSignature()) {
             LogPrintf("CSporkManager::ProcessSpork -- invalid signature\n");
-            Misbehaving(pfrom->GetId(), 100);
             return;
         }
 
@@ -84,11 +83,11 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetTime());
 
-    spork.Sign(strMasterPrivKey);
-
-    //spork.Relay();
-    mapSporks[spork.GetHash()] = spork;
-    mapSporksActive[nSporkID] = spork;
+    if (spork.Sign(strMasterPrivKey)) {
+        spork.Relay();
+        mapSporks[spork.GetHash()] = spork;
+        mapSporksActive[nSporkID] = spork;
+    }
     return true;
 }
 

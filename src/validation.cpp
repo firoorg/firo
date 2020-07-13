@@ -1334,18 +1334,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if(markZcoinSpendTransactionSerial)
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if(txout.scriptPubKey.IsSigmaMint()){
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-        }
-        if (zwalletMain) {
-            LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
-        }
+    if(tx.IsSigmaMint() && zwalletMain) {
+        LogPrintf("Updating mint state from Mempool..");
+        zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);

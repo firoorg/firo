@@ -291,10 +291,14 @@ class ElysiumTestFramework(BitcoinTestFramework):
     def run_test(self):
         for rpc in self.nodes:
             addr = rpc.getnewaddress()
-            rpc.sendtoaddress(addr, 500)
+            id = rpc.sendtoaddress(addr, 500)
+            self.nodes[0].sendrawtransaction(rpc.getrawtransaction(id))
             self.addrs.append(addr)
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(10)
+
+        if len(self.nodes[0].getrawmempool()) > 0:
+            raise Exception("Fail to send funds for all initial addresses")
         self.sync_all()
 
     def setup_nodes(self):
