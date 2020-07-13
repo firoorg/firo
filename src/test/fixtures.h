@@ -54,20 +54,20 @@ public:
     LelantusTestingSetup();
 
 public:
-    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {});
-    void GenerateBlocks(size_t blocks);
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {}, CScript *script = nullptr);
+    void GenerateBlocks(size_t blocks, CScript *script = nullptr);
+
+    std::vector<lelantus::PrivateCoin> GenerateMints(
+        std::vector<CAmount> const &amounts);
+
     std::vector<CHDMint> GenerateMints(
         std::vector<CAmount> const &amounts,
-        std::vector<CMutableTransaction> &txs,
-        bool useHDMints = false,
-        bool buildTxs = true);
+        std::vector<CMutableTransaction> &txs);
 
     std::vector<CHDMint> GenerateMints(
         std::vector<CAmount> const &amounts,
         std::vector<CMutableTransaction> &txs,
-        std::vector<lelantus::PrivateCoin> &coins,
-        bool useHDMints = false,
-        bool buildTxs = true);
+        std::vector<lelantus::PrivateCoin> &coins);
 
     CPubKey GenerateAddress();
 

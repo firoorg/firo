@@ -56,10 +56,7 @@ public:
         for (auto mintsInBlock : mintsInBlocks) {
 
             std::vector<CAmount> amounts(mintsInBlock, 1);
-            std::vector<PrivateCoin> mints;
-            std::vector<CMutableTransaction> txes;
-            GenerateMints(amounts, txes, mints, true, false);
-
+            auto mints = GenerateMints(amounts);
 
             std::vector<std::pair<GroupElement, uint64_t>> coins;
             for (auto const &m : mints) {
@@ -102,8 +99,6 @@ public:
             state.RemoveBlock(*it);
         }
     }
-
-
 
 public:
     CLelantusState *lelantusState;

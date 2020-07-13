@@ -112,4 +112,128 @@ BOOST_AUTO_TEST_CASE(get_and_list_mints)
     BOOST_CHECK(!pwalletMain->GetMint(fakeSerial, entry));
 }
 
+BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
+{
+    // utils
+    auto countMintsBalance = [&](
+        std::vector<std::pair<CWalletTx, CAmount>> const &wtxs,
+        bool includeFee = false) -> CAmount {
+
+        CAmount s = 0;
+        for (auto const &w : wtxs) {
+            for (auto const &out : w.first.tx->vout) {
+                if (out.scriptPubKey.IsLelantusMint()) {
+                    s += out.nValue;
+                }
+            }
+
+            if (includeFee) {
+                s += w.second;
+            }
+        }
+
+        return s;
+    };
+
+    auto getAvialableCoinForLMintBalance = [&]() -> CAmount {
+        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
+        pwalletMain->AvailableCoinsForLMint(valueAndUTXO, nullptr);
+        CAmount s = 0;
+
+        for (auto const &v : valueAndUTXO) {
+            s += v.first;
+        }
+
+        return s;
+    };
+
+    CScript externalScript;
+    {
+        uint160 seed;
+        GetRandBytes(seed.begin(), seed.size());
+
+        externalScript = GetScriptForDestination(CKeyID(seed));
+    }
+
+    auto generateBlocksPerScripts = [&](size_t blocks, size_t blocksPerScript) -> std::vector<CScript> {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        std::vector<CScript> scripts;
+        while (blocks != 0) {
+            auto key = pwalletMain->GenerateNewKey();
+            scripts.push_back(GetScriptForDestination(key.GetID()));
+
+            auto blockCount = std::min(blocksPerScript, blocks);
+
+            GenerateBlocks(blockCount, &scripts.back());
+
+            blocks -= blockCount;
+        }
+
+        return scripts;
+    };
+
+    auto scripts = generateBlocksPerScripts(200, 10);
+    GenerateBlocks(100, &externalScript);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> hdMints;
+
+    // Produce just one txs
+    auto result = pwalletMain->MintAndStoreLelantus(10 * COIN, wtxAndFee, hdMints);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_EQUAL(1, wtxAndFee.size());
+    BOOST_CHECK_EQUAL(10 * COIN, countMintsBalance(wtxAndFee));
+
+    // Produce more than one txs
+    wtxAndFee.clear();
+    hdMints.clear();
+
+    result = pwalletMain->MintAndStoreLelantus(600 * COIN, wtxAndFee, hdMints);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_GT(wtxAndFee.size(), 1);
+    BOOST_CHECK_EQUAL(600 * COIN, countMintsBalance(wtxAndFee));
+
+    // Mint all and each address contain no larger than mint limit
+    wtxAndFee.clear();
+    hdMints.clear();
+
+    auto balance = getAvialableCoinForLMintBalance();
+    BOOST_CHECK_GT(balance, 0);
+
+    result = pwalletMain->MintAndStoreLelantus(0, wtxAndFee, hdMints, true);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_GE(wtxAndFee.size(), scripts.size() - 2);
+    BOOST_CHECK_GT(balance, countMintsBalance(wtxAndFee));
+    BOOST_CHECK_EQUAL(balance, countMintsBalance(wtxAndFee, true));
+    BOOST_CHECK_EQUAL(0, getAvialableCoinForLMintBalance());
+
+    // Mint all and have address that contain balance larger mint limit per tx
+    scripts = generateBlocksPerScripts(500, 200);
+    GenerateBlocks(100, &externalScript);
+
+    wtxAndFee.clear();
+    hdMints.clear();
+
+    balance = getAvialableCoinForLMintBalance();
+    BOOST_CHECK_GT(balance, 0);
+
+    result = pwalletMain->MintAndStoreLelantus(0, wtxAndFee, hdMints, true);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_GE(wtxAndFee.size(), scripts.size());
+    BOOST_CHECK_GT(balance, countMintsBalance(wtxAndFee));
+    BOOST_CHECK_EQUAL(balance, countMintsBalance(wtxAndFee, true));
+    BOOST_CHECK_EQUAL(0, pwalletMain->GetBalance());
+
+    // Scripts of all changes should unique
+    std::set<CScript> changeScripts;
+    for (auto const &wtx : wtxAndFee) {
+        for (auto const &out : wtx.first.tx->vout) {
+            if (!out.scriptPubKey.IsLelantusMint()) {
+                BOOST_CHECK(!changeScripts.count(out.scriptPubKey));
+                changeScripts.insert(out.scriptPubKey);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

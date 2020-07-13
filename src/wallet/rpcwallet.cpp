@@ -3261,9 +3261,9 @@ UniValue mintlelantus(const JSONRPCRequest& request)
                 "\nResult:\n"
                 "\"transactionid\"  (string) The transaction id.\n"
                 "\nExamples:\n"
-                + HelpExampleCli("mint", "0.15")
-                + HelpExampleCli("mint", "100.9")
-                + HelpExampleRpc("mint", "0.15")
+                + HelpExampleCli("mintlelantus", "0.15")
+                + HelpExampleCli("mintlelantus", "100.9")
+                + HelpExampleRpc("mintlelantus", "0.15")
         );
 
     EnsureWalletIsUnlocked(pwallet);
