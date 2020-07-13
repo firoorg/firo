@@ -14,30 +14,6 @@ public:
         return a_.memoryRequired() * 3 + 34 * 2 * size;
     }
 
-    inline unsigned char* serialize(unsigned char* buffer) const {
-        buffer = a_.serialize(buffer);
-        buffer = b_.serialize(buffer);
-        buffer = c_.serialize(buffer);
-        for (std::size_t i = 0; i < L_.size(); ++i)
-            buffer = L_[i].serialize(buffer);
-        for (std::size_t i = 0; i < R_.size(); ++i)
-            buffer = R_[i].serialize(buffer);
-        return buffer;
-    }
-
-    inline const unsigned char* deserialize(const unsigned char* buffer, std::size_t size) {
-        buffer = a_.deserialize(buffer);
-        buffer = b_.deserialize(buffer);
-        buffer = c_.deserialize(buffer);
-        L_.resize(size);
-        for (std::size_t i = 0; i < size; ++i)
-            buffer = L_[i].deserialize(buffer);
-        R_.resize(size);
-        for (std::size_t i = 0; i < size; ++i)
-            buffer = R_[i].deserialize(buffer);
-        return buffer;
-    }
-
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {

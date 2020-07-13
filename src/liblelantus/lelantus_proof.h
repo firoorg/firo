@@ -18,21 +18,6 @@ public:
                 + schnorrProof.memoryRequired();
     }
 
-    inline unsigned char* serialize(unsigned char* buffer) const {
-        for(std::size_t i = 0; i < sigma_proofs.size(); ++i)
-            buffer = sigma_proofs[i].serialize(buffer);
-        buffer = bulletproofs.serialize(buffer);
-        return schnorrProof.serialize(buffer);
-    }
-
-    inline const unsigned char* deserialize(const Params* params, const unsigned char* buffer, int size, int b_m) {
-        sigma_proofs.resize(size);
-        for(int i = 0; i < size; ++i)
-            buffer = sigma_proofs[i].deserialize(buffer, params->get_sigma_n(), params->get_sigma_m());
-        buffer = bulletproofs.deserialize(buffer, params->get_bulletproofs_n() * b_m);
-        return schnorrProof.deserialize(buffer);
-    }
-
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {

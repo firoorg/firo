@@ -1,5 +1,6 @@
 #include "../lelantus_prover.h"
 #include "../lelantus_verifier.h"
+#include "streams.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -40,11 +41,11 @@ BOOST_AUTO_TEST_CASE(serialize)
     lelantus::LelantusProver prover(params);
     prover.proof(anonymity_sets, Vin, Cin, indexes, Vout, Cout, f,  initial_proof);
 
-    unsigned char buffer [initial_proof.memoryRequired(1, params->get_bulletproofs_n(), 2)];
-    initial_proof.serialize(buffer);
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << initial_proof;
 
     lelantus::LelantusProof resulted_proof;
-    resulted_proof.deserialize(params, buffer, 1, 2);
+    serialized >> resulted_proof;
 
     for(size_t i = 0; i <  initial_proof.sigma_proofs.size(); ++i){
         BOOST_CHECK(initial_proof.sigma_proofs[i].B_ == resulted_proof.sigma_proofs[i].B_);

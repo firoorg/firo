@@ -24,43 +24,6 @@ public:
                + zR_.memoryRequired() * 2;
     }
 
-    inline unsigned char* serialize(unsigned char* buffer) const {
-        buffer = A_.serialize(buffer);
-        buffer = B_.serialize(buffer);
-        buffer = C_.serialize(buffer);
-        buffer = D_.serialize(buffer);
-        for(std::size_t i = 0; i < f_.size(); ++i)
-            buffer = f_[i].serialize(buffer);
-        buffer = ZA_.serialize(buffer);
-        buffer = ZC_.serialize(buffer);
-        for(std::size_t i = 0; i < Gk_.size(); ++i)
-            buffer = Gk_[i].serialize(buffer);
-        for(std::size_t i = 0; i < Qk.size(); ++i)
-            buffer = Qk[i].serialize(buffer);
-        buffer = zV_.serialize(buffer);
-        return zR_.serialize(buffer);
-    }
-
-    inline const unsigned char* deserialize(const unsigned char* buffer, int n, int m) {
-        buffer = A_.deserialize(buffer);
-        buffer = B_.deserialize(buffer);
-        buffer = C_.deserialize(buffer);
-        buffer = D_.deserialize(buffer);
-        f_.resize(m * (n - 1));
-        for(int i = 0; i < m * (n - 1); ++i)
-            buffer = f_[i].deserialize(buffer);
-        buffer = ZA_.deserialize(buffer);
-        buffer = ZC_.deserialize(buffer);
-        Gk_.resize(m);
-        Qk.resize(m);
-        for(int i = 0; i < m; ++i)
-            buffer = Gk_[i].deserialize(buffer);
-        for(int i = 0; i < m; ++i)
-            buffer = Qk[i].deserialize(buffer);
-        buffer = zV_.deserialize(buffer);
-        return zR_.deserialize(buffer);
-    }
-
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {

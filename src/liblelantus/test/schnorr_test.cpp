@@ -1,6 +1,7 @@
 #include "../schnorr_proof.h"
 #include "../schnorr_prover.h"
 #include "../schnorr_verifier.h"
+#include "../../streams.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -29,13 +30,11 @@ BOOST_AUTO_TEST_CASE(serialization)
     SchnorrProof proof;
     prover.proof(P, T, proof);
 
-    std::vector<unsigned char> buffer;
-    buffer.resize(proof.memoryRequired());
-
-    proof.serialize(buffer.data());
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << proof;
 
     SchnorrProof deserialized;
-    deserialized.deserialize(buffer.data());
+    serialized >> deserialized;
 
     BOOST_CHECK(proof.u == deserialized.u);
     BOOST_CHECK(proof.P1 == deserialized.P1);
