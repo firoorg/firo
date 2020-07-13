@@ -21,7 +21,7 @@ static const int INIT_PROTO_VERSION = 90013;
 static const int GETHEADERS_VERSION = 90020;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 90026;
+static const int MIN_PEER_PROTO_VERSION = 90030;
 
 //! disconnect from all older peers after Znode payment HF
 static const int MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF = 90026;
