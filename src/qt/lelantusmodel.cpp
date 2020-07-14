@@ -104,17 +104,13 @@ void LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
     LOCK2(wallet->cs_wallet, cs);
     wallet->Unlock(passphase);
 
-    if (msecs) {
-        QTimer::singleShot(msecs, this, SLOT(lock()));
-    }
+    QTimer::singleShot(msecs, this, SLOT(lock()));
 }
 
 void LelantusModel::lockWallet()
 {
-    std::cout << "time to lock!!!" << std::endl;
-    TRY_LOCK(wallet->cs_wallet, lockwallet);
+    LOCK2(wallet->cs_wallet, cs);
     wallet->Lock();
-    std::cout << "locked" << std::endl;
 }
 
 CAmount LelantusModel::mintAll()
@@ -150,7 +146,7 @@ void LelantusModel::updateTransaction(uint256 hash)
 
     pendingTransactions.push_back(hash);
 
-    checkPendingTxTimer->start(10 * 1000);
+    checkPendingTxTimer->start(WaitingTime);
 }
 
 void LelantusModel::checkAutoMint()
@@ -230,10 +226,10 @@ void LelantusModel::start()
     setupAutoMint();
 }
 
-void LelantusModel::ackMintAll(bool keepWaiting)
+void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
     LOCK(cs);
-    if (keepWaiting) {
+    if (ack == AutoMintAck::WaitUserToActive) {
         autoMintState = AutoMintState::WaitingUserToActivate;
         QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(askUserToMint()));
     } else {
@@ -244,6 +240,11 @@ void LelantusModel::ackMintAll(bool keepWaiting)
 void LelantusModel::lock()
 {
     LOCK2(wallet->cs_wallet, cs);
+    if (autoMintState == AutoMintState::WaitingForUserResponse) {
+        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(lock()));
+        return;
+    }
+
     if (wallet->IsCrypted() && !wallet->IsLocked()) {
         lockWallet();
     }

@@ -15,6 +15,14 @@ enum class AutoMintState : uint8_t {
     WaitingForUserResponse
 };
 
+enum class AutoMintAck : uint8_t {
+    Success,
+    WaitUserToActive,
+    FailToMint,
+    NotEnoughFund,
+    UserReject
+};
+
 class LelantusModel : public QObject
 {
     Q_OBJECT;
@@ -37,7 +45,7 @@ public:
 
     CAmount mintAll();
 
-    void ackMintAll(bool keepWaiting);
+    void ackMintAll(AutoMintAck ack, CAmount minted = 0, QString error = QString(""));
 
 public:
     mutable CCriticalSection cs;
@@ -61,6 +69,9 @@ private:
     void unsubscribeFromCoreSignals();
 
     void setupAutoMint();
+
+private:
+    static const size_t WaitingTime = 1 * 1000; // one second
 
 private:
     AutoMintState autoMintState = AutoMintState::Disabled;

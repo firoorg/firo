@@ -54,13 +54,12 @@ void AutoMintDialog::accept()
     ui->warningLabel->repaint();
 
     try {
-        lelantusModel->mintAll();
+        auto minted = lelantusModel->mintAll();
+        lelantusModel->ackMintAll(AutoMintAck::Success, minted);
     } catch (std::runtime_error const &e) {
-        qDebug() << "Mint error : " << e.what();
-        // TODO: show error
+        lelantusModel->ackMintAll(AutoMintAck::FailToMint, 0, e.what());
     }
 
-    lelantusModel->ackMintAll(false);
     QDialog::accept();
 }
 
@@ -68,7 +67,7 @@ int AutoMintDialog::exec()
 {
     ensureLelantusModel();
     if (lelantusModel->getMintableAmount() <= 0) {
-        lelantusModel->ackMintAll(false);
+        lelantusModel->ackMintAll(AutoMintAck::NotEnoughFund);
         return 0;
     }
 
@@ -93,7 +92,6 @@ void AutoMintDialog::setModel(WalletModel *model)
         return;
     }
 
-    // lelantusModel->cs.lock();
     ENTER_CRITICAL_SECTION(lelantusModel->cs);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {

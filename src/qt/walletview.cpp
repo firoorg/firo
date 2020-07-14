@@ -643,7 +643,7 @@ void WalletView::askMintAll()
     }
 
     if (!isActiveWindow()) {
-        lelantusModel->ackMintAll(true);
+        lelantusModel->ackMintAll(AutoMintAck::WaitUserToActive);
         return;
     }
 
