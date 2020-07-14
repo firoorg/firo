@@ -480,16 +480,20 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
            std::string("\n\n");
 }
 
+#ifdef ENABLE_CRASH_HOOKS
 static std::string FormatException(const std::exception_ptr pex, const char* pszThread)
 {
     return strprintf("EXCEPTION: %s", GetPrettyExceptionStr(pex));
 }
+#endif
 
 void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
 {
+#ifdef ENABLE_CRASH_HOOKS
     std::string message = FormatException(pex, pszThread);
     LogPrintf("\n\n************************\n%s\n", message);
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
+#endif
 }
 
 boost::filesystem::path GetDefaultDataDir()

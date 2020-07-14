@@ -12,9 +12,10 @@
 int
 main(int argc, char** argv)
 {
+#ifdef ENABLE_CRASH_HOOKS
     RegisterPrettySignalHandlers();
     RegisterPrettyTerminateHander();
-
+#endif
     ECC_Start();
     SetupEnvironment();
     fPrintToDebugLog = false; // don't want to write to debug.log file
