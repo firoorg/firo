@@ -26,6 +26,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "script/sigcache.h"
+#include "stacktraces.h"
 
 #include "test/testutil.h"
 
@@ -44,6 +45,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test_monitor.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
 #include "sigma.h"
@@ -312,15 +314,46 @@ size_t FindZnodeOutput(CTransaction const & tx) {
 /*
 void Shutdown(void* parg)
 {
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 void StartShutdown()
 {
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 bool ShutdownRequested()
 {
   return false;
-}*/
+}
+*/
+
+template<typename T>
+void translate_exception(const T &e)
+{
+    std::cerr << GetPrettyExceptionStr(std::current_exception()) << std::endl;
+    throw;
+}
+
+template<typename T>
+void register_exception_translator()
+{
+    boost::unit_test::unit_test_monitor.register_exception_translator<T>(&translate_exception<T>);
+}
+
+struct ExceptionInitializer {
+    ExceptionInitializer()
+    {
+        RegisterPrettyTerminateHander();
+        RegisterPrettySignalHandlers();
+
+        register_exception_translator<std::exception>();
+        register_exception_translator<std::string>();
+        register_exception_translator<const char*>();
+    }
+    ~ExceptionInitializer()
+    {
+    }
+};
+
+BOOST_GLOBAL_FIXTURE( ExceptionInitializer );

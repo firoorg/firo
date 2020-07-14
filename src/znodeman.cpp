@@ -1644,7 +1644,7 @@ void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
             }
         }
     } catch (const std::exception &e) {
-        PrintExceptionContinue(&e, "UpdateZnodeList");
+        PrintExceptionContinue(std::current_exception(), "UpdateZnodeList");
     }
 }
 

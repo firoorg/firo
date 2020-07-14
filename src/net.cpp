@@ -30,6 +30,7 @@
 #include "instantx.h"
 #include "masternode-sync.h"
 #include "llmq/quorums_instantsend.h"
+#include "evo/mnauth.h"
 
 #ifdef WIN32
 #include <string.h>
