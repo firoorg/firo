@@ -335,6 +335,9 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
 bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
 {
     voutMasternodePaymentsRet.clear();
+    if (nBlockHeight == 0) {
+        return false;
+    }
 
     CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockReward);
 
