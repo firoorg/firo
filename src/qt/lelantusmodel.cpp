@@ -7,8 +7,6 @@
 #include <QDateTime>
 #include <QTimer>
 
-#define POLLING_TIMEOUT 1000
-
 // Handlers for core signals
 static void NotifyTransactionChanged(
     LelantusModel *model, CWallet *wallet, uint256 const &hash, ChangeType status)
@@ -33,12 +31,11 @@ LelantusModel::LelantusModel(
     wallet(wallet),
     optionsModel(optionsModel)
 {
-    pollTimer = new QTimer(this);
     checkPendingTxTimer = new QTimer(this);
+    checkPendingTxTimer->setSingleShot(true);
 
     QTimer::singleShot(20 * 1000, this, SLOT(start()));
 
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
     connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
 
     subscribeToCoreSignals();
@@ -46,10 +43,8 @@ LelantusModel::LelantusModel(
 
 LelantusModel::~LelantusModel()
 {
-    delete pollTimer;
     delete checkPendingTxTimer;
 
-    pollTimer = nullptr;
     checkPendingTxTimer = nullptr;
 
     unsubscribeFromCoreSignals();
@@ -90,43 +85,36 @@ CAmount LelantusModel::getMintableAmount()
 
 void LelantusModel::setupAutoMint()
 {
-    CAmount mintable = 0, immature;
+    CAmount mintable = 0;
     {
         LOCK2(cs_main, wallet->cs_wallet);
         mintable = getMintableAmount();
-        immature = wallet->GetImmatureBalance();
     }
 
-    if (mintable > 0 || immature > 0) {
+    if (mintable > 0) {
         autoMintState = AutoMintState::WaitingUserToActivate;
-        startAutoMint();
+        checkAutoMint();
     } else {
         autoMintState = AutoMintState::WaitingIncomingFund;
     }
 }
 
-void LelantusModel::startAutoMint()
+void LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
 {
-    LOCK(cs);
-    pollTimer->start(MODEL_UPDATE_DELAY);
-}
-
-void LelantusModel::stopAutoMint()
-{
-    LOCK(cs);
-    pollTimer->stop();
-}
-
-void LelantusModel::unlockWallet(SecureString const &passphase, size_t secs)
-{
-    LOCK(wallet->cs_wallet);
+    LOCK2(wallet->cs_wallet, cs);
     wallet->Unlock(passphase);
+
+    if (msecs) {
+        QTimer::singleShot(msecs, this, SLOT(lock()));
+    }
 }
 
 void LelantusModel::lockWallet()
 {
-    LOCK(wallet->cs_wallet);
+    std::cout << "time to lock!!!" << std::endl;
+    TRY_LOCK(wallet->cs_wallet, lockwallet);
     wallet->Lock();
+    std::cout << "locked" << std::endl;
 }
 
 CAmount LelantusModel::mintAll()
@@ -177,7 +165,6 @@ void LelantusModel::checkAutoMint()
         switch (autoMintState) {
         case AutoMintState::Disabled:
         case AutoMintState::WaitingIncomingFund:
-            stopAutoMint();
             return;
         case AutoMintState::WaitingUserToActivate:
             // check activation status
@@ -188,15 +175,15 @@ void LelantusModel::checkAutoMint()
             throw std::runtime_error("Unknown auto mint state");
         }
 
-        if (disableAutoMintUntil.isValid() &&
-            QDateTime::currentDateTime() < disableAutoMintUntil) {
-            return;
-        }
-
         autoMintState = AutoMintState::WaitingForUserResponse;
-        stopAutoMint();
     }
-    Q_EMIT askUserToMint();
+
+    askUserToMint();
+}
+
+void LelantusModel::askUserToMint()
+{
+    Q_EMIT askMintAll();
 }
 
 void LelantusModel::checkPendingTransactions()
@@ -211,7 +198,7 @@ void LelantusModel::checkPendingTransactions()
         }
 
         auto const &wtx = wallet->mapWallet[tx];
-        hasNew |= wtx.GetAvailableCredit() > 0 || wtx.GetImmatureCredit() > 0;
+        hasNew |= wtx.GetAvailableCredit() > 0;
 
         if (hasNew) {
             break;
@@ -235,10 +222,29 @@ void LelantusModel::checkPendingTransactions()
     };
 
     autoMintState = AutoMintState::WaitingUserToActivate;
-    startAutoMint();
+    checkAutoMint();
 }
 
 void LelantusModel::start()
 {
     setupAutoMint();
+}
+
+void LelantusModel::ackMintAll(bool keepWaiting)
+{
+    LOCK(cs);
+    if (keepWaiting) {
+        autoMintState = AutoMintState::WaitingUserToActivate;
+        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(askUserToMint()));
+    } else {
+        autoMintState = AutoMintState::WaitingIncomingFund;
+    }
+}
+
+void LelantusModel::lock()
+{
+    LOCK2(wallet->cs_wallet, cs);
+    if (wallet->IsCrypted() && !wallet->IsLocked()) {
+        lockWallet();
+    }
 }

@@ -6,20 +6,17 @@
 #include "ui_automintdialog.h"
 
 #include <QPushButton>
-
-#define WAITING_TIME 5 * 60
+#include <QDebug>
 
 AutoMintDialog::AutoMintDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AutoMintDialog),
     model(0),
     lelantusModel(0),
-    requiredPassphase(true),
-    locked(false),
-    amountToMint(0)
+    requiredPassphase(true)
 {
-    cs_main.lock();
-    pwalletMain->cs_wallet.lock();
+    ENTER_CRITICAL_SECTION(cs_main);
+    ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
@@ -28,16 +25,12 @@ AutoMintDialog::AutoMintDialog(QWidget *parent) :
 
 AutoMintDialog::~AutoMintDialog()
 {
-    if (locked) {
-        lelantusModel->lockWallet();
-    }
-
     if (lelantusModel) {
-        lelantusModel->cs.unlock();
+        LEAVE_CRITICAL_SECTION(lelantusModel->cs);
     }
 
-    pwalletMain->cs_wallet.unlock();
-    cs_main.unlock();
+    LEAVE_CRITICAL_SECTION(pwalletMain->cs_wallet);
+    LEAVE_CRITICAL_SECTION(cs_main);
 }
 
 void AutoMintDialog::accept()
@@ -47,31 +40,35 @@ void AutoMintDialog::accept()
     if (requiredPassphase) {
         auto rawPassphase = ui->passEdit->text().toStdString();
         SecureString passphase(rawPassphase.begin(), rawPassphase.end());
-        lelantusModel->unlockWallet(passphase, 0);
-        locked = true;
+        auto lock = ui->lockCheckBox->isChecked();
+
+        lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000);
     }
 
     ui->warningLabel->setText(QString("Minting..."));
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);
+    ui->lockWarningLabel->setVisible(false);
+    ui->lockCheckBox->setVisible(false);
     ui->warningLabel->repaint();
 
     try {
         lelantusModel->mintAll();
     } catch (std::runtime_error const &e) {
+        qDebug() << "Mint error : " << e.what();
         // TODO: show error
     }
 
+    lelantusModel->ackMintAll(false);
     QDialog::accept();
 }
 
 int AutoMintDialog::exec()
 {
     ensureLelantusModel();
-
-    if (amountToMint == 0) {
-        lelantusModel->startAutoMint();
+    if (lelantusModel->getMintableAmount() <= 0) {
+        lelantusModel->ackMintAll(false);
         return 0;
     }
 
@@ -96,11 +93,16 @@ void AutoMintDialog::setModel(WalletModel *model)
         return;
     }
 
-    lelantusModel->cs.lock();
+    // lelantusModel->cs.lock();
+    ENTER_CRITICAL_SECTION(lelantusModel->cs);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
+        ui->lockCheckBox->setVisible(false);
+
+        ui->lockWarningLabel->setText(QString("Do you want to anonymize these funds?"));
+
         requiredPassphase = false;
     }
 }
