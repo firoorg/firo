@@ -22,7 +22,6 @@ CLIENTAPI_CPP = \
   client-api/settings.cpp \
   client-api/sigma.cpp \
   client-api/wallet.cpp \
-  client-api/znode.cpp \
   zmqserver/zmqabstract.cpp \
   zmqserver/zmqinterface.cpp \
   zmqserver/zmqpublisher.cpp \

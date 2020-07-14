@@ -332,20 +332,6 @@ bool CZnode::IsValidForPayment() {
 bool CZnode::IsValidNetAddr(CService addrIn) {
     // TODO: regtest is fine with any addresses for now,
     // should probably be a bit smarter if one day we start to implement tests for this
-    return Params().NetworkIDString() == CBaseChainParams::REGTEST ||
-           (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
-}
-
-bool CZnode::IsMyZnode(){
-    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-        const std::string& txHash = mne.getTxHash();
-        const std::string& outputIndex = mne.getOutputIndex();
-
-        if(txHash==vin.prevout.hash.ToString().substr(0,64) &&
-           outputIndex==to_string(vin.prevout.n))
-            return true;
-    }
-    return false;
 }
 
 znode_info_t CZnode::GetInfo() {
@@ -401,32 +387,24 @@ std::string CZnode::GetStatus() const {
 void CZnode::SetStatus(int newState) {
     if(nActiveState!=newState){
         nActiveState = newState;
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
     }
 }
 
 void CZnode::SetLastPing(CZnodePing newZnodePing) {
     if(lastPing!=newZnodePing){
         lastPing = newZnodePing;
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
     }
 }
 
 void CZnode::SetTimeLastPaid(int64_t newTimeLastPaid) {
      if(nTimeLastPaid!=newTimeLastPaid){
         nTimeLastPaid = newTimeLastPaid;
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
     }   
 }
 
 void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
      if(nBlockLastPaid!=newBlockLastPaid){
         nBlockLastPaid = newBlockLastPaid;
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
     }   
 }
 
@@ -434,8 +412,6 @@ void CZnode::SetRank(int newRank) {
      if(nRank!=newRank){
         nRank = newRank;
         if(nRank < 0 || nRank > mnodeman.size()) nRank = 0;
-        if(IsMyZnode())
-            GetMainSignals().UpdatedZnode(*this);
     }   
 }
 
@@ -772,8 +748,6 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
             RelayZNode();
         }
         znodeSync.AddedZnodeList();
-        if(pmn->IsMyZnode())
-            GetMainSignals().UpdatedZnode(*pmn);
     }
 
     return true;
@@ -1023,8 +997,6 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
         // let's bump sync timeout
         LogPrint("znode", "CZnodePing::CheckAndUpdate -- bumping sync timeout, znode=%s\n", vin.prevout.ToStringShort());
         znodeSync.AddedZnodeList();
-        if(pmn->IsMyZnode())
-            GetMainSignals().UpdatedZnode(*pmn);
     }
 
     // let's store this ping as the last one

@@ -26,7 +26,6 @@ class CDeterministicMN;
 class CDeterministicMNList;
 class CDeterministicMNListDiff;
 class uint256;
-class CZnode;
 
 typedef std::shared_ptr<const CDeterministicMN> CDeterministicMNCPtr;
 
@@ -61,12 +60,10 @@ protected:
     virtual void ResetRequestCount(const uint256 &hash) {};
     virtual void NumConnectionsChanged() {}
     virtual void UpdateSyncStatus() {}
-    virtual void UpdatedZnode(CZnode &znode) {}
     virtual void UpdatedMasternode(CDeterministicMNCPtr masternode) {};
     virtual void UpdatedMintStatus(std::string update) {};
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
-    virtual void NotifyZnodeList() {}
     virtual void NotifyMasternodeList() {}
     virtual void UpdatedBalance() {}
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
@@ -127,8 +124,6 @@ struct CMainSignals {
     boost::signals2::signal<void ()> NumConnectionsChanged;
     /** Notifies listeners of change of blockchain syncing state */
     boost::signals2::signal<void ()> UpdateSyncStatus;
-    /** Notifies listeners of change to a Znode entry */
-    boost::signals2::signal<void (CZnode &)> UpdatedZnode;
     /** Notifies listeners of change to a Masternode entry */
     boost::signals2::signal<void (CDeterministicMNCPtr)> UpdatedMasternode;
     /** Notifies listeners of an updated mint status */
@@ -139,8 +134,6 @@ struct CMainSignals {
     boost::signals2::signal<void ()> NotifyAPIStatus;
     /** Notifies listeners of Masternode list */
     boost::signals2::signal<void ()> NotifyMasternodeList;
-    /** Notifies listeners of Znode list */
-    boost::signals2::signal<void ()> NotifyZnodeList;
     /** Notifies listeners of balance */
     boost::signals2::signal<void ()> UpdatedBalance;
     /**

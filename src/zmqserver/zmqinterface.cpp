@@ -146,11 +146,9 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
         "pubrawtx", 
         "pubblockinfo", 
         "pubbalance", 
-        "pubznodeupdate", 
         "pubmasternodeupdate",
         "pubsettings",
         "pubstatus",
-        "pubznodelist",
         "pubmasternodelist",
         "pubwalletsegment",
     };
@@ -159,12 +157,10 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
-    factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
     factories["pubmasternodeupdate"] = CZMQAbstract::Create<CZMQMasternodeTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     factories["pubwalletsegment"] = CZMQAbstract::Create<CZMQWalletSegmentTopic>;
-    factories["pubznodelist"] = CZMQAbstract::Create<CZMQZnodeListTopic>;
     factories["pubmasternodelist"] = CZMQAbstract::Create<CZMQMasternodeListTopic>;
     
     BOOST_FOREACH(string pubIndex, pubIndexes)
@@ -271,26 +267,6 @@ void CZMQPublisherInterface::NotifyMasternodeList()
     }
 }
 
-void CZMQPublisherInterface::NotifyZnodeList()
-{
-    if(APIIsInWarmup())
-        return;
-
-    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
-    {
-        CZMQAbstract *notifier = *i;
-        if (notifier->NotifyZnodeList())
-        {
-            i++;
-        }
-        else
-        {
-            notifier->Shutdown();
-            i = notifiers.erase(i);
-        }
-    }
-}
-
 void CZMQPublisherInterface::NumConnectionsChanged()
 {
     if(APIIsInWarmup())
@@ -340,26 +316,6 @@ void CZMQPublisherInterface::WalletTransaction(const CTransaction& tx)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyTransaction(tx))
-        {
-            i++;
-        }
-        else
-        {
-            notifier->Shutdown();
-            i = notifiers.erase(i);
-        }
-    }
-}
-
-void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
-{
-    if(APIIsInWarmup())
-        return;
-
-    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
-    {
-        CZMQAbstract *notifier = *i;
-        if (notifier->NotifyZnodeUpdate(znode))
         {
             i++;
         }

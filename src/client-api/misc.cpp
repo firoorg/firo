@@ -149,7 +149,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
     modules.push_back(Pair("Masternode", masternodeSync.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
@@ -164,12 +163,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         CWalletDB db(pwalletMain->strWalletFile);
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
-
-    UniValue znode(UniValue::VOBJ);
-    znode.push_back(Pair("localCount", znodeConfig.getCount()));
-    znode.push_back(Pair("totalCount", mnodeman.CountZnodes()));
-    znode.push_back(Pair("enabledCount", mnodeman.CountEnabled()));
-    obj.push_back(Pair("Znode", znode));
 
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));

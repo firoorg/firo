@@ -40,10 +40,8 @@ protected:
     void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
     void NumConnectionsChanged();
     void UpdateSyncStatus();
-    void NotifyZnodeList();
     void NotifyMasternodeList();
     void NotifyAPIStatus();
-    void UpdatedZnode(CZnode &znode);
     void UpdatedMasternode(CDeterministicMNCPtr masternode);
     void UpdatedSettings(std::string update);
     void UpdatedBalance();

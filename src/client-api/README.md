@@ -63,9 +63,6 @@ A function with one or more operations.
 | [unlockWallet](#unlockwallet)                                     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
 | [verifyMnemonicValidity](#verifymnemonicvalidity)                 | Verify mnemonic is valid. | 🔐 | – | – |
 | [writeShowMnemonicWarning](#writeshowmnemonicwarning)             | Write the wallet database entry to show the warning for mnemonics. | 🔐 | – | – |
-| [znodeControl](#znodecontrol)                                     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
-| [znodeKey](#znodekey)                                             | Generate a new znode key. | 🔐 | - | – |
-| [znodeList](#znodelist)                                           | list information related to all Znodes. | 🔐 | – | – |
 
 ## data
 to be passed with `type` to be performed on `collection`.
@@ -118,11 +115,6 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         walletLock: BOOL, (VAR: Wallet initialized)
         shouldShowWarning: BOOL, (VAR: Wallet initialized)
         unlockedUntil: INT,
-        Znode: {
-            localCount: INT,
-            totalCount: INT,
-            enabledCount: INT
-        },
         dataDir: STRING,
         network: STRING("main"|"testnet"|"regtest"),
         blocks: INT,
@@ -136,7 +128,6 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         pid: INT,
         modules: {
             API: BOOL,
-            Znode: BOOL,
             Masternode: BOOL
         }
     },
@@ -394,8 +385,6 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
         type: STRING,
         status: {
             isBlockchainSynced: BOOL,
-            isZnodeListSynced: BOOL,
-            isWinnersListSynced: BOOL,
             isSynced: BOOL,
             isFailed: BOOL
         },
@@ -1296,192 +1285,13 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
-
-### `znodeControl`
-`none`:
-```
-    data: {
-        method: STRING, ["start-all" || "start-missing" || "start-alias"]
-        alias: STRING (VAR: method=="start-alias")
-      }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        detail: {
-            status: {
-                alias: STRING,
-                success: BOOL,
-                info: STRING (VAR: success==false)
-            },
-            status: {
-                alias: STRING,
-                success: BOOL,
-                info: STRING (VAR: success==false)
-            },
-            ...
-        },
-        overall: {
-          successful: INT,
-          failed: INT,
-          total: INT 
-        }
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `znodeKey`
-`create`:
-```
-    data: {
-      }
-```
-*Returns:*
-```
-{
-    data: {
-        key: STRING
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `znodeList`
-`initial`:
-```
-    data: {
-      }
-``` 
-*Returns:*
-```
-{
-
-    data: (VAR: Znodes not synced) {
-        nodes: {
-            STRING: (txid) {
-                label: STRING,
-                isMine: BOOL,
-                outpoint: {
-                    txid: STRING,
-                    index: INT
-                },
-                authority: {
-                    ip: STRING,
-                    port: STRING
-                },
-                position: INT
-            },
-            STRING: (txid) {
-                label: STRING,
-                isMine: BOOL,
-                outpoint: {
-                    txid: STRING,
-                    index: INT
-                },
-                authority: {
-                    ip: STRING,
-                    port: STRING
-                },
-                position: INT
-            },
-            ...
-            }
-        },
-        total: INT
-    },
-
-    data: (VAR: Znodes synced) {
-        STRING: { (payeeAddress)
-            rank: INT,
-            outpoint: {
-                txid: STRING,
-                index: STRING
-            },
-            status: STRING,
-            protocolVersion: INT,
-            payeeAddress: STRING,
-            lastSeen: INT,
-            activeSince: INT,
-            lastPaidTime: INT,
-            lastPaidBlock: INT,
-            authority: {
-                ip: STRING,
-                port: STRING
-            }
-            isMine: BOOL,
-            label: STRING, (VAR: isMine==true)
-            position: INT, (VAR: isMine==true)
-            qualify: {
-                result: BOOL,
-                description: STRING ["Is scheduled"             ||
-                                     "Invalid nProtocolVersion" ||
-                                     "Too new"                  ||
-                                     "collateralAge < znCount"] (VAR: result==false)
-                data: { (VAR: result==false)
-                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
-                    sigTime:          INT, (VAR: description=="Too new"),
-                    qualifiedAfter:   INT, (VAR: description=="Too new"),
-                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
-                    znCount:          INT, (VAR: description=="collateralAge < znCount")
-                }
-            }
-        },
-        STRING: { (payeeAddress)
-            rank: INT,
-            outpoint: {
-                txid: STRING,
-                index: STRING
-            },
-            status: STRING,
-            protocolVersion: INT,
-            payeeAddress: STRING,
-            lastSeen: INT,
-            activeSince: INT,
-            lastPaidTime: INT,
-            lastPaidBlock: INT,
-            authority: {
-                ip: STRING,
-                port: STRING
-            }
-            isMine: BOOL,
-            label: STRING, (VAR: isMine==true)
-            position: INT, (VAR: isMine==true)
-            qualify: {
-                result: BOOL,
-                description: STRING ["Is scheduled"             ||
-                                     "Invalid nProtocolVersion" ||
-                                     "Too new"                  ||
-                                     "collateralAge < znCount"] (VAR: result==false)
-                data: { (VAR: result==false)
-                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
-                    sigTime:          INT, (VAR: description=="Too new"),
-                    qualifiedAfter:   INT, (VAR: description=="Too new"),
-                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
-                    znCount:          INT, (VAR: description=="collateralAge < znCount")
-                }
-            }
-        },
-        ...
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
 # Publish
 The publisher module is comprised of various _topics_ that are triggered under specific conditions, called _events_. Both topics and events have a 1 to N relationship with each other; ie. 1 event may trigger 1 to N topics, and 1 topic may be triggered by 1 to N events.
 
 
-|               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMasternodeStatus  | UpdatedSettings | UpdatedZnode | UpdateSyncStatus |
+|               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMasternodeStatus  | UpdatedSettings | UpdateSyncStatus |
 | ------------- | ------------- | ---------------  | --------------- | --------------------- | --------------- | -----------------  | --------------- | ------------ | ---------------- |
-| **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | EVO Znode added/updated | settings changed/updated | Znode update | Blockchain sync update
+| **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | Masternode added/updated | settings changed/updated | Blockchain sync update
 **address** (triggers [block](#block))                          | block tx data.                            | -  | -  | -  | ✅ | -  | -  | -  | -  |
 **apiStatus** (triggers [apiStatus](#apistatus))                | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
 **balance** (triggers [balance](#balance))                      | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
@@ -1489,7 +1299,6 @@ The publisher module is comprised of various _topics_ that are triggered under s
 **masternode** (triggers [masternodeUpdate](#masternodeupdate)) | update to masternode                      | -  | -  | -  | -  | ✅ | -  | -  | -  |
 **settings** (triggers [readSettings](#readsettings))           | settings changed                          | -  | -  | -  | -  | -  | ✅ | -  | -  |
 **transaction** (triggers [transaction](#transaction))          | new transaction data                      | -  | ✅ | -  | -  | -  | -  | -  | -  |
-**znode** (triggers [znodeUpdate](#znodeupdate))                | update to znode                           | -  | -  | -  | -  | -  | -  | ✅ | -  |
 
 ## Methods
 
@@ -1738,7 +1547,7 @@ Methods specific to the publisher.
                 service: STRING,
                 registeredHeight: INT,
                 lastPaidHeight: INT,
-                nextPaymentHeight: INT, (VAR: Znode in next payments list)
+                nextPaymentHeight: INT, (VAR: Masternode in next payments list)
                 PoSePenalty: INT,
                 PoSeRevivedHeight: INT,
                 PoSeBanHeight: INT,

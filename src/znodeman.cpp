@@ -1631,15 +1631,11 @@ void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
             CZnode mn(mnb);
             if (Add(mn)) {
                 znodeSync.AddedZnodeList();
-                if(mn.IsMyZnode())
-                    GetMainSignals().UpdatedZnode(mn);
             }
         } else {
             CZnodeBroadcast mnbOld = mapSeenZnodeBroadcast[CZnodeBroadcast(*pmn).GetHash()].second;
             if (pmn->UpdateFromNewBroadcast(mnb)) {
                 znodeSync.AddedZnodeList();
-                if(pmn->IsMyZnode())
-                    GetMainSignals().UpdatedZnode(*pmn);
                 mapSeenZnodeBroadcast.erase(mnbOld.GetHash());
             }
         }
@@ -1666,8 +1662,6 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
                 LogPrint("znode", "CZnodeMan::CheckMnbAndUpdateZnodeList -- znode=%s seen update\n", mnb.vin.prevout.ToStringShort());
                 mapSeenZnodeBroadcast[hash].first = GetTime();
                 znodeSync.AddedZnodeList();
-                if(mnb.IsMyZnode())
-                    GetMainSignals().UpdatedZnode(mnb);
             }
             // did we ask this node for it?
             if (pfrom && IsMnbRecoveryRequested(hash) && GetTime() < mMnbRecoveryRequests[hash].first) {
@@ -1716,9 +1710,6 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
     } // end of LOCK(cs);
 
     if(mnb.CheckOutpoint(nDos)) {
-        if(Add(mnb) && mnb.IsMyZnode())
-            GetMainSignals().UpdatedZnode(mnb);
-
         znodeSync.AddedZnodeList();
         // if it matches our Znode privkey...
         if(fMasternodeMode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {

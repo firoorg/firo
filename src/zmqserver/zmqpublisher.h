@@ -116,28 +116,12 @@ public:
     bool NotifyMasternodeList();
 };
 
-class CZMQZnodeListEvent : virtual public CZMQAbstractPublisher
-{
-    /* Znode List notification
-    */
-public:
-    bool NotifyZnodeList();
-};
-
 class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
 {
      /* Settings updated
     */   
 public:
     bool NotifySettingsUpdate(std::string update);
-};
-
-class CZMQZnodeEvent : virtual public CZMQAbstractPublisher
-{
-    /* Data related to an updated Znode
-    */
-public:
-    bool NotifyZnodeUpdate(CZnode &znode);
 };
 
 class CZMQMasternodeEvent : virtual public CZMQAbstractPublisher
@@ -150,7 +134,7 @@ public:
 
 class CZMQMintStatusEvent : virtual public CZMQAbstractPublisher
 {
-    /* Data related to an updated Znode
+    /* Data related to updated mint status
     */
 public:
     bool NotifyMintStatusUpdate(std::string update);
@@ -226,20 +210,6 @@ class CZMQMasternodeListTopic : public CZMQMasternodeListEvent
 public:
     void SetTopic(){ topic = "masternodeList";}
     void SetMethod(){ method= "masternodeList";}
-};
-
-class CZMQZnodeListTopic : public CZMQZnodeListEvent
-{
-public:
-    void SetTopic(){ topic = "znodeList";}
-    void SetMethod(){ method= "znodeList";}
-};
-
-class CZMQZnodeTopic : public CZMQZnodeEvent
-{
-public:
-    void SetTopic(){ topic = "znode";}
-    void SetMethod(){ method= "znodeUpdate";}
 };
 
 class CZMQMasternodeTopic : public CZMQMasternodeEvent

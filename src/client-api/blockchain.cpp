@@ -39,11 +39,6 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     UniValue currentBlock(UniValue::VOBJ);
 
     status.push_back(Pair("isBlockchainSynced", znodeSyncInterface.GetBlockchainSynced()));
-    // only push these values if EVO znodes not yet enforced
-    if(!deterministicMNManager->IsDIP3Enforced(chainActive.Tip()->nHeight)){
-        status.push_back(Pair("isZnodeListSynced", znodeSync.IsZnodeListSynced()));
-        status.push_back(Pair("isWinnersListSynced", znodeSync.IsWinnersListSynced()));
-    }
     status.push_back(Pair("isSynced", znodeSyncInterface.IsSynced()));
     status.push_back(Pair("isFailed", znodeSyncInterface.IsFailed()));
 

@@ -219,13 +219,6 @@ bool CZMQMasternodeListEvent::NotifyMasternodeList()
     return true;
 }
 
-bool CZMQZnodeListEvent::NotifyZnodeList()
-{
-    request.push_back(Pair("type", "initial"));
-    Execute();
-    return true;
-}
-
 bool CZMQConnectionsEvent::NotifyConnections()
 {
     Execute();
@@ -272,13 +265,6 @@ bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
         request.replace("data", pindex->ToJSON());
         Execute();
     }
-
-    return true;
-}
-
-bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
-    request.replace("data", znode.ToJSON());
-    Execute();
 
     return true;
 }
