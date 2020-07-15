@@ -815,7 +815,7 @@ void CInstantSend::Clear()
 bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
 {
     if (!fEnableInstantSend || GetfLargeWorkForkFound() || GetfLargeWorkInvalidChainFound() ||
-        !sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) return false;
+        !llmq::IsBlockFilteringEnabled()) return false;
 
     LOCK(cs_instantsend);
 
@@ -946,7 +946,7 @@ bool CInstantSend::CanAutoLock()
     if (!isAutoLockBip9Active || !llmq::IsOldInstantSendEnabled()) {
         return false;
     }
-    if (!sporkManager.IsSporkActive(SPORK_16_INSTANTSEND_AUTOLOCKS)) {
+    if (!llmq::IsInstansendAutolocks()) {
         return false;
     }
     return (mempool.UsedMemoryShare() < AUTO_IX_MEMPOOL_THRESHOLD);
@@ -996,7 +996,7 @@ bool CTxLockRequest::IsValid() const
         nValueIn += coin.out.nValue;
     }
 
-    if (nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
+    if (nValueIn > llmq::GetInstantsendMaxValue()*COIN) {
         LogPrint("instantsend", "CTxLockRequest::IsValid -- Transaction value too high: nValueIn=%d, tx=%s", nValueIn, ToString());
         return false;
     }

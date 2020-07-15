@@ -199,18 +199,6 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 continue;
             }
 
-            // SPORK : ALWAYS ASK FOR SPORKS AS WE SYNC
-
-            /*
-            if(!netfulfilledman.HasFulfilledRequest(pnode->addr, "spork-sync")) {
-                // always get sporks first, only request once from each peer
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
-                // get current network sporks
-                connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS));
-                LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- requesting sporks from peer=%d\n", nTick, nCurrentAsset, pnode->id);
-            }
-            */
-
             // INITIAL TIMEOUT
 
             if(nCurrentAsset == MASTERNODE_SYNC_WAITING) {

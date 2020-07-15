@@ -974,9 +974,6 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_TXLOCK_VOTE:
         return fEvoZnodes || instantsend.AlreadyHave(inv.hash);
 
-    case MSG_SPORK:
-        return fEvoZnodes || mapSporks.count(inv.hash);
-
     case MSG_QUORUM_FINAL_COMMITMENT:
         return !fEvoZnodes || llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
     case MSG_QUORUM_CONTRIB:
@@ -1244,16 +1241,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         ss.reserve(1000);
                         ss << vote;
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKVOTE, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_SPORK) {
-                    if(mapSporks.count(inv.hash)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << mapSporks[inv.hash];
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, ss));
                         pushed = true;
                     }
                 }

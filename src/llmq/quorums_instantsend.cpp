@@ -1146,7 +1146,7 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
     // TODO remove this after DIP8 has activated
     bool fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
 
-    if (sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED) && fDIP0008Active) {
+    if (IsChainlocksEnabled() && fDIP0008Active) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.
         return;
     }
@@ -1517,21 +1517,6 @@ void CInstantSendManager::WorkThreadMain()
             }
         }
     }
-}
-
-bool IsOldInstantSendEnabled()
-{
-    return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED) && !sporkManager.IsSporkActive(SPORK_20_INSTANTSEND_LLMQ_BASED);
-}
-
-bool IsNewInstantSendEnabled()
-{
-    return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED) && sporkManager.IsSporkActive(SPORK_20_INSTANTSEND_LLMQ_BASED);
-}
-
-bool IsInstantSendEnabled()
-{
-    return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
 }
 
 }

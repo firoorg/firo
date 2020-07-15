@@ -3568,8 +3568,8 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     strFailReason = _("Insufficient funds");                            
                     return false;
                 }
-                if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
-                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 XZC."), sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
+                if (fUseInstantSend && nValueIn > llmq::GetInstantsendMaxValue()*COIN) {
+                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 XZC."), llmq::GetInstantsendMaxValue());
                     return false;
                 }
 

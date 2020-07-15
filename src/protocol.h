@@ -247,8 +247,6 @@ extern const char *BLOCKTXN;
 extern const char *DANDELIONTX;
 
 extern const char *TXLOCKVOTE;
-extern const char *SPORK;
-extern const char *GETSPORKS;
 extern const char *SYNCSTATUSCOUNT;
 extern const char *DSACCEPT;
 extern const char *DSQUEUE;
@@ -372,7 +370,6 @@ enum GetDataMsg
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,       //!< Defined in BIP144
     MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
 	MSG_DANDELION_WITNESS_TX = MSG_DANDELION_TX | MSG_WITNESS_FLAG,
-    MSG_SPORK,
     MSG_TXLOCK_REQUEST,
     MSG_TXLOCK_VOTE,
     MSG_DSTX,

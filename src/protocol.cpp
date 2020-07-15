@@ -42,8 +42,6 @@ namespace NetMsgType {
     const char *DANDELIONTX="dandeliontx";
 //znode
     const char *TXLOCKVOTE="txlvote";
-    const char *SPORK="spork";
-    const char *GETSPORKS="getsporks";
     const char *DSACCEPT="dsa";
     const char *DSVIN="dsi";
     const char *DSFINALTX="dsf";
@@ -108,8 +106,6 @@ const static std::string allNetMessageTypes[] = {
     //znode
     NetMsgType::TXLOCKREQUEST,
     NetMsgType::TXLOCKVOTE,
-    NetMsgType::SPORK,
-    NetMsgType::GETSPORKS,
     NetMsgType::DSEG,
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
@@ -237,7 +233,6 @@ std::string CInv::GetCommand() const
 
     case MSG_TXLOCK_REQUEST:        return cmd.append(NetMsgType::TXLOCKREQUEST);
     case MSG_TXLOCK_VOTE:           return cmd.append(NetMsgType::TXLOCKVOTE);
-    case MSG_SPORK:                 return cmd.append(NetMsgType::SPORK);
     case MSG_DSTX:                  return cmd.append(NetMsgType::DSTX);
 
     case MSG_QUORUM_FINAL_COMMITMENT:       return cmd.append(NetMsgType::QFCOMMITMENT);

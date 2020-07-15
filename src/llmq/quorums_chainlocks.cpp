@@ -74,7 +74,7 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED)) {
+    if (!llmq::IsChainlocksEnabled()) {
         return;
     }
 
@@ -214,9 +214,9 @@ void CChainLocksHandler::CheckActiveState()
 
     LOCK(cs);
     bool oldIsEnforced = isEnforced;
-    isSporkActive = sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED);
+    isSporkActive = llmq::IsChainlocksEnabled();
     // TODO remove this after DIP8 is active
-    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (sporkManager.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 1);
+    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (llmq::IsChainlocksEnabled() == 1);
     isEnforced = (fDIP0008Active && isSporkActive) || fEnforcedBySpork;
 
     if (!oldIsEnforced && isEnforced) {
@@ -286,7 +286,7 @@ void CChainLocksHandler::TrySignChainTip()
     // considered safe when it is ixlocked or at least known since 10 minutes (from mempool or block). These checks are
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
-    if (IsNewInstantSendEnabled() && sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+    if (IsNewInstantSendEnabled() && IsBlockFilteringEnabled()) {
         auto pindexWalk = pindex;
         while (pindexWalk) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
@@ -438,7 +438,7 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
 
 bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 {
-    if (!sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+    if (!IsBlockFilteringEnabled()) {
         return true;
     }
     if (!IsNewInstantSendEnabled()) {

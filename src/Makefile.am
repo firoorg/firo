@@ -581,7 +581,6 @@ libbitcoin_common_a_SOURCES = \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
-  spork.cpp \
   warnings.cpp \
   $(BITCOIN_CORE_H)
 
