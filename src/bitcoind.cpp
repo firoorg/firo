@@ -81,11 +81,12 @@ bool AppInit(int argc, char* argv[])
     // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
     ParseParameters(argc, argv);
 
+#ifdef ENABLE_CRASH_HOOKS
      if (IsArgSet("-printcrashinfo")) {
         std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
         return true;
     }
-
+#endif
     // Process help and version before taking care about datadir
     if (IsArgSet("-?") || IsArgSet("-h") ||  IsArgSet("-help") || IsArgSet("-version"))
     {
@@ -224,9 +225,10 @@ bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+#ifdef ENABLE_CRASH_HOOKS
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
-    
+#endif    
     SetupEnvironment();
 
     // Connect bitcoind signal handlers

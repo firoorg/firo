@@ -328,6 +328,7 @@ bool ShutdownRequested()
 }
 */
 
+#ifdef ENABLE_CRASH_HOOKS
 template<typename T>
 void translate_exception(const T &e)
 {
@@ -357,3 +358,4 @@ struct ExceptionInitializer {
 };
 
 BOOST_GLOBAL_FIXTURE( ExceptionInitializer );
+#endif

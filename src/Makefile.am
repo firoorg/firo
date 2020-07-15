@@ -21,12 +21,12 @@ else
 LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
 endif
 endif
-endif
 
 if TARGET_WINDOWS
 BACKTRACE_LIB = -ldbghelp -lbacktrace
 else
 BACKTRACE_LIB = -lbacktrace
+endif
 endif
 
 if EMBEDDED_UNIVALUE
@@ -565,7 +565,6 @@ libbitcoin_consensus_a_SOURCES = \
   script/script_error.h \
   serialize.h \
   spork.h \
-  stacktraces.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
@@ -642,7 +641,6 @@ libbitcoin_util_a_SOURCES = \
   fs.cpp \
   random.cpp \
   rpc/protocol.cpp \
-  stacktraces.cpp \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
@@ -716,6 +714,11 @@ libsigma_a_SOURCES = \
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
+endif
+
+if ENABLE_CRASH_HOOKS
+libbitcoin_util_a_SOURCES += stacktraces.cpp
+libbitcoin_consensus_a_SOURCES += stacktraces.h
 endif
 
 # cli: shared between zcoin-cli and zcoin-qt
