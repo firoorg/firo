@@ -124,6 +124,7 @@ bool CWalletDB::ErasePaymentRequestAddress() {
 }
 #endif
 
+#ifdef ENABLE_CLIENTAPI
 bool CWalletDB::WriteShowMnemonicsWarning(bool shouldShow) {
     nWalletDBUpdateCounter++;
     return Write(std::string("mnemonicswarning"), shouldShow);
@@ -134,6 +135,7 @@ bool CWalletDB::ReadShowMnemonicsWarning() {
     if (!Read(std::string("mnemonicswarning"), shouldShow)) return true;
     return shouldShow;
 }
+#endif
 
 bool CWalletDB::WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey)
 {

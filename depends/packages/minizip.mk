@@ -25,8 +25,8 @@ endef
 define $(package)_config_cmds
   autoreconf -fi; \
   ./configure $($(package)_config_opts); \
-  sed -i 's|-DPACKAGE_STRING=\\\"minizip\\\ 1.2.11\\\"|-DPACKAGE_STRING=\"minizip-1.2.11\"|g' Makefile; \
-  sed -i 's|PACKAGE_STRING = minizip 1.2.11|PACKAGE_STRING = minizip-1.2.11|g' Makefile
+  sed -i.bu 's|-DPACKAGE_STRING=\\\"minizip\\\ 1.2.11\\\"|-DPACKAGE_STRING=\"minizip-1.2.11\"|g' Makefile; \
+  sed -i.bu 's|PACKAGE_STRING = minizip 1.2.11|PACKAGE_STRING = minizip-1.2.11|g' Makefile
 endef
 
 define $(package)_build_cmds
