@@ -538,9 +538,10 @@ WId BitcoinApplication::getMainWinId() const
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
+#ifdef ENABLE_CRASH_HOOKS
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
-    
+#endif    
     SetupEnvironment();
 
     /// 1. Parse command-line options. These take precedence over anything else.
@@ -591,12 +592,14 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
     translationInterface.Translate.connect(Translate);
 
+#ifdef ENABLE_CRASH_HOOKS
     if (IsArgSet("-printcrashinfo")) {
         auto crashInfo = GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", ""));
         std::cout << crashInfo << std::endl;
         QMessageBox::critical(0, QObject::tr(PACKAGE_NAME), QString::fromStdString(crashInfo));
         return EXIT_SUCCESS;
     }
+#endif
 
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
