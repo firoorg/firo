@@ -44,8 +44,11 @@ public:
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
 
 public Q_SLOTS:
+    void on_anonymizeButton_clicked();
+
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                    const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+                    const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
+                    const CAmount& anonymizableBalance);
     void setSigmaBalance();
     //void updateElysium();
     //void reinitElysium();
@@ -70,6 +73,7 @@ private:
     CAmount currentWatchImmatureBalance;
     CAmount currentSigmaBalance;
     CAmount currentSigmaUnconfirmedBalance;
+    CAmount currentAnonymizableBalance;
 
     QSettings settings;
 

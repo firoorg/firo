@@ -77,6 +77,7 @@ int AutoMintDialog::exec()
 void AutoMintDialog::reject()
 {
     ensureLelantusModel();
+    lelantusModel->ackMintAll(AutoMintAck::UserReject);
     QDialog::reject();
 }
 

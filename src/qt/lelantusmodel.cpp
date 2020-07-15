@@ -149,8 +149,9 @@ void LelantusModel::updateTransaction(uint256 hash)
     checkPendingTxTimer->start(WaitingTime);
 }
 
-void LelantusModel::checkAutoMint()
+void LelantusModel::checkAutoMint(bool userAsk)
 {
+    std::cout << "autoMintState : " << int(autoMintState) << std::endl;
     {
         LOCK(cs);
 
@@ -161,6 +162,9 @@ void LelantusModel::checkAutoMint()
         switch (autoMintState) {
         case AutoMintState::Disabled:
         case AutoMintState::WaitingIncomingFund:
+            if (userAsk) {
+                break;
+            }
             return;
         case AutoMintState::WaitingUserToActivate:
             // check activation status

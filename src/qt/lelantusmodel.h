@@ -57,7 +57,7 @@ public Q_SLOTS:
     void askUserToMint();
 
     void checkPendingTransactions();
-    void checkAutoMint();
+    void checkAutoMint(bool force = false);
 
     void updateTransaction(uint256 hash);
     void start();
