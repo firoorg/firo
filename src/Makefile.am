@@ -291,6 +291,7 @@ BITCOIN_CORE_H = \
   wallet/bip39.h \
   wallet/bip39_english.h \
   definition.h \
+  warnings.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
