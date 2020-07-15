@@ -384,8 +384,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
             return tr("Spend to");
     case TransactionRecord::SpendToSelf:
            return tr("Spend to yourself");
-    case TransactionRecord::Mint:
-           return tr("Mint");
+    case TransactionRecord::Anonymize:
+           return tr("Anonymize");
     default:
         return QString();
     }
@@ -404,7 +404,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
     case TransactionRecord::SpendToAddress:
-    case TransactionRecord::Mint:
+    case TransactionRecord::Anonymize:
         return QIcon(":/icons/tx_output");
     default:
         return QIcon(":/icons/tx_inout");
@@ -431,7 +431,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
         return lookupAddress(wtx->address, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
-    case TransactionRecord::Mint:
+    case TransactionRecord::Anonymize:
         return tr("Anonymized");
     case TransactionRecord::SendToSelf:
     default:
@@ -455,7 +455,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
         } break;
     case TransactionRecord::SendToSelf:
     case TransactionRecord::SpendToSelf:
-    case TransactionRecord::Mint:
+    case TransactionRecord::Anonymize:
         return COLOR_BAREADDRESS;
     default:
         break;

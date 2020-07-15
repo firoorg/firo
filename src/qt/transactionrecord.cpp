@@ -194,10 +194,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         if (fAllFromMe && fAllToMe)
         {
             CAmount nChange = wtx.GetChange();
-            if (wtx.tx->IsSigmaMint() || wtx.tx->IsZerocoinMint())
+            if (wtx.tx->IsSigmaMint() || wtx.tx->IsZerocoinMint() || wtx.tx->IsLelantusMint())
             {
                 // Mint to self
-                parts.append(TransactionRecord(hash, nTime, TransactionRecord::Mint, "",
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::Anonymize, "",
                     -(nDebit - nChange), 0));
             } else {
                 // Payment to self
@@ -234,9 +234,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
                 }
-                else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint())
+                else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {
-                    sub.type = TransactionRecord::Mint;
+                    sub.type = TransactionRecord::Anonymize;
                 }
                 else
                 {
