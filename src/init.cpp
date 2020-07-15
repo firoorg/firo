@@ -903,6 +903,18 @@ void InitParameterInteraction()
             LogPrintf("%s: parameter interaction: -whitebind set -> setting -listen=1\n", __func__);
     }
 
+    if (IsArgSet("-znodeblsprivkey")) {
+        // masternodes MUST accept connections from outside
+        ForceSetArg("-listen", "1");
+        LogPrintf("%s: parameter interaction: -znodeblsprivkey=... -> setting -listen=1\n", __func__);
+        if (GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS) < DEFAULT_MAX_PEER_CONNECTIONS) {
+            // masternodes MUST be able to handle at least DEFAULT_MAX_PEER_CONNECTIONS connections
+            ForceSetArg("-maxconnections", itostr(DEFAULT_MAX_PEER_CONNECTIONS));
+            LogPrintf("%s: parameter interaction: -znodeblsprivkey=... -> setting -maxconnections=%d instead of specified -maxconnections=%d\n",
+                    __func__, DEFAULT_MAX_PEER_CONNECTIONS, GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS));
+        }
+    }
+
     if (mapMultiArgs.count("-connect") && mapMultiArgs.at("-connect").size() > 0) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         if (SoftSetBoolArg("-dnsseed", false))
