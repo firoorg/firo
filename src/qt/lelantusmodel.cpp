@@ -34,7 +34,7 @@ LelantusModel::LelantusModel(
     checkPendingTxTimer = new QTimer(this);
     checkPendingTxTimer->setSingleShot(true);
 
-    QTimer::singleShot(20 * 1000, this, SLOT(start()));
+    QTimer::singleShot(1 * 1000, this, SLOT(start()));
 
     connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
 
