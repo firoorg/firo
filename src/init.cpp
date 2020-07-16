@@ -2039,8 +2039,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
-            return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+            // TODO: remove temporary key creation when legacy znode code is removed
+            activeZnode.keyZnode.MakeNewKey(false);
+            activeZnode.pubKeyZnode = activeZnode.keyZnode.GetPubKey();
         }
     }
 
@@ -2086,8 +2087,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(_("Invalid znodeblsprivkey. Please see documentation."));
             }
         } else {
-            // TODO: uncomment when switch to evo znodes is done
-            //return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
+            return InitError(_("You must specify a znodeblsprivkey in the configuration. Please see documentation for help."));
         }
 
         // Create and register activeMasternodeManager, will init later in ThreadImport
