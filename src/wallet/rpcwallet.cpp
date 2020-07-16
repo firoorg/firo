@@ -3454,31 +3454,6 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
 
 }
 
-UniValue spendallzerocoin(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() >= 1)
-        throw runtime_error(
-                "spendallzerocoin\n"
-                "\nAutomatically spends all zerocoin mints to self\n" );
-
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    bool hasUnspendableMints = false;
-
-    string strError;
-    bool result = pwallet->SpendOldMints(strError);
-    if (strError != "")
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    else if(strError == "" && !result)
-        hasUnspendableMints = true;
-
-    return  hasUnspendableMints;
-}
-
 UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4808,7 +4783,6 @@ static const CRPCCommand commands[] =
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
-    { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
 
 };

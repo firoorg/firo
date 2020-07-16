@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
         CreateAndProcessBlock(scriptPubKey);
 
     // spend coin for 100 xzc
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "100", false, true), stringError + " - 100 xzc spend failed");
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "100", false), stringError + " - 100 xzc spend failed");
     CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, "Incorrect used coin serial state after zerocoin spend");
     CBigNum zcSpentSerial = *zerocoinState->usedCoinSerials.begin();
@@ -176,7 +176,23 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     }
 
     // test if sigma mints are spendable
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "25"), "Sigma spend failed");
+    {
+        // Generate address
+        CPubKey newKey;
+        BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+
+        const CBitcoinAddress randomAddr(newKey.GetID());
+
+        CAmount nAmount(0);
+        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_25, nAmount);
+        std::vector<CRecipient> recipients = {
+                {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+        };
+
+        CWalletTx wtx;
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+    }
+
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
     for (int i=0; i<5; i++)

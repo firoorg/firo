@@ -16,6 +16,7 @@
 
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
@@ -27,11 +28,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    string thirdPartyAddress;
     int previousHeight;
     CBlock b;
     CWalletTx wtx;
     string stringError;
+
+    // Generate address
+    CPubKey newKey;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+
+    const CBitcoinAddress randomAddr(newKey.GetID());
 
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
@@ -49,13 +55,46 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     // attempt to create a zerocoin spend with more than inputs limit.
     denominationsForTx.clear();
-
+    CAmount nAmount(0);
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){
         denominationsForTx.push_back(denominations[denominationIndexA]);
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexA].c_str(), SIGMA), stringError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexB].c_str(), SIGMA), stringError + " - Create Mint failed");
+
+        sigma::CoinDenomination denomination;
+        BOOST_CHECK_MESSAGE(StringToDenomination(denominations[denominationIndexA], denomination), "Unable to convert denomination string to value.");
+
+        CAmount intDenom;
+        DenominationToInteger(denomination, intDenom);
+
+        nAmount += intDenom;
+
+        const auto& sigmaParams = sigma::Params::get_default();
+
+        {
+            sigma::CoinDenomination denom;
+            BOOST_CHECK_MESSAGE(StringToDenomination(denominations[denominationIndexA], denom), "Unable to convert denomination string to value.");
+            std::vector<sigma::PrivateCoin> privCoins;
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+            vector<CHDMint> vDMints;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+            CWalletTx wtx;
+            stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+            BOOST_CHECK_MESSAGE(stringError == "", "Create Mint Failed");
+        }
+        {
+            sigma::CoinDenomination denom;
+            BOOST_CHECK_MESSAGE(StringToDenomination(denominations[denominationIndexB], denom), "Unable to convert denomination string to value.");
+            std::vector<sigma::PrivateCoin> privCoins;
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+            vector<CHDMint> vDMints;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+            CWalletTx wtx;
+            stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+            BOOST_CHECK_MESSAGE(stringError == "", "Create Mint Failed");
+        }
+
         if (i <= consensus.nMaxSigmaInputPerBlock) {
             denominationsForTx.push_back(denominations[denominationIndexA]);
+            nAmount += intDenom;
         }
     }
 
@@ -76,16 +115,22 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
     previousHeight = chainActive.Height();
 
+    std::vector<CRecipient> recipients = {
+        {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+        };
+
     // Check that the tx creation fails.
-    BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs exceed the limits");
+    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::runtime_error);
+    
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, nAmount);
+    recipients = {
+        {GetScriptForDestination(randomAddr.Get()), nAmount * 2, true},
+        };
 
     unsigned spendsTransactionLimit = consensus.nMaxSigmaInputPerBlock / 2;
     // Next add spendsTransactionLimit + 1 transactions with 2 inputs each, verify mempool==spendsTransactionLimit + 1. mine a block. Verify mempool still has 1 tx.
     for(unsigned i = 0; i < spendsTransactionLimit + 1; i++){
-        denominationsForTx.clear();
-        denominationsForTx.push_back(denominations[denominationIndexA]);
-        denominationsForTx.push_back(denominations[denominationIndexB]);
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend Failed");
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
     }
 
     BOOST_CHECK_MESSAGE(mempool.size() == spendsTransactionLimit + 1, "Num input spends not added to mempool");
@@ -115,7 +160,6 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     auto& consensus = Params().GetConsensus();
 
     auto testDenomination = sigma::CoinDenomination::SIGMA_DENOM_100;
-    std::string testDenominationStr = std::to_string(testDenomination);
     CAmount testDenominationAmount;
     sigma::DenominationToInteger(testDenomination, testDenominationAmount);
 
@@ -127,7 +171,16 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     // Mint coins to ensure have coins enough to choose more than value limit.
     CAmount allMintsValue(0);
     while (allMintsValue <= consensus.nMaxValueSigmaSpendPerBlock * 2){
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, testDenominationStr, SIGMA), stringError + " - Create Mint failed");
+        const auto& sigmaParams = sigma::Params::get_default();
+
+        std::vector<sigma::PrivateCoin> privCoins;
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, testDenomination));
+        vector<CHDMint> vDMints;
+        auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        CWalletTx wtx;
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+        BOOST_CHECK_MESSAGE(stringError == "", "Create Mint Failed");
+
         allMintsValue += testDenominationAmount;
     }
 

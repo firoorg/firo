@@ -16,6 +16,7 @@
 
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
@@ -44,8 +45,8 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     // Try to create a sigma mint. It must not be added to the mempool, because
     // Sigma is enabled at block "nMintV3SigmaStartBlock=400 for regtest".
-    vector<pair<std::string, int>> denominationPairs;
-    std::pair<std::string, int> denominationPair(denomination, 2);
+    vector<pair<int, int>> denominationPairs;
+    std::pair<int, int> denominationPair(stoi(denomination), 2);
     denominationPairs.push_back(denominationPair);
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
@@ -53,12 +54,25 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     // Create a zerocoin mint, it must not pass.
     BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, ZEROCOIN), "Zerocoin mint creation is success");
+        stringError, denominationPairs), "Zerocoin mint creation is success");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mint was added to mempool");
 
     // Sigma mints must pass.
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+    std::vector<sigma::PrivateCoin> privCoins;
+    vector<CHDMint> vDMints;
+    const auto& sigmaParams = sigma::Params::get_default();
+
+    sigma::CoinDenomination denom;
+    BOOST_CHECK_MESSAGE(StringToDenomination(denomination, denom), "Unable to convert denomination string to value.");
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    CWalletTx mintTx;
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, mintTx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
     // a sigma mint transaction must be able to be added to the next block.
@@ -72,17 +86,25 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     // Try to spend zerocoin should fail.
     BOOST_CHECK_MESSAGE(
-        !pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), false, true),
+        !pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), false),
         "Create zerocoin spend is success.");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Zerocoin spend was added to mempool");
 
     // Try to spend zerocoin should be success.
     CWalletTx wtx;
     std::string thirdPartyAddress = "TXYb6pEWBDcxQvTxbFQ9sEV1c3rWUPGW3v";
-    vector<string> denominationsForTx = {denomination};
-    BOOST_CHECK_MESSAGE(
-        pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx),
-        stringError + " - Spend failed");
+
+    CBitcoinAddress address(thirdPartyAddress);
+    BOOST_CHECK_MESSAGE(address.IsValid(), "Unable to generate address.");
+
+    CAmount nAmount;
+    DenominationToInteger(denom, nAmount);
+    std::vector<CRecipient> recipients = {
+        {GetScriptForDestination(address.Get()), nAmount, true},
+    };
+
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Sigma spend was not added to mempool");
 
     previousHeight = chainActive.Height();
