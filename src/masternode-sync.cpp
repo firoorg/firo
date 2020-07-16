@@ -179,12 +179,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
         {
             if (nCurrentAsset == MASTERNODE_SYNC_WAITING) {
-                //connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
                 SwitchToNextAsset(connman);
-            } /*else if (nCurrentAsset == MASTERNODE_SYNC_GOVERNANCE) {
-                SendGovernanceSyncRequest(pnode, connman);
-                SwitchToNextAsset(connman);
-            }*/
+            }
             connman.ReleaseNodeVector(vNodesCopy);
             return;
         }

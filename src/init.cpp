@@ -276,8 +276,6 @@ void Shutdown()
         // STORE DATA CACHES INTO SERIALIZED DAT FILES
         CFlatDB<CMasternodeMetaMan> flatdb1("evozncache.dat", "magicMasternodeCache");
         flatdb1.Dump(mmetaman);
-/*        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
-        flatdb3.Dump(governance); */
         CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
         flatdb4.Dump(netfulfilledman);
         /*if(fEnableInstantSend)
@@ -285,8 +283,6 @@ void Shutdown()
             CFlatDB<CInstantSend> flatdb5("instantsend.dat", "magicInstantSendCache");
             flatdb5.Dump(instantsend);
         }
-        CFlatDB<CSporkManager> flatdb6("sporks.dat", "magicSporkCache");
-        flatdb6.Dump(sporkManager);
         */
     }
 

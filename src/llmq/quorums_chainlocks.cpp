@@ -214,10 +214,10 @@ void CChainLocksHandler::CheckActiveState()
 
     LOCK(cs);
     bool oldIsEnforced = isEnforced;
-    isSporkActive = llmq::IsChainlocksEnabled();
+    isChainLocksActive = llmq::IsChainlocksEnabled();
     // TODO remove this after DIP8 is active
-    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (llmq::IsChainlocksEnabled() == 1);
-    isEnforced = (fDIP0008Active && isSporkActive) || fEnforcedBySpork;
+    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (llmq::IsChainlocksEnabled());
+    isEnforced = (fDIP0008Active && isChainLocksActive) || fEnforcedBySpork;
 
     if (!oldIsEnforced && isEnforced) {
         // ChainLocks got activated just recently, but it's possible that it was already running before, leaving
@@ -259,7 +259,7 @@ void CChainLocksHandler::TrySignChainTip()
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isChainLocksActive) {
             return;
         }
 
@@ -448,7 +448,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
     int64_t txAge = 0;
     {
         LOCK(cs);
-        if (!isSporkActive) {
+        if (!isChainLocksActive) {
             return true;
         }
         auto it = txFirstSeenTime.find(txid);
@@ -544,7 +544,7 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isChainLocksActive) {
             return;
         }
 

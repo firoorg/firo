@@ -70,6 +70,7 @@
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
+#include "spork.h"
 
 #include <atomic>
 #include <sstream>
@@ -3811,8 +3812,8 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
     // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
-    /*
-    if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+    
+    if(llmq::IsBlockFilteringEnabled()) {
         // We should never accept block which conflicts with completed transaction lock,
         // that's why this is in CheckBlock unlike coinbase payee/amount.
         // Require other nodes to comply, send them some data in case they are missing it.
@@ -3827,7 +3828,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
                     // but they probably need more data.
                     // Relay corresponding transaction lock request and all its votes
                     // to let other nodes complete the lock.
-                    instantsend.Relay(hashLocked);
+                    //instantsend.Relay(hashLocked);
                     LOCK(cs_main);
                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
                     return state.DoS(0, error("CheckBlock(XZC): transaction %s conflicts with transaction lock %s",
@@ -3837,9 +3838,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             }
         }
     } else {
-        LogPrintf("CheckBlock(XZC): spork is off, skipping transaction locking checks\n");
+        LogPrintf("CheckBlock(XZC): Block Filtering is off, skipping transaction locking checks\n");
     }
-    */
+    
 
     // Check transactions
     if (nHeight == INT_MAX)
