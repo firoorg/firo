@@ -89,7 +89,7 @@ BITCOIN_TESTS = \
   liblelantus/test/range_proof_test.cpp \
   liblelantus/test/schnorr_test.cpp \
   liblelantus/test/serialize_test.cpp \
-  liblelantus/test/sigma_plus_test.cpp \
+  liblelantus/test/sigma_extended_test.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/coin_tests.cpp \
   sigma/test/primitives_tests.cpp \
@@ -127,8 +127,8 @@ BITCOIN_TESTS = \
   test/hash_tests.cpp \
   test/key_tests.cpp \
   test/dbwrapper_tests.cpp \
-  test/lelantus_tests.cpp \
-  test/lelantus_state_tests.cpp \
+  # test/lelantus_tests.cpp \
+  # test/lelantus_state_tests.cpp \
   test/limitedmap_tests.cpp \
   test/main_tests.cpp \
   test/mbstring_tests.cpp \
@@ -177,8 +177,7 @@ BITCOIN_TESTS = \
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
-  test/util_tests.cpp \
-  test/multiexponentation_test.cpp 
+  test/util_tests.cpp
 #  test/evo_deterministicmns_tests.cpp \
 #  test/evo_simplifiedmns_tests.cpp \
 #  test/bls_tests.cpp
@@ -238,7 +237,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/core/libtor-app.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS) $(LIBBLSSIG_INCLUDES)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBLELANTUS)  $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBLELANTUS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
   $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET

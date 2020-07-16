@@ -2,6 +2,8 @@
 #include "primitives/zerocoin.h"
 
 namespace lelantus {
+    
+static std::string zpts("PUBLICKEY_TO_SERIALNUMBER");
 
 //class PublicCoin
 PublicCoin::PublicCoin() {
@@ -36,17 +38,24 @@ size_t PublicCoin::GetSerializeSize() const {
 }
 
 //class PrivateCoin
-PrivateCoin::PrivateCoin(const Params* p, const uint64_t& v):
+PrivateCoin::PrivateCoin(const Params* p, uint64_t v):
     params(p) {
     this->randomize();
     this->mintCoin(v);
 }
 
-PrivateCoin::PrivateCoin(const Params* p,const Scalar& serial, const uint64_t& v, const Scalar& random, int version_) :
+PrivateCoin::PrivateCoin(
+        const Params* p,
+        const Scalar& serial,
+        uint64_t v,
+        const Scalar& random,
+        const std::vector<unsigned char>& seckey,
+        int version_) :
         params(p),
         serialNumber(serial),
         randomness(random),
         version(version_) {
+    this->setEcdsaSeckey(seckey);
     this->mintCoin(v);
 }
 
@@ -97,7 +106,7 @@ void PrivateCoin::setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
         throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
 
-void PrivateCoin::setEcdsaSeckey(uint256 &seckey) {
+void PrivateCoin::setEcdsaSeckey(const uint256& seckey) {
     if (seckey.size() == sizeof(ecdsaSeckey))
         std::copy(seckey.begin(), seckey.end(), &ecdsaSeckey[0]);
     else
@@ -108,7 +117,7 @@ void PrivateCoin::setSerialNumber(const Scalar& n) {
     serialNumber = n;
 }
 
-void PrivateCoin::setV(const uint64_t& n) {
+void PrivateCoin::setV(uint64_t n) {
     value = n;
 }
 
@@ -117,13 +126,25 @@ void PrivateCoin::setVersion(unsigned int nVersion) {
 }
 
 void PrivateCoin::randomize() {
-    serialNumber.randomize();
+    // Create a key pair
+    secp256k1_pubkey pubkey;
+    do {
+        if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
+            throw std::invalid_argument("Unable to generate randomness");
+        }
+    } while (!secp256k1_ec_pubkey_create(
+            OpenSSLContext::get_context(), &pubkey, this->ecdsaSeckey));
+
+    // Hash the public key in the group to obtain a serial number
+    serialNumber = serialNumberFromSerializedPublicKey(
+            OpenSSLContext::get_context(), &pubkey);
+
     randomness.randomize();
 }
 
-void PrivateCoin::mintCoin(const uint64_t& v) {
+void PrivateCoin::mintCoin(uint64_t v) {
     value = v;
-    GroupElement commit = LelantusPrimitives<Scalar, GroupElement>::double_commit(
+    GroupElement commit = LelantusPrimitives::double_commit(
             params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);
     publicCoin = PublicCoin(commit);
 }
@@ -142,10 +163,9 @@ Scalar PrivateCoin::serialNumberFromSerializedPublicKey(
 
     // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
     if (1 != secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0])) {
-        throw ZerocoinException("Unable to compute public key hash with secp256k1_ecdh.");
+        throw std::invalid_argument("Unable to compute public key hash with secp256k1_ecdh.");
     }
 
-    std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
     std::vector<unsigned char> pre(zpts.begin(), zpts.end());
     std::copy(pubkey_hash.begin(), pubkey_hash.end(), std::back_inserter(pre));
 

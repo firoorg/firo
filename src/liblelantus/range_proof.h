@@ -5,39 +5,25 @@
 #include <cmath>
 
 namespace lelantus {
-
-template<class Exponent, class GroupElement>
+    
 class RangeProof{
 public:
 
+    static inline int int_log2(uint64_t number) {
+        assert(number != 0);
+
+        int l2 = 0;
+        while ((number >>= 1) != 0)
+            l2++;
+
+        return l2;
+    }
+
     inline std::size_t memoryRequired(int n, int m) const {
-        int size = (int)std::log2(n * m);
+        int size = int_log2(n * m);
         return A.memoryRequired() * 4
                + T_x1.memoryRequired() * 3
                + innerProductProof.memoryRequired(size);
-    }
-
-    inline unsigned char* serialize(unsigned char* buffer) const {
-        buffer = A.serialize(buffer);
-        buffer = S.serialize(buffer);
-        buffer = T1.serialize(buffer);
-        buffer = T2.serialize(buffer);
-        buffer = T_x1.serialize(buffer);
-        buffer = T_x2.serialize(buffer);
-        buffer = u.serialize(buffer);
-        return innerProductProof.serialize(buffer);
-    }
-
-    inline const unsigned char* deserialize(const unsigned char* buffer, int n) {
-        int size = (int)std::log2(n);
-        buffer = A.deserialize(buffer);
-        buffer = S.deserialize(buffer);
-        buffer = T1.deserialize(buffer);
-        buffer = T2.deserialize(buffer);
-        buffer = T_x1.deserialize(buffer);
-        buffer = T_x2.deserialize(buffer);
-        buffer = u.deserialize(buffer);
-        return innerProductProof.deserialize(buffer, size);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -57,10 +43,10 @@ public:
     GroupElement S;
     GroupElement T1;
     GroupElement T2;
-    Exponent T_x1;
-    Exponent T_x2;
-    Exponent u;
-    InnerProductProof<Exponent, GroupElement> innerProductProof;
+    Scalar T_x1;
+    Scalar T_x2;
+    Scalar u;
+    InnerProductProof innerProductProof;
 
 };
 }//namespace lelantus

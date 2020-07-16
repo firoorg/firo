@@ -2,7 +2,7 @@
 #define ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
 
 #include "schnorr_verifier.h"
-#include "sigmaplus_verifier.h"
+#include "sigmaextended_verifier.h"
 #include "range_verifier.h"
 #include "lelantus_primitives.h"
 #include "coin.h"
@@ -25,13 +25,13 @@ private:
     bool verify_sigma(
             const std::vector<std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<Scalar>>& Sin,
-            const std::vector<SigmaPlusProof<Scalar, GroupElement>> &sigma_proofs,
+            const std::vector<SigmaExtendedProof> &sigma_proofs,
             Scalar& x,
             Scalar& zV,
             Scalar& zR);
     bool verify_rangeproof(
             const std::vector<PublicCoin>& Cout,
-            const RangeProof<Scalar, GroupElement>& bulletproofs);
+            const RangeProof& bulletproofs);
     bool verify_schnorrproof(
             const Scalar& x,
             const Scalar& zV,

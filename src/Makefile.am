@@ -672,34 +672,34 @@ liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
 liblelantus_a_SOURCES = \
   liblelantus/challenge_generator.h \
-  liblelantus/challenge_generator.hpp \
+  liblelantus/challenge_generator.cpp \
   liblelantus/lelantus_primitives.h \
-  liblelantus/lelantus_primitives.hpp \
+  liblelantus/lelantus_primitives.cpp \
   liblelantus/lelantus_proof.h \
   liblelantus/lelantus_prover.h \
   liblelantus/lelantus_prover.cpp \
   liblelantus/lelantus_verifier.h \
   liblelantus/lelantus_verifier.cpp \
-  liblelantus/sigmaplus_proof.h \
-  liblelantus/sigmaplus_prover.h \
-  liblelantus/sigmaplus_prover.hpp \
-  liblelantus/sigmaplus_verifier.h \
-  liblelantus/sigmaplus_verifier.hpp \
+  liblelantus/sigmaextended_proof.h \
+  liblelantus/sigmaextended_prover.h \
+  liblelantus/sigmaextended_prover.cpp \
+  liblelantus/sigmaextended_verifier.h \
+  liblelantus/sigmaextended_verifier.cpp \
   liblelantus/schnorr_proof.h \
   liblelantus/schnorr_prover.h \
-  liblelantus/schnorr_prover.hpp \
+  liblelantus/schnorr_prover.cpp \
   liblelantus/schnorr_verifier.h \
-  liblelantus/schnorr_verifier.hpp \
+  liblelantus/schnorr_verifier.cpp \
   liblelantus/innerproduct_proof.h \
   liblelantus/innerproduct_proof_verifier.h \
-  liblelantus/innerproduct_proof_verifier.hpp \
+  liblelantus/innerproduct_proof_verifier.cpp \
   liblelantus/innerproduct_proof_generator.h \
-  liblelantus/innerproduct_proof_generator.hpp \
+  liblelantus/innerproduct_proof_generator.cpp \
   liblelantus/range_proof.h \
   liblelantus/range_prover.h \
-  liblelantus/range_prover.hpp \
+  liblelantus/range_prover.cpp \
   liblelantus/range_verifier.h \
-  liblelantus/range_verifier.hpp \
+  liblelantus/range_verifier.cpp \
   liblelantus/coin.h \
   liblelantus/coin.cpp \
   liblelantus/joinsplit.h \

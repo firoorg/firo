@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     PrivateCoin input_coin1(params ,v1);
     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {{input_coin1, 0}};
 
-    std::vector <uint64_t> indexes = {0};
+    std::vector <size_t> indexes = {0};
 
     auto anonymity_sets = GenerateAnonymitySets({N});
     anonymity_sets[0][0] = Cin[0].first.getPublicCoin();
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
         {input1, 0}, {input2, 0}, {input3, 1}
     };
 
-    std::vector <uint64_t> indexes = {0, 1, 0};
+    std::vector <size_t> indexes = {0, 1, 0};
 
     auto anonymity_sets = GenerateAnonymitySets({N, N});
     anonymity_sets[0][0] = Cin[0].first.getPublicCoin();
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
     PrivateCoin p1(params, 3);
     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {{p1, 0}};
 
-    std::vector<uint64_t> indexs = {0};
+    std::vector<size_t> indexs = {0};
 
     auto anonymitySets = GenerateAnonymitySets({N});
     anonymitySets[0][0] = Cin[0].first.getPublicCoin();
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(other_fail_to_validate)
     PrivateCoin p1(params, 1), p2(params, 2);
     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {{p1, 0}, {p2, 0}};
 
-    std::vector<uint64_t> indexs = {0, 1};
+    std::vector<size_t> indexs = {0, 1};
 
     auto anonymitySets = GenerateAnonymitySets({N});
     anonymitySets[0][0] = Cin[0].first.getPublicCoin();

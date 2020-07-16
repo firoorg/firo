@@ -2,7 +2,7 @@
 #define ZCOIN_LIBLELANTUS_LELANTUSPROVER_H
 
 #include "schnorr_prover.h"
-#include "sigmaplus_prover.h"
+#include "sigmaextended_prover.h"
 #include "range_prover.h"
 #include "coin.h"
 
@@ -28,11 +28,11 @@ private:
             const std::vector<size_t>& indexes,
             Scalar& x,
             std::vector<Scalar>& Yk_sum,
-            std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs);
+            std::vector<SigmaExtendedProof>& sigma_proofs);
 
     void generate_bulletproofs(
             const std::vector <PrivateCoin>& Cout,
-            RangeProof<Scalar, GroupElement>& bulletproofs);
+            RangeProof& bulletproofs);
 
 private:
     const Params* params;

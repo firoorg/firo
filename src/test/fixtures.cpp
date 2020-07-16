@@ -268,8 +268,7 @@ std::vector<lelantus::PrivateCoin> LelantusTestingSetup::GenerateMints(
         Scalar randomness;
         randomness.randomize();
 
-        coins.emplace_back(p, serial, a, randomness, 0);
-        coins.back().setEcdsaSeckey(k);
+        coins.emplace_back(p, serial, a, randomness, k, 0);
     }
 
     return coins;

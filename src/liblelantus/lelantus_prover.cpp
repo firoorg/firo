@@ -54,7 +54,7 @@ void LelantusProver::proof(
     }
     Y_ = Ro * x_m - Ri;
 
-    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h0());
+    SchnorrProver schnorrProver(params->get_g(), params->get_h0());
 
     schnorrProver.proof(X_, Y_, proof_out.schnorrProof);
 
@@ -66,8 +66,8 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<size_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
-        std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs) {
-    SigmaPlusProver<Scalar,GroupElement> sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
+        std::vector<SigmaExtendedProof>& sigma_proofs) {
+    SigmaExtendedProver sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
     sigma_proofs.resize(Cin.size());
     std::size_t N = Cin.size();
     std::vector<Scalar> rA, rB, rC, rD;
@@ -86,15 +86,15 @@ void LelantusProver::generate_sigma_proofs(
     for (std::size_t i = 0; i < N; ++i)
     {
         if (!c.count(Cin[i].second))
-            throw ZerocoinException("No such anonymity set or id is not correct");
+            throw std::invalid_argument("No such anonymity set or id is not correct");
 
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
 
         const auto& set = c.find(Cin[i].second);
-        if(set == c.end())
-            throw ZerocoinException("No such anonymity set");
+        if (set == c.end())
+            throw std::invalid_argument("No such anonymity set");
 
         for (auto const &coin : set->second)
             C_.emplace_back(coin.getValue() + gs);
@@ -110,11 +110,11 @@ void LelantusProver::generate_sigma_proofs(
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
 
-    LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
+    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, x);
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());
-    NthPower<Scalar> x_k(x);
+    NthPower x_k(x);
     for (int k = 0; k < params->get_sigma_m(); ++k) {
         x_ks.emplace_back(x_k.pow);
         x_k.go_next();
@@ -135,7 +135,7 @@ void LelantusProver::generate_sigma_proofs(
 
 void LelantusProver::generate_bulletproofs(
         const std::vector <PrivateCoin>& Cout,
-        RangeProof<Scalar, GroupElement>& bulletproofs) {
+        RangeProof& bulletproofs) {
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size();
@@ -165,7 +165,7 @@ void LelantusProver::generate_bulletproofs(
     g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
-    RangeProver<Scalar, GroupElement> rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
+    RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
     rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
 
 }

@@ -4,8 +4,7 @@
 #include "innerproduct_proof_generator.h"
 
 namespace lelantus {
-
-template<class Exponent, class GroupElement>
+    
 class RangeProver {
 public:
     RangeProver(
@@ -17,10 +16,10 @@ public:
             , uint64_t n);
 
     void batch_proof(
-            const std::vector<Exponent>& v
-            , const std::vector<Exponent>& serialNumbers
-            , const std::vector<Exponent>& randomness
-            , RangeProof<Exponent, GroupElement>& proof_out);
+            const std::vector<Scalar>& v
+            , const std::vector<Scalar>& serialNumbers
+            , const std::vector<Scalar>& randomness
+            , RangeProof& proof_out);
 
 private:
     GroupElement g;
@@ -33,7 +32,5 @@ private:
 };
 
 }//namespace lelantus
-
-#include "range_prover.hpp"
 
 #endif //ZCOIN_LIBLELANTUS_RANGE_PROVER_H

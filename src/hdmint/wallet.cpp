@@ -667,15 +667,15 @@ bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::Privat
     uint256 nSeedRandomness = ArithToUint512(UintToArith512(mintSeed) >> 256).trim256();
     randomness.memberFromSeed(nSeedRandomness.begin());
 
+    std::vector<unsigned char> seckey(nSeedPrivKey.begin(), nSeedPrivKey.end());
     //generating coin
     coin = lelantus::PrivateCoin(
         coin.getParams(),
         serialNumber,
         coin.getV(),
         randomness,
+        seckey,
         LELANTUS_TX_VERSION_4);
-
-    coin.setEcdsaSeckey(nSeedPrivKey);
 
     return true;
 }

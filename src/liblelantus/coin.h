@@ -3,7 +3,7 @@
 
 #include "lelantus_primitives.h"
 #include "params.h"
-
+#include "../sigma/openssl_context.h"
 
 
 namespace lelantus {
@@ -23,20 +23,16 @@ public:
 
     template<typename Stream>
     inline void Serialize(Stream& s) const {
-        int size =  GetSerializeSize();
-        unsigned char buffer[size];
-        value.serialize(buffer);
-        char* b = (char*)buffer;
-        s.write(b, size);
+        std::vector<unsigned char> buffer(GetSerializeSize());
+        value.serialize(buffer.data());
+        s.write((const char *)buffer.data(), buffer.size());
     }
 
     template<typename Stream>
     inline void Unserialize(Stream& s) {
-        int size =  GetSerializeSize();
-        unsigned char buffer[size];
-        char* b = (char*)buffer;
-        s.read(b, size);
-        value.deserialize(buffer);
+        std::vector<unsigned char> buffer(GetSerializeSize());
+        s.read((char *)buffer.data(), buffer.size());
+        value.deserialize(buffer.data());
     }
 
 private:
@@ -46,11 +42,12 @@ private:
 class PrivateCoin {
 public:
 
-    PrivateCoin(const Params* p, const uint64_t& v);
+    PrivateCoin(const Params* p, uint64_t v);
     PrivateCoin(const Params* p,
             const Scalar& serial,
-            const uint64_t& v,
+            uint64_t v,
             const Scalar& random,
+            const std::vector<unsigned char>& seckey,
             int version_);
 
     const Params * getParams() const;
@@ -63,12 +60,12 @@ public:
     void setPublicCoin(const PublicCoin& p);
     void setRandomness(const Scalar& n);
     void setSerialNumber(const Scalar& n);
-    void setV(const uint64_t& n);
+    void setV(uint64_t n);
     void setVersion(unsigned int nVersion);
     const unsigned char* getEcdsaSeckey() const;
 
     void setEcdsaSeckey(const std::vector<unsigned char> &seckey);
-    void setEcdsaSeckey(uint256 &seckey);
+    void setEcdsaSeckey(const uint256& seckey);
 
     static Scalar serialNumberFromSerializedPublicKey(
             const secp256k1_context *context,
@@ -83,10 +80,9 @@ private:
     unsigned int version = 0;
     unsigned char ecdsaSeckey[32];
 
-
 private:
     void randomize();
-    void mintCoin(const uint64_t& v);
+    void mintCoin(uint64_t v);
 };
 
 }// namespace lelantus

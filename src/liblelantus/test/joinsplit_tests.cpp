@@ -39,8 +39,7 @@ public:
             Scalar randomness;
             randomness.randomize();
 
-            privs.emplace_back(params, serial, a, randomness, LELANTUS_TX_VERSION_4);
-            privs.back().setEcdsaSeckey(ecdsaKey);
+            privs.emplace_back(params, serial, a, randomness, ecdsaKey, LELANTUS_TX_VERSION_4);
         }
 
         return privs;

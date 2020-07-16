@@ -19,7 +19,7 @@ Params const* Params::get_default() {
         unsigned char buff[32] = {0};
         GroupElement base;
         base.set_base_g();
-        base.sha256(buff);
+        base.normalSha256(buff);
         g.generate(buff);
 
         //fixing n and m; N = n^m = 65,536
@@ -46,12 +46,12 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     //creating generators for sigma
     this->h_sigma.resize(n_sigma * m_sigma);
     unsigned char buff0[32] = {0};
-    g.sha256(buff0);
+    g.normalSha256(buff0);
     h_sigma[0].generate(buff0);
     for (int i = 1; i < n_sigma * m_sigma; ++i)
     {
         unsigned char buff[32] = {0};
-        h_sigma[i - 1].sha256(buff);
+        h_sigma[i - 1].normalSha256(buff);
         h_sigma[i].generate(buff);
     }
 
@@ -60,15 +60,15 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     h_rangeProof.resize(n_rangeProof * max_m_rangeProof);
     g_rangeProof[0].generate(buff0);
     unsigned char buff1[32] = {0};
-    g_rangeProof[0].sha256(buff1);
+    g_rangeProof[0].normalSha256(buff1);
     h_rangeProof[0].generate(buff1);
     for (int i = 1; i < n_rangeProof * max_m_rangeProof; ++i)
     {
         unsigned char buff[32] = {0};
-        h_rangeProof[i-1].sha256(buff);
+        h_rangeProof[i-1].normalSha256(buff);
         g_rangeProof[i].generate(buff);
         unsigned char buff2[32] = {0};
-        g_rangeProof[i].sha256(buff2);
+        g_rangeProof[i].normalSha256(buff2);
         h_rangeProof[i].generate(buff2);
     }
 }

@@ -2692,7 +2692,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     script.insert(script.end(), vch.begin(), vch.end()); //this uses 34 byte
 
     // generating schnorr proof
-    std::vector<unsigned char>  serializedSchnorrProof;
+    CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
     lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
     script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
 
@@ -3378,6 +3378,39 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
             }
         }
     }
+}
+
+void CWallet::AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const
+{
+    valueAndUTXO.clear();
+    std::vector<COutput> vAvailableCoins;
+    AvailableCoins(vAvailableCoins, true, coinControl);
+
+    std::map<CTxDestination, std::pair<CAmount, std::vector<COutput>>> mapAddrToUTXO;
+    for(const auto& coin : vAvailableCoins)
+    {
+        CTxDestination address;
+        const auto& scriptPubKey = coin.tx->tx->vout[coin.i].scriptPubKey;
+
+        if (!ExtractDestination(scriptPubKey, address) && !scriptPubKey.IsUnspendable())
+            continue;
+
+        auto& element = mapAddrToUTXO[address];
+        if(element.second.empty())
+            element.first = coin.tx->tx->vout[coin.i].nValue;
+        else
+            element.first += coin.tx->tx->vout[coin.i].nValue;
+        element.second.push_back(coin);
+    }
+
+    valueAndUTXO.reserve(mapAddrToUTXO.size());
+    for(const auto& element : mapAddrToUTXO)
+        valueAndUTXO.emplace_back(element.second);
+
+    std::sort(valueAndUTXO.begin(), valueAndUTXO.end(), [](const std::pair<CAmount,std::vector<COutput>> &left, const std::pair<CAmount,std::vector<COutput>> &right) {
+        return left.first > right.first;
+    });
+
 }
 
 bool CWallet::GetZnodeVinAndKeys(CTxIn &txinRet, CPubKey &pubKeyRet, CKey &keyRet, std::string strTxHash,

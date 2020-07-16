@@ -70,28 +70,27 @@ bool IsAvailableToMint(const CAmount& amount)
     return amount <= ::Params().GetConsensus().nMaxValueLelantusMint;
 }
 
-void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, std::vector<unsigned char>&  serializedSchnorrProof)
+void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  serializedSchnorrProof)
 {
     auto params = lelantus::Params::get_default();
 
-    SchnorrProof<Scalar, GroupElement> schnorrProof;
-    SchnorrProver<Scalar, GroupElement> schnorrProver(params->get_g(), params->get_h0());
+    SchnorrProof schnorrProof;
+    SchnorrProver schnorrProver(params->get_g(), params->get_h0());
     schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), schnorrProof);
 
-    serializedSchnorrProof.resize(schnorrProof.memoryRequired());
-    schnorrProof.serialize(serializedSchnorrProof.data());
+    serializedSchnorrProof << schnorrProof;
 }
 
-bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof<Scalar, GroupElement>& schnorrProof)
+bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof& schnorrProof)
 {
     auto params = lelantus::Params::get_default();
 
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
-    SchnorrVerifier<Scalar, GroupElement> verifier(params->get_g(), params->get_h0());
+    SchnorrVerifier verifier(params->get_g(), params->get_h0());
     return verifier.verify(comm, schnorrProof);
 }
 
-void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof<Scalar, GroupElement>& schnorrProof)
+void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof)
 {
     if (script.size() < 1) {
         throw std::invalid_argument("Script is not a valid Lelantus mint");
@@ -103,7 +102,14 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     }
 
     pubcoin.deserialize(serialized.data());
-    schnorrProof.deserialize(serialized.data() + pubcoin.memoryRequired());
+
+    CDataStream stream(
+            std::vector<unsigned char>(serialized.begin() + pubcoin.memoryRequired(), serialized.end()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+
+    stream >> schnorrProof;
 }
 
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue)
@@ -126,7 +132,7 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin)
 {
     if(script.IsLelantusMint()) {
-        SchnorrProof<Scalar, GroupElement> schnorrProof;
+        SchnorrProof schnorrProof;
         ParseLelantusMintScript(script, pubcoin, schnorrProof);
     } else if (script.IsLelantusJMint()) {
         std::vector<unsigned char> encryptedValue;
@@ -473,7 +479,7 @@ bool CheckLelantusMintTransaction(
         bool fStatefulSigmaCheck,
         CLelantusTxInfo* lelantusTxInfo) {
     secp_primitives::GroupElement pubCoinValue;
-    SchnorrProof<Scalar, GroupElement> schnorrProof;
+    SchnorrProof schnorrProof;
 
     LogPrintf("CheckLelantusMintTransaction txHash = %s\n", txout.GetHash().ToString());
     LogPrintf("nValue = %d\n", txout.nValue);

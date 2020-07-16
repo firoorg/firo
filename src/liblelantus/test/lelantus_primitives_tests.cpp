@@ -10,7 +10,7 @@
 
 namespace lelantus {
 
-typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
+typedef LelantusPrimitives Primitives;
 
 BOOST_FIXTURE_TEST_SUITE(lelantus_primitives_tests, LelantusTestingSetup)
 
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(convert_to_nal)
 
 BOOST_AUTO_TEST_CASE(generate_lelantus_challange)
 {
-    std::vector<SigmaPlusProof<Scalar, GroupElement>> proofs(2);
+    std::vector<SigmaExtendedProof> proofs(2);
     auto gs = GenerateGroupElements(proofs.size() * 8);
     auto it = gs.begin();
 

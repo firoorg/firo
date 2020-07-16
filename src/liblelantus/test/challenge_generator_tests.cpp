@@ -11,9 +11,7 @@ namespace lelantus {
 
 class ChallengeGeneratorTests : public LelantusTestingSetup {
 public:
-    ChallengeGenerator<
-        secp_primitives::Scalar,
-        secp_primitives::GroupElement> generator;
+    ChallengeGenerator generator;
 };
 
 BOOST_FIXTURE_TEST_SUITE(lelantus_challenge_generator_tests, ChallengeGeneratorTests)

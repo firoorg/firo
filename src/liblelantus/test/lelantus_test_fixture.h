@@ -11,7 +11,7 @@ namespace lelantus {
 
 class LelantusTestingSetup : public BasicTestingSetup {
 protected:
-    typedef LelantusPrimitives<Scalar, GroupElement> Primitives;
+    typedef LelantusPrimitives Primitives;
 
 public:
     LelantusTestingSetup(const std::string& chainName = CBaseChainParams::MAIN)

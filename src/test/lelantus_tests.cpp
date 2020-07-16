@@ -155,12 +155,12 @@ BOOST_AUTO_TEST_CASE(schnorr_proof)
 
     PrivateCoin coin(params, 1);
 
-    std::vector<unsigned char> serializedSchnorrProof;
+    CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
     GenerateMintSchnorrProof(coin, serializedSchnorrProof);
 
     auto commitment = coin.getPublicCoin();
-    SchnorrProof<Scalar, GroupElement> proof;
-    proof.deserialize(serializedSchnorrProof.data());
+    SchnorrProof proof;
+    serializedSchnorrProof >> proof;
 
     BOOST_CHECK(VerifyMintSchnorrProof(1, commitment.getValue(), proof));
 }
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_mintscript)
     PrivateCoin priv(params, 1);
     auto &pub = priv.getPublicCoin();
 
-    std::vector<unsigned char> proofSerialized;
+    CDataStream  proofSerialized(SER_NETWORK, PROTOCOL_VERSION);
 
     GenerateMintSchnorrProof(priv, proofSerialized);
 
@@ -196,17 +196,16 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_mintscript)
 
     BOOST_CHECK(pub.getValue() == parsedCoin);
 
-    SchnorrProof<Scalar, GroupElement> proof;
+    SchnorrProof proof;
     ParseLelantusMintScript(script, parsedCoin, proof);
 
     BOOST_CHECK(pub.getValue() == parsedCoin);
     BOOST_CHECK(VerifyMintSchnorrProof(1, parsedCoin, proof));
 
-    std::vector<unsigned char> parsedProof;
-    parsedProof.resize(proof.memoryRequired());
-    proof.serialize(parsedProof.data());
+    CDataStream  parsedProof(SER_NETWORK, PROTOCOL_VERSION);
+    parsedProof << proof;
 
-    BOOST_CHECK(proofSerialized == parsedProof);
+    BOOST_CHECK(proofSerialized.vch == parsedProof.vch);
 
     GroupElement parsedCoin2;
     ParseLelantusMintScript(script, parsedCoin2);
@@ -555,7 +554,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState state;
     CLelantusTxInfo info;
     BOOST_CHECK(CheckLelantusTransaction(
-        txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, &info));
+        txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, NULL, &info));
 
     std::vector<std::pair<PublicCoin, uint64_t>> expectedCoins = {{mints[0].GetPubcoinValue(), 1 * CENT}};
     BOOST_CHECK(expectedCoins == info.mints);
@@ -583,8 +582,9 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK_EQUAL(1, GetSpendInputs(joinsplitTx, joinsplitTx.vin[0]));
 
     info = CLelantusTxInfo();
+
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
 
     auto &serials = joinsplit->getCoinSerialNumbers();
     auto &ids = joinsplit->getCoinGroupIds();
@@ -599,7 +599,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
 
     // test surge dection.
     while (!lelantusState->IsSurgeConditionDetected()) {
@@ -610,7 +610,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     }
 
     BOOST_CHECK(!CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
 }
 
 BOOST_AUTO_TEST_CASE(spend_limitation_per_tx)

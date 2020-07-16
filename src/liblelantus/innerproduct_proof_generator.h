@@ -4,8 +4,7 @@
 #include "lelantus_primitives.h"
 
 namespace lelantus {
-
-template <class Exponent, class GroupElement>
+    
 class InnerProductProofGenerator {
 
 public:
@@ -16,10 +15,10 @@ public:
             const GroupElement& u);
 
     void generate_proof(
-            const std::vector<Exponent>& a,
-            const std::vector<Exponent>& b,
-            const Exponent& x,
-            InnerProductProof<Exponent, GroupElement>& proof_out);
+            const std::vector<Scalar>& a,
+            const std::vector<Scalar>& b,
+            const Scalar& x,
+            InnerProductProof& proof_out);
 
     const GroupElement& get_P();
 
@@ -32,31 +31,31 @@ private:
             const GroupElement& P);
 
     void generate_proof_util(
-            const std::vector<Exponent>& a,
-            const std::vector<Exponent>& b,
-            InnerProductProof<Exponent, GroupElement>& proof_out);
+            const std::vector<Scalar>& a,
+            const std::vector<Scalar>& b,
+            InnerProductProof& proof_out);
 
-    void l(typename std::vector<Exponent>::const_iterator a_start,
-           typename std::vector<Exponent>::const_iterator a_end,
-           typename std::vector<Exponent>::const_iterator b_start,
-           typename std::vector<Exponent>::const_iterator b_end,
-           const Exponent& cL,
+    void l(typename std::vector<Scalar>::const_iterator a_start,
+           typename std::vector<Scalar>::const_iterator a_end,
+           typename std::vector<Scalar>::const_iterator b_start,
+           typename std::vector<Scalar>::const_iterator b_end,
+           const Scalar& cL,
            GroupElement& result_out);
 
-    void r(typename std::vector<Exponent>::const_iterator a_start,
-           typename std::vector<Exponent>::const_iterator a_end,
-           typename std::vector<Exponent>::const_iterator b_start,
-           typename std::vector<Exponent>::const_iterator b_end,
-           const Exponent& cR,
+    void r(typename std::vector<Scalar>::const_iterator a_start,
+           typename std::vector<Scalar>::const_iterator a_end,
+           typename std::vector<Scalar>::const_iterator b_start,
+           typename std::vector<Scalar>::const_iterator b_end,
+           const Scalar& cR,
            GroupElement& result_out);
 
-    std::vector<Exponent> a_prime(const Exponent& x, const std::vector<Exponent>& a);
+    std::vector<Scalar> a_prime(const Scalar& x, const std::vector<Scalar>& a);
 
-    std::vector<Exponent> b_prime(const Exponent& x, const std::vector<Exponent>& b);
+    std::vector<Scalar> b_prime(const Scalar& x, const std::vector<Scalar>& b);
 
     void compute_P(
-            const std::vector<Exponent>& a,
-            const std::vector<Exponent>& b,
+            const std::vector<Scalar>& a,
+            const std::vector<Scalar>& b,
             GroupElement& result_out);
 
 private:
@@ -69,7 +68,5 @@ private:
 };
 
 } // namespace lelantus
-
-#include "innerproduct_proof_generator.hpp"
 
 #endif //ZCOIN_LIBLELANTUS_INNERP_RODUCT_PROOF_GENERATOR_H

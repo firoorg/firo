@@ -27,16 +27,16 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     std::vector<secp_primitives::Scalar> v_s;
     std::vector<secp_primitives::GroupElement> V;
-    for(int i = 0; i < m; ++i){
+    for(uint64_t i = 0; i < m; ++i){
         v_s.emplace_back(701 + i);
         V.push_back(g_gen * v_s.back() +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
     }
 
-    RangeProver<Scalar, GroupElement> rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
-    RangeProof<Scalar, GroupElement> proof;
+    RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+    RangeProof proof;
     rangeProver.batch_proof(v_s, serials, randoms, proof);
 
-    RangeVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
+    RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
     BOOST_CHECK(rangeVerifier.verify_batch(V, proof));
 }
 
@@ -58,21 +58,21 @@ BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
 
     auto testF = [&] (std::vector<Scalar> const v_s) {
         std::vector<GroupElement> V;
-        for (int i = 0; i < m; ++i) {
+        for (uint64_t i = 0; i < m; ++i) {
             V.push_back(g_gen * v_s[i] +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
         }
 
-        lelantus::RangeProver<Scalar, GroupElement> rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
-        lelantus::RangeProof<Scalar, GroupElement> proof;
+        lelantus::RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+        lelantus::RangeProof proof;
         rangeProver.batch_proof(v_s, serials, randoms, proof);
 
-        lelantus::RangeVerifier<Scalar, GroupElement> rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
+        lelantus::RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
         BOOST_CHECK(!rangeVerifier.verify_batch(V, proof));
     };
 
     // All values are out of range
     std::vector<Scalar> vs;
-    for(int i = 0; i < m; ++i){
+    for(uint64_t i = 0; i < m; ++i){
         vs.emplace_back(17 + i);
     }
     testF(vs);

@@ -174,8 +174,14 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
         CAmount changeToMint = 0;
 
         std::vector<sigma::CoinDenomination> denomChanges;
-        if(!wallet.GetCoinsToSpend(required, sigmaSpendCoins, denomChanges, //try to spend sigma first
-                consensusParams.nMaxLelantusInputPerTransaction, consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
+        bool isSigmaToLelantus = false;
+        try {
+            isSigmaToLelantus = wallet.GetCoinsToSpend(required, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                consensusParams.nMaxLelantusInputPerTransaction, consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+        } catch (std::runtime_error) {
+        }
+
+        if(!isSigmaToLelantus) {
             if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint,
                                             consensusParams.nMaxLelantusInputPerTransaction,
                                             consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {

@@ -1,7 +1,8 @@
-namespace lelantus {
+#include "range_prover.h"
 
-template<class Exponent, class GroupElement>
-RangeProver<Exponent, GroupElement>::RangeProver(
+namespace lelantus {
+    
+RangeProver::RangeProver(
         const GroupElement& g,
         const GroupElement& h1,
         const GroupElement& h2,
@@ -16,19 +17,18 @@ RangeProver<Exponent, GroupElement>::RangeProver(
         , n (n)
 {}
 
-template<class Exponent, class GroupElement>
-void RangeProver<Exponent, GroupElement>::batch_proof(
-        const std::vector<Exponent>& v,
-        const std::vector<Exponent>& serialNumbers,
-        const std::vector<Exponent>& randomness,
-        RangeProof<Exponent, GroupElement>& proof_out) {
+void RangeProver::batch_proof(
+        const std::vector<Scalar>& v,
+        const std::vector<Scalar>& serialNumbers,
+        const std::vector<Scalar>& randomness,
+        RangeProof& proof_out) {
     std::size_t m = v.size();
     std::vector<std::vector<bool>> bits;
     bits.resize(m);
     for (std::size_t i = 0; i < v.size(); i++)
         v[i].get_bits(bits[i]);
 
-    std::vector<Exponent> aL, aR;
+    std::vector<Scalar> aL, aR;
     aL.reserve(n * m);
     aR.reserve(n * m);
     for (std::size_t j = 0; j < m; ++j)
@@ -36,15 +36,15 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         for (std::size_t i = 1; i <= n; ++i)
         {
             aL.emplace_back(uint64_t(bits[j][bits[j].size() - i]));
-            aR.emplace_back(Exponent(uint64_t(bits[j][bits[j].size() - i])) - Exponent(uint64_t(1)));
+            aR.emplace_back(Scalar(uint64_t(bits[j][bits[j].size() - i])) - Scalar(uint64_t(1)));
         }
     }
 
-    Exponent alpha;
+    Scalar alpha;
     alpha.randomize();
-    LelantusPrimitives<Exponent, GroupElement>::commit(h1, alpha, g_, aL, h_, aR, proof_out.A);
+    LelantusPrimitives::commit(h1, alpha, g_, aL, h_, aR, proof_out.A);
 
-    std::vector<Exponent> sL, sR;
+    std::vector<Scalar> sL, sR;
     sL.resize(n * m);
     sR.resize(n * m);
     for (std::size_t i = 0; i < n * m; ++i)
@@ -53,27 +53,27 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         sR[i].randomize();
     }
 
-    Exponent ro;
+    Scalar ro;
     ro.randomize();
-    LelantusPrimitives<Exponent, GroupElement>::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
+    LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
-    Exponent y, z;
+    Scalar y, z;
     std::vector<GroupElement> group_elements = {proof_out.A,proof_out.S};
     std::vector<GroupElement> group_elements2 = {proof_out.S,proof_out.A};
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, y);
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, z);
+    LelantusPrimitives::generate_challenge(group_elements, y);
+    LelantusPrimitives::generate_challenge(group_elements2, z);
 
     //compute l(x) and r(x) polynomials
-    std::vector<std::vector<Exponent>> l_x, r_x;
+    std::vector<std::vector<Scalar>> l_x, r_x;
     l_x.resize(n * m);
     r_x.resize(n * m);
-    NthPower<Exponent> y_nm(y);
-    NthPower<Exponent> z_j(z, z.square());
-    Exponent z_sum1(uint64_t(0));
-    Exponent z_sum2(uint64_t(0));
+    NthPower y_nm(y);
+    NthPower z_j(z, z.square());
+    Scalar z_sum1(uint64_t(0));
+    Scalar z_sum2(uint64_t(0));
 
-    NthPower<Exponent> two_n_(uint64_t(2));
-    std::vector<Exponent> two_n;
+    NthPower two_n_(uint64_t(2));
+    std::vector<Scalar> two_n;
     two_n.reserve(n);
     for (uint64_t k = 0; k < n; ++k)
     {
@@ -100,7 +100,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     }
 
     //compute t1 and t2 coefficients
-    Exponent t0, t1, t2;
+    Scalar t0, t1, t2;
     for (std::size_t i = 0; i < n * m; ++i)
     {
         t0 += l_x[i][0] * r_x[i][0];
@@ -109,22 +109,22 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     }
 
     //computing T11 T12 T21 T22;
-    Exponent T_11, T_12, T_21, T_22;
+    Scalar T_11, T_12, T_21, T_22;
     T_11.randomize();
     T_12.randomize();
     T_21.randomize();
     T_22.randomize();
-    proof_out.T1 = LelantusPrimitives<Exponent, GroupElement>::double_commit(g, t1, h1, T_11, h2, T_21);
-    proof_out.T2 = LelantusPrimitives<Exponent, GroupElement>::double_commit(g, t2, h1, T_12, h2, T_22);
+    proof_out.T1 = LelantusPrimitives::double_commit(g, t1, h1, T_11, h2, T_21);
+    proof_out.T2 = LelantusPrimitives::double_commit(g, t2, h1, T_12, h2, T_22);
 
-    Exponent x;
+    Scalar x;
     group_elements.emplace_back(proof_out.T1);
     group_elements.emplace_back(proof_out.T2);
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
+    LelantusPrimitives::generate_challenge(group_elements, x);
 
     //computing l and r
-    std::vector<Exponent> l;
-    std::vector<Exponent> r;
+    std::vector<Scalar> l;
+    std::vector<Scalar> r;
     l.reserve(n * m);
     r.reserve(n * m);
     for (std::size_t i = 0; i < n * m; i++)
@@ -140,19 +140,19 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     //compute h'
     std::vector<GroupElement> h_prime;
     h_prime.reserve(h_.size());
-    NthPower<Exponent> y_i_inv(y.inverse());
+    NthPower y_i_inv(y.inverse());
     for (std::size_t i = 0; i < h_.size(); ++i)
     {
         h_prime.emplace_back(h_[i] * y_i_inv.pow);
         y_i_inv.go_next();
     }
 
-    InnerProductProofGenerator<Exponent, GroupElement> InnerProductProofGenerator(g_, h_prime, g);
+    InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g);
     //t^ is calculated inside inner product proof generation with name c
-    Exponent x_u;
+    Scalar x_u;
     group_elements2.emplace_back(proof_out.T1);
     group_elements2.emplace_back(proof_out.T2);
-    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
+    LelantusPrimitives::generate_challenge(group_elements2, x_u);
 
     InnerProductProofGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
 

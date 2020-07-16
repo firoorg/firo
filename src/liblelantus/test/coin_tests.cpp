@@ -19,9 +19,10 @@ BOOST_AUTO_TEST_CASE(privatecoin)
     PrivateCoin priv(params, v);
     auto &serial = priv.getSerialNumber();
     auto &randomness = priv.getRandomness();
+    std::vector<unsigned char> seckey(32, 0);
 
     // calculate commitment
-    auto commitment = LelantusPrimitives<Scalar, GroupElement>::double_commit(
+    auto commitment = LelantusPrimitives::double_commit(
         params->get_g(), serial,
         params->get_h1(), priv.getV(),
         params->get_h0(), randomness);
@@ -34,7 +35,7 @@ BOOST_AUTO_TEST_CASE(privatecoin)
     BOOST_CHECK_EQUAL(commitment, priv.getPublicCoin().getValue());
 
     // Construct the identical coin by another constructor
-    PrivateCoin anotherPriv(params, serial, v, randomness, 0);
+    PrivateCoin anotherPriv(params, serial, v, randomness, seckey, 0);
 
     // verify
     BOOST_CHECK_EQUAL(serial, anotherPriv.getSerialNumber());

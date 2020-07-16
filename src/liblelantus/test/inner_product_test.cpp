@@ -9,9 +9,9 @@ namespace lelantus {
 
 class InnerProductTests : public LelantusTestingSetup {
 public:
-    typedef InnerProductProofGenerator<Scalar, GroupElement> ProofGenerator;
-    typedef InnerProductProofVerifier<Scalar, GroupElement> ProofVerifier;
-    typedef InnerProductProof<Scalar, GroupElement> Proof;
+    typedef InnerProductProofGenerator ProofGenerator;
+    typedef InnerProductProofVerifier ProofVerifier;
+    typedef InnerProductProof Proof;
 
 public:
     InnerProductTests() {}

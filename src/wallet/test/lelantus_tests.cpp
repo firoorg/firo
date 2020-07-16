@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
     // payload is commentment and schnorr proof
     size_t expectedSize = 1 // op code
         + lelantus::PublicCoin().GetSerializeSize()
-        + lelantus::SchnorrProof<Scalar, GroupElement>().memoryRequired();
+        + lelantus::SchnorrProof().memoryRequired();
 
     BOOST_CHECK(r.scriptPubKey.IsLelantusMint());
     BOOST_CHECK_EQUAL(expectedSize, r.scriptPubKey.size());

@@ -1,0 +1,47 @@
+#ifndef ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
+#define ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
+
+#include "lelantus_primitives.h"
+
+namespace lelantus {
+
+class SigmaExtendedVerifier{
+
+public:
+    SigmaExtendedVerifier(const GroupElement& g,
+                      const std::vector<GroupElement>& h_gens,
+                      uint64_t n, uint64_t m_);
+    //gets commitments divided into g^s
+    bool verify(const std::vector<GroupElement>& commits,
+                const Scalar& x,
+                const SigmaExtendedProof& proof) const;
+    //gets commitments divided into g^s
+    bool verify(const std::vector<GroupElement>& commits,
+                const SigmaExtendedProof& proof) const;
+    //gets initial double-blinded Pedersen commitments
+    bool batchverify(const std::vector<GroupElement>& commits,
+                     const Scalar& x,
+                     const std::vector<Scalar>& serials,
+                     const vector<SigmaExtendedProof>& proofs) const;
+
+private:
+    //auxiliary functions
+    bool membership_checks(const SigmaExtendedProof& proof) const;
+    bool compute_fs(
+            const SigmaExtendedProof& proof,
+            const Scalar& x,
+            std::vector<Scalar>& f_) const;
+    bool abcd_checks(
+            const SigmaExtendedProof& proof,
+            const Scalar& x,
+            const std::vector<Scalar>& f_) const;
+private:
+    GroupElement g_;
+    std::vector<GroupElement> h_;
+    uint64_t n;
+    uint64_t m;
+};
+
+} // namespace lelantus
+
+#endif //ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H

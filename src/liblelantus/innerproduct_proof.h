@@ -7,36 +7,11 @@
 namespace lelantus {
 
 // Storage of the proof.
-template <class Exponent, class GroupElement>
 class InnerProductProof {
 public:
 
     inline std::size_t memoryRequired(std::size_t size) const {
         return a_.memoryRequired() * 3 + 34 * 2 * size;
-    }
-
-    inline unsigned char* serialize(unsigned char* buffer) const {
-        buffer = a_.serialize(buffer);
-        buffer = b_.serialize(buffer);
-        buffer = c_.serialize(buffer);
-        for (std::size_t i = 0; i < L_.size(); ++i)
-            buffer = L_[i].serialize(buffer);
-        for (std::size_t i = 0; i < R_.size(); ++i)
-            buffer = R_[i].serialize(buffer);
-        return buffer;
-    }
-
-    inline const unsigned char* deserialize(const unsigned char* buffer, std::size_t size) {
-        buffer = a_.deserialize(buffer);
-        buffer = b_.deserialize(buffer);
-        buffer = c_.deserialize(buffer);
-        L_.resize(size);
-        for (std::size_t i = 0; i < size; ++i)
-            buffer = L_[i].deserialize(buffer);
-        R_.resize(size);
-        for (std::size_t i = 0; i < size; ++i)
-            buffer = R_[i].deserialize(buffer);
-        return buffer;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -49,9 +24,9 @@ public:
         READWRITE(R_);
     }
 
-    Exponent a_;
-    Exponent b_;
-    Exponent c_;
+    Scalar a_;
+    Scalar b_;
+    Scalar c_;
     std::vector<GroupElement> L_;
     std::vector<GroupElement> R_;
 };

@@ -1,5 +1,5 @@
-#include "../sigmaplus_prover.h"
-#include "../sigmaplus_verifier.h"
+#include "../sigmaextended_prover.h"
+#include "../sigmaextended_verifier.h"
 
 #include "lelantus_test_fixture.h"
 
@@ -7,7 +7,7 @@
 
 namespace lelantus {
 
-class SigmaPlusTests : public LelantusTestingSetup {
+class SigmaExtendedTests : public LelantusTestingSetup {
 public:
     struct Secret {
     public:
@@ -23,12 +23,12 @@ public:
     };
 
 public:
-    typedef SigmaPlusProver<Scalar, GroupElement> Prover;
-    typedef SigmaPlusProof<Scalar, GroupElement> Proof;
-    typedef SigmaPlusVerifier<Scalar, GroupElement> Verifier;
+    typedef SigmaExtendedProver Prover;
+    typedef SigmaExtendedProof Proof;
+    typedef SigmaExtendedVerifier Verifier;
 
 public:
-    SigmaPlusTests() {}
+    SigmaExtendedTests() {}
 
 public:
     void GenerateParams(int _N, int _n, int _m = 0) {
@@ -94,7 +94,7 @@ public:
     GroupElement g;
 };
 
-BOOST_FIXTURE_TEST_SUITE(lelantus_sigma_tests, SigmaPlusTests)
+BOOST_FIXTURE_TEST_SUITE(lelantus_sigma_tests, SigmaExtendedTests)
 
 BOOST_AUTO_TEST_CASE(one_out_of_N)
 {
