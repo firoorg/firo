@@ -160,7 +160,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     return total;
 }
 
-CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount)
+CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb)
 {
     outputs.clear();
     changes.clear();
@@ -174,7 +174,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         hdMint.SetNull();
-        mintWallet.GenerateMint(denomination, newCoin, hdMint, boost::none, true);
+        mintWallet.GenerateMint(walletdb, denomination, newCoin, hdMint, boost::none, true);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {

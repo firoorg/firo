@@ -20,7 +20,7 @@ class CHDMintWallet
 private:
     int32_t nCountNextUse;
     int32_t nCountNextGenerate;
-    std::string strWalletFile;
+    const std::string& strWalletFile;
     CMintPool mintPool;
     CHDMintTracker tracker;
     uint160 hashSeedMaster;
@@ -32,30 +32,29 @@ public:
 
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
-    bool GetHDMintFromMintPoolEntry(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
-    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
+    bool GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
+    bool GenerateMint(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
     bool LoadMintPoolFromDB();
-    bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& sigma);
+    bool RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma);
     bool GetSerialForPubcoin(const std::vector<std::pair<uint256, GroupElement>>& serialPubcoinPairs, const uint256& hashPubcoin, uint256& hashSerial);
     bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
-    std::pair<uint256,uint256> RegenerateMintPoolEntry(const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
-    void GenerateMintPool(int32_t nIndex = 0);
-    bool SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
+    std::pair<uint256,uint256> RegenerateMintPoolEntry(CWalletDB& walletdb, const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
+    void GenerateMintPool(CWalletDB& walletdb, int32_t nIndex = 0);
+    bool SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SeedToMint(const uint512& mintSeed, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
     int32_t GetCount();
     CHDMintTracker& GetTracker() { return tracker; }
-    void ResetCount();
+    void ResetCount(CWalletDB& walletdb);
     void SetCount(int32_t nCount);
     void UpdateCountLocal();
-    void UpdateCountDB();
-    void UpdateCount();
+    void UpdateCountDB(CWalletDB& walletdb);
     void SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex *blockIndex, const CBlock &block);
 
 private:
-    CKeyID GetMintSeedID(int32_t nCount);
-    bool CreateMintSeed(uint512& mintSeed, const int32_t& n, CKeyID& seedId);
+    CKeyID GetMintSeedID(CWalletDB& walletdb, int32_t nCount);
+    bool CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const int32_t& n, CKeyID& seedId, bool nWriteChain = true);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H

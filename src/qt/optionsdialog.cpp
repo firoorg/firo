@@ -164,6 +164,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->threadsScriptVerif, SIGNAL(valueChanged(int)), this, SLOT(showRestartWarning()));
     /* Wallet */
     connect(ui->spendZeroConfChange, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
+    connect(ui->reindexSigma, SIGNAL(clicked(bool)), this, SLOT(handleEnabledZapChanged()));
     /* Network */
     connect(ui->allowIncoming, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
     connect(ui->connectSocks, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
@@ -182,6 +183,7 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
+    mapper->addMapping(ui->reindexSigma, OptionsModel::ReindexSigma);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
 
     /* Network */
@@ -254,6 +256,23 @@ void OptionsDialog::on_hideTrayIcon_stateChanged(int fState)
     else
     {
         ui->minimizeToTray->setEnabled(true);
+    }
+}
+void OptionsDialog::handleEnabledZapChanged(){
+	QMessageBox msgBox;
+
+	if(ui->reindexSigma->isChecked()){
+        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Reindex Sigma"),
+                     tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?"),
+                     QMessageBox::Yes|QMessageBox::Cancel,
+                     QMessageBox::Cancel);
+        if(retval == QMessageBox::Cancel) {
+            ui->reindexSigma->setChecked(false);
+        }else {
+            showRestartWarning();
+        }
+    }else {
+        clearStatusLabel();
     }
 }
 

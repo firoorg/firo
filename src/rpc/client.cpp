@@ -175,8 +175,13 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listspendzerocoins", 1 },
     { "listsigmaspends", 0 },
     { "listsigmaspends", 1 },
-	{ "spendallzerocoin", 0 },
+    { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
+    { "getanonymityset", 0},
+    { "getmintmetadata", 0 },
+    { "getusedcoinserials", 0 },
+    { "getlatestcoinids", 0 },
+
     /* Elysium - data retrieval calls */
 	{ "elysium_gettradehistoryforaddress", 1 },
 	{ "elysium_gettradehistoryforaddress", 2 },
