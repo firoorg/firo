@@ -21,7 +21,7 @@ public:
 protected:
     CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override;
     // remint change
-    CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) override;
+    CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb) override;
 
 private:
     CHDMintWallet& mintWallet;
