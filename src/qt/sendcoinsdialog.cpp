@@ -39,6 +39,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     model(0),
     fNewRecipientAllowed(true),
     fFeeMinimized(true),
+    fAnonymizeMode(true),
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
@@ -85,6 +86,8 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlBytes->addAction(clipboardBytesAction);
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
+
+    setAnonymizeMode(true);
 
     // init transaction fee section
     QSettings settings;
@@ -133,9 +136,16 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
-        setBalance(_model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
-                   _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance());
-        connect(_model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+        setBalance(
+            _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
+            _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
+            _model->getPrivateBalance(), _model->getUnconfirmedPrivateBalance(), _model->getAnonymizableBalance());
+        connect(
+            _model,
+            SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
+            this,
+            SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+
         connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
         updateDisplayUnit();
 
@@ -332,6 +342,11 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = true;
 }
 
+void SendCoinsDialog::on_switchFundButton_clicked()
+{
+    setAnonymizeMode(!fAnonymizeMode);
+}
+
 void SendCoinsDialog::clear()
 {
     // Remove entries until only one left
@@ -463,24 +478,35 @@ bool SendCoinsDialog::handlePaymentRequest(const SendCoinsRecipient &rv)
     return true;
 }
 
-void SendCoinsDialog::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                                 const CAmount& watchBalance, const CAmount& watchUnconfirmedBalance, const CAmount& watchImmatureBalance)
+void SendCoinsDialog::setBalance(
+    const CAmount& balance,
+    const CAmount& unconfirmedBalance,
+    const CAmount& immatureBalance,
+    const CAmount& watchBalance,
+    const CAmount& watchUnconfirmedBalance,
+    const CAmount& watchImmatureBalance,
+    const CAmount& privateBalance,
+    const CAmount& unconfirmedPrivateBalance,
+    const CAmount& anonymizableBalance)
 {
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(immatureBalance);
     Q_UNUSED(watchBalance);
     Q_UNUSED(watchUnconfirmedBalance);
     Q_UNUSED(watchImmatureBalance);
+    Q_UNUSED(unconfirmedPrivateBalance);
+    Q_UNUSED(anonymizableBalance);
 
     if(model && model->getOptionsModel())
     {
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance));
+        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
+            fAnonymizeMode ? privateBalance : balance));
     }
 }
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0);
+    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getPrivateBalance(), 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
 }
@@ -616,6 +642,22 @@ void SendCoinsDialog::updateFeeMinimizedLabel()
 //        ui->labelFeeMinimized->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), ui->customFee->value()) +
 //            ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
 //    }
+}
+
+void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
+{
+    fAnonymizeMode = enableAnonymizeMode;
+    if (fAnonymizeMode) {
+        ui->switchFundButton->setText(QString("Use Transparent Balance"));
+        ui->label->setText(QString("Private Balance"));
+    } else {
+        ui->switchFundButton->setText(QString("Use Private Balance"));
+        ui->label->setText(QString("Transparent Balance"));
+    }
+
+    if (model) {
+        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getPrivateBalance(), 0, 0);
+    }
 }
 
 void SendCoinsDialog::updateMinFeeLabel()
