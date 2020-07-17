@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y \
     libqrencode-dev libssl-dev libtool make pkg-config protobuf-compiler python-pip qtbase5-dev \
     qttools5-dev-tools python3-zmq zlib1g-dev build-essential minizip lcov default-jre libzmq3-dev libgmp-dev
 
+# update mingw alternatives
+RUN update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+RUN update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+
 RUN pip install ez_setup
 
 # create user to use
