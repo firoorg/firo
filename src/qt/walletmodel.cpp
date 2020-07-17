@@ -114,9 +114,76 @@ CAmount WalletModel::getWatchImmatureBalance() const
     return wallet->GetImmatureWatchOnlyBalance();
 }
 
+CAmount WalletModel::getPrivateBalance(bool includeSigma) const
+{
+    CAmount balance = 0;
+
+    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
+    for (auto const &c : coins) {
+        if (c.nHeight > 0) {
+            balance += c.amount;
+        }
+    }
+
+    if (includeSigma) {
+        auto balances = getSigmaBalance();
+        balance += balances.first;
+    }
+
+    return balance;
+}
+
+CAmount WalletModel::getUnconfirmedPrivateBalance(bool includeSigma) const
+{
+    CAmount balance = 0;
+
+    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
+    for (auto const &c : coins) {
+        if (c.nHeight < 0) {
+            balance += c.amount;
+        }
+    }
+
+    if (includeSigma) {
+        auto balances = getSigmaBalance();
+        balance += balances.second;
+    }
+
+    return balance;
+}
+
 CAmount WalletModel::getAnonymizableBalance() const
 {
     return lelantusModel->getMintableAmount();
+}
+
+std::pair<CAmount, CAmount> WalletModel::getSigmaBalance() const
+{
+    auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
+
+    CAmount confirmed = 0, unconfirmed = 0;
+
+    for (const auto& coin : coins) {
+
+        // ignore spent coin
+        if (coin.isUsed)
+            continue;
+
+        int coinHeight = coin.nHeight;
+        CAmount amount;
+        if (!sigma::DenominationToInteger(coin.denom, amount)) {
+            throw std::runtime_error("Fail to get denomination value");
+        }
+
+        if (coinHeight > 0
+            && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())  {
+            confirmed += amount;
+        } else {
+            unconfirmed += amount;
+        }
+    }
+
+    return {confirmed, unconfirmed};
 }
 
 void WalletModel::updateStatus()
@@ -195,6 +262,8 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
+    CAmount newPrivateBalance = getPrivateBalance();
+    CAmount newUnconfirmedPrivateBalance = getUnconfirmedPrivateBalance();
     CAmount newAnonymizableBalance = getAnonymizableBalance();
     if (haveWatchOnly())
     {
@@ -209,6 +278,8 @@ void WalletModel::checkBalanceChanged()
         || cachedWatchOnlyBalance != newWatchOnlyBalance
         || cachedWatchUnconfBalance != newWatchUnconfBalance
         || cachedWatchImmatureBalance != newWatchImmatureBalance
+        || cachedPrivateBalance != newPrivateBalance
+        || cachedUnconfirmedPrivateBalance != newUnconfirmedPrivateBalance
         || cachedAnonymizableBalance != newAnonymizableBalance)
     {
         cachedBalance = newBalance;
@@ -217,10 +288,19 @@ void WalletModel::checkBalanceChanged()
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
+        cachedPrivateBalance = newPrivateBalance;
+        cachedUnconfirmedPrivateBalance = newUnconfirmedPrivateBalance;
         cachedAnonymizableBalance = newAnonymizableBalance;
-        Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance,
-                            newWatchOnlyBalance, newWatchUnconfBalance, newWatchImmatureBalance,
-                            newAnonymizableBalance);
+        Q_EMIT balanceChanged(
+            newBalance,
+            newUnconfirmedBalance,
+            newImmatureBalance,
+            newWatchOnlyBalance,
+            newWatchUnconfBalance,
+            newWatchImmatureBalance,
+            newPrivateBalance,
+            newUnconfirmedPrivateBalance,
+            newAnonymizableBalance);
     }
 }
 

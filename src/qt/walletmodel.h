@@ -144,7 +144,13 @@ public:
     CAmount getWatchBalance() const;
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
+    CAmount getPrivateBalance(bool includeSigma = false) const;
+    CAmount getUnconfirmedPrivateBalance(bool includeSigma = false) const;
+
     CAmount getAnonymizableBalance() const;
+
+    std::pair<CAmount, CAmount> getSigmaBalance() const;
+
     EncryptionStatus getEncryptionStatus() const;
 
     // Check address for validity
@@ -272,6 +278,8 @@ private:
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
     CAmount cachedAnonymizableBalance;
+    CAmount cachedPrivateBalance;
+    CAmount cachedUnconfirmedPrivateBalance;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -291,6 +299,7 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                         const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
+                        const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance,
                         const CAmount& anonymizableBalance);
 
     void updateMintable();

@@ -256,7 +256,7 @@
              </widget>
             </item>
             <item row="5" column="1">
-             <widget class="QLabel" name="labelSigmaPending">
+             <widget class="QLabel" name="labelUnconfirmedPrivate">
               <property name="font">
                <font>
                 <weight>75</weight>
@@ -281,7 +281,7 @@
              </widget>
             </item>
             <item row="5" column="0">
-             <widget class="QLabel" name="labelSigmaPendingText">
+             <widget class="QLabel" name="labelUnconfirmedPrivateText">
               <property name="text">
                <string>Pending:</string>
               </property>
@@ -488,14 +488,14 @@
              </widget>
             </item>
             <item row="2" column="0">
-             <widget class="QLabel" name="labelSigmaBalanceText">
+             <widget class="QLabel" name="labelPrivateText">
               <property name="text">
                <string>Available:</string>
               </property>
              </widget>
             </item>
             <item row="2" column="1">
-             <widget class="QLabel" name="labelSigmaBalance">
+             <widget class="QLabel" name="labelPrivate">
               <property name="font">
                <font>
                 <weight>75</weight>
