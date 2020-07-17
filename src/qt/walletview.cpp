@@ -355,7 +355,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
 
         auto lelantusModel = _walletModel->getLelantusModel();
         if (lelantusModel) {
-            connect(lelantusModel, SIGNAL(askMintAll()), this, SLOT(askMintAll()));
+            connect(lelantusModel, SIGNAL(askMintAll(bool)), this, SLOT(askMintAll(bool)));
         }
     }
 }
@@ -631,7 +631,7 @@ void WalletView::requestedSyncWarningInfo()
     Q_EMIT outOfSyncWarningClicked();
 }
 
-void WalletView::askMintAll()
+void WalletView::askMintAll(bool userAsk)
 {
     if (!walletModel) {
         return;
@@ -647,7 +647,7 @@ void WalletView::askMintAll()
         return;
     }
 
-    AutoMintDialog dlg(this);
+    AutoMintDialog dlg(userAsk, this);
     dlg.setModel(walletModel);
     dlg.exec();
 }

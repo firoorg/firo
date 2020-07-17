@@ -14,7 +14,7 @@ class AutoMintDialog : public QDialog
     Q_OBJECT;
 
 public:
-    explicit AutoMintDialog(QWidget *parent = 0);
+    explicit AutoMintDialog(bool userAsk, QWidget *parent = 0);
     ~AutoMintDialog();
 
 public:
@@ -30,6 +30,7 @@ private:
     WalletModel *model;
     LelantusModel *lelantusModel;
     bool requiredPassphase;
+    bool userAsk;
 
     void ensureLelantusModel();
 };

@@ -51,10 +51,10 @@ public:
     mutable CCriticalSection cs;
 
 Q_SIGNALS:
-    void askMintAll();
+    void askMintAll(bool userAsk);
 
 public Q_SLOTS:
-    void askUserToMint();
+    void askUserToMint(bool userAsk = false);
 
     void checkPendingTransactions();
     void checkAutoMint(bool force = false);

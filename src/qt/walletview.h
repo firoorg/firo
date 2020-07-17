@@ -188,7 +188,7 @@ public Q_SLOTS:
     void requestedSyncWarningInfo();
 
     /** Ask user to do auto mint */
-    void askMintAll();
+    void askMintAll(bool userAsk);
 
 Q_SIGNALS:
     /** Signal that we want to show the main window */

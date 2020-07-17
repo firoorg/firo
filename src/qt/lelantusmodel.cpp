@@ -151,7 +151,6 @@ void LelantusModel::updateTransaction(uint256 hash)
 
 void LelantusModel::checkAutoMint(bool userAsk)
 {
-    std::cout << "autoMintState : " << int(autoMintState) << std::endl;
     {
         LOCK(cs);
 
@@ -178,12 +177,12 @@ void LelantusModel::checkAutoMint(bool userAsk)
         autoMintState = AutoMintState::WaitingForUserResponse;
     }
 
-    askUserToMint();
+    askUserToMint(userAsk);
 }
 
-void LelantusModel::askUserToMint()
+void LelantusModel::askUserToMint(bool userAsk)
 {
-    Q_EMIT askMintAll();
+    Q_EMIT askMintAll(userAsk);
 }
 
 void LelantusModel::checkPendingTransactions()
