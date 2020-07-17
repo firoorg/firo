@@ -45,6 +45,7 @@ public:
         ThreadsScriptVerif,     // int
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
+        ReindexSigma,           // bool
         Listen,                 // bool
         TorSetup,               // bool
         OptionIDRowCount,
