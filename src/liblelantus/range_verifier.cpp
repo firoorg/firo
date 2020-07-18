@@ -1,4 +1,5 @@
 #include "range_verifier.h"
+#include "challenge_generator.h"
 
 namespace lelantus {
     
@@ -25,20 +26,17 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     //computing challenges
     Scalar x, x_u, y, z;
 
-    std::vector<GroupElement> group_elements = {proof.A,proof.S};
-    std::vector<GroupElement> group_elements2 = {proof.S,proof.A};
-    LelantusPrimitives::generate_challenge(group_elements, y);
+    ChallengeGenerator challengeGenerator;
+    challengeGenerator.add({proof.A, proof.S});
+    challengeGenerator.get_challenge(y);
+    challengeGenerator.get_challenge(z);
 
-    LelantusPrimitives::generate_challenge(group_elements2, z);
-
-    group_elements.emplace_back(proof.T1);
-    group_elements.emplace_back(proof.T2);
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    challengeGenerator.add({proof.T1, proof.T2});
+    challengeGenerator.get_challenge(x);
     Scalar x_neg = x.negate();
 
-    group_elements2.emplace_back(proof.T1);
-    group_elements2.emplace_back(proof.T2);
-    LelantusPrimitives::generate_challenge(group_elements2, x_u);
+    challengeGenerator.add({proof.T_x1, proof.T_x2, proof.u});
+    challengeGenerator.get_challenge(x_u);
 
     auto log_n = RangeProof::int_log2(n * m);
     const InnerProductProof& innerProductProof = proof.innerProductProof;

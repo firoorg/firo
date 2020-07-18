@@ -1,4 +1,5 @@
 #include "range_prover.h"
+#include "challenge_generator.h"
 
 namespace lelantus {
     
@@ -58,10 +59,10 @@ void RangeProver::batch_proof(
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Scalar y, z;
-    std::vector<GroupElement> group_elements = {proof_out.A,proof_out.S};
-    std::vector<GroupElement> group_elements2 = {proof_out.S,proof_out.A};
-    LelantusPrimitives::generate_challenge(group_elements, y);
-    LelantusPrimitives::generate_challenge(group_elements2, z);
+    ChallengeGenerator challengeGenerator;
+    challengeGenerator.add({proof_out.A, proof_out.S});
+    challengeGenerator.get_challenge(y);
+    challengeGenerator.get_challenge(z);
 
     //compute l(x) and r(x) polynomials
     std::vector<std::vector<Scalar>> l_x, r_x;
@@ -118,9 +119,8 @@ void RangeProver::batch_proof(
     proof_out.T2 = LelantusPrimitives::double_commit(g, t2, h1, T_12, h2, T_22);
 
     Scalar x;
-    group_elements.emplace_back(proof_out.T1);
-    group_elements.emplace_back(proof_out.T2);
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    challengeGenerator.add({proof_out.T1, proof_out.T2});
+    challengeGenerator.get_challenge(x);
 
     //computing l and r
     std::vector<Scalar> l;
@@ -150,9 +150,8 @@ void RangeProver::batch_proof(
     InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g);
     //t^ is calculated inside inner product proof generation with name c
     Scalar x_u;
-    group_elements2.emplace_back(proof_out.T1);
-    group_elements2.emplace_back(proof_out.T2);
-    LelantusPrimitives::generate_challenge(group_elements2, x_u);
+    challengeGenerator.add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
+    challengeGenerator.get_challenge(x_u);
 
     InnerProductProofGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
 
