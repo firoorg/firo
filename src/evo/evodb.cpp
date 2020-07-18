@@ -16,6 +16,7 @@ CEvoDB::CEvoDB(size_t nCacheSize, bool fMemory, bool fWipe) :
 
 bool CEvoDB::CommitRootTransaction()
 {
+    LOCK(cs);
     assert(curDBTransaction.IsClean());
     rootDBTransaction.Commit();
     bool ret = db.WriteBatch(rootBatch);

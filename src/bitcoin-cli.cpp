@@ -11,6 +11,7 @@
 #include "clientversion.h"
 #include "rpc/client.h"
 #include "rpc/protocol.h"
+#include "stacktraces.h"
 #include "util.h"
 #include "utilstrencodings.h"
 
@@ -77,6 +78,14 @@ static int AppInitRPC(int argc, char* argv[])
     // Parameters
     //
     ParseParameters(argc, argv);
+
+#ifdef ENABLE_CRASH_HOOKS
+    if (IsArgSet("-printcrashinfo")) {
+        std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
+        return true;
+    }
+#endif
+
     if (argc<2 || IsArgSet("-?") || IsArgSet("-h") || IsArgSet("-help") || IsArgSet("-version")) {
         std::string strUsage = strprintf(_("%s RPC client version"), _(PACKAGE_NAME)) + " " + FormatFullVersion() + "\n";
         if (!IsArgSet("-version")) {
@@ -344,7 +353,7 @@ int CommandLineRPC(int argc, char *argv[])
         nRet = EXIT_FAILURE;
     }
     catch (...) {
-        PrintExceptionContinue(NULL, "CommandLineRPC()");
+        PrintExceptionContinue(std::current_exception(), "CommandLineRPC()");
         throw;
     }
 
@@ -356,6 +365,11 @@ int CommandLineRPC(int argc, char *argv[])
 
 int main(int argc, char* argv[])
 {
+#ifdef ENABLE_CRASH_HOOKS
+    RegisterPrettySignalHandlers();
+    RegisterPrettyTerminateHander();
+#endif
+
     SetupEnvironment();
     if (!SetupNetworking()) {
         fprintf(stderr, "Error: Initializing networking failed\n");
@@ -366,12 +380,8 @@ int main(int argc, char* argv[])
         int ret = AppInitRPC(argc, argv);
         if (ret != CONTINUE_EXECUTION)
             return ret;
-    }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "AppInitRPC()");
-        return EXIT_FAILURE;
     } catch (...) {
-        PrintExceptionContinue(NULL, "AppInitRPC()");
+        PrintExceptionContinue(std::current_exception(), "AppInitRPC()");
         return EXIT_FAILURE;
     }
 
@@ -379,10 +389,8 @@ int main(int argc, char* argv[])
     try {
         ret = CommandLineRPC(argc, argv);
     }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "CommandLineRPC()");
-    } catch (...) {
-        PrintExceptionContinue(NULL, "CommandLineRPC()");
+    catch (...) {
+        PrintExceptionContinue(std::current_exception(), "CommandLineRPC()");
     }
     return ret;
 }
