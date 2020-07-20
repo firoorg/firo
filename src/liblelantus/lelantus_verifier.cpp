@@ -82,7 +82,7 @@ bool LelantusVerifier::verify_rangeproof(
         const RangeProof& bulletproofs) {
 
     std::size_t n = params->get_bulletproofs_n();
-    std::size_t m = Cout.size();
+    std::size_t m = Cout.size() * 2;
 
     while (m & (m - 1))
         m++;
@@ -95,8 +95,10 @@ bool LelantusVerifier::verify_rangeproof(
 
     std::vector<GroupElement> V;
     V.reserve(m);
-    for (std::size_t i = 0; i < Cout.size(); ++i)
+    for (std::size_t i = 0; i < Cout.size(); ++i) {
+        V.push_back(Cout[i].getValue());
         V.push_back(Cout[i].getValue() + params->get_h1() * (Scalar(uint64_t(2)).exponent(params->get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint));
+    }
 
     for (std::size_t i = Cout.size(); i < m; ++i)
         V.push_back(GroupElement());

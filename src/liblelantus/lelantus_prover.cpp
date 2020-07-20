@@ -138,7 +138,7 @@ void LelantusProver::generate_bulletproofs(
         RangeProof& bulletproofs) {
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
     std::size_t n = params->get_bulletproofs_n();
-    std::size_t m = Cout.size();
+    std::size_t m = Cout.size() * 2;
 
     while(m & (m - 1))
         m++;
@@ -148,9 +148,10 @@ void LelantusProver::generate_bulletproofs(
     randoms.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
+        v_s.push_back(Cout[i].getV());
         v_s.push_back(Cout[i].getVScalar() + (Scalar(uint64_t(2)).exponent(params->get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint));
-        serials.push_back(Cout[i].getSerialNumber());
-        randoms.push_back(Cout[i].getRandomness());
+        serials.insert(serials.end(), 2, Cout[i].getSerialNumber());
+        randoms.insert(randoms.end(), 2, Cout[i].getRandomness());
     }
 
     v_s.resize(m);
