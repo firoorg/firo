@@ -50,7 +50,6 @@
 #include "dsnotificationinterface.h"
 #include "flat-database.h"
 #include "instantx.h"
-#include "masternode-meta.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternode-utils.h"
@@ -269,20 +268,6 @@ void Shutdown()
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
     g_connman.reset();
-
-   if (!fLiteMode) {
-        // STORE DATA CACHES INTO SERIALIZED DAT FILES
-        CFlatDB<CMasternodeMetaMan> flatdb1("evozncache.dat", "magicMasternodeCache");
-        flatdb1.Dump(mmetaman);
-        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-        flatdb4.Dump(netfulfilledman);
-        /*if(fEnableInstantSend)
-        {
-            CFlatDB<CInstantSend> flatdb5("instantsend.dat", "magicInstantSendCache");
-            flatdb5.Dump(instantsend);
-        }
-        */
-    }
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
@@ -2071,55 +2056,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
     }
 
-    // ********************************************************* Step 10b: PrivateSend (some of its functions are required for legacy znode operation)
-    // Obsoleted
-    // ********************************************************* Step 10c: Load cache data
-
-    // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    bool fIgnoreCacheFiles = !GetBoolArg("-persistentznodestate", true) || fLiteMode || fReindex || fReindexChainState;
-    if (!fIgnoreCacheFiles) {
-        // Evo znode cache
-        boost::filesystem::path pathDB = GetDataDir();
-        std::string strDBName;
-
-        strDBName = "evozncache.dat";
-        uiInterface.InitMessage(_("Loading znode cache..."));
-        CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
-        if(!flatdb1.Load(mmetaman)) {
-            return InitError(_("Failed to load znode cache from") + "\n" + (pathDB / strDBName).string());
-        }
-
-        /*
-        strDBName = "governance.dat";
-        uiInterface.InitMessage(_("Loading governance cache..."));
-        CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
-        if(!flatdb3.Load(governance)) {
-            return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());
-        }
-        governance.InitOnLoad();
-        */
-
-        strDBName = "netfulfilled.dat";
-        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-        CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
-        if(!flatdb4.Load(netfulfilledman)) {
-            return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
-        }
-
-        /*
-        if(fEnableInstantSend)
-        {
-            strDBName = "instantsend.dat";
-            uiInterface.InitMessage(_("Loading InstantSend data cache..."));
-            CFlatDB<CInstantSend> flatdb5(strDBName, "magicInstantSendCache");
-            if(!flatdb5.Load(instantsend)) {
-                return InitError(_("Failed to load InstantSend data cache from") + "\n" + (pathDB / strDBName).string());
-            }
-        }
-        */
-    }
-
-    // ********************************************************* Step 10d: schedule Dash-specific tasks
+    // ********************************************************* Step 10b: schedule Dash-specific tasks
 
     if (!fLiteMode) {
         scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60);

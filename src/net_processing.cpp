@@ -35,7 +35,6 @@
 
 #include "masternode-payments.h"
 #include "masternode-sync.h"
-#include "masternode-meta.h"
 
 #include "evo/deterministicmns.h"
 #include "evo/mnauth.h"

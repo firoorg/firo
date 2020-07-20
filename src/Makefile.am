@@ -294,7 +294,6 @@ BITCOIN_CORE_H = \
   addresstype.h \
   mtpstate.h \
   messagesigner.h \
-  masternode-meta.h \
   masternode-payments.h \
   masternode-sync.h \
   saltedhasher.h \
@@ -408,7 +407,6 @@ libbitcoin_server_a_SOURCES = \
   llmq/quorums_signing.cpp \
   llmq/quorums_signing_shares.cpp \
   llmq/quorums_utils.cpp \
-  masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
   masternode-utils.cpp \
