@@ -273,7 +273,7 @@ void Shutdown()
     flatdb1.Dump(mnodeman);
     CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
     flatdb2.Dump(znpayments);
-    
+
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
@@ -810,7 +810,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }    
+    }
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
@@ -2311,7 +2311,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     if (chainActive.Height()-6 >= Params().GetConsensus().DIP0003EnforcementHeight)
                         break;
                 }
-                    
+
                 znodeSync.ProcessTick();
 
                 if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {

@@ -619,7 +619,7 @@ bool CWallet::Verify()
         } catch (const boost::filesystem::filesystem_error&) {
             // failure is ok (well, not really, but it's not worse than what we started with)
         }
-        
+
         // try again
         if (!bitdb.Open(GetDataDir())) {
             // if it still fails, it probably means we can't even create the database env
@@ -4071,7 +4071,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 setCoins.clear();
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
                 {
-                    strFailReason = _("Insufficient funds");                            
+                    strFailReason = _("Insufficient funds");
                     return false;
                 }
                 if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
@@ -4112,7 +4112,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                             strFailReason = _("Keypool ran out, please call keypoolrefill first");
                             return false;
                         }
-                        
+
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
@@ -5417,7 +5417,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                         }
                         scriptChange = GetScriptForDestination(keyID);
                     }
-                    
+
                     // no coin control: send change to newly generated address
                     else
                     {
@@ -8361,7 +8361,7 @@ bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 
 /**
  * Mark old keypool keys as used,
- * and generate all new keys 
+ * and generate all new keys
  */
 bool CWallet::NewKeyPool()
 {

@@ -107,6 +107,7 @@ BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAG
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/src
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
+BITCOIN_INCLUDES += $(LIBBLSSIG_INCLUDES)
 
 LIBBITCOIN_SERVER=libbitcoin_server.a
 LIBBITCOIN_COMMON=libbitcoin_common.a

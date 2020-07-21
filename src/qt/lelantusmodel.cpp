@@ -71,7 +71,7 @@ CAmount LelantusModel::getMintableAmount()
 {
     std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
     {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        LOCK2(cs_main, wallet->cs_wallet);
         pwalletMain->AvailableCoinsForLMint(valueAndUTXO, nullptr);
     }
 
@@ -115,7 +115,8 @@ void LelantusModel::lockWallet()
 
 CAmount LelantusModel::mintAll()
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    LOCK(wallet->cs_wallet);
+    // LOCK2(cs_main, wallet->cs_wallet);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> hdMints;

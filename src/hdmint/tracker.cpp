@@ -62,6 +62,7 @@ void CHDMintTracker::Init()
 {
     if (!fInitialized) {
         ListMints(false, false, false, true);
+        ListLelantusMints(false, false, false, true);
         fInitialized = true;
     }
 }

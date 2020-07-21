@@ -112,6 +112,14 @@ void MasternodeList::handleMasternodeListChanged()
 
 void MasternodeList::updateDIP3ListScheduled()
 {
+    TRY_LOCK(cs_main, fMainAcquired);
+    if (!fMainAcquired) return;
+
+#ifdef ENABLE_WALLET
+    TRY_LOCK(pwalletMain->cs_wallet, fWalletAcquired);
+    if (!fWalletAcquired) return;
+#endif
+
     TRY_LOCK(cs_dip3list, fLockAcquired);
     if (!fLockAcquired) return;
 
