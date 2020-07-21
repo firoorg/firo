@@ -136,6 +136,9 @@ void LelantusProver::generate_sigma_proofs(
 void LelantusProver::generate_bulletproofs(
         const std::vector <PrivateCoin>& Cout,
         RangeProof& bulletproofs) {
+    if(Cout.empty())
+        return;
+
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size();

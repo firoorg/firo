@@ -80,6 +80,8 @@ bool LelantusVerifier::verify_sigma(
 bool LelantusVerifier::verify_rangeproof(
         const std::vector<PublicCoin>& Cout,
         const RangeProof& bulletproofs) {
+    if(Cout.empty())
+        return true;
 
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size();
