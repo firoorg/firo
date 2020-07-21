@@ -33,7 +33,9 @@ void ChallengeGenerator::add(const std::vector<Scalar>& scalars) {
 void ChallengeGenerator::get_challenge(Scalar& result_out) {
     unsigned char result_data[CSHA256::OUTPUT_SIZE];
     do {
+        CSHA256 temp_hash = hash;
         hash.Finalize(result_data);
+        hash = temp_hash;
         result_out = result_data;
         add(result_out);
     } while (result_out.isZero() || !result_out.isMember());
