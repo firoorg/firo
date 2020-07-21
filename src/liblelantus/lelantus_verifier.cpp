@@ -12,10 +12,14 @@ bool LelantusVerifier::verify(
         const std::vector<Scalar>& serialNumbers,
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
-        const Scalar& Vout,
-        const Scalar f,
+        uint64_t Vout,
+        uint64_t f,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
+    //check the overflow of Vout and fee
+    if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && f < (1000 * CENT))) // 1000 * CENT is the value of max fee defined at validation.h
+        return false;
+
     std::vector<std::vector<PublicCoin>> vAnonymity_sets;
     std::vector<std::vector<Scalar>> vSin;
     vAnonymity_sets.reserve(anonymity_sets.size());
