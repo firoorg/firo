@@ -1,3 +1,4 @@
+#include "../lelantus.h"
 #include "../validation.h"
 
 #include "guiconstants.h"
@@ -116,7 +117,6 @@ void LelantusModel::lockWallet()
 CAmount LelantusModel::mintAll()
 {
     LOCK(wallet->cs_wallet);
-    // LOCK2(cs_main, wallet->cs_wallet);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> hdMints;
@@ -152,6 +152,12 @@ void LelantusModel::updateTransaction(uint256 hash)
 
 void LelantusModel::checkAutoMint(bool userAsk)
 {
+    bool allowed = lelantus::IsLelantusAllowed();
+    if (!userAsk && !allowed) {
+        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(checkAutoMint()));
+        return;
+    }
+
     {
         LOCK(cs);
 
