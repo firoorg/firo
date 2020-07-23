@@ -15,11 +15,14 @@ public:
     ChallengeGenerator();
     void add(const GroupElement& group_element);
     void add(const std::vector<GroupElement>& group_elements);
+    void add(const Scalar& scalar);
+    void add(const std::vector<Scalar>& scalars);
     void get_challenge(Scalar& result_out);
 
 private:
     CSHA256 hash;
     std::vector<unsigned char> data;
+    std::vector<unsigned char> scalar_data;
 };
 
 }// namespace lelantus
