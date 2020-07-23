@@ -39,7 +39,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     model(0),
     fNewRecipientAllowed(true),
     fFeeMinimized(true),
-    fAnonymizeMode(true),
+    fAnonymousMode(true),
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
@@ -231,14 +231,16 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
     CCoinControl ctrl;
-    if (model->getOptionsModel()->getCoinControlFeatures())
+    if (model->getOptionsModel()->getCoinControlFeatures()) {
         ctrl = *CoinControlDialog::coinControl;
+        removeUnmatchedOutput(ctrl);
+    }
     if (ui->radioSmartFee->isChecked())
         ctrl.nConfirmTarget = ui->sliderSmartFee->maximum() - ui->sliderSmartFee->value() + 2;
     else
         ctrl.nConfirmTarget = 0;
 
-    if (fAnonymizeMode) {
+    if (fAnonymousMode) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
     } else {
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
@@ -335,7 +337,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if (fAnonymizeMode) {
+    if (fAnonymousMode) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
     } else {
         sendStatus = model->sendCoins(currentTransaction);
@@ -354,7 +356,8 @@ void SendCoinsDialog::on_sendButton_clicked()
 
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
-    setAnonymizeMode(!fAnonymizeMode);
+    setAnonymizeMode(!fAnonymousMode);
+    coinControlUpdateLabels();
 }
 
 void SendCoinsDialog::clear()
@@ -510,7 +513,7 @@ void SendCoinsDialog::setBalance(
     if(model && model->getOptionsModel())
     {
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
-            fAnonymizeMode ? privateBalance : balance));
+            fAnonymousMode ? privateBalance : balance));
     }
 }
 
@@ -656,8 +659,8 @@ void SendCoinsDialog::updateFeeMinimizedLabel()
 
 void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 {
-    fAnonymizeMode = enableAnonymizeMode;
-    if (fAnonymizeMode) {
+    fAnonymousMode = enableAnonymizeMode;
+    if (fAnonymousMode) {
         ui->switchFundButton->setText(QString("Use Transparent Balance"));
         ui->label->setText(QString("Private Balance"));
     } else {
@@ -667,6 +670,26 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 
     if (model) {
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getPrivateBalance(), 0, 0);
+    }
+}
+
+void SendCoinsDialog::removeUnmatchedOutput(CCoinControl &coinControl)
+{
+    std::vector<COutPoint> outpoints;
+    coinControl.ListSelected(outpoints);
+
+    for (auto const &out : outpoints) {
+        auto it = pwalletMain->mapWallet.find(out.hash);
+        if (it == pwalletMain->mapWallet.end()) {
+            coinControl.UnSelect(out);
+            continue;
+        }
+
+        auto isMint = it->second.tx->vout[out.n].scriptPubKey.IsMint();
+
+        if (isMint != fAnonymousMode) {
+            coinControl.UnSelect(out);
+        }
     }
 }
 
@@ -736,7 +759,7 @@ void SendCoinsDialog::coinControlFeatureChanged(bool checked)
 // Coin Control: button inputs -> show actual coin control dialog
 void SendCoinsDialog::coinControlButtonClicked()
 {
-    CoinControlDialog dlg(platformStyle);
+    CoinControlDialog dlg(fAnonymousMode, platformStyle);
     dlg.setModel(model);
     dlg.exec();
     coinControlUpdateLabels();
@@ -854,7 +877,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
     if (CoinControlDialog::coinControl->HasSelected())
     {
         // actual coin control calculation
-        CoinControlDialog::updateLabels(model, this);
+        CoinControlDialog::updateLabels(model, this, fAnonymousMode);
 
         // show coin control stats
         ui->labelCoinControlAutomaticallySelected->hide();

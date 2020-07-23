@@ -62,7 +62,7 @@ private:
     WalletModel *model;
     bool fNewRecipientAllowed;
     bool fFeeMinimized;
-    bool fAnonymizeMode;
+    bool fAnonymousMode;
     const PlatformStyle *platformStyle;
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
@@ -72,6 +72,7 @@ private:
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
     void setAnonymizeMode(bool enableAnonymizeMode);
+    void removeUnmatchedOutput(CCoinControl &coinControl);
 
 private Q_SLOTS:
     void on_sendButton_clicked();

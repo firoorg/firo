@@ -672,6 +672,8 @@ public:
 
     bool IsZerocoinRemint() const;
 
+    bool IsMint() const;
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 
