@@ -131,8 +131,9 @@ public:
         std::vector<CLelantusEntry>  spendCoins;
         std::vector<CHDMint> mintCoins;
 
+        CAmount fee;
         auto result = pwalletMain->CreateLelantusJoinSplitTransaction(
-            vecs, mints, spendCoins, mintCoins, coinControl);
+            vecs, fee, mints, spendCoins, mintCoins, coinControl);
 
         if (!pwalletMain->CommitLelantusTransaction(
             result, spendCoins, mintCoins)) {

@@ -2076,10 +2076,12 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
         }
 
         CAmount nValue;
-        if(txout.scriptPubKey.IsLelantusJMint())
+        if(txout.scriptPubKey.IsLelantusJMint()) {
+            LOCK(pwalletMain->cs_wallet);
             nValue = pwallet->GetCredit(txout, ISMINE_SPENDABLE);
-        else
+        } else {
             nValue = txout.nValue;
+        }
 
         COutputEntry output = {address, nValue, (int)i};
 
@@ -2930,7 +2932,6 @@ std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoi
     uint32_t keyPath = primitives::GetPubCoinValueHash(pubcoin).GetFirstUint32();
     CKey secret;
     {
-        LOCK(pwalletMain->cs_wallet);
         pwalletMain->GetKeyFromKeypath(BIP44_MINT_VALUE_INDEX, keyPath, secret);
     }
 
@@ -2941,6 +2942,7 @@ std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoi
 }
 
 std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const {
+    AssertLockHeld(pwalletMain->cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Encrypt enc(key.data());
     std::vector<unsigned char> ciphertext(16);
@@ -2951,6 +2953,7 @@ std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const sec
 }
 
 bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
+    AssertLockHeld(pwalletMain->cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Decrypt dec(key.data());
     std::vector<unsigned char> plaintext(16);
@@ -8171,9 +8174,6 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
 
     return nFeeNeeded;
 }
-
-
-
 
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {

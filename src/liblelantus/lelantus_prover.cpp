@@ -17,6 +17,7 @@ void LelantusProver::proof(
     Scalar input = Vin;
     for (std::size_t i = 0; i < Cin.size(); ++i)
         input += Cin[i].first.getV();
+
     Scalar out = Vout;
     for (std::size_t i = 0; i < Cout.size(); ++i)
         out += Cout[i].getV();
