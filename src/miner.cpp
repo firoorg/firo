@@ -162,7 +162,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    
+
     int64_t nTimeStart = GetTimeMicros();
 
     // fMTP is always true currently
@@ -283,7 +283,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         SetTxPayload(coinbaseTx, cbTx);
     }
-        
+
     if (nHeight >= params.DIP0003EnforcementHeight) {
         std::vector<CTxOut> sbPayments;
         FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
@@ -1090,7 +1090,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     }
 
                     boost::this_thread::interruption_point();
-                    
+
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {

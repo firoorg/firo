@@ -171,8 +171,14 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    // prepare transaction for getting txfee before sending coins in anonymous mode
+    SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
+
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
+
+    // Send private coins to a list of recipients
+    SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
@@ -258,6 +264,7 @@ public:
 
 private:
     CWallet *wallet;
+
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;
 

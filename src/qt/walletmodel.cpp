@@ -484,6 +484,132 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
+WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
+    WalletModelTransaction &transaction,
+    const CCoinControl *coinControl)
+{
+    CAmount total = 0;
+    bool fSubtractFeeFromAmount = false;
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    std::vector<CRecipient> vecSend;
+
+    if(recipients.empty())
+    {
+        return OK;
+    }
+
+    QSet<QString> setAddress; // Used to detect duplicates
+    int nAddresses = 0;
+
+    // Pre-check input data for validity
+    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+    {
+        if (rcp.fSubtractFeeFromAmount)
+            fSubtractFeeFromAmount = true;
+
+        if (rcp.paymentRequest.IsInitialized())
+        {
+            // PaymentRequest...
+            CAmount subtotal = 0;
+            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
+            for (int i = 0; i < details.outputs_size(); i++)
+            {
+                const payments::Output& out = details.outputs(i);
+                if (out.amount() <= 0) continue;
+                subtotal += out.amount();
+                const unsigned char* scriptStr = (const unsigned char*)out.script().data();
+                CScript scriptPubKey(scriptStr, scriptStr+out.script().size());
+                CAmount nAmount = out.amount();
+                CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount};
+                vecSend.push_back(recipient);
+            }
+            if (subtotal <= 0)
+            {
+                return InvalidAmount;
+            }
+            total += subtotal;
+        }
+        else
+        {
+            // User-entered Zcoin address / amount:
+            if(!validateAddress(rcp.address))
+            {
+                return InvalidAddress;
+            }
+            if(rcp.amount <= 0)
+            {
+                return InvalidAmount;
+            }
+            setAddress.insert(rcp.address);
+            ++nAddresses;
+
+            CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+            vecSend.push_back(recipient);
+
+            total += rcp.amount;
+        }
+    }
+    if(setAddress.size() != nAddresses)
+    {
+        return DuplicateAddress;
+    }
+
+    CAmount nBalance = getPrivateBalance();
+
+    if(total > nBalance)
+    {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        auto &spendCoins = transaction.getSpendCoins();
+        auto &mintCoins = transaction.getMintCoins();
+
+        CAmount feeRequired = 0;
+        std::string strFailReason;
+
+        CWalletTx *newTx = transaction.getTransaction();
+        try {
+            *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, mintCoins, coinControl);
+        } catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(feeRequired);
+            return SendCoinsReturn(AmountWithFeeExceedsBalance);
+        } catch (std::runtime_error const &e) {
+            Q_EMIT message(
+                tr("Send Coins"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+
+        // reject absurdly high fee. (This can never happen because the
+        // wallet caps the fee at maxTxFee. This merely serves as a
+        // belt-and-suspenders check)
+        if (feeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+
+        int changePos = -1;
+        if (!mintCoins.empty()) {
+            for (changePos = 0; changePos < newTx->tx->vout.size(); changePos++) {
+                if (newTx->tx->vout[changePos].scriptPubKey.IsLelantusJMint()) {
+                    break;
+                }
+            }
+
+            changePos = changePos >= newTx->tx->vout.size() ? -1 : changePos;
+        }
+
+        transaction.reassignAmounts(changePos);
+    }
+
+    return SendCoinsReturn(OK);
+}
+
 WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &transaction)
 {
     QByteArray transaction_array; /* store serialized transaction */
@@ -515,6 +641,78 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
         CValidationState state;
         if(!wallet->CommitTransaction(*newTx, *keyChange, g_connman.get(), state))
             return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << *newTx->tx;
+        transaction_array.append(&(ssTx[0]), ssTx.size());
+    }
+
+    // Add addresses / update labels that we've sent to to the address book,
+    // and emit coinsSent signal for each recipient
+    Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+    {
+        // Don't touch the address book when we have a payment request
+        if (!rcp.paymentRequest.IsInitialized())
+        {
+            std::string strAddress = rcp.address.toStdString();
+            CTxDestination dest = CBitcoinAddress(strAddress).Get();
+            std::string strLabel = rcp.label.toStdString();
+            {
+                LOCK(wallet->cs_wallet);
+
+                std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
+
+                // Check if we have a new address or an updated label
+                if (mi == wallet->mapAddressBook.end())
+                {
+                    wallet->SetAddressBook(dest, strLabel, "send");
+                }
+                else if (mi->second.name != strLabel)
+                {
+                    wallet->SetAddressBook(dest, strLabel, ""); // "" means don't change purpose
+                }
+            }
+        }
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+    }
+    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransaction &transaction)
+{
+    QByteArray transaction_array; /* store serialized transaction */
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CWalletTx *newTx = transaction.getTransaction();
+
+        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        {
+            if (rcp.paymentRequest.IsInitialized())
+            {
+                // Make sure any payment requests involved are still valid.
+                if (PaymentServer::verifyExpired(rcp.paymentRequest.getDetails())) {
+                    return PaymentRequestExpired;
+                }
+
+                // Store PaymentRequests in wtx.vOrderForm in wallet.
+                std::string key("PaymentRequest");
+                std::string value;
+                rcp.paymentRequest.SerializeToString(&value);
+                newTx->vOrderForm.push_back(make_pair(key, value));
+            }
+            else if (!rcp.message.isEmpty()) // Message from normal zcoin:URI (zcoin:123...?message=example)
+                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+        }
+
+        try {
+            if (!wallet->CommitLelantusTransaction(*newTx, transaction.getSpendCoins(), transaction.getMintCoins()))
+                return SendCoinsReturn(TransactionCommitFailed);
+        } catch (std::runtime_error const &e) {
+            return SendCoinsReturn(TransactionCommitFailed, e.what());
+        }
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx->tx;

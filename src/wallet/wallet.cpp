@@ -7948,13 +7948,15 @@ void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CHDMint> mintCoins; // new mints
-    result = CreateLelantusJoinSplitTransaction(recipients, newMints, spendCoins, mintCoins);
+    CAmount fee;
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, mintCoins);
 
     CommitLelantusTransaction(result, spendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
+        CAmount &fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CHDMint>& mintCoins,
@@ -7970,7 +7972,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     // create transaction
     LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, newMints);
+    CWalletTx tx = builder.Build(recipients, fee, newMints);
     spendCoins = builder.spendCoins;
     mintCoins = builder.mintCoins;
 

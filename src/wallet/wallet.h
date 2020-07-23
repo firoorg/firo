@@ -303,7 +303,7 @@ public:
     bool IsCoinBase() const { return tx->IsCoinBase(); }
 };
 
-/** 
+/**
  * A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -647,7 +647,7 @@ enum MintAlgorithm {
     SIGMA = 2
 };
 
-/** 
+/**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -892,14 +892,14 @@ public:
 
     //! Holds a timestamp at which point the wallet is scheduled (externally) to be relocked. Caller must arrange for actual relocking to occur via Lock().
     int64_t nRelockTime;
-    
+
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
-    /** 
+    /**
      * Increment the next transaction order id
      * @return next transaction order id
      */
@@ -1036,6 +1036,7 @@ public:
 
     CWalletTx CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
+        CAmount& fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CHDMint>& mintCoins,
@@ -1238,7 +1239,7 @@ public:
         LOCK(cs_wallet);
         mapRequestCount[hash] = 0;
     };
-    
+
     unsigned int GetKeyPoolSize()
     {
         AssertLockHeld(cs_wallet); // setKeyPool
@@ -1267,8 +1268,8 @@ public:
 
     //! Verify the wallet database and perform salvage if required
     static bool Verify();
-    
-    /** 
+
+    /**
      * Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -1277,7 +1278,7 @@ public:
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
 
-    /** 
+    /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
      */
@@ -1374,7 +1375,7 @@ public:
 };
 
 
-/** 
+/**
  * Account information.
  * Stored in wallet with key "acc"+string account name.
  */

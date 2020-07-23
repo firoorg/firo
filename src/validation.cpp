@@ -1385,7 +1385,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } 
+        }
         else {
             LockPoints lp;
             double fSpendsCoinbase = false;
@@ -2661,7 +2661,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
             return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
         }
-       
+
         if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
             mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
             return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
@@ -3081,7 +3081,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     int64_t nStart = GetTimeMicros();
     {
         auto dbTx = evoDb->BeginTransaction();
-        
+
         CCoinsViewCache view(pcoinsTip);
         if (DisconnectBlock(block, state, pindexDelete, view) != DISCONNECT_OK)
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
@@ -3834,7 +3834,7 @@ CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
     // track prevBlockHash -> pindex (multimap)
     if (pindexNew->pprev) {
         mapPrevBlockIndex.emplace(pindexNew->pprev->GetBlockHash(), pindexNew);
-    }    
+    }
 
     return pindexNew;
 }

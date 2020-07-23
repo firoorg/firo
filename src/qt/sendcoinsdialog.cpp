@@ -238,7 +238,11 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
-    prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+    if (fAnonymizeMode) {
+        prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
+    } else {
+        prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+    }
 
     // process prepareStatus and on error generate message shown to user
     processSendCoinsReturn(prepareStatus,
@@ -329,7 +333,13 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // now send the prepared transaction
-    WalletModel::SendCoinsReturn sendStatus = model->sendCoins(currentTransaction);
+    WalletModel::SendCoinsReturn sendStatus;
+
+    if (fAnonymizeMode) {
+        sendStatus = model->sendPrivateCoins(currentTransaction);
+    } else {
+        sendStatus = model->sendCoins(currentTransaction);
+    }
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
 
