@@ -663,9 +663,18 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     if (fAnonymousMode) {
         ui->switchFundButton->setText(QString("Use Transparent Balance"));
         ui->label->setText(QString("Private Balance"));
+
+        ui->checkBoxCoinControlChange->setEnabled(false);
+        ui->lineEditCoinControlChange->setEnabled(false);
+
     } else {
         ui->switchFundButton->setText(QString("Use Private Balance"));
         ui->label->setText(QString("Transparent Balance"));
+
+        ui->checkBoxCoinControlChange->setEnabled(true);
+        if (ui->checkBoxCoinControlChange->isChecked()) {
+            ui->lineEditCoinControlChange->setEnabled(true);
+        }
     }
 
     if (model) {
