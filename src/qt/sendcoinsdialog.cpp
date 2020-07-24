@@ -17,6 +17,7 @@
 
 #include "base58.h"
 #include "chainparams.h"
+#include "lelantus.h"
 #include "wallet/coincontrol.h"
 #include "validation.h" // mempool and minRelayTxFee
 #include "ui_interface.h"
@@ -133,6 +134,19 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             if(entry)
             {
                 entry->setModel(_model);
+            }
+        }
+
+        {
+            // switch to transparent mode if there are transparent balance and have no anoymous balance.
+            auto haveTransparentBalance = _model->getBalance() > 0 || _model->getUnconfirmedBalance() > 0;
+
+            // if lelantus is allowed we can spend sigma in this too.
+            auto includeSigma = lelantus::IsLelantusAllowed();
+            auto havePrivateBalance = _model->getPrivateBalance(includeSigma) > 0 || _model->getUnconfirmedPrivateBalance(includeSigma) > 0;
+
+            if (haveTransparentBalance && !havePrivateBalance) {
+                setAnonymizeMode(false);
             }
         }
 
