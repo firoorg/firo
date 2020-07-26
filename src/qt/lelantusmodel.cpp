@@ -8,42 +8,36 @@
 #include <QDateTime>
 #include <QTimer>
 
-// Handlers for core signals
-static void NotifyTransactionChanged(
-    LelantusModel *model, CWallet *wallet, uint256 const &hash, ChangeType status)
-{
-    Q_UNUSED(wallet);
-    Q_UNUSED(status);
-    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
-        QMetaObject::invokeMethod(
-            model,
-            "updateTransaction",
-            Qt::QueuedConnection,
-            Q_ARG(uint256, hash));
-    }
-}
-
 LelantusModel::LelantusModel(
     const PlatformStyle *platformStyle,
     CWallet *wallet,
     OptionsModel *optionsModel,
     QObject *parent)
     : QObject(parent),
-    wallet(wallet),
-    optionsModel(optionsModel)
+    checkPendingTxTimer(0),
+    resetInitialSyncTimer(0),
+    optionsModel(optionsModel),
+    initialSync(false),
+    wallet(wallet)
 {
     checkPendingTxTimer = new QTimer(this);
     checkPendingTxTimer->setSingleShot(true);
 
+    resetInitialSyncTimer = new QTimer(this);
+    resetInitialSyncTimer->setSingleShot(true);
+
     QTimer::singleShot(1 * 1000, this, SLOT(start()));
 
     connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
+    connect(resetInitialSyncTimer, SIGNAL(timeout()), this, SLOT(resetInitialSync()));
 
     subscribeToCoreSignals();
 }
 
 LelantusModel::~LelantusModel()
 {
+    disconnect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
+
     delete checkPendingTxTimer;
 
     checkPendingTxTimer = nullptr;
@@ -54,18 +48,6 @@ LelantusModel::~LelantusModel()
 OptionsModel* LelantusModel::getOptionsModel()
 {
     return optionsModel;
-}
-
-void LelantusModel::subscribeToCoreSignals()
-{
-    wallet->NotifyTransactionChanged.connect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-}
-
-void LelantusModel::unsubscribeFromCoreSignals()
-{
-    wallet->NotifyTransactionChanged.disconnect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
 }
 
 CAmount LelantusModel::getMintableAmount()
@@ -137,6 +119,19 @@ CAmount LelantusModel::mintAll()
 
     return s;
 }
+void LelantusModel::setInitialSync()
+{
+    initialSync.store(true);
+    resetInitialSyncTimer->stop();
+
+    // wait 10 second if there are no new signal then reset flag
+    resetInitialSyncTimer->start(10 * 1000);
+}
+
+void LelantusModel::resetInitialSync()
+{
+    initialSync.store(false);
+}
 
 void LelantusModel::updateTransaction(uint256 hash)
 {
@@ -152,8 +147,10 @@ void LelantusModel::updateTransaction(uint256 hash)
 
 void LelantusModel::checkAutoMint(bool userAsk)
 {
+    // if lelantus is not allow or client is in initial syncing state then wait
+    // except user force to check
     bool allowed = lelantus::IsLelantusAllowed();
-    if (!userAsk && !allowed) {
+    if (!userAsk && (!allowed || initialSync)) {
         QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(checkAutoMint()));
         return;
     }
@@ -258,4 +255,48 @@ void LelantusModel::lock()
     if (wallet->IsCrypted() && !wallet->IsLocked()) {
         lockWallet();
     }
+}
+
+// Handlers for core signals
+static void NotifyBlockTip(LelantusModel *model, bool initialSync, const CBlockIndex *pIndex)
+{
+    Q_UNUSED(pIndex);
+    if (initialSync) {
+        QMetaObject::invokeMethod(
+            model,
+            "setInitialSync",
+            Qt::QueuedConnection);
+    }
+}
+
+static void NotifyTransactionChanged(
+    LelantusModel *model, CWallet *wallet, uint256 const &hash, ChangeType status)
+{
+    Q_UNUSED(wallet);
+    Q_UNUSED(status);
+    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
+        QMetaObject::invokeMethod(
+            model,
+            "updateTransaction",
+            Qt::QueuedConnection,
+            Q_ARG(uint256, hash));
+    }
+}
+
+void LelantusModel::subscribeToCoreSignals()
+{
+    wallet->NotifyTransactionChanged.connect(
+        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+
+    uiInterface.NotifyBlockTip.connect(boost::bind(
+        NotifyBlockTip, this, _1, _2));
+}
+
+void LelantusModel::unsubscribeFromCoreSignals()
+{
+    wallet->NotifyTransactionChanged.disconnect(
+        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+
+    uiInterface.NotifyBlockTip.disconnect(boost::bind(
+        NotifyBlockTip, this, _1, _2));
 }

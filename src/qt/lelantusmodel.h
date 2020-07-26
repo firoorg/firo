@@ -60,6 +60,8 @@ public Q_SLOTS:
     void checkAutoMint(bool force = false);
 
     void updateTransaction(uint256 hash);
+    void resetInitialSync();
+    void setInitialSync();
     void start();
 
     void lock();
@@ -76,7 +78,9 @@ private:
 private:
     AutoMintState autoMintState = AutoMintState::Disabled;
     QTimer *checkPendingTxTimer;
+    QTimer *resetInitialSyncTimer;
     OptionsModel *optionsModel;
+    std::atomic<bool> initialSync;
     std::vector<uint256> pendingTransactions;
     CWallet *wallet;
 };
