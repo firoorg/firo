@@ -204,7 +204,7 @@ void LelantusModel::checkPendingTransactions()
         }
 
         auto const &wtx = wallet->mapWallet[tx];
-        hasNew |= wtx.GetAvailableCredit() > 0;
+        hasNew |= (wtx.GetAvailableCredit() - wtx.GetDebit(ISMINE_ALL)) > 0;
 
         if (hasNew) {
             break;
