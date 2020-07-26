@@ -114,7 +114,7 @@ CAmount WalletModel::getWatchImmatureBalance() const
     return wallet->GetImmatureWatchOnlyBalance();
 }
 
-CAmount WalletModel::getPrivateBalance(bool includeSigma) const
+CAmount WalletModel::getPrivateBalance() const
 {
     CAmount balance = 0;
 
@@ -125,15 +125,13 @@ CAmount WalletModel::getPrivateBalance(bool includeSigma) const
         }
     }
 
-    if (includeSigma) {
-        auto balances = getSigmaBalance();
-        balance += balances.first;
-    }
+    auto balances = getSigmaBalance();
+    balance += balances.first;
 
     return balance;
 }
 
-CAmount WalletModel::getUnconfirmedPrivateBalance(bool includeSigma) const
+CAmount WalletModel::getUnconfirmedPrivateBalance() const
 {
     CAmount balance = 0;
 
@@ -144,10 +142,8 @@ CAmount WalletModel::getUnconfirmedPrivateBalance(bool includeSigma) const
         }
     }
 
-    if (includeSigma) {
-        auto balances = getSigmaBalance();
-        balance += balances.second;
-    }
+    auto balances = getSigmaBalance();
+    balance += balances.second;
 
     return balance;
 }

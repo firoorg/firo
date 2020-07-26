@@ -88,7 +88,14 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    setAnonymizeMode(true);
+    {
+        auto allowed = lelantus::IsLelantusAllowed();
+        setAnonymizeMode(allowed);
+
+        if (!allowed) {
+            ui->switchFundButton->setEnabled(false);
+        }
+    }
 
     // init transaction fee section
     QSettings settings;
@@ -119,7 +126,13 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
 
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
 {
-    this->clientModel = clientModel;
+    this->clientModel = _clientModel;
+
+    if (_clientModel)
+    {
+        connect(_clientModel, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
+            this, SLOT(updateBlocks(int,QDateTime,double,bool)));
+    }
 }
 
 void SendCoinsDialog::setModel(WalletModel *_model)
@@ -142,8 +155,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             auto haveTransparentBalance = _model->getBalance() > 0 || _model->getUnconfirmedBalance() > 0;
 
             // if lelantus is allowed we can spend sigma in this too.
-            auto includeSigma = lelantus::IsLelantusAllowed();
-            auto havePrivateBalance = _model->getPrivateBalance(includeSigma) > 0 || _model->getUnconfirmedPrivateBalance(includeSigma) > 0;
+            auto havePrivateBalance = _model->getPrivateBalance() > 0 || _model->getUnconfirmedPrivateBalance() > 0;
 
             if (haveTransparentBalance && !havePrivateBalance) {
                 setAnonymizeMode(false);
@@ -416,6 +428,26 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 
     updateTabsAndLabels();
     return entry;
+}
+
+void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
+{
+    if (header)
+    {
+        return;
+    }
+
+    auto allowed = lelantus::IsLelantusAllowed(count);
+
+    if (allowed && !ui->switchFundButton->isEnabled())
+    {
+        ui->switchFundButton->setEnabled(true);
+    }
+    else if (!allowed && ui->switchFundButton->isEnabled())
+    {
+        setAnonymizeMode(false);
+        ui->switchFundButton->setEnabled(false);
+    }
 }
 
 void SendCoinsDialog::updateTabsAndLabels()
