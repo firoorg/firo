@@ -642,7 +642,7 @@ void WalletView::askMintAll(bool userAsk)
         return;
     }
 
-    if (!isActiveWindow()) {
+    if (!isActiveWindow() || !underMouse()) {
         lelantusModel->ackMintAll(AutoMintAck::WaitUserToActive);
         return;
     }
