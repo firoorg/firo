@@ -129,7 +129,8 @@ struct znode_info_t
           nTimeLastPing(0),
           nActiveState(0),
           nProtocolVersion(0),
-          fInfoValid(false)
+          fInfoValid(false),
+          nRank(0)
         {}
 
     CTxIn vin;
@@ -145,6 +146,7 @@ struct znode_info_t
     int nActiveState;
     int nProtocolVersion;
     bool fInfoValid;
+    int nRank;
 };
 
 //
@@ -186,6 +188,7 @@ public:
     int nProtocolVersion;
     int nPoSeBanScore;
     int nPoSeBanHeight;
+    int nRank;
     bool fAllowMixingTx;
     bool fUnitTest;
 
@@ -243,6 +246,7 @@ public:
         swap(first.nTimeLastPaid, second.nTimeLastPaid);
         swap(first.nTimeLastWatchdogVote, second.nTimeLastWatchdogVote);
         swap(first.nActiveState, second.nActiveState);
+        swap(first.nRank, second.nRank);
         swap(first.nCacheCollateralBlock, second.nCacheCollateralBlock);
         swap(first.nBlockLastPaid, second.nBlockLastPaid);
         swap(first.nProtocolVersion, second.nProtocolVersion);
@@ -293,6 +297,9 @@ public:
 
     bool IsValidForPayment();
 
+
+    bool IsMyZnode();
+
     static bool IsLegacyWindow(int height);
 
     bool IsValidNetAddr();
@@ -307,11 +314,18 @@ public:
     std::string GetStateString() const;
     std::string GetStatus() const;
     std::string ToString() const;
+    UniValue ToJSON() const;
+
+    void SetStatus(int newState);
+    void SetLastPing(CZnodePing newZnodePing);
+    void SetTimeLastPaid(int64_t newTimeLastPaid);
+    void SetBlockLastPaid(int newBlockLastPaid);
+    void SetRank(int newRank);
 
     int GetCollateralAge();
 
-    int GetLastPaidTime() { return nTimeLastPaid; }
-    int GetLastPaidBlock() { return nBlockLastPaid; }
+    int GetLastPaidTime() const { return nTimeLastPaid; }
+    int GetLastPaidBlock() const { return nBlockLastPaid; }
     void UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack);
 
     // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS

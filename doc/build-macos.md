@@ -16,7 +16,7 @@ Then install [Homebrew](http://brew.sh).
 Dependencies
 ----------------------
 
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode
+    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode zeromq minizip
 
 In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
 

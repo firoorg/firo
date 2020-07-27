@@ -546,7 +546,6 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 
 bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin)
 {
-    LOCK(cs_main);
     if (!pcoinsTip->GetCoin(outpoint, coin))
         return false;
     if (coin.IsSpent())
@@ -564,7 +563,6 @@ int GetUTXOHeight(const COutPoint& outpoint)
 int GetUTXOConfirmations(const COutPoint& outpoint)
 {
     // -1 means UTXO is yet unknown or already spent
-    LOCK(cs_main);
     int nPrevoutHeight = GetUTXOHeight(outpoint);
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
@@ -1334,18 +1332,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if(markZcoinSpendTransactionSerial)
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if(txout.scriptPubKey.IsSigmaMint()){
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-        }
-        if (zwalletMain) {
-            LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
-        }
+    if(tx.IsSigmaMint() && zwalletMain) {
+        LogPrintf("Updating mint state from Mempool..");
+        zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
@@ -4325,7 +4314,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         return error("%s: ActivateBestChain failed", __func__);
 
     if (pindex->nHeight < chainparams.GetConsensus().DIP0003EnforcementHeight)
-        znodeSync.IsBlockchainSynced(true);
+        znodeSync.GetBlockchainSynced(true);
 
     return true;
 }

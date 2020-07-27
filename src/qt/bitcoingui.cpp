@@ -1120,6 +1120,10 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        //also check for Znode warning here
+        if(NotifyZnodeWarning::shouldShow()){
+            NotifyZnodeWarning::notify();
+        }
     } else {
 
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(QString(

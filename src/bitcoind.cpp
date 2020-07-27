@@ -19,12 +19,18 @@
 #include "httprpc.h"
 #include "utilstrencodings.h"
 #include "znodeconfig.h"
+#include "stacktraces.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
 #include <stdio.h>
+
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/settings.h"
+#include "client-api/server.h"
+#endif
 
 /* Introduction text for doxygen: */
 
@@ -75,6 +81,11 @@ bool AppInit(int argc, char* argv[])
     // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
     ParseParameters(argc, argv);
 
+     if (IsArgSet("-printcrashinfo")) {
+        std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
+        return true;
+    }
+
     // Process help and version before taking care about datadir
     if (IsArgSet("-?") || IsArgSet("-h") ||  IsArgSet("-help") || IsArgSet("-version"))
     {
@@ -112,11 +123,18 @@ bool AppInit(int argc, char* argv[])
         }
         // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
         try {
-            SelectParams(ChainNameFromCommandLine());
+            SelectParams(GetBoolArg("-clientapi", false) ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
         } catch (const std::exception& e) {
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
+#ifdef ENABLE_CLIENTAPI
+        int port = GetArg("-rpcport", BaseParams().RPCPort());
+        if(GetBoolArg("-clientapi", false) && IsZMQPort(port)){
+            fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
+            exit(EXIT_FAILURE);
+        }
+#endif
 
         // parse znode.conf
         std::string strErr;
@@ -173,12 +191,21 @@ bool AppInit(int argc, char* argv[])
 #endif // HAVE_DECL_DAEMON
         }
 
+        // Set this early so that parameter interactions go to console
+        InitLogging();
+        InitParameterInteraction();
+#ifdef ENABLE_CLIENTAPI
+        if(GetBoolArg("-clientapi", false)){
+            ReadAPISettingsFile();
+            if (!StartAPI())
+                return false;
+        }
+#endif
         fRet = AppInitMain(threadGroup, scheduler);
+        LogPrintf("AppInit done!\n");
     }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "AppInit()");
-    } catch (...) {
-        PrintExceptionContinue(NULL, "AppInit()");
+    catch (...) {
+        PrintExceptionContinue(std::current_exception(), "AppInit()");
     }
 
     if (!fRet)
@@ -197,6 +224,9 @@ bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+    RegisterPrettyTerminateHander();
+    RegisterPrettySignalHandlers();
+    
     SetupEnvironment();
 
     // Connect bitcoind signal handlers

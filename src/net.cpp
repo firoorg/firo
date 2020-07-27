@@ -25,10 +25,12 @@
 #include "consensus/validation.h"
 #include "txmempool.h"
 #include "./consensus/validation.h"
+#include "validationinterface.h"
 
 #include "instantx.h"
 #include "masternode-sync.h"
 #include "llmq/quorums_instantsend.h"
+#include "evo/mnauth.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -1430,8 +1432,10 @@ void CConnman::ThreadSocketHandler()
         }
         if(vNodesSize != nPrevNodeCount) {
             nPrevNodeCount = vNodesSize;
-            if(clientInterface)
+            if(clientInterface){
                 clientInterface->NotifyNumConnectionsChanged(nPrevNodeCount);
+                GetMainSignals().NumConnectionsChanged();
+            }
         }
 
         //

@@ -3162,11 +3162,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             // these functions must be called in transition window
-            masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
             CMNAuth::ProcessMessage(pfrom, strCommand, vRecv, connman);
 
             // evo znodes
             if (fEvoZnodes) {
+                masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
                 //privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
                 //instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
                 //governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
@@ -3319,13 +3319,11 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
             }
             else
             {
-                PrintExceptionContinue(&e, "ProcessMessages()");
+                PrintExceptionContinue(std::current_exception(), "ProcessMessages()");
             }
         }
-        catch (const std::exception& e) {
-            PrintExceptionContinue(&e, "ProcessMessages()");
-        } catch (...) {
-            PrintExceptionContinue(NULL, "ProcessMessages()");
+        catch (...) {
+            PrintExceptionContinue(std::current_exception(), "ProcessMessages()");
         }
 
         if (!fRet) {

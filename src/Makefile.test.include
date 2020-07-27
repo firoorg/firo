@@ -222,20 +222,22 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/core/libtor-app.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS) $(LIBBLSSIG_INCLUDES)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
-  $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
+  $(BACKTRACE_LIB) $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
+if ENABLE_CLIENTAPI 
+test_test_bitcoin_LDADD += $(MINIZIP_LIBS)
+endif
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
 test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET)
 endif
 
 test_test_bitcoin_LDADD += $(LIBBITCOIN_CONSENSUS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
-test_test_bitcoin_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static
+test_test_bitcoin_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static
 
-if ENABLE_ZMQ
+if ENABLE_CLIENTAPI
 test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
-#
 
 test_test_bitcoin_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
@@ -244,7 +246,7 @@ EXTRA_test_test_bitcoin_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
 test_test_bitcoin_fuzzy_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 test_test_bitcoin_fuzzy_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-test_test_bitcoin_fuzzy_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(LIBZCOIN_SIGMA)
+test_test_bitcoin_fuzzy_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(LIBZCOIN_SIGMA)
 
 test_test_bitcoin_fuzzy_LDADD = \
   $(LIBUNIVALUE) \
@@ -255,8 +257,10 @@ test_test_bitcoin_fuzzy_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
-#
+test_test_bitcoin_fuzzy_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(CRYPTO_LIBS)
+if ENABLE_CLIENTAPI
+test_test_bitcoin_fuzzy_LDADD += $(MINIZIP_LIBS)
+endif
 
 test_test_bitcoin_fuzzy_LDADD += $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
 EXTRA_test_test_bitcoin_fuzzy_DEPENDENCIES = $(LIBBLSSIG_LIBS)

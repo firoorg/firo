@@ -7,6 +7,8 @@
 //#include "governance.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "znode.h"
+#include "znodeconfig.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "darksend.h"
@@ -14,6 +16,7 @@
 #include "net.h"
 #include "net_processing.h"
 #include "util.h"
+#include "validationinterface.h"
 #include "txmempool.h"
 
 #define cs_vNodes (g_connman->cs_vNodes)
@@ -644,6 +647,58 @@ char* CZnodeMan::GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterS
     return NULL;
 }
 
+// Same method, different return type, to avoid Znode operator issues.
+// TODO: discuss standardizing the JSON type here, as it's done everywhere else in the code.
+UniValue CZnodeMan::GetNotQualifyReasonToUniValue(CZnode& mn, int nBlockHeight, bool fFilterSigTime, int nMnCount)
+{
+    UniValue ret(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    string description;
+
+    if (!mn.IsValidForPayment()) {
+        description = "not valid for payment";
+    }
+
+    //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
+    else if (znpayments.IsScheduled(mn, nBlockHeight)) {
+        description = "Is scheduled";
+    }
+
+    // //check protocol version
+    else if (mn.nProtocolVersion < znpayments.GetMinZnodePaymentsProto()) {
+        description = "Invalid nProtocolVersion";
+
+        data.push_back(Pair("nProtocolVersion", mn.nProtocolVersion));
+    }
+
+    //it's too new, wait for a cycle
+    else if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
+        // LogPrintf("it's too new, wait for a cycle!\n");
+        description = "Too new";
+
+        //TODO unix timestamp
+        data.push_back(Pair("sigTime", mn.sigTime));
+        data.push_back(Pair("qualifiedAfter", mn.sigTime + (nMnCount * 2.6 * 60)));
+    }
+    //make sure it has at least as many confirmations as there are znodes
+    else if (mn.GetCollateralAge() < nMnCount) {
+        description = "collateralAge < znCount";
+
+        data.push_back(Pair("collateralAge", mn.GetCollateralAge()));
+        data.push_back(Pair("znCount", nMnCount));
+    }
+
+    ret.push_back(Pair("result", description.empty()));
+    if(!description.empty()){
+        ret.push_back(Pair("description", description));
+    }
+    if(!data.empty()){
+        ret.push_back(Pair("data", data));
+    }
+
+    return ret;
+}
+
 //
 // Deterministically select the oldest/best znode to pay on the network
 //
@@ -858,6 +913,7 @@ std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, 
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores) {
         nRank++;
+        s.second->SetRank(nRank);
         vecZnodeRanks.push_back(std::make_pair(nRank, *s.second));
     }
 
@@ -1584,7 +1640,7 @@ void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
             }
         }
     } catch (const std::exception &e) {
-        PrintExceptionContinue(&e, "UpdateZnodeList");
+        PrintExceptionContinue(std::current_exception(), "UpdateZnodeList");
     }
 }
 
@@ -1654,7 +1710,6 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
     } // end of LOCK(cs);
 
     if(mnb.CheckOutpoint(nDos)) {
-        Add(mnb);
         znodeSync.AddedZnodeList();
         // if it matches our Znode privkey...
         if(fMasternodeMode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
@@ -1806,13 +1861,13 @@ void CZnodeMan::SetZnodeLastPing(const CTxIn& vin, const CZnodePing& mnp)
     if(!pMN)  {
         return;
     }
-    pMN->lastPing = mnp;
+    pMN->SetLastPing(mnp);
     mapSeenZnodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
     CZnodeBroadcast mnb(*pMN);
     uint256 hash = mnb.GetHash();
     if(mapSeenZnodeBroadcast.count(hash)) {
-        mapSeenZnodeBroadcast[hash].second.lastPing = mnp;
+        mapSeenZnodeBroadcast[hash].second.SetLastPing(mnp);
     }
 }
 

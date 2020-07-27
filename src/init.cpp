@@ -42,6 +42,16 @@
 #include "validation.h"
 #include "mtpstate.h"
 
+#ifdef ENABLE_CLIENTAPI
+#include "zmqserver/zmqabstract.h"
+#include "zmqserver/zmqinterface.h"
+#include "client-api/server.h"
+#include "client-api/register.h"
+#include "client-api/settings.h"
+static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
+static CZMQReplierInterface* pzmqReplierInterface = NULL;
+#endif
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -105,22 +115,11 @@
 #include "spork.h"
 #include "darksend.h"
 
-#if ENABLE_ZMQ
-#include "zmq/zmqnotificationinterface.h"
-#endif
 
 bool fFeeEstimatesInitialized = false;
-static const bool DEFAULT_PROXYRANDOMIZE = true;
-static const bool DEFAULT_REST_ENABLE = false;
-static const bool DEFAULT_DISABLE_SAFEMODE = false;
-static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
 std::unique_ptr<CConnman> g_connman;
 std::unique_ptr<PeerLogicValidation> peerLogic;
-
-#if ENABLE_ZMQ
-static CZMQNotificationInterface* pzmqNotificationInterface = NULL;
-#endif
 
 static CDSNotificationInterface* pdsNotificationInterface = NULL;
 
@@ -235,6 +234,9 @@ void Interrupt(boost::thread_group& threadGroup)
     InterruptHTTPServer();
     InterruptHTTPRPC();
     InterruptRPC();
+#ifdef ENABLE_CLIENTAPI
+    InterruptAPI();
+#endif
     InterruptREST();
     InterruptTorControl();
     llmq::InterruptLLMQSystem();
@@ -262,6 +264,9 @@ void Shutdown()
     StopREST();
     StopRPC();
     StopHTTPServer();
+#ifdef ENABLE_CLIENTAPI
+    StopAPI();
+#endif
     llmq::StopLLMQSystem();
 
 #ifdef ENABLE_WALLET
@@ -348,11 +353,15 @@ void Shutdown()
     zwalletMain = NULL;
 #endif
 
-#if ENABLE_ZMQ
-    if (pzmqNotificationInterface) {
-        UnregisterValidationInterface(pzmqNotificationInterface);
-        delete pzmqNotificationInterface;
-        pzmqNotificationInterface = NULL;
+#ifdef ENABLE_CLIENTAPI
+    if (pzmqPublisherInterface) {
+        UnregisterValidationInterface(pzmqPublisherInterface);
+        delete pzmqPublisherInterface;
+        pzmqPublisherInterface = NULL;
+    }
+
+    if (pzmqReplierInterface) {
+        pzmqReplierInterface->Shutdown();
     }
 #endif
 
@@ -501,6 +510,11 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
     strUsage += HelpMessageOpt("-proxy=<ip:port>", _("Connect through SOCKS5 proxy"));
+#ifdef ENABLE_CLIENTAPI
+    strUsage += HelpMessageOpt("-resetapicerts", strprintf(
+            _("Reset ZMQ authentication key files on startup. (default: %u)"),
+            DEFAULT_RESETAPICERTS));
+#endif
     strUsage += HelpMessageOpt("-proxyrandomize", strprintf(_("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"), DEFAULT_PROXYRANDOMIZE));
     strUsage += HelpMessageOpt("-rpcserialversion", strprintf(_("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"), DEFAULT_RPC_SERIALIZE_VERSION));
     strUsage += HelpMessageOpt("-seednode=<ip>", _("Connect to a node to retrieve peer addresses, and disconnect"));
@@ -526,13 +540,11 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += CWallet::GetWalletHelpString(showDebug);
 #endif
 
-#if ENABLE_ZMQ
     strUsage += HelpMessageGroup(_("ZeroMQ notification options:"));
     strUsage += HelpMessageOpt("-zmqpubhashblock=<address>", _("Enable publish hash block in <address>"));
     strUsage += HelpMessageOpt("-zmqpubhashtx=<address>", _("Enable publish hash transaction in <address>"));
     strUsage += HelpMessageOpt("-zmqpubrawblock=<address>", _("Enable publish raw block in <address>"));
     strUsage += HelpMessageOpt("-zmqpubrawtx=<address>", _("Enable publish raw transaction in <address>"));
-#endif
 
     strUsage += HelpMessageGroup(_("Debugging/Testing options:"));
     strUsage += HelpMessageOpt("-uacomment=<cmt>", _("Append comment to the user agent string"));
@@ -852,7 +864,21 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         zwalletMain->GetTracker().ListMints();
     }
 #endif
+
     fDumpMempoolLater = !fRequestShutdown;
+
+    // notify api loaded following rescan complietion (has no effect if rescan not set - already loaded in InitLoadWallet())
+#ifdef ENABLE_CLIENTAPI
+    if(fApi){
+        SetAPIWarmupFinished();
+        GetMainSignals().NotifyAPIStatus();
+        // Fully publish masternodes following load
+        CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
+        mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+            GetMainSignals().UpdatedMasternode(dmn);
+        });
+    }
+#endif
 }
 
 /** Sanity checks
@@ -1287,6 +1313,11 @@ bool AppInitParameterInteraction()
     }
 
     RegisterAllCoreRPCCommands(tableRPC);
+
+#ifdef ENABLE_CLIENTAPI
+    RegisterAllCoreAPICommands(tableAPI);
+#endif
+
 #ifdef ENABLE_WALLET
     RegisterWalletRPCCommands(tableRPC);
 #endif
@@ -1458,7 +1489,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
     }
 
-#ifndef WIN32
+#ifdef WIN32
+    CreatePidFile(GetPidFile(), GetCurrentProcessId());
+#else
     CreatePidFile(GetPidFile(), getpid());
 #endif
     if (GetBoolArg("-shrinkdebugfile", !fDebug)) {
@@ -1497,6 +1530,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (GetBoolArg("-server", false))
     {
         uiInterface.InitMessage.connect(SetRPCWarmupStatus);
+#ifdef ENABLE_CLIENTAPI
+        uiInterface.InitMessage.connect(SetAPIWarmupStatus);
+#endif
         if (!AppInitServers(threadGroup))
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
@@ -1666,11 +1702,25 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             connman.AddOneShot(strDest);
     }
 
-#if ENABLE_ZMQ
-    pzmqNotificationInterface = CZMQNotificationInterface::Create();
+#ifdef ENABLE_CLIENTAPI
+    fApi = GetBoolArg("-clientapi", false);
+    if(fApi){
+        CreatePaymentRequestFile();
+        CreateZerocoinFile();
 
-    if (pzmqNotificationInterface) {
-        RegisterValidationInterface(pzmqNotificationInterface);
+        bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
+        CZMQAbstract::CreateCerts(resetapicerts);
+        pzmqPublisherInterface = pzmqPublisherInterface->Create();
+        pzmqReplierInterface = pzmqReplierInterface->Create();
+
+        if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
+            return InitError(_("Unable to start ZMQ API. See debug log for details."));
+
+        // register publisher with validation interface
+        RegisterValidationInterface(pzmqPublisherInterface);
+
+        // ZMQ API
+        RegisterAllCoreAPICommands(tableAPI);
     }
 #endif
 
@@ -1698,6 +1748,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
+
+#ifdef ENABLE_CLIENTAPI
+    if(fApi)
+        pzmqPublisherInterface->StartWorker();
+#endif
 
     boost::filesystem::create_directories(GetDataDir() / "blocks");
 
@@ -1871,7 +1926,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
                     strLoadError + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
-                if (fRet) {
+                if (fRet || fApi) { // Force reindex when using client-api
                     fReindex = true;
                     fRequestShutdown = false;
                 } else {
@@ -2034,23 +2089,25 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
 
-    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
-        LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Znodes:\n");
-        uint256 mnTxHash;
-        int outputIndex;
+    // Lock Existing Znodes
+    if (GetBoolArg("-znconflock", true) && (znodeConfig.getCount() > 0)) {
+        LogPrintf(" Locking Existing Znodes..\n");
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            mnTxHash.SetHex(mne.getTxHash());
-            outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
+            uint256 mnTxHash(uint256S(mne.getTxHash()));
+            int outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
+
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
-            // don't lock non-spendable outpoint (i.e. it's already spent or it's not from this wallet at all)
-            if (pwalletMain->IsMine(CTxIn(outpoint)) != ISMINE_SPENDABLE) {
-                LogPrintf("  %s %s - IS NOT SPENDABLE, was not locked\n", mne.getTxHash(), mne.getOutputIndex());
-                continue;
+
+            if(pwalletMain->IsMine(CTxIn(outpoint)) == ISMINE_SPENDABLE &&
+              !pwalletMain->IsSpent(mnTxHash, outputIndex)){
+                pwalletMain->LockCoin(outpoint); //Lock if this transaction is an available znode colleteral payment
+            }else {
+                pwalletMain->UnlockCoin(outpoint); // Unlock any spent/unavailable Znode collateral
             }
-            pwalletMain->LockCoin(outpoint);
-            LogPrintf("  %s %s - locked successfully\n", mne.getTxHash(), mne.getOutputIndex());
         }
+        if(fApi)
+            GetMainSignals().UpdatedBalance();
     }
 
     // evo znode system
@@ -2264,17 +2321,21 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 13a: update block tip in Zcoin modules
 
-    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+    bool fEvoZnodes = false;
+    {
+        LOCK(cs_main);
+        fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
 
-    if (!fEvoZnodes) {
-        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-        // but don't call it directly to prevent triggering of other listeners like zmq etc.
-        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-        // governance.UpdatedBlockTip(chainActive.Tip());
+        if (!fEvoZnodes) {
+            // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+            // but don't call it directly to prevent triggering of other listeners like zmq etc.
+            // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+            mnodeman.UpdatedBlockTip(chainActive.Tip());
+            //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+            znpayments.UpdatedBlockTip(chainActive.Tip());
+            znodeSync.UpdatedBlockTip(chainActive.Tip());
+            // governance.UpdatedBlockTip(chainActive.Tip());
+        }
     }
 
     // ********************************************************* Step 13b: start legacy znodes thread

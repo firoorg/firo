@@ -2,10 +2,10 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 14)
-define(_CLIENT_VERSION_REVISION, 2)
-define(_CLIENT_VERSION_BUILD, 0)
+define(_CLIENT_VERSION_REVISION, 0)
+define(_CLIENT_VERSION_BUILD, 3)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2019)
+define(_COPYRIGHT_YEAR, 2020)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Zcoin Core]])
 AC_INIT([Zcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/zcoin/issues],[zcoin],[https://zcoin.io/])
@@ -95,6 +95,11 @@ AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 # Enable wallet
 enable_wallet=yes
 
+AC_ARG_ENABLE([clientapi],
+  [AS_HELP_STRING([--enable-clientapi],[enable clientapi (disabled by default)])],
+  [enable_clientapi=$enableval],
+  [enable_clientapi=no])
+
 AC_ARG_ENABLE([elysium],
   [AS_HELP_STRING([--enable-elysium],[enable elysium (disabled by default)])],
   [enable_elysium=$enableval],
@@ -168,11 +173,6 @@ AC_ARG_WITH([system-univalue],
   [system_univalue=$withval],
   [system_univalue=no]
 )
-AC_ARG_ENABLE([zmq],
-  [AS_HELP_STRING([--disable-zmq],
-  [disable ZMQ notifications])],
-  [use_zmq=$enableval],
-  [use_zmq=yes])
 
 AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[specify protoc bin path])], [protoc_bin_path=$withval], [])
 
@@ -181,6 +181,13 @@ AC_ARG_ENABLE(man,
                     [do not install man pages (default is to install)])],,
     enable_man=yes)
 AM_CONDITIONAL(ENABLE_MAN, test "$enable_man" != no)
+
+# Enable crash hooks
+AC_ARG_ENABLE([crash-hooks],
+    [AS_HELP_STRING([--enable-crash-hooks],
+                    [hook into exception/signal/assert handling to gather stack traces (default is no)])],
+    [enable_crashhooks=$enableval],
+    [enable_crashhooks=no])
 
 # Enable debug
 AC_ARG_ENABLE([debug],
@@ -192,8 +199,34 @@ AC_ARG_ENABLE([debug],
 if test "x$enable_debug" = xyes; then
 	default_use_hardening=no
 else
+    # We always enable at at least -g1 debug info to support proper stacktraces in crash infos
+    # Stacktraces will be suboptimal due to optimization, but better than nothing. Also, -fno-omit-frame-pointer
+    # mitigates this a little bitelif test "x$enable_stacktraces" = xyes; then
 	default_use_hardening=yes
+  # Enable debug information but don't turn off optimization
+  # (stacktraces will be suboptimal, but better than nothing)
+  if test "x$GCC" = xyes; then
+      CFLAGS="$CFLAGS -g1 -fno-omit-frame-pointer"
+  fi
+
+  if test "x$GXX" = xyes; then
+      CXXFLAGS="$CXXFLAGS -g1 -fno-omit-frame-pointer"
+  fi
 fi
+
+AM_CONDITIONAL([ENABLE_CRASH_HOOKS], [test x$enable_crashhooks = xyes])
+if test "x$enable_crashhooks" = xyes; then
+    AC_DEFINE(ENABLE_CRASH_HOOKS, 1, [Define this symbol if crash hooks should be enabled])
+fi
+AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
+AM_CONDITIONAL([CRASH_HOOKS_WRAPPED_CXX_ABI],[test x$LINK_WRAP_SUPPORTED = xyes])
+
+if test x$LINK_WRAP_SUPPORTED = "xyes"; then
+  AC_DEFINE(CRASH_HOOKS_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
+fi
+
+# Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
+AX_CHECK_COMPILE_FLAG([-Wa,-mbig-obj], [CXXFLAGS="$CXXFLAGS -Wa,-mbig-obj"],,,)
 
 AC_ARG_ENABLE([hardening],
   [AS_HELP_STRING([--disable-hardening],
@@ -812,7 +845,7 @@ if test x$use_pkgconfig = xyes; then
     [
       PKG_CHECK_MODULES([SSL], [libssl],, [AC_MSG_ERROR(openssl  not found.)])
       PKG_CHECK_MODULES([CRYPTO], [libcrypto],,[AC_MSG_ERROR(libcrypto  not found.)])
-      PKG_CHECK_MODULES(ZLIB, [zlib], [], [AC_MSG_ERROR([zlib not found])])
+      PKG_CHECK_MODULES([ZLIB], [zlib], [], [AC_MSG_ERROR([zlib not found])])
       BITCOIN_QT_CHECK([PKG_CHECK_MODULES([PROTOBUF], [protobuf], [have_protobuf=yes], [BITCOIN_QT_FAIL(libprotobuf not found)])])
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
@@ -824,14 +857,9 @@ if test x$use_pkgconfig = xyes; then
         fi
       fi
 
-      if test "x$use_zmq" = "xyes"; then
-        PKG_CHECK_MODULES([ZMQ],[libzmq >= 4],
-          [AC_DEFINE([ENABLE_ZMQ],[1],[Define to 1 to enable ZMQ functions])],
-          [AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
-           AC_MSG_WARN([libzmq version 4.x or greater not found, disabling])
-           use_zmq=no])
-      else
-          AC_DEFINE_UNQUOTED([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
+      if test "x$enable_clientapi" = "xyes"; then
+        PKG_CHECK_MODULES([ZMQ],[libzmq >= 4], [], [AC_MSG_ERROR([libzmq version 4.x or greater not found])])
+        PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
       fi
     ]
   )
@@ -850,19 +878,13 @@ else
     fi
   fi
 
-  if test "x$use_zmq" = "xyes"; then
-     AC_CHECK_HEADER([zmq.h],
-       [AC_DEFINE([ENABLE_ZMQ],[1],[Define to 1 to enable ZMQ functions])],
-       [AC_MSG_WARN([zmq.h not found, disabling zmq support])
-        use_zmq=no
-        AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])])
-     AC_CHECK_LIB([zmq],[zmq_ctx_shutdown],ZMQ_LIBS=-lzmq,
-       [AC_MSG_WARN([libzmq >= 4.0 not found, disabling zmq support])
-        use_zmq=no
-        AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])])
-  else
-    AC_DEFINE_UNQUOTED([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
-  fi
+  if test "x$enable_clientapi" = "xyes"; then
+    AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
+    AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
+
+    AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
+    AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
+  fi 
 
   if test "x$use_zmq" = "xyes"; then
     dnl Assume libzmq was built for static linking
@@ -1000,6 +1022,15 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable clientapi
+AC_MSG_CHECKING([if clientapi should be enabled])
+if test x$enable_clientapi != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE_UNQUOTED([ENABLE_CLIENTAPI],[1],[Define if clientapi should be compiled in])
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable elysium
 AC_MSG_CHECKING([if elysium should be enabled])
 if test x$enable_elysium != xno; then
@@ -1076,7 +1107,7 @@ if test x$bitcoin_enable_qt != xno; then
   fi
 fi
 
-AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
+AM_CONDITIONAL([ENABLE_CLIENTAPI], [test "x$enable_clientapi" = "xyes"])
 
 AC_MSG_CHECKING([whether to build test_bitcoin])
 if test x$use_tests = xyes; then
@@ -1093,6 +1124,18 @@ if test x$use_reduce_exports = xyes; then
 else
   AC_MSG_RESULT([no])
 fi
+
+# When compiled natively on MacOS, we need to specify -flat to avoid producing a dSYM bundle
+# When cross-compiled on linux, we're using a different version of the tool that only supports flat symbol files
+AC_MSG_CHECKING([whether dsymutil needs -flat])
+if test x$DSYMUTIL != x && ($DSYMUTIL --help | grep -q \\-flat); then
+AC_MSG_RESULT([yes])
+	DSYMUTIL_FLAT="$DSYMUTIL -flat"
+else
+	AC_MSG_RESULT([no])
+	DSYMUTIL_FLAT="$DSYMUTIL"
+fi
+AC_MSG_RESULT($dsymutil_needs_flat)
 
 if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests = xnononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
@@ -1115,6 +1158,7 @@ AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
 AM_CONDITIONAL([USE_LCOV],[test x$use_lcov = xyes])
 AM_CONDITIONAL([GLIBC_BACK_COMPAT],[test x$use_glibc_compat = xyes])
 AM_CONDITIONAL([HARDEN],[test x$use_hardening = xyes])
+AM_CONDITIONAL([ENABLE_SSE42],[test x$enable_sse42 = xyes])
 
 AC_DEFINE(CLIENT_VERSION_MAJOR, _CLIENT_VERSION_MAJOR, [Major version])
 AC_DEFINE(CLIENT_VERSION_MINOR, _CLIENT_VERSION_MINOR, [Minor version])
@@ -1153,6 +1197,7 @@ AC_SUBST(HARDENED_CPPFLAGS)
 AC_SUBST(HARDENED_LDFLAGS)
 AC_SUBST(PIC_FLAGS)
 AC_SUBST(PIE_FLAGS)
+AC_SUBST(SSE42_CXXFLAGS)
 AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
@@ -1166,9 +1211,11 @@ AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
+AC_SUBST(MINIZIP_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
-AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist src/test/buildenv.py])
+AC_SUBST(DSYMUTIL_FLAT)
+AC_CONFIG_FILES([Makefile src/Makefile share/setup.nsi share/qt/Info.plist src/test/buildenv.py])
 AC_CONFIG_FILES([qa/pull-tester/tests_config.py],[chmod +x qa/pull-tester/tests_config.py])
 AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
 AC_CONFIG_LINKS([qa/pull-tester/rpc-tests.py:qa/pull-tester/rpc-tests.py])
@@ -1267,6 +1314,7 @@ echo "  with test     = $use_tests"
 echo "  with bench    = $use_bench"
 echo "  with upnp     = $use_upnp"
 echo "  debug enabled = $enable_debug"
+echo "  crash hooks enabled = $enable_crashhooks"
 echo "  werror        = $enable_werror"
 echo 
 echo "  target os     = $TARGET_OS"

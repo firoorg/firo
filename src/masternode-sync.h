@@ -41,6 +41,9 @@ private:
     // ... or failed
     int64_t nTimeLastFailure;
 
+    // is DIP3 enforced already?
+    bool fDIP3Enforced;
+
     void Fail();
 
 public:

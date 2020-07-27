@@ -65,6 +65,9 @@ public:
     /// Manage state of active Znode
     void ManageState();
 
+    // Change state if different and publish update
+    void ChangeState(int newState);
+
     std::string GetStateString() const;
     std::string GetStatus() const;
     std::string GetTypeString() const;

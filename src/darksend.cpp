@@ -33,8 +33,7 @@ CDarkSendSigner darkSendSigner;
 std::map <uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
 std::vector <CAmount> vecPrivateSendDenominations;
 
-void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {
-}
+void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {}
 
 void CDarksendPool::InitDenominations() {
     vecPrivateSendDenominations.clear();
@@ -129,7 +128,7 @@ std::string CDarksendPool::GetStatus() {
     nStatusMessageProgress += 10;
     std::string strSuffix = "";
 
-    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !znodeSync.IsBlockchainSynced())
+    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !znodeSync.GetBlockchainSynced())
         return strAutoDenomResult;
 
     switch (nState) {
@@ -699,5 +698,4 @@ void CDarksendPool::UpdatedBlockTip(const CBlockIndex *pindex) {
 }
 
 //TODO: Rename/move to core
-void ThreadCheckDarkSendPool() {
-}
+void ThreadCheckDarkSendPool() {}

@@ -6,6 +6,8 @@
 #ifndef SRC_ZNODECONFIG_H_
 #define SRC_ZNODECONFIG_H_
 
+#include <univalue.h>
+
 class CZnodeConfig;
 extern CZnodeConfig znodeConfig;
 
@@ -70,6 +72,28 @@ public:
 
         void setIp(const std::string& ip) {
             this->ip = ip;
+        }
+
+        UniValue ToJSON(){
+            UniValue ret(UniValue::VOBJ);
+            UniValue outpoint(UniValue::VOBJ);
+            UniValue authorityObj(UniValue::VOBJ);
+
+            std::string authority = getIp();
+            std::string ip   = authority.substr(0, authority.find(":"));
+            std::string port = authority.substr(authority.find(":")+1, authority.length());
+
+            outpoint.push_back(Pair("txid", getTxHash().substr(0,64)));
+            outpoint.push_back(Pair("index", getOutputIndex()));
+            authorityObj.push_back(Pair("ip", ip));
+            authorityObj.push_back(Pair("port", port));
+
+            ret.push_back(Pair("label", getAlias()));
+            ret.push_back(Pair("isMine", true));
+            ret.push_back(Pair("outpoint", outpoint));
+            ret.push_back(Pair("authority", authorityObj));
+
+            return ret;
         }
     };
 

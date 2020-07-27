@@ -209,7 +209,7 @@ UniValue znode(const JSONRPCRequest &request) {
     }
 
     if (strCommand == "debug") {
-        if (activeZnode.nState != ACTIVE_ZNODE_INITIAL || !znodeSync.IsBlockchainSynced())
+        if (activeZnode.nState != ACTIVE_ZNODE_INITIAL || !znodeSync.GetBlockchainSynced())
             return activeZnode.GetStatus();
 
         CTxIn vin;

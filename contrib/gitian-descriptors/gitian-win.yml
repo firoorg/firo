@@ -1,5 +1,5 @@
 ---
-name: "zcoin-win-0.14.8"
+name: "zcoin-win-0.14.0"
 enable_cache: true
 suites:
 - "bionic"
@@ -31,7 +31,7 @@ script: |
   WRAP_DIR=$HOME/wrapped
   # HOSTS="x86_64-w64-mingw32 i686-w64-mingw32"
   HOSTS="x86_64-w64-mingw32"
-  CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests"
+  CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests --enable-crash-hooks"
   FAKETIME_HOST_PROGS="ar ranlib nm windres strip objcopy"
   FAKETIME_PROGS="date makensis zip"
   HOST_CFLAGS="-O2 -g"

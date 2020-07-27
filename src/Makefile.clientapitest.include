@@ -1,0 +1,6 @@
+CLIENTAPI_TEST_CPP = \
+  test/client_api_tests.cpp \
+  test/zmqserver_tests.cpp
+
+BITCOIN_TESTS += \
+  $(EXODUS_TEST_CPP)

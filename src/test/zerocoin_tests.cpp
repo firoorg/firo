@@ -426,7 +426,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     denominationsForTx.push_back(denominations[rand() % 5]); 
     string stringError;
 
-    denominationPairs.clear();
     for (int i = 0; i < 2; i++){
         std::pair<std::string, int> denominationPair(denominationsForTx[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);

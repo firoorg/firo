@@ -1,0 +1,40 @@
+CLIENTAPI_H = \
+  client-api/protocol.h \
+  client-api/register.h \
+  client-api/send.h \
+  client-api/server.h \
+  client-api/settings.h \
+  client-api/sigma.h \
+  client-api/wallet.h \
+  zmqserver/zmqabstract.h \
+  zmqserver/zmqconfig.h \
+  zmqserver/zmqinterface.h \
+  zmqserver/zmqpublisher.h \
+  zmqserver/zmqreplier.h
+
+CLIENTAPI_CPP = \
+  client-api/blockchain.cpp \
+  client-api/masternode.cpp \
+  client-api/misc.cpp \
+  client-api/protocol.cpp \
+  client-api/send.cpp \
+  client-api/server.cpp \
+  client-api/settings.cpp \
+  client-api/sigma.cpp \
+  client-api/wallet.cpp \
+  zmqserver/zmqabstract.cpp \
+  zmqserver/zmqinterface.cpp \
+  zmqserver/zmqpublisher.cpp \
+  zmqserver/zmqreplier.cpp
+
+libbitcoin_zmq_a_SOURCES += \
+  $(CLIENTAPI_CPP) \
+  $(CLIENTAPI_H)
+
+libbitcoin_util_a_SOURCES += \
+  $(CLIENTAPI_CPP) \
+  $(CLIENTAPI_H)
+
+if ENABLE_TESTS
+include Makefile.clientapitest.include
+endif

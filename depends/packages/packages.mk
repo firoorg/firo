@@ -1,6 +1,4 @@
-packages:=boost openssl libevent gmp zlib
-darwin_packages:=zeromq
-linux_packages:=zeromq
+packages:=boost openssl libevent gmp zlib backtrace zeromq minizip
 native_packages := native_ccache native_comparisontool
 
 qt_native_packages = native_protobuf

@@ -17,6 +17,10 @@ int CZnodeSyncInterface::GetAssetID()
     return fEvoZnodes ? masternodeSync.GetAssetID() : znodeSync.GetAssetID();
 }
 
+bool CZnodeSyncInterface::GetBlockchainSynced() {
+    return fEvoZnodes ? masternodeSync.IsBlockchainSynced() : znodeSync.GetBlockchainSynced();
+}
+
 bool CZnodeSyncInterface::IsBlockchainSynced() {
     return fEvoZnodes ? masternodeSync.IsBlockchainSynced() : znodeSync.IsBlockchainSynced();
 }

@@ -17,6 +17,7 @@
 #include "sigma/coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
+#include "univalue.h"
 #include "chainparams.h"
 #include "coin_containers.h"
 #include "streams.h"
@@ -382,6 +383,29 @@ public:
             pprev, nHeight,
             hashMerkleRoot.ToString(),
             GetBlockHash().ToString());
+    }
+
+    UniValue ToJSON() const
+    {
+        UniValue ret(UniValue::VOBJ);
+
+        ret.push_back(Pair("type", "CBlockIndex"));
+        ret.push_back(Pair("pprev", pprev));
+        ret.push_back(Pair("nHeight", nHeight));
+        ret.push_back(Pair("merkle", hashMerkleRoot.ToString()));
+        ret.push_back(Pair("hashBlock", GetBlockHash().ToString()));
+        ret.push_back(Pair("dataPos", to_string(nDataPos)));
+        ret.push_back(Pair("chainWork", nChainWork.GetHex()));
+        ret.push_back(Pair("tx", to_string(nTx)));
+        ret.push_back(Pair("chainTx", to_string(nChainTx)));
+        ret.push_back(Pair("status", to_string(nStatus)));
+        ret.push_back(Pair("sequenceId", to_string(nSequenceId)));
+        ret.push_back(Pair("version", to_string(nVersion)));
+        ret.push_back(Pair("nTime", to_string(nTime)));
+        ret.push_back(Pair("bits", to_string(nBits)));
+        ret.push_back(Pair("nonce", to_string(nNonce)));
+
+        return ret;
     }
 
     //! Check whether this block index entry is valid up to the passed validity level.

@@ -16,6 +16,7 @@ CEvoDB::CEvoDB(size_t nCacheSize, bool fMemory, bool fWipe) :
 
 bool CEvoDB::CommitRootTransaction()
 {
+    LOCK(cs);
     assert(curDBTransaction.IsClean());
     rootDBTransaction.Commit();
     bool ret = db.WriteBatch(rootBatch);
@@ -38,4 +39,14 @@ bool CEvoDB::VerifyBestBlock(const uint256& hash)
 void CEvoDB::WriteBestBlock(const uint256& hash)
 {
     Write(EVODB_BEST_BLOCK, hash);
+}
+
+void CEvoDB::CommitTransaction(CurTransaction & tx) {
+    LOCK(cs);
+    tx.Commit();
+}
+
+void CEvoDB::ClearTransaction(CurTransaction & tx) {
+    LOCK(cs);
+    tx.Clear();
 }

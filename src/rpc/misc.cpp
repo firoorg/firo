@@ -18,6 +18,7 @@
 #include "znode-sync.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/wallet.h"
+#include "wallet/rpcwallet.h"
 #include "wallet/walletdb.h"
 #endif
 #include "txdb.h"
@@ -101,6 +102,7 @@ UniValue getinfo(const JSONRPCRequest& request)
     if(g_connman)
         obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.proxy.ToStringIPPort() : string())));
+    obj.push_back(Pair("datadir",       GetDataDir(true).string()));
     obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
     obj.push_back(Pair("testnet",       Params().NetworkIDString() == CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
@@ -324,7 +326,7 @@ UniValue znsync(const JSONRPCRequest& request)
         objStatus.push_back(Pair("AssetID", znodeSync.GetAssetID()));
         objStatus.push_back(Pair("AssetName", znodeSync.GetAssetName()));
         objStatus.push_back(Pair("Attempt", znodeSync.GetAttempt()));
-        objStatus.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
+        objStatus.push_back(Pair("IsBlockchainSynced", znodeSync.GetBlockchainSynced()));
         objStatus.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
         objStatus.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
         objStatus.push_back(Pair("IsSynced", znodeSync.IsSynced()));
@@ -927,7 +929,7 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
     for (std::vector<std::pair<uint160, AddressType> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address. If this is not an address in your wallet, set addressindex=1 in the conf file.");
         }
     }
 

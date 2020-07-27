@@ -170,6 +170,9 @@ private:
     CAmount nSigmaSpendAmount;
     size_t nSigmaSpendInputs;
 
+    // transactions we cannot include in this block
+    CTxMemPool::setEntries txBlackList;
+
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
@@ -218,6 +221,9 @@ private:
 
     /** Zcoin: fill in founders' reward and znode payout outputs */
     void FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP);
+
+    /** Fill txBlackList set */
+    void FillBlackListForBlockTemplate();
 };
 
 /** Modify the extranonce in a block */

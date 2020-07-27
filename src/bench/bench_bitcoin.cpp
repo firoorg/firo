@@ -5,12 +5,16 @@
 #include "bench.h"
 
 #include "key.h"
+#include "stacktraces.h"
 #include "validation.h"
 #include "util.h"
 
 int
 main(int argc, char** argv)
 {
+    RegisterPrettySignalHandlers();
+    RegisterPrettyTerminateHander();
+
     ECC_Start();
     SetupEnvironment();
     fPrintToDebugLog = false; // don't want to write to debug.log file

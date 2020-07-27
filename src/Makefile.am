@@ -11,6 +11,24 @@ AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 AM_LIBTOOLFLAGS = --preserve-dup-deps
 EXTRA_LIBRARIES =
 
+if ENABLE_CRASH_HOOKS
+if CRASH_HOOKS_WRAPPED_CXX_ABI
+# Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
+LDFLAGS_WRAP_EXCEPTIONS = -Wl,-wrap,__cxa_allocate_exception -Wl,-wrap,__cxa_free_exception
+if TARGET_WINDOWS
+LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,_assert -Wl,-wrap,_wassert
+else
+LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
+endif
+endif
+endif
+
+if TARGET_WINDOWS
+BACKTRACE_LIB = -ldbghelp -lbacktrace
+else
+BACKTRACE_LIB = -lbacktrace
+endif
+
 if EMBEDDED_UNIVALUE
 LIBUNIVALUE = univalue/libunivalue.la
 
@@ -90,6 +108,10 @@ BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/src
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
+if ENABLE_CLIENTAPI
+BITCOIN_INCLUDES += $(MINIZIP_CFLAGS)
+endif
+
 LIBBITCOIN_SERVER=libbitcoin_server.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
@@ -101,7 +123,7 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 
 LIBZCOIN_SIGMA=libsigma.a
 
-if ENABLE_ZMQ
+if ENABLE_CLIENTAPI
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
 if BUILD_BITCOIN_LIBS
@@ -182,6 +204,7 @@ BITCOIN_CORE_H = \
   core_io.h \
   core_memusage.h \
   cuckoocache.h \
+  fs.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
@@ -225,6 +248,7 @@ BITCOIN_CORE_H = \
   rpc/protocol.h \
   rpc/server.h \
   rpc/register.h \
+  rpc/rpcevo.h \
   scheduler.h \
   script/sigcache.h \
   script/sign.h \
@@ -267,11 +291,6 @@ BITCOIN_CORE_H = \
   wallet/bip39.h \
   wallet/bip39_english.h \
   definition.h \
-  warnings.h \
-  zmq/zmqabstractnotifier.h \
-  zmq/zmqconfig.h\
-  zmq/zmqnotificationinterface.h \
-  zmq/zmqpublishnotifier.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
@@ -429,6 +448,7 @@ libbitcoin_server_a_SOURCES = \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/client.cpp \
   rpc/masternode.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \
@@ -454,15 +474,12 @@ libbitcoin_server_a_SOURCES = \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
-if ENABLE_ZMQ
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+if ENABLE_CLIENTAPI
+libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
-  zmq/zmqabstractnotifier.cpp \
-  zmq/zmqnotificationinterface.cpp \
-  zmq/zmqpublishnotifier.cpp
+  rpc/client.cpp
 endif
-
 
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled
@@ -563,6 +580,7 @@ libbitcoin_consensus_a_SOURCES = \
   script/script_error.h \
   serialize.h \
   spork.h \
+  stacktraces.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
@@ -636,11 +654,16 @@ libbitcoin_util_a_SOURCES = \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
   mbstring.cpp \
+  fs.cpp \
   random.cpp \
   rpc/protocol.cpp \
+  stacktraces.cpp \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
+  univalue/lib/univalue.cpp \
+  univalue/lib/univalue_read.cpp \
+  univalue/lib/univalue_write.cpp \
   util.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
@@ -724,7 +747,7 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 zcoind_SOURCES = bitcoind.cpp
 zcoind_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 zcoind_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+zcoind_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 EXTRA_zcoind_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 if TARGET_WINDOWS
@@ -742,17 +765,21 @@ zcoind_LDADD = \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
+  $(LIBLEVELDB_SSE42) \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
   $(LIBBLSSIG_LIBS)
 
-zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS) -lz
+zcoind_LDADD += $(BACKTRACE_LIB) $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS)
+if ENABLE_CLIENTAPI
+zcoind_LDADD += $(MINIZIP_LIBS)
+endif
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
 zcoin_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 zcoin_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoin_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+zcoin_cli_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
 zcoin_cli_SOURCES += bitcoin-cli-res.rc
@@ -764,14 +791,16 @@ zcoin_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
-#
+zcoin_cli_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+if ENABLE_CLIENTAPI
+zcoin_cli_LDADD += $(MINIZIP_LIBS)
+endif
 
 # bitcoin-tx binary #
 zcoin_tx_SOURCES = bitcoin-tx.cpp
 zcoin_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 zcoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+zcoin_tx_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
 zcoin_tx_SOURCES += bitcoin-tx-res.rc
@@ -785,8 +814,10 @@ zcoin_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-zcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
-#
+zcoin_tx_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(CRYPTO_LIBS)
+if ENABLE_CLIENTAPI
+zcoin_tx_LDADD += $(MINIZIP_LIBS)
+endif
 
 # bitcoinconsensus library #
 if BUILD_BITCOIN_LIBS
@@ -848,6 +879,7 @@ clean-local:
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
+	-rm -rf *.dSYM test/*.dSYM bench/*.dSYM qt/*.dSYM qt/test/*.dSYM
 
 distclean-local:
 	-rm -rf bls-signatures/build
@@ -873,6 +905,9 @@ if HARDEN
 	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(PYTHON) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
 endif
 
+osx_debug: $(bin_PROGRAMS)
+	for i in $(bin_PROGRAMS); do mkdir -p $$i.dSYM/Contents/Resources/DWARF && $(DSYMUTIL_FLAT) -o $$i.dSYM/Contents/Resources/DWARF/$$(basename $$i) $$i &> /dev/null ; done
+  
 %.pb.cc %.pb.h: %.proto
 	@test -f $(PROTOC)
 	$(AM_V_GEN) $(PROTOC) --cpp_out=$(@D) --proto_path=$(<D) $<
@@ -894,4 +929,8 @@ endif
 
 if ENABLE_ELYSIUM
 include Makefile.elysium.include
+endif
+
+if ENABLE_CLIENTAPI
+include Makefile.clientapi.include
 endif

@@ -23,6 +23,8 @@ static const int ZNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes 
 
 static const int ZNODE_SYNC_ENOUGH_PEERS    = 3;
 
+static bool fBlockchainSynced = false;
+
 extern CZnodeSync znodeSync;
 
 //
@@ -65,6 +67,8 @@ public:
     void AddedGovernanceItem() { nTimeLastGovernanceItem = GetTime(); };
 
     void SendGovernanceSyncRequest(CNode* pnode);
+
+    bool GetBlockchainSynced(bool fBlockAccepted = false);
 
     bool IsFailed() { return nRequestedZnodeAssets == ZNODE_SYNC_FAILED; }
     bool IsBlockchainSynced(bool fBlockAccepted = false);

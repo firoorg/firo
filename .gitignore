@@ -14,6 +14,7 @@ src/zcoind
 src/zcoin-cli
 src/zcoin-tx
 src/testbip47
+src/test/test_bitcoin_fuzzy
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
@@ -101,6 +102,10 @@ qrc_*.cpp
 .DS_Store
 build
 
+# Xcode
+.settings
+*.xcodeproj
+
 #lcov
 *.gcno
 *.gcda
@@ -123,9 +128,11 @@ qa/cache/*
 
 !src/leveldb*/Makefile
 
-/doc/doxygen/
+doc/doxygen/
+doc/man/Makefile
 
 libzcoinconsensus.pc
+libbitcoinconsensus.pc
 contrib/devtools/split-debug.sh
 
 src/test/test_bitcoin

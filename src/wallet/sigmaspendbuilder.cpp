@@ -32,7 +32,7 @@ public:
         fPadding = true;
     }
 
-    CScript Sign(const CMutableTransaction& tx, const uint256& sig) override
+    CScript Sign(const CMutableTransaction& tx, const uint256& sig, bool fDummy) override
     {
         // construct spend
         sigma::SpendMetaData meta(output.n, lastBlockOfGroup, sig);
@@ -40,7 +40,7 @@ public:
 
         spend.setVersion(coin.getVersion());
 
-        if (!spend.Verify(group, meta, fPadding)) {
+        if (!fDummy && !spend.Verify(group, meta, fPadding)) {
             throw std::runtime_error(_("The spend coin transaction failed to verify"));
         }
 
@@ -136,7 +136,7 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
     cs_main.unlock();
 }
 
-CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
+CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, bool fDummy)
 {
     // get coins to spend
 
@@ -146,7 +146,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     auto& consensusParams = Params().GetConsensus();
 
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
-        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction, coinControl)) {
+        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction, coinControl, fDummy)) {
         throw InsufficientFunds();
     }
 
@@ -160,7 +160,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     return total;
 }
 
-CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount)
+CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount, bool fDummy)
 {
     outputs.clear();
     changes.clear();
@@ -173,8 +173,12 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
-        hdMint.SetNull();
-        mintWallet.GenerateMint(denomination, newCoin, hdMint, boost::none, true);
+        
+        if(!fDummy){
+            hdMint.SetNull();
+            mintWallet.GenerateMint(denomination, newCoin, hdMint, boost::none, true);
+        }
+
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
@@ -188,7 +192,9 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
         outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
-        changes.push_back(hdMint);
+
+        if(!fDummy)
+            changes.push_back(hdMint);
 
         amount -= denominationValue;
     }

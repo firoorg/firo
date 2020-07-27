@@ -15,6 +15,7 @@
 #include "net_processing.h"
 #include "netmessagemaker.h"
 #include "util.h"
+#include "validationinterface.h"
 
 // TODO: remove this when upgraded to dash latest version
 #define cs_vNodes (g_connman->cs_vNodes)
@@ -51,8 +52,16 @@ bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
     return true;
 }
 
+bool CZnodeSync::GetBlockchainSynced(bool fBlockAccepted){
+    bool currentBlockchainSynced = fBlockchainSynced;
+    IsBlockchainSynced(fBlockAccepted);
+    if(currentBlockchainSynced != fBlockchainSynced){
+        GetMainSignals().UpdateSyncStatus();
+    }
+    return fBlockchainSynced;
+}
+
 bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
-    static bool fBlockchainSynced = false;
     static int64_t nTimeLastProcess = GetTime();
     static int nSkipped = 0;
     static bool fFirstBlockAccepted = false;
@@ -118,14 +127,17 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
                 LogPrintf("CZnodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 g_connman->ReleaseNodeVector(vNodesCopy);
-                return true;
+                return fBlockchainSynced;
             }
         }
     }
     g_connman->ReleaseNodeVector(vNodesCopy);
 
     // wait for at least one new block to be accepted
-    if (!fFirstBlockAccepted) return false;
+    if (!fFirstBlockAccepted){ 
+        fBlockchainSynced = false;
+        return false;
+    }
 
     // same as !IsInitialBlockDownload() but no cs_main needed here
     int64_t nMaxBlockTime = std::max(pCurrentBlockIndex->GetBlockTime(), pindexBestHeader->GetBlockTime());
@@ -137,6 +149,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
 void CZnodeSync::Fail() {
     nTimeLastFailure = GetTime();
     nRequestedZnodeAssets = ZNODE_SYNC_FAILED;
+    GetMainSignals().UpdateSyncStatus();
 }
 
 void CZnodeSync::Reset() {
@@ -198,6 +211,7 @@ void CZnodeSync::SwitchToNextAsset() {
     }
     nRequestedZnodeAttempt = 0;
     nTimeAssetSyncStarted = GetTime();
+    GetMainSignals().UpdateSyncStatus();
 }
 
 std::string CZnodeSync::GetSyncStatus() {
@@ -317,6 +331,7 @@ void CZnodeSync::ProcessTick() {
                 g_connman->PushMessage(pnode, CNetMsgMaker(LEGACY_ZNODES_PROTOCOL_VERSION).Make(NetMsgType::ZNODEPAYMENTSYNC, nMnCount)); //sync payment votes
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
+                GetMainSignals().UpdateSyncStatus();
             }
             nRequestedZnodeAttempt++;
             g_connman->ReleaseNodeVector(vNodesCopy);

@@ -144,7 +144,6 @@ void quorum_dkgstatus_help()
     throw std::runtime_error(
             "quorum dkgstatus ( detail_level )\n"
             "Return the status of the current DKG process.\n"
-            "Works only when SPORK_17_QUORUM_DKG_ENABLED spork is ON.\n"
             "\nArguments:\n"
             "1. detail_level         (number, optional, default=0) Detail level of output.\n"
             "                        0=Only show counts. 1=Show member indexes. 2=Show member's ProTxHashes.\n"

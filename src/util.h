@@ -36,6 +36,13 @@ static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
 static const bool DEFAULT_LOGTIMESTAMPS = true;
 
+const char * const PERSISTENT_FILENAME = "persistent/";
+
+const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
+const char * const ZEROCOIN_FILENAME = "zerocoin.json";
+const char * const SETTINGS_FILENAME = "settings.json";
+const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
+
 /** Signals for translation. */
 class CTranslationInterface
 {
@@ -47,10 +54,13 @@ extern bool fMasternodeMode;
 extern bool fLiteMode;
 extern int nWalletBackups;
 
+extern std::map<std::string, std::string> mapArgs;
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
 extern bool fDebug;
 extern bool fPrintToConsole;
 extern bool fPrintToDebugLog;
+extern bool fServer;
+extern bool fApi;
 
 extern bool fLogTimestamps;
 extern bool fLogTimeMicros;
@@ -110,7 +120,7 @@ bool error(const char* fmt, const Args&... args)
     return false;
 }
 
-void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
+void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread);
 void ParseParameters(int argc, const char*const argv[]);
 void FileCommit(FILE *file);
 bool TruncateFile(FILE *file, unsigned int length);
@@ -122,12 +132,21 @@ boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 const boost::filesystem::path &GetBackupsDir();
 void ClearDatadirCache();
+boost::filesystem::path GetPersistentDataDir(bool fNetSpecific = true);
+boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename);
 boost::filesystem::path GetConfigFile(const std::string& confPath);
+void CreatePersistentFiles(bool fNetSpecific=true);
+boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
+boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);
+boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
-#ifndef WIN32
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
+
+#ifdef ENABLE_CLIENTAPI
+bool CreateZipFile(std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath);
 #endif
+
 void ReadConfigFile(const std::string& confPath);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
@@ -261,12 +280,8 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         LogPrintf("%s thread interrupt\n", name);
         throw;
     }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, name);
-        throw;
-    }
     catch (...) {
-        PrintExceptionContinue(NULL, name);
+        PrintExceptionContinue(std::current_exception(), name);
         throw;
     }
 }
