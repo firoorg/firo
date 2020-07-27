@@ -1714,7 +1714,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     fApi = GetBoolArg("-clientapi", false);
     if(fApi){
         CreatePaymentRequestFile();
-        CreateZerocoinFile();
 
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
         CZMQAbstract::CreateCerts(resetapicerts);

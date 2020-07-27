@@ -8323,10 +8323,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         }
     }
 
-    // Add files for persistent storage (client-api)
-    if(fApi)
-        CreatePersistentFiles();
-
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
