@@ -5802,7 +5802,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this, *zwallet, coinControl);
     CWalletDB walletdb(strWalletFile);
-    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb, fDummy);
     selected = builder.selected;
     changes = builder.changes;
 
