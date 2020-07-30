@@ -150,7 +150,7 @@ CAmount WalletModel::getUnconfirmedPrivateBalance() const
 
 CAmount WalletModel::getAnonymizableBalance() const
 {
-    return lelantusModel->getMintableAmount();
+    return lelantus::IsLelantusAllowed() ? lelantusModel->getMintableAmount() : 0;
 }
 
 std::pair<CAmount, CAmount> WalletModel::getSigmaBalance() const

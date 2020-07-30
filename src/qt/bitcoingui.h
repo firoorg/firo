@@ -160,6 +160,8 @@ private:
     void checkZc2SigmaVisibility(int numBlocks);
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
+    /** Updates Sigma visibility*/
+    void checkSigmaVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
