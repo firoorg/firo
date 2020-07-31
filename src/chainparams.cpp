@@ -248,6 +248,7 @@ public:
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
         consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
+        consensus.DIP0003EnforcementHash = uint256S("0x8b8d7c05bb2d75f8c5e076cb6c10ef464e94ddcda2744740db03aeda2d6cc006");
         consensus.DIP0008Height = INT_MAX;
         consensus.nEvoZnodeMinimumConfirmations = 15;
 
@@ -469,6 +470,8 @@ public:
         // evo znodes
         consensus.DIP0003Height = 3340;
         consensus.DIP0003EnforcementHeight = 3800;
+        consensus.DIP0003EnforcementHash = uint256S("0x73a5d3086a676e48000c35595c3c4d0df2b443fb42e25be01c9e67f25f6b16a7");
+
         consensus.DIP0008Height = INT_MAX;
         consensus.nEvoZnodeMinimumConfirmations = 0;
 
