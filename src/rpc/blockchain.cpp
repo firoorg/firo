@@ -26,6 +26,9 @@
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
 
+#include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_instantsend.h"
+
 #include <stdint.h>
 
 #include <univalue.h>
@@ -105,6 +108,7 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
         result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+    result.push_back(Pair("chainlock", llmq::chainLocksHandler->HasChainLock(blockindex->nHeight, blockindex->GetBlockHash())));
     return result;
 }
 
@@ -152,6 +156,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     CBlockIndex *pnext = chainActive.Next(blockindex);
     if (pnext)
         result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+    result.push_back(Pair("chainlock", llmq::chainLocksHandler->HasChainLock(blockindex->nHeight, blockindex->GetBlockHash())));
     return result;
 }
 
