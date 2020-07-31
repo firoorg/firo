@@ -120,6 +120,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
+    QAction *lelantusAction;
     QAction *zc2SigmaAction;
     QAction *znodeAction;
     QAction *masternodeAction;
@@ -160,8 +161,10 @@ private:
     void checkZc2SigmaVisibility(int numBlocks);
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
-    /** Updates Sigma visibility*/
+    /** Updates Sigma visibility */
     void checkSigmaVisibility(int numBlocks);
+    /** Updates Lelantus visibility */
+    void checkLelantusVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -239,6 +242,8 @@ private Q_SLOTS:
     void gotoSigmaPage();
     /** Switch to ZC->sigma page */
     void gotoZc2SigmaPage();
+    /** Switch to lelantus page */
+    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

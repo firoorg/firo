@@ -137,7 +137,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    sigmaAction(0),
     zc2SigmaAction(0),
+    lelantusAction(0),
     znodeAction(0),
     masternodeAction(0),
     trayIcon(0),
@@ -374,6 +376,14 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(zc2SigmaAction);
     zc2SigmaAction->setVisible(false);
 
+    lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("&Lelantus"), this);
+    lelantusAction->setStatusTip(tr("Anonymize your coins"));
+    lelantusAction->setToolTip(lelantusAction->statusTip());
+    lelantusAction->setCheckable(true);
+    lelantusAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(lelantusAction);
+    lelantusAction->setVisible(false);
+
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
     znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
@@ -435,6 +445,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
 	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
+    connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
 
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
@@ -578,6 +589,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
+        toolbar->addAction(lelantusAction);
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
         toolbar->addAction(masternodeAction);
@@ -647,6 +659,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #ifdef ENABLE_WALLET
             checkZc2SigmaVisibility(blocks);
             checkSigmaVisibility(blocks);
+            checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
         }
     } else {
@@ -703,6 +716,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
+    lelantusAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -914,6 +928,12 @@ void BitcoinGUI::gotoZc2SigmaPage()
     if (walletFrame) walletFrame->gotoZc2SigmaPage();
 }
 
+void BitcoinGUI::gotoLelantusPage()
+{
+    lelantusAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoLelantusPage();
+}
+
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
     if (walletFrame) walletFrame->gotoVerifyMessageTab(addr);
@@ -1079,6 +1099,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkSigmaVisibility(count);
+    checkLelantusVisibility(count);
     checkZc2SigmaVisibility(count);
 #endif // ENABLE_WALLET
 
@@ -1512,6 +1533,17 @@ void BitcoinGUI::checkSigmaVisibility(int numBlocks)
             gotoOverviewPage();
         }
         sigmaAction->setVisible(allowSigmaPage);
+    }
+}
+
+void BitcoinGUI::checkLelantusVisibility(int numBlocks)
+{
+    auto allowLelantusPage = lelantus::IsLelantusAllowed(numBlocks);
+    if (allowLelantusPage != lelantusAction->isVisible()) {
+        if (!allowLelantusPage && lelantusAction->isChecked()) {
+            gotoOverviewPage();
+        }
+        lelantusAction->setVisible(allowLelantusPage);
     }
 }
 
