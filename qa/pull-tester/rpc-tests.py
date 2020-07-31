@@ -197,7 +197,8 @@ testScripts = [
     'sigma_zapwalletmints_unconf_trans.py',
 
     # Evo Znodes
-    'dip3-deterministicmns.py'
+    'dip3-deterministicmns.py',
+    'llmq-signing.py'
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'

@@ -552,15 +552,14 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         uiInterface.NotifyMasternodeListChanged(newList);
     }
 
-    // TODO: uncomment when DIP3 enforcement block hash is known
-    /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
+    if (nHeight == consensusParams.DIP0003EnforcementHeight && consensusParams.chainType != Consensus::ChainType::chainRegtest) {
         if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
             LogPrintf("CDeterministicMNManager::%s -- DIP3 enforcement block has wrong hash: hash=%s, expected=%s, nHeight=%d\n", __func__,
                     pindex->GetBlockHash().ToString(), consensusParams.DIP0003EnforcementHash.ToString(), nHeight);
             return _state.DoS(100, false, REJECT_INVALID, "bad-dip3-enf-block");
         }
         LogPrintf("CDeterministicMNManager::%s -- DIP3 is enforced now. nHeight=%d\n", __func__, nHeight);
-    }*/
+    }
 
     LOCK(cs);
     CleanupCache(nHeight);
