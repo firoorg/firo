@@ -47,7 +47,6 @@
 #include <boost/thread.hpp>
 
 extern CWallet* pwalletMain;
-extern CHDMintWallet* zwalletMain;
 
 /**
  * Settings
@@ -763,6 +762,8 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 
+    std::unique_ptr<CHDMintWallet> zwallet;
+
     CWallet()
     {
         SetNull();
@@ -796,6 +797,7 @@ public:
         fAnonymizableTallyCachedNonDenom = false;
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
+        zwallet = NULL;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -857,8 +859,8 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey(uint32_t nChange=0); // Bip44
     CPubKey GenerateBip47NewKey(uint32_t nChange=0); // Bip47
+    CPubKey GenerateNewKey(uint32_t nChange=0, bool fWriteChain=true);
     void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret);
 
     //! Adds a key to the store, and saves it to disk.

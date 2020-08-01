@@ -39,9 +39,7 @@ static const bool DEFAULT_LOGTIMESTAMPS = true;
 const char * const PERSISTENT_FILENAME = "persistent/";
 
 const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
-const char * const ZEROCOIN_FILENAME = "zerocoin.json";
 const char * const SETTINGS_FILENAME = "settings.json";
-const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
 
 /** Signals for translation. */
 class CTranslationInterface
@@ -135,9 +133,7 @@ void ClearDatadirCache();
 boost::filesystem::path GetPersistentDataDir(bool fNetSpecific = true);
 boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename);
 boost::filesystem::path GetConfigFile(const std::string& confPath);
-void CreatePersistentFiles(bool fNetSpecific=true);
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
-boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
 boost::filesystem::path GetPidFile();

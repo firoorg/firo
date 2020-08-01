@@ -33,12 +33,13 @@ bool createSigmaMintAPITransaction(const UniValue& data,
                                    vector<CHDMint>& vHdMints){
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     if (!sigma::IsSigmaAllowed()) {
         throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
     }
     sigma::Params* sigmaParams = sigma::Params::get_default();
-    if (zwalletMain) {
-        zwalletMain->ResetCount(); // Reset count to original
+    if (pwalletMain->zwallet) {
+        pwalletMain->zwallet->ResetCount(walletdb); // Reset count to original
     }
 
     UniValue denominationsObj = find_value(data, "denominations");
@@ -76,7 +77,7 @@ bool createSigmaMintAPITransaction(const UniValue& data,
 
                 // Generate and store secrets deterministically in the following function.
                 CHDMint fHdMint;
-                zwalletMain->GenerateMint(newCoin.getPublicCoin().getDenomination(), newCoin, fHdMint);
+                pwalletMain->zwallet->GenerateMint(walletdb, newCoin.getPublicCoin().getDenomination(), newCoin, fHdMint);
 
                 sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
@@ -196,7 +197,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
 }
 
 UniValue GetDenominations(){
-    std::vector<CMintMeta> listMints = zwalletMain->GetTracker().ListMints(true, false, false);
+    std::vector<CMintMeta> listMints = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
 
     UniValue denominations(UniValue::VOBJ);
     map<string, vector<int>> denominationsMap;
@@ -325,7 +326,7 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 
     EnsureWalletIsUnlocked(pwalletMain);
 
-    list <CSigmaEntry> listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(true, false);
+    list <CSigmaEntry> listPubcoin = pwalletMain->zwallet->GetTracker().MintsAsSigmaEntries(true, false);
     UniValue results(UniValue::VOBJ);
 
     BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {

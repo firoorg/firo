@@ -489,16 +489,20 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
            std::string("\n\n");
 }
 
+#ifdef ENABLE_CRASH_HOOKS
 static std::string FormatException(const std::exception_ptr pex, const char* pszThread)
 {
     return strprintf("EXCEPTION: %s", GetPrettyExceptionStr(pex));
 }
+#endif
 
 void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
 {
+#ifdef ENABLE_CRASH_HOOKS
     std::string message = FormatException(pex, pszThread);
     LogPrintf("\n\n************************\n%s\n", message);
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
+#endif
 }
 
 boost::filesystem::path GetDefaultDataDir()
@@ -635,11 +639,6 @@ boost::filesystem::path GetConfigFile(const std::string& confPath)
     return pathConfigFile;
 }
 
-void CreatePersistentFiles(bool fNetSpecific){
-    CreatePaymentRequestFile(fNetSpecific);
-    CreateZerocoinFile(fNetSpecific);
-}
-
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific)
 {
     boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);
@@ -655,25 +654,6 @@ boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific)
         std::ofstream paymentRequestOut(pathConfigFile.string());
 
         paymentRequestOut << paymentRequestUni.write(4,0) << endl;
-    }
-
-    return pathConfigFile;
-}
-
-boost::filesystem::path CreateZerocoinFile(bool fNetSpecific)
-{
-    boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific,ZEROCOIN_FILENAME);
-    LogPrintf("API: pathConfigFile zerocoin: %s\n", pathConfigFile.string());
-    if(!boost::filesystem::exists(pathConfigFile)){
-        LogPrintf("zerocoin does not exist\n");
-        UniValue zerocoinUni(UniValue::VOBJ);
-        zerocoinUni.push_back(Pair("type", "zerocoin"));
-        zerocoinUni.push_back(Pair("data", NullUniValue));
-        
-        //write back UniValue
-        std::ofstream zerocoinOut(pathConfigFile.string());
-
-        zerocoinOut << zerocoinUni.write(4,0) << endl;
     }
 
     return pathConfigFile;

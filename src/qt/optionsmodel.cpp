@@ -109,6 +109,15 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("bSpendZeroConfChange", true);
     if (!SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
+
+    if (!settings.contains("bReindexSigma"))
+        settings.setValue("bReindexSigma", DEFAULT_ZAP_WALLET);
+    if (!SoftSetBoolArg("-zapwalletmints", settings.value("bReindexSigma").toBool())) {
+        addOverriddenOption("-zapwalletmints");
+    } else {
+        settings.setValue("bReindexSigma", false);
+    }
+
 #endif
 
     // Network
@@ -240,6 +249,9 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
 #ifdef ENABLE_WALLET
         case SpendZeroConfChange:
             return settings.value("bSpendZeroConfChange");
+
+        case ReindexSigma:
+            return settings.value("bReindexSigma");
 #endif
         case DisplayUnit:
             return nDisplayUnit;
@@ -360,6 +372,13 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case SpendZeroConfChange:
             if (settings.value("bSpendZeroConfChange") != value) {
                 settings.setValue("bSpendZeroConfChange", value);
+                setRestartRequired(true);
+            }
+            break;
+
+        case ReindexSigma:
+            if (settings.value("bReindexSigma") != value) {
+                settings.setValue("bReindexSigma", value);
                 setRestartRequired(true);
             }
             break;

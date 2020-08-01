@@ -21,12 +21,12 @@ else
 LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
 endif
 endif
-endif
 
 if TARGET_WINDOWS
 BACKTRACE_LIB = -ldbghelp -lbacktrace
 else
 BACKTRACE_LIB = -lbacktrace
+endif
 endif
 
 if EMBEDDED_UNIVALUE
@@ -291,6 +291,7 @@ BITCOIN_CORE_H = \
   wallet/bip39.h \
   wallet/bip39_english.h \
   definition.h \
+  warnings.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
@@ -733,6 +734,11 @@ libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
+if ENABLE_CRASH_HOOKS
+libbitcoin_util_a_SOURCES += stacktraces.cpp
+libbitcoin_consensus_a_SOURCES += stacktraces.h
+endif
+
 # cli: shared between zcoin-cli and zcoin-qt
 libbitcoin_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -771,9 +777,12 @@ zcoind_LDADD = \
   $(LIBBLSSIG_LIBS)
 
 zcoind_LDADD += $(BACKTRACE_LIB) $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS)
+
 if ENABLE_CLIENTAPI
 zcoind_LDADD += $(MINIZIP_LIBS)
 endif
+
+zcoind_LDADD += -lz
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp

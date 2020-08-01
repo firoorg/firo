@@ -43,10 +43,12 @@ static int AppInitRawTx(int argc, char* argv[])
     //
     ParseParameters(argc, argv);
 
+#ifdef ENABLE_CRASH_HOOKS
      if (IsArgSet("-printcrashinfo")) {
         std::cout << GetCrashInfoStrFromSerializedStr(GetArg("-printcrashinfo", "")) << std::endl;
         return true;
     }
+#endif
 
     // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
     try {
@@ -828,8 +830,10 @@ static int CommandLineRawTx(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+#ifdef ENABLE_CRASH_HOOKS
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
+#endif
 
     SetupEnvironment();
 

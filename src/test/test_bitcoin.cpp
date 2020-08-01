@@ -138,10 +138,10 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 
         pwalletMain->SetBestChain(chainActive.GetLocator());
 
-        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
-        zwalletMain->GetTracker().Init();
-        zwalletMain->LoadMintPoolFromDB();
-        zwalletMain->SyncWithChain();
+        pwalletMain->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
+        pwalletMain->zwallet->GetTracker().Init();
+        pwalletMain->zwallet->LoadMintPoolFromDB();
+        pwalletMain->zwallet->SyncWithChain();
 }
 
 TestingSetup::~TestingSetup()
@@ -328,6 +328,7 @@ bool ShutdownRequested()
 }
 */
 
+#ifdef ENABLE_CRASH_HOOKS
 template<typename T>
 void translate_exception(const T &e)
 {
@@ -357,3 +358,4 @@ struct ExceptionInitializer {
 };
 
 BOOST_GLOBAL_FIXTURE( ExceptionInitializer );
+#endif

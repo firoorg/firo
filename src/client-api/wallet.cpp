@@ -93,7 +93,7 @@ bool isMnemonicExist() {
 }
 
 void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
-    auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
+    auto coins = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
     for (const auto& coin : coins) {
         // ignore spent coin
         if (coin.isUsed)
@@ -419,7 +419,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
                 spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
 
-                if(!zwalletMain->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
+                if(!pwalletMain->zwallet->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
                     continue;
 
                 if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
