@@ -3212,8 +3212,6 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
     pwalletMain->zwallet->ResetCount(walletdb); // Before starting to mint, ensure mint count is correct
 
-    zwalletMain->ResetCount(); // Before starting to mint, ensure mint count is correct
-
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
         [&vDMints, &walletdb](sigma::PrivateCoin& coin) -> CRecipient {
 
@@ -8933,10 +8931,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             return NULL;
         }
     }
-
-    // Add files for persistent storage (client-api)
-    if(fApi)
-        CreatePersistentFiles();
 
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {

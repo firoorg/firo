@@ -581,7 +581,6 @@ libbitcoin_consensus_a_SOURCES = \
   script/script_error.h \
   serialize.h \
   spork.h \
-  stacktraces.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
@@ -658,7 +657,6 @@ libbitcoin_util_a_SOURCES = \
   fs.cpp \
   random.cpp \
   rpc/protocol.cpp \
-  stacktraces.cpp \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
