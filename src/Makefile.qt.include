@@ -201,7 +201,8 @@ QT_MOC_CPP = \
   qt/moc_zc2sigmapage.cpp \
   qt/moc_zc2sigmamodel.cpp \
   qt/moc_lelantusmodel.cpp \
-  qt/moc_lelantusdialog.cpp
+  qt/moc_lelantusdialog.cpp \
+  qt/moc_lelantuscoincontroldialog.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -299,7 +300,8 @@ BITCOIN_QT_H = \
   qt/zc2sigmapage.h \
   qt/zc2sigmamodel.h \
   qt/lelantusmodel.h \
-  qt/lelantusdialog.h
+  qt/lelantusdialog.h \
+  qt/lelantuscoincontroldialog.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -449,7 +451,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/zc2sigmapage.cpp \
   qt/zc2sigmamodel.cpp \
   qt/lelantusmodel.cpp \
-  qt/lelantusdialog.cpp
+  qt/lelantusdialog.cpp \
+  qt/lelantuscoincontroldialog.cpp
 
 ZCOIN_QT_ELYSIUM_CPP = \
   qt/elyassetsdialog.cpp \

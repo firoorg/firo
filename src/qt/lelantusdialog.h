@@ -1,8 +1,12 @@
 #ifndef ZCOIN_QT_LELANTUSDIALOG_H
 #define ZCOIN_QT_LELANTUSDIALOG_H
 
+#include "../script/standard.h"
+#include "../wallet/coincontrol.h"
+
 #include "clientmodel.h"
 #include "platformstyle.h"
+#include "lelantuscoincontroldialog.h"
 #include "walletmodel.h"
 
 #include <QDialog>
@@ -48,12 +52,27 @@ public Q_SLOTS:
 private Q_SLOTS:
     void on_anonymizeButton_clicked();
 
+    void coinControlFeatureChanged(bool);
+    void coinControlButtonClicked();
+    void coinControlChangeChecked(int);
+    void coinControlChangeEdited(const QString &);
+    void coinControlUpdateLabels();
+    void coinControlClipboardQuantity();
+    void coinControlClipboardAmount();
+    void coinControlClipboardFee();
+    void coinControlClipboardAfterFee();
+    void coinControlClipboardBytes();
+    void coinControlClipboardLowOutput();
+    void coinControlClipboardChange();
+
 private:
     void updateBalanceDisplay(int unit = -1);
     void processSendCoinsReturn(
         const WalletModel::SendCoinsReturn &sendCoinsReturn,
         const QString &msgArg = QString());
 
+    CAmount getAmount(int unit = -1);
+    void removeUnmatchedOutput(CCoinControl &coinControl);
 
 private:
     Ui::LelantusDialog *ui;
@@ -66,6 +85,9 @@ private:
     CAmount cachedAnonymizableBalance;
 
     int currentUnit;
+
+    // coin control
+    CoinControlStorage coinControlStorage;
 };
 
 #endif // ZCOIN_QT_LELANTUSDIALOG_H

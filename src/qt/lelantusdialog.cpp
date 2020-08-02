@@ -1,11 +1,16 @@
 #include "../lelantus.h"
+#include "../script/standard.h"
 #include "../validation.h"
+#include "../wallet/coincontrol.h"
 
+#include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "guiutil.h"
 #include "optionsmodel.h"
 #include "ui_lelantusdialog.h"
 #include "lelantusdialog.h"
 #include "sendcoinsdialog.h"
+#include "walletmodel.h"
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -26,6 +31,37 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     // hide amount of global pool
     ui->globalTotalCoinsAmount->setVisible(false);
     ui->globalUnspentAmount->setVisible(false);
+
+    // Coin Control
+    connect(
+        ui->pushButtonCoinControl, SIGNAL(clicked()),
+        this, SLOT(coinControlButtonClicked()));
+
+    connect(
+        ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)),
+        this, SLOT(coinControlChangeChecked(int)));
+
+    connect(
+        ui->lineEditCoinControlChange,
+        SIGNAL(textEdited(const QString &)),
+        this,
+        SLOT(coinControlChangeEdited(const QString &)));
+
+    // Coin Control: clipboard actions
+    QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
+    QAction *clipboardAmountAction = new QAction(tr("Copy amount"), this);
+    QAction *clipboardFeeAction = new QAction(tr("Copy fee"), this);
+    QAction *clipboardAfterFeeAction = new QAction(tr("Copy after fee"), this);
+    QAction *clipboardBytesAction = new QAction(tr("Copy bytes"), this);
+    QAction *clipboardLowOutputAction = new QAction(tr("Copy dust"), this);
+    QAction *clipboardChangeAction = new QAction(tr("Copy change"), this);
+    connect(clipboardQuantityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardQuantity()));
+    connect(clipboardAmountAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAmount()));
+    connect(clipboardFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardFee()));
+    connect(clipboardAfterFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAfterFee()));
+    connect(clipboardBytesAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardBytes()));
+    connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
+    connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
 }
 
 LelantusDialog::~LelantusDialog()
@@ -69,6 +105,20 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
             _walletModel->getPrivateBalance(),
             _walletModel->getUnconfirmedPrivateBalance(),
             _walletModel->getAnonymizableBalance());
+
+        // Coin Control
+        connect(
+            _walletModel->getOptionsModel(),
+            SIGNAL(displayUnitChanged(int)),
+            this, SLOT(coinControlUpdateLabels()));
+        connect(
+            _walletModel->getOptionsModel(),
+            SIGNAL(coinControlFeaturesChanged(bool)),
+            this,
+            SLOT(coinControlFeatureChanged(bool)));
+        ui->frameCoinControl->setVisible(
+            _walletModel->getOptionsModel()->getCoinControlFeatures());
+        coinControlUpdateLabels();
 
         auto unit = _walletModel->getOptionsModel()->getDisplayUnit();
         currentUnit = unit;
@@ -170,12 +220,20 @@ void LelantusDialog::on_anonymizeButton_clicked()
     std::vector<WalletModelTransaction> wtxs;
     std::list<CReserveKey> reserveKeys;
     std::vector<CHDMint> mints;
-    auto prepareStatus = walletModel->prepareAnonymizingTransactions(
+
+    CCoinControl ctrl;
+    if (walletModel->getOptionsModel()->getCoinControlFeatures()) {
+        ctrl = coinControlStorage.coinControl;
+        removeUnmatchedOutput(ctrl);
+    }
+
+    auto coinControl = coinControlStorage.coinControl;
+    auto prepareStatus = walletModel->prepareMintTransactions(
         val,
         wtxs,
         reserveKeys,
         mints,
-        nullptr);
+        &ctrl);
 
     CAmount allAmount = 0;
     CAmount allFee = 0;
@@ -252,6 +310,8 @@ void LelantusDialog::on_anonymizeButton_clicked()
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
+        coinControlStorage.coinControl.UnSelectAll();
+        coinControlUpdateLabels();
     }
 }
 
@@ -328,4 +388,212 @@ void LelantusDialog::processSendCoinsReturn(
     }
 
     Q_EMIT message(tr("Anonymize Coins"), msgParams.first, msgParams.second);
+}
+
+CAmount LelantusDialog::getAmount(int unit)
+{
+    CAmount val;
+
+    return BitcoinUnits::parse(
+        unit == -1 ? BitcoinUnits::Unit::BTC : unit,
+        ui->anonymizeAmount->text(),
+        &val) ? val : 0;
+}
+
+void LelantusDialog::removeUnmatchedOutput(CCoinControl &coinControl)
+{
+    std::vector<COutPoint> outpoints;
+    coinControl.ListSelected(outpoints);
+
+    for (auto const &out : outpoints) {
+        auto it = pwalletMain->mapWallet.find(out.hash);
+        if (it == pwalletMain->mapWallet.end()) {
+            coinControl.UnSelect(out);
+            continue;
+        }
+    }
+}
+
+// coin controls
+void LelantusDialog::coinControlFeatureChanged(bool checked)
+{
+    ui->frameCoinControl->setVisible(checked);
+
+    if (!checked && walletModel) {
+        coinControlStorage.coinControl.SetNull();
+    }
+
+    // make sure we set back the confirmation target
+    // TODO: uncomment
+    // updateGlobalFeeVariables();
+    coinControlUpdateLabels();
+}
+
+// Coin Control: button inputs -> show actual coin control dialog
+void LelantusDialog::coinControlButtonClicked()
+{
+    LelantusCoinControlDialog dlg(&coinControlStorage, platformStyle);
+    dlg.setModel(walletModel);
+    dlg.exec();
+
+    coinControlUpdateLabels();
+}
+
+// Coin Control: checkbox custom change address
+void LelantusDialog::coinControlChangeChecked(int state)
+{
+    if (state == Qt::Unchecked) {
+        coinControlStorage.coinControl.destChange = CNoDestination();
+        ui->labelCoinControlChangeLabel->clear();
+    } else {
+        // use this to re-validate an already entered address
+        coinControlChangeEdited(ui->lineEditCoinControlChange->text());
+    }
+
+    ui->lineEditCoinControlChange->setEnabled((state == Qt::Checked));
+}
+
+// Coin Control: custom change address changed
+void LelantusDialog::coinControlChangeEdited(const QString& text)
+{
+    if (walletModel && walletModel->getAddressTableModel()) {
+        // Default to no change address until verified
+        coinControlStorage.coinControl.destChange = CNoDestination();
+        ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
+
+        CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
+
+        if (text.isEmpty()) // Nothing entered
+        {
+            ui->labelCoinControlChangeLabel->setText("");
+        }
+        else if (!addr.IsValid()) // Invalid address
+        {
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Zcoin address"));
+        }
+        else // Valid address
+        {
+            CKeyID keyid;
+            addr.GetKeyID(keyid);
+            if (!walletModel->havePrivKey(keyid)) // Unknown change address
+            {
+                ui->labelCoinControlChangeLabel->setText(tr("Warning: Unknown change address"));
+
+                // confirmation dialog
+                QMessageBox::StandardButton btnRetVal = QMessageBox::question(this, tr("Confirm custom change address"), tr("The address you selected for change is not part of this wallet. Any or all funds in your wallet may be sent to this address. Are you sure?"),
+                    QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+
+                if(btnRetVal == QMessageBox::Yes)
+                    coinControlStorage.coinControl.destChange = addr.Get();
+                else
+                {
+                    ui->lineEditCoinControlChange->setText("");
+                    ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+                    ui->labelCoinControlChangeLabel->setText("");
+                }
+            }
+            else // Known change address
+            {
+                ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+
+                // Query label
+                QString associatedLabel = walletModel
+                    ->getAddressTableModel()
+                    ->labelForAddress(text);
+
+                if (!associatedLabel.isEmpty())
+                    ui->labelCoinControlChangeLabel->setText(associatedLabel);
+                else
+                    ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
+
+                coinControlStorage.coinControl.destChange = addr.Get();
+            }
+        }
+    }
+}
+
+// Coin Control: update labels
+void LelantusDialog::coinControlUpdateLabels()
+{
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
+
+    if (walletModel->getOptionsModel()->getCoinControlFeatures())
+    {
+        // enable minimum absolute fee UI controls
+        ui->radioCustomAtLeast->setVisible(true);
+
+        // only enable the feature if inputs are selected
+//        ui->radioCustomAtLeast->setEnabled(ui->radioCustomFee->isChecked() && !ui->checkBoxMinimumFee->isChecked() &&CoinControlDialog::coinControl->HasSelected());
+        ui->radioCustomAtLeast->setEnabled(!ui->checkBoxMinimumFee->isChecked() && coinControlStorage.coinControl.HasSelected());
+    }
+    else
+    {
+        // in case coin control is disabled (=default), hide minimum absolute fee UI controls
+        ui->radioCustomAtLeast->setVisible(false);
+        return;
+    }
+
+    // set pay amounts
+    coinControlStorage.payAmounts = {getAmount()};
+    coinControlStorage.fSubtractFeeFromAmount = false;
+
+    if (coinControlStorage.coinControl.HasSelected())
+    {
+        // actual coin control calculation
+        coinControlStorage.updateLabels(walletModel, this);
+
+        // show coin control stats
+        ui->labelCoinControlAutomaticallySelected->hide();
+        ui->widgetCoinControl->show();
+    }
+    else
+    {
+        // hide coin control stats
+        ui->labelCoinControlAutomaticallySelected->show();
+        ui->widgetCoinControl->hide();
+        ui->labelCoinControlInsuffFunds->hide();
+    }
+}
+
+// Coin Control: copy label "Quantity" to clipboard
+void LelantusDialog::coinControlClipboardQuantity()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlQuantity->text());
+}
+
+// Coin Control: copy label "Amount" to clipboard
+void LelantusDialog::coinControlClipboardAmount()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlAmount->text().left(ui->labelCoinControlAmount->text().indexOf(" ")));
+}
+
+// Coin Control: copy label "Fee" to clipboard
+void LelantusDialog::coinControlClipboardFee()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlFee->text().left(ui->labelCoinControlFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "After fee" to clipboard
+void LelantusDialog::coinControlClipboardAfterFee()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlAfterFee->text().left(ui->labelCoinControlAfterFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "Bytes" to clipboard
+void LelantusDialog::coinControlClipboardBytes()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlBytes->text().replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "Dust" to clipboard
+void LelantusDialog::coinControlClipboardLowOutput()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlLowOutput->text());
+}
+
+// Coin Control: copy label "Change" to clipboard
+void LelantusDialog::coinControlClipboardChange()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlChange->text().left(ui->labelCoinControlChange->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
 }

@@ -651,7 +651,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
     return SendCoinsReturn(OK);
 }
 
-WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
+WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
     CAmount amount,
     std::vector<WalletModelTransaction> &transactions,
     std::list<CReserveKey> &reserveKeys,
@@ -659,7 +659,12 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
     const CCoinControl *coinControl)
 {
     if (amount < 0) {
-        return WalletModel::InvalidAmount;
+        return InvalidAmount;
+    }
+
+    auto balance = getBalance(coinControl);
+    if (amount > balance) {
+        return AmountExceedsBalance;
     }
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
@@ -670,51 +675,11 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
     auto success = wallet->CreateLelantusMintTransactions(
         amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
 
-    if (!success) {
-        Q_EMIT message(
-            tr("Coin Anonymizing"),
-            QString::fromStdString(failReason),
-            CClientUIInterface::MSG_ERROR);
-
-        return WalletModel::TransactionCommitFailed;
-    }
-
-    {
-        CAmount mintedAmount = 0;
-        for (auto const &wtxAndFee : wtxAndFees) {
-            auto const &wtx = wtxAndFee.first;
-            for (auto const &out : wtx.tx->vout) {
-                if (out.scriptPubKey.IsLelantusMint()) {
-                    mintedAmount += out.nValue;
-                }
-            }
-        }
-
-        auto privateBalance = getPrivateBalance();
-
-        if (mintedAmount < amount) {
-
-            if (amount > privateBalance) {
-                return WalletModel::AmountExceedsBalance;
-            }
-
-            if (amount + allFee > privateBalance) {
-                return WalletModel::AmountWithFeeExceedsBalance;
-            }
-        }
-    }
-
-    if (allFee > maxTxFee) {
-        return WalletModel::AbsurdFee;
-    }
-
     transactions.clear();
     transactions.reserve(wtxAndFees.size());
     for (auto &wtxAndFee : wtxAndFees) {
         auto &wtx = wtxAndFee.first;
         auto fee = wtxAndFee.second;
-
-
 
         QList<SendCoinsRecipient> recipients;
 
@@ -736,6 +701,23 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
         tx.setTransactionFee(fee);
 
         tx.reassignAmounts(changePos);
+    }
+
+    if (!success) {
+        if (amount + allFee > balance) {
+            return SendCoinsReturn(AmountWithFeeExceedsBalance);
+        }
+
+        Q_EMIT message(
+            tr("Coin Anonymizing"),
+            QString::fromStdString(failReason),
+            CClientUIInterface::MSG_ERROR);
+
+        return TransactionCommitFailed;
+    }
+
+    if (allFee > maxTxFee) {
+        return WalletModel::AbsurdFee;
     }
 
     return SendCoinsReturn(OK);

@@ -180,7 +180,7 @@ public:
     SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
     // prepare transaction for getting txfee before anonymizing coins
-    SendCoinsReturn prepareAnonymizingTransactions(
+    SendCoinsReturn prepareMintTransactions(
         CAmount amount,
         std::vector<WalletModelTransaction> &transactions,
         std::list<CReserveKey> &reserveKeys,
