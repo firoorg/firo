@@ -135,9 +135,9 @@ CAmount WalletModel::getUnconfirmedPrivateBalance() const
 {
     CAmount balance = 0;
 
-    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
+    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, false, false);
     for (auto const &c : coins) {
-        if (c.nHeight < 0) {
+        if (c.nHeight < 0 || chainActive.Height() < (c.nHeight + ZC_MINT_CONFIRMATIONS - 1)) {
             balance += c.amount;
         }
     }
