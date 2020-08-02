@@ -30,6 +30,22 @@ void LelantusDialog::setClientModel(ClientModel *_clientModel)
 void LelantusDialog::setWalletModel(WalletModel *_walletModel)
 {
     this->walletModel = _walletModel;
+
+    if (_walletModel) {
+        connect(
+            _walletModel,
+            SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
+            this,
+            SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+
+        setBalance(0, 0, 0, 0, 0, 0,
+            _walletModel->getPrivateBalance(),
+            _walletModel->getUnconfirmedPrivateBalance(),
+            _walletModel->getAnonymizableBalance());
+
+        auto unit = _walletModel->getOptionsModel()->getDisplayUnit();
+        ui->anonymizeUnit->setText(BitcoinUnits::name(unit));
+    }
 }
 
 void LelantusDialog::clear()
@@ -40,6 +56,29 @@ void LelantusDialog::clear()
 void LelantusDialog::accept()
 {
     clear();
+}
+
+void LelantusDialog::setBalance(
+    const CAmount& balance,
+    const CAmount& unconfirmedBalance,
+    const CAmount& immatureBalance,
+    const CAmount& watchOnlyBalance,
+    const CAmount& watchUnconfBalance,
+    const CAmount& watchImmatureBalance,
+    const CAmount& privateBalance,
+    const CAmount& unconfirmedPrivateBalance,
+    const CAmount& anonymizableBalance)
+{
+    if (cachedPrivateBalance != privateBalance
+        || cachedUnconfirmedPrivateBalance != unconfirmedPrivateBalance
+        || cachedAnonymizableBalance != anonymizableBalance)
+    {
+        cachedPrivateBalance = privateBalance;
+        cachedUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
+        cachedAnonymizableBalance = anonymizableBalance;
+
+        updateBalanceDisplay();
+    }
 }
 
 void LelantusDialog::on_anonymizeButton_clicked()
@@ -133,4 +172,13 @@ void LelantusDialog::on_anonymizeButton_clicked()
     if (sendStatus.status == WalletModel::OK) {
         accept();
     }
+}
+
+void LelantusDialog::updateBalanceDisplay()
+{
+    auto unit = walletModel->getOptionsModel()->getDisplayUnit();
+
+    auto avaiableAmountToAnonymizeText = tr("Available amount to anonymize %1")
+        .arg(BitcoinUnits::formatWithUnit(unit, cachedAnonymizableBalance, false, BitcoinUnits::separatorAlways));
+    ui->availableAmounToAnonymize->setText(avaiableAmountToAnonymizeText);
 }

@@ -888,7 +888,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="label_2">
+             <widget class="QLabel" name="availableAmounToAnonymize">
               <property name="text">
                <string>Available amount to anonymize 9999.99999999 XZC</string>
               </property>
@@ -1511,7 +1511,7 @@
  </resources>
  <connections/>
  <buttongroups>
-  <buttongroup name="groupCustomFee"/>
   <buttongroup name="groupFee"/>
+  <buttongroup name="groupCustomFee"/>
  </buttongroups>
 </ui>
