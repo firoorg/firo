@@ -611,7 +611,7 @@
         <widget class="QLabel" name="globalTotalCoinsAmount">
          <property name="minimumSize">
           <size>
-           <width>200</width>
+           <width>300</width>
            <height>0</height>
           </size>
          </property>
@@ -632,6 +632,12 @@
        </item>
        <item row="5" column="2">
         <widget class="QLabel" name="unconfirmedAmount">
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>
@@ -665,6 +671,12 @@
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="spendableText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
          <property name="text">
           <string>Spendable:</string>
          </property>
@@ -685,6 +697,12 @@
        </item>
        <item row="2" column="2">
         <widget class="QLabel" name="globalUnspentAmount">
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>
@@ -705,6 +723,12 @@
        </item>
        <item row="6" column="2">
         <widget class="QLabel" name="totalAmount">
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>
@@ -715,6 +739,12 @@
        </item>
        <item row="1" column="0">
         <widget class="QLabel" name="totalAnonymizedCoinsText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
          <property name="text">
           <string>Total anonymized coins:</string>
          </property>
@@ -732,6 +762,18 @@
        </item>
        <item row="3" column="0">
         <widget class="QLabel" name="yourAnoymizedCoinsText">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>40</height>
+          </size>
+         </property>
          <property name="font">
           <font>
            <weight>75</weight>
@@ -741,10 +783,22 @@
          <property name="text">
           <string>Your Anonymized Coins:</string>
          </property>
+         <property name="alignment">
+          <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
+         </property>
+         <property name="margin">
+          <number>0</number>
+         </property>
         </widget>
        </item>
        <item row="4" column="2">
         <widget class="QLabel" name="spendableAmount">
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>
@@ -755,6 +809,12 @@
        </item>
        <item row="2" column="0">
         <widget class="QLabel" name="unspentText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
          <property name="text">
           <string>Unspent:</string>
          </property>
@@ -875,6 +935,9 @@
               <property name="decimals">
                <number>8</number>
               </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
               <property name="maximum">
                <double>999999999.990000009536743</double>
               </property>
@@ -886,6 +949,22 @@
                <string>XZC</string>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_10">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
             <item>
              <widget class="QLabel" name="availableAmounToAnonymize">

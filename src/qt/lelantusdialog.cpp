@@ -1,4 +1,5 @@
-#include "lelantus.h"
+#include "../lelantus.h"
+#include "../validation.h"
 
 #include "bitcoinunits.h"
 #include "optionsmodel.h"
@@ -13,7 +14,11 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     ui(new Ui::LelantusDialog),
     clientModel(0),
     walletModel(0),
-    platformStyle(platformStyle)
+    platformStyle(platformStyle),
+    cachedPrivateBalance(0),
+    cachedUnconfirmedPrivateBalance(0),
+    cachedAnonymizableBalance(0),
+    currentUnit(BitcoinUnits::Unit::BTC)
 {
     ui->setupUi(this);
     setWindowTitle(tr("Lelantus"));
@@ -54,13 +59,20 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
             this,
             SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
 
+        connect(
+            _walletModel->getOptionsModel(),
+            SIGNAL(displayUnitChanged(int)),
+            this,
+            SLOT(updateDisplayUnit(int)));
+
         setBalance(0, 0, 0, 0, 0, 0,
             _walletModel->getPrivateBalance(),
             _walletModel->getUnconfirmedPrivateBalance(),
             _walletModel->getAnonymizableBalance());
 
         auto unit = _walletModel->getOptionsModel()->getDisplayUnit();
-        ui->anonymizeUnit->setText(BitcoinUnits::name(unit));
+        currentUnit = unit;
+        updateDisplayUnit(unit);
     }
 }
 
@@ -95,6 +107,35 @@ void LelantusDialog::setBalance(
 
         updateBalanceDisplay();
     }
+}
+
+void LelantusDialog::updateDisplayUnit(int unit)
+{
+    ui->anonymizeUnit->setText(BitcoinUnits::name(unit));
+
+    auto amountText = ui->anonymizeAmount->text();
+    size_t prec;
+
+    switch(unit) {
+    case BitcoinUnits::Unit::BTC:  prec = 8; break;
+    case BitcoinUnits::Unit::mBTC: prec = 5; break;
+    case BitcoinUnits::Unit::uBTC: prec = 2; break;
+    default: prec = 8; break;
+    }
+
+    ui->anonymizeAmount->setDecimals(prec);
+
+    CAmount out;
+    if (BitcoinUnits::parse(currentUnit, amountText, &out)) {
+        ui->anonymizeAmount->setValue(
+            (double)(out) / BitcoinUnits::factor(unit)
+        );
+    }
+
+    updateBalanceDisplay(unit);
+    updateGlobalState();
+
+    currentUnit = unit;
 }
 
 void LelantusDialog::updateGlobalState()
@@ -136,18 +177,6 @@ void LelantusDialog::on_anonymizeButton_clicked()
         mints,
         nullptr);
 
-    if (prepareStatus.status != WalletModel::OK) {
-        QString errorMessage;
-
-        Q_EMIT message(tr("Coins Anonymizing"), errorMessage, CClientUIInterface::MSG_ERROR);
-        return;
-    }
-
-    QStringList formatted;
-
-    QString questionString = tr("Are you sure you want to anonymize?");
-    questionString.append("<br /><br />%1");
-
     CAmount allAmount = 0;
     CAmount allFee = 0;
     unsigned int allTxSize = 0;
@@ -156,6 +185,29 @@ void LelantusDialog::on_anonymizeButton_clicked()
         allFee += wtx.getTransactionFee();
         allTxSize += wtx.getTransactionSize();
     }
+
+    processSendCoinsReturn(
+        prepareStatus,
+        BitcoinUnits::formatWithUnit(
+            walletModel->getOptionsModel()->getDisplayUnit(),
+            allFee)
+        );
+
+    if (prepareStatus.status != WalletModel::OK) {
+        return;
+    }
+
+    QStringList formatted;
+
+    QString questionString = tr("Are you sure you want to anonymize %1?")
+        .arg(BitcoinUnits::formatWithUnit(
+            walletModel->getOptionsModel()->getDisplayUnit(),
+            allAmount,
+            false,
+            BitcoinUnits::separatorAlways
+        ));
+
+    questionString.append("<br /><br />%1");
 
     if (allFee > 0) {
         // append fee string if a fee is required
@@ -183,8 +235,9 @@ void LelantusDialog::on_anonymizeButton_clicked()
     questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
-    SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
+    SendConfirmationDialog confirmationDialog(tr("Confirm anonymize coins"),
         questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
+
     confirmationDialog.exec();
     QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
 
@@ -195,19 +248,22 @@ void LelantusDialog::on_anonymizeButton_clicked()
 
     auto sendStatus = walletModel->sendAnonymizingCoins(wtxs, reserveKeys, mints);
 
-    if (sendStatus.status != WalletModel::OK) {
-        Q_EMIT message(tr("Anonymizing Coins"), "", CClientUIInterface::MSG_ERROR);
-        return;
-    }
+    processSendCoinsReturn(sendStatus);
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
     }
 }
 
-void LelantusDialog::updateBalanceDisplay()
+void LelantusDialog::updateBalanceDisplay(int unit)
 {
-    auto unit = walletModel->getOptionsModel()->getDisplayUnit();
+    if (unit == -1) {
+        if (walletModel && walletModel->getOptionsModel()) {
+            unit = walletModel->getOptionsModel()->getDisplayUnit();
+        } else {
+            unit = BitcoinUnits::Unit::BTC;
+        }
+    }
 
     CAmount confirmedAmount = 0, unconfirmedAmount = 0;
     auto confirmedCoins =
@@ -235,4 +291,41 @@ void LelantusDialog::updateBalanceDisplay()
         unit, unconfirmedAmount, false, BitcoinUnits::separatorAlways));
     ui->totalAmount->setText(BitcoinUnits::formatWithUnit(
         unit, totalAmount, false, BitcoinUnits::separatorAlways));
+}
+
+void LelantusDialog::processSendCoinsReturn(
+    const WalletModel::SendCoinsReturn &sendCoinsReturn,
+    const QString &msgArg)
+{
+    QPair<QString, CClientUIInterface::MessageBoxFlags> msgParams;
+    msgParams.second = CClientUIInterface::MSG_WARNING;
+
+    switch (sendCoinsReturn.status)
+    {
+    case WalletModel::InvalidAmount:
+        msgParams.first = tr("The amount to pay must be larger than 0.");
+        break;
+    case WalletModel::AmountExceedsBalance:
+        msgParams.first = tr("The amount exceeds your balance.");
+        break;
+    case WalletModel::AmountWithFeeExceedsBalance:
+        msgParams.first = tr("The total exceeds your balance when the %1 transaction fee is included.").arg(msgArg);
+        break;
+    case WalletModel::TransactionCreationFailed:
+        msgParams.first = tr("Transaction creation failed!");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::TransactionCommitFailed:
+        msgParams.first = tr("The transaction was rejected with the following reason: %1").arg(sendCoinsReturn.reasonCommitFailed);
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::AbsurdFee:
+        msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), maxTxFee));
+        break;
+    case WalletModel::OK:
+    default:
+        return;
+    }
+
+    Q_EMIT message(tr("Anonymize Coins"), msgParams.first, msgParams.second);
 }

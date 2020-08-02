@@ -658,6 +658,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
     std::vector<CHDMint> &mints,
     const CCoinControl *coinControl)
 {
+    if (amount < 0) {
+        return WalletModel::InvalidAmount;
+    }
+
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     CAmount allFee = 0;
     int changePos = -1;
@@ -675,6 +679,31 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
         return WalletModel::TransactionCommitFailed;
     }
 
+    {
+        CAmount mintedAmount = 0;
+        for (auto const &wtxAndFee : wtxAndFees) {
+            auto const &wtx = wtxAndFee.first;
+            for (auto const &out : wtx.tx->vout) {
+                if (out.scriptPubKey.IsLelantusMint()) {
+                    mintedAmount += out.nValue;
+                }
+            }
+        }
+
+        auto privateBalance = getPrivateBalance();
+
+        if (mintedAmount < amount) {
+
+            if (amount > privateBalance) {
+                return WalletModel::AmountExceedsBalance;
+            }
+
+            if (amount + allFee > privateBalance) {
+                return WalletModel::AmountWithFeeExceedsBalance;
+            }
+        }
+    }
+
     if (allFee > maxTxFee) {
         return WalletModel::AbsurdFee;
     }
@@ -685,20 +714,26 @@ WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
         auto &wtx = wtxAndFee.first;
         auto fee = wtxAndFee.second;
 
+
+
         QList<SendCoinsRecipient> recipients;
+
+        int changePos = -1;
+        for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
+            if (wtx.tx->vout[i].scriptPubKey.IsMint()) {
+                SendCoinsRecipient r;
+                r.amount = wtx.tx->vout[i].nValue;
+                recipients.push_back(r);
+            } else {
+                changePos = i;
+            }
+        }
+
         transactions.emplace_back(recipients);
         auto &tx = transactions.back();
 
         *tx.getTransaction() = wtx;
         tx.setTransactionFee(fee);
-
-        int changePos = -1;
-        for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
-            if (!wtx.tx->vout[i].scriptPubKey.IsMint()) {
-                changePos = i;
-                break;
-            }
-        }
 
         tx.reassignAmounts(changePos);
     }

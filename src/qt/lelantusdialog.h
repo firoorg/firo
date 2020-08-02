@@ -42,13 +42,18 @@ public Q_SLOTS:
         const CAmount& unconfirmedPrivateBalance,
         const CAmount& anonymizableBalance);
 
+    void updateDisplayUnit(int unit);
     void updateGlobalState();
 
 private Q_SLOTS:
     void on_anonymizeButton_clicked();
 
 private:
-    void updateBalanceDisplay();
+    void updateBalanceDisplay(int unit = -1);
+    void processSendCoinsReturn(
+        const WalletModel::SendCoinsReturn &sendCoinsReturn,
+        const QString &msgArg = QString());
+
 
 private:
     Ui::LelantusDialog *ui;
@@ -59,6 +64,8 @@ private:
     CAmount cachedPrivateBalance;
     CAmount cachedUnconfirmedPrivateBalance;
     CAmount cachedAnonymizableBalance;
+
+    int currentUnit;
 };
 
 #endif // ZCOIN_QT_LELANTUSDIALOG_H
