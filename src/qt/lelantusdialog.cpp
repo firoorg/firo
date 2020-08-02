@@ -62,6 +62,18 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     connect(clipboardBytesAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardBytes()));
     connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
     connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
+
+    // disable transaction fee configuration
+    ui->buttonChooseFee->setEnabled(false);
+    ui->buttonMinimizeFee->setEnabled(false);
+    ui->radioSmartFee->setEnabled(false);
+    ui->sliderSmartFee->setEnabled(false);
+
+    ui->radioCustomFee->setEnabled(false);
+    ui->radioCustomPerKilobyte->setEnabled(false);
+    ui->radioCustomAtLeast->setEnabled(false);
+    ui->customFee->setEnabled(false);
+    ui->checkBoxMinimumFee->setEnabled(false);
 }
 
 LelantusDialog::~LelantusDialog()
