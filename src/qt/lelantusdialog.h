@@ -42,6 +42,8 @@ public Q_SLOTS:
         const CAmount& unconfirmedPrivateBalance,
         const CAmount& anonymizableBalance);
 
+    void updateGlobalState();
+
 private Q_SLOTS:
     void on_anonymizeButton_clicked();
 

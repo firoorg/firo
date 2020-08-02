@@ -1,3 +1,5 @@
+#include "lelantus.h"
+
 #include "bitcoinunits.h"
 #include "optionsmodel.h"
 #include "ui_lelantusdialog.h"
@@ -15,6 +17,10 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
 {
     ui->setupUi(this);
     setWindowTitle(tr("Lelantus"));
+
+    // hide amount of global pool
+    ui->globalTotalCoinsAmount->setVisible(false);
+    ui->globalUnspentAmount->setVisible(false);
 }
 
 LelantusDialog::~LelantusDialog()
@@ -25,6 +31,16 @@ LelantusDialog::~LelantusDialog()
 void LelantusDialog::setClientModel(ClientModel *_clientModel)
 {
     this->clientModel = _clientModel;
+
+    if (_clientModel) {
+        connect(
+            _clientModel,
+            SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
+            this,
+            SLOT(updateGlobalState()));
+
+        updateGlobalState();
+    }
 }
 
 void LelantusDialog::setWalletModel(WalletModel *_walletModel)
@@ -79,6 +95,21 @@ void LelantusDialog::setBalance(
 
         updateBalanceDisplay();
     }
+}
+
+void LelantusDialog::updateGlobalState()
+{
+    auto state = lelantus::CLelantusState::GetState();
+    auto mintCount = state->GetMints().size();
+    auto spendCount = state->GetSpends().size();
+
+    auto sigmaState = sigma::CSigmaState::GetState();
+    auto remainingSigmaMints = sigmaState->GetMints().size() - sigmaState->GetSpends().size();
+
+    mintCount += remainingSigmaMints;
+
+    ui->globalTotalCoins->setText(QString::fromStdString(std::to_string(mintCount)));
+    ui->globalUnspent->setText(QString::fromStdString(std::to_string(mintCount - spendCount)));
 }
 
 void LelantusDialog::on_anonymizeButton_clicked()
@@ -178,7 +209,30 @@ void LelantusDialog::updateBalanceDisplay()
 {
     auto unit = walletModel->getOptionsModel()->getDisplayUnit();
 
+    CAmount confirmedAmount = 0, unconfirmedAmount = 0;
+    auto confirmedCoins =
+        cachedPrivateBalance = walletModel->countPrivateCoins(confirmedAmount);
+    auto unconfirmedCoins =
+        cachedUnconfirmedPrivateBalance = walletModel->countUnconfirmedPrivateCoins(unconfirmedAmount);
+
+    auto totalCoins = confirmedCoins + unconfirmedCoins;
+    auto totalAmount = confirmedAmount + unconfirmedAmount;
+
+    // set available amount
     auto avaiableAmountToAnonymizeText = tr("Available amount to anonymize %1")
         .arg(BitcoinUnits::formatWithUnit(unit, cachedAnonymizableBalance, false, BitcoinUnits::separatorAlways));
     ui->availableAmounToAnonymize->setText(avaiableAmountToAnonymizeText);
+
+    // set coins count
+    ui->spendable->setText(QString::fromStdString(std::to_string(confirmedCoins)));
+    ui->unconfirmed->setText(QString::fromStdString(std::to_string(unconfirmedCoins)));
+    ui->total->setText(QString::fromStdString(std::to_string(totalCoins)));
+
+    // set amount
+    ui->spendableAmount->setText(BitcoinUnits::formatWithUnit(
+        unit, confirmedAmount, false, BitcoinUnits::separatorAlways));
+    ui->unconfirmedAmount->setText(BitcoinUnits::formatWithUnit(
+        unit, unconfirmedAmount, false, BitcoinUnits::separatorAlways));
+    ui->totalAmount->setText(BitcoinUnits::formatWithUnit(
+        unit, totalAmount, false, BitcoinUnits::separatorAlways));
 }

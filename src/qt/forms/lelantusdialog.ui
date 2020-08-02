@@ -598,7 +598,7 @@
         </widget>
        </item>
        <item row="2" column="1">
-        <widget class="QLabel" name="unspent">
+        <widget class="QLabel" name="globalUnspent">
          <property name="text">
           <string>0</string>
          </property>
@@ -608,7 +608,7 @@
         </widget>
        </item>
        <item row="1" column="2">
-        <widget class="QLabel" name="totalAnymizedCoinsAmount">
+        <widget class="QLabel" name="globalTotalCoinsAmount">
          <property name="minimumSize">
           <size>
            <width>200</width>
@@ -648,7 +648,7 @@
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QLabel" name="totalAnonymizedCoins">
+        <widget class="QLabel" name="globalTotalCoins">
          <property name="minimumSize">
           <size>
            <width>100</width>
@@ -684,7 +684,7 @@
         </spacer>
        </item>
        <item row="2" column="2">
-        <widget class="QLabel" name="upspentAmount">
+        <widget class="QLabel" name="globalUnspentAmount">
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>
@@ -704,7 +704,7 @@
         </widget>
        </item>
        <item row="6" column="2">
-        <widget class="QLabel" name="label_6">
+        <widget class="QLabel" name="totalAmount">
          <property name="text">
           <string>0.00000000 XZC</string>
          </property>

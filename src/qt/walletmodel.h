@@ -137,6 +137,9 @@ public:
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
+    size_t countPrivateCoins(CAmount &amount) const;
+    size_t countUnconfirmedPrivateCoins(CAmount &amount) const;
+
     CAmount getBalance(const CCoinControl *coinControl = NULL, bool fExcludeLocked = false) const;
     CAmount getUnconfirmedBalance() const;
     CAmount getImmatureBalance() const;
@@ -149,6 +152,8 @@ public:
 
     CAmount getAnonymizableBalance() const;
 
+    std::pair<CAmount, CAmount> getSigmaBalance(
+        size_t &confirmed, size_t &unconfirmed) const;
     std::pair<CAmount, CAmount> getSigmaBalance() const;
 
     EncryptionStatus getEncryptionStatus() const;
