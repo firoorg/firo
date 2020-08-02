@@ -607,6 +607,61 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
     return SendCoinsReturn(OK);
 }
 
+WalletModel::SendCoinsReturn WalletModel::prepareAnonymizingTransactions(
+    CAmount amount,
+    std::vector<WalletModelTransaction> &transactions,
+    std::list<CReserveKey> &reserveKeys,
+    std::vector<CHDMint> &mints,
+    const CCoinControl *coinControl)
+{
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
+    CAmount allFee = 0;
+    int changePos = -1;
+    std::string failReason;
+
+    auto success = wallet->CreateLelantusMintTransactions(
+        amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
+
+    if (!success) {
+        Q_EMIT message(
+            tr("Coin Anonymizing"),
+            QString::fromStdString(failReason),
+            CClientUIInterface::MSG_ERROR);
+
+        return WalletModel::TransactionCommitFailed;
+    }
+
+    if (allFee > maxTxFee) {
+        return WalletModel::AbsurdFee;
+    }
+
+    transactions.clear();
+    transactions.reserve(wtxAndFees.size());
+    for (auto &wtxAndFee : wtxAndFees) {
+        auto &wtx = wtxAndFee.first;
+        auto fee = wtxAndFee.second;
+
+        QList<SendCoinsRecipient> recipients;
+        transactions.emplace_back(recipients);
+        auto &tx = transactions.back();
+
+        *tx.getTransaction() = wtx;
+        tx.setTransactionFee(fee);
+
+        int changePos = -1;
+        for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
+            if (!wtx.tx->vout[i].scriptPubKey.IsMint()) {
+                changePos = i;
+                break;
+            }
+        }
+
+        tx.reassignAmounts(changePos);
+    }
+
+    return SendCoinsReturn(OK);
+}
+
 WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &transaction)
 {
     QByteArray transaction_array; /* store serialized transaction */
@@ -745,6 +800,29 @@ WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransactio
         Q_EMIT coinsSent(wallet, rcp, transaction_array);
     }
     checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
+    std::vector<WalletModelTransaction> &transactions,
+    std::list<CReserveKey> &reservekeys,
+    std::vector<CHDMint> &mints)
+{
+    auto reservekey = reservekeys.begin();
+    for (size_t i = 0; i != transactions.size(); i++) {
+
+        auto tx = transactions[i].getTransaction();
+
+        CValidationState state;
+        if (!wallet->CommitTransaction(*tx, *reservekey++, g_connman.get(), state)) {
+            return TransactionCommitFailed;
+        }
+
+        auto &mintTmp = mints[i];
+        mintTmp.SetTxHash(tx->GetHash());
+        zwalletMain->GetTracker().AddLelantus(mintTmp, true);
+    }
 
     return SendCoinsReturn(OK);
 }

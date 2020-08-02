@@ -1,5 +1,10 @@
+#include "bitcoinunits.h"
+#include "optionsmodel.h"
 #include "ui_lelantusdialog.h"
 #include "lelantusdialog.h"
+#include "sendcoinsdialog.h"
+
+#define SEND_CONFIRM_DELAY   3
 
 LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -25,4 +30,107 @@ void LelantusDialog::setClientModel(ClientModel *_clientModel)
 void LelantusDialog::setWalletModel(WalletModel *_walletModel)
 {
     this->walletModel = _walletModel;
+}
+
+void LelantusDialog::clear()
+{
+    ui->anonymizeAmount->setValue(0);
+}
+
+void LelantusDialog::accept()
+{
+    clear();
+}
+
+void LelantusDialog::on_anonymizeButton_clicked()
+{
+    CAmount val = 0;
+    if (!BitcoinUnits::parse(
+        walletModel->getOptionsModel()->getDisplayUnit(),
+        ui->anonymizeAmount->text(),
+        &val)) {
+        val = 0;
+    }
+
+    if (val < 0 || val > BitcoinUnits::maxMoney()) {
+        val = 0;
+    }
+
+    std::vector<WalletModelTransaction> wtxs;
+    std::list<CReserveKey> reserveKeys;
+    std::vector<CHDMint> mints;
+    auto prepareStatus = walletModel->prepareAnonymizingTransactions(
+        val,
+        wtxs,
+        reserveKeys,
+        mints,
+        nullptr);
+
+    if (prepareStatus.status != WalletModel::OK) {
+        QString errorMessage;
+
+        Q_EMIT message(tr("Coins Anonymizing"), errorMessage, CClientUIInterface::MSG_ERROR);
+        return;
+    }
+
+    QStringList formatted;
+
+    QString questionString = tr("Are you sure you want to anonymize?");
+    questionString.append("<br /><br />%1");
+
+    CAmount allAmount = 0;
+    CAmount allFee = 0;
+    unsigned int allTxSize = 0;
+    for (auto &wtx : wtxs) {
+        allAmount += wtx.getTotalTransactionAmount();
+        allFee += wtx.getTransactionFee();
+        allTxSize += wtx.getTransactionSize();
+    }
+
+    if (allFee > 0) {
+        // append fee string if a fee is required
+        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), allFee));
+        questionString.append("</span> ");
+        questionString.append(tr("added as transaction fee"));
+
+        // append transaction size
+        questionString.append(" (" + QString::number((double)allTxSize / 1000) + " kB)");
+    }
+
+    // add total amount in all subdivision units
+    questionString.append("<hr />");
+    CAmount totalAmount = allAmount + allFee;
+    QStringList alternativeUnits;
+    for (auto u : BitcoinUnits::availableUnits()) {
+        if(u != walletModel->getOptionsModel()->getDisplayUnit()) {
+            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
+        }
+    }
+
+    questionString.append(tr("Total Amount %1")
+        .arg(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), totalAmount)));
+    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+        .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+
+    SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
+        questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
+    confirmationDialog.exec();
+    QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
+
+    if (retval != QMessageBox::Yes)
+    {
+        return;
+    }
+
+    auto sendStatus = walletModel->sendAnonymizingCoins(wtxs, reserveKeys, mints);
+
+    if (sendStatus.status != WalletModel::OK) {
+        Q_EMIT message(tr("Anonymizing Coins"), "", CClientUIInterface::MSG_ERROR);
+        return;
+    }
+
+    if (sendStatus.status == WalletModel::OK) {
+        accept();
+    }
 }

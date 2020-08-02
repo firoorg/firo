@@ -174,11 +174,25 @@ public:
     // prepare transaction for getting txfee before sending coins in anonymous mode
     SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    // prepare transaction for getting txfee before anonymizing coins
+    SendCoinsReturn prepareAnonymizingTransactions(
+        CAmount amount,
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reserveKeys,
+        std::vector<CHDMint> &mints,
+        const CCoinControl *coinControl);
+
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
 
     // Send private coins to a list of recipients
     SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
+
+    // Anonymize coins.
+    SendCoinsReturn sendAnonymizingCoins(
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reservekeys,
+        std::vector<CHDMint> &mints);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);

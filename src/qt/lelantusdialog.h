@@ -32,6 +32,13 @@ private:
 Q_SIGNALS:
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
+
+public Q_SLOTS:
+    void clear();
+    void accept();
+
+private Q_SLOTS:
+    void on_anonymizeButton_clicked();
 };
 
 #endif // ZCOIN_QT_LELANTUSDIALOG_H

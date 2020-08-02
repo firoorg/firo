@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>914</width>
-    <height>702</height>
+    <height>759</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -868,14 +868,20 @@
              </widget>
             </item>
             <item>
-             <widget class="QDoubleSpinBox" name="doubleSpinBox">
+             <widget class="QDoubleSpinBox" name="anonymizeAmount">
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="decimals">
+               <number>8</number>
+              </property>
               <property name="maximum">
                <double>999999999.990000009536743</double>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="label">
+             <widget class="QLabel" name="anonymizeUnit">
               <property name="text">
                <string>XZC</string>
               </property>
