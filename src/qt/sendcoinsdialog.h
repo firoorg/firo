@@ -78,8 +78,8 @@ private:
 private Q_SLOTS:
     void on_sendButton_clicked();
     void on_switchFundButton_clicked();
-//    void on_buttonChooseFee_clicked();
-//    void on_buttonMinimizeFee_clicked();
+    void on_buttonChooseFee_clicked();
+    void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateDisplayUnit();
     void coinControlFeatureChanged(bool);
@@ -97,7 +97,7 @@ private Q_SLOTS:
     void setMinimumFee();
     void updateFeeSectionControls();
     void updateMinFeeLabel();
-//    void updateSmartFeeLabel();
+    void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
 
 Q_SIGNALS:
