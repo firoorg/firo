@@ -5661,7 +5661,7 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CHDMint dMint;
 
-                auto nFeeRet = payTxFee.GetFeePerK();
+                auto nFeeRet = 0;
                 LogPrintf("nFeeRet=%s\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();

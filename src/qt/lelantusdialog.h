@@ -51,7 +51,8 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void on_anonymizeButton_clicked();
-
+    void on_buttonChooseFee_clicked();
+    void on_buttonMinimizeFee_clicked();
     void coinControlFeatureChanged(bool);
     void coinControlButtonClicked();
     void coinControlChangeChecked(int);
@@ -64,6 +65,11 @@ private Q_SLOTS:
     void coinControlClipboardBytes();
     void coinControlClipboardLowOutput();
     void coinControlClipboardChange();
+    void setMinimumFee();
+    void updateFeeSectionControls();
+    void updateMinFeeLabel();
+    void updateSmartFeeLabel();
+    void updateGlobalFeeVariables();
 
 private:
     void updateBalanceDisplay(int unit = -1);
@@ -74,6 +80,10 @@ private:
     CAmount getAmount(int unit = -1);
     void removeUnmatchedOutput(CCoinControl &coinControl);
 
+    // fee configuration
+    void minimizeFeeSection(bool fMinimize);
+    void updateFeeMinimizedLabel();
+
 private:
     Ui::LelantusDialog *ui;
     ClientModel *clientModel;
@@ -83,6 +93,8 @@ private:
     CAmount cachedPrivateBalance;
     CAmount cachedUnconfirmedPrivateBalance;
     CAmount cachedAnonymizableBalance;
+
+    bool fFeeMinimized;
 
     int currentUnit;
 

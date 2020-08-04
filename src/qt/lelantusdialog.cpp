@@ -12,6 +12,8 @@
 #include "sendcoinsdialog.h"
 #include "walletmodel.h"
 
+#include <QSettings>
+
 #define SEND_CONFIRM_DELAY   3
 
 LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *parent) :
@@ -63,21 +65,52 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
     connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
 
-    // disable transaction fee configuration
-    ui->buttonChooseFee->setEnabled(false);
-    ui->buttonMinimizeFee->setEnabled(false);
-    ui->radioSmartFee->setEnabled(false);
-    ui->sliderSmartFee->setEnabled(false);
+    // init transaction fee section.
+    QSettings settings;
+    if (!settings.contains("lelantus::fFeeSectionMinimized"))
+        settings.setValue("lelantus::fFeeSectionMinimized", true);
 
-    ui->radioCustomFee->setEnabled(false);
-    ui->radioCustomPerKilobyte->setEnabled(false);
-    ui->radioCustomAtLeast->setEnabled(false);
-    ui->customFee->setEnabled(false);
-    ui->checkBoxMinimumFee->setEnabled(false);
+    if (!settings.contains("lelantus::nFeeRadio")
+        && settings.contains("lelantus::nTransactionFee")
+        && settings.value("lelantus::nTransactionFee").toLongLong() > 0) // compatibility
+        settings.setValue("lelantus::nFeeRadio", 1); // custom
+
+    if (!settings.contains("lelantus::nFeeRadio"))
+        settings.setValue("lelantus::nFeeRadio", 0); // recommended
+
+    if (!settings.contains("lelantus::nCustomFeeRadio")
+        && settings.contains("lelantus::nTransactionFee")
+        && settings.value("lelantus::nTransactionFee").toLongLong() > 0) // compatibility
+        settings.setValue("lelantus::nCustomFeeRadio", 1); // total at least
+
+    if (!settings.contains("lelantus::nCustomFeeRadio"))
+        settings.setValue("lelantus::nCustomFeeRadio", 0); // per kilobyte
+
+    if (!settings.contains("lelantus::nTransactionFee"))
+        settings.setValue("lelantus::nTransactionFee",
+            (qint64)DEFAULT_TRANSACTION_FEE);
+
+    if (!settings.contains("lelantus::fPayOnlyMinFee"))
+        settings.setValue("lelantus::fPayOnlyMinFee", false);
+
+    ui->groupCustomFee->setId(ui->radioCustomPerKilobyte, 0);
+    ui->groupCustomFee->setId(ui->radioCustomAtLeast, 1);
+    ui->groupCustomFee->button((int)std::max(0, std::min(1, settings.value("lelantus::nCustomFeeRadio").toInt())))->setChecked(true);
+    ui->customFee->setValue(settings.value("lelantus::nTransactionFee").toLongLong());
+    ui->checkBoxMinimumFee->setChecked(settings.value("lelantus::fPayOnlyMinFee").toBool());
+    minimizeFeeSection(settings.value("lelantus::fFeeSectionMinimized").toBool());
 }
 
 LelantusDialog::~LelantusDialog()
 {
+    QSettings settings;
+    settings.setValue("lelantus::fFeeSectionMinimized", fFeeMinimized);
+    settings.setValue("lelantus::nFeeRadio", true);
+    settings.setValue("lelantus::nCustomFeeRadio", ui->groupCustomFee->checkedId());
+    settings.setValue("lelantus::nSmartFeeSliderPosition", ui->sliderSmartFee->value());
+    settings.setValue("lelantus::nTransactionFee", (qint64)ui->customFee->value());
+    settings.setValue("lelantus::fPayOnlyMinFee", ui->checkBoxMinimumFee->isChecked());
+
     delete ui;
 }
 
@@ -86,6 +119,12 @@ void LelantusDialog::setClientModel(ClientModel *_clientModel)
     this->clientModel = _clientModel;
 
     if (_clientModel) {
+        connect(
+            _clientModel,
+            SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
+            this,
+            SLOT(updateSmartFeeLabel()));
+
         connect(
             _clientModel,
             SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
@@ -135,6 +174,40 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
         auto unit = _walletModel->getOptionsModel()->getDisplayUnit();
         currentUnit = unit;
         updateDisplayUnit(unit);
+
+        // fee section
+        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(updateSmartFeeLabel()));
+        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(updateGlobalFeeVariables()));
+        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(coinControlUpdateLabels()));
+        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(updateFeeSectionControls()));
+        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(updateGlobalFeeVariables()));
+        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(coinControlUpdateLabels()));
+        connect(ui->groupCustomFee, SIGNAL(buttonClicked(int)), this, SLOT(updateGlobalFeeVariables()));
+        connect(ui->groupCustomFee, SIGNAL(buttonClicked(int)), this, SLOT(coinControlUpdateLabels()));
+        connect(ui->customFee, SIGNAL(valueChanged()), this, SLOT(updateGlobalFeeVariables()));
+        connect(ui->customFee, SIGNAL(valueChanged()), this, SLOT(coinControlUpdateLabels()));
+        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(setMinimumFee()));
+        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateFeeSectionControls()));
+        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateGlobalFeeVariables()));
+        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
+        ui->customFee->setSingleStep(CWallet::GetRequiredFee(1000));
+        updateFeeSectionControls();
+        updateMinFeeLabel();
+        updateSmartFeeLabel();
+        updateGlobalFeeVariables();
+
+        // set the smartfee-sliders default value (wallets default conf.target or last stored value)
+        QSettings settings;
+        if (settings.value("lelantus::nSmartFeeSliderPosition").toInt() == 0)
+        {
+            ui->sliderSmartFee->setValue(ui->sliderSmartFee->maximum()
+                - walletModel->getDefaultConfirmTarget() + 2);
+        }
+        else
+        {
+            ui->sliderSmartFee->setValue(
+                settings.value("lelantus::nSmartFeeSliderPosition").toInt());
+        }
     }
 }
 
@@ -197,6 +270,9 @@ void LelantusDialog::updateDisplayUnit(int unit)
     updateBalanceDisplay(unit);
     updateGlobalState();
 
+    updateMinFeeLabel();
+    updateSmartFeeLabel();
+
     currentUnit = unit;
 }
 
@@ -217,6 +293,8 @@ void LelantusDialog::updateGlobalState()
 
 void LelantusDialog::on_anonymizeButton_clicked()
 {
+    updateGlobalFeeVariables();
+
     CAmount val = 0;
     if (!BitcoinUnits::parse(
         walletModel->getOptionsModel()->getDisplayUnit(),
@@ -402,6 +480,89 @@ void LelantusDialog::processSendCoinsReturn(
     Q_EMIT message(tr("Anonymize Coins"), msgParams.first, msgParams.second);
 }
 
+void LelantusDialog::minimizeFeeSection(bool fMinimize)
+{
+    ui->labelFeeMinimized->setVisible(fMinimize);
+    ui->buttonChooseFee  ->setVisible(fMinimize);
+    ui->buttonMinimizeFee->setVisible(!fMinimize);
+    ui->frameFeeSelection->setVisible(!fMinimize);
+    ui->horizontalLayoutSmartFee->setContentsMargins(0, (fMinimize ? 0 : 6), 0, 0);
+    fFeeMinimized = fMinimize;
+}
+
+void LelantusDialog::on_buttonChooseFee_clicked()
+{
+    minimizeFeeSection(false);
+}
+
+void LelantusDialog::on_buttonMinimizeFee_clicked()
+{
+    updateFeeMinimizedLabel();
+    minimizeFeeSection(true);
+}
+
+void LelantusDialog::setMinimumFee()
+{
+    ui->radioCustomPerKilobyte->setChecked(true);
+    ui->customFee->setValue(CWallet::GetRequiredFee(1000));
+}
+
+void LelantusDialog::updateFeeSectionControls()
+{
+    ui->sliderSmartFee          ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelSmartFee           ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelSmartFee2          ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelSmartFee3          ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelFeeEstimation      ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelSmartFeeNormal     ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->labelSmartFeeFast       ->setEnabled(ui->radioSmartFee->isChecked());
+
+    ui->confirmationTargetLabel ->setEnabled(ui->radioSmartFee->isChecked());
+    ui->checkBoxMinimumFee      ->setEnabled(ui->radioCustomFee->isChecked());
+    ui->labelMinFeeWarning      ->setEnabled(ui->radioCustomFee->isChecked());
+    ui->radioCustomPerKilobyte  ->setEnabled(ui->radioCustomFee->isChecked() && !ui->checkBoxMinimumFee->isChecked());
+    ui->radioCustomAtLeast      ->setEnabled(ui->radioCustomFee->isChecked() && !ui->checkBoxMinimumFee->isChecked() && coinControlStorage.coinControl.HasSelected());
+    ui->customFee               ->setEnabled(ui->radioCustomFee->isChecked() && !ui->checkBoxMinimumFee->isChecked());
+}
+
+void LelantusDialog::updateGlobalFeeVariables()
+{
+    auto &coinControl = coinControlStorage.coinControl;
+    if (ui->radioSmartFee->isChecked())
+    {
+        int nConfirmTarget = ui->sliderSmartFee->maximum() - ui->sliderSmartFee->value() + 2;
+        payTxFee = CFeeRate(0);
+
+        // set nMinimumTotalFee to 0 to not accidentally pay a custom fee
+        coinControl.nMinimumTotalFee = 0;
+
+        // show the estimated required time for confirmation
+        ui->confirmationTargetLabel->setText(
+            GUIUtil::formatDurationStr(nConfirmTarget * Params().GetConsensus().nPowTargetSpacing)
+            + " / " + tr("%n block(s)", "", nConfirmTarget));
+    }
+    else
+    {
+        payTxFee = CFeeRate(ui->customFee->value());
+
+        // if user has selected to set a minimum absolute fee, pass the value to coincontrol
+        // set nMinimumTotalFee to 0 in case of user has selected that the fee is per KB
+        coinControl.nMinimumTotalFee = ui->radioCustomAtLeast->isChecked() ? ui->customFee->value() : 0;
+    }
+}
+
+void LelantusDialog::updateFeeMinimizedLabel()
+{
+    if(!walletModel || !walletModel->getOptionsModel())
+        return;
+    if (ui->radioSmartFee->isChecked())
+        ui->labelFeeMinimized->setText(ui->labelSmartFee->text());
+    else {
+        ui->labelFeeMinimized->setText(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), ui->customFee->value()) +
+            ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
+    }
+}
+
 CAmount LelantusDialog::getAmount(int unit)
 {
     CAmount val;
@@ -426,6 +587,48 @@ void LelantusDialog::removeUnmatchedOutput(CCoinControl &coinControl)
     }
 }
 
+void LelantusDialog::updateMinFeeLabel()
+{
+    if (walletModel && walletModel->getOptionsModel())
+        ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(
+            BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), CWallet::GetRequiredFee(1000)) + "/kB")
+        );
+}
+
+void LelantusDialog::updateSmartFeeLabel()
+{
+    if(!walletModel || !walletModel->getOptionsModel())
+        return;
+
+    int nBlocksToConfirm = ui->sliderSmartFee->maximum() - ui->sliderSmartFee->value() + 2;
+    int estimateFoundAtBlocks = nBlocksToConfirm;
+    CFeeRate feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
+    if (feeRate <= CFeeRate(0)) // not enough data => minfee
+    {
+        ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(
+            walletModel->getOptionsModel()->getDisplayUnit(),
+            std::max(CWallet::fallbackFee.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
+        ui->labelSmartFee2->show(); // (Smart fee not initialized yet. This usually takes a few blocks...)
+        ui->labelFeeEstimation->setText("");
+        ui->fallbackFeeWarningLabel->setVisible(true);
+        int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
+        QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
+        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
+        ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).width("x"));
+    }
+    else
+    {
+        ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(
+            walletModel->getOptionsModel()->getDisplayUnit(),
+            std::max(feeRate.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
+        ui->labelSmartFee2->hide();
+        ui->labelFeeEstimation->setText(tr("Estimated to begin confirmation within %n block(s).", "", estimateFoundAtBlocks));
+        ui->fallbackFeeWarningLabel->setVisible(false);
+    }
+
+    updateFeeMinimizedLabel();
+}
+
 // coin controls
 void LelantusDialog::coinControlFeatureChanged(bool checked)
 {
@@ -436,8 +639,7 @@ void LelantusDialog::coinControlFeatureChanged(bool checked)
     }
 
     // make sure we set back the confirmation target
-    // TODO: uncomment
-    // updateGlobalFeeVariables();
+    updateGlobalFeeVariables();
     coinControlUpdateLabels();
 }
 
@@ -536,8 +738,9 @@ void LelantusDialog::coinControlUpdateLabels()
         ui->radioCustomAtLeast->setVisible(true);
 
         // only enable the feature if inputs are selected
-//        ui->radioCustomAtLeast->setEnabled(ui->radioCustomFee->isChecked() && !ui->checkBoxMinimumFee->isChecked() &&CoinControlDialog::coinControl->HasSelected());
-        ui->radioCustomAtLeast->setEnabled(!ui->checkBoxMinimumFee->isChecked() && coinControlStorage.coinControl.HasSelected());
+        ui->radioCustomAtLeast->setEnabled(ui->radioCustomFee->isChecked()
+            && !ui->checkBoxMinimumFee->isChecked()
+            && coinControlStorage.coinControl.HasSelected());
     }
     else
     {
