@@ -26,10 +26,14 @@ LelantusModel::LelantusModel(
     resetInitialSyncTimer = new QTimer(this);
     resetInitialSyncTimer->setSingleShot(true);
 
-    QTimer::singleShot(1 * 1000, this, SLOT(start()));
+    if (optionsModel && optionsModel->getAutoAnonymize()) {
+        QTimer::singleShot(1 * 1000, this, SLOT(start()));
+    }
 
     connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
     connect(resetInitialSyncTimer, SIGNAL(timeout()), this, SLOT(resetInitialSync()));
+
+    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
 
     subscribeToCoreSignals();
 }
@@ -254,6 +258,19 @@ void LelantusModel::lock()
 
     if (wallet->IsCrypted() && !wallet->IsLocked()) {
         lockWallet();
+    }
+}
+
+void LelantusModel::updateAutoMintOption(bool enabled)
+{
+    LOCK(cs);
+    if (enabled) {
+        if (autoMintState == AutoMintState::Disabled) {
+            QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(start()));
+        }
+    } else {
+        // stop mint
+        autoMintState = AutoMintState::Disabled;
     }
 }
 

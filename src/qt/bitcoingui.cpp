@@ -649,6 +649,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
 
+            // update lelantus page if option is changed.
+            connect(optionsModel,SIGNAL(lelantusPageChanged(bool)),this,SLOT(updateLelantusPage()));
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
@@ -1461,6 +1464,12 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
+void BitcoinGUI::updateLelantusPage()
+{
+    auto blocks = clientModel->getNumBlocks();
+    checkLelantusVisibility(blocks);
+}
+
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
@@ -1538,7 +1547,13 @@ void BitcoinGUI::checkSigmaVisibility(int numBlocks)
 
 void BitcoinGUI::checkLelantusVisibility(int numBlocks)
 {
-    auto allowLelantusPage = lelantus::IsLelantusAllowed(numBlocks);
+    auto allowLelantusPage = false;
+    if (clientModel && clientModel->getOptionsModel()) {
+        allowLelantusPage = clientModel->getOptionsModel()->getLelantusPage();
+    }
+
+    allowLelantusPage &= lelantus::IsLelantusAllowed(numBlocks);
+
     if (allowLelantusPage != lelantusAction->isVisible()) {
         if (!allowLelantusPage && lelantusAction->isChecked()) {
             gotoOverviewPage();

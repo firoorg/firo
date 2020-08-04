@@ -66,6 +66,8 @@ public Q_SLOTS:
 
     void lock();
 
+    void updateAutoMintOption(bool);
+
 private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

@@ -286,6 +286,9 @@ private Q_SLOTS:
     void toggleNetworkActive();
 
     void showModalOverlay();
+
+    /** Update Lelantus page visibility */
+    void updateLelantusPage();
 };
 
 class UnitDisplayStatusBarControl : public QLabel

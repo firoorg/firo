@@ -20,7 +20,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tabMain">
       <attribute name="title">
@@ -170,6 +170,29 @@
             </property>
             <property name="text">
              <string>&amp;Reindex Sigma</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="lelantusGroupBox">
+         <property name="title">
+          <string>Lelantus</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QCheckBox" name="autoAnonymize">
+            <property name="text">
+             <string>Enable &amp;auto-anonymize feature</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="lelantusPage">
+            <property name="text">
+             <string>Enable &amp;lelantus manual anonymize page</string>
             </property>
            </widget>
           </item>
