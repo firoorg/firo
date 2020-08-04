@@ -16,8 +16,8 @@ public:
             const std::vector<Scalar>& serialNumbers,
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
-            const Scalar& Vout,
-            const Scalar f,
+            uint64_t Vout,
+            uint64_t f,
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof);
 

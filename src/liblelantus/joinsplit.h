@@ -26,7 +26,7 @@ public:
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<PublicCoin>& Cout,
-                const Scalar& Vout,
+                uint64_t Vout,
                 const uint256& txHash) const;
 
     void signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);

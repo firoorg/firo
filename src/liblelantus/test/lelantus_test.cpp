@@ -74,10 +74,10 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     anonymity_sets[0][0] = Cin[0].first.getPublicCoin();
 
     Scalar Vin(5);
-    Scalar Vout(6);
+    uint64_t Vout(6);
     std::vector<PrivateCoin> Cout = {{params, 2}, {params, 1}};
 
-    secp_primitives::Scalar f(1);
+    uint64_t f(1);
     LelantusProof proof;
 
     LelantusProver prover(params);
@@ -107,7 +107,8 @@ BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
     anonymity_sets[0][1] = Cin[1].first.getPublicCoin();
     anonymity_sets[1][0] = Cin[2].first.getPublicCoin();
 
-    Scalar Vin(5), Vout(6), f(1);
+    Scalar Vin(5);
+    uint64_t Vout(6), f(1);
     std::vector<PrivateCoin> Cout = {{params, 2}, {params, 1}};
 
     LelantusProof proof;
@@ -122,7 +123,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
     lelantus::LelantusVerifier verifier(params);
     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, groupIds, Vin, Vout, f, Cout_Public, proof));
     BOOST_CHECK(verifier.verify(anonymity_sets, Sin, groupIds, Vin + 1, Vout + 1, f, Cout_Public, proof));
-    BOOST_CHECK(verifier.verify(anonymity_sets, Sin, groupIds, Vin, Vout + f, Scalar(uint64_t(0)), Cout_Public, proof));
+    BOOST_CHECK(verifier.verify(anonymity_sets, Sin, groupIds, Vin, Vout + f, uint64_t(0), Cout_Public, proof));
 }
 
 BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
@@ -143,8 +144,8 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
 
     // Output
     std::vector<PrivateCoin> Cout = {{params, 3}};
-    Scalar Vout(3);
-    Scalar f(1);
+    uint64_t Vout(3);
+    uint64_t f(1);
 
     // Proof
     LelantusProof proof;
@@ -190,8 +191,8 @@ BOOST_AUTO_TEST_CASE(other_fail_to_validate)
 
     // Output
     std::vector<PrivateCoin> Cout = {{params, 1}, {params, 2}};
-    Scalar Vout(3);
-    Scalar f(1);
+    uint64_t Vout(3);
+    uint64_t f(1);
 
     // Proof
     LelantusProof proof;
