@@ -88,6 +88,8 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
+    defaultPal = palette();
+    setAutoFillBackground(true);
     {
         auto allowed = lelantus::IsLelantusAllowed();
         setAnonymizeMode(allowed);
@@ -725,6 +727,11 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
+        QPalette pal = palette();
+        pal.setColor(QPalette::Background, Qt::lightGray);
+
+        setPalette(pal);
+
     } else {
         ui->switchFundButton->setText(QString("Use Private Balance"));
         ui->label->setText(QString("Transparent Balance"));
@@ -733,6 +740,8 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         if (ui->checkBoxCoinControlChange->isChecked()) {
             ui->lineEditCoinControlChange->setEnabled(true);
         }
+
+        setPalette(defaultPal);
     }
 
     if (model) {
