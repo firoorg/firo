@@ -1,6 +1,7 @@
 #include "../validation.h"
 
 #include "automintdialog.h"
+#include "automintmodel.h"
 #include "bitcoinunits.h"
 #include "lelantusmodel.h"
 #include "ui_automintdialog.h"

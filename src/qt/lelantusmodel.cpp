@@ -1,6 +1,7 @@
 #include "../lelantus.h"
 #include "../validation.h"
 
+#include "automintmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "lelantusmodel.h"
@@ -14,44 +15,22 @@ LelantusModel::LelantusModel(
     OptionsModel *optionsModel,
     QObject *parent)
     : QObject(parent),
-    checkPendingTxTimer(0),
-    resetInitialSyncTimer(0),
-    optionsModel(optionsModel),
-    initialSync(false),
+
     wallet(wallet)
 {
-    checkPendingTxTimer = new QTimer(this);
-    checkPendingTxTimer->setSingleShot(true);
-
-    resetInitialSyncTimer = new QTimer(this);
-    resetInitialSyncTimer->setSingleShot(true);
-
-    if (optionsModel && optionsModel->getAutoAnonymize()) {
-        QTimer::singleShot(1 * 1000, this, SLOT(start()));
-    }
-
-    connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
-    connect(resetInitialSyncTimer, SIGNAL(timeout()), this, SLOT(resetInitialSync()));
-
-    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
-
-    subscribeToCoreSignals();
+    autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);
 }
 
 LelantusModel::~LelantusModel()
 {
-    disconnect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
+    delete autoMintModel;
 
-    delete checkPendingTxTimer;
-
-    checkPendingTxTimer = nullptr;
-
-    unsubscribeFromCoreSignals();
+    autoMintModel = nullptr;
 }
 
-OptionsModel* LelantusModel::getOptionsModel()
+void LelantusModel::askToMint()
 {
-    return optionsModel;
+    autoMintModel->startAutoMint(true);
 }
 
 CAmount LelantusModel::getMintableAmount()
@@ -68,22 +47,6 @@ CAmount LelantusModel::getMintableAmount()
     }
 
     return s;
-}
-
-void LelantusModel::setupAutoMint()
-{
-    CAmount mintable = 0;
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
-        mintable = getMintableAmount();
-    }
-
-    if (mintable > 0) {
-        autoMintState = AutoMintState::WaitingUserToActivate;
-        checkAutoMint();
-    } else {
-        autoMintState = AutoMintState::WaitingIncomingFund;
-    }
 }
 
 void LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
@@ -123,135 +86,21 @@ CAmount LelantusModel::mintAll()
 
     return s;
 }
-void LelantusModel::setInitialSync()
-{
-    initialSync.store(true);
-    resetInitialSyncTimer->stop();
-
-    // wait 10 second if there are no new signal then reset flag
-    resetInitialSyncTimer->start(10 * 1000);
-}
-
-void LelantusModel::resetInitialSync()
-{
-    initialSync.store(false);
-}
-
-void LelantusModel::updateTransaction(uint256 hash)
-{
-    LOCK(cs);
-
-    checkPendingTxTimer->stop();
-    checkPendingTxTimer->setSingleShot(true);
-
-    pendingTransactions.push_back(hash);
-
-    checkPendingTxTimer->start(WaitingTime);
-}
-
-void LelantusModel::checkAutoMint(bool userAsk)
-{
-    // if lelantus is not allow or client is in initial syncing state then wait
-    // except user force to check
-    bool allowed = lelantus::IsLelantusAllowed();
-    if (!userAsk && (!allowed || initialSync)) {
-        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(checkAutoMint()));
-        return;
-    }
-
-    {
-        LOCK(cs);
-
-        if (fReindex) {
-            return;
-        }
-
-        switch (autoMintState) {
-        case AutoMintState::Disabled:
-        case AutoMintState::WaitingIncomingFund:
-            if (userAsk) {
-                break;
-            }
-            return;
-        case AutoMintState::WaitingUserToActivate:
-            // check activation status
-            break;
-        case AutoMintState::WaitingForUserResponse:
-            return;
-        default:
-            throw std::runtime_error("Unknown auto mint state");
-        }
-
-        autoMintState = AutoMintState::WaitingForUserResponse;
-    }
-
-    askUserToMint(userAsk);
-}
 
 void LelantusModel::askUserToMint(bool userAsk)
 {
     Q_EMIT askMintAll(userAsk);
 }
 
-void LelantusModel::checkPendingTransactions()
-{
-    LOCK2(cs_main, wallet->cs_wallet);
-    LOCK(cs);
-
-    auto hasNew = false;
-    for (auto const &tx : pendingTransactions) {
-        if (!wallet->mapWallet.count(tx)) {
-            continue;
-        }
-
-        auto const &wtx = wallet->mapWallet[tx];
-        hasNew |= (wtx.GetAvailableCredit() - wtx.GetDebit(ISMINE_ALL)) > 0;
-
-        if (hasNew) {
-            break;
-        }
-    }
-
-    pendingTransactions.clear();
-    if (!hasNew) {
-        return;
-    }
-
-    switch (autoMintState) {
-    case AutoMintState::Disabled:
-    case AutoMintState::WaitingUserToActivate:
-    case AutoMintState::WaitingForUserResponse:
-        return;
-    case AutoMintState::WaitingIncomingFund:
-        break;
-    default:
-        throw std::runtime_error("Unknown auto mint status");
-    };
-
-    autoMintState = AutoMintState::WaitingUserToActivate;
-    checkAutoMint();
-}
-
-void LelantusModel::start()
-{
-    setupAutoMint();
-}
-
 void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
-    LOCK(cs);
-    if (ack == AutoMintAck::WaitUserToActive) {
-        autoMintState = AutoMintState::WaitingUserToActivate;
-        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(askUserToMint()));
-    } else {
-        autoMintState = AutoMintState::WaitingIncomingFund;
-    }
+    autoMintModel->ackMintAll(ack, minted, error);
 }
 
 void LelantusModel::lock()
 {
     LOCK2(wallet->cs_wallet, cs);
-    if (autoMintState == AutoMintState::WaitingForUserResponse) {
+    if (autoMintModel->askingUser()) {
         QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(lock()));
         return;
     }
@@ -259,61 +108,4 @@ void LelantusModel::lock()
     if (wallet->IsCrypted() && !wallet->IsLocked()) {
         lockWallet();
     }
-}
-
-void LelantusModel::updateAutoMintOption(bool enabled)
-{
-    LOCK(cs);
-    if (enabled) {
-        if (autoMintState == AutoMintState::Disabled) {
-            QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(start()));
-        }
-    } else {
-        // stop mint
-        autoMintState = AutoMintState::Disabled;
-    }
-}
-
-// Handlers for core signals
-static void NotifyBlockTip(LelantusModel *model, bool initialSync, const CBlockIndex *pIndex)
-{
-    Q_UNUSED(pIndex);
-    if (initialSync) {
-        QMetaObject::invokeMethod(
-            model,
-            "setInitialSync",
-            Qt::QueuedConnection);
-    }
-}
-
-static void NotifyTransactionChanged(
-    LelantusModel *model, CWallet *wallet, uint256 const &hash, ChangeType status)
-{
-    Q_UNUSED(wallet);
-    Q_UNUSED(status);
-    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
-        QMetaObject::invokeMethod(
-            model,
-            "updateTransaction",
-            Qt::QueuedConnection,
-            Q_ARG(uint256, hash));
-    }
-}
-
-void LelantusModel::subscribeToCoreSignals()
-{
-    wallet->NotifyTransactionChanged.connect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-
-    uiInterface.NotifyBlockTip.connect(boost::bind(
-        NotifyBlockTip, this, _1, _2));
-}
-
-void LelantusModel::unsubscribeFromCoreSignals()
-{
-    wallet->NotifyTransactionChanged.disconnect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-
-    uiInterface.NotifyBlockTip.disconnect(boost::bind(
-        NotifyBlockTip, this, _1, _2));
 }

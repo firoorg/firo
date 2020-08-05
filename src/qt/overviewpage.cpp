@@ -210,7 +210,7 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    lelantusModel->checkAutoMint(true);
+    lelantusModel->askToMint();
 }
 
 void OverviewPage::setBalance(
@@ -311,8 +311,6 @@ void OverviewPage::setWalletModel(WalletModel *model)
             SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
             this,
             SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
-        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
-        this, SLOT(updateCoins(const std::vector<CMintMeta>, const std::vector<CMintMeta>)));
 
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 

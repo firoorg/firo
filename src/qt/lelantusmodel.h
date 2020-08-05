@@ -1,27 +1,13 @@
 #ifndef ZCOIN_QT_LELANTUSMODEL_H
 #define ZCOIN_QT_LELANTUSMODEL_H
 
+#include "automintmodel.h"
 #include "platformstyle.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
 
 #include <QDateTime>
 #include <QObject>
-
-enum class AutoMintState : uint8_t {
-    Disabled,
-    WaitingIncomingFund,
-    WaitingUserToActivate,
-    WaitingForUserResponse
-};
-
-enum class AutoMintAck : uint8_t {
-    Success,
-    WaitUserToActive,
-    FailToMint,
-    NotEnoughFund,
-    UserReject
-};
 
 class LelantusModel : public QObject
 {
@@ -37,7 +23,7 @@ public:
     ~LelantusModel();
 
 public:
-    OptionsModel *getOptionsModel();
+    void askToMint();
     CAmount getMintableAmount();
 
     void unlockWallet(SecureString const &passphase, size_t msecs);
@@ -55,35 +41,10 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void askUserToMint(bool userAsk = false);
-
-    void checkPendingTransactions();
-    void checkAutoMint(bool force = false);
-
-    void updateTransaction(uint256 hash);
-    void resetInitialSync();
-    void setInitialSync();
-    void start();
-
     void lock();
 
-    void updateAutoMintOption(bool);
-
 private:
-    void subscribeToCoreSignals();
-    void unsubscribeFromCoreSignals();
-
-    void setupAutoMint();
-
-private:
-    static const size_t WaitingTime = 1 * 1000; // one second
-
-private:
-    AutoMintState autoMintState = AutoMintState::Disabled;
-    QTimer *checkPendingTxTimer;
-    QTimer *resetInitialSyncTimer;
-    OptionsModel *optionsModel;
-    std::atomic<bool> initialSync;
-    std::vector<uint256> pendingTransactions;
+    AutoMintModel *autoMintModel;
     CWallet *wallet;
 };
 

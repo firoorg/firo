@@ -7,6 +7,7 @@
 #include "addressbookpage.h"
 #include "askpassphrasedialog.h"
 #include "automintdialog.h"
+#include "automintmodel.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiutil.h"
