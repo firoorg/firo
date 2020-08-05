@@ -78,9 +78,17 @@ void AutoMintModel::checkAutoMint()
     // if lelantus is not allow or client is in initial syncing state then wait
     // except user force to check
     bool force = this->force;
-    bool allowed = lelantus::IsLelantusAllowed();
-    if (!force && (!allowed || initialSync)) {
-        return;
+
+    if (!force) {
+        // check initialSync first to reduce main locking
+        if (initialSync) {
+            return;
+        }
+
+        bool allowed = lelantus::IsLelantusAllowed();
+        if (!allowed) {
+            return;
+        }
     }
 
     {
