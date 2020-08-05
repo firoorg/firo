@@ -1,4 +1,5 @@
 #include "params.h"
+#include "chainparams.h"
 #include <iostream>
 namespace lelantus {
 
@@ -71,6 +72,9 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
         g_rangeProof[i].normalSha256(buff2);
         h_rangeProof[i].generate(buff2);
     }
+
+    limit_range = Scalar(uint64_t(2)).exponent(get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint;
+    h1_limit_range = get_h1() * limit_range;
 }
 
 const GroupElement& Params::get_g() const{
@@ -106,6 +110,14 @@ int Params::get_sigma_m() const{
 
 int Params::get_bulletproofs_n() const{
     return n_rangeProof;
+}
+
+const Scalar& Params::get_limit_range() const{
+    return limit_range;
+}
+
+const GroupElement& Params::get_h1_limit_range() const{
+    return h1_limit_range;
 }
 
 } //namespace lelantus

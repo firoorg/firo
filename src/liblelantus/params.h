@@ -22,6 +22,8 @@ public:
     int get_sigma_n() const;
     int get_sigma_m() const;
     int get_bulletproofs_n() const;
+    const Scalar& get_limit_range() const;
+    const GroupElement& get_h1_limit_range() const;
 
 private:
     Params(const GroupElement& g_sigma_, int n, int m, int n_rangeProof_, int max_m_rangeProof_);
@@ -41,6 +43,8 @@ private:
     int max_m_rangeProof;
     std::vector<GroupElement> g_rangeProof;
     std::vector<GroupElement> h_rangeProof;
+    Scalar limit_range;
+    GroupElement h1_limit_range;
 };
 
 } // namespace lelantus
