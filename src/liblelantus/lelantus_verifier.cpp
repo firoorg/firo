@@ -1,7 +1,5 @@
 #include "lelantus_verifier.h"
 
-#include "chainparams.h"
-
 namespace lelantus {
 
 LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
@@ -88,7 +86,7 @@ bool LelantusVerifier::verify_rangeproof(
         return true;
 
     std::size_t n = params->get_bulletproofs_n();
-    std::size_t m = Cout.size();
+    std::size_t m = Cout.size() * 2;
 
     while (m & (m - 1))
         m++;
@@ -101,10 +99,12 @@ bool LelantusVerifier::verify_rangeproof(
 
     std::vector<GroupElement> V;
     V.reserve(m);
-    for (std::size_t i = 0; i < Cout.size(); ++i)
-        V.push_back(Cout[i].getValue() + params->get_h1() * (Scalar(uint64_t(2)).exponent(params->get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint));
+    for (std::size_t i = 0; i < Cout.size(); ++i) {
+        V.push_back(Cout[i].getValue());
+        V.push_back(Cout[i].getValue() + params->get_h1_limit_range());
+    }
 
-    for (std::size_t i = Cout.size(); i < m; ++i)
+    for (std::size_t i = Cout.size() * 2; i < m; ++i)
         V.push_back(GroupElement());
 
     RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
