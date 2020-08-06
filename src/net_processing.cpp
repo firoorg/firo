@@ -30,9 +30,6 @@
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
-#include "spork.h"
-#include "instantx.h"
-
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 
@@ -924,8 +921,6 @@ void PeerLogicValidation::BlockChecked(const CBlock& block, const CValidationSta
 
 bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    bool fEvoZnodes = deterministicMNManager->IsDIP3Enforced();
-
     switch (inv.type)
     {
     case MSG_TX:
@@ -967,21 +962,15 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
         We want to only update the time on new hits, so that we can time out appropriately if needed.
     */
-    case MSG_TXLOCK_REQUEST:
-        return fEvoZnodes || instantsend.AlreadyHave(inv.hash);
-
-    case MSG_TXLOCK_VOTE:
-        return fEvoZnodes || instantsend.AlreadyHave(inv.hash);
-
     case MSG_QUORUM_FINAL_COMMITMENT:
-        return !fEvoZnodes || llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
+        return llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
     case MSG_QUORUM_CONTRIB:
     case MSG_QUORUM_COMPLAINT:
     case MSG_QUORUM_JUSTIFICATION:
     case MSG_QUORUM_PREMATURE_COMMITMENT:
-        return !fEvoZnodes || llmq::quorumDKGSessionManager->AlreadyHave(inv);
+        return llmq::quorumDKGSessionManager->AlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
-        return !fEvoZnodes || llmq::quorumSigningManager->AlreadyHave(inv);
+        return llmq::quorumSigningManager->AlreadyHave(inv);
     /*
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
@@ -1035,8 +1024,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
     std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
     LOCK(cs_main);
-
-    bool fEvoZnodes = deterministicMNManager->IsDIP3Enforced();
 
     while (it != pfrom->vRecvGetData.end()) {
         // Don't bother if send buffer is too full to respond anyway
@@ -1222,29 +1209,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!fEvoZnodes && !pushed && inv.type == MSG_TXLOCK_REQUEST) {
-                    CTxLockRequest txLockRequest;
-                    if(instantsend.GetTxLockRequest(inv.hash, txLockRequest)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << txLockRequest;
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKREQUEST, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (!fEvoZnodes && !pushed && inv.type == MSG_TXLOCK_VOTE) {
-                    CTxLockVote vote;
-                    if(instantsend.GetTxLockVote(inv.hash, vote)) {
-                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                        ss.reserve(1000);
-                        ss << vote;
-                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::TXLOCKVOTE, ss));
-                        pushed = true;
-                    }
-                }
-
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
+                if (!pushed && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
                     llmq::CFinalCommitment o;
                     if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
@@ -1252,35 +1217,35 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_CONTRIB)) {
+                if (!pushed && (inv.type == MSG_QUORUM_CONTRIB)) {
                     llmq::CDKGContribution o;
                     if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
                         pushed = true;
                     }
                 }
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_COMPLAINT)) {
+                if (!pushed && (inv.type == MSG_QUORUM_COMPLAINT)) {
                     llmq::CDKGComplaint o;
                     if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
                         pushed = true;
                     }
                 }
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
+                if (!pushed && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
                     llmq::CDKGJustification o;
                     if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
                         pushed = true;
                     }
                 }
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
+                if (!pushed && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
                     llmq::CDKGPrematureCommitment o;
                     if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
                         pushed = true;
                     }
                 }
-                if (fEvoZnodes && !pushed && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
+                if (!pushed && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
                     llmq::CRecoveredSig o;
                     if (llmq::quorumSigningManager->GetRecoveredSigForGetData(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
@@ -2008,7 +1973,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
 
-    else if (strCommand == NetMsgType::TX || strCommand == NetMsgType::TXLOCKREQUEST)
+    else if (strCommand == NetMsgType::TX)
     {
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
@@ -2021,36 +1986,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::deque<COutPoint> vWorkQueue;
         std::vector<uint256> vEraseQueue;
 
-        CTxLockRequest txLockRequest;
         int nInvType = MSG_TX;
         CTransactionRef ptx;
 
         // Read data and assign inv type
-        if (strCommand == NetMsgType::TX) {
-            vRecv >> ptx;
-        } else if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            vRecv >> txLockRequest;
-            ptx = txLockRequest.tx;
-            nInvType = MSG_TXLOCK_REQUEST;
-            /*if (llmq::IsNewInstantSendEnabled()) {
-                // the new system does not require explicit lock requests
-                // changing the inv type to MSG_TX also results in re-broadcasting the TX as normal TX
-                nInvType = MSG_TX;
-            }*/
-        }
+        vRecv >> ptx;
 
         const CTransaction& tx = *ptx;
 
         CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
-
-        // Process custom logic, no matter if tx will be accepted to mempool later or not
-        if (strCommand == NetMsgType::TXLOCKREQUEST) {
-            /*if (!instantsend.ProcessTxLockRequest(*ptxLockRequest, g_connman)) {
-                LogPrint("instantsend", "TXLOCKREQUEST -- failed %s\n", ptxLockRequest->GetHash().ToString());
-                return false;
-            }*/
-        }
 
         LOCK(cs_main);
 
@@ -2241,19 +2186,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 }
             } else if (tx.HasWitness() && RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);
-            }
-
-            if (nInvType == MSG_TXLOCK_REQUEST && !AlreadyHave(inv)) {
-                // i.e. AcceptToMemoryPool failed, probably because it's conflicting
-                // with existing normal tx or tx lock for another tx. For the same tx lock
-                // AlreadyHave would have return "true" already.
-
-                // It's the first time we failed for this tx lock request,
-                // this should switch AlreadyHave to "true".
-                instantsend.RejectLockRequest(txLockRequest);
-                // this lets other nodes to create lock request candidate i.e.
-                // this allows multiple conflicting lock requests to compete for votes
-                connman.RelayTransaction(tx);
             }
 
             if (pfrom->fWhitelisted && GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {

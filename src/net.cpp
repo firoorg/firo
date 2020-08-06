@@ -26,7 +26,6 @@
 #include "txmempool.h"
 #include "./consensus/validation.h"
 
-#include "instantx.h"
 #include "masternode-sync.h"
 #include "llmq/quorums_instantsend.h"
 #include "evo/mnauth.h"

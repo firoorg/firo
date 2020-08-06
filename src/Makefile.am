@@ -204,7 +204,6 @@ BITCOIN_CORE_H = \
   httpserver.h \
   indirectmap.h \
   init.h \
-  instantx.h \
   key.h \
   keystore.h \
   dbwrapper.h \
@@ -413,7 +412,6 @@ libbitcoin_server_a_SOURCES = \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
-  instantx.cpp \
   dbwrapper.cpp \
   threadinterrupt.cpp \
   merkleblock.cpp \

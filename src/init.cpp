@@ -49,7 +49,6 @@
 #include "activemasternode.h"
 #include "dsnotificationinterface.h"
 #include "flat-database.h"
-#include "instantx.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternode-utils.h"
@@ -96,8 +95,6 @@
 #include "znodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"
-#include "instantx.h"
-#include "spork.h"
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"

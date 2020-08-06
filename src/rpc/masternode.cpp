@@ -17,6 +17,7 @@
 
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
+#include "wallet/coincontrol.h"
 
 #include "evo/specialtx.h"
 #include "evo/deterministicmns.h"
@@ -224,7 +225,9 @@ UniValue masternode_outputs(const JSONRPCRequest& request)
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    pwallet->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
+    CCoinControl coin_control;
+    coin_control.nCoinType = CoinType::ONLY_1000;
+    pwallet->AvailableCoins(vPossibleCoins, true, &coin_control);
 
     UniValue obj(UniValue::VOBJ);
     for (const auto& out : vPossibleCoins) {

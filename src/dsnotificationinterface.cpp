@@ -4,12 +4,10 @@
 
 #include "chainparams.h"
 #include "dsnotificationinterface.h"
-#include "instantx.h"
 //#include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "validation.h"
-#include "spork.h"
 
 #include "evo/deterministicmns.h"
 #include "evo/mnauth.h"

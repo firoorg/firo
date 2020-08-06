@@ -5,6 +5,7 @@
 #include "quorums_chainlocks.h"
 #include "quorums_instantsend.h"
 #include "quorums_utils.h"
+#include "spork.h"
 
 #include "bls/bls_batchverifier.h"
 #include "chainparams.h"
@@ -12,15 +13,11 @@
 #include "txmempool.h"
 #include "masternode-sync.h"
 #include "net_processing.h"
-#include "spork.h"
 #include "validation.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
-
-// needed for AUTO_IX_MEMPOOL_THRESHOLD
-#include "instantx.h"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>

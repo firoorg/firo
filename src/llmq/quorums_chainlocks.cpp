@@ -7,12 +7,12 @@
 #include "quorums_instantsend.h"
 #include "quorums_signing.h"
 #include "quorums_utils.h"
+#include "spork.h"
 
 #include "chain.h"
 #include "masternode-sync.h"
 #include "net_processing.h"
 #include "scheduler.h"
-#include "spork.h"
 #include "txmempool.h"
 #include "validation.h"
 

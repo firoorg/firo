@@ -17,7 +17,6 @@
 #include "init.h"
 #include "net.h"
 #include "netmessagemaker.h"
-#include "spork.h"
 #include "univalue.h"
 #include "validation.h"
 
