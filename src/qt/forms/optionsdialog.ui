@@ -185,14 +185,14 @@
           <item>
            <widget class="QCheckBox" name="autoAnonymize">
             <property name="text">
-             <string>Enable &amp;auto-anonymize feature</string>
+             <string>Enable &amp;auto-anonymize features</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QCheckBox" name="lelantusPage">
             <property name="text">
-             <string>Enable &amp;lelantus manual anonymize page</string>
+             <string>Enable &amp;lelantus manual-anonymize page</string>
             </property>
            </widget>
           </item>
