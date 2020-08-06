@@ -7,6 +7,8 @@
 #include "optionsmodel.h"
 #include "lelantusmodel.h"
 
+#define WAITING_INCOMING_FUND_TIMEOUT 5 * 1000
+
 AutoMintModel::AutoMintModel(
     LelantusModel *_lelantusModel,
     OptionsModel *_optionsModel,
@@ -20,7 +22,8 @@ AutoMintModel::AutoMintModel(
     checkPendingTxTimer(0),
     resetInitialSyncTimer(0),
     autoMintCheckTimer(0),
-    initialSync(false)
+    initialSync(false),
+    force(false)
 {
     checkPendingTxTimer = new QTimer(this);
     checkPendingTxTimer->setSingleShot(true);
@@ -40,6 +43,8 @@ AutoMintModel::AutoMintModel(
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
 
     connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
+
+    importImmatureTransactions();
 
     subscribeToCoreSignals();
 }
@@ -135,6 +140,15 @@ void AutoMintModel::resetInitialSync()
     initialSync.store(false);
 }
 
+void AutoMintModel::triggerPendingTxChecking()
+{
+    LOCK(lelantusModel->cs);
+
+    checkPendingTxTimer->stop();
+    checkPendingTxTimer->setSingleShot(true);
+    checkPendingTxTimer->start(WAITING_INCOMING_FUND_TIMEOUT);
+}
+
 void AutoMintModel::startAutoMint(bool force)
 {
     if (autoMintCheckTimer->isActive()) {
@@ -169,7 +183,8 @@ void AutoMintModel::checkPendingTransactions()
     LOCK(lelantusModel->cs);
 
     auto hasNew = false;
-    for (auto const &tx : pendingTransactions) {
+    std::vector<uint256> toBeRemove;
+    for (auto &tx : pendingTransactions) {
         if (!wallet->mapWallet.count(tx)) {
             continue;
         }
@@ -177,14 +192,17 @@ void AutoMintModel::checkPendingTransactions()
         auto const &wtx = wallet->mapWallet[tx];
         hasNew |= (wtx.GetAvailableCredit() - wtx.GetDebit(ISMINE_ALL)) > 0;
 
-        if (hasNew) {
-            break;
+        if (wtx.GetImmatureCredit() == 0) {
+            toBeRemove.push_back(tx);
         }
     }
 
-    pendingTransactions.clear();
     if (!hasNew) {
         return;
+    }
+
+    for (auto const &tx : toBeRemove) {
+        pendingTransactions.erase(tx);
     }
 
     switch (autoMintState) {
@@ -209,14 +227,16 @@ void AutoMintModel::updateTransaction(uint256 hash)
     checkPendingTxTimer->stop();
     checkPendingTxTimer->setSingleShot(true);
 
-    pendingTransactions.push_back(hash);
+    pendingTransactions.insert(hash);
 
-    checkPendingTxTimer->start(10 * 1000); // 10 seconds
+    checkPendingTxTimer->start(WAITING_INCOMING_FUND_TIMEOUT);
 }
 
 void AutoMintModel::updateAutoMintOption(bool enabled)
 {
+    LOCK2(cs_main, wallet->cs_wallet);
     LOCK(lelantusModel->cs);
+
     if (enabled) {
         if (autoMintState == AutoMintState::Disabled) {
             startAutoMint();
@@ -224,6 +244,18 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
     } else {
         // stop mint
         autoMintState = AutoMintState::Disabled;
+    }
+}
+
+void AutoMintModel::importImmatureTransactions()
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    LOCK(lelantusModel->cs);
+
+    for (auto const &tx : wallet->mapWallet) {
+        if (tx.second.GetImmatureCredit() > 0) {
+            pendingTransactions.insert(tx.first);
+        }
     }
 }
 
@@ -237,6 +269,11 @@ static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockI
             "setInitialSync",
             Qt::QueuedConnection);
     }
+
+    QMetaObject::invokeMethod(
+        model,
+        "triggerPendingTxChecking",
+        Qt::QueuedConnection);
 }
 
 static void NotifyTransactionChanged(

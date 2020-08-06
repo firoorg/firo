@@ -49,6 +49,8 @@ public Q_SLOTS:
     void resetInitialSync();
     void setInitialSync();
 
+    void triggerPendingTxChecking();
+
     void startAutoMint(bool force = false);
 
     void checkPendingTransactions();
@@ -57,25 +59,26 @@ public Q_SLOTS:
     void updateAutoMintOption(bool);
 
 private:
+    void importImmatureTransactions();
+
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
 private:
+    LelantusModel *lelantusModel;
+    OptionsModel *optionsModel;
+    CWallet *wallet;
+
     AutoMintState autoMintState;
 
     QTimer *checkPendingTxTimer;
     QTimer *resetInitialSyncTimer;
     QTimer *autoMintCheckTimer;
 
-    OptionsModel *optionsModel;
-
     std::atomic<bool> initialSync;
     std::atomic<bool> force;
 
-    std::vector<uint256> pendingTransactions;
-
-    LelantusModel *lelantusModel;
-    CWallet *wallet;
+    std::unordered_set<uint256> pendingTransactions;
 };
 
 #endif // ZCOIN_QT_AUTOMINTMODEL_H
