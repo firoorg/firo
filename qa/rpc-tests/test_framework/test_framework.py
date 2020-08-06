@@ -14,7 +14,8 @@ import tempfile
 import traceback
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-import time
+from time import time, sleep
+from .mininode import wait_until
 
 from .util import (
     assert_equal,
@@ -475,7 +476,7 @@ def get_znode_service(znode):
     return znode_ip_str + ":" + znode_port_str
 
 class ZnodeInfo:
-    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout, priv_key):
+    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout):
         self.proTxHash = proTxHash
         self.ownerAddr = ownerAddr
         self.votingAddr = votingAddr
@@ -484,7 +485,6 @@ class ZnodeInfo:
         self.collateral_address = collateral_address
         self.collateral_txid = collateral_txid
         self.collateral_vout = collateral_vout
-        self.priv_key = priv_key
 
 class EvoZnodeTestFramework(BitcoinTestFramework):
     def __init__(self, num_nodes, masterodes_count, extra_args=None):
@@ -540,7 +540,7 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
             proTxHash = self.nodes[0].protx('register', txid, collateral_vout, '127.0.0.1:%d' % port, ownerAddr, bls['public'], votingAddr, 0, rewardsAddr, address)
         self.nodes[0].generate(1)
 
-        self.mninfo.append(ZnodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout, self.nodes[0].znode("genkey")))
+        self.mninfo.append(ZnodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout))
         self.sync_all()
 
     def remove_mastermode(self, idx):
@@ -572,8 +572,7 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
 
         def do_start(idx):
             args = ['-znode=1',
-                    '-zblsprivkey=%s' % self.mninfo[idx].keyOperator,
-                    '-znodeprivkey=%s' % self.mninfo[idx].priv_key
+                    '-znodeblsprivkey=%s' % self.mninfo[idx].keyOperator
                     ] + self.extra_args[idx + start_idx]
             node = start_node(idx + start_idx, self.options.tmpdir, args)
             self.mninfo[idx].nodeIdx = idx + start_idx
