@@ -116,7 +116,7 @@ def wait_to_sync(node, fast_znsync=False):
         time.sleep(0.2)
         if fast_znsync:
             # skip mnsync states
-            node.znsync("next")
+            node.evoznsync("next")
         tm += 0.2
     assert(synced)
 

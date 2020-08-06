@@ -204,7 +204,11 @@ testScripts = [
 
     # Evo Znodes
     'dip3-deterministicmns.py',
-    'llmq-signing.py'
+    'llmq-signing.py',
+    'llmq-dkgerrors.py',
+    'llmq-simplepose.py',
+#    'llmq-is-cl-conflicts.py',
+#    'llmq-is-retroactive.py'
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'
