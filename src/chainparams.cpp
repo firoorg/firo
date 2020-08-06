@@ -182,7 +182,7 @@ public:
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
-        consensus.stage2DevelopmentFundAddress = "";    // TODO: specify the address
+        consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
