@@ -39,6 +39,7 @@ public:
     ~IncomingFundNotifier();
 
 public Q_SLOTS:
+    void newBlock();
     void pushTransaction(uint256 const &);
     void check();
 
@@ -51,13 +52,15 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
-    void updateWaitUntil();
+    void updateWaitUntil(size_t msecs = 1000);
 
     CWallet *wallet;
     QTimer *timer;
 
     QDateTime waitUntil;
     boost::lockfree::queue<uint256> txs;
+
+    std::atomic<bool> hasNew;
 };
 
 class AutoMintModel : public QObject

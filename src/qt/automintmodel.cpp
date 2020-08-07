@@ -21,13 +21,13 @@ IncomingFundNotifier::IncomingFundNotifier(
         SLOT(check()),
         Qt::QueuedConnection);
 
-    timer->start(MODEL_UPDATE_DELAY);
-
     connect(this,
         SIGNAL(push(uint256)),
         this,
         SLOT(pushTransaction(uint256)),
         Qt::QueuedConnection);
+
+    timer->start(1000);
 
     importTransactions();
     subscribeToCoreSignals();
@@ -42,17 +42,26 @@ IncomingFundNotifier::~IncomingFundNotifier()
     timer = nullptr;
 }
 
+void IncomingFundNotifier::newBlock()
+{
+    updateWaitUntil();
+    hasNew.store(true);
+}
+
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
     updateWaitUntil();
     txs.push(id);
+    hasNew.store(true);
 }
 
 void IncomingFundNotifier::check()
 {
-    if (QDateTime::currentDateTimeUtc() >= waitUntil || txs.empty()) {
+    if (QDateTime::currentDateTimeUtc() < waitUntil || !hasNew || txs.empty()) {
         return;
     }
+    hasNew.store(false);
+    timer->stop();
 
     CAmount credit = 0;
     std::vector<uint256> immutures;
@@ -66,8 +75,7 @@ void IncomingFundNotifier::check()
                 continue;
             }
 
-            credit += (wtx->second.GetAvailableCredit()
-                - wtx->second.GetDebit(ISMINE_ALL)) > 0;
+            credit += std::max(0L, wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
 
             if (wtx->second.GetImmatureCredit() > 0) {
                 immutures.push_back(tx);
@@ -79,7 +87,9 @@ void IncomingFundNotifier::check()
         txs.push(tx);
     }
 
-    Q_EMIT matureFund(credit);
+    if (credit > 0) {
+        Q_EMIT matureFund(credit);
+    }
 }
 
 void IncomingFundNotifier::importTransactions()
@@ -87,13 +97,21 @@ void IncomingFundNotifier::importTransactions()
     LOCK2(cs_main, wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
-        pushTransaction(tx.first);
+        if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
+            pushTransaction(tx.first);
+        }
     }
+
+    updateWaitUntil(10 * 1000);
+    hasNew.store(true);
 }
 
-void IncomingFundNotifier::updateWaitUntil()
+void IncomingFundNotifier::updateWaitUntil(size_t msecs)
 {
-    waitUntil = QDateTime::currentDateTimeUtc().addMSecs(WAITING_INCOMING_FUND_TIMEOUT);
+    waitUntil = QDateTime::currentDateTimeUtc().addMSecs(msecs);
+    if (!timer->isActive()) {
+        timer->start(1000);
+    }
 }
 
 // Handlers for core signals
@@ -111,16 +129,33 @@ static void NotifyTransactionChanged(
     }
 }
 
+static void IncomingFundNotifyBlockTip(
+    IncomingFundNotifier *model, bool initialSync, const CBlockIndex *pIndex)
+{
+    Q_UNUSED(initialSync);
+    Q_UNUSED(pIndex);
+    QMetaObject::invokeMethod(
+        model,
+        "newBlock",
+        Qt::QueuedConnection);
+}
+
 void IncomingFundNotifier::subscribeToCoreSignals()
 {
     wallet->NotifyTransactionChanged.connect(boost::bind(
         NotifyTransactionChanged, this, _1, _2, _3));
+
+    uiInterface.NotifyBlockTip.connect(
+        boost::bind(IncomingFundNotifyBlockTip, this, _1, _2));
 }
 
 void IncomingFundNotifier::unsubscribeFromCoreSignals()
 {
     wallet->NotifyTransactionChanged.disconnect(boost::bind(
         NotifyTransactionChanged, this, _1, _2, _3));
+
+    uiInterface.NotifyBlockTip.disconnect(
+        boost::bind(IncomingFundNotifyBlockTip, this, _1, _2));
 }
 
 AutoMintModel::AutoMintModel(
