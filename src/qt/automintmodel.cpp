@@ -219,6 +219,7 @@ void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
     } else {
         autoMintState = AutoMintState::WaitingIncomingFund;
         autoMintCheckTimer->stop();
+        force.store(false);
     }
 }
 
