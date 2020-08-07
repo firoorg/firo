@@ -9,6 +9,120 @@
 
 #define WAITING_INCOMING_FUND_TIMEOUT 5 * 1000
 
+IncomingFundNotifier::IncomingFundNotifier(
+    CWallet *_wallet, QObject *parent) :
+    QObject(parent), wallet(_wallet), timer(0), txs(4096)
+{
+    timer = new QTimer(this);
+
+    connect(timer,
+        SIGNAL(timeout()),
+        this,
+        SLOT(check()),
+        Qt::QueuedConnection);
+
+    timer->start(MODEL_UPDATE_DELAY);
+
+    connect(this,
+        SIGNAL(push(uint256)),
+        this,
+        SLOT(pushTransaction(uint256)),
+        Qt::QueuedConnection);
+
+    importTransactions();
+    subscribeToCoreSignals();
+}
+
+IncomingFundNotifier::~IncomingFundNotifier()
+{
+    unsubscribeFromCoreSignals();
+
+    delete timer;
+
+    timer = nullptr;
+}
+
+void IncomingFundNotifier::pushTransaction(uint256 const &id)
+{
+    updateWaitUntil();
+    txs.push(id);
+}
+
+void IncomingFundNotifier::check()
+{
+    if (QDateTime::currentDateTimeUtc() >= waitUntil || txs.empty()) {
+        return;
+    }
+
+    CAmount credit = 0;
+    std::vector<uint256> immutures;
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        uint256 tx;
+        while (txs.pop(tx)) {
+            auto wtx = wallet->mapWallet.find(tx);
+            if (wtx == wallet->mapWallet.end()) {
+                continue;
+            }
+
+            credit += (wtx->second.GetAvailableCredit()
+                - wtx->second.GetDebit(ISMINE_ALL)) > 0;
+
+            if (wtx->second.GetImmatureCredit() > 0) {
+                immutures.push_back(tx);
+            }
+        }
+    }
+
+    for (auto const &tx : immutures) {
+        txs.push(tx);
+    }
+
+    Q_EMIT matureFund(credit);
+}
+
+void IncomingFundNotifier::importTransactions()
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+
+    for (auto const &tx : wallet->mapWallet) {
+        pushTransaction(tx.first);
+    }
+}
+
+void IncomingFundNotifier::updateWaitUntil()
+{
+    waitUntil = QDateTime::currentDateTimeUtc().addMSecs(WAITING_INCOMING_FUND_TIMEOUT);
+}
+
+// Handlers for core signals
+static void NotifyTransactionChanged(
+    IncomingFundNotifier *model, CWallet *wallet, uint256 const &hash, ChangeType status)
+{
+    Q_UNUSED(wallet);
+    Q_UNUSED(status);
+    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
+        QMetaObject::invokeMethod(
+            model,
+            "pushTransaction",
+            Qt::QueuedConnection,
+            Q_ARG(uint256, hash));
+    }
+}
+
+void IncomingFundNotifier::subscribeToCoreSignals()
+{
+    wallet->NotifyTransactionChanged.connect(boost::bind(
+        NotifyTransactionChanged, this, _1, _2, _3));
+}
+
+void IncomingFundNotifier::unsubscribeFromCoreSignals()
+{
+    wallet->NotifyTransactionChanged.disconnect(boost::bind(
+        NotifyTransactionChanged, this, _1, _2, _3));
+}
+
 AutoMintModel::AutoMintModel(
     LelantusModel *_lelantusModel,
     OptionsModel *_optionsModel,
@@ -19,32 +133,29 @@ AutoMintModel::AutoMintModel(
     optionsModel(_optionsModel),
     wallet(_wallet),
     autoMintState(AutoMintState::Disabled),
-    checkPendingTxTimer(0),
     resetInitialSyncTimer(0),
     autoMintCheckTimer(0),
     initialSync(false),
-    force(false)
+    force(false),
+    notifier(0)
 {
-    checkPendingTxTimer = new QTimer(this);
-    checkPendingTxTimer->setSingleShot(true);
-
     resetInitialSyncTimer = new QTimer(this);
     resetInitialSyncTimer->setSingleShot(true);
 
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
-    if (optionsModel && optionsModel->getAutoAnonymize()) {
-        QTimer::singleShot(5 * 1000, this, SLOT(startAutoMint()));
-    }
+    notifier = new IncomingFundNotifier(wallet, this);
 
-    connect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
     connect(resetInitialSyncTimer, SIGNAL(timeout()), this, SLOT(resetInitialSync()));
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
 
-    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
+    connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
 
-    importImmatureTransactions();
+    connect(optionsModel,
+        SIGNAL(autoAnonymizeChanged(bool)),
+        this,
+        SLOT(updateAutoMintOption(bool)));
 
     subscribeToCoreSignals();
 }
@@ -53,13 +164,11 @@ AutoMintModel::~AutoMintModel()
 {
     unsubscribeFromCoreSignals();
 
-    disconnect(checkPendingTxTimer, SIGNAL(timeout()), this, SLOT(checkPendingTransactions()));
-
     delete resetInitialSyncTimer;
-    delete checkPendingTxTimer;
+    delete autoMintCheckTimer;
 
     resetInitialSyncTimer = nullptr;
-    checkPendingTxTimer = nullptr;
+    autoMintCheckTimer = nullptr;
 }
 
 bool AutoMintModel::askingUser()
@@ -140,15 +249,6 @@ void AutoMintModel::resetInitialSync()
     initialSync.store(false);
 }
 
-void AutoMintModel::triggerPendingTxChecking()
-{
-    LOCK(lelantusModel->cs);
-
-    checkPendingTxTimer->stop();
-    checkPendingTxTimer->setSingleShot(true);
-    checkPendingTxTimer->start(WAITING_INCOMING_FUND_TIMEOUT);
-}
-
 void AutoMintModel::startAutoMint(bool force)
 {
     if (autoMintCheckTimer->isActive()) {
@@ -177,61 +277,6 @@ void AutoMintModel::startAutoMint(bool force)
     }
 }
 
-void AutoMintModel::checkPendingTransactions()
-{
-    LOCK2(cs_main, wallet->cs_wallet);
-    LOCK(lelantusModel->cs);
-
-    auto hasNew = false;
-    std::vector<uint256> toBeRemove;
-    for (auto &tx : pendingTransactions) {
-        if (!wallet->mapWallet.count(tx)) {
-            continue;
-        }
-
-        auto const &wtx = wallet->mapWallet[tx];
-        hasNew |= (wtx.GetAvailableCredit() - wtx.GetDebit(ISMINE_ALL)) > 0;
-
-        if (wtx.GetImmatureCredit() == 0) {
-            toBeRemove.push_back(tx);
-        }
-    }
-
-    if (!hasNew) {
-        return;
-    }
-
-    for (auto const &tx : toBeRemove) {
-        pendingTransactions.erase(tx);
-    }
-
-    switch (autoMintState) {
-    case AutoMintState::Disabled:
-    case AutoMintState::WaitingUserToActivate:
-    case AutoMintState::WaitingForUserResponse:
-        return;
-    case AutoMintState::WaitingIncomingFund:
-        break;
-    default:
-        throw std::runtime_error("Unknown auto mint status");
-    };
-
-    autoMintState = AutoMintState::WaitingUserToActivate;
-    startAutoMint();
-}
-
-void AutoMintModel::updateTransaction(uint256 hash)
-{
-    LOCK(lelantusModel->cs);
-
-    checkPendingTxTimer->stop();
-    checkPendingTxTimer->setSingleShot(true);
-
-    pendingTransactions.insert(hash);
-
-    checkPendingTxTimer->start(WAITING_INCOMING_FUND_TIMEOUT);
-}
-
 void AutoMintModel::updateAutoMintOption(bool enabled)
 {
     LOCK2(cs_main, wallet->cs_wallet);
@@ -247,18 +292,6 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
     }
 }
 
-void AutoMintModel::importImmatureTransactions()
-{
-    LOCK2(cs_main, wallet->cs_wallet);
-    LOCK(lelantusModel->cs);
-
-    for (auto const &tx : wallet->mapWallet) {
-        if (tx.second.GetImmatureCredit() > 0) {
-            pendingTransactions.insert(tx.first);
-        }
-    }
-}
-
 // Handlers for core signals
 static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockIndex *pIndex)
 {
@@ -269,41 +302,16 @@ static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockI
             "setInitialSync",
             Qt::QueuedConnection);
     }
-
-    QMetaObject::invokeMethod(
-        model,
-        "triggerPendingTxChecking",
-        Qt::QueuedConnection);
-}
-
-static void NotifyTransactionChanged(
-    AutoMintModel *model, CWallet *wallet, uint256 const &hash, ChangeType status)
-{
-    Q_UNUSED(wallet);
-    Q_UNUSED(status);
-    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
-        QMetaObject::invokeMethod(
-            model,
-            "updateTransaction",
-            Qt::QueuedConnection,
-            Q_ARG(uint256, hash));
-    }
 }
 
 void AutoMintModel::subscribeToCoreSignals()
 {
-    wallet->NotifyTransactionChanged.connect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-
-    uiInterface.NotifyBlockTip.connect(boost::bind(
-        NotifyBlockTip, this, _1, _2));
+    uiInterface.NotifyBlockTip.connect(
+        boost::bind(NotifyBlockTip, this, _1, _2));
 }
 
 void AutoMintModel::unsubscribeFromCoreSignals()
 {
-    wallet->NotifyTransactionChanged.disconnect(
-        boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-
-    uiInterface.NotifyBlockTip.disconnect(boost::bind(
-        NotifyBlockTip, this, _1, _2));
+    uiInterface.NotifyBlockTip.disconnect(
+        boost::bind(NotifyBlockTip, this, _1, _2));
 }
