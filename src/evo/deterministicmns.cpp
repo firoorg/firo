@@ -459,11 +459,6 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fPublish)
     if (dmn->pdmnState->pubKeyOperator.Get().IsValid()) {
         AddUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
-
-#ifdef ENABLE_CLIENTAPI
-    if(fPublish)
-        GetMainSignals().UpdatedMasternode(dmn);
-#endif
 }
 
 void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState)

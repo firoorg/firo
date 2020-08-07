@@ -168,9 +168,6 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 
     entry.push_back(Pair("firstSeenAt", wtx.GetTxTime()));
     entry.push_back(Pair("txid", hash));
-
-    BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
-        entry.push_back(Pair(item.first, item.second));
 }
 
 void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs)
@@ -251,6 +248,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             CAmount amount = ValueFromAmount(s.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
+            if(wtx.mapValue.count("label"))
+                entry.push_back(Pair("label", wtx.mapValue.at("label")));
             APIWalletTxToJSON(wtx, entry);
 
             if(!ret[addrStr].isNull()){
