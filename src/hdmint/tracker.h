@@ -7,6 +7,7 @@
 
 #include "primitives/zerocoin.h"
 #include "hdmint/mintpool.h"
+#include "wallet/walletdb.h"
 #include <list>
 
 class CHDMint;
@@ -28,9 +29,9 @@ private:
 public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
-    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
-    void AddLelantus(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
-    void Add(const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
+    void Add(CWalletDB& walletdb, const CHDMint& dMint, bool isNew = false, bool isArchived = false);
+    void AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool isNew = false, bool isArchived = false);
+    void Add(CWalletDB& walletdb, const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool Archive(CLelantusMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin) const;

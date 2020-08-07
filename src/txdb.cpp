@@ -262,8 +262,9 @@ bool CBlockTreeDB::ReadAddressUnspentIndex(uint160 addressHash, AddressType type
 
 bool CBlockTreeDB::WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect) {
     CDBBatch batch(*this);
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++)
-    batch.Write(make_pair(DB_ADDRESSINDEX, it->first), it->second);
+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
+        batch.Write(make_pair(DB_ADDRESSINDEX, it->first), it->second);
+    }
     return WriteBatch(batch);
 }
 

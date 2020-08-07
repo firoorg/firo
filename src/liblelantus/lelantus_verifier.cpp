@@ -1,4 +1,5 @@
 #include "lelantus_verifier.h"
+#include "chainparams.h"
 
 namespace lelantus {
 

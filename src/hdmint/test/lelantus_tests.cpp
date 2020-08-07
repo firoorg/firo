@@ -14,7 +14,7 @@ public:
     MintPoolEntry FrontMintPool() const {
         LOCK(pwalletMain->cs_wallet);
 
-        auto nCountNextUse = zwalletMain->GetCount();
+        auto nCountNextUse = pwalletMain->zwallet->GetCount();
         auto mints = CWalletDB(pwalletMain->strWalletFile).ListMintPool();
 
         for (auto &m : mints) {
@@ -46,9 +46,9 @@ BOOST_AUTO_TEST_CASE(deterministic_coin_generation_from_seed)
         coin2(params, 1),
         coin3(params, 1);
 
-    BOOST_CHECK(zwalletMain->SeedToLelantusMint(seed1, coin1));
-    BOOST_CHECK(zwalletMain->SeedToLelantusMint(seed2, coin2));
-    BOOST_CHECK(zwalletMain->SeedToLelantusMint(seed1, coin3));
+    BOOST_CHECK(pwalletMain->zwallet->SeedToLelantusMint(seed1, coin1));
+    BOOST_CHECK(pwalletMain->zwallet->SeedToLelantusMint(seed2, coin2));
+    BOOST_CHECK(pwalletMain->zwallet->SeedToLelantusMint(seed1, coin3));
 
     // TODO: compare private coin directly instead of comparing via mint
     auto pubCoin1 = coin1.getPublicCoin();
@@ -68,8 +68,9 @@ BOOST_AUTO_TEST_CASE(lelantus_mint_generation)
     CHDMint mint1, mint2;
 
     // coin should be valid
-    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin1, mint1));
-    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin2, mint2));
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    BOOST_CHECK(pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin1, mint1));
+    BOOST_CHECK(pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin2, mint2));
 
     auto entry = FrontMintPool();
 
@@ -105,10 +106,12 @@ BOOST_AUTO_TEST_CASE(lelantus_mint_regeneration)
     CHDMint mint1, mint2;
     auto entry1 = FrontMintPool();
 
-    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin1, mint1));
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    BOOST_CHECK(pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin1, mint1));
 
     // re-generate
-    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin2, mint2, entry1));
+    BOOST_CHECK(pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin2, mint2, entry1));
 
     auto pubCoin1 = coin1.getPublicCoin();
     auto pubCoin2 = coin2.getPublicCoin();
@@ -136,14 +139,15 @@ BOOST_AUTO_TEST_CASE(regenerate_mint)
     lelantus::PrivateCoin coin(params, 1);
 
     CHDMint mint;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
 
-    BOOST_CHECK(zwalletMain->GenerateLelantusMint(coin, mint));
+    BOOST_CHECK(pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin, mint));
 
     // Should be generated deterministically
 
     CLelantusEntry entry1, entry2;
-    zwalletMain->RegenerateMint(mint, entry1);
-    zwalletMain->RegenerateMint(mint, entry2);
+    pwalletMain->zwallet->RegenerateMint(walletdb, mint, entry1);
+    pwalletMain->zwallet->RegenerateMint(walletdb, mint, entry2);
 
     // verify
     BOOST_CHECK(entry1.value == entry2.value);

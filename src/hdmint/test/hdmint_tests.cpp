@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
         BOOST_CHECK_MESSAGE(mempool.size() == ++mempoolCount, "Mint tx was not added to mempool");
 
         // Verify correct mint count
-        BOOST_CHECK(mintCount == zwalletMain->GetCount());
+        BOOST_CHECK(mintCount == pwalletMain->zwallet->GetCount());
 
         for(auto& mint : vDMintsBuilder){
             vDMints.push_back(mint);
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
     // Clear HDMints in db and sigma state (to allow regeneration of the same mints)
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    zwalletMain->SetCount(0);
+    pwalletMain->zwallet->SetCount(0);
     mintCount = 0;
     sigmaState->Reset();
     pwalletMain->ZapSigmaMints();
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
             stringError, denominationPairs, vDMintsBuilder, SIGMA), stringError + " - Create Mint failed");
 
         // Verify correct mint count
-        BOOST_CHECK(mintCount == zwalletMain->GetCount());
+        BOOST_CHECK(mintCount == pwalletMain->zwallet->GetCount());
 
         for(auto& mint : vDMintsBuilder){
             vDMintsRegenerated.push_back(mint);
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_CASE(wallet_count)
         BOOST_CHECK(strError == "");
     }
 
-    zwalletMain->SetCount(0); // reset count
+    pwalletMain->zwallet->SetCount(0); // reset count
 
     // create another mint
     CAmount nAmount = AmountFromValue("1");
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(wallet_count)
     auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     BOOST_CHECK(vDMints[0].GetCount() == TOTAL_MINTS);
-    BOOST_CHECK(zwalletMain->GetCount() == (TOTAL_MINTS+1));
+    BOOST_CHECK(pwalletMain->zwallet->GetCount() == (TOTAL_MINTS+1));
 
 }
 
@@ -290,7 +290,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         // Verify correct mint count
-        BOOST_CHECK(mintCount == zwalletMain->GetCount());
+        BOOST_CHECK(mintCount == pwalletMain->zwallet->GetCount());
 
         for(auto& mint : vDMintsBuilder){
             vDMints.push_back(mint);
@@ -316,16 +316,16 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     uint256 hashPubcoin;
     for (auto& mintPoolPair : listMintPool){
         hashPubcoin = mintPoolPair.first;
-        zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, hashPubcoin, hashSerial);
+        pwalletMain->zwallet->GetSerialForPubcoin(serialPubcoinPairs, hashPubcoin, hashSerial);
         walletdb.EraseMintPoolPair(hashPubcoin);
         walletdb.ErasePubcoin(hashSerial);
     }
 
-    // Start zwalletMain from scratch
-    zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile, true);
+    // Start pwalletMain->zwallet from scratch
+    pwalletMain->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile, true);
 
     // sync mints with chain (will regenerate mintpool + sync with chain)
-    zwalletMain->SyncWithChain();
+    pwalletMain->zwallet->SyncWithChain();
 
     // Pull mints from the wallet
     std::list<CHDMint> vDMintsRegeneratedList = walletdb.ListHDMints(false);

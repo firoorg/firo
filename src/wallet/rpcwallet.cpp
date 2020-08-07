@@ -85,14 +85,14 @@ bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
 
 void EnsureSigmaWalletIsAvailable()
 {
-    if (!zwalletMain) {
+    if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
     }
 }
 
 void EnsureLelantusWalletIsAvailable()
 {
-    if (!zwalletMain) {
+    if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
 }
@@ -2941,7 +2941,7 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    if (!pwallet->IsHDSeedAvailable() || !zwalletMain) {
+    if (!pwallet->IsHDSeedAvailable() || !pwallet->zwallet) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Can only regenerate mintpool on a HD-enabled wallet.");
     }
@@ -2963,10 +2963,10 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
             mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
 
         oldHashPubcoin = mintPoolPair.first;
-        bool hasSerial = zwalletMain->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
+        bool hasSerial = pwallet->zwallet->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
 
         MintPoolEntry entry = mintPoolPair.second;
-        nIndexes = zwalletMain->RegenerateMintPoolEntry(get<0>(entry),get<1>(entry),get<2>(entry));
+        nIndexes = pwallet->zwallet->RegenerateMintPoolEntry(walletdb, get<0>(entry),get<1>(entry),get<2>(entry));
 
         if(nIndexes.first != oldHashPubcoin){
             walletdb.EraseMintPoolPair(oldHashPubcoin);
@@ -4004,7 +4004,7 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
 
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listMints = zwalletMain->GetTracker().ListMints(false, false);
+    listMints = pwallet->zwallet->GetTracker().ListMints(false, false);
 
     BOOST_FOREACH(CMintMeta &mint, listMints) {
         CHDMint dMint;
@@ -4013,7 +4013,7 @@ UniValue resetsigmamint(const JSONRPCRequest& request) {
         }
         dMint.SetUsed(false);
         dMint.SetHeight(-1);
-        zwalletMain->GetTracker().Add(dMint, true);
+        pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
     }
 
     return NullUniValue;
@@ -4034,7 +4034,7 @@ UniValue resetlelantusmint(const JSONRPCRequest& request) {
 
     std::vector <CLelantusMintMeta> listMints;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false);
+    listMints = pwallet->zwallet->GetTracker().ListLelantusMints(false, false);
 
     BOOST_FOREACH(const CLelantusMintMeta& mint, listMints) {
         CHDMint dMint;
@@ -4043,7 +4043,7 @@ UniValue resetlelantusmint(const JSONRPCRequest& request) {
         }
         dMint.SetUsed(false);
         dMint.SetHeight(-1);
-        zwalletMain->GetTracker().AddLelantus(dMint, true);
+        pwallet->zwallet->GetTracker().AddLelantus(walletdb, dMint, true);
     }
 
     return NullUniValue;
@@ -4116,7 +4116,7 @@ UniValue listsigmamints(const JSONRPCRequest& request) {
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
+    listPubcoin = pwallet->zwallet->GetTracker().MintsAsSigmaEntries(false, false);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
@@ -4162,7 +4162,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
 
     list <CLelantusEntry> listCoin;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listCoin = zwalletMain->GetTracker().MintsAsLelantusEntries(false, false);
+    listCoin = pwallet->zwallet->GetTracker().MintsAsLelantusEntries(false, false);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CLelantusEntry &lelantusItem, listCoin) {
@@ -4257,7 +4257,7 @@ UniValue listsigmapubcoins(const JSONRPCRequest& request) {
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listPubcoin = zwalletMain->GetTracker().MintsAsSigmaEntries(false, false);
+    listPubcoin = pwallet->zwallet->GetTracker().MintsAsSigmaEntries(false, false);
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
@@ -4377,7 +4377,7 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
 
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwallet->strWalletFile);
-    listMints = zwalletMain->GetTracker().ListMints(false, false);
+    listMints = pwallet->zwallet->GetTracker().ListMints(false, false);
 
     UniValue results(UniValue::VARR);
 
@@ -4404,10 +4404,10 @@ UniValue setsigmamintstatus(const JSONRPCRequest& request) {
 
                 if(!mint.isDeterministic){
                     zerocoinItem.IsUsed = fStatus;
-                    zwalletMain->GetTracker().Add(zerocoinItem, true);
+                    pwallet->zwallet->GetTracker().Add(walletdb, zerocoinItem, true);
                 }else{
                     dMint.SetUsed(fStatus);
-                    zwalletMain->GetTracker().Add(dMint, true);
+                    pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
                 }
 
                 if (!fStatus) {
@@ -4458,7 +4458,7 @@ UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
 
     std::vector <CLelantusMintMeta> listMints;
-    listMints = zwalletMain->GetTracker().ListLelantusMints(false, false, false);
+    listMints = pwallet->zwallet->GetTracker().ListLelantusMints(false, false, false);
     CWalletDB walletdb(pwallet->strWalletFile);
 
     UniValue results(UniValue::VARR);
@@ -4485,7 +4485,7 @@ UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
                 pwallet->NotifyZerocoinChanged(pwallet, lelantusItem.value.GetHex(), isUsedAmountStr, CT_UPDATED);
 
                 dMint.SetUsed(fStatus);
-                zwalletMain->GetTracker().AddLelantus(dMint, true);
+                pwallet->zwallet->GetTracker().AddLelantus(walletdb, dMint, true);
 
                 if (!fStatus) {
                     // erase lelantus spend entry

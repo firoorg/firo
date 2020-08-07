@@ -196,8 +196,6 @@ testScripts = [
     'sigma_blocklimit.py',
     'hdmint_mempool_zap.py',
     'sigma_zapwalletmints_unconf_trans.py',
-    'znode_check_payments.py',
-    'znode_check_status.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py'
