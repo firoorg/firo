@@ -74,7 +74,7 @@ size_t WalletModel::countPrivateCoins(CAmount &amount) const
 
     auto coins = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
     for (auto const &c : coins) {
-        if (chainActive.Height() - c.nHeight + 1 >= ZC_MINT_CONFIRMATIONS) {
+        if (c.nHeight > 0 && chainActive.Height() - c.nHeight + 1 >= ZC_MINT_CONFIRMATIONS) {
             count++;
             amount += c.amount;
         }
