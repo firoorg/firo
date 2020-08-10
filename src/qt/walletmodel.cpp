@@ -67,48 +67,6 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
-size_t WalletModel::countPrivateCoins(CAmount &amount) const
-{
-    size_t count = 0;
-    amount = 0;
-
-    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, true, false);
-    for (auto const &c : coins) {
-        if (c.nHeight > 0 && chainActive.Height() - c.nHeight + 1 >= ZC_MINT_CONFIRMATIONS) {
-            count++;
-            amount += c.amount;
-        }
-    }
-
-    size_t confirmed = 0, unconfirmed = 0;
-    auto balances = getSigmaBalance(confirmed, unconfirmed);
-    amount += balances.first;
-    count += confirmed;
-
-    return count;
-}
-
-size_t WalletModel::countUnconfirmedPrivateCoins(CAmount &amount) const
-{
-    size_t count = 0;
-    amount = 0;
-
-    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, false, false);
-    for (auto const &c : coins) {
-        if (c.nHeight < 0 || (chainActive.Height() - c.nHeight + 1 < ZC_MINT_CONFIRMATIONS)) {
-            count++;
-            amount += c.amount;
-        }
-    }
-
-    size_t confirmed = 0, unconfirmed = 0;
-    auto balances = getSigmaBalance(confirmed, unconfirmed);
-    amount += balances.second;
-    count += unconfirmed;
-
-    return count;
-}
-
 CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLocked) const
 {
     if (coinControl)
@@ -124,6 +82,11 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLo
     }
 
     return wallet->GetBalance(fExcludeLocked);
+}
+
+CAmount WalletModel::getAnonymizableBalance() const
+{
+    return lelantus::IsLelantusAllowed() ? lelantusModel->getMintableAmount() : 0;
 }
 
 CAmount WalletModel::getUnconfirmedBalance() const
@@ -154,76 +117,6 @@ CAmount WalletModel::getWatchUnconfirmedBalance() const
 CAmount WalletModel::getWatchImmatureBalance() const
 {
     return wallet->GetImmatureWatchOnlyBalance();
-}
-
-CAmount WalletModel::getPrivateBalance() const
-{
-    CAmount amount = 0;
-    countPrivateCoins(amount);
-
-    return amount;
-}
-
-CAmount WalletModel::getUnconfirmedPrivateBalance() const
-{
-    CAmount balance = 0;
-
-    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, false, false);
-    for (auto const &c : coins) {
-        if (c.nHeight < 0 || chainActive.Height() < (c.nHeight + ZC_MINT_CONFIRMATIONS - 1)) {
-            balance += c.amount;
-        }
-    }
-
-    auto balances = getSigmaBalance();
-    balance += balances.second;
-
-    return balance;
-}
-
-CAmount WalletModel::getAnonymizableBalance() const
-{
-    return lelantus::IsLelantusAllowed() ? lelantusModel->getMintableAmount() : 0;
-}
-
-std::pair<CAmount, CAmount> WalletModel::getSigmaBalance(
-    size_t &confirmed, size_t &unconfirmed) const
-{
-    auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
-
-    CAmount confirmedBalance = 0, unconfirmedBalance = 0;
-    confirmed = 0;
-    unconfirmed = 0;
-
-    for (const auto& coin : coins) {
-
-        // ignore spent coin
-        if (coin.isUsed)
-            continue;
-
-        int coinHeight = coin.nHeight;
-        CAmount amount;
-        if (!sigma::DenominationToInteger(coin.denom, amount)) {
-            throw std::runtime_error("Fail to get denomination value");
-        }
-
-        if (coinHeight > 0
-            && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())  {
-            confirmedBalance += amount;
-            confirmed++;
-        } else {
-            unconfirmedBalance += amount;
-            unconfirmed++;
-        }
-    }
-
-    return {confirmedBalance, unconfirmedBalance};
-}
-
-std::pair<CAmount, CAmount> WalletModel::getSigmaBalance() const
-{
-    size_t confirmed, unconfirmed;
-    return getSigmaBalance(confirmed, unconfirmed);
 }
 
 void WalletModel::updateStatus()
@@ -302,9 +195,13 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
-    CAmount newPrivateBalance = getPrivateBalance();
-    CAmount newUnconfirmedPrivateBalance = getUnconfirmedPrivateBalance();
     CAmount newAnonymizableBalance = getAnonymizableBalance();
+
+
+    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
+    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
+        lelantusModel->getPrivateBalance();
+
     if (haveWatchOnly())
     {
         newWatchOnlyBalance = getWatchBalance();
@@ -595,7 +492,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
         return DuplicateAddress;
     }
 
-    CAmount nBalance = getPrivateBalance();
+    CAmount nBalance;
+    std::tie(nBalance, std::ignore) = lelantusModel->getPrivateBalance();
 
     if(total > nBalance)
     {

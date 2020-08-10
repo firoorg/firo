@@ -15,6 +15,7 @@ AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
+    minting(false),
     userAsk(userAsk)
 {
     ENTER_CRITICAL_SECTION(cs_main);
@@ -41,6 +42,8 @@ AutoMintDialog::~AutoMintDialog()
 
 void AutoMintDialog::accept()
 {
+    minting = true;
+
     ensureLelantusModel();
 
     if (requiredPassphase) {
@@ -57,7 +60,8 @@ void AutoMintDialog::accept()
     ui->passLabel->setVisible(false);
     ui->lockWarningLabel->setVisible(false);
     ui->lockCheckBox->setVisible(false);
-    ui->warningLabel->repaint();
+
+    repaint();
 
     try {
         auto minted = lelantusModel->mintAll();
@@ -82,6 +86,10 @@ int AutoMintDialog::exec()
 
 void AutoMintDialog::reject()
 {
+    if (minting) {
+        return;
+    }
+
     ensureLelantusModel();
     lelantusModel->ackMintAll(AutoMintAck::UserReject);
     QDialog::reject();

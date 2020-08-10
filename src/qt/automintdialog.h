@@ -31,6 +31,7 @@ private:
     LelantusModel *lelantusModel;
     bool requiredPassphase;
     bool userAsk;
+    bool minting;
 
     void ensureLelantusModel();
 };

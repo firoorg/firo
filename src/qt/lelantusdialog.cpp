@@ -9,6 +9,7 @@
 #include "optionsmodel.h"
 #include "ui_lelantusdialog.h"
 #include "lelantusdialog.h"
+#include "lelantusmodel.h"
 #include "sendcoinsdialog.h"
 #include "walletmodel.h"
 
@@ -152,9 +153,10 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
             this,
             SLOT(updateDisplayUnit(int)));
 
+        auto privateBalance = _walletModel->getLelantusModel()->getPrivateBalance();
         setBalance(0, 0, 0, 0, 0, 0,
-            _walletModel->getPrivateBalance(),
-            _walletModel->getUnconfirmedPrivateBalance(),
+            privateBalance.first,
+            privateBalance.second,
             _walletModel->getAnonymizableBalance());
 
         // Coin Control
@@ -415,14 +417,11 @@ void LelantusDialog::updateBalanceDisplay(int unit)
         }
     }
 
-    CAmount confirmedAmount = 0, unconfirmedAmount = 0;
-    auto confirmedCoins =
-        cachedPrivateBalance = walletModel->countPrivateCoins(confirmedAmount);
-    auto unconfirmedCoins =
-        cachedUnconfirmedPrivateBalance = walletModel->countUnconfirmedPrivateCoins(unconfirmedAmount);
+    size_t confirmeds, unconfirmeds;
+    std::tie(cachedPrivateBalance, cachedUnconfirmedPrivateBalance) = walletModel->getLelantusModel()->getPrivateBalance(confirmeds, unconfirmeds);
 
-    auto totalCoins = confirmedCoins + unconfirmedCoins;
-    auto totalAmount = confirmedAmount + unconfirmedAmount;
+    auto totalCoins = confirmeds + unconfirmeds;
+    auto totalAmount = cachedPrivateBalance + cachedUnconfirmedPrivateBalance;
 
     // set available amount
     auto avaiableAmountToAnonymizeText = tr("Available amount to anonymize %1")
@@ -430,15 +429,15 @@ void LelantusDialog::updateBalanceDisplay(int unit)
     ui->availableAmounToAnonymize->setText(avaiableAmountToAnonymizeText);
 
     // set coins count
-    ui->spendable->setText(QString::fromStdString(std::to_string(confirmedCoins)));
-    ui->unconfirmed->setText(QString::fromStdString(std::to_string(unconfirmedCoins)));
+    ui->spendable->setText(QString::fromStdString(std::to_string(confirmeds)));
+    ui->unconfirmed->setText(QString::fromStdString(std::to_string(unconfirmeds)));
     ui->total->setText(QString::fromStdString(std::to_string(totalCoins)));
 
     // set amount
     ui->spendableAmount->setText(BitcoinUnits::formatWithUnit(
-        unit, confirmedAmount, false, BitcoinUnits::separatorAlways));
+        unit, cachedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->unconfirmedAmount->setText(BitcoinUnits::formatWithUnit(
-        unit, unconfirmedAmount, false, BitcoinUnits::separatorAlways));
+        unit, cachedUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->totalAmount->setText(BitcoinUnits::formatWithUnit(
         unit, totalAmount, false, BitcoinUnits::separatorAlways));
 }

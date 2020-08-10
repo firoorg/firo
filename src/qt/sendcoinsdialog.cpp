@@ -10,6 +10,7 @@
 #include "clientmodel.h"
 #include "coincontroldialog.h"
 #include "guiutil.h"
+#include "lelantusmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
@@ -158,12 +159,13 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
+        auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
         {
             // switch to transparent mode if there are transparent balance and have no anoymous balance.
             auto haveTransparentBalance = _model->getBalance() > 0 || _model->getUnconfirmedBalance() > 0;
 
             // if lelantus is allowed we can spend sigma in this too.
-            auto havePrivateBalance = _model->getPrivateBalance() > 0 || _model->getUnconfirmedPrivateBalance() > 0;
+            auto havePrivateBalance = privateBalance.first > 0 || privateBalance.second > 0;
 
             if (haveTransparentBalance && !havePrivateBalance) {
                 setAnonymizeMode(false);
@@ -173,7 +175,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
             _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
-            _model->getPrivateBalance(), _model->getUnconfirmedPrivateBalance(), _model->getAnonymizableBalance());
+            privateBalance.first, privateBalance.second, _model->getAnonymizableBalance());
         connect(
             _model,
             SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
@@ -586,7 +588,7 @@ void SendCoinsDialog::setBalance(
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getPrivateBalance(), 0, 0);
+    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -761,7 +763,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     ui->frameFee->setPalette(pal);
 
     if (model) {
-        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getPrivateBalance(), 0, 0);
+        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
     }
 }
 

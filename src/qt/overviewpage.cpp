@@ -295,6 +295,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
+        auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+
         // Keep up to date with wallet
         setBalance(
                     model->getBalance(),
@@ -303,8 +305,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
                     model->getWatchBalance(),
                     model->getWatchUnconfirmedBalance(),
                     model->getWatchImmatureBalance(),
-                    model->getPrivateBalance(),
-                    model->getUnconfirmedPrivateBalance(),
+                    privateBalance.first,
+                    privateBalance.second,
                     model->getAnonymizableBalance());
         connect(
             model,
