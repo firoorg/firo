@@ -309,6 +309,13 @@ void LelantusDialog::on_anonymizeButton_clicked()
         val = 0;
     }
 
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if (!ctx.isValid())
+    {
+        // Unlock wallet was cancelled
+        return;
+    }
+
     std::vector<WalletModelTransaction> wtxs;
     std::list<CReserveKey> reserveKeys;
     std::vector<CHDMint> mints;
