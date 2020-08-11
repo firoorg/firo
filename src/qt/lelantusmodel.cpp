@@ -15,6 +15,8 @@ LelantusModel::LelantusModel(
     OptionsModel *optionsModel,
     QObject *parent)
     : QObject(parent),
+    cached(false),
+    autoMintModel(0),
     wallet(wallet)
 {
     autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);

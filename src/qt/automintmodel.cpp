@@ -11,7 +11,7 @@
 
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
-    QObject(parent), wallet(_wallet), timer(0), txs(4096)
+    QObject(parent), wallet(_wallet), timer(0)
 {
     timer = new QTimer(this);
     timer->setSingleShot(true);
@@ -20,12 +20,6 @@ IncomingFundNotifier::IncomingFundNotifier(
         SIGNAL(timeout()),
         this,
         SLOT(check()),
-        Qt::QueuedConnection);
-
-    connect(this,
-        SIGNAL(push(uint256)),
-        this,
-        SLOT(pushTransaction(uint256)),
         Qt::QueuedConnection);
 
     importTransactions();
@@ -43,6 +37,8 @@ IncomingFundNotifier::~IncomingFundNotifier()
 
 void IncomingFundNotifier::newBlock()
 {
+    std::lock_guard<std::mutex> txsLock(txsMutex);
+
     if (!txs.empty()) {
         resetTimer();
     }
@@ -50,12 +46,16 @@ void IncomingFundNotifier::newBlock()
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
+    std::lock_guard<std::mutex> txsLock(txsMutex);
+
     resetTimer();
     txs.push(id);
 }
 
 void IncomingFundNotifier::check()
 {
+    std::lock_guard<std::mutex> txsLock(txsMutex);
+
     if (txs.empty()) {
         return;
     }
@@ -65,8 +65,10 @@ void IncomingFundNotifier::check()
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
-        uint256 tx;
-        while (txs.pop(tx)) {
+        while (!txs.empty()) {
+            auto tx = txs.front();
+            txs.pop();
+
             auto wtx = wallet->mapWallet.find(tx);
             if (wtx == wallet->mapWallet.end()) {
                 continue;
@@ -91,11 +93,13 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
+    std::lock_guard<std::mutex> txsLock(txsMutex);
+
     LOCK2(cs_main, wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
         if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
-            pushTransaction(tx.first);
+            txs.push(tx.first);
         }
     }
 
@@ -173,10 +177,10 @@ AutoMintModel::AutoMintModel(
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
-    notifier = new IncomingFundNotifier(wallet, this);
-
     connect(resetSyncingTimer, SIGNAL(timeout()), this, SLOT(resetSyncing()));
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
+
+    notifier = new IncomingFundNotifier(wallet, this);
 
     connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
 

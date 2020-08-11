@@ -6,11 +6,12 @@
 #include "../uint256.h"
 #include "../validation.h"
 
-#include <boost/lockfree/queue.hpp>
-
 #include <QDateTime>
 #include <QObject>
 #include <QTimer>
+
+#include <mutex>
+#include <queue>
 
 class LelantusModel;
 class OptionsModel;
@@ -58,7 +59,8 @@ private:
     QTimer *timer;
 
     QDateTime waitUntil;
-    boost::lockfree::queue<uint256> txs;
+    std::queue<uint256> txs;
+    mutable std::mutex txsMutex;
 };
 
 class AutoMintModel : public QObject
@@ -80,7 +82,7 @@ public:
 
 public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
-    void checkAutoMint(bool force);
+    void checkAutoMint(bool force = false);
 
     void resetSyncing();
     void setSyncing();
