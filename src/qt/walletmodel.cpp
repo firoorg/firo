@@ -780,7 +780,10 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
 
         auto &mintTmp = mints[i];
         mintTmp.SetTxHash(tx->GetHash());
-        zwalletMain->GetTracker().AddLelantus(mintTmp, true);
+        {
+            CWalletDB db(wallet->strWalletFile);
+            wallet->zwallet->GetTracker().AddLelantus(db, mintTmp, true);
+        }
     }
 
     return SendCoinsReturn(OK);

@@ -62,7 +62,9 @@ std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, 
 
     std::pair<CAmount, CAmount> balance = {0, 0};
 
-    auto coins = zwalletMain->GetTracker().ListLelantusMints(true, false, false);
+    auto zwallet = pwalletMain->zwallet.get();
+
+    auto coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
     for (auto const &c : coins) {
 
         if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
@@ -82,7 +84,7 @@ std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, 
     }
 
     if (includeSigma) {
-        auto coins = zwalletMain->GetTracker().ListMints(true, false, false);
+        auto coins = zwallet->GetTracker().ListMints(true, false, false);
         for (auto const &c : coins) {
 
             if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
