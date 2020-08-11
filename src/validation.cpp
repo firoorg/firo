@@ -2719,8 +2719,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
-        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
-                    pindex->GetBlockHash().ToString(), FormatStateMessage(state));
+        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block height %i failed with %s",
+                    pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
 

@@ -384,7 +384,11 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("FIROD", "firod")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
-    # Don't try auto backups (they fail a lot when running tests)
+#Useful args for debugging
+#        "screen", "--",
+#        "gdb", "-x", "/tmp/gdb_run", "--args",
+
+# Don't try auto backups (they fail a lot when running tests)
     args += [ "-createwalletbackups=0" ]
     if extra_args is not None: args.extend(extra_args)
     # Allow to redirect stderr to stdout in case we expect some non-critical warnings/errors printed to stderr
