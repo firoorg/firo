@@ -445,7 +445,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
 	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
-    connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
+	connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
 
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {

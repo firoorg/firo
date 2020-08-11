@@ -26,8 +26,8 @@ public:
     void askToMint();
     CAmount getMintableAmount();
 
-    std::pair<CAmount, CAmount> getPrivateBalance(bool includeSigma = true);
-    std::pair<CAmount, CAmount> getPrivateBalance(size_t &confirmed, size_t &unconfirmed, bool includeSigma = true);
+    std::pair<CAmount, CAmount> getPrivateBalance();
+    std::pair<CAmount, CAmount> getPrivateBalance(size_t &confirmed, size_t &unconfirmed);
 
     void unlockWallet(SecureString const &passphase, size_t msecs);
     void lockWallet();
@@ -46,9 +46,20 @@ public Q_SLOTS:
     void askUserToMint(bool userAsk = false);
     void lock();
 
+    void resetCached();
+
 private:
+    std::atomic<bool> cached;
+    size_t confirmed;
+    size_t unconfirmed;
+    CAmount confirmedBalance;
+    CAmount unconfirmedBalance;
+
     AutoMintModel *autoMintModel;
     CWallet *wallet;
+
+    void subscribeToCoreSignals();
+    void unsubscribeFromCoreSignals();
 };
 
 #endif // ZCOIN_QT_LELANTUSMODEL_H

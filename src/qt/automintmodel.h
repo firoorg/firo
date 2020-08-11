@@ -52,15 +52,13 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
-    void updateWaitUntil(size_t msecs = 1000);
+    void resetTimer();
 
     CWallet *wallet;
     QTimer *timer;
 
     QDateTime waitUntil;
     boost::lockfree::queue<uint256> txs;
-
-    std::atomic<bool> hasNew;
 };
 
 class AutoMintModel : public QObject
@@ -78,15 +76,16 @@ public:
 
 public:
     bool askingUser();
+    void userAskToMint();
 
 public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
-    void checkAutoMint();
+    void checkAutoMint(bool force);
 
-    void resetInitialSync();
-    void setInitialSync();
+    void resetSyncing();
+    void setSyncing();
 
-    void startAutoMint(bool force = false);
+    void startAutoMint();
 
     void updateAutoMintOption(bool);
 
@@ -101,11 +100,10 @@ private:
 
     AutoMintState autoMintState;
 
-    QTimer *resetInitialSyncTimer;
+    QTimer *resetSyncingTimer;
     QTimer *autoMintCheckTimer;
 
-    std::atomic<bool> initialSync;
-    std::atomic<bool> force;
+    std::atomic<bool> syncing;
 
     IncomingFundNotifier *notifier;
 };

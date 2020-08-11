@@ -15,14 +15,17 @@ LelantusModel::LelantusModel(
     OptionsModel *optionsModel,
     QObject *parent)
     : QObject(parent),
-
     wallet(wallet)
 {
     autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);
+
+    subscribeToCoreSignals();
 }
 
 LelantusModel::~LelantusModel()
 {
+    unsubscribeFromCoreSignals();
+
     delete autoMintModel;
 
     autoMintModel = nullptr;
@@ -30,7 +33,7 @@ LelantusModel::~LelantusModel()
 
 void LelantusModel::askToMint()
 {
-    autoMintModel->startAutoMint(true);
+    autoMintModel->userAskToMint();
 }
 
 CAmount LelantusModel::getMintableAmount()
@@ -49,18 +52,25 @@ CAmount LelantusModel::getMintableAmount()
     return s;
 }
 
-std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(bool includeSigma)
+std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance()
 {
     size_t confirmed, unconfirmed;
     return getPrivateBalance(confirmed, unconfirmed);
 }
 
-std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, size_t &unconfirmed, bool includeSigma)
+std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, size_t &unconfirmed)
 {
+    if (cached) {
+        confirmed = this->confirmed;
+        unconfirmed = this->unconfirmed;
+
+        return {confirmedBalance, unconfirmedBalance};
+    }
+
     confirmed = 0;
     unconfirmed = 0;
-
-    std::pair<CAmount, CAmount> balance = {0, 0};
+    confirmedBalance = 0;
+    unconfirmedBalance = 0;
 
     auto zwallet = pwalletMain->zwallet.get();
 
@@ -76,40 +86,43 @@ std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, 
 
         if (conf >= ZC_MINT_CONFIRMATIONS) {
             confirmed++;
-            balance.first += c.amount;
+            confirmedBalance += c.amount;
         } else {
             unconfirmed++;
-            balance.second += c.amount;
+            unconfirmedBalance += c.amount;
         }
     }
 
-    if (includeSigma) {
-        auto coins = zwallet->GetTracker().ListMints(true, false, false);
-        for (auto const &c : coins) {
+    auto sigmaCoins = zwallet->GetTracker().ListMints(true, false, false);
+    for (auto const &c : sigmaCoins) {
 
-            if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
-                continue;
-            }
+        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
+            continue;
+        }
 
-            CAmount amount;
-            if (!sigma::DenominationToInteger(c.denom, amount)) {
-                throw std::runtime_error("Fail to get denomination value");
-            }
+        CAmount amount;
+        if (!sigma::DenominationToInteger(c.denom, amount)) {
+            throw std::runtime_error("Fail to get denomination value");
+        }
 
-            auto conf = c.nHeight > 0
-                ? chainActive.Height() - c.nHeight + 1 : 0;
+        auto conf = c.nHeight > 0
+            ? chainActive.Height() - c.nHeight + 1 : 0;
 
-            if (conf >= ZC_MINT_CONFIRMATIONS) {
-                confirmed++;
-                balance.first += amount;
-            } else {
-                unconfirmed++;
-                balance.second += amount;
-            }
+        if (conf >= ZC_MINT_CONFIRMATIONS) {
+            confirmed++;
+            confirmedBalance += amount;
+        } else {
+            unconfirmed++;
+            unconfirmedBalance += amount;
         }
     }
 
-    return balance;
+    this->confirmed = confirmed;
+    this->unconfirmed = unconfirmed;
+
+    cached.store(true);
+
+    return {confirmedBalance, unconfirmedBalance};
 }
 
 void LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
@@ -171,4 +184,49 @@ void LelantusModel::lock()
     if (wallet->IsCrypted() && !wallet->IsLocked()) {
         lockWallet();
     }
+}
+
+void LelantusModel::resetCached()
+{
+    cached.store(false);
+}
+
+static void NotifyZerocoinChanged(LelantusModel *model, CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)
+{
+    Q_UNUSED(pubCoin);
+    Q_UNUSED(isUsed);
+    Q_UNUSED(status);
+
+    if (wallet->zwallet) {
+        QMetaObject::invokeMethod(
+            model,
+            "resetCached",
+            Qt::QueuedConnection);
+    }
+}
+
+static void NotifyBlockTip(LelantusModel *model, bool initialSync, const CBlockIndex *pIndex)
+{
+    Q_UNUSED(pIndex);
+    Q_UNUSED(initialSync);
+    QMetaObject::invokeMethod(
+        model,
+        "resetCached",
+        Qt::QueuedConnection);
+}
+
+void LelantusModel::subscribeToCoreSignals()
+{
+    // Connect signals to wallet
+    wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+
+    uiInterface.NotifyBlockTip.connect(boost::bind(NotifyBlockTip, this, _1, _2));
+}
+
+void LelantusModel::unsubscribeFromCoreSignals()
+{
+    // Disconnect signals from wallet
+    wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+
+    uiInterface.NotifyBlockTip.disconnect(boost::bind(NotifyBlockTip, this, _1, _2));
 }

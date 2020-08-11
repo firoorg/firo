@@ -15,8 +15,8 @@ AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    minting(false),
-    userAsk(userAsk)
+    userAsk(userAsk),
+    minting(false)
 {
     ENTER_CRITICAL_SECTION(cs_main);
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);

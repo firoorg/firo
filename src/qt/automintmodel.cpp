@@ -7,13 +7,14 @@
 #include "optionsmodel.h"
 #include "lelantusmodel.h"
 
-#define WAITING_INCOMING_FUND_TIMEOUT 5 * 1000
+#define WAITING_INCOMING_FUND_TIMEOUT 2000
 
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
     QObject(parent), wallet(_wallet), timer(0), txs(4096)
 {
     timer = new QTimer(this);
+    timer->setSingleShot(true);
 
     connect(timer,
         SIGNAL(timeout()),
@@ -26,8 +27,6 @@ IncomingFundNotifier::IncomingFundNotifier(
         this,
         SLOT(pushTransaction(uint256)),
         Qt::QueuedConnection);
-
-    timer->start(1000);
 
     importTransactions();
     subscribeToCoreSignals();
@@ -44,24 +43,22 @@ IncomingFundNotifier::~IncomingFundNotifier()
 
 void IncomingFundNotifier::newBlock()
 {
-    updateWaitUntil();
-    hasNew.store(true);
+    if (!txs.empty()) {
+        resetTimer();
+    }
 }
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
-    updateWaitUntil();
+    resetTimer();
     txs.push(id);
-    hasNew.store(true);
 }
 
 void IncomingFundNotifier::check()
 {
-    if (QDateTime::currentDateTimeUtc() < waitUntil || !hasNew || txs.empty()) {
+    if (txs.empty()) {
         return;
     }
-    hasNew.store(false);
-    timer->stop();
 
     CAmount credit = 0;
     std::vector<uint256> immutures;
@@ -102,16 +99,13 @@ void IncomingFundNotifier::importTransactions()
         }
     }
 
-    updateWaitUntil(10 * 1000);
-    hasNew.store(true);
+    resetTimer();
 }
 
-void IncomingFundNotifier::updateWaitUntil(size_t msecs)
+void IncomingFundNotifier::resetTimer()
 {
-    waitUntil = QDateTime::currentDateTimeUtc().addMSecs(msecs);
-    if (!timer->isActive()) {
-        timer->start(1000);
-    }
+    timer->stop();
+    timer->start(1000);
 }
 
 // Handlers for core signals
@@ -168,21 +162,20 @@ AutoMintModel::AutoMintModel(
     optionsModel(_optionsModel),
     wallet(_wallet),
     autoMintState(AutoMintState::Disabled),
-    resetInitialSyncTimer(0),
+    resetSyncingTimer(0),
     autoMintCheckTimer(0),
-    initialSync(false),
-    force(false),
+    syncing(false),
     notifier(0)
 {
-    resetInitialSyncTimer = new QTimer(this);
-    resetInitialSyncTimer->setSingleShot(true);
+    resetSyncingTimer = new QTimer(this);
+    resetSyncingTimer->setSingleShot(true);
 
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
     notifier = new IncomingFundNotifier(wallet, this);
 
-    connect(resetInitialSyncTimer, SIGNAL(timeout()), this, SLOT(resetInitialSync()));
+    connect(resetSyncingTimer, SIGNAL(timeout()), this, SLOT(resetSyncing()));
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
 
     connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
@@ -199,16 +192,22 @@ AutoMintModel::~AutoMintModel()
 {
     unsubscribeFromCoreSignals();
 
-    delete resetInitialSyncTimer;
+    delete resetSyncingTimer;
     delete autoMintCheckTimer;
 
-    resetInitialSyncTimer = nullptr;
+    resetSyncingTimer = nullptr;
     autoMintCheckTimer = nullptr;
 }
 
 bool AutoMintModel::askingUser()
 {
     return autoMintState == AutoMintState::WaitingForUserResponse;
+}
+
+void AutoMintModel::userAskToMint()
+{
+    autoMintCheckTimer->stop();
+    checkAutoMint(true);
 }
 
 void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
@@ -219,19 +218,16 @@ void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
     } else {
         autoMintState = AutoMintState::WaitingIncomingFund;
         autoMintCheckTimer->stop();
-        force.store(false);
     }
 }
 
-void AutoMintModel::checkAutoMint()
+void AutoMintModel::checkAutoMint(bool force)
 {
     // if lelantus is not allow or client is in initial syncing state then wait
     // except user force to check
-    bool force = this->force;
-
     if (!force) {
-        // check initialSync first to reduce main locking
-        if (initialSync) {
+        // check syncing first to reduce main locking
+        if (syncing) {
             return;
         }
 
@@ -271,26 +267,23 @@ void AutoMintModel::checkAutoMint()
     lelantusModel->askUserToMint(force);
 }
 
-void AutoMintModel::setInitialSync()
+void AutoMintModel::setSyncing()
 {
-    initialSync.store(true);
-    resetInitialSyncTimer->stop();
+    syncing.store(true);
+    resetSyncingTimer->stop();
 
-    // wait 10 second if there are no new signal then reset flag
-    resetInitialSyncTimer->start(10 * 1000);
+    // wait 2.5 seconds if there are no new signal then reset flag
+    resetSyncingTimer->start(2500);
 }
 
-void AutoMintModel::resetInitialSync()
+void AutoMintModel::resetSyncing()
 {
-    initialSync.store(false);
+    syncing.store(false);
 }
 
-void AutoMintModel::startAutoMint(bool force)
+void AutoMintModel::startAutoMint()
 {
     if (autoMintCheckTimer->isActive()) {
-        if (!this->force && force) {
-            this->force = force;
-        }
         return;
     }
 
@@ -302,10 +295,6 @@ void AutoMintModel::startAutoMint(bool force)
 
     if (mintable > 0) {
         autoMintState = AutoMintState::WaitingUserToActivate;
-
-        if (!this->force && force) {
-            this->force = force;
-        }
 
         autoMintCheckTimer->start(MODEL_UPDATE_DELAY);
     } else {
@@ -332,12 +321,11 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
 static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockIndex *pIndex)
 {
     Q_UNUSED(pIndex);
-    if (initialSync) {
-        QMetaObject::invokeMethod(
-            model,
-            "setInitialSync",
-            Qt::QueuedConnection);
-    }
+    Q_UNUSED(initialSync);
+    QMetaObject::invokeMethod(
+        model,
+        "setSyncing",
+        Qt::QueuedConnection);
 }
 
 void AutoMintModel::subscribeToCoreSignals()
