@@ -24,7 +24,7 @@ inline bool IsInstantSendEnabled()
 
 inline bool IsChainlocksEnabled()
 {
-    return false;
+    return true;
 }
 
 inline bool IsBlockFilteringEnabled()

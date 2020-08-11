@@ -48,6 +48,7 @@
 #include "evo/deterministicmns.h"
 
 #include "llmq/quorums_blockprocessor.h"
+#include "spork.h"
 
 using namespace std;
 #include <utility>
@@ -179,6 +180,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nHeight = pindexPrev->nHeight + 1;
 
     bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
+    bool fDIP0008Active_context = llmq::IsChainlocksEnabled() && nHeight >= chainparams.GetConsensus().DIP0003Height;
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
@@ -249,15 +251,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         CCbTx cbTx;
 
-        /*
+
         if (fDIP0008Active_context) {
             cbTx.nVersion = 2;
         } else {
-        */
             cbTx.nVersion = 1;
-        /*
         }
-        */
 
         cbTx.nHeight = nHeight;
 
@@ -265,13 +264,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state)) {
             throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
         }
-        /*
         if (fDIP0008Active_context) {
             if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
             }
         }
-        */
 
         SetTxPayload(coinbaseTx, cbTx);
     }

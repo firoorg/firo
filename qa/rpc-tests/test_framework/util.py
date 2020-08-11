@@ -383,7 +383,11 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
+    args = [
+#        "screen", "--",
+#        "gdb", "-x", "/tmp/gdb_run", "--args",
+        binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
+
     # Don't try auto backups (they fail a lot when running tests)
     args += [ "-createwalletbackups=0" ]
     if extra_args is not None: args.extend(extra_args)
