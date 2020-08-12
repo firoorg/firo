@@ -8,8 +8,6 @@
 #include "optionsmodel.h"
 #include "lelantusmodel.h"
 
-#define WAITING_INCOMING_FUND_TIMEOUT 2000
-
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
     QObject(parent), wallet(_wallet), timer(0)
@@ -49,7 +47,7 @@ void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
     LOCK(cs);
 
-    txs.push(id);
+    txs.push_back(id);
     resetTimer();
 }
 
@@ -68,7 +66,7 @@ void IncomingFundNotifier::check()
         LOCK2(cs_main, wallet->cs_wallet);
         while (!txs.empty()) {
             auto tx = txs.front();
-            txs.pop();
+            txs.pop_back();
 
             auto wtx = wallet->mapWallet.find(tx);
             if (wtx == wallet->mapWallet.end()) {
@@ -84,7 +82,7 @@ void IncomingFundNotifier::check()
     }
 
     for (auto const &tx : immatures) {
-        txs.push(tx);
+        txs.push_back(tx);
     }
 
     if (credit > 0) {
@@ -99,7 +97,7 @@ void IncomingFundNotifier::importTransactions()
 
     for (auto const &tx : wallet->mapWallet) {
         if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
-            txs.push(tx.first);
+            txs.push_back(tx.first);
         }
     }
 
@@ -203,7 +201,7 @@ AutoMintModel::~AutoMintModel()
     autoMintCheckTimer = nullptr;
 }
 
-bool AutoMintModel::askingUser()
+bool AutoMintModel::askingUser() const
 {
     return autoMintState == AutoMintState::WaitingForUserResponse;
 }
@@ -259,7 +257,6 @@ void AutoMintModel::checkAutoMint(bool force)
             autoMintCheckTimer->stop();
             return;
         case AutoMintState::WaitingUserToActivate:
-            // check activation status
             break;
         case AutoMintState::WaitingForUserResponse:
             return;

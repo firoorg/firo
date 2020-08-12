@@ -10,8 +10,6 @@
 #include <QObject>
 #include <QTimer>
 
-#include <queue>
-
 class LelantusModel;
 class OptionsModel;
 class CWallet;
@@ -58,7 +56,7 @@ private:
     CWallet *wallet;
     QTimer *timer;
 
-    std::queue<uint256> txs;
+    std::vector<uint256> txs;
     mutable CCriticalSection cs;
 };
 
@@ -76,7 +74,7 @@ public:
     ~AutoMintModel();
 
 public:
-    bool askingUser();
+    bool askingUser() const;
     void userAskToMint();
 
 public Q_SLOTS:
