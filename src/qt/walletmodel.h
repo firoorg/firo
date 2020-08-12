@@ -266,9 +266,6 @@ public:
     void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);
     void checkSigmaAmount(bool forced);
 
-    // Lelantus
-    void lelantusMint(CAmount value, bool mintAll = false, CCoinControl const *coinControl = nullptr);
-
     std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
 private:

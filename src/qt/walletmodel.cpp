@@ -1381,25 +1381,6 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
     }
 }
 
-void WalletModel::lelantusMint(CAmount value, bool mintAll, CCoinControl const *coinControl)
-{
-    if (!lelantus::IsLelantusAllowed()) {
-        throw std::runtime_error("Lelantus is not activated yet");
-    }
-
-    if (!lelantus::IsAvailableToMint(value)) {
-        throw std::invalid_argument("Amount to mint is invalid");
-    }
-
-    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
-    std::vector<CHDMint> hdMints;
-    auto errorMsg = pwalletMain->MintAndStoreLelantus(value, wtxAndFees, hdMints, mintAll);
-
-    if (errorMsg != "") {
-        throw std::runtime_error("Fail to mint and store, " + errorMsg);
-    }
-}
-
 std::vector<CSigmaEntry> WalletModel::GetUnsafeCoins(const CCoinControl* coinControl)
 {
     auto allCoins = wallet->GetAvailableCoins(coinControl, true);
