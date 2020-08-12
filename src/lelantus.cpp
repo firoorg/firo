@@ -245,15 +245,8 @@ bool CheckLelantusJMintTransaction(
     }
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
+
         // Update public coin list in the info
-
-        // TODO: remove commented code and remove CAmount out of lelantusTxInfo
-        // NOTE: related wallet logic should not be here
-        // uint64_t amount;
-        // if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-        //     amount = 0;
-        // lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, amount));
-
         lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, 0));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
@@ -564,13 +557,6 @@ bool CheckLelantusTransaction(
         catch (CBadTxIn&) {
             return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
         }
-
-        // TODO: enforce fee policy while accepting txs to mempool instead
-        // unsigned size = GetVirtualTransactionSize(tx);
-        // if(nFees < CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool))
-        //     return state.DoS(100, false,
-        //                      REJECT_INVALID,
-        //                      "Lelantus invalid fee.");
     }
 
 

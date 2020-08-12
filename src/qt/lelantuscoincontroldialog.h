@@ -34,7 +34,6 @@ public:
     bool fSubtractFeeFromAmount;
 
 public:
-    // static because also called from sendcoinsdialog
     void updateLabels(WalletModel*, QDialog*);
 };
 
