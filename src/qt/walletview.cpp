@@ -387,6 +387,9 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
         auto lelantusModel = _walletModel->getLelantusModel();
         if (lelantusModel) {
             connect(lelantusModel, SIGNAL(askMintAll(bool)), this, SLOT(askMintAll(bool)));
+
+            auto autoMintModel = lelantusModel->getAutoMintModel();
+            connect(autoMintModel, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
         }
     }
 }

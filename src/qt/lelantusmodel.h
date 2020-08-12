@@ -25,11 +25,12 @@ public:
 public:
     void askToMint();
     CAmount getMintableAmount();
+    AutoMintModel* getAutoMintModel();
 
     std::pair<CAmount, CAmount> getPrivateBalance();
     std::pair<CAmount, CAmount> getPrivateBalance(size_t &confirmed, size_t &unconfirmed);
 
-    void unlockWallet(SecureString const &passphase, size_t msecs);
+    bool unlockWallet(SecureString const &passphase, size_t msecs);
     void lockWallet();
 
     CAmount mintAll();

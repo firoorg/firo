@@ -15,8 +15,7 @@ AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    userAsk(userAsk),
-    minting(false)
+    userAsk(userAsk)
 {
     ENTER_CRITICAL_SECTION(cs_main);
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
@@ -42,8 +41,6 @@ AutoMintDialog::~AutoMintDialog()
 
 void AutoMintDialog::accept()
 {
-    minting = true;
-
     ensureLelantusModel();
 
     if (requiredPassphase) {
@@ -51,7 +48,11 @@ void AutoMintDialog::accept()
         SecureString passphase(rawPassphase.begin(), rawPassphase.end());
         auto lock = ui->lockCheckBox->isChecked();
 
-        lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000);
+        if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
+            QDialog::accept();
+            lelantusModel->ackMintAll(AutoMintAck::FailToUnlock);
+            return;
+        }
     }
 
     ui->warningLabel->setText(QString("Minting..."));
@@ -63,14 +64,21 @@ void AutoMintDialog::accept()
 
     repaint();
 
+    AutoMintAck status;
+    CAmount minted = 0;
+    QString error;
+
     try {
-        auto minted = lelantusModel->mintAll();
-        lelantusModel->ackMintAll(AutoMintAck::Success, minted);
+        minted = lelantusModel->mintAll();
+        status = AutoMintAck::Success;
     } catch (std::runtime_error const &e) {
-        lelantusModel->ackMintAll(AutoMintAck::FailToMint, 0, e.what());
+        status = AutoMintAck::FailToMint;
+        error = e.what();
     }
 
     QDialog::accept();
+
+    lelantusModel->ackMintAll(status, minted, error);
 }
 
 int AutoMintDialog::exec()
@@ -86,10 +94,6 @@ int AutoMintDialog::exec()
 
 void AutoMintDialog::reject()
 {
-    if (minting) {
-        return;
-    }
-
     ensureLelantusModel();
     lelantusModel->ackMintAll(AutoMintAck::UserReject);
     QDialog::reject();

@@ -54,6 +54,11 @@ CAmount LelantusModel::getMintableAmount()
     return s;
 }
 
+AutoMintModel* LelantusModel::getAutoMintModel()
+{
+    return autoMintModel;
+}
+
 std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance()
 {
     size_t confirmed, unconfirmed;
@@ -127,12 +132,15 @@ std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, 
     return {confirmedBalance, unconfirmedBalance};
 }
 
-void LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
+bool LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
 {
     LOCK2(wallet->cs_wallet, cs);
-    wallet->Unlock(passphase);
+    if (!wallet->Unlock(passphase)) {
+        return false;
+    }
 
     QTimer::singleShot(msecs, this, SLOT(lock()));
+    return true;
 }
 
 void LelantusModel::lockWallet()

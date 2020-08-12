@@ -3,6 +3,7 @@
 #include "../wallet/wallet.h"
 
 #include "automintmodel.h"
+#include "bitcoinunits.h"
 #include "guiconstants.h"
 #include "optionsmodel.h"
 #include "lelantusmodel.h"
@@ -37,7 +38,7 @@ IncomingFundNotifier::~IncomingFundNotifier()
 
 void IncomingFundNotifier::newBlock()
 {
-    std::lock_guard<std::mutex> txsLock(txsMutex);
+    LOCK(cs);
 
     if (!txs.empty()) {
         resetTimer();
@@ -46,22 +47,22 @@ void IncomingFundNotifier::newBlock()
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
-    std::lock_guard<std::mutex> txsLock(txsMutex);
+    LOCK(cs);
 
-    resetTimer();
     txs.push(id);
+    resetTimer();
 }
 
 void IncomingFundNotifier::check()
 {
-    std::lock_guard<std::mutex> txsLock(txsMutex);
+    LOCK(cs);
 
     if (txs.empty()) {
         return;
     }
 
     CAmount credit = 0;
-    std::vector<uint256> immutures;
+    std::vector<uint256> immatures;
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
@@ -77,12 +78,12 @@ void IncomingFundNotifier::check()
             credit += std::max(0L, wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
 
             if (wtx->second.GetImmatureCredit() > 0) {
-                immutures.push_back(tx);
+                immatures.push_back(tx);
             }
         }
     }
 
-    for (auto const &tx : immutures) {
+    for (auto const &tx : immatures) {
         txs.push(tx);
     }
 
@@ -93,8 +94,7 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
-    std::lock_guard<std::mutex> txsLock(txsMutex);
-
+    LOCK(cs);
     LOCK2(cs_main, wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
@@ -223,6 +223,8 @@ void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
         autoMintState = AutoMintState::WaitingIncomingFund;
         autoMintCheckTimer->stop();
     }
+
+    processAutoMintAck(ack, minted, error);
 }
 
 void AutoMintModel::checkAutoMint(bool force)
@@ -316,6 +318,10 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
             startAutoMint();
         }
     } else {
+        if (autoMintCheckTimer->isActive()) {
+            autoMintCheckTimer->stop();
+        }
+
         // stop mint
         autoMintState = AutoMintState::Disabled;
     }
@@ -342,4 +348,34 @@ void AutoMintModel::unsubscribeFromCoreSignals()
 {
     uiInterface.NotifyBlockTip.disconnect(
         boost::bind(NotifyBlockTip, this, _1, _2));
+}
+
+void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString error)
+{
+    QPair<QString, CClientUIInterface::MessageBoxFlags> msgParams;
+    msgParams.second = CClientUIInterface::MSG_WARNING;
+
+    switch (ack)
+    {
+    case AutoMintAck::Success:
+        msgParams.first = tr("Success to anonymize, %1")
+            .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), minted));
+        msgParams.second = CClientUIInterface::MSG_INFORMATION;
+        break;
+    case AutoMintAck::WaitUserToActive:
+    case AutoMintAck::NotEnoughFund:
+        return;
+    case AutoMintAck::FailToMint:
+        msgParams.first = tr("Fail to mint, %1").arg(error);
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case AutoMintAck::FailToUnlock:
+        msgParams.first = tr("Fail to unlock wallet");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    default:
+        return;
+    };
+
+    Q_EMIT message(tr("Auto Anonymize"), msgParams.first, msgParams.second);
 }

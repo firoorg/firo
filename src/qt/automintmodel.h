@@ -10,7 +10,6 @@
 #include <QObject>
 #include <QTimer>
 
-#include <mutex>
 #include <queue>
 
 class LelantusModel;
@@ -29,7 +28,8 @@ enum class AutoMintAck : uint8_t {
     WaitUserToActive,
     FailToMint,
     NotEnoughFund,
-    UserReject
+    UserReject,
+    FailToUnlock
 };
 
 class IncomingFundNotifier : public QObject
@@ -58,9 +58,8 @@ private:
     CWallet *wallet;
     QTimer *timer;
 
-    QDateTime waitUntil;
     std::queue<uint256> txs;
-    mutable std::mutex txsMutex;
+    mutable CCriticalSection cs;
 };
 
 class AutoMintModel : public QObject
@@ -91,9 +90,14 @@ public Q_SLOTS:
 
     void updateAutoMintOption(bool);
 
+Q_SIGNALS:
+    void message(const QString &title, const QString &message, unsigned int style);
+
 private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
+
+    void processAutoMintAck(AutoMintAck ack, CAmount minted, QString error);
 
 private:
     LelantusModel *lelantusModel;
