@@ -180,6 +180,10 @@ public:
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
 
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
+
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -397,9 +401,13 @@ public:
 
         consensus.chainType = Consensus::chainTestnet;
 
-        consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingInterval = 420000;
-        consensus.nSubsidyHalvingStopBlock = 3646849;
+        consensus.nSubsidyHalvingFirst = 12000;
+        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingStopBlock = 1000000;
+
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
 
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
@@ -599,9 +607,13 @@ public:
 
         consensus.chainType = Consensus::chainRegtest;
 
+        // To be changed for specific tests
         consensus.nSubsidyHalvingFirst = 302438;
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
+
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
