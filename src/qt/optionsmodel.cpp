@@ -112,8 +112,15 @@ void OptionsModel::Init(bool resetSettings)
 
     if (!settings.contains("bReindexSigma"))
         settings.setValue("bReindexSigma", DEFAULT_ZAP_WALLET);
-    if (!SoftSetBoolArg("-zapwalletmints", settings.value("bReindexSigma").toBool())) {
-        addOverriddenOption("-zapwalletmints");
+    bool reindexSigma = settings.value("bReindexSigma").toBool();
+    if(reindexSigma){
+        if(!SoftSetBoolArg("-zapwalletmints", true) ||
+           !SoftSetBoolArg("-reindex", true) ||
+           !SoftSetArg("-zapwallettxes", std::string("1"))) {
+               addOverriddenOption("-zapwalletmints");
+               addOverriddenOption("-reindex");
+               addOverriddenOption("-zapwallettxes");
+        }
     } else {
         settings.setValue("bReindexSigma", false);
     }
