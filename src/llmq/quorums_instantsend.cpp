@@ -5,7 +5,7 @@
 #include "quorums_chainlocks.h"
 #include "quorums_instantsend.h"
 #include "quorums_utils.h"
-#include "spork.h"
+#include "chain_settings.h"
 
 #include "bls/bls_batchverifier.h"
 #include "chainparams.h"

@@ -7,7 +7,7 @@
 #include "quorums_instantsend.h"
 #include "quorums_signing.h"
 #include "quorums_utils.h"
-#include "spork.h"
+#include "chain_settings.h"
 
 #include "chain.h"
 #include "masternode-sync.h"
