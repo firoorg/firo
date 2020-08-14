@@ -945,16 +945,19 @@ UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, 
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
     
-    string mainPaymentCode = pwalletMain->getPaymentCode();
+    int count = pwalletMain->getPaymentCodeCount();
     UniValue ret(UniValue::VARR);
-    UniValue item(UniValue::VOBJ);
-    item.push_back(Pair("label", "main account"));
-    item.push_back(Pair("paymentcode", mainPaymentCode));
-    ret.push_back(item);
+    for(int i = 0; i < count; i++) {
+        string paymentCode = pwalletMain->getPaymentCode(i);
+        UniValue item(UniValue::VOBJ);
+        item.push_back(Pair("label", "RAP Address #" + std::to_string(i)));
+        item.push_back(Pair("paymentcode", paymentCode));
+        ret.push_back(item);
+    }
     return ret;
 }  
 
-UniValue createnewaddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue createnewpaymentcode(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
@@ -963,8 +966,8 @@ UniValue createnewaddress(Type type, const UniValue& data, const UniValue& auth,
     string newPaymentCode = pwalletMain->generateNewPCode();
     UniValue ret(UniValue::VARR);
     UniValue item(UniValue::VOBJ);
-    item.push_back(Pair("label", "new"));
-    item.push_back(Pair("address", mainPaymentCode));
+    item.push_back(Pair("label", "RAP Address #" + std::to_string(pwalletMain->getPaymentCodeCount())));
+    item.push_back(Pair("paymentcode", newPaymentCode));
     ret.push_back(item);
     return ret;
 }
@@ -985,7 +988,8 @@ static const CAPICommand commands[] =
     { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
-    { "wallet",             "getPaymentCodes",                &getpaymentcodes,                true,      false,           false  }
+    { "wallet",             "getPaymentCodes",                &getpaymentcodes,                true,      false,           false  },
+    { "wallet",             "createNewPaymentCode",                &createnewpaymentcode,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

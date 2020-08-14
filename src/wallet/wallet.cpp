@@ -1978,7 +1978,7 @@ bool CWallet::isNotificationTransaction(CTransaction tx) // lgtm [cpp/large-para
     LogPrintf("getAddress Of Recevied\n");
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    if (getNotificationAddress().compare(addr.ToString()) == 0)
+    if (getNotificationAddress(0).compare(addr.ToString()) == 0)
     {
         return true;
     }
@@ -2147,14 +2147,19 @@ CBIP47Account CWallet::getBIP47Account(int i)
     return m_CBIP47Accounts[i];
 }
 
-string CWallet::getNotificationAddress()
+string CWallet::getNotificationAddress(int i)
 {
-    return getBIP47Account(0).getNotificationAddress().ToString();
+    return getBIP47Account(i).getNotificationAddress().ToString();
 }
 
-string CWallet::getPaymentCode()
+string CWallet::getPaymentCode(int i)
 {
-    return getBIP47Account(0).getStringPaymentCode();
+    int index = (i >= m_CBIP47Accounts.size()) ? 0: i;
+    return getBIP47Account(index).getStringPaymentCode();
+}
+
+int CWallet::getPaymentCodeCount() {
+    return m_CBIP47Accounts.size();
 }
 
 std::string CWallet::getPaymentCodeForAddress(std::string address)

@@ -4471,7 +4471,7 @@ UniValue getmypaymentcode(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
 
     
-    return pwallet->getPaymentCode();
+    return pwallet->getPaymentCode(0);
 }
 
 UniValue getmynotificationaddress(const JSONRPCRequest& request) {
@@ -4490,7 +4490,7 @@ UniValue getmynotificationaddress(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
 
     
-    return pwallet->getNotificationAddress();
+    return pwallet->getNotificationAddress(0);
 }
 
 UniValue getnotificationaddressfrompaymentcode(const JSONRPCRequest& request) {
@@ -4611,7 +4611,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
     ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
     ret.push_back(Pair("Wallet Account isvalid", walletCBIP47AccountValid));
     
-    if(pwallet->getPaymentCode().compare(strPcode) == 0)
+    if(pwallet->getPaymentCode(0).compare(strPcode) == 0)
     {
         ret.push_back(Pair("IsMine", true));
     }

@@ -1351,12 +1351,14 @@ public:
     
     bool savePaymentCode(CPaymentCode from_pcode);
 
+    int getPaymentCodeCount();
+
 
     CBIP47Account getBIP47Account(int i);
     
-    std::string getNotificationAddress();
+    std::string getNotificationAddress(int i);
 
-    std::string getPaymentCode();
+    std::string getPaymentCode(int i);
     std::string getPaymentCodeForAddress(std::string address);
     
     void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
