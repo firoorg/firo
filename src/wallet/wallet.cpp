@@ -73,7 +73,7 @@ bool fWalletInitialized = false;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
 
-std::string CWallet::bip47WalletFile = "wallet.bip47";
+std::string CWallet::bip47WalletFile = "wallet.dat";
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -1844,12 +1844,6 @@ void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter
     LogPrintf("Loaded m_Bip47channels count = %d\n", m_Bip47channels.size());
     
     deriveCBIP47Accounts(masterExtKey);
-    CBitcoinAddress notificationAddress = getBIP47Account(0).getNotificationAddress();
-    CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
-    if (!HaveWatchOnly(notificationScript))
-    {
-        AddWatchOnly(notificationScript);
-    }
 
 }
 std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Make Notification Transaction
@@ -1955,6 +1949,9 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
             LogPrintf("Bip47Wallet Error CommitTransaction\n");
             throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
+
+        //save notification tx hash to wallet db
+
         return wtx.GetHash().GetHex();
     }
     catch(const std::exception& e)
@@ -2184,14 +2181,25 @@ void CWallet::deriveCBIP47Accounts(vector<unsigned char> hd_seed)
     CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
     // CExtKey identityKey;           //key identity
     // CExtKey childKey;              // index
-
-    masterKey.SetMaster(&hd_seed[0], hd_seed.size());
-    masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
-    purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
-    CBIP47Account bip47Account(coinTypeKey, 0);
-
+    CWalletDB walletDB(strWalletFile);
+    int lastPCodeIndex = 0;
+    walletDB.ReadLastPCodeIndex(lastPCodeIndex);
     m_CBIP47Accounts.clear();
-    m_CBIP47Accounts.push_back(bip47Account);
+    for(int i = 0; i <= lastPCodeIndex; i++) {
+        masterKey.SetMaster(&hd_seed[0], hd_seed.size());
+        masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
+        purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
+        CBIP47Account bip47Account(coinTypeKey, i);
+
+        m_CBIP47Accounts.push_back(bip47Account);
+
+        CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
+        CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+        if (!HaveWatchOnly(notificationScript))
+        {
+            AddWatchOnly(notificationScript);
+        }
+    }
 }
 
 
@@ -2206,14 +2214,63 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
     
     LogPrintf("Derive Purpose Key Done\n");
     
-    purposeKey.Derive(coinTypeKey, 0 | BIP32_HARDENED_KEY_LIMIT);
+    CWalletDB walletDB(strWalletFile);
+    int lastPCodeIndex = 0;
+    walletDB.ReadLastPCodeIndex(lastPCodeIndex);
+    m_CBIP47Accounts.clear();
+    for(int i = 0; i <= lastPCodeIndex; i++) {
+        purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
+        LogPrintf("Derive CoinTypeKey Done\n");
+        CBIP47Account bip47Account(coinTypeKey, i);
+        LogPrintf("Bip47 Account Created Done\n");
+
+        m_CBIP47Accounts.push_back(bip47Account);
+
+        CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
+        CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+        if (!HaveWatchOnly(notificationScript))
+        {
+            AddWatchOnly(notificationScript);
+        }
+    }
+    LogPrintf("Dervie CBIP47Accounts Done\n");
+}
+
+std::string CWallet::generateNewPCode() {
+    CExtKey masterKey;
+    vector<unsigned char> seedmaster;
+    loadBip47SeedMaster(seedmaster);           
+    masterKey.SetMaster(&seedmaster[0], seedmaster.size());
+    return generateNewPCode(masterKey);
+}
+
+std::string CWallet::generateNewPCode(CExtKey masterKey) {
+    CExtKey purposeKey;            //key at m/47'
+    CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
+
+    masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
+    
+    LogPrintf("Derive Purpose Key Done\n");
+    
+    CWalletDB walletDB(strWalletFile);
+    int lastPCodeIndex = 0;
+    walletDB.ReadLastPCodeIndex(lastPCodeIndex);
+    lastPCodeIndex++;
+    purposeKey.Derive(coinTypeKey, lastPCodeIndex | BIP32_HARDENED_KEY_LIMIT);
     LogPrintf("Derive CoinTypeKey Done\n");
-    CBIP47Account bip47Account(coinTypeKey, 0);
+    CBIP47Account bip47Account(coinTypeKey, lastPCodeIndex);
     LogPrintf("Bip47 Account Created Done\n");
 
-    m_CBIP47Accounts.clear();
     m_CBIP47Accounts.push_back(bip47Account);
-    LogPrintf("Dervie CBIP47Accounts Done\n");
+
+    CBitcoinAddress notificationAddress = getBIP47Account(lastPCodeIndex).getNotificationAddress();
+    CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+    if (!HaveWatchOnly(notificationScript))
+    {
+        AddWatchOnly(notificationScript);
+    }
+    walletDB.UpdateLastPCodeIndex();
+    return bip47Account.getStringPaymentCode();
 }
 
 void CWallet::saveCBIP47PaymentChannelData(string pchannelId)

@@ -939,6 +939,36 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     return true;
 }
 
+UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    string mainPaymentCode = pwalletMain->getPaymentCode();
+    UniValue ret(UniValue::VARR);
+    UniValue item(UniValue::VOBJ);
+    item.push_back(Pair("label", "main account"));
+    item.push_back(Pair("paymentcode", mainPaymentCode));
+    ret.push_back(item);
+    return ret;
+}  
+
+UniValue createnewaddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    string newPaymentCode = pwalletMain->generateNewPCode();
+    UniValue ret(UniValue::VARR);
+    UniValue item(UniValue::VOBJ);
+    item.push_back(Pair("label", "new"));
+    item.push_back(Pair("address", mainPaymentCode));
+    ret.push_back(item);
+    return ret;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
   //  --------------------- ------------                      ----------------                 --------   --------------   --------
@@ -954,7 +984,8 @@ static const CAPICommand commands[] =
     { "wallet",             "showMnemonics",                  &showmnemonics,                  true,      true,            false  },
     { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
-    { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  }
+    { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
+    { "wallet",             "getPaymentCodes",                &getpaymentcodes,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

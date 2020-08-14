@@ -1361,6 +1361,8 @@ public:
     
     void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
     void deriveCBIP47Accounts(CExtKey masterKey);
+    std::string generateNewPCode(CExtKey masterKey);
+    std::string generateNewPCode();
 
     void saveCBIP47PaymentChannelData(string pchannelId);
     bool addToCBIP47PaymentChannel(CBIP47PaymentChannel paymentChannel);

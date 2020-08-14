@@ -1524,6 +1524,21 @@ bool CWalletDB::ErasePcodeNotificationData(const std::string &rpcodestr, const s
     return Erase(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)));
 }
 
+bool CWalletDB::ReadLastPCodeIndex(int& lastIndex)
+{
+    lastIndex = 0;
+    return Read(string("LastPCodeIndex"), lastIndex);
+}
+
+bool CWalletDB::UpdateLastPCodeIndex() {
+    int lastIndex = 0;
+    if (ReadLastPCodeIndex(lastIndex)) {
+        lastIndex++;
+    } 
+    nWalletDBUpdateCounter++;
+    return Write(string("LastPCodeIndex"), lastIndex);
+}
+
 bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
 {
     Dbc *pcursor = GetCursor();

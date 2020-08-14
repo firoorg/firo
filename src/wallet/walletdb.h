@@ -322,6 +322,9 @@ public:
     static void IncrementUpdateCounter();
     static unsigned int GetUpdateCounter();    
 
+    bool ReadLastPCodeIndex(int& lastIndex);
+    bool UpdateLastPCodeIndex();
+
 #ifdef ENABLE_ELYSIUM
 
 public:
