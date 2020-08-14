@@ -10,6 +10,9 @@ Zcoin
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/context:cpp)
 
+<center><img src="https://github.com/zcoinofficial/zcoin/raw/master/src/qt/res/images/splash.png" align="center"></img></center>
+
+
 What is Zcoin?
 --------------
 
