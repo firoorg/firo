@@ -27,7 +27,7 @@ void CDSNotificationInterface::InitializeCurrentBlockTip()
 
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 {
-    //llmq::chainLocksHandler->AcceptedBlockHeader(pindexNew);
+    llmq::chainLocksHandler->AcceptedBlockHeader(pindexNew);
     masternodeSync.AcceptedBlockHeader(pindexNew);
 }
 
@@ -57,7 +57,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
         return;
 
     //llmq::quorumInstantSendManager->UpdatedBlockTip(pindexNew);
-    //llmq::chainLocksHandler->UpdatedBlockTip(pindexNew);
+    llmq::chainLocksHandler->UpdatedBlockTip(pindexNew);
 
     //instantsend.UpdatedBlockTip(pindexNew);
     //governance.UpdatedBlockTip(pindexNew, connman);
@@ -68,7 +68,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
 void CDSNotificationInterface::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock)
 {
     //llmq::quorumInstantSendManager->SyncTransaction(tx, pindex, posInBlock);
-    //llmq::chainLocksHandler->SyncTransaction(tx, pindex, posInBlock);
+    llmq::chainLocksHandler->SyncTransaction(tx, pindex, posInBlock);
     //instantsend.SyncTransaction(tx, pindex, posInBlock);
 }
 
