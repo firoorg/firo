@@ -376,7 +376,7 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(zc2SigmaAction);
     zc2SigmaAction->setVisible(false);
 
-    lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("&Lelantus"), this);
+    lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/lelantus"), tr("&Lelantus"), this);
     lelantusAction->setStatusTip(tr("Anonymize your coins"));
     lelantusAction->setToolTip(lelantusAction->statusTip());
     lelantusAction->setCheckable(true);

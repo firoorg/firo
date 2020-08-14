@@ -55,7 +55,7 @@ void AutoMintDialog::accept()
         }
     }
 
-    ui->warningLabel->setText(QString("Minting..."));
+    ui->warningLabel->setText(QString("Anonymizing..."));
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);

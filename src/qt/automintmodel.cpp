@@ -65,7 +65,7 @@ void IncomingFundNotifier::check()
     {
         LOCK2(cs_main, wallet->cs_wallet);
         while (!txs.empty()) {
-            auto tx = txs.front();
+            auto const &tx = txs.back();
             txs.pop_back();
 
             auto wtx = wallet->mapWallet.find(tx);

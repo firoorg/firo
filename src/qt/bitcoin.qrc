@@ -71,6 +71,7 @@
         <file alias="elysium_meta_partfilled">res/icons/meta_partfilled.png</file>
         <file alias="elysium_meta_pending">res/icons/meta_pending.png</file>
         <file alias="elysium_hourglass">res/icons/elysium_hourglass.png</file>
+        <file alias="lelantus">res/icons/lelantus.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="splash">res/images/splash.png</file>

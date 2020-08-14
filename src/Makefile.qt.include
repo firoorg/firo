@@ -383,7 +383,8 @@ RES_ICONS = \
   qt/res/images/about.png \
   qt/res/images/splash.png \
   qt/res/images/splash-testnet.png \
-  qt/res/icons/transaction_abandoned.png
+  qt/res/icons/transaction_abandoned.png \
+  qt/res/icons/lelantus.png
 
 BITCOIN_QT_BASE_CPP = \
   qt/bantablemodel.cpp \
