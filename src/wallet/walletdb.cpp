@@ -1462,7 +1462,7 @@ bool CWalletDB::WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, 
     return Write(std::make_pair(std::string("CBIP47PaymentChannel"), channelId), pchannel);
 }
 
-void CWalletDB::ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel> &mPchannels)
+void CWalletDB::ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels)
 {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
@@ -1499,7 +1499,12 @@ void CWalletDB::ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel>
         LogPrintf("ssValue Size is %d\n", ssValue.size());
         ssValue >> pchannel;
         LogPrintf("Get Pchannl %s\n", pchannel.getPaymentCode());
-        mPchannels.insert(make_pair(value, pchannel));
+        if (mPchannels.count(pchannel.getPaymentCode()) == 1) {
+            mPchannels[pchannel.getPaymentCode()].push_back(pchannel);
+        } else {
+            std::vector<CBIP47PaymentChannel> channels{pchannel};
+            mPchannels.insert(make_pair(value, channels));
+        }
     }
     pcursor->close();
 }

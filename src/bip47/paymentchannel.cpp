@@ -17,21 +17,27 @@ currentOutgoingIndex(0),
 currentIncomingIndex(-1)
 {}
 
-CBIP47PaymentChannel::CBIP47PaymentChannel(string v_paymentCode)
+CBIP47PaymentChannel::CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode)
 : status(STATUS_NOT_SENT),
 currentOutgoingIndex(0),
 currentIncomingIndex(-1)
 {
     paymentCode = v_paymentCode;
+    myPaymentCode = v_myPaymentCode;
 }
 
-CBIP47PaymentChannel::CBIP47PaymentChannel(string v_paymentCode, string v_label) {
+CBIP47PaymentChannel::CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label) {
     paymentCode = v_paymentCode;
     label = v_label;
+    myPaymentCode = v_myPaymentCode;
 }
 
-string CBIP47PaymentChannel::getPaymentCode() {
+string CBIP47PaymentChannel::getPaymentCode() const {
     return paymentCode;
+}
+
+string CBIP47PaymentChannel::getMyPaymentCode() const {
+    return myPaymentCode;
 }
 
 void CBIP47PaymentChannel::setPaymentCode(string pc) {
@@ -50,7 +56,8 @@ void CBIP47PaymentChannel::generateKeys(CWallet *bip47Wallet) {
     for(int i = 0; i < LOOKAHEAD; i++)
     {
         CPaymentCode pcode(paymentCode);
-        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(bip47Wallet, pcode, i);
+        CBIP47Account acc = bip47Wallet->getBIP47Account(myPaymentCode);
+        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, bip47Wallet, pcode, i);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());

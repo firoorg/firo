@@ -13,10 +13,11 @@ class CBIP47PaymentChannel {
 
     public:
         CBIP47PaymentChannel();
-        CBIP47PaymentChannel(string v_paymentCode);
-        CBIP47PaymentChannel(string v_paymentCode, string v_label);
+        CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode);
+        CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label);
         
-        string getPaymentCode();
+        string getPaymentCode() const;
+        string getMyPaymentCode() const;
         void setPaymentCode(string pc);
         std::vector<CBIP47Address>& getIncomingAddresses();
         int getCurrentIncomingIndex();
@@ -52,7 +53,7 @@ class CBIP47PaymentChannel {
          static int STATUS_NOT_SENT;
          static int STATUS_SENT_CFM;
          static int LOOKAHEAD;
-
+         string myPaymentCode;
          string paymentCode;
          string label;
          std::vector<CBIP47Address> incomingAddresses;

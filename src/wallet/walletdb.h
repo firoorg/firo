@@ -309,7 +309,7 @@ public:
     // @bip47 channel data write
     bool WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId);
     
-    void ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel> &mPchannels);
+    void ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels);
 
     /// Write destination data key,value tuple to database
     bool WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);

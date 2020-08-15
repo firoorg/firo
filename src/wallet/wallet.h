@@ -1334,7 +1334,8 @@ public:
     std::vector<CKey> m_Bip47PendingKeys;
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;
-    std::map<string, CBIP47PaymentChannel> m_Bip47channels;
+    //map other wallet => map(my wallet pcode => chanel)
+    std::map<string, std::vector<CBIP47PaymentChannel>> m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
     std::string makeNotificationTransaction(std::string paymentCode);
 
@@ -1355,6 +1356,7 @@ public:
 
 
     CBIP47Account getBIP47Account(int i);
+    CBIP47Account getBIP47Account(string paymentCode);
     
     std::string getNotificationAddress(int i);
 
@@ -1376,7 +1378,7 @@ public:
     bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     
     bool generateNewBip47IncomingAddress(string address);
-    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr);
+    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode="");
     bool setBip47ChannelLabel(std::string pcodestr, std::string label);
     
     void processNotificationTransaction(CTransaction tx);

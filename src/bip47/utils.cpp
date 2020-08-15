@@ -222,10 +222,11 @@ CPaymentAddress CBIP47Util::getPaymentAddress(CPaymentCode &pcode, int idx, CExt
     
 }
 
-CPaymentAddress CBIP47Util::getReceiveAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
+CPaymentAddress CBIP47Util::getReceiveAddress(CBIP47Account *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
 {
     CPaymentAddress pm_address;
-    CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(idx);
+    //loook for bip47 account that has payment address as in the chanel 
+    CExtKey accEkey = v_bip47Account->keyPrivAt(idx);
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_from, 0, accEkey);

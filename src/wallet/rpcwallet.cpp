@@ -4626,7 +4626,8 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if(pchannel->getIncomingAddresses().size() == 0) {
-                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
+                CBIP47Account acc = pwallet->getBIP47Account(pchannel->getMyPaymentCode());
+                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4639,11 +4640,12 @@ UniValue validatepcode(const JSONRPCRequest& request)
         else
         {
             ret.push_back(Pair("Exist in CBIP47PaymentChannel", false));
-            CBIP47PaymentChannel pchannel(strPcode);
+            CBIP47PaymentChannel pchannel(pwallet->getPaymentCode(0), strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if(pchannel.getIncomingAddresses().size() == 0) {
-                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(pwallet, paymentCode, 0);
+                CBIP47Account acc = pwallet->getBIP47Account(0);
+                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
