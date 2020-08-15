@@ -587,23 +587,29 @@
        <property name="topMargin">
         <number>10</number>
        </property>
-       <item row="5" column="1">
-        <widget class="QLabel" name="unconfirmed">
-         <property name="text">
-          <string>0</string>
+       <item row="5" column="0">
+        <widget class="QLabel" name="spendableText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <property name="text">
+          <string>Spendable:</string>
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QLabel" name="globalUnspent">
-         <property name="text">
-          <string>0</string>
+       <item row="3" column="0">
+        <widget class="QLabel" name="unspentText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <property name="text">
+          <string>Unspent:</string>
          </property>
         </widget>
        </item>
@@ -624,35 +630,6 @@
         </widget>
        </item>
        <item row="6" column="0">
-        <widget class="QLabel" name="totalText">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>25</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Total:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="2">
-        <widget class="QLabel" name="unconfirmedAmount">
-         <property name="minimumSize">
-          <size>
-           <width>300</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>0.00000000 XZC</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0">
         <widget class="QLabel" name="unconfirmedText">
          <property name="minimumSize">
           <size>
@@ -662,6 +639,19 @@
          </property>
          <property name="text">
           <string>Unconfirmed:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="globalLelantusPoolText">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Global Lelantus Pool:</string>
          </property>
         </widget>
        </item>
@@ -681,16 +671,39 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="spendableText">
+       <item row="3" column="2">
+        <widget class="QLabel" name="globalUnspentAmount">
          <property name="minimumSize">
           <size>
-           <width>0</width>
-           <height>25</height>
+           <width>300</width>
+           <height>0</height>
           </size>
          </property>
          <property name="text">
-          <string>Spendable:</string>
+          <string>0.00000000 XZC</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QLabel" name="total">
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLabel" name="unconfirmed">
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
         </widget>
        </item>
@@ -707,8 +720,8 @@
          </property>
         </spacer>
        </item>
-       <item row="2" column="2">
-        <widget class="QLabel" name="globalUnspentAmount">
+       <item row="6" column="2">
+        <widget class="QLabel" name="unconfirmedAmount">
          <property name="minimumSize">
           <size>
            <width>300</width>
@@ -723,8 +736,8 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="1">
-        <widget class="QLabel" name="total">
+       <item row="3" column="1">
+        <widget class="QLabel" name="globalUnspent">
          <property name="text">
           <string>0</string>
          </property>
@@ -733,7 +746,7 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="2">
+       <item row="7" column="2">
         <widget class="QLabel" name="totalAmount">
          <property name="minimumSize">
           <size>
@@ -749,30 +762,7 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="totalAnonymizedCoinsText">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>25</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Total anonymized coins:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="1">
-        <widget class="QLabel" name="spendable">
-         <property name="text">
-          <string>0</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QLabel" name="yourAnoymizedCoinsText">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -803,7 +793,43 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="2">
+       <item row="5" column="1">
+        <widget class="QLabel" name="spendable">
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="totalText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Total:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="totalAnonymizedCoinsText">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Total:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="2">
         <widget class="QLabel" name="spendableAmount">
          <property name="minimumSize">
           <size>
@@ -820,28 +846,29 @@
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QLabel" name="unspentText">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>25</height>
-          </size>
-         </property>
+        <widget class="QLabel" name="label">
          <property name="text">
-          <string>Unspent:</string>
+          <string>Latest group:</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="globalLelantusPoolText">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
+       <item row="2" column="1">
+        <widget class="QLabel" name="globalLatestGroupCoins">
          <property name="text">
-          <string>Global Lelantus Pool:</string>
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2">
+        <widget class="QLabel" name="globalLatestGroupCoinsAmount">
+         <property name="text">
+          <string>0.00000000 XZC</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
         </widget>
        </item>
@@ -1618,7 +1645,7 @@
  </resources>
  <connections/>
  <buttongroups>
-  <buttongroup name="groupCustomFee"/>
   <buttongroup name="groupFee"/>
+  <buttongroup name="groupCustomFee"/>
  </buttongroups>
 </ui>

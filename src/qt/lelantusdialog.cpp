@@ -33,6 +33,7 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
 
     // hide amount of global pool
     ui->globalTotalCoinsAmount->setVisible(false);
+    ui->globalLatestGroupCoinsAmount->setVisible(false);
     ui->globalUnspentAmount->setVisible(false);
 
     // Coin Control
@@ -283,6 +284,14 @@ void LelantusDialog::updateGlobalState()
     auto state = lelantus::CLelantusState::GetState();
     auto mintCount = state->GetMints().size();
     auto spendCount = state->GetSpends().size();
+    size_t mintsInLatestGroup = 0;
+
+    if (mintCount) {
+        lelantus::CLelantusState::LelantusCoinGroupInfo group;
+        if (state->GetCoinGroupInfo(state->GetLatestCoinID(), group)) {
+            mintsInLatestGroup = group.nCoins;
+        }
+    }
 
     auto sigmaState = sigma::CSigmaState::GetState();
     auto remainingSigmaMints = sigmaState->GetMints().size() - sigmaState->GetSpends().size();
@@ -290,6 +299,7 @@ void LelantusDialog::updateGlobalState()
     mintCount += remainingSigmaMints;
 
     ui->globalTotalCoins->setText(QString::fromStdString(std::to_string(mintCount)));
+    ui->globalLatestGroupCoins->setText(QString::fromStdString(std::to_string(mintsInLatestGroup)));
     ui->globalUnspent->setText(QString::fromStdString(std::to_string(mintCount - spendCount)));
 }
 

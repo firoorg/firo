@@ -15,7 +15,8 @@ AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    userAsk(userAsk)
+    userAsk(userAsk),
+    minting(false)
 {
     ENTER_CRITICAL_SECTION(cs_main);
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
@@ -55,12 +56,15 @@ void AutoMintDialog::accept()
         }
     }
 
-    ui->warningLabel->setText(QString("Anonymizing..."));
+    ui->warningLabel->setVisible(false);
+    ui->warningLabel->setVisible(false);
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);
     ui->lockWarningLabel->setVisible(false);
     ui->lockCheckBox->setVisible(false);
+
+    minting = true;
 
     repaint();
 
@@ -129,6 +133,23 @@ void AutoMintDialog::setModel(WalletModel *model)
 
         requiredPassphase = false;
     }
+}
+
+void AutoMintDialog::paintEvent(QPaintEvent *event)
+{
+    QPainter painter;
+    painter.begin(this);
+
+    if (minting) {
+        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, "Anonymizing...");
+        painter.drawText(
+            (width() - size.width()) / 2,
+            (height() - size.height()) / 2,
+            QString("Anonymizing..."));
+    }
+
+    QWidget::paintEvent(event);
+    painter.end();
 }
 
 void AutoMintDialog::ensureLelantusModel()

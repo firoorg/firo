@@ -160,17 +160,6 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         }
 
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
-        {
-            // switch to transparent mode if there are transparent balance and have no anoymous balance.
-            auto haveTransparentBalance = _model->getBalance() > 0 || _model->getUnconfirmedBalance() > 0;
-
-            // if lelantus is allowed we can spend sigma in this too.
-            auto havePrivateBalance = privateBalance.first > 0 || privateBalance.second > 0;
-
-            if (haveTransparentBalance && !havePrivateBalance) {
-                setAnonymizeMode(false);
-            }
-        }
 
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
@@ -464,6 +453,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
 
     if (allowed && !ui->switchFundButton->isEnabled())
     {
+        setAnonymizeMode(true);
         ui->switchFundButton->setEnabled(true);
     }
     else if (!allowed && ui->switchFundButton->isEnabled())

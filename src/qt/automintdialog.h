@@ -4,6 +4,8 @@
 #include "walletmodel.h"
 
 #include <QDialog>
+#include <QPainter>
+#include <QPaintEvent>
 
 namespace Ui {
     class AutoMintDialog;
@@ -21,6 +23,8 @@ public:
     int exec();
     void setModel(WalletModel *model);
 
+    void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
+
 private Q_SLOTS:
     void accept();
     void reject();
@@ -31,6 +35,7 @@ private:
     LelantusModel *lelantusModel;
     bool requiredPassphase;
     bool userAsk;
+    bool minting;
 
     void ensureLelantusModel();
 };
