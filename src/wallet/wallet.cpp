@@ -1846,7 +1846,7 @@ void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter
     deriveCBIP47Accounts(masterExtKey);
 
 }
-std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Make Notification Transaction
+std::string CWallet::makeNotificationTransaction(std::string paymentCode, int accountIndex) // Make Notification Transaction
 {
     CBIP47Account toCBIP47Account(paymentCode);
     CAmount ntValue = CENT / 2;
@@ -1919,7 +1919,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode) // Mak
         vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 
         LogPrintf("Get op_return bytes via blind\n");
-        vector<unsigned char> op_return = CPaymentCode::blind(m_CBIP47Accounts[0].getPaymentCode().getPayload(), mask);
+        vector<unsigned char> op_return = CPaymentCode::blind(m_CBIP47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
@@ -2157,6 +2157,16 @@ CBIP47Account CWallet::getBIP47Account(string paymentCode) const
         }
     }
     return acc;
+}
+
+int CWallet::getBIP47AccountIndex(string paymentCode) const
+{
+    for(int i = 0; i < getPaymentCodeCount(); i++) {
+        if (getPaymentCode(i) == paymentCode) {
+            return i;
+        }
+    }
+    return 0;
 }
 
 string CWallet::getNotificationAddress(int i) const

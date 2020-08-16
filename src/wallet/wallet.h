@@ -1337,7 +1337,7 @@ public:
     //map other wallet => map(my wallet pcode => chanel)
     std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
-    std::string makeNotificationTransaction(std::string paymentCode);
+    std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
 
     bool isNotificationTransaction(CTransaction tx);
     bool isNotificationTransactionSent(string pcodestr) const;
@@ -1357,6 +1357,7 @@ public:
 
     CBIP47Account getBIP47Account(int i) const;
     CBIP47Account getBIP47Account(string paymentCode) const;
+    int getBIP47AccountIndex(string paymentCode) const;
     
     std::string getNotificationAddress(int i) const;
 
