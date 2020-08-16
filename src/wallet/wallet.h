@@ -1335,12 +1335,12 @@ public:
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;
     //map other wallet => map(my wallet pcode => chanel)
-    std::map<string, std::vector<CBIP47PaymentChannel>> m_Bip47channels;
+    std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
     std::string makeNotificationTransaction(std::string paymentCode);
 
     bool isNotificationTransaction(CTransaction tx);
-    bool isNotificationTransactionSent(string pcodestr);
+    bool isNotificationTransactionSent(string pcodestr) const;
     bool isToBIP47Address(CTransaction tx);
     bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
     bool saveBip47SeedMaster(vector<unsigned char> seedmaster);
@@ -1352,16 +1352,16 @@ public:
     
     bool savePaymentCode(CPaymentCode from_pcode);
 
-    int getPaymentCodeCount();
+    int getPaymentCodeCount() const;
 
 
-    CBIP47Account getBIP47Account(int i);
-    CBIP47Account getBIP47Account(string paymentCode);
+    CBIP47Account getBIP47Account(int i) const;
+    CBIP47Account getBIP47Account(string paymentCode) const;
     
-    std::string getNotificationAddress(int i);
+    std::string getNotificationAddress(int i) const;
 
-    std::string getPaymentCode(int i);
-    std::string getPaymentCodeForAddress(std::string address);
+    std::string getPaymentCode(int i) const;
+    std::string getPaymentCodeForAddress(std::string address) const;
     
     void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
     void deriveCBIP47Accounts(CExtKey masterKey);
@@ -1378,7 +1378,7 @@ public:
     bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     
     bool generateNewBip47IncomingAddress(string address);
-    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode="");
+    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode="") const;
     bool setBip47ChannelLabel(std::string pcodestr, std::string label);
     
     void processNotificationTransaction(CTransaction tx);

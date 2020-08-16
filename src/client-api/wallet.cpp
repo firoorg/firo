@@ -972,6 +972,60 @@ UniValue createnewpaymentcode(Type type, const UniValue& data, const UniValue& a
     return ret;
 }
 
+UniValue readAllPaymentChannelsState() 
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    UniValue ret(UniValue::VOBJ);
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>)& item, pwalletMain->m_Bip47channels)
+    {
+        UniValue arrChannels(UniValue::VARR);
+        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+        for(size_t i = 0; i < channels.size(); i++) 
+        {
+            UniValue uniChannelItem(UniValue::VOBJ);
+            const CBIP47PaymentChannel& paymentChannelItem = channels[i];
+            uniChannelItem.push_back(Pair("paymentCode", paymentChannelItem.getPaymentCode()));
+            uniChannelItem.push_back(Pair("myPaymentCode", paymentChannelItem.getMyPaymentCode()));
+            uniChannelItem.push_back(Pair("label", paymentChannelItem.getLabel()));
+            uniChannelItem.push_back(Pair("status", paymentChannelItem.isNotificationTransactionSent()));
+            uniChannelItem.push_back(Pair("currentIncomingIndex", paymentChannelItem.getCurrentIncomingIndex()));
+            uniChannelItem.push_back(Pair("currentOutgoingIndex", paymentChannelItem.getCurrentOutgoingIndex()));
+            
+            UniValue uniIncomingAddresses(UniValue::VARR);
+            std::vector<CBIP47Address> incomingAddresses = paymentChannelItem.getIncomingAddresses();
+            for(size_t j = 0; j < incomingAddresses.size(); j++) {
+                uniIncomingAddresses.push_back(incomingAddresses[j].getAddress());
+            } 
+            uniChannelItem.push_back(Pair("incomingAddresses", uniIncomingAddresses));
+
+            UniValue uniOutgoingAddresses(UniValue::VARR);
+            std::vector<string> outgoingAddresses = paymentChannelItem.getOutgoingAddresses();
+            for(size_t j = 0; j < outgoingAddresses.size(); j++) {
+                uniOutgoingAddresses.push_back(outgoingAddresses[j]);
+            } 
+            uniChannelItem.push_back(Pair("outgoingAddresses", uniOutgoingAddresses));
+
+            arrChannels.push_back(uniChannelItem);
+        }
+        ret.push_back(Pair(item.first, arrChannels));
+    }
+    return ret;
+}
+
+UniValue readpaymentchannelsstate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    return readAllPaymentChannelsState();    
+}
+
+
+
 static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
   //  --------------------- ------------                      ----------------                 --------   --------------   --------
@@ -989,7 +1043,8 @@ static const CAPICommand commands[] =
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "getPaymentCodes",                &getpaymentcodes,                true,      false,           false  },
-    { "wallet",             "createNewPaymentCode",                &createnewpaymentcode,                true,      false,           false  }
+    { "wallet",             "createNewPaymentCode",                &createnewpaymentcode,                true,      false,           false  },
+    { "wallet",             "readPaymentChannelsState",                &readpaymentchannelsstate,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

@@ -44,11 +44,11 @@ void CBIP47PaymentChannel::setPaymentCode(string pc) {
     paymentCode = pc;
 }
 
-std::vector<CBIP47Address>& CBIP47PaymentChannel::getIncomingAddresses() {
+std::vector<CBIP47Address> CBIP47PaymentChannel::getIncomingAddresses() const {
     return incomingAddresses;
 }
 
-int CBIP47PaymentChannel::getCurrentIncomingIndex() {
+int CBIP47PaymentChannel::getCurrentIncomingIndex() const {
     return currentIncomingIndex;
 }
 
@@ -90,11 +90,11 @@ void CBIP47PaymentChannel::setLabel(string l) {
     label = l;
 }
 
-std::vector<string>& CBIP47PaymentChannel::getOutgoingAddresses() {
+std::vector<string> CBIP47PaymentChannel::getOutgoingAddresses() const {
     return outgoingAddresses;
 }
 
-bool CBIP47PaymentChannel::isNotificationTransactionSent() {
+bool CBIP47PaymentChannel::isNotificationTransactionSent() const {
     return status == STATUS_SENT_CFM;
 }
 
@@ -102,7 +102,7 @@ void CBIP47PaymentChannel::setStatusSent() {
     status = STATUS_SENT_CFM;
 }
 
-int CBIP47PaymentChannel::getCurrentOutgoingIndex() {
+int CBIP47PaymentChannel::getCurrentOutgoingIndex() const {
     return currentOutgoingIndex;
 }
 

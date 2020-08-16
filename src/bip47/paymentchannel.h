@@ -19,18 +19,18 @@ class CBIP47PaymentChannel {
         string getPaymentCode() const;
         string getMyPaymentCode() const;
         void setPaymentCode(string pc);
-        std::vector<CBIP47Address>& getIncomingAddresses();
-        int getCurrentIncomingIndex();
+        std::vector<CBIP47Address> getIncomingAddresses() const;
+        int getCurrentIncomingIndex() const;
         void generateKeys(CWallet *bip47Wallet);
         CBIP47Address* getIncomingAddress(string address);
         void addNewIncomingAddress(string newAddress, int nextIndex);
         string getLabel() const;
         void setLabel(string l);
-        std::vector<string>& getOutgoingAddresses();
+        std::vector<string> getOutgoingAddresses() const;
 
-        bool isNotificationTransactionSent();
+        bool isNotificationTransactionSent() const;
         void setStatusSent();
-        int getCurrentOutgoingIndex();
+        int getCurrentOutgoingIndex() const;
         void incrementOutgoingIndex();
         void addAddressToOutgoingAddresses(string address);
         void setStatusNotSent();
@@ -39,6 +39,7 @@ class CBIP47PaymentChannel {
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             READWRITE(paymentCode);
+            READWRITE(myPaymentCode);
             READWRITE(label);
             READWRITE(status);
             READWRITE(currentIncomingIndex);

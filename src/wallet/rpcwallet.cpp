@@ -4697,7 +4697,7 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     
-    CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
+    const CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
     
     if (channel->isNotificationTransactionSent()) 
     {

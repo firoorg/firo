@@ -336,7 +336,7 @@ bool WalletModel::validatePaymentCode(const QString &pCode)
     return paymentCode.isValid();
 }
 
-bool WalletModel::isNotificationTransactionSent(const QString &pCode)
+bool WalletModel::isNotificationTransactionSent(const QString &pCode) const
 {
     return wallet->isNotificationTransactionSent(pCode.toStdString());
 }

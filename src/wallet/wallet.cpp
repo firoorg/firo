@@ -1985,14 +1985,14 @@ bool CWallet::isNotificationTransaction(CTransaction tx) // lgtm [cpp/large-para
     return false;
 }
 
-bool CWallet::isNotificationTransactionSent(string pcodestr)
+bool CWallet::isNotificationTransactionSent(string pcodestr) const
 {
     CPaymentCode pcode(pcodestr);
     if(!pcode.isValid())
         return false;
     if(m_Bip47channels.count(pcodestr) > 0)
     {
-        CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
+        const CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
         return pchannel->isNotificationTransactionSent();
     }
     return false;
@@ -2143,12 +2143,12 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode)
     return true;
 }
 
-CBIP47Account CWallet::getBIP47Account(int i)
+CBIP47Account CWallet::getBIP47Account(int i) const
 {
     return m_CBIP47Accounts[i];
 }
 
-CBIP47Account CWallet::getBIP47Account(string paymentCode)
+CBIP47Account CWallet::getBIP47Account(string paymentCode) const
 {
     CBIP47Account acc;
     for(int i = 0; i < getPaymentCodeCount(); i++) {
@@ -2159,22 +2159,22 @@ CBIP47Account CWallet::getBIP47Account(string paymentCode)
     return acc;
 }
 
-string CWallet::getNotificationAddress(int i)
+string CWallet::getNotificationAddress(int i) const
 {
     return getBIP47Account(i).getNotificationAddress().ToString();
 }
 
-string CWallet::getPaymentCode(int i)
+string CWallet::getPaymentCode(int i) const
 {
     int index = (i >= m_CBIP47Accounts.size()) ? 0: i;
     return getBIP47Account(index).getStringPaymentCode();
 }
 
-int CWallet::getPaymentCodeCount() {
+int CWallet::getPaymentCodeCount() const {
     return m_CBIP47Accounts.size();
 }
 
-std::string CWallet::getPaymentCodeForAddress(std::string address)
+std::string CWallet::getPaymentCodeForAddress(std::string address) const
 {
     std::map<string, std::vector<CBIP47PaymentChannel>>::iterator m_it = m_Bip47channels.begin();
     while(m_it != m_Bip47channels.end())
@@ -2391,7 +2391,7 @@ bool CWallet::generateNewBip47IncomingAddress(string address)
     return false;
 }
 
-CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode)
+CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode) const
 {
     if (m_Bip47channels.count(pcodestr) > 0)
     {
