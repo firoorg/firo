@@ -241,6 +241,14 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             }
             else {
                 category = "send";
+                if (wtx.tx->IsPaymentCode()) {
+                    const CBIP47PaymentChannel* pchannel = pwalletMain->findPaymentChannelFromNotificationTransaction(*wtx.tx);
+                    if (pchannel) {
+                        entry.push_back(Pair("isNotificationTransaction", true));
+                        entry.push_back(Pair("paymentCode", pchannel->getPaymentCode()));
+                        entry.push_back(Pair("myPaymentCode", pchannel->getMyPaymentCode()));
+                    }
+                }
             }
 
             string categoryIndex = category + voutIndex;
@@ -334,6 +342,14 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 category = "spendIn";
             } else {
                 category = "receive";
+                if (wtx.tx->IsPaymentCode()) {
+                    const CBIP47PaymentChannel* pchannel = pwalletMain->findPaymentChannelFromNotificationTransaction(*wtx.tx);
+                    if (pchannel) {
+                        entry.push_back(Pair("isNotificationTransaction", true));
+                        entry.push_back(Pair("paymentCode", pchannel->getPaymentCode()));
+                        entry.push_back(Pair("myPaymentCode", pchannel->getMyPaymentCode()));
+                    }
+                }
             }
 
             if(category=="mined"){
