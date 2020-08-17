@@ -1951,7 +1951,8 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         }
 
         //save notification tx hash to wallet db
-
+        CBIP47PaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
+        channel->setStatusSent();
         return wtx.GetHash().GetHex();
     }
     catch(const std::exception& e)

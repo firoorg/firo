@@ -500,8 +500,8 @@ static const CAPICommand commands[] =
     { "send",            "paymentRequest",         &paymentrequest,         true,      false,           false  },
     { "send",            "paymentRequestAddress",  &paymentrequestaddress,  true,      false,           false  },
     { "send",            "txFee",                  &txfee,                  true,      false,           false  },
-    { "send",            "sendZcoin",              &sendzcoin,              true,      true,            false  }
-
+    { "send",            "sendZcoin",              &sendzcoin,              true,      true,            false  },
+    { "send",            "sendToPaymentCode",              &sendtopaymentcode,              true,      true,            false  }
 };
 
 void RegisterSendAPICommands(CAPITable &tableAPI)
