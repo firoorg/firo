@@ -1338,10 +1338,10 @@ public:
     std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
     std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
+    CBIP47PaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
 
     bool isNotificationTransaction(const CTransaction& tx);
     bool isNotificationTransactionSent(string pcodestr) const;
-    bool isToBIP47Address(CTransaction tx);
     bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
     bool saveBip47SeedMaster(vector<unsigned char> seedmaster);
     bool loadBip47SeedMaster(vector<unsigned char>& seedmaster);
@@ -1378,7 +1378,7 @@ public:
     bool ErasePCodeNotificationData(const std::string &rpcodestr, const std::string &key);
     bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     
-    bool generateNewBip47IncomingAddress(string address);
+    bool generateNewBip47IncomingAddress(string address, CBIP47PaymentChannel* channel);
     CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode="") const;
     bool setBip47ChannelLabel(std::string pcodestr, std::string label);
     

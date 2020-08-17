@@ -57,15 +57,16 @@ void CBIP47PaymentChannel::generateKeys(CWallet *bip47Wallet) {
     {
         CPaymentCode pcode(paymentCode);
         CBIP47Account acc = bip47Wallet->getBIP47Account(myPaymentCode);
-        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, bip47Wallet, pcode, i);
+        int nextIndex = currentIncomingIndex + 1 + i;
+        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, bip47Wallet, pcode, nextIndex);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
         LogPrintf("New Address generated %s\n", btcAddr.ToString());
-        incomingAddresses.push_back(CBIP47Address(btcAddr.ToString(), i));
+        incomingAddresses.push_back(CBIP47Address(btcAddr.ToString(), nextIndex));
     }
     
-    currentIncomingIndex = LOOKAHEAD - 1;
+    currentIncomingIndex = currentIncomingIndex + LOOKAHEAD;
 }
 
 CBIP47Address* CBIP47PaymentChannel::getIncomingAddress(string address) {
