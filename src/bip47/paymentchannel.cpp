@@ -44,6 +44,11 @@ void CBIP47PaymentChannel::setPaymentCode(string pc) {
     paymentCode = pc;
 }
 
+uint256 CBIP47PaymentChannel::getNotificationTxHash() const
+{
+    return notiTxHash;
+}
+
 std::vector<CBIP47Address> CBIP47PaymentChannel::getIncomingAddresses() const {
     return incomingAddresses;
 }
@@ -99,8 +104,9 @@ bool CBIP47PaymentChannel::isNotificationTransactionSent() const {
     return status == STATUS_SENT_CFM;
 }
 
-void CBIP47PaymentChannel::setStatusSent() {
+void CBIP47PaymentChannel::setStatusSent(uint256 notiTxHash) {
     status = STATUS_SENT_CFM;
+    this->notiTxHash = notiTxHash;
 }
 
 int CBIP47PaymentChannel::getCurrentOutgoingIndex() const {

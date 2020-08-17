@@ -1342,10 +1342,12 @@ public:
 
     bool isNotificationTransaction(const CTransaction& tx);
     bool isNotificationTransactionSent(string pcodestr) const;
+    bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
+    const CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
     bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
     bool saveBip47SeedMaster(vector<unsigned char> seedmaster);
     bool loadBip47SeedMaster(vector<unsigned char>& seedmaster);
-    CPaymentCode getPaymentCodeInNotificationTransaction(CTransaction tx);
+    CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
     
     CBitcoinAddress getAddressOfReceived(CTransaction tx);
     CBitcoinAddress getAddressOfSent(CTransaction tx);

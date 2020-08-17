@@ -771,7 +771,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent();
+            channel->setStatusSent(transaction.getTransaction()->GetHash());
             needMainTx = true;
         }
         else 
@@ -1512,7 +1512,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent();
+            channel->setStatusSent(transaction.getTransaction()->GetHash());
         }
         else 
         {

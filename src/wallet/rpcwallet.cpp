@@ -4538,7 +4538,8 @@ UniValue getpaymentcodefromnotificationtx(const JSONRPCRequest& request) {
 
     if(pwallet->isNotificationTransaction(tx))
     {
-        CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx);
+        int accIndex;
+        CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx, accIndex);
         if (pcode.isValid())
         {
             bool needsSaving = pwallet->savePaymentCode(pcode);
