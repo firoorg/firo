@@ -1980,9 +1980,11 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) // lgtm [cpp/lar
     LogPrintf("getAddress Of Recevied\n");
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    if (getNotificationAddress(0).compare(addr.ToString()) == 0)
-    {
-        return true;
+    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++) {
+        if (getNotificationAddress(i).compare(addr.ToString()) == 0)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -2052,7 +2054,6 @@ CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(CTransaction tx) /
         vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
         LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
         if(CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
-
         {
             return paymentCode;
         }
