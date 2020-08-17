@@ -293,11 +293,6 @@ void LelantusDialog::updateGlobalState()
         }
     }
 
-    auto sigmaState = sigma::CSigmaState::GetState();
-    auto remainingSigmaMints = sigmaState->GetMints().size() - sigmaState->GetSpends().size();
-
-    mintCount += remainingSigmaMints;
-
     ui->globalTotalCoins->setText(QString::fromStdString(std::to_string(mintCount)));
     ui->globalLatestGroupCoins->setText(QString::fromStdString(std::to_string(mintsInLatestGroup)));
     ui->globalUnspent->setText(QString::fromStdString(std::to_string(mintCount - spendCount)));

@@ -437,12 +437,6 @@ bool CheckLelantusJoinSplitTransaction(
             }
 
             if (joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
-                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
-                    }
-                }
-            } else {
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     for (size_t i = 0; i < serials.size(); i++) {
                         int coinGroupId = ids[i] % (CENT / 1000);
@@ -451,6 +445,12 @@ bool CheckLelantusJoinSplitTransaction(
                         sigma::IntegerToDenomination(intDenom, denomination);
                         sigmaTxInfo->spentSerials.insert(std::make_pair(
                                 serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
+                    }
+                }
+            } else {
+                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+                    for (size_t i = 0; i < serials.size(); i++) {
+                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
                     }
                 }
             }
