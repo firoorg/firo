@@ -1290,7 +1290,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                 if(generateNewBip47IncomingAddress(toaddr))
                 {
                    CPaymentCode pcode = getPaymentCodeInNotificationTransaction(tx);
-                    saveCBIP47PaymentChannelData(pcode.toString());
+                   saveCBIP47PaymentChannelData(pcode.toString());
                 }
             }
 
@@ -2047,14 +2047,17 @@ bool CWallet::loadBip47SeedMaster(vector<unsigned char>& seedmaster)
 CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(CTransaction tx) // lgtm [cpp/large-parameter]
 {
     CPaymentCode paymentCode;
-    CKey notificationPKey = m_CBIP47Accounts[0].getNotificationPrivKey().key;
-    vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
-    LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
-    if(!CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
+    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++) {
+        CKey notificationPKey = m_CBIP47Accounts[i].getNotificationPrivKey().key;
+        vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
+        LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
+        if(CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
 
-    {
-        LogPrintf("Failed to Get PaymentCode in notification Transaction\n");
+        {
+            return paymentCode;
+        }
     }
+    
     return paymentCode;
 }
 
