@@ -482,8 +482,6 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
         std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);
         CBitcoinAddress pcAddress(addressTo);
         CWalletTx wtx;
-        bool fSubtractFeeFromAmount = false;
-
         SendMoney(pwalletMain, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
         channel->addAddressToOutgoingAddresses(addressTo);

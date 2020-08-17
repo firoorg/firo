@@ -2,20 +2,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "validation.h"
+#include "base58.h"
+#include "client-api/protocol.h"
+#include "client-api/send.h"
 #include "client-api/server.h"
+#include "client-api/wallet.h"
 #include "rpc/server.h"
 #include "util.h"
-#include "client-api/wallet.h"
+#include "validation.h"
+#include "wallet/coincontrol.h"
 #include "wallet/wallet.h"
 #include "wallet/walletexcept.h"
-#include "base58.h"
-#include "client-api/send.h"
-#include "client-api/protocol.h"
-#include "wallet/coincontrol.h"
-#include <zerocoin.h>
 #include <sigma.h>
 #include <vector>
+#include <zerocoin.h>
 
 #include "univalue.h"
 
@@ -28,9 +28,10 @@ const struct {
 } MintStatus = {0, 1, 2};
 
 bool createSigmaMintAPITransaction(const UniValue& data,
-                                   vector<CRecipient>& vecSend,
-                                   vector<sigma::PrivateCoin>& privCoins,
-                                   vector<CHDMint>& vHdMints){
+    vector<CRecipient>& vecSend,
+    vector<sigma::PrivateCoin>& privCoins,
+    vector<CHDMint>& vHdMints)
+{
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -43,12 +44,12 @@ bool createSigmaMintAPITransaction(const UniValue& data,
     }
 
     UniValue denominationsObj = find_value(data, "denominations");
-    if(!denominationsObj.isNull()){
+    if (!denominationsObj.isNull()) {
         UniValue denominations = denominationsObj.get_obj();
         sigma::CoinDenomination denomination;
 
         vector<string> keys = denominations.getKeys();
-        BOOST_FOREACH(const string& denominationStr, keys){
+        BOOST_FOREACH (const string& denominationStr, keys) {
             if (!StringToDenomination(denominationStr, denomination)) {
                 throw runtime_error(
                     "mint <amount>(0.1, 0.5, 1, 10, 25, 100) (\"zcoinaddress\")\n");
@@ -60,12 +61,12 @@ bool createSigmaMintAPITransaction(const UniValue& data,
             LogPrintf("mint: denomination = %s, nAmount = %s \n",
                 denominationStr, numberOfCoins);
 
-            if(numberOfCoins < 0) {
+            if (numberOfCoins < 0) {
                 throw runtime_error(
-                        "mint {<denomination>(0.1, 0.5, 1, 10, 25, 100):\"amount\"...}\n");
+                    "mint {<denomination>(0.1, 0.5, 1, 10, 25, 100):\"amount\"...}\n");
             }
 
-            for(int64_t i = 0; i < numberOfCoins; ++i) {
+            for (int64_t i = 0; i < numberOfCoins; ++i) {
                 // The following constructor does all the work of minting a brand
                 // new sigma mint. It stores all the private values inside the
                 // PrivateCoin object. This includes the coin secrets, which must be
@@ -101,7 +102,7 @@ bool createSigmaMintAPITransaction(const UniValue& data,
                 vHdMints.push_back(fHdMint);
             }
         }
-    }else {
+    } else {
         CAmount nAmount = find_value(data, "value").get_int();
 
         std::vector<sigma::CoinDenomination> denominations;
@@ -130,11 +131,12 @@ bool createSigmaMintAPITransaction(const UniValue& data,
 }
 
 bool createSigmaSpendAPITransaction(CWalletTx& wtx,
-                                    const UniValue& data,
-                                    CAmount& nFeeRequired,
-                                    std::vector<CSigmaEntry>& coins,
-                                    std::vector<CHDMint> changes,
-                                    bool fDummy){
+    const UniValue& data,
+    CAmount& nFeeRequired,
+    std::vector<CSigmaEntry>& coins,
+    std::vector<CHDMint> changes,
+    bool fDummy)
+{
     // Ensure Sigma is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
@@ -156,7 +158,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
         throw JSONAPIError(API_INVALID_PARAMETER, "Required at least an address to send");
     }
     UniValue output(UniValue::VOBJ);
-    for(size_t index=0; index<outputs.size(); index++){
+    for (size_t index = 0; index < outputs.size(); index++) {
         output = outputs[index];
         std::string strAddr = find_value(output, "address").get_str();
         // satoshi amount
@@ -178,57 +180,56 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
         vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
     }
 
-    if(!fDummy)
+    if (!fDummy)
         EnsureWalletIsUnlocked(pwalletMain);
 
     bool fChangeAddedToFee;
 
     try {
         // create transaction
-        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, hasCoinControl? (&cc):NULL, fDummy);
-    }catch (const InsufficientFunds& e) {
+        wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, hasCoinControl ? (&cc) : NULL, fDummy);
+    } catch (const InsufficientFunds& e) {
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception& e) {
         throw JSONAPIError(API_WALLET_ERROR, e.what());
     }
 
     return true;
 }
 
-UniValue GetDenominations(){
+UniValue GetDenominations()
+{
     std::vector<CMintMeta> listMints = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
 
     UniValue denominations(UniValue::VOBJ);
-    map<string, vector<int>> denominationsMap;
+    map<string, vector<int> > denominationsMap;
     std::vector<sigma::CoinDenomination> denominationsVector;
 
     // Initialize map
     GetAllDenoms(denominationsVector);
-    BOOST_FOREACH(sigma::CoinDenomination denomination, denominationsVector){
-        for(unsigned long i=0; i<MintStatus.size; i++){
+    BOOST_FOREACH (sigma::CoinDenomination denomination, denominationsVector) {
+        for (unsigned long i = 0; i < MintStatus.size; i++) {
             denominationsMap[DenominationToString(denomination)].push_back(0);
         }
     }
 
     // Add denominations to map
-    BOOST_FOREACH(CMintMeta &mintMeta, listMints) {
+    BOOST_FOREACH (CMintMeta& mintMeta, listMints) {
         std::string index = DenominationToString(mintMeta.denom);
-        if (mintMeta.nHeight==-1 || chainActive.Height() < (mintMeta.nHeight + (ZC_MINT_CONFIRMATIONS-1)))
+        if (mintMeta.nHeight == -1 || chainActive.Height() < (mintMeta.nHeight + (ZC_MINT_CONFIRMATIONS - 1)))
             denominationsMap[index][MintStatus.UNCONFIRMED]++;
         else
             denominationsMap[index][MintStatus.CONFIRMED]++;
     }
 
     // Add map to UniValue object
-    map<string, vector<int>>::iterator it;
-    for ( it = denominationsMap.begin(); it != denominationsMap.end(); it++ ){
+    map<string, vector<int> >::iterator it;
+    for (it = denominationsMap.begin(); it != denominationsMap.end(); it++) {
         UniValue confirmations(UniValue::VOBJ);
         confirmations.push_back(Pair("confirmed", it->second[MintStatus.CONFIRMED]));
         confirmations.push_back(Pair("unconfirmed", it->second[MintStatus.UNCONFIRMED]));
 
         denominations.push_back(Pair(it->first, confirmations));
-
     }
 
     return denominations;
@@ -272,7 +273,8 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
     UniValue result(UniValue::VOBJ);
 
     CWalletTx wtx;
@@ -288,48 +290,133 @@ UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, boo
     return result;
 }
 
-UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    switch (type) {
+    case Create: {
+        CWalletTx wtx;
+        CAmount nFeeRequired;
+        std::vector<CSigmaEntry> coins;
+        std::vector<CHDMint> changes;
+        std::string txidStr;
+        try {
+            createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, false);
 
-    switch(type){
-        case Create: {
+            txidStr = wtx.GetHash().GetHex();
+
+            // commit transaction
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+
+        } catch (const InsufficientFunds& e) {
+            throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
+        } catch (const std::exception& e) {
+            throw JSONAPIError(API_WALLET_ERROR, e.what());
+        }
+
+        return txidStr;
+    }
+
+    default: {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+    }
+}
+
+UniValue privatesendtopaymentcode(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    CWalletTx wtx;
+    CAmount nFeeRequired;
+    std::vector<CSigmaEntry> coins;
+    std::vector<CHDMint> changes;
+    std::string txidStr;
+    try {
+        // Ensure Sigma is already accepted by network so users will not lost their coins
+        // due to other nodes will treat it as garbage data.
+        if (!sigma::IsSigmaAllowed()) {
+            throw JSONAPIError(API_WALLET_ERROR, "Sigma is not activated yet");
+        }
+    
+        bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+
+        CCoinControl cc;
+        bool hasCoinControl = GetCoinControl(data, cc);
+
+        string pcodeString = find_value(data, "paymentCode").get_str();
+        string myPCodeString = find_value(data, "myPaymentCode").get_str();
+        int accIndex = pwalletMain->getBIP47AccountIndex(myPCodeString);
+
+        CPaymentCode paymentCode(pcodeString);
+        CBIP47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPCodeString);
+
+        if (channel->isNotificationTransactionSent()) 
+        {
+            // Amount
+            CAmount nAmount = find_value(data, "amount").get_int64();
+            UniValue feePerKb;
+            bool fSubtractFeeFromAmount;
+            feePerKb = find_value(data,"feePerKb");
+            fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+
+            std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);
+            CBitcoinAddress pcAddress(addressTo);
             CWalletTx wtx;
-            CAmount nFeeRequired;
-            std::vector<CSigmaEntry> coins;
-            std::vector<CHDMint> changes;
-            std::string txidStr;
-            try {
-                createSigmaSpendAPITransaction(wtx, data, nFeeRequired, coins, changes, false);
 
-                txidStr = wtx.GetHash().GetHex();
+            std::set<CBitcoinAddress> setAddress;
+            std::vector<CRecipient> vecSend;
 
-                // commit transaction
-                pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
 
+            if (nAmount <= 0) {
+                throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
             }
-            catch (const InsufficientFunds& e) {
+            vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+
+            bool fChangeAddedToFee;
+            try {
+                // create transaction
+                wtx = pwalletMain->CreateSigmaSpendTransaction(vecSend, nFeeRequired, coins, changes, fChangeAddedToFee, hasCoinControl? (&cc):NULL, false);
+            }catch (const InsufficientFunds& e) {
                 throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
             }
             catch (const std::exception& e) {
                 throw JSONAPIError(API_WALLET_ERROR, e.what());
             }
 
-            return txidStr;
-        }
+            txidStr = wtx.GetHash().GetHex();
 
-        default: {
-           throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it."); 
+            // commit transaction
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+
+            channel->addAddressToOutgoingAddresses(addressTo);
+            channel->incrementOutgoingIndex();
+            pwalletMain->saveCBIP47PaymentChannelData(pcodeString);
+
+            return wtx.GetHash().GetHex();
         }
+        else
+        {
+            txidStr = pwalletMain->makeNotificationTransaction(paymentCode.toString(), accIndex);
+        }  
+    } catch (const InsufficientFunds& e) {
+        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (const std::exception& e) {
+        throw JSONAPIError(API_WALLET_ERROR, e.what());
     }
+
+    return txidStr;
 }
 
-UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
+UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
     EnsureWalletIsUnlocked(pwalletMain);
 
-    list <CSigmaEntry> listPubcoin = pwalletMain->zwallet->GetTracker().MintsAsSigmaEntries(true, false);
+    list<CSigmaEntry> listPubcoin = pwalletMain->zwallet->GetTracker().MintsAsSigmaEntries(true, false);
     UniValue results(UniValue::VOBJ);
 
-    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
+    BOOST_FOREACH (const CSigmaEntry& sigmaItem, listPubcoin) {
         uint256 serialNumberHash = primitives::GetSerialHash(sigmaItem.serialNumber);
 
         UniValue entry(UniValue::VOBJ);
@@ -347,15 +434,15 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 }
 
 static const CAPICommand commands[] =
-{ //  category              collection            actor (function)          authPort   authPassphrase   warmupOk
-  //  --------------------- ------------          ----------------          --------   --------------   --------
-    { "sigma",              "mint",               &mint,                    true,      true,            false  },
-    { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
-    { "sigma",              "listMints",          &listmints,               true,      true,            false  },
-    { "sigma",              "mintTxFee",          &minttxfee,               true,      false,           false  },
-    { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  }
-};
-void RegisterSigmaAPICommands(CAPITable &tableAPI)
+    {   //  category              collection            actor (function)          authPort   authPassphrase   warmupOk
+        //  --------------------- ------------          ----------------          --------   --------------   --------
+        {"sigma", "mint", &mint, true, true, false},
+        {"sigma", "sendPrivate", &sendprivate, true, true, false},
+        {"sigma", "privateSendToPaymentCode", &privatesendtopaymentcode, true, true, false},
+        {"sigma", "listMints", &listmints, true, true, false},
+        {"sigma", "mintTxFee", &minttxfee, true, false, false},
+        {"sigma", "privateTxFee", &privatetxfee, true, false, false}};
+void RegisterSigmaAPICommands(CAPITable& tableAPI)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);
