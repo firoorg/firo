@@ -1535,6 +1535,19 @@ bool CWalletDB::ReadLastPCodeIndex(int& lastIndex)
     return Read(string("LastPCodeIndex"), lastIndex);
 }
 
+std::string CWalletDB::ReadPaymentCodeLabel(std::string paymentCode)
+{
+    std::string ret = "";
+    Read(paymentCode, ret);
+    return ret;
+}
+
+bool CWalletDB::WritePaymentCodeLabel(std::string paymentCode, std::string label)
+{
+    nWalletDBUpdateCounter++;
+    return Write(paymentCode, label);
+}
+
 bool CWalletDB::UpdateLastPCodeIndex() {
     int lastIndex = 0;
     if (ReadLastPCodeIndex(lastIndex)) {

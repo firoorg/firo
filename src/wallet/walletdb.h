@@ -324,6 +324,8 @@ public:
 
     bool ReadLastPCodeIndex(int& lastIndex);
     bool UpdateLastPCodeIndex();
+    std::string ReadPaymentCodeLabel(std::string paymentCode);
+    bool WritePaymentCodeLabel(std::string paymentCode, std::string label);
 
 #ifdef ENABLE_ELYSIUM
 

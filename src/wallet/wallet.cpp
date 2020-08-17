@@ -2320,6 +2320,11 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
         {
             AddWatchOnly(notificationScript);
         }
+        CWalletDB db(strWalletFile);
+        std::string existingLabel = db.ReadPaymentCodeLabel(bip47Account.getStringPaymentCode());
+        if (existingLabel == "") {
+            db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(i));
+        }
     }
     LogPrintf("Dervie CBIP47Accounts Done\n");
 }
@@ -2358,6 +2363,7 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
         AddWatchOnly(notificationScript);
     }
     walletDB.UpdateLastPCodeIndex();
+    walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(lastPCodeIndex));
     return bip47Account.getStringPaymentCode();
 }
 
