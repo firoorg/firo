@@ -1953,6 +1953,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         //save notification tx hash to wallet db
         CBIP47PaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
         channel->setStatusSent();
+        saveCBIP47PaymentChannelData(paymentCode);
         return wtx.GetHash().GetHex();
     }
     catch(const std::exception& e)
@@ -1962,7 +1963,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
     }
 }
 
-bool CWallet::isNotificationTransaction(CTransaction tx) // lgtm [cpp/large-parameter]
+bool CWallet::isNotificationTransaction(const CTransaction& tx) // lgtm [cpp/large-parameter]
 {
     if(!pcodeEnabled)
     {

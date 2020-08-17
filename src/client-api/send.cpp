@@ -274,6 +274,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);  
     
     ret.push_back(Pair("fee", nFeeRequired));
+    LogPrintf("Transaction fee:%d\n", nFeeRequired);
     return ret;
 }
 
@@ -461,8 +462,8 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
 
     CCoinControl cc;
     bool hasCoinControl = GetCoinControl(data, cc);
-    string pcodeString = find_value(data, "paymentcode").get_str();
-    string myPCodeString = find_value(data, "mypaymentcode").get_str();
+    string pcodeString = find_value(data, "paymentCode").get_str();
+    string myPCodeString = find_value(data, "myPaymentCode").get_str();
     int accIndex = pwalletMain->getBIP47AccountIndex(myPCodeString);
 
     CPaymentCode paymentCode(pcodeString);
@@ -474,7 +475,7 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
     feePerKb = find_value(data,"feePerKb");
     fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
     
-    const CBIP47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPCodeString);
+    CBIP47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPCodeString);
     
     if (channel->isNotificationTransactionSent()) 
     {
@@ -484,6 +485,10 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
         bool fSubtractFeeFromAmount = false;
 
         SendMoney(pwalletMain, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+        channel->addAddressToOutgoingAddresses(addressTo);
+        channel->incrementOutgoingIndex();
+        pwalletMain->saveCBIP47PaymentChannelData(pcodeString);
 
         return wtx.GetHash().GetHex();
     }

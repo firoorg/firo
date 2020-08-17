@@ -952,6 +952,7 @@ UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, 
         UniValue item(UniValue::VOBJ);
         item.push_back(Pair("label", "RAP Address #" + std::to_string(i)));
         item.push_back(Pair("paymentcode", paymentCode));
+        item.push_back(Pair("index", i));
         ret.push_back(item);
     }
     return ret;

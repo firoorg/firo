@@ -1339,7 +1339,7 @@ public:
     void loadBip47Wallet(CExtKey masterExtKey);
     std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
 
-    bool isNotificationTransaction(CTransaction tx);
+    bool isNotificationTransaction(const CTransaction& tx);
     bool isNotificationTransactionSent(string pcodestr) const;
     bool isToBIP47Address(CTransaction tx);
     bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
