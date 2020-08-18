@@ -2508,8 +2508,8 @@ void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large
         bool needsSaving = savePaymentCode(from_pcode);
         if(needsSaving)
         {
-            CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(from_pcode.toString(), getPaymentCode(accIndex));
-            pchannel->setStatusSent(tx.GetHash());
+            /*CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(from_pcode.toString(), getPaymentCode(accIndex));
+            pchannel->setStatusSent(tx.GetHash());*/
             saveCBIP47PaymentChannelData(from_pcode.toString());
             LogPrintf("NotifyPaymentCodeTx\n");
             NotifyPaymentCodeTx();
