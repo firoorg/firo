@@ -738,7 +738,6 @@ public:
     mutable CCriticalSection cs_wallet;
 
     const std::string strWalletFile;
-    static std::string bip47WalletFile;
 
     void LoadKeyPool(int nIndex, const CKeyPool &keypool)
     {

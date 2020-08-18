@@ -73,8 +73,6 @@ bool fWalletInitialized = false;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
 
-std::string CWallet::bip47WalletFile = "wallet.dat";
-
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
  * Override with -mintxfee
@@ -1840,7 +1838,7 @@ void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter
 {
     LogPrintf("Bip47Wallet Loading....\n");
     
-    CWalletDB bip47walletdb(bip47WalletFile, "cr+");
+    CWalletDB bip47walletdb(strWalletFile, "cr+");
     
     bip47walletdb.ListCBIP47PaymentChannel(this->m_Bip47channels);
     
@@ -2084,14 +2082,14 @@ bool CWallet::generateBip47SeedMaster(vector<unsigned char> &seedmaster)
 
 bool CWallet::saveBip47SeedMaster(vector<unsigned char> seedmaster)
 {
-    CWalletDB walletdb(bip47WalletFile, "cr+", true);
+    CWalletDB walletdb(strWalletFile, "cr+", true);
     return walletdb.WriteBip47SeedMaster(seedmaster);
 }
 
 
 bool CWallet::loadBip47SeedMaster(vector<unsigned char>& seedmaster)
 {
-    CWalletDB walletdb(bip47WalletFile, "cr+", true);
+    CWalletDB walletdb(strWalletFile, "cr+", true);
     return walletdb.ReadBip47SeedMaster(seedmaster);
 }
 
@@ -2370,7 +2368,7 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
 void CWallet::saveCBIP47PaymentChannelData(string pchannelId)
 {
     try {
-        CWalletDB walletdb(bip47WalletFile, "r+", false);
+        CWalletDB walletdb(strWalletFile, "r+", false);
         std::map<string, std::vector<CBIP47PaymentChannel>>::iterator it = m_Bip47channels.find(pchannelId);
         if(it != m_Bip47channels.end())
         {
@@ -2422,16 +2420,16 @@ bool CWallet::addToCBIP47PaymentChannel(CBIP47PaymentChannel paymentChannel)
 
 bool CWallet::AddPCodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value)
 {
-    return CWalletDB(bip47WalletFile).WritePcodeNotificationData(rpcodestr, key, value);
+    return CWalletDB(strWalletFile).WritePcodeNotificationData(rpcodestr, key, value);
 }
 
 bool CWallet::ErasePCodeNotificationData(const std::string &rpcodestr, const std::string &key) {
-    return CWalletDB(bip47WalletFile).ErasePcodeNotificationData(rpcodestr, key);
+    return CWalletDB(strWalletFile).ErasePcodeNotificationData(rpcodestr, key);
 }
 
 bool CWallet::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
 {
-    return CWalletDB(bip47WalletFile).loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
+    return CWalletDB(strWalletFile).loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
 }
 
 bool CWallet::generateNewBip47IncomingAddress(string address, CBIP47PaymentChannel* pchannel)
@@ -9464,17 +9462,17 @@ bool CWallet::BackupBip47Wallet(const std::string &strDest) {
     while (true) {
         {
             LOCK(bitdb.cs_db);
-            if (!bitdb.mapFileUseCount.count(bip47WalletFile) || bitdb.mapFileUseCount[bip47WalletFile] == 0) {
+            if (!bitdb.mapFileUseCount.count(strWalletFile) || bitdb.mapFileUseCount[strWalletFile] == 0) {
                 // Flush log data to the dat file
-                bitdb.CloseDb(bip47WalletFile);
-                bitdb.CheckpointLSN(bip47WalletFile);
-                bitdb.mapFileUseCount.erase(bip47WalletFile);
+                bitdb.CloseDb(strWalletFile);
+                bitdb.CheckpointLSN(strWalletFile);
+                bitdb.mapFileUseCount.erase(strWalletFile);
 
                 // Copy wallet file
-                boost::filesystem::path pathSrc = GetDataDir() / bip47WalletFile;
+                boost::filesystem::path pathSrc = GetDataDir() / strWalletFile;
                 boost::filesystem::path pathDest(strDest);
                 if (boost::filesystem::is_directory(pathDest))
-                    pathDest /= bip47WalletFile;
+                    pathDest /= strWalletFile;
 
                 try {
 #if BOOST_VERSION >= 104000
@@ -9482,10 +9480,10 @@ bool CWallet::BackupBip47Wallet(const std::string &strDest) {
 #else
                     boost::filesystem::copy_file(pathSrc, pathDest);
 #endif
-                    LogPrintf("copied %s to %s\n", bip47WalletFile, pathDest.string());
+                    LogPrintf("copied %s to %s\n", strWalletFile, pathDest.string());
                     return true;
                 } catch (const boost::filesystem::filesystem_error &e) {
-                    LogPrintf("error copying %s to %s - %s\n", bip47WalletFile, pathDest.string(), e.what());
+                    LogPrintf("error copying %s to %s - %s\n", strWalletFile, pathDest.string(), e.what());
                     return false;
                 }
             }
