@@ -955,6 +955,20 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     return true;
 }
 
+UniValue editpaymentcodebook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) 
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    std::string paymentCodeStr = find_value(data, "paymentCode").getValStr();
+    CPaymentCode paymentCode(paymentCodeStr);
+    if (!paymentCode.isValid())
+    {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid payment code parameter");
+    }
+    std::string label = find_value(data, "label").getValStr();
+    pwalletMain->setBip47ChannelLabel(paymentCodeStr, label);
+}
+
 UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
@@ -1063,6 +1077,7 @@ static const CAPICommand commands[] =
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "getPaymentCodes",                &getpaymentcodes,                true,      false,           false  },
     { "wallet",             "createNewPaymentCode",                &createnewpaymentcode,                true,      false,           false  },
+    { "wallet",             "editPaymentCodeBook",                &editpaymentcodebook,                true,      false,           false  },
     { "wallet",             "readPaymentChannelsState",                &readpaymentchannelsstate,                true,      false,           false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
