@@ -2059,40 +2059,6 @@ CBIP47PaymentChannel* CWallet::findPaymentChannelForIncomingAddress(const CTrans
     }
     return NULL;
 }
-bool CWallet::generateBip47SeedMaster(vector<unsigned char> &seedmaster)
-{
-    if(IsLocked())
-        return false;
-
-    CKey key;
-    key.MakeNewKey(true);
-    
-    // calculate the pubkey
-    CPubKey pubkey = key.GetPubKey();
-    assert(key.VerifyPubKey(pubkey));
-    
-    LOCK(cs_wallet);
-    if (!AddKeyPubKey(key, pubkey))
-            throw std::runtime_error(std::string(__func__) + ": AddKeyPubKey failed");
-    
-    seedmaster.insert(seedmaster.begin(), key.begin(), key.end());
-    
-    return true;
-}
-
-bool CWallet::saveBip47SeedMaster(vector<unsigned char> seedmaster)
-{
-    CWalletDB walletdb(strWalletFile, "cr+", true);
-    return walletdb.WriteBip47SeedMaster(seedmaster);
-}
-
-
-bool CWallet::loadBip47SeedMaster(vector<unsigned char>& seedmaster)
-{
-    CWalletDB walletdb(strWalletFile, "cr+", true);
-    return walletdb.ReadBip47SeedMaster(seedmaster);
-}
-
 
 CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex) // lgtm [cpp/large-parameter]
 {
@@ -2288,7 +2254,20 @@ void CWallet::deriveCBIP47Accounts(vector<unsigned char> hd_seed)
     }
 }
 
-
+bool CWallet::ReadMasterKey(CExtKey& masterKey)
+{
+    if (hdChain.masterKeyID.IsNull()) 
+        return false;
+    
+    if (hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39){
+        MnemonicContainer mContainer = mnemonicContainer;
+        DecryptMnemonicContainer(mContainer);
+        SecureVector seed = mContainer.GetSeed();
+        masterKey.SetMaster(&seed[0], seed.size());
+        return true;
+    } 
+    return false;
+}
 
 void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-parameter]
 {
@@ -2329,9 +2308,7 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
 
 std::string CWallet::generateNewPCode() {
     CExtKey masterKey;
-    vector<unsigned char> seedmaster;
-    loadBip47SeedMaster(seedmaster);           
-    masterKey.SetMaster(&seedmaster[0], seedmaster.size());
+    ReadMasterKey(masterKey);           
     return generateNewPCode(masterKey);
 }
 
@@ -9066,19 +9043,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         // Load Bip47Wallet
         CExtKey masterKey;
-        vector<unsigned char> seedmaster;
-        if(walletInstance->generateBip47SeedMaster(seedmaster))
-        {
-            masterKey.SetMaster(&seedmaster[0], seedmaster.size());
-        
-            if(walletInstance->saveBip47SeedMaster(seedmaster))
-            {
-                walletInstance->loadBip47Wallet(masterKey);
-                walletInstance->pcodeEnabled = true;
-            }
-            
-            else
-                throw std::runtime_error(std::string(__func__) + ": Cannot Save Bip47 SeedMaster");
+        if(walletInstance->ReadMasterKey(masterKey))
+        {        
+            walletInstance->loadBip47Wallet(masterKey);
+            walletInstance->pcodeEnabled = true;
         }
         else
         {
@@ -9231,31 +9199,15 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         
         CExtKey masterKey;
         vector<unsigned char> seedmaster;
-        if(walletInstance->loadBip47SeedMaster(seedmaster)) {
-            
-            LogPrintf("Load Bip47 Seed Master Success\n");
-            masterKey.SetMaster(&seedmaster[0], seedmaster.size());
+        if(walletInstance->ReadMasterKey(masterKey)) {
+
             walletInstance->loadBip47Wallet(masterKey);
             walletInstance->pcodeEnabled = true;
         }
         else
         {
-            LogPrintf("Bip47 Seed Master Not Found will create new one\n");
-            if(walletInstance->generateBip47SeedMaster(seedmaster))
-            {
-                masterKey.SetMaster(&seedmaster[0], seedmaster.size());
-                walletInstance->loadBip47Wallet(masterKey);
-                walletInstance->saveBip47SeedMaster(seedmaster);
-                walletInstance->pcodeEnabled = true;
-                // Setup Bip47 Related information.
-
-            }
-            else
-            {
-                walletInstance->pcodeEnabled = false;
-                LogPrintf("Payment Code Disabled\n");
-            }
-                
+            walletInstance->pcodeEnabled = false;
+            LogPrintf("Payment Code Disabled\n");
         }
         
         

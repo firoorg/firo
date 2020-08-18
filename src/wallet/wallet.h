@@ -1343,13 +1343,11 @@ public:
     bool isNotificationTransactionSent(string pcodestr) const;
     bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
     const CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
-    bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
-    bool saveBip47SeedMaster(vector<unsigned char> seedmaster);
-    bool loadBip47SeedMaster(vector<unsigned char>& seedmaster);
     CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
     
     CBitcoinAddress getAddressOfReceived(CTransaction tx);
     CBitcoinAddress getAddressOfSent(CTransaction tx);
+    bool ReadMasterKey(CExtKey& masterKey);
     
     bool savePaymentCode(CPaymentCode from_pcode);
 
