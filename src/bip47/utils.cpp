@@ -6,6 +6,7 @@
 #include <vector>
 #include "uint256.h"
 #include "wallet/wallet.h"
+#include "validation.h"
 
 using namespace std;
 
@@ -178,7 +179,14 @@ bool CBIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByt
     if (!txin.scriptSig.GetOp(pc, opcode1, chunk1data))
     {
         //check whether this is a P2PK redeems cript
-        CScript dest = pwalletMain->mapWallet[txin.prevout.hash].tx->vout[txin.prevout.n].scriptPubKey;
+        LogPrintf("A\n");
+        CTransactionRef tx;
+        uint256 hashBlock = uint256();
+        if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true))
+            return false;
+        
+        CScript dest = tx->vout[txin.prevout.n].scriptPubKey;
+        LogPrintf("B\n");
         CScript::const_iterator pc = dest.begin();
         opcodetype opcode;
         std::vector<unsigned char> vch;

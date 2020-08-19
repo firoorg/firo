@@ -1273,6 +1273,13 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         if (fExisted && !fUpdate) return false;
         if (fExisted || IsMine(tx) || IsFromMe(tx))
         {
+            CWalletTx wtx(this, MakeTransactionRef(tx));
+
+            // Get merkle branch if transaction was found in a block
+            if (posInBlock != -1)
+                wtx.SetMerkleBranch(pIndex, posInBlock);
+            bool ret = AddToWallet(wtx, false);
+
             LogPrintf("Check If Notification Transaction\n");
             if(isNotificationTransaction(tx))
             {
@@ -1295,13 +1302,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                 }
             }
 
-            CWalletTx wtx(this, MakeTransactionRef(tx));
-
-            // Get merkle branch if transaction was found in a block
-            if (posInBlock != -1)
-                wtx.SetMerkleBranch(pIndex, posInBlock);
-
-            return AddToWallet(wtx, false);
+            return ret;
         }
     }
     return false;
@@ -1919,7 +1920,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         LogPrintf("Get Mask from payment code\n"); //Masking Protections for Secret Point
         vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
 
-        LogPrintf("Get op_return bytes via blind\n");
+        LogPrintf("Get op_return bytes via blind:%s\n", m_CBIP47Accounts[accountIndex].getPaymentCode().toString());
         vector<unsigned char> op_return = CPaymentCode::blind(m_CBIP47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
@@ -2289,6 +2290,7 @@ void CWallet::deriveCBIP47Accounts(vector<unsigned char> hd_seed)
 
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+        LogPrintf("NotificationScript address %s\n", notificationAddress.ToString());
         if (!HaveWatchOnly(notificationScript))
         {
             AddWatchOnly(notificationScript);
@@ -2335,6 +2337,7 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
 
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+        LogPrintf("NotificationScript address %s\n", notificationAddress.ToString());
         if (!HaveWatchOnly(notificationScript))
         {
             AddWatchOnly(notificationScript);
