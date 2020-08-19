@@ -1344,7 +1344,8 @@ public:
     bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
     const CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
     CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
-    
+    string findPaymentChannelForOutgoingAddress(string address) const ;
+    string findPaymentChannelForIncomingAddress(string address) const ;
     CBitcoinAddress getAddressOfReceived(CTransaction tx);
     CBitcoinAddress getAddressOfSent(CTransaction tx);
     bool ReadMasterKey(CExtKey& masterKey);

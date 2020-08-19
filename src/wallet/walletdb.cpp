@@ -1494,6 +1494,8 @@ void CWalletDB::ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47Pay
             break;
         std::string value;
         ssKey >> value;
+        std::string pcodeKey = value.substr(0, value.find("-"));
+        value = pcodeKey;
         LogPrintf("value is %s\n", value);
         CBIP47PaymentChannel pchannel;
         LogPrintf("ssValue Size is %d\n", ssValue.size());

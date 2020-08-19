@@ -2102,6 +2102,48 @@ CBitcoinAddress CWallet::getAddressOfReceived(CTransaction tx)
     return CBitcoinAddress();
 }
 
+string CWallet::findPaymentChannelForOutgoingAddress(string address) const
+{
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>)& item, m_Bip47channels)
+    {
+        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+        for(size_t i = 0; i < channels.size(); i++)
+        {
+            std::vector<string> outgoingAddresses = channels[i].getOutgoingAddresses();
+            for(size_t j = 0; j < outgoingAddresses.size(); j++)
+            {
+                if (address == outgoingAddresses[j])
+                {
+                    //return payment channel id
+                    return channels[i].getPaymentCode() + "-" + std::to_string(i);
+                }
+            }
+        }  
+    }
+    return "";
+}
+
+string CWallet::findPaymentChannelForIncomingAddress(string address) const
+{
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>)& item, m_Bip47channels)
+    {
+        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+        for(size_t i = 0; i < channels.size(); i++)
+        {
+            std::vector<CBIP47Address> incomingAddresses = channels[i].getIncomingAddresses();
+            for(size_t j = 0; j < incomingAddresses.size(); j++)
+            {
+                if (address == incomingAddresses[j].toString())
+                {
+                    //return payment channel id
+                    return channels[i].getPaymentCode() + "-" + std::to_string(i);
+                }
+            }
+        }  
+    }
+    return "";
+}
+
 CBitcoinAddress CWallet::getAddressOfSent(CTransaction tx)
 {
     for (int i = 0; i < (int)tx.vout.size(); i++) {
