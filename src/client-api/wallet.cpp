@@ -995,13 +995,29 @@ UniValue editpaymentcodebook(Type type, const UniValue& data, const UniValue& au
     if (!paymentCode.isValid()) {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid payment code parameter");
     }
+    CWalletDB db(pwalletMain->strWalletFile);
     std::string label = find_value(data, "label").getValStr();
-    pwalletMain->setBip47ChannelLabel(paymentCodeStr, label);
 
+    int count = pwalletMain->getPaymentCodeCount();
+    for (int i = 0; i < count; i++) {
+        string paymentCode = pwalletMain->getPaymentCode(i);
+        if (paymentCode == paymentCodeStr) 
+        {
+            db.WritePaymentCodeLabel(paymentCodeStr, label);
+            UniValue ret(UniValue::VARR);
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("label", label));
+            item.push_back(Pair("paymentcode", paymentCodeStr));
+            item.push_back(Pair("index", i));
+            ret.push_back(item);
+            return ret;
+        }
+    }
     UniValue ret(UniValue::VOBJ);
+    pwalletMain->setBip47ChannelLabel(paymentCodeStr, label);
     const std::vector<CBIP47PaymentChannel>& channels = pwalletMain->m_Bip47channels[paymentCodeStr];
     UniValue arrChannels = listPaymentChannels(channels);
-    ret.push_back(Pair(paymentCodeStr, arrChannels));
+    ret.push_back(Pair(paymentCodeStr, arrChannels));    
     return ret;
 }
 

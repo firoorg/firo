@@ -482,10 +482,11 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
         std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);
         CBitcoinAddress pcAddress(addressTo);
         CWalletTx wtx;
-        SendMoney(pwalletMain, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
         channel->addAddressToOutgoingAddresses(addressTo);
         channel->incrementOutgoingIndex();
+        SendMoney(pwalletMain, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+        pwalletMain->savePaymentCode(pcodeString);
         pwalletMain->saveCBIP47PaymentChannelData(pcodeString);
 
         return wtx.GetHash().GetHex();
