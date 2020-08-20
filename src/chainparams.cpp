@@ -180,6 +180,13 @@ public:
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
 
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
+
+        consensus.nStartBlacklist = 293990;
+        consensus.nStartDuplicationCheck = 293526;
+
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -362,6 +369,7 @@ public:
         consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
         consensus.nSigmaPaddingBlock = ZC_SIGMA_PADDING_BLOCK;
         consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_DISABLE_UNPADDED_BLOCK;
+        consensus.nStartSigmaBlacklist = 293790;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
@@ -397,10 +405,16 @@ public:
 
         consensus.chainType = Consensus::chainTestnet;
 
-        consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingInterval = 420000;
-        consensus.nSubsidyHalvingStopBlock = 3646849;
+        consensus.nSubsidyHalvingFirst = 12000;
+        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingStopBlock = 1000000;
 
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
+
+        consensus.nStartBlacklist = 0;
+        consensus.nStartDuplicationCheck = 0;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
@@ -563,6 +577,7 @@ public:
         consensus.nSigmaStartBlock = 1;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
+        consensus.nStartSigmaBlacklist = 1;
         consensus.nOldSigmaBanBlock = 1;
 
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -599,9 +614,15 @@ public:
 
         consensus.chainType = Consensus::chainRegtest;
 
+        // To be changed for specific tests
         consensus.nSubsidyHalvingFirst = 302438;
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
+
+        consensus.nStartBlacklist = 0;
+        consensus.nStartDuplicationCheck = 0;
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -740,6 +761,7 @@ public:
         consensus.nSigmaStartBlock = 400;
         consensus.nSigmaPaddingBlock = 550;
         consensus.nDisableUnpaddedSigmaBlock = 510;
+        consensus.nStartSigmaBlacklist = 1;
         consensus.nOldSigmaBanBlock = 450;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;

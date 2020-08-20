@@ -132,6 +132,18 @@ struct Params {
     int nSubsidyHalvingInterval;
     /** Stop subsidy at this block number */
     int nSubsidyHalvingStopBlock;
+
+    /** parameters for coinbase payment distribution between first and second halvings (aka stage 2) */
+    /** P2PKH or P2SH address for developer funds */
+    std::string stage2DevelopmentFundAddress;
+    /** percentage of block subsidy going to developer fund */
+    int stage2DevelopmentFundShare;
+    /** percentage of block subsidy going to znode */
+    int stage2ZnodeShare;
+
+    int nStartDuplicationCheck;
+    int nStartBlacklist;
+
     /** Used to check majorities for block version upgrade */
     int nMajorityEnforceBlockUpgrade;
     int nMajorityRejectBlockOutdated;
@@ -213,6 +225,8 @@ struct Params {
     int nSigmaPaddingBlock;
 
     int nDisableUnpaddedSigmaBlock;
+
+    int nStartSigmaBlacklist;
 
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;

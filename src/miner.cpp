@@ -783,8 +783,17 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
     auto &params = chainparams.GetConsensus();
     CAmount coin = COIN / (fMTP ? params.nMTPRewardReduction : 1);
 
-    // To founders and investors
-    if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
+    if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingFirst + params.nSubsidyHalvingInterval) {
+        // Stage 2
+        CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage2DevelopmentFundAddress).Get());
+        CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP) * params.stage2DevelopmentFundShare) / 100;
+
+        coinbaseTx.vout[0].nValue -= devPayoutValue;
+        coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+    }
+
+    else if ((nHeight > 0) && (nHeight < params.nSubsidyHalvingFirst)) {
+        // Stage 1: To founders and investors
         CScript FOUNDER_1_SCRIPT;
         CScript FOUNDER_2_SCRIPT;
         CScript FOUNDER_3_SCRIPT;
