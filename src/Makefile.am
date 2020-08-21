@@ -305,6 +305,7 @@ BITCOIN_CORE_H = \
   bip47/secretpoint.h \
   zerocoin.h \
   sigma.h \
+  blacklists.h \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
