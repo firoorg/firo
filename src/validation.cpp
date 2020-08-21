@@ -649,7 +649,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return false;
     }
 
-    if(nHeight != INT_MAX && nHeight >= ::Params().GetConsensus().nStartBlacklist) {
+    if (nHeight >= ::Params().GetConsensus().nStartBlacklist) {
         for (const auto& vin : tx.vin) {
             if(txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
                     return state.DoS(100, error("Spending this tx is temporarily disabled"),
@@ -759,7 +759,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     }
 
     if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
-        return state.DoS(100, error("Sigma is temporarily disabled"),
+        if (consensus.nStartSigmaBlacklist != INT_MAX && chainActive.Height() < consensus.nRestartSigmaWithBlacklistCheck)
+            return state.DoS(100, error("Sigma is temporarily disabled"),
                              REJECT_INVALID, "bad-txns-zerocoin");
     }
 
@@ -3894,7 +3895,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
     for (CTransactionRef tx : block.vtx) {
-        if (nHeight >= consensusParams.nStartSigmaBlacklist && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
+        if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
             return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
         }
         // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
