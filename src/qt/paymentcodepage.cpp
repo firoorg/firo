@@ -27,7 +27,7 @@
 #include <qrencode.h>
 #endif
 
-#include "bip47/PaymentCode.h"
+#include "bip47/paymentcode.h"
 
 #define PCODE_QR_IMAGE_SIZE 150
 
