@@ -2,15 +2,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef SPORK_H
-#define SPORK_H
+#ifndef CHAIN_SETTINGS_H
+#define CHAIN_SETTINGS_H
 
 namespace llmq {
-
-inline bool IsOldInstantSendEnabled()
-{
-    return false;
-}
 
 inline bool IsNewInstantSendEnabled()
 {
