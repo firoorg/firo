@@ -2979,9 +2979,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             CMNAuth::ProcessMessage(pfrom, strCommand, vRecv, connman);
 
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
-            //privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
-            //instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
-            //governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumBlockProcessor->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
