@@ -162,6 +162,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                     throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
                 totalAmount += nAmount;
 
+                wtx.mapValue["label"] = label;
+
                 CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
             }

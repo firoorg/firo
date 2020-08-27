@@ -193,7 +193,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     } catch (const std::exception& e) {
         throw JSONAPIError(API_WALLET_ERROR, e.what());
     }
-
+    wtx.mapValue["label"] = label;
     return true;
 }
 

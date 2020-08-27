@@ -13,8 +13,8 @@ from getpass import getuser
 function_id = "" # see 'get_function' for possible values. edit "data" object in each function as is needed
 auth = True
 os = "ubuntu"
-network = "mainnet"
-passphrase = "passphrase"
+network = "regtest"
+passphrase = "d"
 ############ END DEFAULTS ###########################
 
 
@@ -349,7 +349,7 @@ def send_private(passphrase):
     coin_control["selected"] = ""
     data["outputs"] = outputs
     data["label"] = "send_private label"
-    data["subtractFeeFromAmount"] = False
+    data["subtractFeeFromAmount"] = 0
     data["coinControl"] = coin_control
     # formulate request
     request["type"] = "none"

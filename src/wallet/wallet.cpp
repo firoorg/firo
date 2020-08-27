@@ -6591,7 +6591,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this, *zwallet, coinControl);
     CWalletDB walletdb(strWalletFile);
-    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
+    CWalletTx tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb, fDummy);
     selected = builder.selected;
     changes = builder.changes;
 
@@ -7580,7 +7580,8 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
-    GetMainSignals().UpdatedBalance();
+    // Notify of wallet transaction
+    GetMainSignals().WalletTransaction(wtxNew);
 
     // Update nCountNextUse in HDMint wallet database
     zwallet->UpdateCountDB(walletdb);
@@ -8041,6 +8042,9 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             "New (" + std::to_string(change.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
+
+    // Notify of wallet transaction
+    GetMainSignals().WalletTransaction(wtxNew);
 
     // Update nCountNextUse in HDMint wallet database
     zwallet->UpdateCountDB(db);
@@ -9140,8 +9144,8 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     bool rescanning = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
 
 #ifdef ENABLE_CLIENTAPI
-        // Set API loaded before wallet sync (if not rescanning) and immediately notify
-        if(fApi && !rescanning){
+        // Set API loaded before wallet sync (if not rescanning) and immediately notify.
+        if(fApi && !rescanning && !fFirstRun){
             SetAPIWarmupFinished();
             GetMainSignals().NotifyAPIStatus();
             // Update next payments list for EVO Znodes
