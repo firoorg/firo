@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(get_and_list_mints)
         pubCoins.emplace_back(mints[i].GetPubcoinValue(), mints[i].GetAmount());
     }
 
-    zwalletMain->GetTracker().UpdateMintStateFromBlock(pubCoins);
+    pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(pubCoins);
 
     auto extractAmountsFromOutputs = [](std::vector<COutput> const &outs) -> std::vector<CAmount> {
         std::vector<CAmount> amounts;

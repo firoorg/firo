@@ -105,16 +105,16 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
 
     // Start with no fee and loop until there is enough fee;
     uint32_t nCountNextUse;
-    if (zwalletMain) {
-        nCountNextUse = zwalletMain->GetCount();
+    if (pwalletMain->zwallet) {
+        nCountNextUse = pwalletMain->zwallet->GetCount();
     }
 
     CAmount fee;
 
     for (fee = payTxFee.GetFeePerK();;) {
         // In case of not enough fee, reset mint seed counter
-        if (zwalletMain) {
-            zwalletMain->SetCount(nCountNextUse);
+        if (pwalletMain->zwallet) {
+            pwalletMain->zwallet->SetCount(nCountNextUse);
         }
         CAmount required = vOut + mint;
 
@@ -313,7 +313,9 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
 
         lelantus::PrivateCoin newCoin(params, mintVal);
         newCoin.setVersion(LELANTUS_TX_VERSION_4);
-        mintWallet.GenerateLelantusMint(newCoin, hdMint, boost::none, true);
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+
+        mintWallet.GenerateLelantusMint(walletdb, newCoin, hdMint, boost::none, true);
         Cout.emplace_back(newCoin);
         auto& pubCoin = newCoin.getPublicCoin();
 

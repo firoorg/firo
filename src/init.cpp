@@ -270,8 +270,6 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
-    delete zwalletMain;
-    zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
@@ -347,8 +345,6 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
-    delete zwalletMain;
-    zwalletMain = NULL;
 #endif
 
 #if ENABLE_ZMQ
@@ -751,11 +747,11 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         //Load zerocoin mint hashes to memory
         LogPrintf("Loading mints to wallet..\n");
-        zwalletMain->GetTracker().Init();
-        zwalletMain->LoadMintPoolFromDB();
+        pwalletMain->zwallet->GetTracker().Init();
+        pwalletMain->zwallet->LoadMintPoolFromDB();
     }
 #endif
 
@@ -847,12 +843,12 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
-        zwalletMain->SyncWithChain();
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
+        pwalletMain->zwallet->SyncWithChain();
     }
     // Need this to restore Sigma spend state
-    if (GetBoolArg("-rescan", false) && zwalletMain) {
-        zwalletMain->GetTracker().ListMints();
+    if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
+        pwalletMain->zwallet->GetTracker().ListMints();
     }
 #endif
     fDumpMempoolLater = !fRequestShutdown;
@@ -904,6 +900,18 @@ void InitParameterInteraction()
     if (IsArgSet("-whitebind")) {
         if (SoftSetBoolArg("-listen", true))
             LogPrintf("%s: parameter interaction: -whitebind set -> setting -listen=1\n", __func__);
+    }
+
+    if (IsArgSet("-znodeblsprivkey")) {
+        // masternodes MUST accept connections from outside
+        ForceSetArg("-listen", "1");
+        LogPrintf("%s: parameter interaction: -znodeblsprivkey=... -> setting -listen=1\n", __func__);
+        if (GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS) < DEFAULT_MAX_PEER_CONNECTIONS) {
+            // masternodes MUST be able to handle at least DEFAULT_MAX_PEER_CONNECTIONS connections
+            ForceSetArg("-maxconnections", itostr(DEFAULT_MAX_PEER_CONNECTIONS));
+            LogPrintf("%s: parameter interaction: -znodeblsprivkey=... -> setting -maxconnections=%d instead of specified -maxconnections=%d\n",
+                    __func__, DEFAULT_MAX_PEER_CONNECTIONS, GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS));
+        }
     }
 
     if (mapMultiArgs.count("-connect") && mapMultiArgs.at("-connect").size() > 0) {
@@ -1911,7 +1919,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("Step 8: load wallet ************************************\n");
     if (GetBoolArg("-disablewallet", false)) {
         pwalletMain = NULL;
-        zwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
     CWallet::InitLoadWallet();
@@ -2030,8 +2037,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
-            return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+            // TODO: remove temporary key creation when legacy znode code is removed
+            activeZnode.keyZnode.MakeNewKey(false);
+            activeZnode.pubKeyZnode = activeZnode.keyZnode.GetPubKey();
         }
     }
 
@@ -2077,8 +2085,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(_("Invalid znodeblsprivkey. Please see documentation."));
             }
         } else {
-            // TODO: uncomment when switch to evo znodes is done
-            //return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
+            return InitError(_("You must specify a znodeblsprivkey in the configuration. Please see documentation for help."));
         }
 
         // Create and register activeMasternodeManager, will init later in ThreadImport
@@ -2267,17 +2274,21 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 13a: update block tip in Zcoin modules
 
-    bool fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
+    bool fEvoZnodes = false;
+    {
+        LOCK(cs_main);
+        fEvoZnodes = chainActive.Height() >= chainparams.GetConsensus().DIP0003EnforcementHeight;
 
-    if (!fEvoZnodes) {
-        // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
-        // but don't call it directly to prevent triggering of other listeners like zmq etc.
-        // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        //darkSendPool.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-        // governance.UpdatedBlockTip(chainActive.Tip());
+        if (!fEvoZnodes) {
+            // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+            // but don't call it directly to prevent triggering of other listeners like zmq etc.
+            // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+            mnodeman.UpdatedBlockTip(chainActive.Tip());
+            //darkSendPool.UpdatedBlockTip(chainActive.Tip());
+            znpayments.UpdatedBlockTip(chainActive.Tip());
+            znodeSync.UpdatedBlockTip(chainActive.Tip());
+            // governance.UpdatedBlockTip(chainActive.Tip());
+        }
     }
 
     // ********************************************************* Step 13b: start legacy znodes thread

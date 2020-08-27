@@ -288,7 +288,7 @@ std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
     std::vector<lelantus::PrivateCoin> &coins) {
 
     std::vector<CHDMint> hdMints;
-
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     for (auto a : amounts) {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
         std::vector<CHDMint> mints;
@@ -301,7 +301,7 @@ std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
         txs.emplace_back(wtxAndFee.front().first);
 
         hdMints.insert(hdMints.end(), mints.begin(), mints.end());
-        zwalletMain->GetTracker().AddLelantus(hdMints.back(), true);
+        pwalletMain->zwallet->GetTracker().AddLelantus(walletdb, hdMints.back(), true);
     }
 
     return hdMints;

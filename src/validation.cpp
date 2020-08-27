@@ -1410,9 +1410,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (zwalletMain) {
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
-            zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
     }
@@ -1422,9 +1422,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             lelantusState->AddSpendToMempool(lelantusSpendSerials, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (zwalletMain) {
+        if (pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
-            zwalletMain->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
+            pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
         }
 #endif
     }
@@ -1436,14 +1436,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
 
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint() && zwalletMain) {
+    if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
-        zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 
-    if(tx.IsLelantusMint() && zwalletMain) {
+    if(tx.IsLelantusMint() && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
-        zwalletMain->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
+        pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
@@ -3150,21 +3150,21 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
-    if (zwalletMain) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         if (block.sigmaTxInfo->spentSerials.size() > 0) {
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
         }
 
         if (block.sigmaTxInfo->mints.size() > 0) {
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
         }
 
         if (block.lelantusTxInfo->spentSerials.size() > 0) {
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.lelantusTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.lelantusTxInfo->spentSerials);
         }
 
         if (block.lelantusTxInfo->mints.size() > 0) {
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.lelantusTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.lelantusTxInfo->mints);
         }
     }
 #endif
@@ -3297,26 +3297,27 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if (zwalletMain && blockConnecting.sigmaTxInfo) {
+
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
         if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
         }
 
         if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
             LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
         }
 
         if (blockConnecting.lelantusTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(blockConnecting.lelantusTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.lelantusTxInfo->spentSerials);
         }
 
         if (blockConnecting.lelantusTxInfo->mints.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.lelantusTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.lelantusTxInfo->mints);
         }
     }
 #endif
