@@ -17,6 +17,16 @@ public:
                 const SigmaPlusProof<Exponent, GroupElement>& proof,
                 bool fPadding) const;
 
+    bool batch_verify(const std::vector<GroupElement>& commits,
+                      const std::vector<Exponent>& serials,
+                      const vector<bool>& fPadding,
+                      const std::vector<size_t>& setSizes,
+                      const vector<SigmaPlusProof<Exponent, GroupElement>>& proofs) const;
+
+    bool membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const;
+    bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
+    bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
+
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;

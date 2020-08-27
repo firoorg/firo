@@ -21,6 +21,18 @@ public:
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof);
 
+    bool verify(
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+            const std::vector<Scalar>& serialNumbers,
+            const std::vector<uint32_t>& groupIds,
+            const Scalar& Vin,
+            uint64_t Vout,
+            uint64_t f,
+            const std::vector<PublicCoin>& Cout,
+            const LelantusProof& proof,
+            Scalar& x,
+            bool fSkipVerification = false);
+
 private:
     bool verify_sigma(
             const std::vector<std::vector<PublicCoin>>& anonymity_sets,
@@ -28,7 +40,8 @@ private:
             const std::vector<SigmaExtendedProof> &sigma_proofs,
             Scalar& x,
             Scalar& zV,
-            Scalar& zR);
+            Scalar& zR,
+            bool fSkipVerification = false);
     bool verify_rangeproof(
             const std::vector<PublicCoin>& Cout,
             const RangeProof& bulletproofs);

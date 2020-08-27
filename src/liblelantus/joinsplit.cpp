@@ -103,6 +103,18 @@ bool JoinSplit::Verify(
         const std::vector<PublicCoin>& Cout,
         uint64_t Vout,
         const uint256& txHash) const {
+    Scalar challenge;
+    bool fSkipVerification = false;
+    return Verify(anonymity_sets, Cout, Vout, txHash, challenge, fSkipVerification);
+}
+
+bool JoinSplit::Verify(
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<PublicCoin>& Cout,
+        uint64_t Vout,
+        const uint256& txHash,
+        Scalar& challenge,
+        bool fSkipVerification ) const {
     std::vector<uint256> groupBlockHashes;
     groupBlockHashes.reserve(coinGroupIdAndBlockHash.size());
 
@@ -155,10 +167,9 @@ bool JoinSplit::Verify(
         }
     }
 
-    LelantusVerifier verifier(params);
-
     // Now verify lelantus proof
-    return verifier.verify(anonymity_sets, serialNumbers, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof);
+    LelantusVerifier verifier(params);
+    return verifier.verify(anonymity_sets, serialNumbers, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, challenge, fSkipVerification);
 }
 
 
@@ -178,6 +189,10 @@ const std::vector<std::pair<uint32_t, uint256>>& JoinSplit::getIdAndBlockHashes(
 
 const std::vector<Scalar>& JoinSplit::getCoinSerialNumbers() {
     return this->serialNumbers;
+}
+
+const LelantusProof& JoinSplit::getLelantusProof() {
+    return this->lelantusProof;
 }
 
 uint64_t JoinSplit::getFee() {

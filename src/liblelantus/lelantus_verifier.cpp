@@ -1,4 +1,6 @@
 #include "lelantus_verifier.h"
+#include "../amount.h"
+#include "chainparams.h"
 
 namespace lelantus {
 
@@ -14,6 +16,22 @@ bool LelantusVerifier::verify(
         uint64_t f,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
+    Scalar x;
+    bool fSkipVerification = 0;
+    return verify(anonymity_sets, serialNumbers, groupIds, Vin, Vout, f, Cout, proof, x, fSkipVerification);
+}
+
+bool LelantusVerifier::verify(
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<Scalar>& serialNumbers,
+        const std::vector<uint32_t>& groupIds,
+        const Scalar& Vin,
+        uint64_t Vout,
+        uint64_t f,
+        const std::vector<PublicCoin>& Cout,
+        const LelantusProof& proof,
+        Scalar& x,
+        bool fSkipVerification) {
     //check the overflow of Vout and fee
     if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && f < (1000 * CENT))) // 1000 * CENT is the value of max fee defined at validation.h
         return false;
@@ -34,8 +52,8 @@ bool LelantusVerifier::verify(
         itr++;
     }
 
-    Scalar x, zV, zR;
-    if(!(verify_sigma(vAnonymity_sets, vSin, proof.sigma_proofs, x, zV, zR) &&
+    Scalar zV, zR;
+    if(!(verify_sigma(vAnonymity_sets, vSin, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;
@@ -48,7 +66,8 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         Scalar& x,
         Scalar& zV,
-        Scalar& zR) {
+        Scalar& zR,
+        bool fSkipVerification) {
 
 
     LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, x);
@@ -61,17 +80,21 @@ bool LelantusVerifier::verify_sigma(
     int t = 0;
     for(std::size_t k = 0; k < Sin.size(); k++) {
 
-        std::vector<GroupElement> C_;
-        C_.reserve(anonymity_sets[k].size());
-        for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
-            C_.emplace_back(anonymity_sets[k][j].getValue());
-
         std::vector<SigmaExtendedProof> sigma_proofs_k;
         for (std::size_t i = 0; i < Sin[k].size(); ++i, ++t) {
             zV += sigma_proofs[t].zV_;
             zR += sigma_proofs[t].zR_;
             sigma_proofs_k.emplace_back(sigma_proofs[t]);
         }
+
+        //skip verification if we are collecting proofs for later batch verification
+        if(fSkipVerification)
+            continue;
+
+        std::vector<GroupElement> C_;
+        C_.reserve(anonymity_sets[k].size());
+        for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
+            C_.emplace_back(anonymity_sets[k][j].getValue());
 
         if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k))
             return false;
