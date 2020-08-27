@@ -226,6 +226,7 @@ struct Params {
     int nDisableUnpaddedSigmaBlock;
 
     int nStartSigmaBlacklist;
+    int nRestartSigmaWithBlacklistCheck;
 
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;

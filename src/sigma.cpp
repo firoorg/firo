@@ -1057,14 +1057,14 @@ int CSigmaState::GetCoinSetForSpend(
                 }
                 BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
                         block->sigmaMintedPubCoins[denomAndId]) {
-                    if (chainActive.Height() > ::Params().GetConsensus().nStartSigmaBlacklist) {
+                    if (chainActive.Height() >= ::Params().GetConsensus().nStartSigmaBlacklist) {
                         std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
                         if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
                             continue;
                         }
-                        coins_out.push_back(pubCoinValue);
-                        numberOfCoins++;
                     }
+                    coins_out.push_back(pubCoinValue);
+                    numberOfCoins++;
                 }
             }
         }
