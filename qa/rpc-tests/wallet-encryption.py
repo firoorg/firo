@@ -48,16 +48,23 @@ class WalletEncryptionTest(BitcoinTestFramework):
 
         assert_equal(privkey[:1], "c")
         assert_equal(len(privkey), 52)
+        assert_raises_jsonrpc(-15, "Error: running with an unencrypted wallet, but walletpassphrase was called", self.nodes[0].walletpassphrase, 'ff', 1)
+        assert_raises_jsonrpc(-15, "Error: running with an unencrypted wallet, but walletpassphrasechange was called.", self.nodes[0].walletpassphrasechange, 'ff', 'ff')
 
         # Encrypt the wallet
+        assert_raises_jsonrpc(-1, "encryptwallet <passphrase>\nEncrypts the wallet with <passphrase>.", self.nodes[0].encryptwallet, '')
         self.nodes[0].encryptwallet(passphrase)
         bitcoind_processes[0].wait()
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir)
 
-        otp = self.get_otp(address)
-
         # Test that the wallet is encrypted
+        otp = self.get_otp(address)
         assert_raises_jsonrpc(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address, otp)
+        assert_raises_jsonrpc(-15, "Error: running with an encrypted wallet, but encryptwallet was called.", self.nodes[0].encryptwallet, 'ff')
+        assert_raises_jsonrpc(-1, "walletpassphrase <passphrase> <timeout>\nStores the wallet decryption key in memory for <timeout> seconds.",
+            self.nodes[0].walletpassphrase, '', 1)
+        assert_raises_jsonrpc(-1, "walletpassphrasechange <oldpassphrase> <newpassphrase>\nChanges the wallet passphrase from <oldpassphrase> to <newpassphrase>.",
+            self.nodes[0].walletpassphrasechange, '', 'ff')
 
         # Check that walletpassphrase works
         self.nodes[0].walletpassphrase(passphrase, 2)
