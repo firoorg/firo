@@ -122,7 +122,7 @@ testScripts = [
     # 'p2p-compactblocks.py',
     # 'segwit.py',
     # vv Tests less than 2m vv
-    # 'wallet.py',
+    'wallet.py',
     'wallet-encryption',
     'wallet-hd.py',
     'wallet-dump.py',

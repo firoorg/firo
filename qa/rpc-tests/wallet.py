@@ -3,7 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-import time
+import re
+
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
@@ -19,7 +20,9 @@ class WalletTest (BitcoinTestFramework):
         super().__init__()
         self.setup_clean_chain = True
         self.num_nodes = 4
-        self.extra_args = [['-usehd={:d}'.format(i%2==0)] for i in range(4)]
+        # self.extra_args = [['-usehd={:d}'.format(i%2==0), '-usemnemonic=0'] for i in range(4)]
+        self.extra_args = [['-usemnemonic=0'] for i in range(4)]
+        print(self.extra_args)
 
     def setup_network(self, split=False):
         self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
@@ -30,26 +33,26 @@ class WalletTest (BitcoinTestFramework):
         self.sync_all()
 
     def run_test (self):
-        immature_balance = 40.00000000
-        
+
         # Check that there's no UTXO on none of the nodes
         assert_equal(len(self.nodes[0].listunspent()), 0)
         assert_equal(len(self.nodes[1].listunspent()), 0)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
-        # 40 zc
+        print("Mining blocks...")
+
         self.nodes[0].generate(1)
 
         walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], immature_balance)
+        assert_equal(walletinfo['immature_balance'], 40)
         assert_equal(walletinfo['balance'], 0)
 
         self.sync_all()
         self.nodes[1].generate(101)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), immature_balance)
-        assert_equal(self.nodes[1].getbalance(), immature_balance)
+        assert_equal(self.nodes[0].getbalance(), 40)
+        assert_equal(self.nodes[1].getbalance(), 40)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that only first and second nodes have UTXOs
@@ -57,16 +60,15 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(len(self.nodes[1].listunspent()), 1)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
-        # Send 21 Zcoin from 0 to 2 using sendtoaddress call.
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
-        time.sleep(5)
+        # Send 21 BTC from 0 to 2 using sendtoaddress call.
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 11)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
 
         walletinfo = self.nodes[0].getwalletinfo()
         assert_equal(walletinfo['immature_balance'], 0)
 
-        # Have node0 mine a block, thus it will collect its own fee(80 zc).
-        self.nodes[0].generate(2)
+        # Have node0 mine a block, thus it will collect its own fee.
+        self.nodes[0].generate(1)
         self.sync_all()
 
         # Exercise locking of unspent outputs
@@ -82,16 +84,16 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].generate(100)
         self.sync_all()
 
-        # node0 should end up with 120 zc in block rewards plus fees, but
+        # node0 should end up with 80 btc in block rewards plus fees, but
         # minus the 21 plus fees sent to node2
-        assert_equal(round(self.nodes[0].getbalance()), round(98.99977400))
+        assert_equal(self.nodes[0].getbalance(), 80 - 21)
         assert_equal(self.nodes[2].getbalance(), 21)
 
         # Node0 should have two unspent outputs.
         # Create a couple of transactions to send them to node2, submit them through
         # node1, and make sure both node0 and node2 pick them up properly:
         node0utxos = self.nodes[0].listunspent(1)
-        assert_equal(len(node0utxos), 3)
+        assert_equal(len(node0utxos), 2)
 
         # create both transactions
         txns_to_send = []
@@ -107,14 +109,13 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].sendrawtransaction(txns_to_send[0]["hex"], True)
         self.nodes[1].sendrawtransaction(txns_to_send[1]["hex"], True)
 
-        # Have node1 mine a 7 block to confirm transactions:
-        self.nodes[1].generate(7)
-        time.sleep(2)
+        # Have node1 mine a block to confirm transactions:
+        self.nodes[1].generate(1)
         self.sync_all()
 
-        assert_equal(round(self.nodes[0].getbalance()), round(18.99958200))
-        assert_equal(round(self.nodes[2].getbalance()), round(95.00019100))
-        assert_equal(round(self.nodes[2].getbalance("from1")), round(94-21+1))
+        assert_equal(self.nodes[0].getbalance(), 0)
+        assert_equal(self.nodes[2].getbalance(), 74)
+        assert_equal(self.nodes[2].getbalance("from1"), 74-21)
 
         # Send 10 BTC normal
         address = self.nodes[0].getnewaddress("test")
@@ -123,7 +124,7 @@ class WalletTest (BitcoinTestFramework):
         txid = self.nodes[2].sendtoaddress(address, 10, "", "", False)
         self.nodes[2].generate(1)
         self.sync_all()
-        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), Decimal('84'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
+        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), Decimal('64'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
         assert_equal(self.nodes[0].getbalance(), Decimal('10'))
 
         # Send 10 BTC with subtract fee from amount
@@ -179,7 +180,7 @@ class WalletTest (BitcoinTestFramework):
         #4. check if recipient (node0) can list the zero value tx
         usp = self.nodes[1].listunspent()
         inputs = [{"txid":usp[0]['txid'], "vout":usp[0]['vout']}]
-        outputs = {self.nodes[1].getnewaddress(): 49.998, self.nodes[0].getnewaddress(): 11.11}
+        outputs = {self.nodes[1].getnewaddress(): 39.998, self.nodes[0].getnewaddress(): 11.11}
 
         rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000") #replace 11.11 with 0.0 (int32)
         decRawTx = self.nodes[1].decoderawtransaction(rawTx)
@@ -287,7 +288,15 @@ class WalletTest (BitcoinTestFramework):
                            {"spendable": False})
 
         # 5. Import private key of the previously imported address on node1
-        priv_key = self.nodes[2].dumpprivkey(address_to_import)
+        try:
+            self.nodes[2].dumpprivkey(address_to_import)
+        except Exception as ex:
+            found = re.search('WARNING! Your one time authorization code is: (.+?)\n', ex.error['message'])
+            if found:
+                key = found.group(1)
+        else:
+            assert(False)
+        priv_key = self.nodes[2].dumpprivkey(address_to_import, key)
         self.nodes[1].importprivkey(priv_key)
 
         # 6. Check that the unspents are now spendable on node1
@@ -347,7 +356,8 @@ class WalletTest (BitcoinTestFramework):
         # Exercise listsinceblock with the last two blocks
         coinbase_tx_1 = self.nodes[0].listsinceblock(blocks[0])
         assert_equal(coinbase_tx_1["lastblock"], blocks[1])
-        assert_equal(len(coinbase_tx_1["transactions"]), 1)
+        # assert_equal(len(coinbase_tx_1["transactions"]), 1)
+        assert_equal(len(coinbase_tx_1["transactions"]), 2)
         assert_equal(coinbase_tx_1["transactions"][0]["blockhash"], blocks[1])
         assert_equal(len(self.nodes[0].listsinceblock(blocks[1])["transactions"]), 0)
 
