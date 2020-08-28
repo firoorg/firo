@@ -22,7 +22,6 @@ class WalletTest (BitcoinTestFramework):
         self.num_nodes = 4
         # self.extra_args = [['-usehd={:d}'.format(i%2==0), '-usemnemonic=0'] for i in range(4)]
         self.extra_args = [['-usemnemonic=0'] for i in range(4)]
-        print(self.extra_args)
 
     def setup_network(self, split=False):
         self.nodes = start_nodes(3, self.options.tmpdir, self.extra_args[:3])
@@ -255,19 +254,39 @@ class WalletTest (BitcoinTestFramework):
         txObj = self.nodes[0].gettransaction(txId)
         assert_equal(txObj['amount'], Decimal('-0.0001'))
 
-        try:
-            txId  = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), "1f-4")
-        except JSONRPCException as e:
-            assert("Invalid amount" in e.error['message'])
-        else:
-            raise AssertionError("Must not parse invalid amounts")
+        # General checks for errors from incorrect inputs
+        # This will raise an exception because the amount type is wrong
+        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoaddress, self.nodes[2].getnewaddress(), "1f-4")
 
+        # This will raise an exception since generate does not accept a string
+        assert_raises_jsonrpc(-1, "not an integer", self.nodes[0].generate, "2")
 
-        try:
-            self.nodes[0].generate("2")
-            raise AssertionError("Must not accept strings as numeric")
-        except JSONRPCException as e:
-            assert("not an integer" in e.error['message'])
+        # This will raise an exception for the invalid private key format
+        assert_raises_jsonrpc(-5, "Invalid private key encoding", self.nodes[0].importprivkey, "invalid")
+
+        # This will raise an exception for importing an address with the PS2H flag
+        temp_address = self.nodes[1].getnewaddress()
+        assert_raises_jsonrpc(-5, "Cannot use the p2sh flag with an address - use a script instead", self.nodes[0].importaddress, temp_address, "label", False, True)
+
+        # This will raise an exception for attempting to dump the private key of an address you do not own
+        otp = self.get_otp(temp_address)
+        assert_raises_jsonrpc(-4, f'Private key for address {temp_address} is not known', self.nodes[0].dumpprivkey, temp_address, otp)
+
+        # This will raise an exception for attempting to get the private key of an Invalid Zcoin address
+        otp = self.get_otp("invalid")
+        assert_raises_jsonrpc(-5, "Invalid Zcoin address", self.nodes[0].dumpprivkey, "invalid", otp)
+
+        # # This will raise an exception for attempting to set a label for an Invalid Zcoin address
+        # assert_raises_jsonrpc(-5, "Invalid Zcoin address", self.nodes[0].setlabel, "invalid address", "label")
+
+        # This will raise an exception for importing an invalid address
+        assert_raises_jsonrpc(-5, "Invalid Zcoin address or script", self.nodes[0].importaddress, "invalid")
+
+        # This will raise an exception for attempting to import a pubkey that isn't in hex
+        assert_raises_jsonrpc(-5, "Pubkey must be a hex string", self.nodes[0].importpubkey, "not hex")
+
+        # This will raise an exception for importing an invalid pubkey
+        assert_raises_jsonrpc(-5, "Pubkey is not a valid public key", self.nodes[0].importpubkey, "5361746f736869204e616b616d6f746f")
 
         # Import address and private key to check correct behavior of spendable unspents
         # 1. Send some coins to generate new UTXO
@@ -288,15 +307,8 @@ class WalletTest (BitcoinTestFramework):
                            {"spendable": False})
 
         # 5. Import private key of the previously imported address on node1
-        try:
-            self.nodes[2].dumpprivkey(address_to_import)
-        except Exception as ex:
-            found = re.search('WARNING! Your one time authorization code is: (.+?)\n', ex.error['message'])
-            if found:
-                key = found.group(1)
-        else:
-            assert(False)
-        priv_key = self.nodes[2].dumpprivkey(address_to_import, key)
+        otp = self.get_otp(address_to_import)
+        priv_key = self.nodes[2].dumpprivkey(address_to_import, otp)
         self.nodes[1].importprivkey(priv_key)
 
         # 6. Check that the unspents are now spendable on node1
@@ -411,6 +423,19 @@ class WalletTest (BitcoinTestFramework):
 
         # Verify nothing new in wallet
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*",99999)))
+
+    def get_otp(self, address):
+        # assume test on only 1 node
+        try:
+            self.nodes[0].dumpprivkey(address)
+        except Exception as ex:
+            found = re.search(
+                'WARNING! Your one time authorization code is: (.+?)\n',
+                ex.error['message'])
+            if found:
+                return found.group(1)
+
+        raise Exception("Fail to get OTP")
 
 if __name__ == '__main__':
     WalletTest().main()
