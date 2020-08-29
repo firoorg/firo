@@ -349,6 +349,19 @@ bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
 
+bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<CBIP47PaymentChannel>& channels)
+{
+    //read payment code list
+    std::vector<string> paymentCodes;
+    Read("CBIP47PaymentChannelList", paymentCodes);
+    if (std::find(paymentCodes.begin(), paymentCodes.end(), paymentCode) == paymentCodes.end()) {
+        paymentCodes.push_back(paymentCode);
+        Write("CBIP47PaymentChannelList", paymentCodes);
+    }
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+}
+
 bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
@@ -1455,60 +1468,18 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
     return Write(std::string("hdchain"), chain);
 }
 
-
-bool CWalletDB::WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId)
-{
-    nWalletDBUpdateCounter++;
-    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), channelId), pchannel);
-}
-
 void CWalletDB::ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels)
 {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
-    while (true) {
-        // Read next record
-        LogPrintf("Create CDataStream ssKey\n");
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("CBIP47PaymentChannel"), string(""));
-        LogPrintf("Create CDataStream ssValue\n");
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        LogPrintf("ReadAtCursor sskey and ssValue\n");
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : error scanning DB");
-        }
-        LogPrintf("Unserialize sskey and ssValue\n");
-        // Unserialize
-        string strType;
-        ssKey >> strType;
-        LogPrintf("strType is %s\n", strType);
-        if (strType != "CBIP47PaymentChannel")
-            break;
-        std::string value;
-        ssKey >> value;
-        std::string pcodeKey = value.substr(0, value.find("-"));
-        value = pcodeKey;
-        LogPrintf("value is %s\n", value);
-        CBIP47PaymentChannel pchannel;
-        LogPrintf("ssValue Size is %d\n", ssValue.size());
-        ssValue >> pchannel;
-        LogPrintf("Get Pchannl %s\n", pchannel.getPaymentCode());
-        if (mPchannels.count(pchannel.getPaymentCode()) == 1) {
-            mPchannels[pchannel.getPaymentCode()].push_back(pchannel);
-        } else {
-            std::vector<CBIP47PaymentChannel> channels{pchannel};
-            mPchannels.insert(make_pair(value, channels));
-        }
+    //read payment code list
+    std::vector<string> paymentCodes;
+    Read("CBIP47PaymentChannelList", paymentCodes);
+    for(size_t i = 0; i < paymentCodes.size(); i++) 
+    {
+        std::string paymentCode = paymentCodes[i];
+        std::vector<CBIP47PaymentChannel> channels;
+        Read(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+        mPchannels[paymentCode] = channels;    
     }
-    pcursor->close();
 }
 
 bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value) {

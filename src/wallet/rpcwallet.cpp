@@ -4663,7 +4663,52 @@ UniValue validatepcode(const JSONRPCRequest& request)
     return ret;
 }
 
+UniValue listPaymentChannels(const std::vector<CBIP47PaymentChannel>& channels)
+{
+    UniValue arrChannels(UniValue::VARR);
+    for (size_t i = 0; i < channels.size(); i++) {
+        UniValue uniChannelItem(UniValue::VOBJ);
+        const CBIP47PaymentChannel& paymentChannelItem = channels[i];
+        uniChannelItem.push_back(Pair("paymentCode", paymentChannelItem.getPaymentCode()));
+        uniChannelItem.push_back(Pair("myPaymentCode", paymentChannelItem.getMyPaymentCode()));
+        uniChannelItem.push_back(Pair("label", paymentChannelItem.getLabel()));
+        uniChannelItem.push_back(Pair("status", paymentChannelItem.isNotificationTransactionSent()));
+        uniChannelItem.push_back(Pair("currentIncomingIndex", paymentChannelItem.getCurrentIncomingIndex()));
+        uniChannelItem.push_back(Pair("currentOutgoingIndex", paymentChannelItem.getCurrentOutgoingIndex()));
+        uniChannelItem.push_back(Pair("notiTx", paymentChannelItem.getNotificationTxHash().GetHex()));
 
+        UniValue uniIncomingAddresses(UniValue::VARR);
+        std::vector<CBIP47Address> incomingAddresses = paymentChannelItem.getIncomingAddresses();
+        for (size_t j = 0; j < incomingAddresses.size(); j++) {
+            uniIncomingAddresses.push_back(incomingAddresses[j].getAddress());
+        }
+        uniChannelItem.push_back(Pair("incomingAddresses", uniIncomingAddresses));
+
+        UniValue uniOutgoingAddresses(UniValue::VARR);
+        std::vector<string> outgoingAddresses = paymentChannelItem.getOutgoingAddresses();
+        for (size_t j = 0; j < outgoingAddresses.size(); j++) {
+            uniOutgoingAddresses.push_back(outgoingAddresses[j]);
+        }
+        uniChannelItem.push_back(Pair("outgoingAddresses", uniOutgoingAddresses));
+
+        arrChannels.push_back(uniChannelItem);
+    }
+    return arrChannels;
+}
+
+UniValue readpaymentchannels(const JSONRPCRequest& request)
+{
+    UniValue ret(UniValue::VOBJ);
+    std::map <string, std::vector<CBIP47PaymentChannel>> mPchannels;
+    CWalletDB db(pwalletMain->strWalletFile);
+    db.ListCBIP47PaymentChannel(mPchannels);
+    BOOST_FOREACH (const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>) & item, mPchannels) {
+        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+        UniValue arrChannels = listPaymentChannels(channels);
+        ret.push_back(Pair(item.first, arrChannels));
+    }
+    return ret;
+}
 
 UniValue sendtopaymentcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5240,7 +5285,7 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "getreceivedbypcode",                    &getreceivedbypcode,                      false },
     { "wallet",             "getpaymentcodefromnotificationtx",      &getpaymentcodefromnotificationtx,        false },
     { "wallet",             "validatepcode",                         &validatepcode,                           true  },
-
+    { "wallet",             "readpaymentchannels",                         &readpaymentchannels,                           false  },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

@@ -267,6 +267,8 @@ public:
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
 
+    bool SavePaymentChannels(std::string paymentCode, const std::vector<CBIP47PaymentChannel>& channels);
+
     DBErrors ReorderTransactions(CWallet* pwallet);
     DBErrors LoadWallet(CWallet* pwallet);
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
@@ -307,8 +309,6 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     // @bip47 channel data write
-    bool WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId);
-    
     void ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels);
 
     /// Write destination data key,value tuple to database

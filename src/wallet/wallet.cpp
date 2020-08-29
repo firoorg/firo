@@ -1946,15 +1946,16 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
             }
 
         }
+        CBIP47PaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
+        channel->setStatusSent(wtx.GetHash());
         CValidationState state;
         if(!CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
             LogPrintf("Bip47Wallet Error CommitTransaction\n");
+            channel->setStatusNotSent();
             throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
 
         //save notification tx hash to wallet db
-        CBIP47PaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
-        channel->setStatusSent(wtx.GetHash());
         saveCBIP47PaymentChannelData(paymentCode);
         return wtx.GetHash().GetHex();
     }
@@ -2390,17 +2391,13 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
 void CWallet::saveCBIP47PaymentChannelData(string pchannelId)
 {
     try {
-        CWalletDB walletdb(strWalletFile, "r+", false);
+        CWalletDB walletdb(strWalletFile);
         std::map<string, std::vector<CBIP47PaymentChannel>>::iterator it = m_Bip47channels.find(pchannelId);
         if(it != m_Bip47channels.end())
         {
             LogPrintf("Save PaymentChannels with payment code %s\n", pchannelId);
-            for(size_t i = 0; i < it->second.size(); i++) {
-                LogPrintf("Save Bip47 PaymentChannel Success\n");
-                const CBIP47PaymentChannel& channel = it->second[i];
-                string channelUniqueID = channel.getPaymentCode() + "-" + channel.getMyPaymentCode();
-                walletdb.WriteCBIP47PaymentChannel(it->second[i], channelUniqueID);
-            }
+            walletdb.SavePaymentChannels(it->first, it->second);
+            LogPrintf("Save Bip47 PaymentChannel Success\n");
         }
         else
         {
@@ -2506,10 +2503,15 @@ CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string pcod
         //default to the first payment code to handshake with the counter party
         myPaymentCodeForHandshake = getPaymentCode(0); 
     }
-    std::vector<CBIP47PaymentChannel> channels;
-    channels.push_back(CBIP47PaymentChannel(myPaymentCodeForHandshake, pcodestr));
-    m_Bip47channels.insert(make_pair(pcodestr, channels));
-    return &m_Bip47channels[pcodestr][0];
+    CBIP47PaymentChannel newChannel(myPaymentCodeForHandshake, pcodestr);
+    if (m_Bip47channels.count(pcodestr) > 0) {
+        m_Bip47channels[pcodestr].push_back(newChannel);
+    } else {
+        std::vector<CBIP47PaymentChannel> channels;
+        channels.push_back(newChannel);
+        m_Bip47channels[pcodestr] = channels;
+    }
+    return &m_Bip47channels[pcodestr][m_Bip47channels[pcodestr].size() - 1];
 }
 
 bool CWallet::setBip47ChannelLabel(std::string pcodestr, std::string label)

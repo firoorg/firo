@@ -123,4 +123,5 @@ void CBIP47PaymentChannel::addAddressToOutgoingAddresses(string address) {
 
 void CBIP47PaymentChannel::setStatusNotSent() {
     status = STATUS_NOT_SENT;
+    this->notiTxHash.SetNull();
 }
