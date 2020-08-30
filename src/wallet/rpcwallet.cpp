@@ -4663,7 +4663,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue listPaymentChannels(const std::vector<CBIP47PaymentChannel>& channels)
+UniValue listPaymentChannelsRPC(const std::vector<CBIP47PaymentChannel>& channels)
 {
     UniValue arrChannels(UniValue::VARR);
     for (size_t i = 0; i < channels.size(); i++) {
@@ -4704,7 +4704,7 @@ UniValue readpaymentchannels(const JSONRPCRequest& request)
     db.ListCBIP47PaymentChannel(mPchannels);
     BOOST_FOREACH (const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>) & item, mPchannels) {
         const std::vector<CBIP47PaymentChannel>& channels = item.second;
-        UniValue arrChannels = listPaymentChannels(channels);
+        UniValue arrChannels = listPaymentChannelsRPC(channels);
         ret.push_back(Pair(item.first, arrChannels));
     }
     return ret;
