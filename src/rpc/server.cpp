@@ -332,6 +332,11 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+        /* Mobile related */
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 };
 
 CRPCTable::CRPCTable()

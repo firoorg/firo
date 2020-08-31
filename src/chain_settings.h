@@ -12,22 +12,12 @@ inline bool IsNewInstantSendEnabled()
     return false;
 }
 
-inline bool IsInstantSendEnabled()
-{
-    return false;
-}
-
 inline bool IsChainlocksEnabled()
 {
     return false;
 }
 
 inline bool IsBlockFilteringEnabled()
-{
-    return false;
-}
-
-inline bool IsInstansendAutolocks()
 {
     return false;
 }
