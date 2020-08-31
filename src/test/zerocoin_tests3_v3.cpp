@@ -59,6 +59,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
 
+        vector<CHDMint> allMints;
         //Verify Mint is successful
         {
             std::vector<sigma::PrivateCoin> privCoins(1, sigma::PrivateCoin(sigmaParams, denom));
@@ -69,6 +70,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
             stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 
             BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+            allMints.insert(allMints.begin(), vDMints.begin(), vDMints.end());
         }
 
         //Verify Mint gets in the mempool
@@ -112,13 +114,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 
         {
             std::vector<sigma::PrivateCoin> privCoins(1, sigma::PrivateCoin(sigmaParams, denom));
-
-            CWalletTx wtx;
             vector<CHDMint> vDMints;
+            CWalletTx wtx;
             auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
             stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 
             BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+            allMints.insert(allMints.begin(), vDMints.begin(), vDMints.end());
         }
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
@@ -158,18 +160,21 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
         sigmaState->containers.usedCoinSerials.clear();
         sigmaState->mempoolCoinSerials.clear();
+
         {
+            //Set mints unused, and try to spend again
+            for(auto mint : allMints)
+                pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(mint.GetPubCoinHash());
             CWalletTx wtx;
             BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
         }
-
-        {
-            CWalletTx wtx;
-            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError);
-        }
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
 
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
+
+        //Since new block contained a TX with the same serial as the TX in mempool, confirm that mempool is cleared
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         //Confirm that on disconnect block transaction is returned to mempool
         DisconnectBlocks(1);
@@ -180,6 +185,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
             const CChainParams& chainparams = Params();
             InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
         }
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool should get the transaction of disconnected block");
 
         //This mint is just to create a block with the new hash
         {
@@ -194,9 +201,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         }
         b = CreateAndProcessBlock(scriptPubKey);
         mempool.clear();
-
+        sigmaState->Reset();
     }
-    sigmaState->Reset();
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -116,16 +116,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     previousHeight = chainActive.Height();
 
     std::vector<CRecipient> recipients = {
-        {GetScriptForDestination(randomAddr.Get()), nAmount, true},
-        };
+            {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+            };
 
     // Check that the tx creation fails.
     BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::runtime_error);
     
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, nAmount);
     recipients = {
-        {GetScriptForDestination(randomAddr.Get()), nAmount * 2, true},
-        };
+            {GetScriptForDestination(randomAddr.Get()), nAmount * 2, true},
+            };
 
     unsigned spendsTransactionLimit = consensus.nMaxSigmaInputPerBlock / 2;
     // Next add spendsTransactionLimit + 1 transactions with 2 inputs each, verify mempool==spendsTransactionLimit + 1. mine a block. Verify mempool still has 1 tx.
@@ -226,8 +226,8 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     BOOST_CHECK_EQUAL(mempool.size(), 1);
 
     recipients = {
-        {GetScriptForDestination(randomAddr1.Get()), testDenominationAmount * 3, false},
-    };
+            {GetScriptForDestination(randomAddr1.Get()), testDenominationAmount * 3, false},
+            };
 
     BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
     BOOST_CHECK_EQUAL(mempool.size(), 2);

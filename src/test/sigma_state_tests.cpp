@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
         auto mintThisBlock = std::min(ZC_SPEND_V3_COINSPERID_LIMIT - 1 - allMints, mintsPerBlock);
         allMints += mintThisBlock;
 
-        std::vector<sigma::PrivateCoin> privCoins = generateCoins(sigmaParams, mintThisBlock, testDenomination);
+        std::vector<sigma::PrivateCoin> privCoins(generateCoins(sigmaParams, mintThisBlock, testDenomination));
         vector<CHDMint> vDMints;
         auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
         CWalletTx wtx;
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_LIMIT + 1;
     auto moreMintsToMakeExceedLimit =  exceedHardCapAmount - group1.nCoins;
 
-    std::vector<sigma::PrivateCoin> privCoins = generateCoins(sigmaParams, moreMintsToMakeExceedLimit, testDenomination);
+    std::vector<sigma::PrivateCoin> privCoins(generateCoins(sigmaParams, moreMintsToMakeExceedLimit, testDenomination));
     vector<CHDMint> vDMints;
     auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
     CWalletTx wtx;

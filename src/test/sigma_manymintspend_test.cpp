@@ -142,14 +142,29 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
         // Create two spend transactions using the same mints
-        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
-
+        std::vector<CSigmaEntry> coins;
+        {
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+        }
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
 
+        wtx.Init(NULL);
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+
+//        Try to put two in the same block and it will fail, expect 1
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
         wtx.Init(NULL);
-
+        //roll back mints used
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
         b = CreateBlock(scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
@@ -157,8 +172,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        // Create two spend transactions using the same mints
-        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        coins.clear();
+        {
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+        }
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
@@ -173,14 +194,28 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
         wtx.Init(NULL);
 
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        //This confirms that double spend is blocked and cannot enter mempool
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
+
         //Temporary disable usedCoinSerials check to force double spend in mempool
         auto tempSerials = sigmaState->GetSpends();
         sigmaState->containers.usedCoinSerials.clear();
 
         wtx.Init(NULL);
-        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError);
-        BOOST_CHECK_MESSAGE(mempool.size() == 0, "mempool not set after used coin serials removed");
+
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after used coin serials removed");
         sigmaState->containers.usedCoinSerials = tempSerials;
+
+        BOOST_CHECK_EXCEPTION(CreateBlock(scriptPubKey), std::runtime_error, no_check);
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after block created");
 
         tempSerials = sigmaState->containers.usedCoinSerials;
         sigmaState->containers.usedCoinSerials.clear();
@@ -230,13 +265,17 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
         previousHeight = chainActive.Height();
 
+        //roll back mints used
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
+
         // send to third party address.
         thirdPartyAddress = "TXYb6pEWBDcxQvTxbFQ9sEV1c3rWUPGW3v";
         const CBitcoinAddress address(thirdPartyAddress);
 
         recipients = {
                 {GetScriptForDestination(address.Get()), nAmount, true},
-        };
+                };
         BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");

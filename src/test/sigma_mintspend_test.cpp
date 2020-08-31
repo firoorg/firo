@@ -130,9 +130,44 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
+        std::vector<CSigmaEntry> coins;
+        CWalletTx wtx;
         {
-            CWalletTx wtx;
-            BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+        }
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+
+        wtx.Init(NULL);
+        //try double spend
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        //Verify spend got into mempool
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
+
+        b = CreateBlock(scriptPubKey);
+        previousHeight = chainActive.Height();
+        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
+
+        //roll back mints used
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
+
+        coins.clear();
+        wtx.Init(NULL);
+        {
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
         }
 
         //Verify spend got into mempool
@@ -145,29 +180,34 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        {
-            CWalletTx wtx;
-            BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
-        }
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
 
-        //Verify spend got into mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
+        //try double spend
+        pwalletMain->SpendSigma(recipients, wtx);
 
-        b = CreateBlock(scriptPubKey);
-        previousHeight = chainActive.Height();
-        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
-        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-
-        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
         auto tempSerials = sigmaState->containers.usedCoinSerials;
         sigmaState->containers.usedCoinSerials.clear();
 
         {
+            //Set mints unused, and try to spend again
+            for(auto mint : coins)
+                pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
             CWalletTx wtx;
-            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError);
+            pwalletMain->SpendSigma(recipients, wtx);
         }
+
+        sigmaState->containers.usedCoinSerials = tempSerials;
+
+        BOOST_CHECK_EXCEPTION(CreateBlock(scriptPubKey), std::runtime_error, no_check);
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
+        tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
+        CreateBlock(scriptPubKey);
 
         sigmaState->containers.usedCoinSerials = tempSerials;
 

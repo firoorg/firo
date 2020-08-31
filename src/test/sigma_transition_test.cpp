@@ -64,8 +64,8 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     sigma::CoinDenomination denom;
     BOOST_CHECK_MESSAGE(StringToDenomination(denomination, denom), "Unable to convert denomination string to value.");
-    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
-    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
+    for(int i = 0; i < denominationPair.second; i++)
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denom));
 
     auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
     CWalletTx mintTx;

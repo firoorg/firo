@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
         sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_25, nAmount);
         std::vector<CRecipient> recipients = {
                 {GetScriptForDestination(randomAddr.Get()), nAmount, true},
-        };
+                };
 
         CWalletTx wtx;
         BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));

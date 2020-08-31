@@ -4343,8 +4343,10 @@ bool CWallet::CreateZerocoinSpendModel(
 
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
-    if (!CheckDenomination(denomAmount, nAmount, denomination))
+    if (!CheckDenomination(denomAmount, nAmount, denomination)) {
+        stringError = "Error: No such denomination";
         return false;
+    }
 
     // Wallet comments
     CWalletTx wtx;
@@ -4352,7 +4354,6 @@ bool CWallet::CreateZerocoinSpendModel(
 
     bool zcSelectedIsUsed;
 
-    // Always spend V2 old mints first.
     CBigNum coinSerial;
     CBigNum zcSelectedValue;
     stringError = SpendZerocoin(
