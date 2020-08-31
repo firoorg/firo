@@ -334,11 +334,10 @@ bool CheckLelantusJoinSplitTransaction(
 
     for(auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
-        if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
-            int coinGroupId = idAndHash.first % (CENT / 1000);
-            int64_t intDenom = (idAndHash.first - coinGroupId) * 1000;
-            sigma::CoinDenomination denomination;
-            sigma::IntegerToDenomination(intDenom, denomination);
+        int coinGroupId = idAndHash.first % (CENT / 1000);
+        int64_t intDenom = (idAndHash.first - coinGroupId) * 1000;
+        sigma::CoinDenomination denomination;
+        if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT && sigma::IntegerToDenomination(intDenom, denomination)) {
 
             sigma::CSigmaState::SigmaCoinGroupInfo coinGroup;
             sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();

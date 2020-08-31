@@ -53,7 +53,11 @@ void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
     const std::vector<uint32_t>& groupIds = joinSplit->getCoinGroupIds();
 
     for(size_t i = 0; i < sigma_proofs.size(); i++) {
-        std::pair<uint32_t, bool> idAndFlag = std::make_pair(groupIds[i], joinSplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT);
+        int coinGroupId = groupIds[i] % (CENT / 1000);
+        int64_t intDenom = (groupIds[i] - coinGroupId) * 1000;
+        sigma::CoinDenomination denomination;
+        bool isSigma = sigma::IntegerToDenomination(intDenom, denomination) && joinSplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT;
+        std::pair<uint32_t, bool> idAndFlag = std::make_pair(groupIds[i], isSigma);
         tempLelantusSigmaProofs[idAndFlag].push_back(LelantusSigmaProofData(sigma_proofs[i], serials[i], challenge, setSizes.at(groupIds[i])));
     }
 }
