@@ -56,6 +56,8 @@
 #include "znodeman.h"
 #include "coins.h"
 
+#include "blacklists.h"
+
 #include "sigma/coinspend.h"
 #include "sigma/remint.h"
 #include "warnings.h"
@@ -603,7 +605,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
-    if (fCheckDuplicateInputs) {
+    bool const check_di = nHeight != INT_MAX && nHeight > ::Params().GetConsensus().nStartDuplicationCheck;
+    if (fCheckDuplicateInputs || check_di) {
         std::set<COutPoint> vInOutPoints;
         if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
             std::set<CScript> spendScripts;
@@ -648,6 +651,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return false;
     }
 
+    if (nHeight >= ::Params().GetConsensus().nStartBlacklist) {
+        for (const auto& vin : tx.vin) {
+            if(txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
+                    return state.DoS(100, error("Spending this tx is temporarily disabled"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+            }
+        }
+    }
     return true;
 }
 
@@ -747,6 +758,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
+    }
+
+    if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+        if (consensus.nStartSigmaBlacklist != INT_MAX && chainActive.Height() < consensus.nRestartSigmaWithBlacklistCheck)
+            return state.DoS(100, error("Sigma is temporarily disabled"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
     }
 
     if (!CheckTransaction(tx, state, true, hash, false, INT_MAX, isCheckWalletTransaction)) {
@@ -1571,7 +1588,7 @@ bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
     return true;
 }
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
+CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consensusParams, bool fMTP) {
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
@@ -1588,15 +1605,23 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     CAmount nSubsidy = 50 * COIN;
     nSubsidy >>= halvings;
 
-    if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)
+    if (nHeight > 0 && fMTP)
         nSubsidy /= consensusParams.nMTPRewardReduction;
 
     return nSubsidy;
 }
 
+CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
+    return GetBlockSubsidyWithMTPFlag(nHeight, consensusParams, nTime >= (int)consensusParams.nMTPSwitchTime);
+}
+
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
-    return blockValue*3/10; // 30%
+    const Consensus::Params &params = Params().GetConsensus();
+    if (nHeight >= params.nSubsidyHalvingFirst)
+        return blockValue*params.stage2ZnodeShare/100;
+    else
+        return blockValue*3/10; // 30%
 }
 
 bool IsInitialBlockDownload() {
@@ -3871,12 +3896,16 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (nHeight == INT_MAX)
         nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
-    for (CTransactionRef tx : block.vtx)
+    for (CTransactionRef tx : block.vtx) {
+        if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
+            return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
+        }
         // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
         if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
+    }
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
     {
@@ -4061,7 +4090,21 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 
-    if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
+    if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
+        if (nHeight < consensusParams.nSubsidyHalvingFirst + consensusParams.nSubsidyHalvingInterval) {
+            // "stage 2" interval between first and second halvings
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
+            CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
+            bool found = false;
+            for (const CTxOut &txout: block.vtx[0]->vout) {
+                if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
+                    break;
+            }
+            if (!found)
+                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
+        }
+    }
+    else if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
         return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
     }
 

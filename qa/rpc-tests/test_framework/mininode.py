@@ -265,12 +265,16 @@ class CService(object):
 
 class CAddress(object):
     def __init__(self):
+        self.time = 0;
         self.nServices = 1
         self.pchReserved = b"\x00" * 10 + b"\xff" * 2
         self.ip = "0.0.0.0"
         self.port = 0
 
-    def deserialize(self, f):
+    def deserialize(self, f, *, with_time = True):
+        if with_time:
+            self.time = struct.unpack("<i", f.read(4))
+
         self.nServices = struct.unpack("<Q", f.read(8))[0]
         self.pchReserved = f.read(12)
         self.ip = socket.inet_ntoa(f.read(4))
@@ -1964,8 +1968,8 @@ class NodeConn(asyncore.dispatcher):
         b"islock": msg_islock
     }
     MAGIC_BYTES = {
-        "mainnet": b"\xf9\xbe\xb4\xd9",   # mainnet
-        "testnet3": b"\x0b\x11\x09\x07",  # testnet3
+        "mainnet": b"\xe3\xd9\xfe\xf1",   # mainnet
+        "testnet3": b"\xcf\xfc\xbe\xea",  # testnet3
         "regtest": b"\xfa\xbf\xb5\xda",   # regtest
     }
 
@@ -2100,8 +2104,7 @@ class NodeConn(asyncore.dispatcher):
                     t.deserialize(f)
                     self.got_message(t)
                 else:
-                    logger.debug("Unknown command: '" + command + "' " +
-                                        repr(msg))
+                    logger.debug("Unknown command: '%s' %s" % (command, repr(msg)))
         except Exception as e:
             logger.error('got_data:', repr(e))
             # import  traceback
@@ -2150,7 +2153,7 @@ class NetworkThread(Thread):
             for fd, obj in mininode_socket_map.items():
                 if obj.disconnect:
                     disconnected.append(obj)
-                    print("NetworkThread:run disconnecting " + fd + " " + obj.disconnect)
+                    print("NetworkThread:run disconnecting %s %s" % (fd, obj.disconnect))
             [ obj.handle_close() for obj in disconnected ]
             asyncore.loop(0.1, use_poll=True, map=mininode_socket_map, count=1)
 
