@@ -2884,6 +2884,8 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 
 void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
+    static const int ZNODE_COIN_REQUIRED  = 1000;
+
     vCoins.clear();
     CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
@@ -2947,8 +2949,12 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 } else if(nCoinType == CoinType::ONLY_MINTS){
                     // Do not consider anything other than mints
                     found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
-                } else if (nCoinType == CoinType::ONLY_1000) {
-                    found = pcoin->tx->vout[i].nValue == 1000*COIN;
+                } else if (nCoinType == CoinType::ONLY_NOT1000IFMN) {
+                    found = !(fMasternodeMode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
+                } else if (nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN) {
+                    if (fMasternodeMode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
+		} else if (nCoinType == CoinType::ONLY_1000) {
+                    found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
                 } else {
                     found = true;
                 }
@@ -2978,7 +2984,9 @@ bool CWallet::GetZnodeVinAndKeys(CTxIn &txinRet, CPubKey &pubKeyRet, CKey &keyRe
 
     // Find possible candidates
     std::vector <COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, false);
+    CCoinControl coinControl;
+    coinControl.nCoinType = CoinType::ONLY_1000;
+    AvailableCoins(vPossibleCoins, true, &coinControl, false);
     if (vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetZnodeVinAndKeys -- Could not locate any valid znode vin\n");
         return false;

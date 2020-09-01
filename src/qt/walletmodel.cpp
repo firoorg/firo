@@ -718,7 +718,9 @@ bool WalletModel::isSpent(const COutPoint& outpoint) const
 void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, CoinType nCoinType) const
 {
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins, true, NULL, false);
+    CCoinControl coinControl;
+    coinControl.nCoinType = nCoinType;
+    wallet->AvailableCoins(vCoins, true, &coinControl, false);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
