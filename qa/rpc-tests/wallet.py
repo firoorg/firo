@@ -3,6 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import decimal
 import re
 
 from test_framework.test_framework import BitcoinTestFramework
@@ -307,7 +308,7 @@ class WalletTest (BitcoinTestFramework):
                            {"spendable": False})
 
         # 5. Import private key of the previously imported address on node1
-        otp = self.get_otp(address_to_import)
+        otp = self.get_otp(address_to_import, self.nodes[2])
         priv_key = self.nodes[2].dumpprivkey(address_to_import, otp)
         self.nodes[1].importprivkey(priv_key)
 
@@ -380,8 +381,14 @@ class WalletTest (BitcoinTestFramework):
         singletxid = self.nodes[0].sendtoaddress(chain_addrs[0], self.nodes[0].getbalance(), "", "", True)
         self.nodes[0].generate(1)
         node0_balance = self.nodes[0].getbalance()
+
         # Split into two chains
-        rawtx = self.nodes[0].createrawtransaction([{"txid":singletxid, "vout":0}], {chain_addrs[0]:node0_balance/2-Decimal('0.01'), chain_addrs[1]:node0_balance/2-Decimal('0.01')})
+        with decimal.localcontext() as ctx:
+            ctx.prec = 8
+            rawtx = self.nodes[0].createrawtransaction(
+                [{"txid":singletxid, "vout":0}],
+                {chain_addrs[0]:node0_balance/2-Decimal('0.01'), chain_addrs[1]:node0_balance/2-Decimal('0.01')})
+
         signedtx = self.nodes[0].signrawtransaction(rawtx)
         singletxid = self.nodes[0].sendrawtransaction(signedtx["hex"])
         self.nodes[0].generate(1)
@@ -424,10 +431,11 @@ class WalletTest (BitcoinTestFramework):
         # Verify nothing new in wallet
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*",99999)))
 
-    def get_otp(self, address):
-        # assume test on only 1 node
+    def get_otp(self, address, node = None):
+
+        node = node if node is not None else self.nodes[0]
         try:
-            self.nodes[0].dumpprivkey(address)
+            node.dumpprivkey(address)
         except Exception as ex:
             found = re.search(
                 'WARNING! Your one time authorization code is: (.+?)\n',
