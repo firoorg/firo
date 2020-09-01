@@ -20,7 +20,7 @@ def prepare_mn(node, idx, alias):
 def start_mn(testcase, mn):
     while len(testcase.nodes) <= mn.idx:
         testcase.nodes.append(None)
-    extra_args = ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
+    extra_args = testcase.extra_args + ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
     n = start_node(mn.idx, testcase.options.tmpdir, extra_args, redirect_stderr=True)
     testcase.nodes[mn.idx] = n
     for i in range(0, testcase.num_nodes):
