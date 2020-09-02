@@ -13,8 +13,6 @@ from test_framework.util import (
     assert_equal,
     assert_raises_jsonrpc,
     bitcoind_processes,
-    BITCOIND_PROC_WAIT_TIMEOUT,
-    start_node,
     start_nodes,
 )
 
@@ -22,8 +20,8 @@ class WalletEncryptionTest(BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
-        self.setup_clean_chain = True
-        self.num_nodes = 1
+        self.setup_clean_chain = True # lgtm [py/overwritten-inherited-attribute]
+        self.num_nodes = 1 # lgtm [py/overwritten-inherited-attribute]
 
     def get_otp(self, address):
         # assume test on only 1 node
