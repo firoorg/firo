@@ -72,7 +72,7 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_equal(privkey, self.nodes[0].dumpprivkey(address, otp))
 
         # Check that the timeout is right
-        time.sleep(2)
+        time.sleep(3)
         otp = self.get_otp(address)
         assert_raises_jsonrpc(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address, otp)
 
