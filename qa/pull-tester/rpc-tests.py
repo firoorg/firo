@@ -123,7 +123,7 @@ testScripts = [
     # 'segwit.py',
     # vv Tests less than 2m vv
     'wallet.py',
-    'wallet-encryption',
+    'wallet-encryption.py',
     'wallet-hd.py',
     'wallet-dump.py',
     'walletbackup.py',
