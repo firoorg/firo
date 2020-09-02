@@ -20,8 +20,8 @@ def prepare_mn(node, idx, alias):
 def start_mn(testcase, mn):
     while len(testcase.nodes) <= mn.idx:
         testcase.nodes.append(None)
-    if hasattr(testcase, 'extra_args'):
-        extra_args = testcase.extra_args + ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
+    if hasattr(testcase, 'extra_args') and len(testcase.extra_args) > mn.idx:
+        extra_args = testcase.extra_args[mn.idx] + ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
     else:
         extra_args = ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey]
     n = start_node(mn.idx, testcase.options.tmpdir, extra_args, redirect_stderr=True)
