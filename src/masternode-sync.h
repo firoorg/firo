@@ -41,16 +41,11 @@ private:
     // ... or failed
     int64_t nTimeLastFailure;
 
-    // is DIP3 enforced already?
-    bool fDIP3Enforced;
-
     void Fail();
 
 public:
     CMasternodeSync() { Reset(); }
 
-
-    void SendGovernanceSyncRequest(CNode* pnode, CConnman& connman);
 
     bool IsFailed() { return nCurrentAsset == MASTERNODE_SYNC_FAILED; }
     bool IsBlockchainSynced() { return nCurrentAsset > MASTERNODE_SYNC_WAITING; }
