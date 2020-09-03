@@ -530,6 +530,8 @@ UniValue masternodelist(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafe argNames
   //  --------------------- ------------------------  -----------------------  ------ ----------
+    { "zcoin",               "znode",                 &masternode,             true,  {} },
+    { "zcoin",               "znodelist",             &masternodelist,         true,  {} },
     { "zcoin",               "evoznode",              &masternode,             true,  {} },
     { "zcoin",               "evoznodelist",          &masternodelist,         true,  {} },
 };
