@@ -239,7 +239,6 @@ BITCOIN_QT_H = \
   qt/intro.h \
   qt/recover.h \
   qt/notifymnemonic.h \
-  qt/notifyznodewarning.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
   qt/masternodelist.h \
@@ -383,7 +382,6 @@ BITCOIN_QT_BASE_CPP = \
   qt/modaloverlay.cpp \
   qt/recover.cpp \
   qt/notifymnemonic.cpp \
-  qt/notifyznodewarning.cpp \
   qt/masternodelist.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \

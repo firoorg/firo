@@ -92,7 +92,6 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/thread.h>
-#include "znodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"
 
@@ -1974,48 +1973,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         ForceSetArg("-dandelion", "0");
 
     LogPrintf("fMasternodeMode = %s\n", fMasternodeMode);
-    LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
 
     if(fLiteMode && fMasternodeMode) {
         return InitError(_("You can not start a masternode in lite mode."));
     }
 
-    if ((fMasternodeMode || znodeConfig.getCount() > 0) && !fTxIndex) {
+    if (fMasternodeMode && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-    // Legacy znode system
-    if (fMasternodeMode) {
-        LogPrintf("ZNODE:\n");
-
-        if (!GetArg("-znodeaddr", "").empty()) {
-            // Hot Znode (either local or remote) should get its address in
-            // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
-            return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
-        }
-    }
-
-    LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
-
-    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
-        LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Znodes:\n");
-        uint256 mnTxHash;
-        int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
-            mnTxHash.SetHex(mne.getTxHash());
-            outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
-            COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
-            // don't lock non-spendable outpoint (i.e. it's already spent or it's not from this wallet at all)
-            if (pwalletMain->IsMine(CTxIn(outpoint)) != ISMINE_SPENDABLE) {
-                LogPrintf("  %s %s - IS NOT SPENDABLE, was not locked\n", mne.getTxHash(), mne.getOutputIndex());
-                continue;
-            }
-            pwalletMain->LockCoin(outpoint);
-            LogPrintf("  %s %s - locked successfully\n", mne.getTxHash(), mne.getOutputIndex());
-        }
-    }
 
     // evo znode system
     if(fLiteMode && fMasternodeMode) {

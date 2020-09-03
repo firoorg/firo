@@ -39,7 +39,6 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
-#include "notifyznodewarning.h"
 #include "elysium_qtutils.h"
 #include "zc2sigmapage.h"
 
@@ -1077,10 +1076,6 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-        //also check for Znode warning here
-        if(NotifyZnodeWarning::shouldShow()){
-            NotifyZnodeWarning::notify();
-        }
     } else {
 
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(QString(
@@ -1453,10 +1448,6 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
-
-    //also check for Znode warning here
-    if(NotifyZnodeWarning::shouldShow())
-        NotifyZnodeWarning::notify();
 }
 
 void BitcoinGUI::toggleNetworkActive()

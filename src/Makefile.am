@@ -210,7 +210,6 @@ BITCOIN_CORE_H = \
   limitedmap.h \
   threadinterrupt.h \
   masternode-utils.h \
-  znodeconfig.h \
   mbstring.h \
   memusage.h \
   merkleblock.h \
@@ -470,7 +469,6 @@ libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
   hdmint/hdmint.cpp \
   masternode-sync.cpp \
-  znodeconfig.cpp \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
   sigma.cpp \
