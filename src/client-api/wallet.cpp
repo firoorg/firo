@@ -319,7 +319,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             uint256 txid = wtx.GetHash();
             string category;
             string voutIndex = to_string(r.vout);
-
+            
             if (addr.Set(r.destination)) {
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));

@@ -72,6 +72,7 @@ void CBIP47PaymentChannel::generateKeys(CWallet *bip47Wallet) {
         LogPrintf("imported new key gen \n");
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
         LogPrintf("New Address generated %s\n", btcAddr.ToString());
+        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + paymentCode + "-" + std::to_string(nextIndex), "receive");
         incomingAddresses.push_back(CBIP47Address(btcAddr.ToString(), nextIndex));
     }
     

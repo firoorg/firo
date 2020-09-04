@@ -2121,6 +2121,9 @@ CBitcoinAddress CWallet::getAddressOfReceived(CTransaction tx) const
 
 string CWallet::findPaymentChannelForOutgoingAddress(string address) const
 {
+    CTxDestination btcAddr = CBitcoinAddress(address).Get();
+    if (mapAddressBook.count(btcAddr) > 0) 
+        return pwalletMain->mapAddressBook[btcAddr].name;
     BOOST_FOREACH(const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>)& item, m_Bip47channels)
     {
         const std::vector<CBIP47PaymentChannel>& channels = item.second;
@@ -2669,6 +2672,8 @@ void CWallet::deriveBip47Keys()
                 LogPrintf("finish new key gen \n");
                 importKey(newgenKey);
                 LogPrintf("imported new key gen \n");
+                CBitcoinAddress btcAddr = getAddressOfKey(newgenKey.GetPubKey());
+                SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + channel.getPaymentCode() + "-" + std::to_string(bip47Address.getIndex()), "receive");
             }
         }  
     }    
