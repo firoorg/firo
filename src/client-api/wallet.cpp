@@ -1041,13 +1041,36 @@ UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, 
     return ret;
 }
 
+UniValue readallpaymentcodes(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    pwalletMain->LoadBip47Wallet();
+    int count = pwalletMain->getPaymentCodeCount();
+    UniValue ret(UniValue::VARR);
+    CWalletDB db(pwalletMain->strWalletFile);
+    for (int i = 0; i < count; i++) {
+        if (pwalletMain->pcodeEnabled)
+        {
+            string paymentCode = pwalletMain->getPaymentCode(i);
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("label", db.ReadPaymentCodeLabel(paymentCode)));
+            item.push_back(Pair("paymentcode", paymentCode));
+            item.push_back(Pair("index", i));
+            ret.push_back(item);
+        }
+    }
+    return ret;
+}
+
 UniValue createnewpaymentcode(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
-
     string newPaymentCode = pwalletMain->generateNewPCode();
     CWalletDB db(pwalletMain->strWalletFile);
     UniValue ret(UniValue::VARR);
@@ -1103,7 +1126,9 @@ static const CAPICommand commands[] =
         {"wallet", "getPaymentCodes", &getpaymentcodes, true, false, false},
         {"wallet", "createNewPaymentCode", &createnewpaymentcode, true, false, false},
         {"wallet", "editPaymentCodeBook", &editpaymentcodebook, true, false, false},
+        {"wallet", "readAllPaymentCodes", &readallpaymentcodes, true, true, false},
         {"wallet", "readPaymentChannelsState", &readpaymentchannelsstate, true, false, false}};
+
 void RegisterWalletAPICommands(CAPITable& tableAPI)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)

@@ -7,7 +7,9 @@
 #include <secp256k1.h>
 #include <secp256k1_recovery.h>
 #include <secp256k1_ecdh.h>
-
+#include <iostream>
+#include "utilstrencodings.h"
+#include "util.h"
 namespace
 {
 /* Global secp256k1_context object used for verification. */
@@ -227,17 +229,23 @@ bool CPubKey::Decompress() {
 }
 
 bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const {
+    LogPrintf("secp256k1_ec_pubkey_parse 1\n");
     assert(IsValid());
+    LogPrintf("secp256k1_ec_pubkey_parse 2\n");
     assert((nChild >> 31) == 0);
+    LogPrintf("secp256k1_ec_pubkey_parse 3\n");
     assert(begin() + 33 == end());
+    LogPrintf("secp256k1_ec_pubkey_parse 4\n");
     unsigned char out[64];
     BIP32Hash(cc, nChild, *begin(), begin()+1, out);
     memcpy(ccChild.begin(), out+32, 32);
     secp256k1_pubkey pubkey;
     if (!secp256k1_ec_pubkey_parse(secp256k1_context_verify, &pubkey, &(*this)[0], size())) {
+        LogPrintf("secp256k1_ec_pubkey_parse failed %d %s\n", size(), HexStr(&(*this)[0], &(*this)[0] + size()));
         return false;
     }
-    if (!secp256k1_ec_pubkey_tweak_add(secp256k1_context_verify, &pubkey, out)) {
+    if (!secp256k1_ec_pubkey_tweak_add(secp256k1_context_verify, &pubkey, out)) {        
+        LogPrintf("secp256k1_ec_pubkey_tweak_add failed\n");
         return false;
     }
     unsigned char pub[33];

@@ -17,7 +17,7 @@ public:
     CBIP47Address(std::string v_address, int v_index, bool v_seen): address(v_address), index(v_index), seen(v_seen) {}
 
     std::string getAddress();
-    int getIndex();
+    int getIndex() const;
     bool isSeen();
     void setSeen(bool v_seen);
     virtual std::string toString();

@@ -488,7 +488,8 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
         channel->addAddressToOutgoingAddresses(addressTo);
         channel->incrementOutgoingIndex();
         SendMoney(pwalletMain, pcAddress.Get(), nAmount, fSubtractFeeFromAmount, wtx);
-        pwalletMain->savePaymentCode(pcodeString);
+        int index = pwalletMain->getBIP47AccountIndex(channel->getMyPaymentCode());
+        pwalletMain->savePaymentCode(pcodeString, index);
         pwalletMain->saveCBIP47PaymentChannelData(pcodeString);
 
         return wtx.GetHash().GetHex();

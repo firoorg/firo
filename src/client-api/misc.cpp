@@ -162,6 +162,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
         CWalletDB db(pwalletMain->strWalletFile);
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
+        obj.push_back(Pair("bip47Enabled", pwalletMain->pcodeEnabled));
     }
 
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));

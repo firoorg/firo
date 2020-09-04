@@ -69,6 +69,7 @@ SecretPoint CPaymentAddress::getSharedSecret() {
 }
 
 Scalar CPaymentAddress::getSecretPoint() {
+    LogPrintf("%s\n", __func__);
     return secretPoint();
 }
 
@@ -105,8 +106,9 @@ GroupElement CPaymentAddress::getECPoint(bool isMine) {
 
 
 
-std::vector<unsigned char> CPaymentAddress::hashSharedSecret() {
-
+std::vector<unsigned char> CPaymentAddress::hashSharedSecret() 
+{
+    LogPrintf("%s\n", __func__);
     std::vector<unsigned char> shardbytes = getSharedSecret().ECDHSecretAsBytes();
     LogPrintf("Hash Shared Secret: %s\n", HexStr(shardbytes));
     
@@ -194,12 +196,14 @@ CKey CPaymentAddress::getReceiveECKey(Scalar s)
 
 SecretPoint CPaymentAddress::sharedSecret()
 {
+    LogPrintf("%s: paymentCode %s\n", __func__, paymentCode.toString());
     SecretPoint secP(privKey, paymentCode.addressAt(index).getPubKey());
     return secP;
 }
 
 secp_primitives::Scalar CPaymentAddress::secretPoint()
 {
+    LogPrintf("%s\n", __func__);
     return secp_primitives::Scalar(hashSharedSecret().data());
 
 }

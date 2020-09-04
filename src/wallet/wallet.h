@@ -1327,7 +1327,7 @@ public:
      * */
 private:
     std::vector<CBIP47Account> m_CBIP47Accounts;
-    
+    CExtKey masterKey;
     
 public:
     std::vector<CKey> m_Bip47PendingKeys;
@@ -1336,23 +1336,27 @@ public:
     //map other wallet => map(my wallet pcode => chanel)
     std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
+    void LoadBip47Wallet();
+    void deriveBip47Keys();
     std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
     CBIP47PaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
 
-    bool isNotificationTransaction(const CTransaction& tx);
+    bool IsNotificationScript(const CScript& scriptPubkey) const;
+    bool isNotificationTransaction(const CTransaction& tx) const;
     bool isNotificationTransactionSent(string pcodestr) const;
     bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
     const CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
     CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
     string findPaymentChannelForOutgoingAddress(string address) const ;
     string findPaymentChannelForIncomingAddress(string address) const ;
-    CBitcoinAddress getAddressOfReceived(CTransaction tx);
-    CBitcoinAddress getAddressOfSent(CTransaction tx);
+    CBitcoinAddress getAddressOfReceived(CTransaction tx) const;
+    CBitcoinAddress getAddressOfSent(CTransaction tx) const;
     bool ReadMasterKey(CExtKey& masterKey);
     
-    bool savePaymentCode(CPaymentCode from_pcode);
+    bool savePaymentCode(CPaymentCode from_pcode, int accIndex);
 
     int getPaymentCodeCount() const;
+    bool IsMyPaymentCode(string strPaymentCode) const;
 
 
     CBIP47Account getBIP47Account(int i) const;

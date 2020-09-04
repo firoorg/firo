@@ -4542,7 +4542,7 @@ UniValue getpaymentcodefromnotificationtx(const JSONRPCRequest& request) {
         CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx, accIndex);
         if (pcode.isValid())
         {
-            bool needsSaving = pwallet->savePaymentCode(pcode);
+            bool needsSaving = pwallet->savePaymentCode(pcode, accIndex);
             if(needsSaving)
             {
                 LogPrintf("saveCBIP47PaymentChannelData\n");
@@ -4612,7 +4612,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
     ret.push_back(Pair("Notification Address", bip47Account.getNotificationAddress().ToString()));
     ret.push_back(Pair("Wallet Account isvalid", walletCBIP47AccountValid));
     
-    if(pwallet->getPaymentCode(0).compare(strPcode) == 0)
+    if(pwallet->IsMyPaymentCode(strPcode))
     {
         ret.push_back(Pair("IsMine", true));
     }
