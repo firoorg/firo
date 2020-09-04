@@ -36,12 +36,9 @@
 #include "ui_interface.h"
 #include "util.h"
 
-#include "znode.h"
 #include "evo/deterministicmns.h"
-#include "znodesync-interface.h"
-#include "znodelist.h"
+#include "masternode-sync.h"
 #include "masternodelist.h"
-#include "notifyznodewarning.h"
 #include "elysium_qtutils.h"
 #include "zc2sigmapage.h"
 
@@ -136,7 +133,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openAction(0),
     showHelpMessageAction(0),
     zc2SigmaAction(0),
-    znodeAction(0),
     masternodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -374,23 +370,15 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
-    znodeAction->setStatusTip(tr("Browse Znodes"));
-    znodeAction->setToolTip(znodeAction->statusTip());
-    znodeAction->setCheckable(true);
-
     masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
     masternodeAction->setStatusTip(tr("Browse Znodes"));
     masternodeAction->setToolTip(masternodeAction->statusTip());
     masternodeAction->setCheckable(true);
 #ifdef Q_OS_MAC
-    znodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
     masternodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
 #else
-    znodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     masternodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 #endif
-    tabGroup->addAction(znodeAction);
     tabGroup->addAction(masternodeAction);
 #endif
 
@@ -415,8 +403,6 @@ void BitcoinGUI::createActions()
 #endif
 
 #ifdef ENABLE_WALLET
-    connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -577,7 +563,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
         toolbar->addAction(zc2SigmaAction);
-        toolbar->addAction(znodeAction);
         toolbar->addAction(masternodeAction);
 
 #ifdef ENABLE_ELYSIUM
@@ -694,7 +679,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
-    znodeAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -863,13 +847,6 @@ void BitcoinGUI::gotoToolboxPage()
 }
 #endif
 
-void BitcoinGUI::gotoZnodePage()
-{
-    QSettings settings;
-    znodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoZnodePage();
-}
-
 void BitcoinGUI::gotoMasternodePage()
 {
     QSettings settings;
@@ -1024,7 +1001,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     }
 #endif // ENABLE_WALLET
 
-    if (!znodeSyncInterface.IsBlockchainSynced())
+    if (!masternodeSync.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
@@ -1078,7 +1055,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         return;
 
     // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(!znodeSyncInterface.IsBlockchainSynced())
+    if(!masternodeSync.IsBlockchainSynced())
         return;
 
     // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
@@ -1095,14 +1072,10 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         walletFrame->showOutOfSyncWarning(false);
 #endif // ENABLE_WALLET
 
-    if(znodeSyncInterface.IsSynced()) {
+    if(masternodeSync.IsSynced()) {
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-        //also check for Znode warning here
-        if(NotifyZnodeWarning::shouldShow()){
-            NotifyZnodeWarning::notify();
-        }
     } else {
 
         labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(QString(
@@ -1115,7 +1088,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
     }
 
-    strSyncStatus = QString(znodeSyncInterface.GetSyncStatus().c_str());
+    strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
     progressBarLabel->setText(strSyncStatus);
     tooltip = strSyncStatus + QString("<br>") + tooltip;
 
@@ -1471,23 +1444,10 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     const Consensus::Params& params = ::Params().GetConsensus();
     // Before legacy window
     if(numBlocks < params.DIP0003Height){
-        znodeAction->setVisible(true);
         masternodeAction->setVisible(false);
-    } // during legacy window
-    else if(numBlocks < params.DIP0003EnforcementHeight){
-        znodeAction->setText(tr("&Znodes (legacy)"));
-        znodeAction->setStatusTip(tr("Browse legacy Znodes"));
-        znodeAction->setVisible(true);
-        masternodeAction->setVisible(true);
-    } // DIP0003 Enforcement
-    else {
-        znodeAction->setVisible(false);
+    } else {
         masternodeAction->setVisible(true);
     }
-
-    //also check for Znode warning here
-    if(NotifyZnodeWarning::shouldShow())
-        NotifyZnodeWarning::notify();
 }
 
 void BitcoinGUI::toggleNetworkActive()

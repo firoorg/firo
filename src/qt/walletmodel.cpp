@@ -715,10 +715,12 @@ bool WalletModel::isSpent(const COutPoint& outpoint) const
 }
 
 // AvailableCoins + LockedCoins grouped by wallet address (put change in one group with wallet address)
-void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType) const
+void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, CoinType nCoinType) const
 {
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins, true, NULL, false, nCoinType, false);
+    CCoinControl coinControl;
+    coinControl.nCoinType = nCoinType;
+    wallet->AvailableCoins(vCoins, true, &coinControl, false);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
@@ -732,11 +734,11 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         if (nDepth < 0) continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true, true);
 
-        if(nCoinType == ALL_COINS){
+        if(nCoinType == CoinType::ALL_COINS){
             // We are now taking ALL_COINS to mean everything sans mints
             if(out.tx->tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->tx->vout[out.i].scriptPubKey.IsZerocoinRemint())
                 continue;
-        } else if(nCoinType == ONLY_MINTS){
+        } else if(nCoinType == CoinType::ONLY_MINTS){
             // Do not consider anything other than mints
             if(!(out.tx->tx->vout[out.i].scriptPubKey.IsZerocoinMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSigmaMint() || out.tx->tx->vout[out.i].scriptPubKey.IsZerocoinRemint()))
                 continue;

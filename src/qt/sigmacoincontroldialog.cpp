@@ -713,9 +713,9 @@ void SigmaCoinControlDialog::updateView()
     std::map<QString, std::vector<COutput> > mapCoins;
 
     if(fMintTabSelected){
-        model->listCoins(mapCoins, ALL_COINS);
+        model->listCoins(mapCoins, CoinType::ALL_COINS);
     }else{
-        model->listCoins(mapCoins, ONLY_MINTS);
+        model->listCoins(mapCoins, CoinType::ONLY_MINTS);
     }
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
