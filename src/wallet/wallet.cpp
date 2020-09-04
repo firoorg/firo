@@ -1296,7 +1296,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                     CBlock block;
                     if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
                         for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
-                            AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, true);
+                            AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
                         }
                     } 
                     pIterator = pIterator->pprev;
