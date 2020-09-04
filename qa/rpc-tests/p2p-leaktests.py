@@ -91,6 +91,7 @@ class CNodeNoVerackIdle(CLazyNode):
 
     def on_reject(self, conn, message): pass
     def on_verack(self, conn, message): pass
+    def on_pong(self, conn, message): pass
     # When version is received, don't reply with a verack. Instead, see if the
     # node will give us a message that it shouldn't. This is not an exhaustive
     # list!

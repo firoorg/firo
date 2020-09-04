@@ -15,7 +15,6 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
-#include "znode-sync.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
@@ -307,43 +306,6 @@ CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& pa
                 strprintf("redeemScript exceeds size limit: %d > %d", result.size(), MAX_SCRIPT_ELEMENT_SIZE));
 
     return result;
-}
-
-UniValue znsync(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw runtime_error(
-                "znsync [status|next|reset]\n"
-                        "Returns the sync status, updates to the next step or resets it entirely.\n"
-        );
-
-    std::string strMode = request.params[0].get_str();
-
-    if(strMode == "status") {
-        UniValue objStatus(UniValue::VOBJ);
-        objStatus.push_back(Pair("AssetID", znodeSync.GetAssetID()));
-        objStatus.push_back(Pair("AssetName", znodeSync.GetAssetName()));
-        objStatus.push_back(Pair("Attempt", znodeSync.GetAttempt()));
-        objStatus.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
-        objStatus.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
-        objStatus.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
-        objStatus.push_back(Pair("IsSynced", znodeSync.IsSynced()));
-        objStatus.push_back(Pair("IsFailed", znodeSync.IsFailed()));
-        return objStatus;
-    }
-
-    if(strMode == "next")
-    {
-        znodeSync.SwitchToNextAsset();
-        return "sync updated to " + znodeSync.GetAssetName();
-    }
-
-    if(strMode == "reset")
-    {
-        znodeSync.Reset();
-        return "success";
-    }
-    return "failure";
 }
 
 UniValue mnsync(const JSONRPCRequest& request)
@@ -1499,6 +1461,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
 
     /* Znode features */
+    { "zcoin",              "znsync",                 &mnsync,                 true,  {} },
     { "zcoin",              "evoznsync",              &mnsync,                 true,  {} },
 
     /* Not shown in help */

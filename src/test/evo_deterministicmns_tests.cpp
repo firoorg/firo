@@ -12,7 +12,6 @@
 #include "netbase.h"
 #include "messagesigner.h"
 #include "keystore.h"
-#include "spork.h"
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
@@ -256,14 +255,6 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
 
 BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
 {
-    CKey sporkKey;
-    sporkKey.MakeNewKey(false);
-    CBitcoinSecret sporkSecret(sporkKey);
-    CBitcoinAddress sporkAddress;
-    sporkAddress.Set(sporkKey.GetPubKey().GetID());
-//    sporkManager.SetSporkAddress(sporkAddress.ToString());
-    sporkManager.SetPrivKey(sporkSecret.ToString());
-
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
 
     int nHeight = chainActive.Height();

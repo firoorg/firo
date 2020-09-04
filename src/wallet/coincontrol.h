@@ -7,12 +7,23 @@
 
 #include "primitives/transaction.h"
 
+enum class CoinType
+{
+    ALL_COINS = 1,
+    ONLY_DENOMINATED = 2,
+    ONLY_NOT1000IFMN = 3,
+    ONLY_NONDENOMINATED_NOT1000IFMN = 4,
+    ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
+    ONLY_PRIVATESEND_COLLATERAL = 6,
+    ONLY_MINTS = 7,
+    WITH_MINTS = 8
+};
+
 /** Coin Control Features. */
 class CCoinControl
 {
 public:
     CTxDestination destChange;
-    bool fUseInstantSend;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
@@ -27,6 +38,8 @@ public:
     CFeeRate nFeeRate;
     //! Override the default confirmation target, 0 = use default
     int nConfirmTarget;
+    //! Controls which types of coins are allowed to be used (default: ALL_COINS)
+    CoinType nCoinType;
 
     CCoinControl()
     {
@@ -40,11 +53,11 @@ public:
         fRequireAllInputs = true;
         fAllowWatchOnly = false;
         setSelected.clear();
-        fUseInstantSend = false;
         nMinimumTotalFee = 0;
         nFeeRate = CFeeRate(0);
         fOverrideFeeRate = false;
         nConfirmTarget = 0;
+        nCoinType = CoinType::ALL_COINS;
     }
 
     bool HasSelected() const

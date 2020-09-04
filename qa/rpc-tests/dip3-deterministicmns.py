@@ -11,9 +11,7 @@ from test_framework.blocktools import create_block, create_coinbase, get_mastern
 from test_framework.mininode import CTransaction, ToHex, FromHex, CTxOut, COIN, CCbTx
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-
-class Masternode(object):
-    pass
+from test_framework.mn_utils import *
 
 class DIP3Test(BitcoinTestFramework):
     def __init__(self):
@@ -61,8 +59,8 @@ class DIP3Test(BitcoinTestFramework):
 
         # prepare mn which should still be accepted later when dip3 activates
         self.log.info("creating collateral for mn-before-dip3")
-        before_dip3_mn = self.prepare_mn(self.nodes[0], 1, 'mn-before-dip3')
-        self.create_mn_collateral(self.nodes[0], before_dip3_mn)
+        before_dip3_mn = prepare_mn(self.nodes[0], 1, 'mn-before-dip3')
+        create_mn_collateral(self.nodes[0], before_dip3_mn)
         mns.append(before_dip3_mn)
 
         # block 550 starts enforcing DIP3 MN payments
@@ -77,34 +75,34 @@ class DIP3Test(BitcoinTestFramework):
         sync_blocks(self.nodes, timeout=120)
 
         # DIP3 is fully enforced here
-        self.register_mn(self.nodes[0], before_dip3_mn)
-        self.start_mn(before_dip3_mn)
+        register_mn(self.nodes[0], before_dip3_mn)
+        start_mn(self, before_dip3_mn)
 
         self.log.info("registering MNs")
         for i in range(0, self.num_initial_mn):
-            mn = self.prepare_mn(self.nodes[0], i + 2, "mn-%d" % i)
+            mn = prepare_mn(self.nodes[0], i + 2, "mn-%d" % i)
             mns.append(mn)
 
             # start a few MNs before they are registered and a few after they are registered
             start = (i % 3) == 0
             if start:
-                self.start_mn(mn)
+                start_mn(self, mn)
 
             # let a few of the protx MNs refer to the existing collaterals
             fund = (i % 2) == 0
             if fund:
                 self.log.info("register_fund %s" % mn.alias)
-                self.register_fund_mn(self.nodes[0], mn)
+                register_fund_mn(self.nodes[0], mn)
             else:
                 self.log.info("create_collateral %s" % mn.alias)
-                self.create_mn_collateral(self.nodes[0], mn)
+                create_mn_collateral(self.nodes[0], mn)
                 self.log.info("register %s" % mn.alias)
-                self.register_mn(self.nodes[0], mn)
+                register_mn(self.nodes[0], mn)
 
             self.nodes[0].generate(1)
 
             if not start:
-                self.start_mn(mn)
+                start_mn(self, mn)
 
             self.sync_all()
             self.assert_mnlists(mns)
@@ -150,19 +148,19 @@ class DIP3Test(BitcoinTestFramework):
             mn = mns[i]
             # a few of these will actually refer to old ProRegTx internal collaterals,
             # which should work the same as external collaterals
-            new_mn = self.prepare_mn(self.nodes[0], mn.idx, mn.alias)
+            new_mn = prepare_mn(self.nodes[0], mn.idx, mn.alias)
             new_mn.collateral_address = mn.collateral_address
             new_mn.collateral_txid = mn.collateral_txid
             new_mn.collateral_vout = mn.collateral_vout
 
-            self.register_mn(self.nodes[0], new_mn)
+            register_mn(self.nodes[0], new_mn)
             mns[i] = new_mn
             self.nodes[0].generate(1)
             self.sync_all()
             self.assert_mnlists(mns)
             self.log.info("restarting MN %s" % new_mn.alias)
             self.stop_node(new_mn.idx)
-            self.start_mn(new_mn)
+            start_mn(self, new_mn)
             self.sync_all()
 
         self.log.info("test that MNs disappear from the list when the ProTx collateral is spent")
@@ -191,74 +189,6 @@ class DIP3Test(BitcoinTestFramework):
         #
         # self.log.info("testing instant send with replaced MNs")
         # self.test_instantsend(10, 3, timeout=20)
-
-    def prepare_mn(self, node, idx, alias):
-        mn = Masternode()
-        mn.idx = idx
-        mn.alias = alias
-        mn.is_protx = True
-        mn.p2p_port = p2p_port(mn.idx)
-
-        blsKey = node.bls('generate')
-        mn.fundsAddr = node.getnewaddress()
-        mn.ownerAddr = node.getnewaddress()
-        mn.operatorAddr = blsKey['public']
-        mn.votingAddr = mn.ownerAddr
-        mn.blsMnkey = blsKey['secret']
-        mn.znodePrivKey = node.znode("genkey")
-
-        return mn
-
-    def create_mn_collateral(self, node, mn):
-        mn.collateral_address = node.getnewaddress()
-        mn.collateral_txid = node.sendtoaddress(mn.collateral_address, 1000)
-        mn.collateral_vout = -1
-        node.generate(1)
-
-        rawtx = node.getrawtransaction(mn.collateral_txid, 1)
-        for txout in rawtx['vout']:
-            if txout['value'] == Decimal(1000):
-                mn.collateral_vout = txout['n']
-                break
-        assert(mn.collateral_vout != -1)
-
-    # register a protx MN and also fund it (using collateral inside ProRegTx)
-    def register_fund_mn(self, node, mn):
-        node.sendtoaddress(mn.fundsAddr, 1000.001)
-        mn.collateral_address = node.getnewaddress()
-        mn.rewards_address = node.getnewaddress()
-
-        mn.protx_hash = node.protx('register_fund', mn.collateral_address, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.rewards_address, mn.fundsAddr)
-        mn.collateral_txid = mn.protx_hash
-        mn.collateral_vout = -1
-
-        rawtx = node.getrawtransaction(mn.collateral_txid, 1)
-        for txout in rawtx['vout']:
-            if txout['value'] == Decimal(1000):
-                mn.collateral_vout = txout['n']
-                break
-        assert(mn.collateral_vout != -1)
-
-    # create a protx MN which refers to an existing collateral
-    def register_mn(self, node, mn):
-        node.sendtoaddress(mn.fundsAddr, 0.001)
-        mn.rewards_address = node.getnewaddress()
-
-        mn.protx_hash = node.protx('register', mn.collateral_txid, mn.collateral_vout, '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.rewards_address, mn.fundsAddr)
-        node.generate(1)
-
-    def start_mn(self, mn):
-        while len(self.nodes) <= mn.idx:
-            self.nodes.append(None)
-        extra_args = ['-znode=1', '-znodeblsprivkey=%s' % mn.blsMnkey, '-znodeprivkey=%s' % mn.znodePrivKey]
-        n = start_node(mn.idx, self.options.tmpdir, extra_args, redirect_stderr=True)
-        self.nodes[mn.idx] = n
-        for i in range(0, self.num_nodes):
-            if i < len(self.nodes) and self.nodes[i] is not None and i != mn.idx:
-                connect_nodes_bi(self.nodes, mn.idx, i)
-        mn.node = self.nodes[mn.idx]
-        self.sync_all()
-        self.force_finish_mnsync(mn.node)
 
     def spend_mn_collateral(self, mn, with_dummy_input_output=False):
         return self.spend_input(mn.collateral_txid, mn.collateral_vout, 1000, with_dummy_input_output)

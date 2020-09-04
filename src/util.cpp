@@ -602,14 +602,6 @@ boost::filesystem::path GetConfigFile(const std::string& confPath)
     return pathConfigFile;
 }
 
-boost::filesystem::path GetZnodeConfigFile()
-{
-    boost::filesystem::path pathConfigFile(GetArg("-znconf", "znode.conf"));
-    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
-    LogPrintf("pathConfigFile=%s\n", pathConfigFile);
-    return pathConfigFile;
-}
-
 void ReadConfigFile(const std::string& confPath)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile(confPath));

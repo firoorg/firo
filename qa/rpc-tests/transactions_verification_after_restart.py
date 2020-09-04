@@ -4,6 +4,7 @@ from decimal import getcontext
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import bitcoind_processes, enable_mocktime, start_node, start_nodes
+from test_framework.mn_utils import *
 
 # Zapwallettxes, rescan, reindex, reindex-chainstate are not affect existing transactions
 
@@ -81,7 +82,14 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         self.nodes[0].sendtoaddress('TNZMs3dtwRddC5BuZ9zQUdvksPUjmJPRfL', 25)
 
         #5. Gerate blocks
-        self.nodes[0].generate(290)
+
+        while self.nodes[0].getblockcount() < 550:
+            self.nodes[0].generate(1)
+        mn1 = prepare_mn(self.nodes[0], 1, "mn-1")
+        create_mn_collateral(self.nodes[0], mn1)
+        register_mn(self.nodes[0], mn1)
+
+        self.nodes[0].generate(150)
 
         #6. Remint some zcoins
         self.nodes[0].remintzerocointosigma(50)

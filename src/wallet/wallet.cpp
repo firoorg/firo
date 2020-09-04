@@ -35,15 +35,15 @@
 #include "ui_interface.h"
 #include "utilmoneystr.h"
 #include "validation.h"
-#include "instantx.h"
-#include "znode.h"
-#include "znodesync-interface.h"
+#include "masternode-sync.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
 
 #include "hdmint/tracker.h"
+
+#include "evo/deterministicmns.h"
 
 #include <assert.h>
 #include <boost/algorithm/string.hpp>
@@ -2882,9 +2882,12 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
+    static const int ZNODE_COIN_REQUIRED  = 1000;
+
     vCoins.clear();
+    CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
     {
         LOCK2(cs_main, cs_wallet);
@@ -2940,17 +2943,17 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 bool found = false;
-                if(nCoinType == ALL_COINS){
+                if(nCoinType == CoinType::ALL_COINS){
                     // We are now taking ALL_COINS to mean everything sans mints
                     found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()) || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint();
-                } else if(nCoinType == ONLY_MINTS){
+                } else if(nCoinType == CoinType::ONLY_MINTS){
                     // Do not consider anything other than mints
                     found = (pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint() || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint());
-                } else if (nCoinType == ONLY_NOT1000IFMN) {
+                } else if (nCoinType == CoinType::ONLY_NOT1000IFMN) {
                     found = !(fMasternodeMode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
-                } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
+                } else if (nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN) {
                     if (fMasternodeMode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
-                } else if (nCoinType == ONLY_1000) {
+		} else if (nCoinType == CoinType::ONLY_1000) {
                     found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
                 } else {
                     found = true;
@@ -2961,7 +2964,7 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                    (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_1000) &&
+                    (!IsLockedCoin((*it).first, i) || nCoinType == CoinType::ONLY_1000) &&
                     (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
@@ -2981,7 +2984,9 @@ bool CWallet::GetZnodeVinAndKeys(CTxIn &txinRet, CPubKey &pubKeyRet, CKey &keyRe
 
     // Find possible candidates
     std::vector <COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
+    CCoinControl coinControl;
+    coinControl.nCoinType = CoinType::ONLY_1000;
+    AvailableCoins(vPossibleCoins, true, &coinControl, false);
     if (vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetZnodeVinAndKeys -- Could not locate any valid znode vin\n");
         return false;
@@ -3292,12 +3297,10 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const
 {
-    if (nCoinType == ONLY_DENOMINATED)
-        return false;
-
     vector<COutput> vCoins(vAvailableCoins);
+    CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -3392,7 +3395,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 
     CReserveKey reservekey(this);
     CWalletTx wtx;
-    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason, &coinControl, false, ALL_COINS, false, nExtraPayloadSize))
+    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason, &coinControl, nExtraPayloadSize))
         return false;
 
     if (nChangePosInOut != -1)
@@ -3439,14 +3442,8 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 }
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend, int nExtraPayloadSize)
+                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, int nExtraPayloadSize)
 {
-    /*if (!llmq::IsOldInstantSendEnabled()) {
-        // The new system does not require special handling for InstantSend as this is all done in CInstantSendManager.
-        // There is also no need for an extra fee anymore.
-        fUseInstantSend = false;
-    }*/
-
     // TODO: upgrade dash version
     CAmount nFeePay = 0;
 
@@ -3513,7 +3510,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         LOCK2(cs_main, cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, true, coinControl, false, nCoinType, fUseInstantSend);
+            AvailableCoins(vAvailableCoins, true, coinControl, false);
 
             nFeeRet = 0;
             if(nFeePay > 0) nFeeRet = nFeePay;
@@ -3565,13 +3562,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 // Choose coins to use
                 CAmount nValueIn = 0;
                 setCoins.clear();
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
+                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl))
                 {
                     strFailReason = _("Insufficient funds");                            
-                    return false;
-                }
-                if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
-                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 XZC."), sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
                     return false;
                 }
 
@@ -4387,7 +4380,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         return false;
     }
 
-    if (!params.IsRegtest() && !znodeSyncInterface.IsBlockchainSynced()) {
+    if (!params.IsRegtest() && !masternodeSync.IsBlockchainSynced()) {
         stringError = "Blockchain is not synced";
         return false;
     }

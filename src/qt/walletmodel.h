@@ -12,6 +12,7 @@
 
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
+#include "wallet/coincontrol.h"
 
 #include <map>
 #include <vector>
@@ -202,7 +203,7 @@ public:
     bool getPrivKey(const CKeyID &address, CKey& vchPrivKeyOut) const;
     void getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs, boost::optional<bool> fMintTabSelected = boost::none);
     bool isSpent(const COutPoint& outpoint) const;
-    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType=ALL_COINS) const;
+    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins, CoinType nCoinType=CoinType::ALL_COINS) const;
 
     bool isLockedCoin(uint256 hash, unsigned int n) const;
     void lockCoin(COutPoint& output);
