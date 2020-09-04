@@ -1288,6 +1288,20 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
             {
                 LogPrintf("Process Notification Transaction\n");
                 processNotificationTransaction(tx);
+                //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
+                CBlockIndex *pIterator = mapBlockIndex[pIndex->GetBlockHash()];
+                int count = 10;
+                while (pIterator && count >= 0)
+                {
+                    CBlock block;
+                    if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
+                        for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
+                            AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, true);
+                        }
+                    } 
+                    pIterator = pIterator->pprev;
+                    count--;
+                }
             }
             else
             {   
