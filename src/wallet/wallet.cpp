@@ -1997,6 +1997,10 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
 
 bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [cpp/large-parameter]
 {
+    std::vector<string> myPaymentCodes;
+    CWalletDB walletDB(strWalletFile);
+    walletDB.ReadPaymentCodes(myPaymentCodes);
+    LogPrintf("getAddress Of Recevied %s\n", tx.GetHash().GetHex());
     if(!pcodeEnabled)
     {
         return false;
@@ -2016,6 +2020,18 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [c
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
             return true;
+        }
+    }
+
+    {
+        LogPrintf("isNotificationTransaction: payment code size %d\n", myPaymentCodes.size());
+        for(size_t i = 0; i < myPaymentCodes.size(); i++)
+        {
+            CBIP47Account acc(myPaymentCodes[i]);
+            LogPrintf("isNotificationTransaction: payment cde %s\n", myPaymentCodes[i]);
+            CBitcoinAddress notificationAddress = acc.getNotificationAddress();
+            if (addr == notificationAddress) 
+                return true;
         }
     }
     return false;
@@ -2201,7 +2217,7 @@ CBitcoinAddress CWallet::getAddressOfSent(CTransaction tx) const
     return CBitcoinAddress();
 }
 
-bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex)
+bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txHash)
 {
     std::string myPaymentCode = getPaymentCode(accIndex);
     if(m_Bip47channels.count(from_pcode.toString()) > 0)
@@ -2215,10 +2231,12 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex)
                 CBIP47PaymentChannel *paymentChannel = &(mi->second[i]);
                 if (paymentChannel->getMyPaymentCode() != myPaymentCode) 
                     continue;
+
+                paymentChannel->addTransaction(txHash);
                 if(paymentChannel->getIncomingAddresses().size() != 0)
                 {
                     LogPrintf("Incomming Addresses Already Exist\n");
-                    return false;
+                    return !txHash.IsNull();
                 }
                 else
                 {
@@ -2235,6 +2253,7 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex)
         CBIP47PaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
         LogPrintf("Initialize payment channel\n");
         paymentChannel.generateKeys(this);
+        paymentChannel.addTransaction(txHash);
         LogPrintf("Insert Bip47Channels New Pair\n");
         std::vector<CBIP47PaymentChannel> channels{paymentChannel};
         m_Bip47channels.insert(make_pair(from_pcode.toString(),channels));
@@ -2380,6 +2399,7 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
     int lastPCodeIndex = 0;
     walletDB.ReadLastPCodeIndex(lastPCodeIndex);
     m_CBIP47Accounts.clear();
+    std::vector<string> myPaymentCodes;
     for(int i = 0; i <= lastPCodeIndex; i++) {
         purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
         LogPrintf("Derive CoinTypeKey Done\n");
@@ -2395,13 +2415,16 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
         {
             AddWatchOnly(notificationScript);
         }
-        SetAddressBook(notificationAddress.Get(), "notification" + std::to_string(i), "receive");
+        SetAddressBook(notificationAddress.Get(), "BIP47PAYMENT-notification" + std::to_string(i), "receive");
         CWalletDB db(strWalletFile);
         std::string existingLabel = db.ReadPaymentCodeLabel(bip47Account.getStringPaymentCode());
         if (existingLabel == "") {
             db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(i));
         }
+        myPaymentCodes.push_back(bip47Account.getStringPaymentCode());
     }
+    LogPrintf("deriveCBIP47Accounts save %d payment code\n", myPaymentCodes.size());
+    walletDB.SavePaymentCodes(myPaymentCodes);
     LogPrintf("Dervie CBIP47Accounts Done\n");
 }
 
@@ -2436,6 +2459,15 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
     }
     walletDB.UpdateLastPCodeIndex();
     walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(lastPCodeIndex));
+
+    std::vector<string> paymentCodes;
+    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
+    {
+
+        string pcode = m_CBIP47Accounts[i].getStringPaymentCode();
+        paymentCodes.push_back(pcode);
+    }
+    walletDB.SavePaymentCodes(paymentCodes);
     return bip47Account.getStringPaymentCode();
 }
 
@@ -2580,7 +2612,7 @@ void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large
     CPaymentCode from_pcode = getPaymentCodeInNotificationTransaction (tx, accIndex);
     if(from_pcode.isValid())
     {
-        bool needsSaving = savePaymentCode(from_pcode, accIndex);
+        bool needsSaving = savePaymentCode(from_pcode, accIndex, tx.GetHash());
         if(needsSaving)
         {
             /*CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(from_pcode.toString(), getPaymentCode(accIndex));
@@ -2790,6 +2822,55 @@ bool CWallet::IsNotificationScript(const CScript& scriptPubkey) const
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
         if (scriptPubkey == notificationScript) 
             return true;
+    }
+
+    {
+        std::vector<string> myPaymentCodes;
+        CWalletDB walletDB(strWalletFile);
+        walletDB.ReadPaymentCodes(myPaymentCodes);
+        LogPrintf("IsNotificationScript: payment code size %d\n", myPaymentCodes.size());
+        for(size_t i = 0; i < myPaymentCodes.size(); i++)
+        {
+            CBIP47Account acc(myPaymentCodes[i]);
+            LogPrintf("IsNotificationScript: payment cde %s\n", myPaymentCodes[i]);
+            CBitcoinAddress notificationAddress = acc.getNotificationAddress();
+            CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
+            if (scriptPubkey == notificationScript) 
+                return true;
+        }
+    }
+
+    //check if noti address exists in address book
+    vector<vector<unsigned char>> vSolutions;
+    txnouttype whichType;
+    if (Solver(scriptPubkey, whichType, vSolutions)) 
+    {
+        if (whichType == TX_PUBKEYHASH) 
+        {
+            CKeyID address = CKeyID(uint160(vSolutions[0]));
+            if (!CCryptoKeyStore::HaveKey(address))
+            {
+                LogPrintf("IsNotificationScript %s\n", address.ToString());
+                if (this->mapAddressBook.count(address) > 0) 
+                {
+                    map<CTxDestination, CAddressBookData>::const_iterator mi = this->mapAddressBook.find(address);
+                    std::string label = mi->second.name;
+                    LogPrintf("IsNotificationScript %s label %s\n", address.ToString(), label);
+                    vector<string> result;
+                    stringstream ss (label);
+                    string item;
+
+                    while (getline (ss, item, '-')) {
+                        result.push_back (item);
+                    }
+                    if (result.size() == 3)
+                    {
+                        if (result[0] == "CBIP47PAYMENT-notification") 
+                            return true;
+                    }
+                }
+            }
+        }
     }
     return false;
 }

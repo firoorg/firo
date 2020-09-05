@@ -35,6 +35,8 @@ public:
     void incrementOutgoingIndex();
     void addAddressToOutgoingAddresses(string address);
     void setStatusNotSent();
+    void addTransaction(uint256 hash);
+    void getTransactions(std::vector<uint256>& hashes) const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -49,6 +51,7 @@ public:
         READWRITE(incomingAddresses);
         READWRITE(outgoingAddresses);
         READWRITE(notiTxHash);
+        READWRITE(transactions);
     }
 
 private:
@@ -62,6 +65,7 @@ private:
     string label;
     std::vector<CBIP47Address> incomingAddresses;
     std::vector<string> outgoingAddresses;
+    std::vector<uint256> transactions;
     int status;
     int currentOutgoingIndex;
     int currentIncomingIndex;

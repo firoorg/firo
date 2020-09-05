@@ -1487,6 +1487,16 @@ bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const s
     return Write(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)), value);
 }
 
+void CWalletDB::SavePaymentCodes(const std::vector<string>& paymentCodes)
+{
+    nWalletDBUpdateCounter++;
+    Write("CBIP47MyPaymentCodesList", paymentCodes);
+}
+void CWalletDB::ReadPaymentCodes(std::vector<string>& paymentCodes)
+{
+    Read("CBIP47MyPaymentCodesList", paymentCodes);
+}
+
 bool CWalletDB::WriteBip47SeedMaster(const vector<unsigned char> &seedmaster) {
     nWalletDBUpdateCounter++;
     return Write(string("Bip47SeedMaster"), seedmaster);

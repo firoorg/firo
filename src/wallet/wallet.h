@@ -1353,7 +1353,7 @@ public:
     CBitcoinAddress getAddressOfSent(CTransaction tx) const;
     bool ReadMasterKey(CExtKey& masterKey);
     
-    bool savePaymentCode(CPaymentCode from_pcode, int accIndex);
+    bool savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txHash=uint256());
 
     int getPaymentCodeCount() const;
     bool IsMyPaymentCode(string strPaymentCode) const;
@@ -1394,7 +1394,36 @@ public:
     bool importBip47PendingKeys();
     CBitcoinAddress getAddressOfKey(CPubKey pkey);
 
-    
+    bool HaveKey(const CKeyID &address) const
+    {
+        {
+            LOCK(cs_KeyStore);
+            
+            bool ret = CCryptoKeyStore::HaveKey(address);
+            if (ret) {
+                return true;
+            }
+            if (this->mapAddressBook.count(address) > 0) 
+            {
+                map<CTxDestination, CAddressBookData>::const_iterator mi = this->mapAddressBook.find(address);
+                std::string label = mi->second.name;
+                vector<string> result;
+                stringstream ss (label);
+                string item;
+
+                while (getline (ss, item, '-')) {
+                    result.push_back (item);
+                }
+                if (result.size() == 3)
+                {
+                    if (result[0] == "CBIP47PAYMENT") 
+                        return true;
+                }
+            }
+            
+        }
+        return false;
+    }
 
 };
 

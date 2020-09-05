@@ -88,6 +88,16 @@ CBIP47Address* CBIP47PaymentChannel::getIncomingAddress(string address) {
     return nullptr;
 }
 
+void CBIP47PaymentChannel::addTransaction(uint256 hash)
+{   if (hash.IsNull()) return;
+    if (std::find(transactions.begin(), transactions.end(), hash) != transactions.end()) return;
+    transactions.push_back(hash);
+}
+void CBIP47PaymentChannel::getTransactions(std::vector<uint256>& hashes) const
+{
+    hashes.insert(hashes.end(), transactions.begin(), transactions.end());
+}
+
 void CBIP47PaymentChannel::addNewIncomingAddress(string newAddress, int nextIndex) {
     incomingAddresses.push_back(CBIP47Address(newAddress, nextIndex));      
     currentIncomingIndex = nextIndex;

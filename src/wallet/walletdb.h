@@ -311,6 +311,9 @@ public:
     // @bip47 channel data write
     void ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels);
 
+    void SavePaymentCodes(const std::vector<string>& paymentCodes);
+    void ReadPaymentCodes(std::vector<string>& paymentCodes);
+
     /// Write destination data key,value tuple to database
     bool WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);
     bool WriteBip47SeedMaster(const vector<unsigned char> &seedmaster);

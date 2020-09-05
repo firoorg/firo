@@ -187,6 +187,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
     wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
+    LogPrintf("ListAPITransactions %s sent %d receive %d \n", wtx.tx->GetHash().GetHex(), listSent.size(), listReceived.size());
 
     UniValue address(UniValue::VOBJ);
     UniValue total(UniValue::VOBJ);
@@ -254,7 +255,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 if (paymentChannelID != "") 
                 {
                     entry.push_back(Pair("paymentChannelID", paymentChannelID));
-                }
+                } 
             }
 
             string categoryIndex = category + voutIndex;
@@ -319,7 +320,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             uint256 txid = wtx.GetHash();
             string category;
             string voutIndex = to_string(r.vout);
-            
+
             if (addr.Set(r.destination)) {
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));
@@ -348,11 +349,14 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             } else {
                 category = "receive";
                 if (pwalletMain->isNotificationTransaction(*wtx.tx)) {
+                    LogPrintf("findPaymentChannelForOutgoingAddress noti tx %s\n", wtx.tx->GetHash().GetHex());
                     int accIndex;
                     CPaymentCode paymentCode = pwalletMain->getPaymentCodeInNotificationTransaction(*wtx.tx, accIndex);
                     entry.push_back(Pair("isNotificationTransaction", true));
                     entry.push_back(Pair("paymentCode", paymentCode.toString()));
                     entry.push_back(Pair("myPaymentCode", pwalletMain->getPaymentCode(accIndex)));
+                } else {
+                    LogPrintf("findPaymentChannelForOutgoingAddress not noti tx %s\n", wtx.tx->GetHash().GetHex());
                 }
                 std::string paymentChannelID = pwalletMain->findPaymentChannelForIncomingAddress(addrStr);
                 if (paymentChannelID != "") 
@@ -524,6 +528,34 @@ UniValue StateSinceBlock(UniValue& ret, std::string block)
     return true;
 }
 
+void StateForSpecificTransactions(UniValue& ret, const std::vector<uint256>& hashes)
+{
+    isminefilter filter = ISMINE_SPENDABLE;
+
+    uint256 blockId;
+
+    UniValue segment(UniValue::VOBJ);
+    int txCount = 0;
+    for(size_t i = 0; i < hashes.size(); i++)
+    {
+        if (pwalletMain->mapWallet.count(hashes[i]) == 0) continue;
+        CWalletTx tx = pwalletMain->mapWallet[hashes[i]];
+
+        ListAPITransactions(tx, segment, filter, true);
+
+        if ((++txCount % WALLET_SEGMENT_SIZE) == 0) {
+            ret.push_back(Pair("addresses", segment));
+            GetMainSignals().WalletSegment(ret.write());
+            ret.setObject();
+            segment.setObject();
+            LogPrintf("StateWallet: segment loaded= %u\n", txCount / WALLET_SEGMENT_SIZE);
+        }
+    }
+
+    // send last batch
+    ret.push_back(Pair("addresses", segment));
+}
+
 UniValue StateBlock(UniValue& ret, std::string blockhash)
 {
     CBlockIndex* pindex = NULL;
@@ -564,6 +596,10 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
         return NullUniValue;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CWalletDB bip47walletdb(pwalletMain->strWalletFile, "cr+");
+    
+    bip47walletdb.ListCBIP47PaymentChannel(pwalletMain->m_Bip47channels);
 
     UniValue ret(UniValue::VOBJ);
 
@@ -1041,7 +1077,7 @@ UniValue getpaymentcodes(Type type, const UniValue& data, const UniValue& auth, 
     return ret;
 }
 
-UniValue readallpaymentcodes(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+UniValue readAllPaymentCodes()
 {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
@@ -1062,6 +1098,31 @@ UniValue readallpaymentcodes(Type type, const UniValue& data, const UniValue& au
             ret.push_back(item);
         }
     }
+    return ret;
+}
+
+UniValue bip47statewallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    UniValue ret(UniValue::VOBJ);
+    UniValue paymentCodeState = readAllPaymentCodes();
+    ret.push_back(Pair("paymentCodeState", paymentCodeState));
+    UniValue transactionState(UniValue::VOBJ);
+    
+    std::vector<uint256> hashes;
+    BOOST_FOREACH (const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>) & item, pwalletMain->m_Bip47channels) {
+        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+        for(size_t i = 0; i < channels.size(); i++)
+        {
+            channels[i].getTransactions(hashes);
+        }
+    }
+
+    StateForSpecificTransactions(transactionState, hashes);
+
+    ret.push_back(Pair("transactionState", transactionState));
     return ret;
 }
 
@@ -1126,7 +1187,7 @@ static const CAPICommand commands[] =
         {"wallet", "getPaymentCodes", &getpaymentcodes, true, false, false},
         {"wallet", "createNewPaymentCode", &createnewpaymentcode, true, false, false},
         {"wallet", "editPaymentCodeBook", &editpaymentcodebook, true, false, false},
-        {"wallet", "readAllPaymentCodes", &readallpaymentcodes, true, true, false},
+        {"wallet", "bip47StateWallet", &bip47statewallet, true, true, false},
         {"wallet", "readPaymentChannelsState", &readpaymentchannelsstate, true, false, false}};
 
 void RegisterWalletAPICommands(CAPITable& tableAPI)
