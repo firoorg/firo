@@ -2438,7 +2438,7 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
         CWalletDB db(strWalletFile);
         std::string existingLabel = db.ReadPaymentCodeLabel(bip47Account.getStringPaymentCode());
         if (existingLabel == "") {
-            db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(i));
+            db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "Reusable Address #" + std::to_string(i));
         }
         myPaymentCodes.push_back(bip47Account.getStringPaymentCode());
     }
@@ -2478,7 +2478,7 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
     }
     SetAddressBook(notificationAddress.Get(), "BIP47PAYMENT-notification" + std::to_string(lastPCodeIndex), "receive");
     walletDB.UpdateLastPCodeIndex();
-    walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(lastPCodeIndex));
+    walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "Reusable Address #" + std::to_string(lastPCodeIndex));
 
     std::vector<string> paymentCodes;
     for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
