@@ -1288,20 +1288,26 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
             {
                 LogPrintf("Process Notification Transaction\n");
                 processNotificationTransaction(tx);
+                LogPrintf("Process Notification Transaction finished\n");
                 //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
-                CBlockIndex *pIterator = mapBlockIndex[pIndex->GetBlockHash()];
+                LogPrintf("Process Notification Transaction finished block hash %d\n", pIndex == NULL);
+                CBlockIndex *pIterator = (pIndex != NULL)?mapBlockIndex[pIndex->GetBlockHash()]:chainActive.Tip();
                 int count = 10;
                 while (pIterator && count >= 0)
                 {
                     CBlock block;
                     if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
-                        for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
+                        LogPrintf("Process Notification Transaction read block success\n");
+                        size_t size = (pIterator == pIndex)?posInBlock:block.vtx.size();
+                        for (size_t pos = 0; pos < size; ++pos) {
                             AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
+                            LogPrintf("Process Notification Transaction add to wallet\n");
                         }
                     } 
                     pIterator = pIterator->pprev;
                     count--;
                 }
+                LogPrintf("Process Notification Transaction rescan finished\n");
             }
             else
             {   
@@ -2110,14 +2116,21 @@ CBIP47PaymentChannel* CWallet::findPaymentChannelForIncomingAddress(const CTrans
 CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex) // lgtm [cpp/large-parameter]
 {
     CPaymentCode paymentCode;
+    CBitcoinAddress addr = getAddressOfReceived(tx);
+    LogPrintf("Address is %s\n", addr.ToString());
     for(size_t i = 0; i < m_CBIP47Accounts.size(); i++) {
-        CKey notificationPKey = m_CBIP47Accounts[i].getNotificationPrivKey().key;
-        vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
-        LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
-        if(CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
-        {   
-            accIndex = i;
-            return paymentCode;
+        if (getNotificationAddress(i).compare(addr.ToString()) == 0)
+        {
+            CKey notificationPKey = m_CBIP47Accounts[i].getNotificationPrivKey().key;
+            vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
+            LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
+            if(CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
+            {   
+                if (paymentCode.isValid()) {
+                    accIndex = i;
+                    return paymentCode;
+                }
+            }
         }
     }
     
@@ -2219,7 +2232,9 @@ CBitcoinAddress CWallet::getAddressOfSent(CTransaction tx) const
 
 bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txHash)
 {
+
     std::string myPaymentCode = getPaymentCode(accIndex);
+    LogPrintf("save PaymentCode with my payment code index %d %s\n", accIndex, myPaymentCode);
     if(m_Bip47channels.count(from_pcode.toString()) > 0)
     {
         map<string, std::vector<CBIP47PaymentChannel>>::iterator mi = m_Bip47channels.find(from_pcode.toString());
@@ -2231,7 +2246,6 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txH
                 CBIP47PaymentChannel *paymentChannel = &(mi->second[i]);
                 if (paymentChannel->getMyPaymentCode() != myPaymentCode) 
                     continue;
-
                 paymentChannel->addTransaction(txHash);
                 if(paymentChannel->getIncomingAddresses().size() != 0)
                 {
@@ -2246,6 +2260,11 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txH
                 }
             }
         }
+        CBIP47PaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
+        paymentChannel.generateKeys(this);
+        paymentChannel.addTransaction(txHash);
+        m_Bip47channels[from_pcode.toString()].push_back(paymentChannel);
+        return true;
     }
 
     try {
@@ -2457,6 +2476,7 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
     {
         AddWatchOnly(notificationScript);
     }
+    SetAddressBook(notificationAddress.Get(), "BIP47PAYMENT-notification" + std::to_string(lastPCodeIndex), "receive");
     walletDB.UpdateLastPCodeIndex();
     walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "RAP Address #" + std::to_string(lastPCodeIndex));
 
