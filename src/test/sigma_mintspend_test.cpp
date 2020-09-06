@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
             pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
 
         //try double spend
-        pwalletMain->SpendSigma(recipients, wtx);
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
@@ -199,6 +199,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
                 pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
             CWalletTx wtx;
             pwalletMain->SpendSigma(recipients, wtx);
+            BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
         }
 
         sigmaState->containers.usedCoinSerials = tempSerials;

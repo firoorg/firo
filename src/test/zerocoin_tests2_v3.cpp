@@ -42,9 +42,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
+    //200 blocks already mined, create another 200.
 
-    CreateAndProcessEmptyBlocks(350, scriptPubKey);
+    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     const auto& sigmaParams = sigma::Params::get_default();
 

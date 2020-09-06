@@ -759,8 +759,8 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = 400;
-        consensus.nSigmaPaddingBlock = 550;
-        consensus.nDisableUnpaddedSigmaBlock = 510;
+        consensus.nSigmaPaddingBlock = 1;
+        consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 450;

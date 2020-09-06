@@ -4042,8 +4042,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAm
 
         // Wallet comments
         CWalletTx wtx;
-        bool isSigmaMint = false;
-        stringError = MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
+        stringError = MintZerocoin(scriptSerializedCoin, nAmount, wtx);
 
         if (stringError != "")
             return false;
@@ -4408,7 +4407,7 @@ bool CWallet::CreateZerocoinSpendModel(
  }
 
 /**
- * @brief CWallet::CreateZerocoinMintTransaction
+ * @brief CWallet::CreateMintTransaction
  * @param vecSend
  * @param wtxNew
  * @param reservekey
@@ -4417,7 +4416,7 @@ bool CWallet::CreateZerocoinSpendModel(
  * @param coinControl
  * @return
  */
-bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, CWalletTx &wtxNew,
+bool CWallet::CreateMintTransaction(const vector <CRecipient> &vecSend, CWalletTx &wtxNew,
                                             CReserveKey &reservekey,
                                             CAmount &nFeeRet, int &nChangePosInOut, std::string &strFailReason, bool isSigmaMint,
                                             const CCoinControl *coinControl, bool sign) {
@@ -4435,8 +4434,6 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
             return false;
         }
         nValue += recipient.nAmount;
-//        if (recipient.fSubtractFeeFromAmount)
-//            nSubtractFeeFromAmount++;
     }
     if (vecSend.empty() || nValue < 0) {
         strFailReason = _("Transaction amounts must be positive");
@@ -4471,24 +4468,12 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 wtxNew.changes.clear();
 
                 CAmount nValueToSelect = nValue + nFeeRet;
-//                if (nSubtractFeeFromAmount == 0)
-//                    nValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
                 BOOST_FOREACH(const CRecipient &recipient, vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
                     LogPrintf("txout:%s\n", txout.ToString());
-
-//                    if (recipient.fSubtractFeeFromAmount) {
-//                        txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
-
-//                        if (fFirst) // first receiver pays the remainder not divisible by output count
-//                        {
-//                            fFirst = false;
-//                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
-//                        }
-//                    }
 
                     if (txout.IsDust(::minRelayTxFee)) {
                         if (recipient.fSubtractFeeFromAmount && nFeeRet > 0) {
@@ -4693,24 +4678,13 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 CAmount nFeeNeeded;
                 if(isSigmaMint) {
                     nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-//                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
                     if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                         nFeeNeeded = coinControl->nMinimumTotalFee;
                     }
-//                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
                     if (coinControl && coinControl->fOverrideFeeRate)
                         nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
-//                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
-//                LogPrintf("nFeeRet=%s\n", nFeeRet);
-                    // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-                    // because we must be at the maximum allowed fee.
-//                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes)) {
-//                    strFailReason = _("Transaction too large for fee policy");
-//                    return false;
-//                }
                 } else{
                     int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(*wtxNew.tx) / 1000);
-                    //                bool fAllowFree = false;                                 // No free TXs in XZC
 
                     int currentConfirmationTarget = nTxConfirmTarget;
                     if (coinControl && coinControl->nConfirmTarget > 0)
@@ -4751,14 +4725,14 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 }
 
 bool
-CWallet::CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, CReserveKey &reservekey,
+CWallet::CreateMintTransaction(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, CReserveKey &reservekey,
                                        int64_t &nFeeRet, std::string &strFailReason, bool isSigmaMint,
                                        const CCoinControl *coinControl) {
     vector <CRecipient> vecSend;
     CRecipient recipient = {pubCoin, nValue, false};
     vecSend.push_back(recipient);
     int nChangePosRet = -1;
-    return CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePosRet, strFailReason, isSigmaMint,
+    return CreateMintTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePosRet, strFailReason, isSigmaMint,
                                          coinControl);
 }
 
@@ -5027,9 +5001,6 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     bool& fChangeAddedToFee,
     const CCoinControl *coinControl)
 {
-    int nHeight = chainActive.Height();
-    if(nHeight >= ::Params().GetConsensus().nDisableUnpaddedSigmaBlock && nHeight < ::Params().GetConsensus().nSigmaPaddingBlock)
-        throw std::runtime_error(_("Sigma is disabled at this period."));
     // sanity check
     EnsureMintWalletAvailable();
 
@@ -5446,7 +5417,7 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
 
     int nChangePosRet = -1;
     bool isSigmaMint = false;
-    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint)) {
+    if (!CreateMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint)) {
         LogPrintf("nFeeRequired=%s\n", nFeeRequired);
         if (totalValue + nFeeRequired > GetBalance())
             return strprintf(
@@ -5527,7 +5498,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
     int nChangePosRet = -1;
     bool isSigmaMint = true;
 
-    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, coinControl)) {
+    if (!CreateMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, coinControl)) {
         LogPrintf("nFeeRequired=%s\n", nFeeRequired);
         if (totalValue + nFeeRequired > GetBalance())
             return strprintf(
@@ -5575,10 +5546,8 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
  * @param fAskFee
  * @return
  */
-string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx &wtxNew, bool fAskFee) {
-    if (!isSigmaMint) {
-        CHECK_ZEROCOIN_STRING();
-    }
+string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, bool fAskFee) {
+    CHECK_ZEROCOIN_STRING();
 
     LogPrintf("MintZerocoin: value = %s\n", nValue);
     // Check amount
@@ -5599,7 +5568,7 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, 
     }
 
     string strError;
-    if (!CreateZerocoinMintTransaction(pubCoin, nValue, wtxNew, reservekey, nFeeRequired, strError, isSigmaMint)) {
+    if (!CreateMintTransaction(pubCoin, nValue, wtxNew, reservekey, nFeeRequired, strError, false)) {
         LogPrintf("nFeeRequired=%s\n", nFeeRequired);
         if (nValue + nFeeRequired > GetBalance())
             return strprintf(

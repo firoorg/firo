@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
-    CreateAndProcessEmptyBlocks(350, scriptPubKey);
+    //200 blocks already mined, create another 200.
+    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
