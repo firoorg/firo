@@ -4448,14 +4448,14 @@ UniValue getnewpaymentcode(const JSONRPCRequest& request) {
 
 
 
-UniValue getmypaymentcode(const JSONRPCRequest& request) {
+UniValue getmypaymentcodes(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() >= 1)
         throw runtime_error(
-                "getmypaymentcode\n" 
+                "getmypaymentcodes\n" 
                 "return payment Code"
         );
 
@@ -4463,8 +4463,13 @@ UniValue getmypaymentcode(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
 
-    
-    return pwallet->getPaymentCode(0);
+    UniValue ret(UniValue::VARR);
+    for(size_t i = 0; i < pwallet->getPaymentCodeCount(); i++)
+    {
+        ret.push_back(pwallet->getPaymentCode(i));
+    }
+
+    return ret;
 }
 
 UniValue getmynotificationaddress(const JSONRPCRequest& request) {
@@ -4708,14 +4713,15 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request) {
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 6)
         throw runtime_error(
-                "sendtopaymentcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
-                "\nSend an amount to a given address.\n"
+                "sendtopaymentcode \"from\" \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+                "\nSend an amount to a given address from one of your payment code.\n"
                 + HelpRequiringPassphrase(pwallet) +
                 "\nArguments:\n"
-                "1. \"paymentcode\"  (string, required) The Zcoin paymentcode to send to.\n"
-                "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+                "1. \"from\"  (string, required) your Zcoin paymentcode to send to the target.\n"
+                "2. \"paymentcode\"  (string, required) The Zcoin paymentcode to send to.\n"
+                "3. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
                 + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1")
                 + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"donation\" \"seans outpost\"")
                 + HelpExampleCli("paymentcode", "\"PM8TJgiBF3npDfpxaKqU9W8iDL3T9v8j1RMVqoLqNFQcFdJ6PqjmcosHEQsHMGwe3CcgSdPz46NvJkNpHWym7b3XPF2CMZvcMT5vCvTnh58zpw529bGn\" 0.1 \"\" \"\" true")
@@ -4724,19 +4730,23 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request) {
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CPaymentCode paymentCode(request.params[0].get_str());
-    if (!paymentCode.isValid())
+    CPaymentCode myPaymentCode(request.params[0].get_str());
+    CPaymentCode paymentCode(request.params[1].get_str());
+    if (!paymentCode.isValid() || !myPaymentCode.isValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
 
+    int index = pwallet->getBIP47AccountIndex(myPaymentCode.toString());
+    if (pwallet->getPaymentCode(index) != myPaymentCode.toString())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin from paymentcode");
     // Amount
-    CAmount nAmount = AmountFromValue(request.params[1]);
+    CAmount nAmount = AmountFromValue(request.params[2]);
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
 
     EnsureWalletIsUnlocked(pwallet);
     
-    const CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString());
+    const CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPaymentCode.toString());
     
     if (channel->isNotificationTransactionSent()) 
     {
@@ -4751,7 +4761,7 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request) {
     }
     else
     {
-        return pwallet->makeNotificationTransaction(paymentCode.toString());
+        return pwallet->makeNotificationTransaction(paymentCode.toString(), index);
     }
     
     
@@ -5270,7 +5280,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
     
     { "wallet",             "getnewpaymentcode",                     &getnewpaymentcode,                       true  },
-    { "wallet",             "getmypaymentcode",                      &getmypaymentcode,                        true  },
+    { "wallet",             "getmypaymentcodes",                      &getmypaymentcodes,                        true  },
     { "wallet",             "getmynotificationaddress",              &getmynotificationaddress,                true  },
     { "wallet",             "getnotificationaddressfrompaymentcode", &getnotificationaddressfrompaymentcode,   true  },
     { "wallet",             "sendtopaymentcode",                     &sendtopaymentcode,                       false },
