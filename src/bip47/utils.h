@@ -19,6 +19,7 @@ class CWallet;
 class CTxOut;
 class CTxIn;
 class CTransaction;
+class CBIP47Account;
 
 class CBIP47Util {
     public:
@@ -34,7 +35,7 @@ class CBIP47Util {
 	    static bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data);
 	    static bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes);
 	    static CPaymentAddress getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey);
-	    static CPaymentAddress getReceiveAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx);
+	    static CPaymentAddress getReceiveAddress(CBIP47Account* v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx);
 	    static CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx);
 
 };

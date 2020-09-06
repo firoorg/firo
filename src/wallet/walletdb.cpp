@@ -319,6 +319,19 @@ bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
 
+bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<CBIP47PaymentChannel>& channels)
+{
+    //read payment code list
+    std::vector<string> paymentCodes;
+    Read("CBIP47PaymentChannelList", paymentCodes);
+    if (std::find(paymentCodes.begin(), paymentCodes.end(), paymentCode) == paymentCodes.end()) {
+        paymentCodes.push_back(paymentCode);
+        Write("CBIP47PaymentChannelList", paymentCodes);
+    }
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+}
+
 bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
@@ -1425,58 +1438,33 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
     return Write(std::string("hdchain"), chain);
 }
 
-
-bool CWalletDB::WriteCBIP47PaymentChannel(const CBIP47PaymentChannel& pchannel, const string& channelId)
+void CWalletDB::ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels)
 {
-    nWalletDBUpdateCounter++;
-    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), channelId), pchannel);
-}
-
-void CWalletDB::ListCBIP47PaymentChannel(std::map <string, CBIP47PaymentChannel> &mPchannels)
-{
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : cannot create DB cursor");
-    unsigned int fFlags = DB_SET_RANGE;
-    while (true) {
-        // Read next record
-        LogPrintf("Create CDataStream ssKey\n");
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("CBIP47PaymentChannel"), string(""));
-        LogPrintf("Create CDataStream ssValue\n");
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        LogPrintf("ReadAtCursor sskey and ssValue\n");
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
-        fFlags = DB_NEXT;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw runtime_error("CWalletDB::ListCBIP47PaymentChannel() : error scanning DB");
-        }
-        LogPrintf("Unserialize sskey and ssValue\n");
-        // Unserialize
-        string strType;
-        ssKey >> strType;
-        LogPrintf("strType is %s\n", strType);
-        if (strType != "CBIP47PaymentChannel")
-            break;
-        std::string value;
-        ssKey >> value;
-        LogPrintf("value is %s\n", value);
-        CBIP47PaymentChannel pchannel;
-        LogPrintf("ssValue Size is %d\n", ssValue.size());
-        ssValue >> pchannel;
-        LogPrintf("Get Pchannl %s\n", pchannel.getPaymentCode());
-        mPchannels.insert(make_pair(value, pchannel));
+    //read payment code list
+    std::vector<string> paymentCodes;
+    Read("CBIP47PaymentChannelList", paymentCodes);
+    for(size_t i = 0; i < paymentCodes.size(); i++) 
+    {
+        std::string paymentCode = paymentCodes[i];
+        std::vector<CBIP47PaymentChannel> channels;
+        Read(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+        mPchannels[paymentCode] = channels;    
     }
-    pcursor->close();
 }
 
 bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value) {
     nWalletDBUpdateCounter++;
     return Write(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)), value);
+}
+
+void CWalletDB::SavePaymentCodes(const std::vector<string>& paymentCodes)
+{
+    nWalletDBUpdateCounter++;
+    Write("CBIP47MyPaymentCodesList", paymentCodes);
+}
+void CWalletDB::ReadPaymentCodes(std::vector<string>& paymentCodes)
+{
+    Read("CBIP47MyPaymentCodesList", paymentCodes);
 }
 
 bool CWalletDB::WriteBip47SeedMaster(const vector<unsigned char> &seedmaster) {
@@ -1492,6 +1480,34 @@ bool CWalletDB::ReadBip47SeedMaster(vector<unsigned char>& seedmaster)
 bool CWalletDB::ErasePcodeNotificationData(const std::string &rpcodestr, const std::string &key) {
     nWalletDBUpdateCounter++;
     return Erase(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)));
+}
+
+bool CWalletDB::ReadLastPCodeIndex(int& lastIndex)
+{
+    lastIndex = 0;
+    return Read(string("LastPCodeIndex"), lastIndex);
+}
+
+std::string CWalletDB::ReadPaymentCodeLabel(std::string paymentCode)
+{
+    std::string ret = "";
+    Read(paymentCode, ret);
+    return ret;
+}
+
+bool CWalletDB::WritePaymentCodeLabel(std::string paymentCode, std::string label)
+{
+    nWalletDBUpdateCounter++;
+    return Write(paymentCode, label);
+}
+
+bool CWalletDB::UpdateLastPCodeIndex() {
+    int lastIndex = 0;
+    if (ReadLastPCodeIndex(lastIndex)) {
+        lastIndex++;
+    } 
+    nWalletDBUpdateCounter++;
+    return Write(string("LastPCodeIndex"), lastIndex);
 }
 
 bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)

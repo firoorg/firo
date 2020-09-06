@@ -6,7 +6,7 @@ std::string CBIP47Address::getAddress()
     return address;
 }
 
-int CBIP47Address::getIndex() 
+int CBIP47Address::getIndex() const 
 {
     return index;
 }

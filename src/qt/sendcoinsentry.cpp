@@ -11,7 +11,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
-#include "bip47/PaymentCode.h"
+#include "bip47/paymentcode.h"
 
 #include <QApplication>
 #include <QClipboard>

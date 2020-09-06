@@ -11,6 +11,7 @@
 
 #include "amount.h"
 #include "masternodelist.h"
+#include "paymentcodepage.h"
 #include "sigmadialog.h"
 
 #ifdef ENABLE_ELYSIUM

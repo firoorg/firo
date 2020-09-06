@@ -299,20 +299,11 @@ bool WalletModel::tryEnablePaymentCode()
             return true;
         }
         CExtKey masterKey;
-        vector<unsigned char> seedmaster;
-        if(wallet->generateBip47SeedMaster(seedmaster))
+        if(wallet->ReadMasterKey(masterKey))
         {
-            masterKey.SetMaster(&seedmaster[0], seedmaster.size());
-        
-            if(wallet->saveBip47SeedMaster(seedmaster))
-            {
-                wallet->loadBip47Wallet(masterKey);
-                wallet->pcodeEnabled = true;
-                return true;
-            }
-            
-            else
-                throw std::runtime_error(std::string(__func__) + ": Cannot Save Bip47 SeedMaster");
+            wallet->loadBip47Wallet(masterKey);
+            wallet->pcodeEnabled = true;
+            return true;
         }
         else
         {
@@ -336,7 +327,7 @@ bool WalletModel::validatePaymentCode(const QString &pCode)
     return paymentCode.isValid();
 }
 
-bool WalletModel::isNotificationTransactionSent(const QString &pCode)
+bool WalletModel::isNotificationTransactionSent(const QString &pCode) const
 {
     return wallet->isNotificationTransactionSent(pCode.toStdString());
 }
@@ -771,7 +762,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent();
+            channel->setStatusSent(transaction.getTransaction()->GetHash());
             needMainTx = true;
         }
         else 
@@ -1514,7 +1505,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent();
+            channel->setStatusSent(transaction.getTransaction()->GetHash());
         }
         else 
         {

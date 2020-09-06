@@ -1298,39 +1298,51 @@ public:
      * */
 private:
     std::vector<CBIP47Account> m_CBIP47Accounts;
-    
+    CExtKey masterKey;
     
 public:
     std::vector<CKey> m_Bip47PendingKeys;
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;
-    std::map<string, CBIP47PaymentChannel> m_Bip47channels;
+    //map other wallet => map(my wallet pcode => chanel)
+    std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
-    std::string makeNotificationTransaction(std::string paymentCode);
+    void LoadBip47Wallet();
+    void deriveBip47Keys();
+    std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
+    CBIP47PaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
 
-    bool isNotificationTransaction(CTransaction tx);
-    bool isNotificationTransactionSent(string pcodestr);
-    bool isToBIP47Address(CTransaction tx);
-    bool generateBip47SeedMaster(vector<unsigned char> &seedmaster);
-    bool saveBip47SeedMaster(vector<unsigned char> seedmaster);
-    bool loadBip47SeedMaster(vector<unsigned char>& seedmaster);
-    CPaymentCode getPaymentCodeInNotificationTransaction(CTransaction tx);
+    bool IsNotificationScript(const CScript& scriptPubkey) const;
+    bool isNotificationTransaction(const CTransaction& tx) const;
+    bool isNotificationTransactionSent(string pcodestr) const;
+    bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
+    const CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
+    CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
+    string findPaymentChannelForOutgoingAddress(string address) const ;
+    string findPaymentChannelForIncomingAddress(string address) const ;
+    CBitcoinAddress getAddressOfReceived(CTransaction tx) const;
+    CBitcoinAddress getAddressOfSent(CTransaction tx) const;
+    bool ReadMasterKey(CExtKey& masterKey);
     
-    CBitcoinAddress getAddressOfReceived(CTransaction tx);
-    CBitcoinAddress getAddressOfSent(CTransaction tx);
+    bool savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txHash=uint256());
+
+    int getPaymentCodeCount() const;
+    bool IsMyPaymentCode(string strPaymentCode) const;
+
+
+    CBIP47Account getBIP47Account(int i) const;
+    CBIP47Account getBIP47Account(string paymentCode) const;
+    int getBIP47AccountIndex(string paymentCode) const;
     
-    bool savePaymentCode(CPaymentCode from_pcode);
+    std::string getNotificationAddress(int i) const;
 
-
-    CBIP47Account getBIP47Account(int i);
-    
-    std::string getNotificationAddress();
-
-    std::string getPaymentCode();
-    std::string getPaymentCodeForAddress(std::string address);
+    std::string getPaymentCode(int i) const;
+    std::string getPaymentCodeForAddress(std::string address) const;
     
     void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
     void deriveCBIP47Accounts(CExtKey masterKey);
+    std::string generateNewPCode(CExtKey masterKey);
+    std::string generateNewPCode();
 
     void saveCBIP47PaymentChannelData(string pchannelId);
     bool addToCBIP47PaymentChannel(CBIP47PaymentChannel paymentChannel);
@@ -1341,8 +1353,8 @@ public:
     bool ErasePCodeNotificationData(const std::string &rpcodestr, const std::string &key);
     bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     
-    bool generateNewBip47IncomingAddress(string address);
-    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr);
+    bool generateNewBip47IncomingAddress(string address, CBIP47PaymentChannel* channel);
+    CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string pcodestr, std::string myPaymentCode="") const;
     bool setBip47ChannelLabel(std::string pcodestr, std::string label);
     
     void processNotificationTransaction(CTransaction tx);
@@ -1353,7 +1365,36 @@ public:
     bool importBip47PendingKeys();
     CBitcoinAddress getAddressOfKey(CPubKey pkey);
 
-    
+    bool HaveKey(const CKeyID &address) const
+    {
+        {
+            LOCK(cs_KeyStore);
+            
+            bool ret = CCryptoKeyStore::HaveKey(address);
+            if (ret) {
+                return true;
+            }
+            if (this->mapAddressBook.count(address) > 0) 
+            {
+                map<CTxDestination, CAddressBookData>::const_iterator mi = this->mapAddressBook.find(address);
+                std::string label = mi->second.name;
+                vector<string> result;
+                stringstream ss (label);
+                string item;
+
+                while (getline (ss, item, '-')) {
+                    result.push_back (item);
+                }
+                if (result.size() == 3)
+                {
+                    if (result[0] == "CBIP47PAYMENT") 
+                        return true;
+                }
+            }
+            
+        }
+        return false;
+    }
 
 };
 

@@ -6,6 +6,7 @@
 #include <vector>
 #include "uint256.h"
 #include "wallet/wallet.h"
+#include "validation.h"
 
 using namespace std;
 
@@ -178,7 +179,14 @@ bool CBIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByt
     if (!txin.scriptSig.GetOp(pc, opcode1, chunk1data))
     {
         //check whether this is a P2PK redeems cript
-        CScript dest = pwalletMain->mapWallet[txin.prevout.hash].tx->vout[txin.prevout.n].scriptPubKey;
+        LogPrintf("A\n");
+        CTransactionRef tx;
+        uint256 hashBlock = uint256();
+        if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true))
+            return false;
+        
+        CScript dest = tx->vout[txin.prevout.n].scriptPubKey;
+        LogPrintf("B\n");
         CScript::const_iterator pc = dest.begin();
         opcodetype opcode;
         std::vector<unsigned char> vch;
@@ -222,10 +230,11 @@ CPaymentAddress CBIP47Util::getPaymentAddress(CPaymentCode &pcode, int idx, CExt
     
 }
 
-CPaymentAddress CBIP47Util::getReceiveAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
+CPaymentAddress CBIP47Util::getReceiveAddress(CBIP47Account *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
 {
     CPaymentAddress pm_address;
-    CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(idx);
+    //loook for bip47 account that has payment address as in the chanel 
+    CExtKey accEkey = v_bip47Account->keyPrivAt(idx);
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_from, 0, accEkey);

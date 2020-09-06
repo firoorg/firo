@@ -17,32 +17,43 @@ currentOutgoingIndex(0),
 currentIncomingIndex(-1)
 {}
 
-CBIP47PaymentChannel::CBIP47PaymentChannel(string v_paymentCode)
+CBIP47PaymentChannel::CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode)
 : status(STATUS_NOT_SENT),
 currentOutgoingIndex(0),
 currentIncomingIndex(-1)
 {
     paymentCode = v_paymentCode;
+    myPaymentCode = v_myPaymentCode;
 }
 
-CBIP47PaymentChannel::CBIP47PaymentChannel(string v_paymentCode, string v_label) {
+CBIP47PaymentChannel::CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label) {
     paymentCode = v_paymentCode;
     label = v_label;
+    myPaymentCode = v_myPaymentCode;
 }
 
-string CBIP47PaymentChannel::getPaymentCode() {
+string CBIP47PaymentChannel::getPaymentCode() const {
     return paymentCode;
+}
+
+string CBIP47PaymentChannel::getMyPaymentCode() const {
+    return myPaymentCode;
 }
 
 void CBIP47PaymentChannel::setPaymentCode(string pc) {
     paymentCode = pc;
 }
 
-std::vector<CBIP47Address>& CBIP47PaymentChannel::getIncomingAddresses() {
+uint256 CBIP47PaymentChannel::getNotificationTxHash() const
+{
+    return notiTxHash;
+}
+
+std::vector<CBIP47Address> CBIP47PaymentChannel::getIncomingAddresses() const {
     return incomingAddresses;
 }
 
-int CBIP47PaymentChannel::getCurrentIncomingIndex() {
+int CBIP47PaymentChannel::getCurrentIncomingIndex() const {
     return currentIncomingIndex;
 }
 
@@ -50,15 +61,17 @@ void CBIP47PaymentChannel::generateKeys(CWallet *bip47Wallet) {
     for(int i = 0; i < LOOKAHEAD; i++)
     {
         CPaymentCode pcode(paymentCode);
-        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(bip47Wallet, pcode, i);
+        CBIP47Account acc = bip47Wallet->getBIP47Account(myPaymentCode);
+        int nextIndex = currentIncomingIndex + 1 + i;
+        CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, bip47Wallet, pcode, nextIndex);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
-        LogPrintf("New Address generated %s\n", btcAddr.ToString());
-        incomingAddresses.push_back(CBIP47Address(btcAddr.ToString(), i));
+        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + paymentCode + "-" + std::to_string(nextIndex), "receive");
+        incomingAddresses.push_back(CBIP47Address(btcAddr.ToString(), nextIndex));
     }
     
-    currentIncomingIndex = LOOKAHEAD - 1;
+    currentIncomingIndex = currentIncomingIndex + LOOKAHEAD;
 }
 
 CBIP47Address* CBIP47PaymentChannel::getIncomingAddress(string address) {
@@ -68,6 +81,16 @@ CBIP47Address* CBIP47PaymentChannel::getIncomingAddress(string address) {
         }
     }
     return nullptr;
+}
+
+void CBIP47PaymentChannel::addTransaction(uint256 hash)
+{   if (hash.IsNull()) return;
+    if (std::find(transactions.begin(), transactions.end(), hash) != transactions.end()) return;
+    transactions.push_back(hash);
+}
+void CBIP47PaymentChannel::getTransactions(std::vector<uint256>& hashes) const
+{
+    hashes.insert(hashes.end(), transactions.begin(), transactions.end());
 }
 
 void CBIP47PaymentChannel::addNewIncomingAddress(string newAddress, int nextIndex) {
@@ -83,19 +106,20 @@ void CBIP47PaymentChannel::setLabel(string l) {
     label = l;
 }
 
-std::vector<string>& CBIP47PaymentChannel::getOutgoingAddresses() {
+std::vector<string> CBIP47PaymentChannel::getOutgoingAddresses() const {
     return outgoingAddresses;
 }
 
-bool CBIP47PaymentChannel::isNotificationTransactionSent() {
+bool CBIP47PaymentChannel::isNotificationTransactionSent() const {
     return status == STATUS_SENT_CFM;
 }
 
-void CBIP47PaymentChannel::setStatusSent() {
+void CBIP47PaymentChannel::setStatusSent(uint256 notiTxHash) {
     status = STATUS_SENT_CFM;
+    this->notiTxHash = notiTxHash;
 }
 
-int CBIP47PaymentChannel::getCurrentOutgoingIndex() {
+int CBIP47PaymentChannel::getCurrentOutgoingIndex() const {
     return currentOutgoingIndex;
 }
 
@@ -109,4 +133,5 @@ void CBIP47PaymentChannel::addAddressToOutgoingAddresses(string address) {
 
 void CBIP47PaymentChannel::setStatusNotSent() {
     status = STATUS_NOT_SENT;
+    this->notiTxHash.SetNull();
 }

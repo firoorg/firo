@@ -155,7 +155,7 @@ public:
 
     // @bip47 validatePaymentCode
     bool validatePaymentCode(const QString &pCode);
-    bool isNotificationTransactionSent(const QString &pCode);
+    bool isNotificationTransactionSent(const QString &pCode) const;
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
