@@ -8,6 +8,7 @@
 #include "quorums_debug.h"
 #include "quorums_dkgsessionmgr.h"
 #include "quorums_utils.h"
+#include "quorums_init.h"
 
 #include "evo/specialtx.h"
 
@@ -16,7 +17,6 @@
 #include "init.h"
 #include "net.h"
 #include "netmessagemaker.h"
-#include "spork.h"
 #include "univalue.h"
 #include "validation.h"
 
@@ -119,7 +119,7 @@ bool CDKGSession::Init(const CBlockIndex* _pindexQuorum, const std::vector<CDete
         }
     }
 
-    if (!myProTxHash.IsNull()) {
+    if (!myProTxHash.IsNull() || GetBoolArg("-watchquorums", llmq::DEFAULT_WATCH_QUORUMS)) {
         quorumDKGDebugManager->InitLocalSessionStatus(params.type, pindexQuorum->GetBlockHash(), pindexQuorum->nHeight);
     }
 

@@ -55,7 +55,7 @@ std::string GetHelpString(int nParamNum, std::string strParamName)
         },
         {"ipAndPort",
             "%d. \"ipAndPort\"                (string, required) IP and port in the form \"IP:PORT\".\n"
-            "                              Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
+            "                              Must be unique on the network. Can be set to \"\", which will require a ProUpServTx afterwards.\n"
         },
         {"operatorKey",
             "%d. \"operatorKey\"              (string, required) The operator private key belonging to the\n"
@@ -212,7 +212,7 @@ static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const Speci
     int nChangePos = -1;
     std::string strFailReason;
 
-    if (!pwallet->CreateTransaction(vecSend, wtx, reservekey, nFee, nChangePos, strFailReason, &coinControl, false, ALL_COINS, false, tx.vExtraPayload.size())) {
+    if (!pwallet->CreateTransaction(vecSend, wtx, reservekey, nFee, nChangePos, strFailReason, &coinControl, false, tx.vExtraPayload.size())) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
     }
 

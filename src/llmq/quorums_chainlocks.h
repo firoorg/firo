@@ -53,7 +53,7 @@ private:
     CScheduler* scheduler;
     CCriticalSection cs;
     bool tryLockChainTipScheduled{false};
-    bool isSporkActive{false};
+    bool isChainLocksActive{false};
     bool isEnforced{false};
 
     uint256 bestChainLockHash;

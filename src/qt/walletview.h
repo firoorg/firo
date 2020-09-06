@@ -10,8 +10,6 @@
 #endif
 
 #include "amount.h"
-#include "znodelist.h"
-#include "paymentcodepage.h"
 #include "masternodelist.h"
 #include "sigmadialog.h"
 
@@ -119,7 +117,6 @@ private:
     Zc2SigmaPage *zc2SigmaPage;
     TransactionView *zcoinTransactionList;
     QWidget *zcoinTransactionsView;
-    ZnodeList *znodeListPage;
     MasternodeList *masternodeListPage;
 
     QProgressDialog *progressDialog;
@@ -144,8 +141,6 @@ public Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to bitcoin tx history tab and focus on specific transaction */
     void focusBitcoinHistoryTab(const QModelIndex &idx);
-    /** Switch to znode page */
-    void gotoZnodePage();
     /** Switch to masternode page */
     void gotoMasternodePage();
     /** Switch to receive coins page */

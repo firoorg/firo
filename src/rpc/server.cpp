@@ -332,12 +332,11 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
-        /* Zcoin features */
-    { "zcoin",               "znode",                 &znode,                  true  },
-    { "zcoin",               "znsync",                &znsync,                 true  },
-    { "zcoin",               "znodelist",             &znodelist,              true  },
-    { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
-    { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
+        /* Mobile related */
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 };
 
 CRPCTable::CRPCTable()

@@ -16,7 +16,7 @@
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "zc2sigmamodel.h"
-#include "znodesync-interface.h"
+#include "masternode-sync.h"
 #include "clientmodel.h"
 #include "walletmodel.h"
 
@@ -174,7 +174,7 @@ void Zc2SigmaPage::updateAvailableRemints() {
 bool Zc2SigmaPage::showZc2SigmaPage() {
     if(!Params().GetConsensus().IsRegtest()) {
         LOCK(cs_main);
-        if(!znodeSyncInterface.IsBlockchainSynced()) {
+        if(!masternodeSync.IsBlockchainSynced()) {
             return false;
         }
     }

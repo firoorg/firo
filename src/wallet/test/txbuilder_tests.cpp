@@ -42,7 +42,7 @@ public:
     std::vector<std::pair<CAmount, unsigned>> adjustFeeRequested;
 
     std::function<CAmount(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)> getInputs;
-    std::function<CAmount(std::vector<CTxOut>& outputs, CAmount amount)> getChanges;
+    std::function<CAmount(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb)> getChanges;
     std::function<CAmount(CAmount needed, unsigned txSize)> adjustFee;
 
 public:
@@ -58,11 +58,11 @@ protected:
         return getInputs ? getInputs(signers, required) : required;
     }
 
-    CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) override
+    CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb) override
     {
         changesRequested.push_back(amount);
 
-        return getChanges ? getChanges(outputs, amount) : amount;
+        return getChanges ? getChanges(outputs, amount, walletdb) : amount;
     }
 
     CAmount AdjustFee(CAmount needed, unsigned txSize) override
@@ -79,9 +79,10 @@ BOOST_AUTO_TEST_CASE(build_with_empty_recipients)
 {
     TestTxBuilder builder(*pwalletMain);
     CAmount fee;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build({}, fee, fChangeAddedToFee),
+        builder.Build({}, fee, fChangeAddedToFee, walletdb),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("No recipients"); }
     );
@@ -96,9 +97,10 @@ BOOST_AUTO_TEST_CASE(build_with_some_recipients_have_negative_amount)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = -5, .fSubtractFeeFromAmount = false}
     };
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build(recipients, fee, fChangeAddedToFee),
+        builder.Build(recipients, fee, fChangeAddedToFee, walletdb),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 1 has invalid amount"); }
     );
@@ -114,9 +116,10 @@ BOOST_AUTO_TEST_CASE(build_with_some_recipients_have_amount_exceed_limit)
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 1, .fSubtractFeeFromAmount = false}
     };
 
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
     BOOST_CHECK_EXCEPTION(
-        builder.Build(recipients, fee, fChangeAddedToFee),
+        builder.Build(recipients, fee, fChangeAddedToFee, walletdb),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 0 has invalid amount"); }
     );
@@ -131,8 +134,9 @@ BOOST_AUTO_TEST_CASE(build_with_no_subtract_fee)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = false}
     };
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
-    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
@@ -155,8 +159,9 @@ BOOST_AUTO_TEST_CASE(build_with_subtract_fee)
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = true}
     };
 
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
-    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);
@@ -185,7 +190,7 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
         return required + 5;
     };
 
-    builder.getChanges = [](std::vector<CTxOut>& outputs, CAmount amount) {
+    builder.getChanges = [](std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb) {
         outputs.emplace_back(amount - 1, CScript());
         return 1;
     };
@@ -194,8 +199,9 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
         {.scriptPubKey = GetScriptForDestination(randomAddr1.Get()), .nAmount = 10, .fSubtractFeeFromAmount = false},
         {.scriptPubKey = GetScriptForDestination(randomAddr2.Get()), .nAmount = 20, .fSubtractFeeFromAmount = false}
     };
+    CWalletDB walletdb(pwalletMain->strWalletFile);
     bool fChangeAddedToFee;
-    auto tx = builder.Build(recipients, fee, fChangeAddedToFee);
+    auto tx = builder.Build(recipients, fee, fChangeAddedToFee, walletdb);
 
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_GT(builder.amountsRequested.size(), 0);

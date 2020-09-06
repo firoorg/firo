@@ -50,11 +50,9 @@
 #include "utiltime.h"
 #include "mtpstate.h"
 
-#include "instantx.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
-#include "znodeman.h"
 #include "coins.h"
+
+#include "blacklists.h"
 
 #include "sigma/coinspend.h"
 #include "sigma/remint.h"
@@ -603,7 +601,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
-    if (fCheckDuplicateInputs) {
+    bool const check_di = nHeight != INT_MAX && nHeight > ::Params().GetConsensus().nStartDuplicationCheck;
+    if (fCheckDuplicateInputs || check_di) {
         std::set<COutPoint> vInOutPoints;
         if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
             std::set<CScript> spendScripts;
@@ -648,6 +647,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return false;
     }
 
+    if (nHeight >= ::Params().GetConsensus().nStartBlacklist) {
+        for (const auto& vin : tx.vin) {
+            if(txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
+                    return state.DoS(100, error("Spending this tx is temporarily disabled"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+            }
+        }
+    }
     return true;
 }
 
@@ -747,6 +754,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
+    }
+
+    if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+        if (consensus.nStartSigmaBlacklist != INT_MAX && chainActive.Height() < consensus.nRestartSigmaWithBlacklistCheck)
+            return state.DoS(100, error("Sigma is temporarily disabled"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
     }
 
     if (!CheckTransaction(tx, state, true, hash, false, INT_MAX, isCheckWalletTransaction)) {
@@ -1325,27 +1338,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (zwalletMain) {
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
-            zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
     }
     if(markZcoinSpendTransactionSerial)
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint()){
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if(txout.scriptPubKey.IsSigmaMint()){
-                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-        }
-        if (zwalletMain) {
-            LogPrintf("Updating mint state from Mempool..");
-            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
-        }
+    if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
+        LogPrintf("Updating mint state from Mempool..");
+        pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
@@ -1580,7 +1584,7 @@ bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
     return true;
 }
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
+CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consensusParams, bool fMTP) {
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
@@ -1597,15 +1601,23 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     CAmount nSubsidy = 50 * COIN;
     nSubsidy >>= halvings;
 
-    if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)
+    if (nHeight > 0 && fMTP)
         nSubsidy /= consensusParams.nMTPRewardReduction;
 
     return nSubsidy;
 }
 
+CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
+    return GetBlockSubsidyWithMTPFlag(nHeight, consensusParams, nTime >= (int)consensusParams.nMTPSwitchTime);
+}
+
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
-    return blockValue*3/10; // 30%
+    const Consensus::Params &params = Params().GetConsensus();
+    if (nHeight >= params.nSubsidyHalvingFirst)
+        return blockValue*params.stage2ZnodeShare/100;
+    else
+        return blockValue*3/10; // 30%
 }
 
 bool IsInitialBlockDownload() {
@@ -2516,30 +2528,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                REJECT_INVALID, "bad-cb-amount");
 
     std::string strError = "";
-    if (deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
-        // evo znodes
-        if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-            return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
-        }
-       
-        if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
-            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
-            return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
-                                    REJECT_INVALID, "bad-cb-payee");
-        }
+    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
+        return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
-    else {
-        // legacy znodes
-        if (!IsZnodeBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-            return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
-        }
 
-        if (!IsZnodeBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
-            mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-            return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
-                            REJECT_INVALID, "bad-cb-payee");
-        }
-
+    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
+        mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
+                                REJECT_INVALID, "bad-cb-payee");
     }
 
     if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
@@ -2812,12 +2808,6 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
 
-    if (pindexNew->nHeight < chainParams.GetConsensus().DIP0003EnforcementHeight) {
-        mnodeman.UpdatedBlockTip(chainActive.Tip());
-        znpayments.UpdatedBlockTip(chainActive.Tip());
-        znodeSync.UpdatedBlockTip(chainActive.Tip());
-    }
-
     // New best block
     txpools.AddTransactionsUpdated(1);
 
@@ -2962,13 +2952,13 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
-    if (zwalletMain) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         if (block.sigmaTxInfo->spentSerials.size() > 0) {
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
         }
 
         if (block.sigmaTxInfo->mints.size() > 0) {
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
         }
     }
 #endif
@@ -3101,16 +3091,17 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if (zwalletMain && blockConnecting.sigmaTxInfo) {
+
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
         if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
         }
 
         if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
             LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
-            zwalletMain->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
+            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
         }
     }
 #endif
@@ -3844,47 +3835,20 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (block.vtx[i]->IsCoinBase())
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
-    // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
-    /*
-    if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
-        // We should never accept block which conflicts with completed transaction lock,
-        // that's why this is in CheckBlock unlike coinbase payee/amount.
-        // Require other nodes to comply, send them some data in case they are missing it.
-        BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-            // skip coinbase, it has no inputs
-            if (tx->IsCoinBase()) continue;
-            // LOOK FOR TRANSACTION LOCK IN OUR MAP OF OUTPOINTS
-            BOOST_FOREACH(const CTxIn& txin, tx->vin) {
-                uint256 hashLocked;
-                if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx->GetHash()) {
-                    // Every node which relayed this block to us must invalidate it
-                    // but they probably need more data.
-                    // Relay corresponding transaction lock request and all its votes
-                    // to let other nodes complete the lock.
-                    instantsend.Relay(hashLocked);
-                    LOCK(cs_main);
-                    mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                    return state.DoS(0, error("CheckBlock(XZC): transaction %s conflicts with transaction lock %s",
-                                                tx->GetHash().ToString(), hashLocked.ToString()),
-                                        REJECT_INVALID, "conflict-tx-lock");
-                }
-            }
-        }
-    } else {
-        LogPrintf("CheckBlock(XZC): spork is off, skipping transaction locking checks\n");
-    }
-    */
-
     // Check transactions
     if (nHeight == INT_MAX)
         nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
-    for (CTransactionRef tx : block.vtx)
+    for (CTransactionRef tx : block.vtx) {
+        if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
+            return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
+        }
         // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
         if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
+    }
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
     {
@@ -4069,7 +4033,21 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 
-    if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
+    if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
+        if (nHeight < consensusParams.nSubsidyHalvingFirst + consensusParams.nSubsidyHalvingInterval) {
+            // "stage 2" interval between first and second halvings
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
+            CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
+            bool found = false;
+            for (const CTxOut &txout: block.vtx[0]->vout) {
+                if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
+                    break;
+            }
+            if (!found)
+                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
+        }
+    }
+    else if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
         return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
     }
 
@@ -4323,9 +4301,6 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     CValidationState state; // Only used to report errors, not invalidity - ignore it
     if (!ActivateBestChain(state, chainparams, pblock))
         return error("%s: ActivateBestChain failed", __func__);
-
-    if (pindex->nHeight < chainparams.GetConsensus().DIP0003EnforcementHeight)
-        znodeSync.IsBlockchainSynced(true);
 
     return true;
 }

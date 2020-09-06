@@ -163,6 +163,16 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QCheckBox" name="reindexSigma">
+            <property name="toolTip">
+             <string>Restore all Sigma transactions following a reindex.</string>
+            </property>
+            <property name="text">
+             <string>&amp;Reindex Sigma</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>

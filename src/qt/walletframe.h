@@ -82,8 +82,6 @@ public Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to paymentcode page */
     void gotoPaymentcodePage();
-    /** Switch to znode page */
-    void gotoZnodePage();
     /** Switch to masternode page */
     void gotoMasternodePage();
     /** Switch to receive coins page */

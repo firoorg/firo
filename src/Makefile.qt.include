@@ -105,7 +105,6 @@ QT_FORMS_UI = \
   qt/forms/manualmintdialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
-  qt/forms/znodelist.ui \
   qt/forms/masternodelist.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
@@ -158,7 +157,6 @@ QT_MOC_CPP = \
   qt/moc_notifymnemonic.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
-  qt/moc_znodelist.cpp \
   qt/moc_masternodelist.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
@@ -244,10 +242,8 @@ BITCOIN_QT_H = \
   qt/intro.h \
   qt/recover.h \
   qt/notifymnemonic.h \
-  qt/notifyznodewarning.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
-  qt/znodelist.h \
   qt/masternodelist.h \
   qt/modaloverlay.h \
   qt/paymentcodepage.h \
@@ -392,7 +388,6 @@ BITCOIN_QT_BASE_CPP = \
   qt/modaloverlay.cpp \
   qt/recover.cpp \
   qt/notifymnemonic.cpp \
-  qt/notifyznodewarning.cpp \
   qt/masternodelist.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \
@@ -442,7 +437,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletframe.cpp \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
-  qt/znodelist.cpp \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
   qt/zc2sigmapage.cpp \
@@ -567,15 +561,15 @@ qt_zcoin_qt_LDADD += tor/src/core/libtor-app.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBZCOIN_BIP47)\
-  $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) $(QT_LIBS) \
+  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBZCOIN_BIP47) \
+  $(LIBUNIVALUE) $(LIBLEVELDB)  $(LIBLEVELDB_SSE42) $(LIBMEMENV) $(BACKTRACE_LIB) $(BOOST_LIBS) $(QT_LIBS) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
   $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) \
   $(ZLIB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
 
 EXTRA_qt_zcoin_qt_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
-qt_zcoin_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+qt_zcoin_qt_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 qt_zcoin_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
 
 #locale/foo.ts -> locale/foo.qm
