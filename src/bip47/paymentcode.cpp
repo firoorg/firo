@@ -28,6 +28,7 @@ CPaymentCode::CPaymentCode (unsigned char* payload, int length) : pubkey(PUBLIC_
         CBIP47Util::arraycopy ( payload, PUBLIC_KEY_Y_OFFSET, pubkey, 0, PUBLIC_KEY_COMPRESSED_LEN );
         CBIP47Util::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
         strPaymentCode = makeV1();
+        valid = parse();
     }
 }
 
@@ -36,18 +37,21 @@ CPaymentCode::CPaymentCode (std::vector<unsigned char> &v_pubkey, std::vector<un
     CBIP47Util::arraycopy ( v_pubkey.data(),0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
     CBIP47Util::arraycopy ( v_chaincode.data(),0,chaincode, 0, PUBLIC_KEY_X_LEN );
     strPaymentCode = makeV1();
+    valid = parse();
 }
 CPaymentCode::CPaymentCode (unsigned char* v_pubkey, unsigned char* v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
     CBIP47Util::arraycopy ( v_pubkey,0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
     CBIP47Util::arraycopy ( v_chaincode,0,chaincode, 0, PUBLIC_KEY_X_LEN );
     strPaymentCode = makeV1();
+    valid = parse();
 }
 CPaymentCode::CPaymentCode ( const unsigned char* v_pubkey,  const unsigned char *v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
     CBIP47Util::arraycopy (v_pubkey,    0, pubkey,    0, PUBLIC_KEY_COMPRESSED_LEN);
     CBIP47Util::arraycopy (v_chaincode, 0, chaincode, 0, PUBLIC_KEY_X_LEN);
     strPaymentCode = makeV1();
+    valid = parse();
 }
 
 CBIP47ChannelAddress CPaymentCode::notificationAddress()
