@@ -14,6 +14,7 @@
 #include "sigma/coin.h"
 #include "sigma/remint.h"
 #include "primitives/zerocoin.h"
+#include "batchproof_container.h"
 
 #include "blacklists.h"
 
@@ -299,7 +300,15 @@ bool CheckSigmaSpendTransaction(
                 return state.DoS(1, error("Incorrect sigma spend transaction version"));
         }
 
-        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        // if we are collecting proofs, skip verification and collect proofs
+        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding, batchProofContainer->fCollectProofs);
+
+        // add proofs into container
+        if(batchProofContainer->fCollectProofs) {
+            batchProofContainer->add(spend.get(), fPadding, coinGroupId, anonymity_set.size());
+        }
+
         if (passVerify) {
             Scalar serial = spend->getCoinSerialNumber();
             // do not check for duplicates in case we've seen exact copy of this tx in this block before

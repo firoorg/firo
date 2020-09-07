@@ -41,6 +41,7 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
+#include "batchproof_container.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -253,6 +254,8 @@ void Shutdown()
     StopRPC();
     StopHTTPServer();
     llmq::StopLLMQSystem();
+
+    BatchProofContainer::get_instance()->finalize();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)

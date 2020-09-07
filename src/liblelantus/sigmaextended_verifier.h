@@ -18,10 +18,18 @@ public:
     //gets commitments divided into g^s
     bool verify(const std::vector<GroupElement>& commits,
                 const SigmaExtendedProof& proof) const;
-    //gets initial double-blinded Pedersen commitments
+    //gets initial double-blinded Pedersen commitments,
+    //verifies proofs from single transaction, where set size and challenge are the same
     bool batchverify(const std::vector<GroupElement>& commits,
                      const Scalar& x,
                      const std::vector<Scalar>& serials,
+                     const vector<SigmaExtendedProof>& proofs) const;
+    //gets initial double-blinded Pedersen commitments
+    //verifies proofs from different transactions, where set sizes and challenges are different
+    bool batchverify(const std::vector<GroupElement>& commits,
+                     const std::vector<Scalar>& challenges,
+                     const std::vector<Scalar>& serials,
+                     const std::vector<size_t>& setSizes,
                      const vector<SigmaExtendedProof>& proofs) const;
 
 private:

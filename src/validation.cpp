@@ -41,6 +41,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "batchproof_container.h"
 #include "sigma.h"
 #include "lelantus.h"
 #include "utilmoneystr.h"
@@ -2547,6 +2548,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
+    // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    batchProofContainer->fCollectProofs = (GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400;
+    batchProofContainer->init();
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
@@ -2747,6 +2752,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
+
+    // do batch verification if remains a day or collect proofs
+    batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);

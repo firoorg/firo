@@ -18,6 +18,7 @@
 #include "primitives/zerocoin.h"
 #include "policy/policy.h"
 #include "coins.h"
+#include "batchproof_container.h"
 
 #include <atomic>
 #include <sstream>
@@ -333,11 +334,10 @@ bool CheckLelantusJoinSplitTransaction(
 
     for(auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
-        if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
-            int coinGroupId = idAndHash.first % (CENT / 1000);
-            int64_t intDenom = (idAndHash.first - coinGroupId) * 1000;
-            sigma::CoinDenomination denomination;
-            sigma::IntegerToDenomination(intDenom, denomination);
+        int coinGroupId = idAndHash.first % (CENT / 1000);
+        int64_t intDenom = (idAndHash.first - coinGroupId) * 1000;
+        sigma::CoinDenomination denomination;
+        if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT && sigma::IntegerToDenomination(intDenom, denomination)) {
 
             sigma::CSigmaState::SigmaCoinGroupInfo coinGroup;
             sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
@@ -394,7 +394,20 @@ bool CheckLelantusJoinSplitTransaction(
         anonymity_sets[idAndHash.first] = anonymity_set;
     }
 
-    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, txHashForMetadata);
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    Scalar challenge;
+    // if we are collecting proofs, skip verification and collect proofs
+    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
+
+    // add proofs into container
+    if(batchProofContainer->fCollectProofs) {
+        std::map<uint32_t, size_t> idAndSizes;
+
+        for(auto itr : anonymity_sets)
+            idAndSizes[itr.first] = itr.second.size();
+
+        batchProofContainer->add(joinsplit.get(), idAndSizes, challenge);
+    }
 
     if (passVerify) {
         const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();

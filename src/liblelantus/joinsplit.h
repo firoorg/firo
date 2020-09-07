@@ -29,6 +29,13 @@ public:
                 uint64_t Vout,
                 const uint256& txHash) const;
 
+    bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<PublicCoin>& Cout,
+                uint64_t Vout,
+                const uint256& txHash,
+                Scalar& challenge,
+                bool fSkipVerification = false) const;
+
     void signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
 
     uint256 signatureHash(const SpendMetaData& m, size_t coutSize) const;
@@ -38,6 +45,8 @@ public:
     }
 
     const std::vector<Scalar>& getCoinSerialNumbers();
+
+    const LelantusProof& getLelantusProof();
 
     uint64_t getFee();
 

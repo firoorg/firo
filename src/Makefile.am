@@ -262,6 +262,7 @@ BITCOIN_CORE_H = \
   util.h \
   utilmoneystr.h \
   utiltime.h \
+  batchproof_container.h \
   validation.h \
   validationinterface.h \
   versionbits.h \
@@ -446,6 +447,7 @@ libbitcoin_server_a_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   ui_interface.cpp \
+  batchproof_container.cpp \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
