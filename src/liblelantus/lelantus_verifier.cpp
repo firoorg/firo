@@ -53,7 +53,7 @@ bool LelantusVerifier::verify(
     }
 
     Scalar zV, zR;
-    if(!(verify_sigma(vAnonymity_sets, vSin, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
+    if(!(verify_sigma(vAnonymity_sets, vSin, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
         return false;
@@ -69,9 +69,12 @@ bool LelantusVerifier::verify_sigma(
         Scalar& zV,
         Scalar& zR,
         bool fSkipVerification) {
+    std::vector<GroupElement> PubcoinsOut;
+    PubcoinsOut.reserve(Cout.size());
+    for(auto coin : Cout)
+        PubcoinsOut.emplace_back(coin.getValue());
 
-
-    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, Cout, x);
+    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, PubcoinsOut, x);
     SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
 

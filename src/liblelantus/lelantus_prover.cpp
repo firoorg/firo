@@ -28,7 +28,7 @@ void LelantusProver::proof(
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
-    generate_sigma_proofs(anonymity_sets, Cin, indexes, x, Yk_sum, proof_out.sigma_proofs);
+    generate_sigma_proofs(anonymity_sets, Cin, Cout, indexes, x, Yk_sum, proof_out.sigma_proofs);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
 
@@ -109,11 +109,11 @@ void LelantusProver::generate_sigma_proofs(
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
 
-    std::vector<PublicCoin> PubcoinsOut;
+    std::vector<GroupElement> PubcoinsOut;
     PubcoinsOut.reserve(Cout.size());
     for(auto coin : Cout)
-        PubcoinsOut.emplace_back(coin.getPublicCoin())
-    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, Cout, x);
+        PubcoinsOut.emplace_back(coin.getPublicCoin().getValue());
+    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, PubcoinsOut, x);
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());

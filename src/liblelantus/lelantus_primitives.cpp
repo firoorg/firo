@@ -78,20 +78,20 @@ std::vector<uint64_t> LelantusPrimitives::convert_to_nal(
     return result;
 }
 
-void  LelantusPrimitives::generate_Lelantus_challange(
+void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<SigmaExtendedProof>& proofs,
-        const std::vector<PublicCoin>& Cout,
+        const std::vector<GroupElement>& Cout,
         Scalar& result_out) {
 
     result_out = uint64_t(1);
 
+    ChallengeGenerator challengeGenerator;
     if(Cout.size() > 0) {
         for(auto coin : Cout)
-            challengeGenerator.add(coin.getValue());
+            challengeGenerator.add(coin);
     }
 
     if (proofs.size() > 0) {
-        ChallengeGenerator challengeGenerator;
         for (std::size_t i = 0; i < proofs.size(); ++i) {
             challengeGenerator.add(proofs[i].A_);
             challengeGenerator.add(proofs[i].B_);

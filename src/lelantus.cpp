@@ -13,8 +13,6 @@
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
 #include "liblelantus/schnorr_verifier.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
 #include "primitives/zerocoin.h"
 #include "policy/policy.h"
 #include "coins.h"

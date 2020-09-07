@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(convert_to_nal)
         result.begin(), result.end());
 }
 
-BOOST_AUTO_TEST_CASE(generate_lelantus_challange)
+BOOST_AUTO_TEST_CASE(generate_lelantus_challenge)
 {
     std::vector<SigmaExtendedProof> proofs(2);
     auto gs = GenerateGroupElements(proofs.size() * 8);
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(generate_lelantus_challange)
     }
 
     Scalar out;
-    Primitives::generate_Lelantus_challange(proofs, {}, out);
+    Primitives::generate_Lelantus_challenge(proofs, {}, out);
 
     BOOST_CHECK_EQUAL(
         "0739d8484b29d53410510c38ffd5b6a43187fa0775175f97d12c61e81147245b",
