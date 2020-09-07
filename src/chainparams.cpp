@@ -180,6 +180,13 @@ public:
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
 
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
+
+        consensus.nStartBlacklist = 293990;
+        consensus.nStartDuplicationCheck = 293526;
+
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -272,7 +279,6 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
         strZnodePaymentsPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
 
         /**
@@ -362,6 +368,8 @@ public:
         consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
         consensus.nSigmaPaddingBlock = ZC_SIGMA_PADDING_BLOCK;
         consensus.nDisableUnpaddedSigmaBlock = ZC_SIGMA_DISABLE_UNPADDED_BLOCK;
+        consensus.nStartSigmaBlacklist = 293790;
+        consensus.nRestartSigmaWithBlacklistCheck = 296900;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
@@ -403,10 +411,16 @@ public:
 
         consensus.chainType = Consensus::chainTestnet;
 
-        consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingInterval = 420000;
-        consensus.nSubsidyHalvingStopBlock = 3646849;
+        consensus.nSubsidyHalvingFirst = 12000;
+        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingStopBlock = 1000000;
 
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
+
+        consensus.nStartBlacklist = 0;
+        consensus.nStartDuplicationCheck = 0;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
@@ -498,7 +512,6 @@ public:
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
-        strSporkPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
         strZnodePaymentsPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
 
         pchMessageStart[0] = 0xcf;
@@ -569,6 +582,8 @@ public:
         consensus.nSigmaStartBlock = 1;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
+        consensus.nStartSigmaBlacklist = INT_MAX;
+        consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
 
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
@@ -612,9 +627,15 @@ public:
 
         consensus.chainType = Consensus::chainRegtest;
 
+        // To be changed for specific tests
         consensus.nSubsidyHalvingFirst = 302438;
         consensus.nSubsidyHalvingInterval = 420000;
         consensus.nSubsidyHalvingStopBlock = 3646849;
+
+        consensus.nStartBlacklist = 0;
+        consensus.nStartDuplicationCheck = 0;
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -753,6 +774,8 @@ public:
         consensus.nSigmaStartBlock = 400;
         consensus.nSigmaPaddingBlock = 550;
         consensus.nDisableUnpaddedSigmaBlock = 510;
+        consensus.nStartSigmaBlacklist = INT_MAX;
+        consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 450;
         consensus.nLelantusStartBlock = 1000;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;

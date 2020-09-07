@@ -165,7 +165,6 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
-  activeznode.h \
   activemasternode.h \
   addressindex.h \
   spentindex.h \
@@ -206,21 +205,13 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
-  darksend.h \
-  darksend-relay.h \
   init.h \
-  instantx.h \
   key.h \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
   threadinterrupt.h \
-  znode.h \
-  znode-payments.h \
-  znode-sync.h \
   masternode-utils.h \
-  znodeman.h \
-  znodeconfig.h \
   mbstring.h \
   memusage.h \
   merkleblock.h \
@@ -300,15 +291,14 @@ BITCOIN_CORE_H = \
   zerocoin.h \
   sigma.h \
   lelantus.h \
+  blacklists.h \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
   mtpstate.h \
   messagesigner.h \
-  masternode-meta.h \
   masternode-payments.h \
   masternode-sync.h \
-  znodesync-interface.h \
   saltedhasher.h \
   unordered_lru_cache.h \
   llmq/quorums.h \
@@ -420,15 +410,12 @@ libbitcoin_server_a_SOURCES = \
   llmq/quorums_signing.cpp \
   llmq/quorums_signing_shares.cpp \
   llmq/quorums_utils.cpp \
-  masternode-meta.cpp \
   masternode-payments.cpp \
   masternode-sync.cpp \
-  znodesync-interface.cpp \
   masternode-utils.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
-  instantx.cpp \
   dbwrapper.cpp \
   threadinterrupt.cpp \
   merkleblock.cpp \
@@ -449,7 +436,6 @@ libbitcoin_server_a_SOURCES = \
   rpc/misc.cpp \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
-  rpc/rpcznode.cpp \
   rpc/server.cpp \
   rpc/rpcevo.cpp \
   rpc/rpcquorums.cpp \
@@ -485,17 +471,9 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
-  activeznode.cpp \
   activemasternode.cpp \
-  darksend.cpp \
   hdmint/hdmint.cpp \
-  znode.cpp \
-  znode-payments.cpp \
-  znode-sync.cpp \
   masternode-sync.cpp \
-  znodesync-interface.cpp \
-  znodeconfig.cpp \
-  znodeman.cpp \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
   sigma.cpp \
@@ -572,7 +550,7 @@ libbitcoin_consensus_a_SOURCES = \
   script/script_error.cpp \
   script/script_error.h \
   serialize.h \
-  spork.h \
+  chain_settings.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
@@ -624,7 +602,6 @@ libbitcoin_common_a_SOURCES = \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
-  spork.cpp \
   warnings.cpp \
   $(BITCOIN_CORE_H)
 

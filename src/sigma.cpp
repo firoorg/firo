@@ -13,9 +13,9 @@
 #include "sigma/coinspend.h"
 #include "sigma/coin.h"
 #include "sigma/remint.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
 #include "primitives/zerocoin.h"
+
+#include "blacklists.h"
 
 #include <atomic>
 #include <sstream>
@@ -277,6 +277,12 @@ bool CheckSigmaSpendTransaction(
             if (index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
                 BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
                         index->sigmaMintedPubCoins[denominationAndId]) {
+                    if (nHeight >= params.nStartSigmaBlacklist) {
+                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
                     anonymity_set.push_back(pubCoinValue);
                 }
             }
@@ -1049,10 +1055,17 @@ int CSigmaState::GetCoinSetForSpend(
                     // remember block hash
                     blockHash_out = block->GetBlockHash();
                 }
-                numberOfCoins += block->sigmaMintedPubCoins[denomAndId].size();
-                coins_out.insert(coins_out.end(),
-                        block->sigmaMintedPubCoins[denomAndId].begin(),
-                        block->sigmaMintedPubCoins[denomAndId].end());
+                BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
+                        block->sigmaMintedPubCoins[denomAndId]) {
+                    if (chainActive.Height() >= ::Params().GetConsensus().nStartSigmaBlacklist) {
+                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
+                    coins_out.push_back(pubCoinValue);
+                    numberOfCoins++;
+                }
             }
         }
         if (block == coinGroup.firstBlock) {

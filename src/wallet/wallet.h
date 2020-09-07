@@ -124,18 +124,6 @@ enum WalletFeature
     FEATURE_LATEST = FEATURE_COMPRPUBKEY // HD is optional, use FEATURE_COMPRPUBKEY as latest version
 };
 
-enum AvailableCoinsType
-{
-    ALL_COINS = 1,
-    ONLY_DENOMINATED = 2,
-    ONLY_NOT1000IFMN = 3,
-    ONLY_NONDENOMINATED_NOT1000IFMN = 4,
-    ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
-    ONLY_PRIVATESEND_COLLATERAL = 6,
-    ONLY_MINTS = 7,
-    WITH_MINTS = 8
-};
-
 struct CompactTallyItem
 {
     CBitcoinAddress address;
@@ -661,13 +649,7 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins,
-        CAmount nTargetValue,
-        std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-        CAmount& nValueRet,
-        const CCoinControl *coinControl = NULL,
-        AvailableCoinsType nCoinType = ALL_COINS,
-        bool fUseInstantSend = false) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -820,7 +802,7 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
 
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
@@ -992,7 +974,7 @@ public:
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend=false, int nExtraPayloadSize = 0);
+                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0);
 
     /**
      * Add zerocoin Mint and Spend function

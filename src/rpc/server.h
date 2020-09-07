@@ -212,8 +212,6 @@ extern UniValue getmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinserials(const JSONRPCRequest& params);
 extern UniValue getlatestcoinids(const JSONRPCRequest& params);
 
-extern UniValue getpoolinfo(const JSONRPCRequest &request);
-extern UniValue spork(const JSONRPCRequest &request);
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
 extern UniValue znodebroadcast(const JSONRPCRequest &request);

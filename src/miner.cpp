@@ -31,9 +31,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
-#include "znodeman.h"
 #include "zerocoin.h"
 #include "sigma.h"
 #include "lelantus.h"
@@ -284,19 +281,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         SetTxPayload(coinbaseTx, cbTx);
     }
         
-    if (nHeight >= params.DIP0003EnforcementHeight) {
-        std::vector<CTxOut> sbPayments;
-        FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
-    }
-    else {
-        // Update coinbase transaction with additional info about znode and governance payments,
-        // get some info back to pass to getblocktemplate
-        if (nHeight >= params.nZnodePaymentsStartBlock) {
-            CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), fMTP);
-            coinbaseTx.vout[0].nValue -= znodePayment;
-            FillZnodeBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
-        }
-    }
+    std::vector<CTxOut> sbPayments;
+    FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -819,8 +805,17 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
     auto &params = chainparams.GetConsensus();
     CAmount coin = COIN / (fMTP ? params.nMTPRewardReduction : 1);
 
-    // To founders and investors
-    if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
+    if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingFirst + params.nSubsidyHalvingInterval) {
+        // Stage 2
+        CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage2DevelopmentFundAddress).Get());
+        CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP) * params.stage2DevelopmentFundShare) / 100;
+
+        coinbaseTx.vout[0].nValue -= devPayoutValue;
+        coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+    }
+
+    else if ((nHeight > 0) && (nHeight < params.nSubsidyHalvingFirst)) {
+        // Stage 1: To founders and investors
         CScript FOUNDER_1_SCRIPT;
         CScript FOUNDER_2_SCRIPT;
         CScript FOUNDER_3_SCRIPT;
@@ -1009,9 +1004,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
-                                chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight ||
-                                chainActive.Height() < params.nZnodePaymentsStartBlock ||
-                                mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
+                                chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight;
                     }
                     if (!fvNodesEmpty && fHasZnodesWinnerForNextBlock && !IsInitialBlockDownload()) {
                         break;

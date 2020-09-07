@@ -312,6 +312,7 @@ std::string GetWarnings(const std::string& strFor);
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
+CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params& consensusParams, bool fMTP);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams, int nTime = 1475020800);
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
 
