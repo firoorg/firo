@@ -25,6 +25,7 @@ private:
     void generate_sigma_proofs(
             const std::map<uint32_t, std::vector<PublicCoin>>& c,
             const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
+            const std::vector<PrivateCoin>& Cout,
             const std::vector<size_t>& indexes,
             Scalar& x,
             std::vector<Scalar>& Yk_sum,

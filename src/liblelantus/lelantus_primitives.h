@@ -63,7 +63,7 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void generate_Lelantus_challange(const std::vector<SigmaExtendedProof>& proofs, Scalar& result_out);
+    static void generate_Lelantus_challange(const std::vector<SigmaExtendedProof>& proofs, const std::vector<PublicCoin>& Cout, Scalar& result_out);
 
     static void new_factor(const Scalar& x, const Scalar& a, std::vector<Scalar>& coefficients);
 //// functions for bulletproofs

@@ -61,6 +61,7 @@ void LelantusProver::proof(
 void LelantusProver::generate_sigma_proofs(
         const std::map<uint32_t, std::vector<PublicCoin>>& c,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
+        const std::vector<PrivateCoin>& Cout,
         const std::vector<size_t>& indexes,
         Scalar& x,
         std::vector<Scalar>& Yk_sum,
@@ -108,7 +109,11 @@ void LelantusProver::generate_sigma_proofs(
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
 
-    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, x);
+    std::vector<PublicCoin> PubcoinsOut;
+    PubcoinsOut.reserve(Cout.size());
+    for(auto coin : Cout)
+        PubcoinsOut.emplace_back(coin.getPublicCoin())
+    LelantusPrimitives::generate_Lelantus_challange(sigma_proofs, Cout, x);
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());

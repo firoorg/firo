@@ -37,6 +37,7 @@ private:
     bool verify_sigma(
             const std::vector<std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<Scalar>>& Sin,
+            const std::vector<PublicCoin>& Cout,
             const std::vector<SigmaExtendedProof> &sigma_proofs,
             Scalar& x,
             Scalar& zV,
