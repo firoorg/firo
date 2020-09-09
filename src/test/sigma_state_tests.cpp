@@ -217,8 +217,8 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     const sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
-    const auto testDenomStr = sigma::DenominationToString(testDenomination);
 
+    const auto& sigmaParams = sigma::Params::get_default();
     // To make sure have coin more than ZC_SPEND_V3_COINSPERID in first group.
     auto mintsPerBlock = 100;
 
@@ -235,8 +235,13 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
         auto mintThisBlock = std::min(ZC_SPEND_V3_COINSPERID_LIMIT - 1 - allMints, mintsPerBlock);
         allMints += mintThisBlock;
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            strError, {{testDenomStr, mintThisBlock}}, SIGMA), strError + " - Create Mint failed");
+        std::vector<sigma::PrivateCoin> privCoins(mintThisBlock, sigma::PrivateCoin(sigmaParams, testDenomination));
+        vector<CHDMint> vDMints;
+        auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        CWalletTx wtx;
+        string stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
         CreateAndProcessBlock(scriptPubKey);
@@ -252,8 +257,15 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_LIMIT + 1;
     auto moreMintsToMakeExceedLimit =  exceedHardCapAmount - group1.nCoins;
 
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        strError, {{testDenomStr, moreMintsToMakeExceedLimit}}, SIGMA), strError + " - Create Mint failed");
+    std::vector<sigma::PrivateCoin> privCoins(moreMintsToMakeExceedLimit, sigma::PrivateCoin(sigmaParams, testDenomination));
+
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    CWalletTx wtx;
+    string stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
     CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");

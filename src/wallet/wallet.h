@@ -628,11 +628,6 @@ private:
     std::vector<char> _ssExtra;
 };
 
-enum MintAlgorithm {
-    ZEROCOIN = 1,
-    SIGMA = 2
-};
-
 /** 
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -959,26 +954,12 @@ public:
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
     void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
 
-    bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
+    bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl = NULL, bool sign = true);
-    bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
+    bool CreateMintTransaction(CScript pubCoin, int64_t nValue,
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl=NULL);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
-
-    bool CreateSigmaSpendTransaction(
-        std::string& thirdPartyaddress,
-        sigma::CoinDenomination denomination,
-        CWalletTx& wtxNew,
-        CReserveKey& reservekey,
-        CAmount& nFeeRet,
-        Scalar& coinSerial,
-        uint256& txHash,
-        GroupElement& zcSelectedValue,
-        bool& zcSelectedIsUsed,
-        std::string& strFailReason,
-        bool forceUsed = false,
-        const CCoinControl *coinControl = NULL);
 
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,
@@ -990,25 +971,13 @@ public:
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
-    bool CreateMultipleSigmaSpendTransaction(
-        std::string& thirdPartyaddress,
-        const std::vector<sigma::CoinDenomination>& denominations,
-        CWalletTx& wtxNew,
-        CReserveKey& reservekey,
-        CAmount& nFeeRet,
-        vector<Scalar>& coinSerials,
-        uint256& txHash,
-        vector<GroupElement>& zcSelectedValues,
-        std::string& strFailReason,
-        bool forceUsed = false,
-        const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
-    std::string MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string MintAndStoreSigma(
         const vector<CRecipient>& vecSend,
@@ -1019,10 +988,7 @@ public:
         const CCoinControl *coinControl = NULL);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendSigma(std::string& thirdPartyaddress, sigma::CoinDenomination denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
-
-    std::string SpendMultipleSigma(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenomination>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
 
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
@@ -1030,39 +996,14 @@ public:
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
 
     bool CreateZerocoinMintModel(string &stringError,
-                                 const std::vector<std::pair<std::string,int>>& denominationPairs,
-                                 vector<CHDMint>& vDMints,
-                                 MintAlgorithm algo);
+                                 const string& denomAmount);
 
-    bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
-    bool CreateSigmaMintModel(string &stringError, const string& denomAmount);
 
-    bool CreateZerocoinMintModel(string &stringError,
-                                 const string& denomAmount,
-                                 MintAlgorithm algo = ZEROCOIN);
+    bool CreateZerocoinMintModel(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
-    bool CreateZerocoinMintModel(
-        string &stringError,
-        const std::vector<std::pair<std::string, int>>& denominationPairs,
-        MintAlgorithm algo = ZEROCOIN);
+    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
 
-    bool CreateSigmaMintModel(
-        string &stringError,
-        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs,
-        vector<CHDMint>& vDMints);
-
-    bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
-
-    // If dontSpendSigma is set, spends only old zcoin mints if any. Used in old unit tests.
-    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false, bool dontSpendSigma = false);
-
-    bool CreateSigmaSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
-    bool CreateZerocoinSpendModelV2(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
-    bool CreateSigmaSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
-
-    //function for spending all old mints form v2 protocol
-    bool SpendOldMints(string& stringError);
 
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
@@ -1073,8 +1014,6 @@ public:
     bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);
 
     bool CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination);
-
-    bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
     // functions to do reminting from zerocoin to sigma
     int GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d, CZerocoinEntry *mintEntry = NULL);
