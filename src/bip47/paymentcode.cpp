@@ -123,7 +123,7 @@ std::vector<unsigned char>& CPaymentCode::getChainCode()
     return chaincode;
 }
 
-std::string CPaymentCode::toString()
+std::string CPaymentCode::toString() const
 {
     return strPaymentCode;
 }

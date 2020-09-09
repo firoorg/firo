@@ -14,7 +14,7 @@ public:
     CBIP47Account(std::string strPaymentCode);
 
     bool SetPaymentCodeString(std::string strPaymentCode);
-    std::string getStringPaymentCode();
+    std::string getStringPaymentCode() const;
 
     CBitcoinAddress getNotificationAddress();
 

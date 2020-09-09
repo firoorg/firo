@@ -572,6 +572,15 @@ struct PaymentCodeTableEntry
         type(type), label(label), address(address) {}
 };
 
+struct MyRAPEntry
+{
+    QString label;
+    QString address;
+
+    MyRAPEntry() {}
+    MyRAPEntry(const QString &label, const QString &address):label(label), address(address) {}
+};
+
 struct PaymentCodeTableEntryLessThan
 {
     bool operator()(const PaymentCodeTableEntry &a, const PaymentCodeTableEntry &b) const
@@ -583,6 +592,22 @@ struct PaymentCodeTableEntryLessThan
         return a.address < b;
     }
     bool operator()(const QString &a, const PaymentCodeTableEntry &b) const
+    {
+        return a < b.address;
+    }
+};
+
+struct MyRAPTableEntryLessThan
+{
+    bool operator()(const MyRAPEntry &a, const MyRAPEntry &b) const
+    {
+        return a.address < b.address;
+    }
+    bool operator()(const MyRAPEntry &a, const QString &b) const
+    {
+        return a.address < b;
+    }
+    bool operator()(const QString &a, const MyRAPEntry &b) const
     {
         return a < b.address;
     }
@@ -700,6 +725,90 @@ public:
     }
 };
 
+
+// Private implementation
+class MyRAPTablePriv
+{
+public:
+    CWallet *wallet;
+    QList<MyRAPEntry> cachedRAPTable;
+    MyRAPTableModel *parent;
+
+    MyRAPTablePriv(CWallet *wallet, MyRAPTableModel *parent):
+        wallet(wallet), parent(parent) {}
+
+    void refreshMyRAPTable()
+    {
+        cachedRAPTable.clear();
+        {
+            LOCK(wallet->cs_wallet);
+            BOOST_FOREACH(const CBIP47Account& item, wallet->m_CBIP47Accounts)
+            {
+                const string& pcode = item.getStringPaymentCode();
+                std::string label = wallet->GetPaymentCodeLabel(pcode);
+                cachedRAPTable.append(MyRAPEntry(QString::fromStdString(label),
+                                  QString::fromStdString(pcode)));
+            }
+            
+        }
+        // qLowerBound() and qUpperBound() require our cachedPaymentCodeTable list to be sorted in asc order
+        // Even though the map is already sorted this re-sorting step is needed because the originating map
+        // is sorted by binary address, not by base58() address.
+        qSort(cachedRAPTable.begin(), cachedRAPTable.end(), MyRAPTableEntryLessThan());
+    }
+
+    void updateEntry(const QString &address, const QString &label, int status)
+    {
+        // Find address / label in model
+        QList<MyRAPEntry>::iterator lower = qLowerBound(
+            cachedRAPTable.begin(), cachedRAPTable.end(), address, MyRAPTableEntryLessThan());
+        QList<MyRAPEntry>::iterator upper = qUpperBound(
+            cachedRAPTable.begin(), cachedRAPTable.end(), address, MyRAPTableEntryLessThan());
+        int lowerIndex = (lower - cachedRAPTable.begin());
+        int upperIndex = (upper - cachedRAPTable.begin());
+        bool inModel = (lower != upper);
+
+        switch(status)
+        {
+        case CT_NEW:
+            if(inModel)
+            {
+                qWarning() << "MyRAPTablePriv::updateEntry: Warning: Got CT_NEW, but entry is already in model";
+                break;
+            }
+            parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
+            cachedRAPTable.insert(lowerIndex, MyRAPEntry(label, address));
+            parent->endInsertRows();
+            break;
+        case CT_UPDATED:
+            if(!inModel)
+            {
+                qWarning() << "MyRAPTablePriv::updateEntry: Warning: Got CT_UPDATED, but entry is not in model";
+                break;
+            }
+            lower->label = label;
+            parent->emitDataChanged(lowerIndex);
+            break;
+        }
+    }
+
+    int size()
+    {
+        return cachedRAPTable.size();
+    }
+
+    MyRAPEntry *index(int idx)
+    {
+        if(idx >= 0 && idx < cachedRAPTable.size())
+        {
+            return &cachedRAPTable[idx];
+        }
+        else
+        {
+            return 0;
+        }
+    }
+};
 
 
 // PaymentCodeTableModel implementation
@@ -963,3 +1072,208 @@ void PaymentCodeTableModel::refreshModel()
     priv->refreshPaymentCodeTable();
 }
 
+
+// MyRAPTableModel implementation
+
+MyRAPTableModel::MyRAPTableModel(CWallet *wallet, WalletModel *parent) :
+    ZCoinTableModel(wallet, parent),priv(0)
+{
+    columns << tr("Label") << tr("Address");
+    priv = new MyRAPTablePriv(wallet, this);
+    priv->refreshMyRAPTable();
+}
+
+MyRAPTableModel::~MyRAPTableModel()
+{
+    delete priv;
+}
+
+int MyRAPTableModel::rowCount(const QModelIndex &parent) const
+{
+    Q_UNUSED(parent);
+    return priv->size();
+}
+
+int MyRAPTableModel::columnCount(const QModelIndex &parent) const
+{
+    Q_UNUSED(parent);
+    return columns.length();
+}
+
+QVariant MyRAPTableModel::data(const QModelIndex &index, int role) const
+{
+    if(!index.isValid())
+        return QVariant();
+
+    MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
+    
+    qWarning() << "address of rec" << rec->address;
+
+    if(role == Qt::DisplayRole || role == Qt::EditRole)
+    {
+        switch(index.column())
+        {
+        case Label:
+            if(rec->label.isEmpty() && role == Qt::DisplayRole)
+            {
+                return tr("(no label)");
+            }
+            else
+            {
+                return rec->label;
+            }
+        case Address:
+            return rec->address;
+        }
+    }
+    else if (role == Qt::FontRole)
+    {
+        QFont font;
+        if(index.column() == Address)
+        {
+            font = GUIUtil::fixedPitchFont();
+        }
+        return font;
+    }
+    return QVariant();
+}
+
+bool MyRAPTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if(!index.isValid())
+        return false;
+    MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
+    editStatus = OK;
+
+    if(role == Qt::EditRole)
+    {
+        LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
+        std::string curAddress = rec->address.toStdString();
+        if(index.column() == Label)
+        {
+            // Do nothing, if old label == new label
+            if(rec->label == value.toString())
+            {
+                editStatus = NO_CHANGES;
+                return false;
+            }
+            wallet->SetPaymentCodeBookLabel(curAddress, value.toString().toStdString());
+        } else if(index.column() == Address) {
+            std::string newAddress = value.toString().toStdString();
+            // Refuse to set invalid address, set error status and return false
+            if(!CPaymentCode(newAddress).isValid())
+            {
+                editStatus = INVALID_PAYMENTCODE;
+                return false;
+            }
+            // Do nothing, if old address == new address
+            else if(newAddress == curAddress)
+            {
+                editStatus = NO_CHANGES;
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+QVariant MyRAPTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if(orientation == Qt::Horizontal)
+    {
+        if(role == Qt::DisplayRole && section < columns.size())
+        {
+            return columns[section];
+        }
+    }
+    return QVariant();
+}
+
+Qt::ItemFlags MyRAPTableModel::flags(const QModelIndex &index) const
+{
+    if(!index.isValid())
+        return 0;
+    MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
+
+    Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    // Can edit address and label for sending addresses,
+    // and only label for receiving addresses.
+    if(index.column()==Label)
+    {
+        retval |= Qt::ItemIsEditable;
+    }
+    return retval;
+}
+
+QModelIndex MyRAPTableModel::index(int row, int column, const QModelIndex &parent) const
+{
+    Q_UNUSED(parent);
+    MyRAPEntry *data = priv->index(row);
+    if(data)
+    {
+        return createIndex(row, column, priv->index(row));
+    }
+    else
+    {
+        return QModelIndex();
+    }
+}
+
+void MyRAPTableModel::updateEntry(const QString &address,
+        const QString &label, int status)
+{
+    // Update address book model from Bitcoin core
+    priv->updateEntry(address, label, status);
+}
+
+QString MyRAPTableModel::addRow(const QString &type, const QString &label, const QString &address)
+{
+    std::string strLabel = label.toStdString();
+    std::string strAddress = address.toStdString();
+
+    editStatus = OK;
+
+    
+    return QString();
+}
+
+bool MyRAPTableModel::removeRows(int row, int count, const QModelIndex &parent)
+{
+    Q_UNUSED(parent);
+    return false;
+}
+
+/* Look up label for address in address book, if not found return empty string.
+ */
+QString MyRAPTableModel::labelForAddress(const QString &address) const
+{
+    {
+        LOCK(wallet->cs_wallet);
+        return QString::fromStdString(wallet->GetPaymentCodeLabel(address.toStdString()));
+    }
+    return QString();
+}
+
+int MyRAPTableModel::lookupAddress(const QString &address) const
+{
+    QModelIndexList lst = match(index(0, Address, QModelIndex()), Qt::EditRole, address, 1, Qt::MatchExactly);
+    if(lst.isEmpty())
+    {
+        return -1;
+    }
+    else
+    {
+        return lst.at(0).row();
+    }
+}
+
+void MyRAPTableModel::emitDataChanged(int idx)
+{
+    Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
+}
+
+void MyRAPTableModel::refreshModel()
+{
+    priv->refreshMyRAPTable();
+}

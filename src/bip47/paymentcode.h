@@ -28,7 +28,7 @@ class CPaymentCode {
         std::vector<unsigned char>& getPubKey();
         std::vector<unsigned char>& getChainCode();
 
-        string toString();
+        string toString() const;
 
         static std::vector<unsigned char> getMask(std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint);
         static std::vector<unsigned char> blind(std::vector<unsigned char> payload, std::vector<unsigned char> mask);

@@ -175,4 +175,59 @@ public Q_SLOTS:
     friend class PaymentCodeTablePriv;
 };
 
+class MyRAPTablePriv;
+
+class MyRAPTableModel : public ZCoinTableModel
+{
+    Q_OBJECT
+
+public:
+    explicit MyRAPTableModel(CWallet *wallet, WalletModel *parent = 0);
+    ~MyRAPTableModel();
+
+    enum ColumnIndex {
+        Label = 0,
+        Address = 1,
+    };
+
+    /** @name Methods overridden from QAbstractTableModel
+        @{*/
+    int rowCount(const QModelIndex &parent) const;
+    int columnCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+    bool setData(const QModelIndex &index, const QVariant &value, int role);
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
+    QModelIndex index(int row, int column, const QModelIndex &parent) const;
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
+    Qt::ItemFlags flags(const QModelIndex &index) const;
+    /*@}*/
+
+    /* Add an address to the model.
+       Returns the added address on success, and an empty string otherwise.
+     */
+    QString addRow(const QString &type, const QString &label, const QString &address);
+
+    /* Look up label for address in address book, if not found return empty string.
+     */
+    QString labelForAddress(const QString &address) const;
+
+    /* Look up row index of an address in the model.
+       Return -1 if not found.
+     */
+    int lookupAddress(const QString &address) const;
+    void emitDataChanged(int idx);
+private:
+    MyRAPTablePriv *priv;
+
+public Q_SLOTS:
+    /* Update address list from core.
+     */
+    void updateEntry(const QString &address, const QString &label, int status);
+    
+    void refreshModel();
+    
+
+    friend class MyRAPTablePriv;
+};
+
 #endif // BITCOIN_QT_ADDRESSTABLEMODEL_H

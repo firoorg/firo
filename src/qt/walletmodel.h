@@ -21,6 +21,7 @@
 
 class AddressTableModel;
 class PaymentCodeTableModel;
+class MyRAPTableModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -137,6 +138,7 @@ public:
     PaymentCodeTableModel *getPaymentCodeTableModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
+    MyRAPTableModel *getMyRAPTableModel();
     RecentPCodeTransactionsTableModel *getRecentPCodeTransactionsTableModel();
 
     CAmount getBalance(const CCoinControl *coinControl = NULL, bool fExcludeLocked = false) const;
@@ -280,6 +282,7 @@ private:
     PaymentCodeTableModel *paymentCodeTableModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
+    MyRAPTableModel *myRapTableModel;
     RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
 
     // Cache some values to be able to detect changes

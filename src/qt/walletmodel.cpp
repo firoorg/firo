@@ -45,6 +45,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
+    myRapTableModel(0),
     recentPCodeTransactionsTableModel(0),
     paymentCodeTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
@@ -57,6 +58,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     addressTableModel = new AddressTableModel(wallet, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    myRapTableModel = new MyRAPTableModel(wallet, this);
     recentPCodeTransactionsTableModel = new RecentPCodeTransactionsTableModel(wallet, this);
     paymentCodeTableModel = new PaymentCodeTableModel(wallet, this);
 
@@ -807,6 +809,12 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+
+MyRAPTableModel* WalletModel::getMyRAPTableModel()
+{
+    return myRapTableModel;
 }
 
 RecentPCodeTransactionsTableModel *WalletModel::getRecentPCodeTransactionsTableModel()

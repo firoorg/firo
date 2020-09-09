@@ -7,10 +7,67 @@
     <x>0</x>
     <y>0</y>
     <width>776</width>
-    <height>364</height>
+    <height>545</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,1,0">
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QPushButton" name="regularAddressButton">
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+       <property name="text">
+        <string>Regular Addresses</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="reusableAddressButton">
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+       <property name="text">
+        <string>Reusable Addresses</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_11">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_9">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_10">
+     <property name="text">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This is a RAP address and some keychain wallets and exchanges dont support RAP yet. Double check before &lt;br/&gt;&lt;span style=&quot; font-family:'Helvetica Neue';&quot;&gt;requesting payments with this address. A RAP address can be reused without losing anonymity.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
+   </item>
    <item>
     <widget class="QFrame" name="frame2">
      <property name="sizePolicy">
@@ -27,78 +84,36 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
+       <widget class="QLabel" name="label_8">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="7" column="2">
-         <widget class="QCheckBox" name="reuseAddress">
-          <property name="toolTip">
-           <string>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</string>
-          </property>
-          <property name="text">
-           <string>R&amp;euse an existing receiving address (not recommended)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="label_4">
           <property name="text">
            <string/>
           </property>
          </widget>
         </item>
-        <item row="6" column="0">
-         <widget class="QLabel" name="label_3">
-          <property name="toolTip">
-           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</string>
-          </property>
-          <property name="text">
-           <string>&amp;Message:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="buddy">
-           <cstring>reqMessage</cstring>
-          </property>
-         </widget>
-        </item>
         <item row="4" column="2">
-         <widget class="QLineEdit" name="reqLabel">
-          <property name="toolTip">
-           <string>An optional label to associate with the new receiving address.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="2">
          <widget class="QLineEdit" name="reqMessage">
           <property name="toolTip">
            <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="toolTip">
-           <string>An optional label to associate with the new receiving address.</string>
-          </property>
-          <property name="text">
-           <string>&amp;Label:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="buddy">
-           <cstring>reqLabel</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="label">
           <property name="toolTip">
            <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
@@ -114,7 +129,30 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="2">
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="toolTip">
+           <string>An optional label to associate with the new receiving address.</string>
+          </property>
+          <property name="text">
+           <string>&amp;Label:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="buddy">
+           <cstring>reqLabel</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="label_7">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
          <widget class="BitcoinAmountField" name="reqAmount">
           <property name="minimumSize">
            <size>
@@ -127,7 +165,33 @@
           </property>
          </widget>
         </item>
-        <item row="8" column="2">
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="reqLabel">
+          <property name="toolTip">
+           <string>An optional label to associate with the new receiving address.</string>
+          </property>
+          <property name="frame">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="toolTip">
+           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</string>
+          </property>
+          <property name="text">
+           <string>&amp;Message:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="buddy">
+           <cstring>reqMessage</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QPushButton" name="receiveButton">
@@ -184,10 +248,13 @@
           </item>
          </layout>
         </item>
-        <item row="8" column="0">
-         <widget class="QLabel" name="label_7">
+        <item row="5" column="2">
+         <widget class="QCheckBox" name="reuseAddress">
+          <property name="toolTip">
+           <string>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</string>
+          </property>
           <property name="text">
-           <string/>
+           <string>R&amp;euse an existing receiving address (not recommended)</string>
           </property>
          </widget>
         </item>
@@ -239,6 +306,19 @@
       </item>
       <item>
        <widget class="QTableView" name="recentRequestsView">
+        <property name="contextMenuPolicy">
+         <enum>Qt::CustomContextMenu</enum>
+        </property>
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTableView" name="myRapAddressesView">
         <property name="contextMenuPolicy">
          <enum>Qt::CustomContextMenu</enum>
         </property>

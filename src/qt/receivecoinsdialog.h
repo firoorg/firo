@@ -59,6 +59,8 @@ private:
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
+    bool isRegularAddressSelected;
+    void setAddressType();
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
@@ -70,12 +72,15 @@ private Q_SLOTS:
     void on_removeRequestButton_clicked();
     void on_recentRequestsView_doubleClicked(const QModelIndex &index);
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void myRAPAddressesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void updateDisplayUnit();
     void showMenu(const QPoint &point);
     void copyURI();
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void on_regularAddressButton_clicked();
+    void on_reusableAddressButton_clicked();
 };
 
 #endif // BITCOIN_QT_RECEIVECOINSDIALOG_H

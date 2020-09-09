@@ -27,7 +27,8 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui(new Ui::ReceiveCoinsDialog),
     columnResizingFixer(0),
     model(0),
-    platformStyle(_platformStyle)
+    platformStyle(_platformStyle),
+    isRegularAddressSelected(true)
 {
     ui->setupUi(this);
 
@@ -62,8 +63,62 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(copyLabel()));
     connect(copyMessageAction, SIGNAL(triggered()), this, SLOT(copyMessage()));
     connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyAmount()));
+    connect(ui->regularAddressButton, SIGNAL(clicked()), this, SLOT(on_regularAddressButton_clicked()));
+    connect(ui->reusableAddressButton, SIGNAL(clicked()), this, SLOT(on_reusableAddressButton_clicked()));
 
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+    this->setAddressType();
+}
+
+void ReceiveCoinsDialog::setAddressType()
+{
+    if (this->isRegularAddressSelected)
+    {
+        this->ui->regularAddressButton->setStyleSheet("background-color: white; color:black;");
+        this->ui->reusableAddressButton->setStyleSheet("background-color: transparent; color:white;");
+        this->ui->recentRequestsView->setVisible(true);
+        this->ui->myRapAddressesView->setVisible(false);
+
+        this->ui->label_6->setStyleSheet("font-weight: bold");
+        this->ui->label_6->setText(QString("Requested payments history"));
+
+        this->ui->label_10->setVisible(false);
+        this->ui->frame2->setVisible(true);
+        this->ui->label_5->setVisible(true);
+        this->ui->label_2->setVisible(true);
+        this->ui->clearButton->setVisible(true);
+        this->ui->receiveButton->setVisible(true);
+        this->ui->label->setVisible(true);
+        this->ui->label_3->setVisible(true);
+        this->ui->label_4->setVisible(true);
+        this->ui->label_7->setVisible(true);
+        this->ui->reqAmount->setVisible(true);
+        this->ui->reqLabel->setVisible(true);
+        this->ui->reqMessage->setVisible(true);
+        this->ui->reuseAddress->setVisible(true);
+    } else {
+        this->ui->regularAddressButton->setStyleSheet("background-color: transparent; color:white;");
+        this->ui->reusableAddressButton->setStyleSheet("background-color: white; color:black;");
+        this->ui->label_10->setVisible(true);
+        this->ui->recentRequestsView->setVisible(false);
+        this->ui->myRapAddressesView->setVisible(true);
+
+        this->ui->frame2->setVisible(false);
+        this->ui->label_6->setStyleSheet("font-weight: bold");
+        this->ui->label_6->setText(QString("All my RAP addresses"));
+    }
+}
+
+void ReceiveCoinsDialog::on_regularAddressButton_clicked()
+{
+    this->isRegularAddressSelected = true;
+    setAddressType();
+}
+
+void ReceiveCoinsDialog::on_reusableAddressButton_clicked()
+{
+    this->isRegularAddressSelected = false;
+    setAddressType();
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -93,6 +148,21 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             SLOT(recentRequestsView_selectionChanged(QItemSelection, QItemSelection)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
+    
+        QTableView* myRAPView = ui->myRapAddressesView;
+        myRAPView->verticalHeader()->hide();
+        myRAPView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        myRAPView->setModel(_model->getMyRAPTableModel());
+        myRAPView->setAlternatingRowColors(true);
+        myRAPView->setSelectionBehavior(QAbstractItemView::SelectRows);
+        myRAPView->setSelectionMode(QAbstractItemView::ContiguousSelection);
+        myRAPView->setColumnWidth(MyRAPTableModel::Label, LABEL_COLUMN_WIDTH);
+        myRAPView->setColumnWidth(MyRAPTableModel::Address, 600);
+
+        connect(myRAPView->selectionModel(),
+            SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
+            SLOT(myRAPAddressesView_selectionChanged(QItemSelection, QItemSelection)));
+        // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
     }
 }
 
@@ -181,6 +251,14 @@ void ReceiveCoinsDialog::recentRequestsView_selectionChanged(const QItemSelectio
 {
     // Enable Show/Remove buttons only if anything is selected.
     bool enable = !ui->recentRequestsView->selectionModel()->selectedRows().isEmpty();
+    ui->showRequestButton->setEnabled(enable);
+    ui->removeRequestButton->setEnabled(enable);
+}
+
+void ReceiveCoinsDialog::myRAPAddressesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    // Enable Show/Remove buttons only if anything is selected.
+    bool enable = !ui->myRapAddressesView->selectionModel()->selectedRows().isEmpty();
     ui->showRequestButton->setEnabled(enable);
     ui->removeRequestButton->setEnabled(enable);
 }

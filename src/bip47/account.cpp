@@ -77,7 +77,7 @@ bool CBIP47Account::isValid()
     return true;
 }
 
-std::string CBIP47Account::getStringPaymentCode() 
+std::string CBIP47Account::getStringPaymentCode() const
 {
     return paymentCode.toString();
 }

@@ -794,6 +794,7 @@ public:
     std::map<uint256, int> mapRequestCount;
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
+    std::map<string, string> paymentCodeBook;
 
     CPubKey vchDefaultKey;
 
@@ -1160,6 +1161,8 @@ public:
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 
     bool DelAddressBook(const CTxDestination& address);
+    void SetPaymentCodeBookLabel(string, string);
+    string GetPaymentCodeLabel(string);
 
     bool UpdatedTransaction(const uint256 &hashTx) override;
 
@@ -1297,10 +1300,10 @@ public:
      * 
      * */
 private:
-    std::vector<CBIP47Account> m_CBIP47Accounts;
     CExtKey masterKey;
     
 public:
+    std::vector<CBIP47Account> m_CBIP47Accounts;
     std::vector<CKey> m_Bip47PendingKeys;
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;

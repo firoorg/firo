@@ -2413,9 +2413,11 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
         CWalletDB db(strWalletFile);
         std::string existingLabel = db.ReadPaymentCodeLabel(bip47Account.getStringPaymentCode());
         if (existingLabel == "") {
-            db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "Reusable Address #" + std::to_string(i));
+            existingLabel = "Reusable Address #" + std::to_string(i);
+            db.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), existingLabel);
         }
         myPaymentCodes.push_back(bip47Account.getStringPaymentCode());
+        paymentCodeBook[bip47Account.getStringPaymentCode()] = existingLabel;
     }
     LogPrintf("deriveCBIP47Accounts save %d payment code\n", myPaymentCodes.size());
     walletDB.SavePaymentCodes(myPaymentCodes);
@@ -2453,7 +2455,9 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
     }
     SetAddressBook(notificationAddress.Get(), "BIP47PAYMENT-notification" + std::to_string(lastPCodeIndex), "receive");
     walletDB.UpdateLastPCodeIndex();
-    walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), "Reusable Address #" + std::to_string(lastPCodeIndex));
+    std::string label = "Reusable Address #" + std::to_string(lastPCodeIndex);
+    walletDB.WritePaymentCodeLabel(bip47Account.getStringPaymentCode(), label);
+    paymentCodeBook[bip47Account.getStringPaymentCode()] = label;
 
     std::vector<string> paymentCodes;
     for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
@@ -2464,6 +2468,22 @@ std::string CWallet::generateNewPCode(CExtKey masterKey) {
     }
     walletDB.SavePaymentCodes(paymentCodes);
     return bip47Account.getStringPaymentCode();
+}
+
+void CWallet::SetPaymentCodeBookLabel(string paymentCode, string label)
+{
+    CWalletDB walletDB(strWalletFile);
+    paymentCodeBook[paymentCode] = label;
+    walletDB.WritePaymentCodeLabel(paymentCode, label);
+}
+
+
+string CWallet::GetPaymentCodeLabel(string paymentCode)
+{
+    CWalletDB walletDB(strWalletFile);
+    string label = "";
+    label = walletDB.ReadPaymentCodeLabel(paymentCode);
+    return label;
 }
 
 void CWallet::saveCBIP47PaymentChannelData(string pchannelId)
