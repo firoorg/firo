@@ -1398,7 +1398,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } 
+        }
         else {
             LockPoints lp;
             double fSpendsCoinbase = false;
@@ -3087,7 +3087,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     int64_t nStart = GetTimeMicros();
     {
         auto dbTx = evoDb->BeginTransaction();
-        
+
         CCoinsViewCache view(pcoinsTip);
         if (DisconnectBlock(block, state, pindexDelete, view) != DISCONNECT_OK)
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
@@ -3826,7 +3826,7 @@ CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
     // track prevBlockHash -> pindex (multimap)
     if (pindexNew->pprev) {
         mapPrevBlockIndex.emplace(pindexNew->pprev->GetBlockHash(), pindexNew);
-    }    
+    }
 
     return pindexNew;
 }

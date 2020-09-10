@@ -244,11 +244,9 @@ bool CheckLelantusJMintTransaction(
     }
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
+
         // Update public coin list in the info
-        uint64_t amount;
-        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-            amount = 0;
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, amount));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, 0));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -450,12 +448,6 @@ bool CheckLelantusJoinSplitTransaction(
             }
 
             if (joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
-                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
-                    }
-                }
-            } else {
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     for (size_t i = 0; i < serials.size(); i++) {
                         int coinGroupId = ids[i] % (CENT / 1000);
@@ -464,6 +456,12 @@ bool CheckLelantusJoinSplitTransaction(
                         sigma::IntegerToDenomination(intDenom, denomination);
                         sigmaTxInfo->spentSerials.insert(std::make_pair(
                                 serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
+                    }
+                }
+            } else {
+                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+                    for (size_t i = 0; i < serials.size(); i++) {
+                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
                     }
                 }
             }
@@ -570,12 +568,6 @@ bool CheckLelantusTransaction(
         catch (CBadTxIn&) {
             return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
         }
-
-        unsigned size = GetVirtualTransactionSize(tx);
-        if(nFees < CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool))
-            return state.DoS(100, false,
-                             REJECT_INVALID,
-                             "Lelantus invalid fee.");
     }
 
 

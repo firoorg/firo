@@ -1,8 +1,9 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2020 The ZCoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "coincontroldialog.h"
+#include "lelantuscoincontroldialog.h"
 #include "ui_coincontroldialog.h"
 
 #include "addresstablemodel.h"
@@ -29,26 +30,239 @@
 #include <QIcon>
 #include <QSettings>
 #include <QString>
+#include <QTranslator>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
-QList<CAmount> CoinControlDialog::payAmounts;
-CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
-bool CoinControlDialog::fSubtractFeeFromAmount = false;
+void CoinControlStorage::updateLabels(WalletModel *model, QDialog* dialog)
+{
+    if (!model)
+        return;
 
-bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
-    int column = treeWidget()->sortColumn();
-    if (column == CoinControlDialog::COLUMN_AMOUNT || column == CoinControlDialog::COLUMN_DATE || column == CoinControlDialog::COLUMN_CONFIRMATIONS)
-        return data(column, Qt::UserRole).toLongLong() < other.data(column, Qt::UserRole).toLongLong();
-    return QTreeWidgetItem::operator<(other);
+    // nPayAmount
+    CAmount nPayAmount = 0;
+    bool fDust = false;
+    CMutableTransaction txDummy;
+    Q_FOREACH(const CAmount &amount, payAmounts)
+    {
+        nPayAmount += amount;
+
+        if (amount > 0)
+        {
+            CTxOut txout(amount, (CScript)std::vector<unsigned char>(24, 0));
+            txDummy.vout.push_back(txout);
+            if (txout.IsDust(dustRelayFee))
+               fDust = true;
+        }
+    }
+
+    CAmount nAmount             = 0;
+    CAmount nPayFee             = 0;
+    CAmount nAfterFee           = 0;
+    CAmount nChange             = 0;
+    unsigned int nBytes         = 0;
+    unsigned int nBytesInputs   = 0;
+    double dPriority            = 0;
+    double dPriorityInputs      = 0;
+    unsigned int nQuantity      = 0;
+    int nQuantityUncompressed   = 0;
+    bool fAllowFree             = false;
+    bool fWitness               = false;
+
+    std::vector<COutPoint> vCoinControl;
+    std::vector<COutput>   vOutputs;
+    coinControl.ListSelected(vCoinControl);
+    model->getOutputs(vCoinControl, vOutputs);
+
+    BOOST_FOREACH(const COutput& out, vOutputs) {
+        // unselect already spent, very unlikely scenario, this could happen
+        // when selected are spent elsewhere, like rpc or another computer
+        uint256 txhash = out.tx->GetHash();
+        COutPoint outpt(txhash, out.i);
+        if (model->isSpent(outpt))
+        {
+            coinControl.UnSelect(outpt);
+            continue;
+        }
+
+        // Quantity
+        nQuantity++;
+
+        // Amount
+        nAmount += out.tx->tx->vout[out.i].nValue;
+
+        // Priority
+        dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
+
+        // Bytes
+        CTxDestination address;
+        int witnessversion = 0;
+        std::vector<unsigned char> witnessprogram;
+        if (out.tx->tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
+        {
+            nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
+            fWitness = true;
+        }
+        else if(ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, address))
+        {
+            CPubKey pubkey;
+            CKeyID *keyid = boost::get<CKeyID>(&address);
+            if (keyid && model->getPubKey(*keyid, pubkey))
+            {
+                nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
+                if (!pubkey.IsCompressed())
+                    nQuantityUncompressed++;
+            }
+            else
+                nBytesInputs += 148; // in all error cases, simply assume 148 here
+        }
+        else nBytesInputs += 148;
+    }
+
+    // calculation
+    if (nQuantity > 0)
+    {
+        // Bytes
+        nBytes = nBytesInputs + ((payAmounts.size() > 0 ? payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+        if (fWitness)
+        {
+            // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
+            // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
+            // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
+            nBytes += 2; // account for the serialized marker and flag bytes
+            nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
+        }
+
+        // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
+        if (fSubtractFeeFromAmount)
+            if (nAmount - nPayAmount == 0)
+                nBytes -= 34;
+
+        // Fee
+        nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+        if (nPayFee > 0 && coinControl.nMinimumTotalFee > nPayFee)
+            nPayFee = coinControl.nMinimumTotalFee;
+
+
+        // Allow free? (require at least hard-coded threshold and default to that if no estimate)
+        double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
+        dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed * 29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
+        double dPriorityNeeded = std::max(mempoolEstimatePriority, AllowFreeThreshold());
+        fAllowFree = (dPriority >= dPriorityNeeded);
+
+        if (fSendFreeTransactions)
+            if (fAllowFree && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
+                nPayFee = 0;
+
+        if (nPayAmount > 0)
+        {
+            nChange = nAmount - nPayAmount;
+            if (!fSubtractFeeFromAmount)
+                nChange -= nPayFee;
+
+            // Never create dust outputs; if we would, just add the dust to the fee.
+            if (nChange > 0 && nChange < MIN_CHANGE)
+            {
+                CTxOut txout(nChange, (CScript)std::vector<unsigned char>(24, 0));
+                if (txout.IsDust(dustRelayFee))
+                {
+                    if (fSubtractFeeFromAmount) // dust-change will be raised until no dust
+                        nChange = txout.GetDustThreshold(dustRelayFee);
+                    else
+                    {
+                        nPayFee += nChange;
+                        nChange = 0;
+                    }
+                }
+            }
+
+            if (nChange == 0 && !fSubtractFeeFromAmount)
+                nBytes -= 34;
+        }
+
+        // after fee
+        nAfterFee = std::max<CAmount>(nAmount - nPayFee, 0);
+    }
+
+    // actually update labels
+    int nDisplayUnit = BitcoinUnits::BTC;
+    if (model && model->getOptionsModel())
+        nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
+
+    QLabel *l1 = dialog->findChild<QLabel *>("labelCoinControlQuantity");
+    QLabel *l2 = dialog->findChild<QLabel *>("labelCoinControlAmount");
+    QLabel *l3 = dialog->findChild<QLabel *>("labelCoinControlFee");
+    QLabel *l4 = dialog->findChild<QLabel *>("labelCoinControlAfterFee");
+    QLabel *l5 = dialog->findChild<QLabel *>("labelCoinControlBytes");
+    QLabel *l7 = dialog->findChild<QLabel *>("labelCoinControlLowOutput");
+    QLabel *l8 = dialog->findChild<QLabel *>("labelCoinControlChange");
+
+    // enable/disable "dust" and "change"
+    dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setEnabled(nPayAmount > 0);
+    dialog->findChild<QLabel *>("labelCoinControlLowOutput")    ->setEnabled(nPayAmount > 0);
+    dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setEnabled(nPayAmount > 0);
+    dialog->findChild<QLabel *>("labelCoinControlChange")       ->setEnabled(nPayAmount > 0);
+
+    // stats
+    l1->setText(QString::number(nQuantity));                                 // Quantity
+    l2->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nAmount));        // Amount
+    l3->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nPayFee));        // Fee
+    l4->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nAfterFee));      // After Fee
+    l5->setText(((nBytes > 0) ? ASYMP_UTF8 : "") + QString::number(nBytes));        // Bytes
+    l7->setText(fDust ? tr("yes") : tr("no"));                               // Dust
+    l8->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nChange));        // Change
+    if (nPayFee > 0 && (coinControl.nMinimumTotalFee < nPayFee))
+    {
+        l3->setText(ASYMP_UTF8 + l3->text());
+        l4->setText(ASYMP_UTF8 + l4->text());
+        if (nChange > 0 && !fSubtractFeeFromAmount)
+            l8->setText(ASYMP_UTF8 + l8->text());
+    }
+
+    // turn label red when dust
+    l7->setStyleSheet((fDust) ? "color:red;" : "");
+
+    // tool tips
+    QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");
+
+    // how many satoshis the estimated fee can vary per byte we guess wrong
+    double dFeeVary;
+    if (payTxFee.GetFeePerK() > 0)
+        dFeeVary = (double)std::max(CWallet::GetRequiredFee(1000), payTxFee.GetFeePerK()) / 1000;
+    else {
+        dFeeVary = (double)std::max(CWallet::GetRequiredFee(1000), mempool.estimateSmartFee(nTxConfirmTarget).GetFeePerK()) / 1000;
+    }
+    QString toolTip4 = tr("Can vary +/- %1 satoshi(s) per input.").arg(dFeeVary);
+
+    l3->setToolTip(toolTip4);
+    l4->setToolTip(toolTip4);
+    l7->setToolTip(toolTipDust);
+    l8->setToolTip(toolTip4);
+    dialog->findChild<QLabel *>("labelCoinControlFeeText")      ->setToolTip(l3->toolTip());
+    dialog->findChild<QLabel *>("labelCoinControlAfterFeeText") ->setToolTip(l4->toolTip());
+    dialog->findChild<QLabel *>("labelCoinControlBytesText")    ->setToolTip(l5->toolTip());
+    dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setToolTip(l7->toolTip());
+    dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setToolTip(l8->toolTip());
+
+    // Insufficient funds
+    QLabel *label = dialog->findChild<QLabel *>("labelCoinControlInsuffFunds");
+    if (label)
+        label->setVisible(nChange < 0);
 }
 
-CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_platformStyle, QWidget *parent) :
+CoinControlStorage::CoinControlStorage()
+{
+}
+
+LelantusCoinControlDialog::LelantusCoinControlDialog(
+    CoinControlStorage *_storage,
+    const PlatformStyle *_platformStyle,
+    QWidget *parent) :
     QDialog(parent),
     ui(new Ui::CoinControlDialog),
     model(0),
     platformStyle(_platformStyle),
-    anonymousMode(anonymousMode)
+    storage(_storage)
 {
     ui->setupUi(this);
 
@@ -149,7 +363,7 @@ CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_p
         sortView(settings.value("nCoinControlSortColumn").toInt(), ((Qt::SortOrder)settings.value("nCoinControlSortOrder").toInt()));
 }
 
-CoinControlDialog::~CoinControlDialog()
+LelantusCoinControlDialog::~LelantusCoinControlDialog()
 {
     QSettings settings;
     settings.setValue("nCoinControlMode", ui->radioListMode->isChecked());
@@ -159,27 +373,26 @@ CoinControlDialog::~CoinControlDialog()
     delete ui;
 }
 
-void CoinControlDialog::setModel(WalletModel *_model)
+void LelantusCoinControlDialog::setModel(WalletModel *_model)
 {
     this->model = _model;
 
-    if(_model && _model->getOptionsModel() && _model->getAddressTableModel())
-    {
+    if (_model && _model->getOptionsModel() && _model->getAddressTableModel()) {
         updateView();
         updateLabelLocked();
-        CoinControlDialog::updateLabels(_model, this, anonymousMode);
+        storage->updateLabels(_model, this);
     }
 }
 
 // ok button
-void CoinControlDialog::buttonBoxClicked(QAbstractButton* button)
+void LelantusCoinControlDialog::buttonBoxClicked(QAbstractButton* button)
 {
     if (ui->buttonBox->buttonRole(button) == QDialogButtonBox::AcceptRole)
         done(QDialog::Accepted); // closes the dialog
 }
 
 // (un)select all
-void CoinControlDialog::buttonSelectAllClicked()
+void LelantusCoinControlDialog::buttonSelectAllClicked()
 {
     Qt::CheckState state = Qt::Checked;
     for (int i = 0; i < ui->treeWidget->topLevelItemCount(); i++)
@@ -195,13 +408,15 @@ void CoinControlDialog::buttonSelectAllClicked()
             if (ui->treeWidget->topLevelItem(i)->checkState(COLUMN_CHECKBOX) != state)
                 ui->treeWidget->topLevelItem(i)->setCheckState(COLUMN_CHECKBOX, state);
     ui->treeWidget->setEnabled(true);
-    if (state == Qt::Unchecked)
-        coinControl->UnSelectAll(); // just to be sure
-    CoinControlDialog::updateLabels(model, this, anonymousMode);
+    if (state == Qt::Unchecked) {
+        storage->coinControl.UnSelectAll(); // just to be sure
+    }
+
+    storage->updateLabels(model, this);
 }
 
 // context menu
-void CoinControlDialog::showMenu(const QPoint &point)
+void LelantusCoinControlDialog::showMenu(const QPoint &point)
 {
     QTreeWidgetItem *item = ui->treeWidget->itemAt(point);
     if(item)
@@ -236,13 +451,13 @@ void CoinControlDialog::showMenu(const QPoint &point)
 }
 
 // context menu action: copy amount
-void CoinControlDialog::copyAmount()
+void LelantusCoinControlDialog::copyAmount()
 {
     GUIUtil::setClipboard(BitcoinUnits::removeSpaces(contextMenuItem->text(COLUMN_AMOUNT)));
 }
 
 // context menu action: copy label
-void CoinControlDialog::copyLabel()
+void LelantusCoinControlDialog::copyLabel()
 {
     if (ui->radioTreeMode->isChecked() && contextMenuItem->text(COLUMN_LABEL).length() == 0 && contextMenuItem->parent())
         GUIUtil::setClipboard(contextMenuItem->parent()->text(COLUMN_LABEL));
@@ -251,7 +466,7 @@ void CoinControlDialog::copyLabel()
 }
 
 // context menu action: copy address
-void CoinControlDialog::copyAddress()
+void LelantusCoinControlDialog::copyAddress()
 {
     if (ui->radioTreeMode->isChecked() && contextMenuItem->text(COLUMN_ADDRESS).length() == 0 && contextMenuItem->parent())
         GUIUtil::setClipboard(contextMenuItem->parent()->text(COLUMN_ADDRESS));
@@ -260,13 +475,13 @@ void CoinControlDialog::copyAddress()
 }
 
 // context menu action: copy transaction id
-void CoinControlDialog::copyTransactionHash()
+void LelantusCoinControlDialog::copyTransactionHash()
 {
     GUIUtil::setClipboard(contextMenuItem->text(COLUMN_TXHASH));
 }
 
 // context menu action: lock coin
-void CoinControlDialog::lockCoin()
+void LelantusCoinControlDialog::lockCoin()
 {
     if (contextMenuItem->checkState(COLUMN_CHECKBOX) == Qt::Checked)
         contextMenuItem->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
@@ -279,7 +494,7 @@ void CoinControlDialog::lockCoin()
 }
 
 // context menu action: unlock coin
-void CoinControlDialog::unlockCoin()
+void LelantusCoinControlDialog::unlockCoin()
 {
     COutPoint outpt(uint256S(contextMenuItem->text(COLUMN_TXHASH).toStdString()), contextMenuItem->text(COLUMN_VOUT_INDEX).toUInt());
     model->unlockCoin(outpt);
@@ -289,49 +504,49 @@ void CoinControlDialog::unlockCoin()
 }
 
 // copy label "Quantity" to clipboard
-void CoinControlDialog::clipboardQuantity()
+void LelantusCoinControlDialog::clipboardQuantity()
 {
     GUIUtil::setClipboard(ui->labelCoinControlQuantity->text());
 }
 
 // copy label "Amount" to clipboard
-void CoinControlDialog::clipboardAmount()
+void LelantusCoinControlDialog::clipboardAmount()
 {
     GUIUtil::setClipboard(ui->labelCoinControlAmount->text().left(ui->labelCoinControlAmount->text().indexOf(" ")));
 }
 
 // copy label "Fee" to clipboard
-void CoinControlDialog::clipboardFee()
+void LelantusCoinControlDialog::clipboardFee()
 {
     GUIUtil::setClipboard(ui->labelCoinControlFee->text().left(ui->labelCoinControlFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
 }
 
 // copy label "After fee" to clipboard
-void CoinControlDialog::clipboardAfterFee()
+void LelantusCoinControlDialog::clipboardAfterFee()
 {
     GUIUtil::setClipboard(ui->labelCoinControlAfterFee->text().left(ui->labelCoinControlAfterFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
 }
 
 // copy label "Bytes" to clipboard
-void CoinControlDialog::clipboardBytes()
+void LelantusCoinControlDialog::clipboardBytes()
 {
     GUIUtil::setClipboard(ui->labelCoinControlBytes->text().replace(ASYMP_UTF8, ""));
 }
 
 // copy label "Dust" to clipboard
-void CoinControlDialog::clipboardLowOutput()
+void LelantusCoinControlDialog::clipboardLowOutput()
 {
     GUIUtil::setClipboard(ui->labelCoinControlLowOutput->text());
 }
 
 // copy label "Change" to clipboard
-void CoinControlDialog::clipboardChange()
+void LelantusCoinControlDialog::clipboardChange()
 {
     GUIUtil::setClipboard(ui->labelCoinControlChange->text().left(ui->labelCoinControlChange->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
 }
 
 // treeview: sort
-void CoinControlDialog::sortView(int column, Qt::SortOrder order)
+void LelantusCoinControlDialog::sortView(int column, Qt::SortOrder order)
 {
     sortColumn = column;
     sortOrder = order;
@@ -340,7 +555,7 @@ void CoinControlDialog::sortView(int column, Qt::SortOrder order)
 }
 
 // treeview: clicked on header
-void CoinControlDialog::headerSectionClicked(int logicalIndex)
+void LelantusCoinControlDialog::headerSectionClicked(int logicalIndex)
 {
     if (logicalIndex == COLUMN_CHECKBOX) // click on most left column -> do nothing
     {
@@ -361,36 +576,36 @@ void CoinControlDialog::headerSectionClicked(int logicalIndex)
 }
 
 // toggle tree mode
-void CoinControlDialog::radioTreeMode(bool checked)
+void LelantusCoinControlDialog::radioTreeMode(bool checked)
 {
     if (checked && model)
         updateView();
 }
 
 // toggle list mode
-void CoinControlDialog::radioListMode(bool checked)
+void LelantusCoinControlDialog::radioListMode(bool checked)
 {
     if (checked && model)
         updateView();
 }
 
 // checkbox clicked by user
-void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
+void LelantusCoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 {
     if (column == COLUMN_CHECKBOX && item->text(COLUMN_TXHASH).length() == 64) // transaction hash is 64 characters (this means its a child node, so its not a parent node in tree mode)
     {
         COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
 
         if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
-            coinControl->UnSelect(outpt);
+            storage->coinControl.UnSelect(outpt);
         else if (item->isDisabled()) // locked (this happens if "check all" through parent node)
             item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
         else
-            coinControl->Select(outpt);
+            storage->coinControl.Select(outpt);
 
         // selection changed -> update labels
         if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
-            CoinControlDialog::updateLabels(model, this, anonymousMode);
+            storage->updateLabels(model, this);
     }
 
     // TODO: Remove this temporary qt5 fix after Qt5.3 and Qt5.4 are no longer used.
@@ -405,7 +620,7 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 }
 
 // shows count of locked unspent outputs
-void CoinControlDialog::updateLabelLocked()
+void LelantusCoinControlDialog::updateLabelLocked()
 {
     std::vector<COutPoint> vOutpts;
     model->listLockedCoins(vOutpts);
@@ -417,237 +632,9 @@ void CoinControlDialog::updateLabelLocked()
     else ui->labelLocked->setVisible(false);
 }
 
-void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool anonymousMode)
-{
-    if (!model)
-        return;
-
-    // nPayAmount
-    CAmount nPayAmount = 0;
-    bool fDust = false;
-    CMutableTransaction txDummy;
-    Q_FOREACH(const CAmount &amount, CoinControlDialog::payAmounts)
-    {
-        nPayAmount += amount;
-
-        if (amount > 0)
-        {
-            CTxOut txout(amount, (CScript)std::vector<unsigned char>(24, 0));
-            txDummy.vout.push_back(txout);
-            if (txout.IsDust(dustRelayFee))
-               fDust = true;
-        }
-    }
-
-    CAmount nAmount             = 0;
-    CAmount nPayFee             = 0;
-    CAmount nAfterFee           = 0;
-    CAmount nChange             = 0;
-    unsigned int nBytes         = 0;
-    unsigned int nBytesInputs   = 0;
-    double dPriority            = 0;
-    double dPriorityInputs      = 0;
-    unsigned int nQuantity      = 0;
-    int nQuantityUncompressed   = 0;
-    bool fAllowFree             = false;
-    bool fWitness               = false;
-
-    std::vector<COutPoint> vCoinControl;
-    std::vector<COutput>   vOutputs;
-    coinControl->ListSelected(vCoinControl);
-    model->getOutputs(vCoinControl, vOutputs);
-
-    BOOST_FOREACH(const COutput& out, vOutputs) {
-        // filter out outputs that don't match with mode
-        {
-            auto const &script = out.tx->tx->vout[out.i].scriptPubKey;
-            auto isMint = script.IsZerocoinMint()
-                        || script.IsSigmaMint()
-                        || script.IsZerocoinRemint()
-                        || script.IsLelantusMint()
-                        || script.IsLelantusJMint();
-
-            if (isMint != anonymousMode) {
-                continue;
-            }
-        }
-
-        // unselect already spent, very unlikely scenario, this could happen
-        // when selected are spent elsewhere, like rpc or another computer
-        uint256 txhash = out.tx->GetHash();
-        COutPoint outpt(txhash, out.i);
-        if (model->isSpent(outpt))
-        {
-            coinControl->UnSelect(outpt);
-            continue;
-        }
-
-        // Quantity
-        nQuantity++;
-
-        // Amount
-        nAmount += out.tx->tx->vout[out.i].nValue;
-
-        // Priority
-        dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
-
-        // Bytes
-        CTxDestination address;
-        int witnessversion = 0;
-        std::vector<unsigned char> witnessprogram;
-        if (out.tx->tx->vout[out.i].scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
-        {
-            nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
-            fWitness = true;
-        }
-        else if(ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, address))
-        {
-            CPubKey pubkey;
-            CKeyID *keyid = boost::get<CKeyID>(&address);
-            if (keyid && model->getPubKey(*keyid, pubkey))
-            {
-                nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
-                if (!pubkey.IsCompressed())
-                    nQuantityUncompressed++;
-            }
-            else
-                nBytesInputs += 148; // in all error cases, simply assume 148 here
-        }
-        else nBytesInputs += 148;
-    }
-
-    // calculation
-    if (nQuantity > 0)
-    {
-        // Bytes
-        nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
-        if (fWitness)
-        {
-            // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
-            // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
-            // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
-            nBytes += 2; // account for the serialized marker and flag bytes
-            nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
-        }
-
-        // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
-        if (CoinControlDialog::fSubtractFeeFromAmount)
-            if (nAmount - nPayAmount == 0)
-                nBytes -= 34;
-
-        // Fee
-        nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-        if (nPayFee > 0 && coinControl->nMinimumTotalFee > nPayFee)
-            nPayFee = coinControl->nMinimumTotalFee;
 
 
-        // Allow free? (require at least hard-coded threshold and default to that if no estimate)
-        double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
-        dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed * 29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
-        double dPriorityNeeded = std::max(mempoolEstimatePriority, AllowFreeThreshold());
-        fAllowFree = (dPriority >= dPriorityNeeded);
-
-        if (fSendFreeTransactions)
-            if (fAllowFree && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
-                nPayFee = 0;
-
-        if (nPayAmount > 0)
-        {
-            nChange = nAmount - nPayAmount;
-            if (!CoinControlDialog::fSubtractFeeFromAmount)
-                nChange -= nPayFee;
-
-            // Never create dust outputs; if we would, just add the dust to the fee.
-            if (nChange > 0 && nChange < MIN_CHANGE)
-            {
-                CTxOut txout(nChange, (CScript)std::vector<unsigned char>(24, 0));
-                if (txout.IsDust(dustRelayFee))
-                {
-                    if (CoinControlDialog::fSubtractFeeFromAmount) // dust-change will be raised until no dust
-                        nChange = txout.GetDustThreshold(dustRelayFee);
-                    else
-                    {
-                        nPayFee += nChange;
-                        nChange = 0;
-                    }
-                }
-            }
-
-            if (nChange == 0 && !CoinControlDialog::fSubtractFeeFromAmount)
-                nBytes -= 34;
-        }
-
-        // after fee
-        nAfterFee = std::max<CAmount>(nAmount - nPayFee, 0);
-    }
-
-    // actually update labels
-    int nDisplayUnit = BitcoinUnits::BTC;
-    if (model && model->getOptionsModel())
-        nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
-
-    QLabel *l1 = dialog->findChild<QLabel *>("labelCoinControlQuantity");
-    QLabel *l2 = dialog->findChild<QLabel *>("labelCoinControlAmount");
-    QLabel *l3 = dialog->findChild<QLabel *>("labelCoinControlFee");
-    QLabel *l4 = dialog->findChild<QLabel *>("labelCoinControlAfterFee");
-    QLabel *l5 = dialog->findChild<QLabel *>("labelCoinControlBytes");
-    QLabel *l7 = dialog->findChild<QLabel *>("labelCoinControlLowOutput");
-    QLabel *l8 = dialog->findChild<QLabel *>("labelCoinControlChange");
-
-    // enable/disable "dust" and "change"
-    dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlLowOutput")    ->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlChange")       ->setEnabled(nPayAmount > 0);
-
-    // stats
-    l1->setText(QString::number(nQuantity));                                 // Quantity
-    l2->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nAmount));        // Amount
-    l3->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nPayFee));        // Fee
-    l4->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nAfterFee));      // After Fee
-    l5->setText(((nBytes > 0) ? ASYMP_UTF8 : "") + QString::number(nBytes));        // Bytes
-    l7->setText(fDust ? tr("yes") : tr("no"));                               // Dust
-    l8->setText(BitcoinUnits::formatWithUnit(nDisplayUnit, nChange));        // Change
-    if (nPayFee > 0 && (coinControl->nMinimumTotalFee < nPayFee))
-    {
-        l3->setText(ASYMP_UTF8 + l3->text());
-        l4->setText(ASYMP_UTF8 + l4->text());
-        if (nChange > 0 && !CoinControlDialog::fSubtractFeeFromAmount)
-            l8->setText(ASYMP_UTF8 + l8->text());
-    }
-
-    // turn label red when dust
-    l7->setStyleSheet((fDust) ? "color:red;" : "");
-
-    // tool tips
-    QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");
-
-    // how many satoshis the estimated fee can vary per byte we guess wrong
-    double dFeeVary;
-    if (payTxFee.GetFeePerK() > 0)
-        dFeeVary = (double)std::max(CWallet::GetRequiredFee(1000), payTxFee.GetFeePerK()) / 1000;
-    else {
-        dFeeVary = (double)std::max(CWallet::GetRequiredFee(1000), mempool.estimateSmartFee(nTxConfirmTarget).GetFeePerK()) / 1000;
-    }
-    QString toolTip4 = tr("Can vary +/- %1 satoshi(s) per input.").arg(dFeeVary);
-
-    l3->setToolTip(toolTip4);
-    l4->setToolTip(toolTip4);
-    l7->setToolTip(toolTipDust);
-    l8->setToolTip(toolTip4);
-    dialog->findChild<QLabel *>("labelCoinControlFeeText")      ->setToolTip(l3->toolTip());
-    dialog->findChild<QLabel *>("labelCoinControlAfterFeeText") ->setToolTip(l4->toolTip());
-    dialog->findChild<QLabel *>("labelCoinControlBytesText")    ->setToolTip(l5->toolTip());
-    dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setToolTip(l7->toolTip());
-    dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setToolTip(l8->toolTip());
-
-    // Insufficient funds
-    QLabel *label = dialog->findChild<QLabel *>("labelCoinControlInsuffFunds");
-    if (label)
-        label->setVisible(nChange < 0);
-}
-
-void CoinControlDialog::updateView()
+void LelantusCoinControlDialog::updateView()
 {
     if (!model || !model->getOptionsModel() || !model->getAddressTableModel())
         return;
@@ -663,7 +650,7 @@ void CoinControlDialog::updateView()
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
     std::map<QString, std::vector<COutput> > mapCoins;
-    model->listCoins(mapCoins, anonymousMode ? ONLY_MINTS : ALL_COINS);
+    model->listCoins(mapCoins, ALL_COINS);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
         CCoinControlWidgetItem *itemWalletAddress = new CCoinControlWidgetItem();
@@ -750,13 +737,13 @@ void CoinControlDialog::updateView()
             if (model->isLockedCoin(txhash, out.i))
             {
                 COutPoint outpt(txhash, out.i);
-                coinControl->UnSelect(outpt); // just to be sure
+                storage->coinControl.UnSelect(outpt); // just to be sure
                 itemOutput->setDisabled(true);
                 itemOutput->setIcon(COLUMN_CHECKBOX, platformStyle->SingleColorIcon(":/icons/lock_closed"));
             }
 
             // set checkbox
-            if (coinControl->IsSelected(COutPoint(txhash, out.i)))
+            if (storage->coinControl.IsSelected(COutPoint(txhash, out.i)))
                 itemOutput->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
         }
 

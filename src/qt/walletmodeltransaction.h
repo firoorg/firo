@@ -5,6 +5,9 @@
 #ifndef BITCOIN_QT_WALLETMODELTRANSACTION_H
 #define BITCOIN_QT_WALLETMODELTRANSACTION_H
 
+#include "../hdmint/hdmint.h"
+#include "../primitives/zerocoin.h"
+
 #include "walletmodel.h"
 
 #include <QObject>
@@ -37,11 +40,18 @@ public:
 
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
+    std::vector<CLelantusEntry>& getSpendCoins();
+    std::vector<CHDMint>& getMintCoins();
+
 private:
     QList<SendCoinsRecipient> recipients;
     CWalletTx *walletTransaction;
     CReserveKey *keyChange;
     CAmount fee;
+
+    // lelantus transaction
+    std::vector<CLelantusEntry> spendCoins;
+    std::vector<CHDMint> mintCoins;
 };
 
 #endif // BITCOIN_QT_WALLETMODELTRANSACTION_H

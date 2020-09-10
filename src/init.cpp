@@ -262,7 +262,7 @@ void Shutdown()
         pwalletMain->Flush(false);
 #endif
     GenerateBitcoins(false, 0, Params());
-    
+
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
@@ -781,7 +781,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }    
+    }
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
@@ -2108,7 +2108,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
-
+    
     // ********************************************************* Step 13: Znode - obsoleted
 
     // ********************************************************* Step 14: finished

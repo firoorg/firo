@@ -33,6 +33,8 @@
 
 #include "chainparams.h"
 #include "init.h"
+#include "lelantus.h"
+#include "sigma.h"
 #include "ui_interface.h"
 #include "util.h"
 
@@ -132,7 +134,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    sigmaAction(0),
     zc2SigmaAction(0),
+    lelantusAction(0),
     masternodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -351,13 +355,14 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
+#ifdef ENABLE_WALLET
     sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
     sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
     sigmaAction->setToolTip(sigmaAction->statusTip());
     sigmaAction->setCheckable(true);
     sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     tabGroup->addAction(sigmaAction);
-    sigmaAction->setVisible(true);
+    sigmaAction->setVisible(false);
 
     zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
     zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
@@ -367,7 +372,14 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(zc2SigmaAction);
     zc2SigmaAction->setVisible(false);
 
-#ifdef ENABLE_WALLET
+    lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/lelantus"), tr("&Lelantus"), this);
+    lelantusAction->setStatusTip(tr("Anonymize your coins"));
+    lelantusAction->setToolTip(lelantusAction->statusTip());
+    lelantusAction->setCheckable(true);
+    lelantusAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(lelantusAction);
+    lelantusAction->setVisible(false);
+
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
     masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
@@ -418,7 +430,8 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
-        connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
+	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
+	connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
 
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
@@ -562,6 +575,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
+        toolbar->addAction(lelantusAction);
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(masternodeAction);
 
@@ -613,18 +627,29 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(_clientModel->getOptionsModel());
-        
+
         OptionsModel* optionsModel = _clientModel->getOptionsModel();
         if(optionsModel)
         {
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
-        
+
+            // update lelantus page if option is changed.
+            connect(optionsModel,SIGNAL(lelantusPageChanged(bool)),this,SLOT(updateLelantusPage()));
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
-        checkZc2SigmaVisibility(clientModel->getNumBlocks());
-        checkZnodeVisibility(clientModel->getNumBlocks());
+        {
+            auto blocks = clientModel->getNumBlocks();
+            checkZnodeVisibility(blocks);
+
+#ifdef ENABLE_WALLET
+            checkZc2SigmaVisibility(blocks);
+            checkSigmaVisibility(blocks);
+            checkLelantusVisibility(blocks);
+#endif // ENABLE_WALLET
+        }
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -679,6 +704,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
+    lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -873,12 +899,19 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoSigmaPage()
 {
+    sigmaAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSigmaPage();
 }
 
 void BitcoinGUI::gotoZc2SigmaPage()
 {
     if (walletFrame) walletFrame->gotoZc2SigmaPage();
+}
+
+void BitcoinGUI::gotoLelantusPage()
+{
+    lelantusAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoLelantusPage();
 }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
@@ -1044,7 +1077,12 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
 
+#ifdef ENABLE_WALLET
+    checkSigmaVisibility(count);
+    checkLelantusVisibility(count);
     checkZc2SigmaVisibility(count);
+#endif // ENABLE_WALLET
+
     checkZnodeVisibility(count);
 }
 
@@ -1288,7 +1326,7 @@ void BitcoinGUI::setHDStatus(int hdEnabled)
     labelWalletHDStatusIcon->setPixmap(platformStyle->SingleColorIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
     labelWalletHDStatusIcon->setToolTip(hdEnabled ? tr("HD key generation is <b>enabled</b>") : tr("HD key generation is <b>disabled</b>"));
 
-    // eventually disable the QLabel to set its opacity to 50% 
+    // eventually disable the QLabel to set its opacity to 50%
     labelWalletHDStatusIcon->setEnabled(hdEnabled);
 }
 
@@ -1399,6 +1437,12 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
+void BitcoinGUI::updateLelantusPage()
+{
+    auto blocks = clientModel->getNumBlocks();
+    checkLelantusVisibility(blocks);
+}
+
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
@@ -1447,6 +1491,34 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
         masternodeAction->setVisible(false);
     } else {
         masternodeAction->setVisible(true);
+    }
+}
+
+void BitcoinGUI::checkSigmaVisibility(int numBlocks)
+{
+    auto allowSigmaPage = sigma::IsSigmaAllowed(numBlocks) && !lelantus::IsLelantusAllowed(numBlocks);
+    if (allowSigmaPage != sigmaAction->isVisible()) {
+        if (!allowSigmaPage && sigmaAction->isChecked()) {
+            gotoOverviewPage();
+        }
+        sigmaAction->setVisible(allowSigmaPage);
+    }
+}
+
+void BitcoinGUI::checkLelantusVisibility(int numBlocks)
+{
+    auto allowLelantusPage = false;
+    if (clientModel && clientModel->getOptionsModel()) {
+        allowLelantusPage = clientModel->getOptionsModel()->getLelantusPage();
+    }
+
+    allowLelantusPage &= lelantus::IsLelantusAllowed(numBlocks);
+
+    if (allowLelantusPage != lelantusAction->isVisible()) {
+        if (!allowLelantusPage && lelantusAction->isChecked()) {
+            gotoOverviewPage();
+        }
+        lelantusAction->setVisible(allowLelantusPage);
     }
 }
 

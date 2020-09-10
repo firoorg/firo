@@ -20,6 +20,7 @@
 #include <QObject>
 
 class AddressTableModel;
+class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -133,6 +134,7 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
+    LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
@@ -143,6 +145,8 @@ public:
     CAmount getWatchBalance() const;
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
+    CAmount getAnonymizableBalance() const;
+
     EncryptionStatus getEncryptionStatus() const;
 
     // Check address for validity
@@ -163,8 +167,28 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    // prepare transaction for getting txfee before sending coins in anonymous mode
+    SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
+
+    // prepare transaction for getting txfee before anonymizing coins
+    SendCoinsReturn prepareMintTransactions(
+        CAmount amount,
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reserveKeys,
+        std::vector<CHDMint> &mints,
+        const CCoinControl *coinControl);
+
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
+
+    // Send private coins to a list of recipients
+    SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
+
+    // Anonymize coins.
+    SendCoinsReturn sendAnonymizingCoins(
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reservekeys,
+        std::vector<CHDMint> &mints);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
@@ -247,6 +271,7 @@ public:
 
 private:
     CWallet *wallet;
+
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;
 
@@ -255,6 +280,7 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
 
@@ -265,6 +291,9 @@ private:
     CAmount cachedWatchOnlyBalance;
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
+    CAmount cachedAnonymizableBalance;
+    CAmount cachedPrivateBalance;
+    CAmount cachedUnconfirmedPrivateBalance;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -283,7 +312,9 @@ private:
 Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                        const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+                        const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
+                        const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance,
+                        const CAmount& anonymizableBalance);
 
     void updateMintable();
 

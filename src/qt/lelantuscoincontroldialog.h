@@ -1,11 +1,15 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2020 The Zcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_COINCONTROLDIALOG_H
-#define BITCOIN_QT_COINCONTROLDIALOG_H
+#ifndef ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H
+#define ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H
 
-#include "amount.h"
+#include "../amount.h"
+#include "../script/standard.h"
+#include "../wallet/coincontrol.h"
+
+#include "walletmodel.h"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -16,45 +20,42 @@
 #include <QString>
 #include <QTreeWidgetItem>
 
-class PlatformStyle;
-class WalletModel;
+#define ASYMP_UTF8 "\xE2\x89\x88"
 
-class CCoinControl;
-class CTxMemPool;
+class CoinControlStorage : public QObject
+{
+    Q_OBJECT
+public:
+    CoinControlStorage();
 
-namespace Ui {
+public:
+    QList<CAmount> payAmounts;
+    CCoinControl coinControl;
+    bool fSubtractFeeFromAmount;
+
+public:
+    void updateLabels(WalletModel*, QDialog*);
+};
+
+namespace Ui
+{
     class CoinControlDialog;
 }
 
-#define ASYMP_UTF8 "\xE2\x89\x88"
-
-class CCoinControlWidgetItem : public QTreeWidgetItem
-{
-public:
-    CCoinControlWidgetItem(QTreeWidget *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
-    CCoinControlWidgetItem(int type = Type) : QTreeWidgetItem(type) {}
-    CCoinControlWidgetItem(QTreeWidgetItem *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
-
-    bool operator<(const QTreeWidgetItem &other) const;
-};
-
-
-class CoinControlDialog : public QDialog
+class LelantusCoinControlDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(bool anonymousMode, const PlatformStyle *platformStyle, QWidget *parent = 0);
-    ~CoinControlDialog();
+    explicit LelantusCoinControlDialog(
+        CoinControlStorage *storage,
+        const PlatformStyle *platformStyle,
+        QWidget *parent = 0);
+    ~LelantusCoinControlDialog();
 
     void setModel(WalletModel *model);
 
-    // static because also called from sendcoinsdialog
-    static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
-
-    static QList<CAmount> payAmounts;
-    static CCoinControl *coinControl;
-    static bool fSubtractFeeFromAmount;
+    CoinControlStorage *storage;
 
 private:
     Ui::CoinControlDialog *ui;
@@ -69,8 +70,6 @@ private:
     QAction *unlockAction;
 
     const PlatformStyle *platformStyle;
-
-    bool anonymousMode;
 
     void sortView(int, Qt::SortOrder);
     void updateView();
@@ -112,4 +111,4 @@ private Q_SLOTS:
     void updateLabelLocked();
 };
 
-#endif // BITCOIN_QT_COINCONTROLDIALOG_H
+#endif // ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H

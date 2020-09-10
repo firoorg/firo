@@ -64,8 +64,8 @@ public:
 
     void setMasternodeList(const CDeterministicMNList& mnList);
     CDeterministicMNList getMasternodeList() const;
-    void refreshMasternodeList();    
-    
+    void refreshMasternodeList();
+
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
 

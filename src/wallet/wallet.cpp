@@ -619,7 +619,7 @@ bool CWallet::Verify()
         } catch (const boost::filesystem::filesystem_error&) {
             // failure is ok (well, not really, but it's not worse than what we started with)
         }
-        
+
         // try again
         if (!bitdb.Open(GetDataDir())) {
             // if it still fails, it probably means we can't even create the database env
@@ -2076,10 +2076,12 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
         }
 
         CAmount nValue;
-        if(txout.scriptPubKey.IsLelantusJMint())
+        if(txout.scriptPubKey.IsLelantusJMint()) {
+            LOCK(pwalletMain->cs_wallet);
             nValue = pwallet->GetCredit(txout, ISMINE_SPENDABLE);
-        else
+        } else {
             nValue = txout.nValue;
+        }
 
         COutputEntry output = {address, nValue, (int)i};
 
@@ -2930,7 +2932,6 @@ std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoi
     uint32_t keyPath = primitives::GetPubCoinValueHash(pubcoin).GetFirstUint32();
     CKey secret;
     {
-        LOCK(pwalletMain->cs_wallet);
         pwalletMain->GetKeyFromKeypath(BIP44_MINT_VALUE_INDEX, keyPath, secret);
     }
 
@@ -2941,6 +2942,7 @@ std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoi
 }
 
 std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const {
+    AssertLockHeld(pwalletMain->cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Encrypt enc(key.data());
     std::vector<unsigned char> ciphertext(16);
@@ -2951,6 +2953,7 @@ std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const sec
 }
 
 bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
+    AssertLockHeld(pwalletMain->cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Decrypt dec(key.data());
     std::vector<unsigned char> plaintext(16);
@@ -4055,7 +4058,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 setCoins.clear();
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl))
                 {
-                    strFailReason = _("Insufficient funds");                            
+                    strFailReason = _("Insufficient funds");
                     return false;
                 }
 
@@ -4092,7 +4095,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                             strFailReason = _("Keypool ran out, please call keypoolrefill first");
                             return false;
                         }
-                        
+
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
@@ -5036,7 +5039,7 @@ bool CWallet::CreateMintTransaction(const vector <CRecipient> &vecSend, CWalletT
                         }
                         scriptChange = GetScriptForDestination(keyID);
                     }
-                    
+
                     // no coin control: send change to newly generated address
                     else
                     {
@@ -5266,7 +5269,7 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CHDMint dMint;
 
-                auto nFeeRet = payTxFee.GetFeePerK();
+                auto nFeeRet = 0;
                 LogPrintf("nFeeRet=%s\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
@@ -5586,6 +5589,10 @@ bool CWallet::CreateLelantusMintTransactions(
                 }
             }
         }
+    }
+
+    if (!autoMintAll && valueToMint > 0) {
+        return false;
     }
 
     return true;
@@ -6782,13 +6789,15 @@ void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CHDMint> mintCoins; // new mints
-    result = CreateLelantusJoinSplitTransaction(recipients, newMints, spendCoins, mintCoins);
+    CAmount fee;
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, mintCoins);
 
     CommitLelantusTransaction(result, spendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
+        CAmount &fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CHDMint>& mintCoins,
@@ -6804,7 +6813,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     // create transaction
     LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, newMints);
+    CWalletTx tx = builder.Build(recipients, fee, newMints);
     spendCoins = builder.spendCoins;
     mintCoins = builder.mintCoins;
 
@@ -7004,9 +7013,6 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
     return nFeeNeeded;
 }
 
-
-
-
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
     if (!fFileBacked)
@@ -7195,7 +7201,7 @@ bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 
 /**
  * Mark old keypool keys as used,
- * and generate all new keys 
+ * and generate all new keys
  */
 bool CWallet::NewKeyPool()
 {

@@ -34,7 +34,10 @@ LelantusJoinSplitBuilder::~LelantusJoinSplitBuilder()
     cs_main.unlock();
 }
 
-CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints)
+CWalletTx LelantusJoinSplitBuilder::Build(
+    const std::vector<CRecipient>& recipients,
+    CAmount &fee,
+    const std::vector<CAmount>& newMints)
 {
     if (recipients.empty() && newMints.empty()) {
         throw std::invalid_argument(_("At least either recipients or newMints has to be on empty."));
@@ -108,8 +111,6 @@ CWalletTx LelantusJoinSplitBuilder::Build(const std::vector<CRecipient>& recipie
     if (pwalletMain->zwallet) {
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
-
-    CAmount fee;
 
     for (fee = payTxFee.GetFeePerK();;) {
         // In case of not enough fee, reset mint seed counter
@@ -343,7 +344,10 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         scriptSerializedCoin << OP_LELANTUSJMINT;
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+        LOCK(pwalletMain->cs_wallet);
         std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
+
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
         outputs.push_back(CTxOut(0, scriptSerializedCoin));
         mintCoins.push_back(hdMint);

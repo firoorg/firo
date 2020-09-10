@@ -498,7 +498,7 @@ void BitcoinApplication::initializeResult(int retval)
         if(newWallet)
             NotifyMnemonic::notify();
         }
-        
+
         // Now that initialization/startup is done, process any command-line
         // zcoin: URIs or payment requests:
         connect(paymentServer, SIGNAL(receivedPaymentRequest(SendCoinsRecipient)),
@@ -576,6 +576,7 @@ int main(int argc, char *argv[])
     //   Need to pass name here as CAmount is a typedef (see http://qt-project.org/doc/qt-5/qmetatype.html#qRegisterMetaType)
     //   IMPORTANT if it is no longer a typedef use the normal variant above
     qRegisterMetaType< CAmount >("CAmount");
+    qRegisterMetaType< uint256 >("uint256");
 
     /// 3. Application identification
     // must be set before OptionsModel is initialized or translations are loaded,
