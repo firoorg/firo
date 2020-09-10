@@ -74,9 +74,17 @@ BOOST_AUTO_TEST_CASE(partialspend)
         pwalletMain->SetBroadcastTransactions(true);
 
         // Verify Mint is successful
-        std::vector<std::pair<std::string, int>> denominationPairs = {{denomination, 2}};
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+        std::vector<sigma::PrivateCoin> privCoins;
+        const auto& sigmaParams = sigma::Params::get_default();
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomId));
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomId));
+
+        vector<CHDMint> vDMints;
+        auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        CWalletTx wtx;
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         // Verify Mint gets in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
@@ -218,9 +226,17 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     pwalletMain->SetBroadcastTransactions(true);
 
     // Verify Mint is successful
-    std::vector<std::pair<std::string, int>> denominationPairs = {{"1", 2}};
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+    std::vector<sigma::PrivateCoin> privCoins;
+    const auto& sigmaParams = sigma::Params::get_default();
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1));
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1));
+
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    CWalletTx wtx;
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
     // Verify Mint gets in the mempool
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
@@ -299,10 +315,17 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
 
     // mint 2 coins
     // Verify Mint is successful
-    std::string stringError;
-    std::vector<std::pair<std::string, int>> denominationPairs = {{"1", 2}};
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+    std::vector<sigma::PrivateCoin> privCoins;
+    const auto& sigmaParams = sigma::Params::get_default();
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1));
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, sigma::CoinDenomination::SIGMA_DENOM_1));
+
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    CWalletTx wtx;
+    string stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool " + stringError);
     CreateAndProcessBlock(scriptPubKey);

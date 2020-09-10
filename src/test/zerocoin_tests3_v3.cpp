@@ -32,6 +32,7 @@
 
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
@@ -48,15 +49,29 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
+    const auto& sigmaParams = sigma::Params::get_default();
     for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
+        sigma::CoinDenomination denom;
+        sigma::StringToDenomination(denomination, denom);
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
 
+        vector<CHDMint> allMints;
         //Verify Mint is successful
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + " - Create Mint failed");
+        {
+            std::vector<sigma::PrivateCoin> privCoins(1, sigma::PrivateCoin(sigmaParams, denom));
+
+            CWalletTx wtx;
+            vector<CHDMint> vDMints;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+            stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+            BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+            allMints.insert(allMints.begin(), vDMints.begin(), vDMints.end());
+        }
 
         //Verify Mint gets in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
@@ -65,21 +80,48 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         CBlock b = CreateAndProcessBlock(scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
+        // Generate address
+        CPubKey newKey;
+        BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+
+        const CBitcoinAddress randomAddr(newKey.GetID());
+
+        CAmount nAmount;
+        DenominationToInteger(denom, nAmount);
+
+        std::vector<CRecipient> recipients = {
+                {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+        };
+
         previousHeight = chainActive.Height();
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            {
+                CWalletTx wtx;
+                BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
+            }
 
             CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not at least two mints");
-        BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+        {
+            CWalletTx wtx;
+            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 6 confirmation
+        }
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + "Create Mint failed");
+
+        {
+            std::vector<sigma::PrivateCoin> privCoins(1, sigma::PrivateCoin(sigmaParams, denom));
+            vector<CHDMint> vDMints;
+            CWalletTx wtx;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+            stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+            BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+            allMints.insert(allMints.begin(), vDMints.begin(), vDMints.end());
+        }
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
@@ -92,14 +134,19 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            {
+                CWalletTx wtx;
+                BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
+            }
             CBlock b = CreateAndProcessBlock(scriptPubKey);
         }
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
+        {
+            CWalletTx wtx;
+            BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        }
 
         // Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
@@ -114,7 +161,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         sigmaState->containers.usedCoinSerials.clear();
         sigmaState->mempoolCoinSerials.clear();
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
+        {
+            //Set mints unused, and try to spend again
+            for(auto mint : allMints)
+                pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(mint.GetPubCoinHash());
+            CWalletTx wtx;
+            BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+        }
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
 
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
@@ -136,13 +189,21 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool should get the transaction of disconnected block");
 
         //This mint is just to create a block with the new hash
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + "Create Mint failed");
+        {
+            std::vector<sigma::PrivateCoin> privCoins(1, sigma::PrivateCoin(sigmaParams, denom));
 
+            CWalletTx wtx;
+            vector<CHDMint> vDMints;
+            auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+            stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+            BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+        }
         b = CreateAndProcessBlock(scriptPubKey);
         mempool.clear();
-
+        sigmaState->Reset();
     }
-    sigmaState->Reset();
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

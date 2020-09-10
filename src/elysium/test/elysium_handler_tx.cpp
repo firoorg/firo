@@ -130,8 +130,17 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     string stringError;
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
+    sigma::CoinDenomination denomination;
+    sigma::StringToDenomination("1", denomination);
+    const auto& sigmaParams = sigma::Params::get_default();
+    std::vector<sigma::PrivateCoin> privCoins(10, sigma::PrivateCoin(sigmaParams, denomination));
+
+    CWalletTx wtx;
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
     CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
@@ -169,8 +178,17 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     string stringError;
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
+    sigma::CoinDenomination denomination;
+    sigma::StringToDenomination("1", denomination);
+    const auto& sigmaParams = sigma::Params::get_default();
+    std::vector<sigma::PrivateCoin> privCoins(10, sigma::PrivateCoin(sigmaParams, denomination));
+
+    CWalletTx wtx;
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
     CreateAndProcessBlock(scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);

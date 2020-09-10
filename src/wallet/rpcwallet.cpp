@@ -3393,8 +3393,7 @@ UniValue mintzerocoin(const JSONRPCRequest& request)
 
         // Wallet comments
         CWalletTx wtx;
-        bool isSigmaMint = false;
-        string strError = pwallet->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
+        string strError = pwallet->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
