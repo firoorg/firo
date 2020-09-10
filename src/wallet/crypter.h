@@ -171,7 +171,9 @@ public:
         {
             LOCK(cs_KeyStore);
             if (!IsCrypted())
-                return CBasicKeyStore::HaveKey(address);
+                if (CBasicKeyStore::HaveKey(address)) {
+                    return true;
+                }
             return mapCryptedKeys.count(address) > 0 || mapBip47Keys.count(address) > 0;
         }
         return false;
@@ -183,7 +185,6 @@ public:
         if (!IsCrypted())
         {
             CBasicKeyStore::GetKeys(setAddress);
-            return;
         }
         setAddress.clear();
         CryptedKeyMap::const_iterator mi = mapCryptedKeys.begin();

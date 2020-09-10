@@ -4765,6 +4765,22 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request) {
     
 }
 
+UniValue findPaymentChannelForIncomingAddress(const JSONRPCRequest& request)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    uint256 hash = ParseHashV(request.params[0], "parameter 1");
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string(fTxIndex ? "No such mempool or blockchain transaction"
+            : "No such mempool transaction. Use -txindex to enable blockchain transaction queries") +
+            ". Use gettransaction for wallet transactions.");
+    pwalletMain->findPaymentChannelForIncomingAddress(*tx);
+    return true;
+}
+
 UniValue listreceivedbypcode(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
@@ -5286,6 +5302,7 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "getpaymentcodefromnotificationtx",      &getpaymentcodefromnotificationtx,        false },
     { "wallet",             "validatepcode",                         &validatepcode,                           true  },
     { "wallet",             "readpaymentchannels",                         &readpaymentchannels,                           false  },
+    { "wallet",             "findPaymentChannelForIncomingAddress",                         &findPaymentChannelForIncomingAddress,                           false  },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

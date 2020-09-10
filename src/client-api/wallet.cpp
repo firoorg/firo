@@ -734,7 +734,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     } catch (const std::exception& e) {
         throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
     }
-
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     if (strWalletPass.length() > 0) {
         if (!pwalletMain->Unlock(strWalletPass))
             throw JSONAPIError(API_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");

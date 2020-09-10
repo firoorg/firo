@@ -664,6 +664,8 @@ class CWallet : public CCryptoKeyStore, public CValidationInterface // lgtm [cpp
 {
 private:
     static std::atomic<bool> fFlushThreadRunning;
+    bool bip47Loaded;
+    CBlockIndex* pindexRescanForBip47;
 
     /**
      * Select a set of coins such that nValueRet >= nTargetValue and at least
@@ -797,6 +799,7 @@ public:
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
+        bip47Loaded = false;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -1410,13 +1413,13 @@ public:
                 vector<string> result;
                 stringstream ss (label);
                 string item;
-
+                LogPrintf("have key label:%s\n", label);
                 while (getline (ss, item, '-')) {
                     result.push_back (item);
                 }
                 if (result.size() == 3)
                 {
-                    if (result[0] == "CBIP47PAYMENT") 
+                    if (result[0].find("BIP47PAYMENT") != std::string::npos) 
                         return true;
                 }
             }
@@ -1503,6 +1506,7 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins
 
         if (!ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata))
         {
+            LogPrintf("failed to sign for tx %s index %d\n", coin.first->tx->GetHash().GetHex(), coin.second);
             return false;
         } else {
             UpdateTransaction(txNew, nIn, sigdata);

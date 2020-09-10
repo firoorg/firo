@@ -286,7 +286,8 @@ bool CCryptoKeyStore::GetKey(const CKeyID &address, CKey& keyOut) const
     {
         LOCK(cs_KeyStore);
         if (!IsCrypted())
-            return CBasicKeyStore::GetKey(address, keyOut);
+            if (CBasicKeyStore::HaveKey(address))
+                return CBasicKeyStore::GetKey(address, keyOut);
 
         CryptedKeyMap::const_iterator mi = mapCryptedKeys.find(address);
         if (mi != mapCryptedKeys.end())
@@ -311,7 +312,8 @@ bool CCryptoKeyStore::GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) co
     {
         LOCK(cs_KeyStore);
         if (!IsCrypted())
-            return CBasicKeyStore::GetPubKey(address, vchPubKeyOut);
+            if (CBasicKeyStore::HaveKey(address))
+                return CBasicKeyStore::GetPubKey(address, vchPubKeyOut);
 
         CryptedKeyMap::const_iterator mi = mapCryptedKeys.find(address);
         if (mi != mapCryptedKeys.end())
