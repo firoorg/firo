@@ -771,13 +771,15 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                              REJECT_INVALID, "bad-txns-zerocoin");
     }
 
-    //TODO(levon) check if sigma spend is allowed yet
-    if(tx.IsSigmaMint()) {
-        // Shows if sigma mints are allowed yet in the mempool.
-        bool allow = (chainActive.Height() < consensus.nLelantusStartBlock);
-
-        if (!allow) {
-            return state.DoS(100, error("Sigma mints no more allowed in mempool"),
+    bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
+    if (startLelantusRejectSigma) {
+        if(tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+            return state.DoS(100, error("Sigma transactions no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    } else {
+        if(tx.IsLelantusTransaction()) {
+            return state.DoS(100, error("Lelantus transactions are not allowed in mempool yet"),
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
     }

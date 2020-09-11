@@ -441,6 +441,13 @@ bool CheckSigmaTransaction(
         realHeight = chainActive.Height();
     }
 
+    // nHeight is INT_MAX only at AcceptToMemoryPoolWorker, so it is ok to check with nHeight
+    // accept sigma tx into 5 more blocks, to allow mempool cleared
+    if(nHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
+        return state.DoS(100, false,
+                         REJECT_INVALID,
+                         "Sigma already is not available, start using Lelantus.");
+
     bool const allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
     if (!isVerifyDB && !isCheckWallet) {

@@ -61,7 +61,7 @@ bool IsLelantusAllowed()
 
 bool IsLelantusAllowed(int height)
 {
-	return height >= ::Params().GetConsensus().nLelantusStartBlock;
+	return height > ::Params().GetConsensus().nLelantusStartBlock;
 }
 
 bool IsAvailableToMint(const CAmount& amount)
@@ -261,7 +261,6 @@ bool CheckLelantusJoinSplitTransaction(
         uint256 hashTx,
         bool isVerifyDB,
         int nHeight,
-        int nRealHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         sigma::CSigmaTxInfo* sigmaTxInfo,
@@ -565,18 +564,10 @@ bool CheckLelantusTransaction(
         catch (CBadTxIn&) {
             return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
         }
+
     }
 
-
-    // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight = nHeight;
-
-    if (realHeight == INT_MAX) {
-        LOCK(cs_main);
-        realHeight = chainActive.Height();
-    }
-
-    bool const allowLelantus = (realHeight >= consensus.nLelantusStartBlock);
+    bool const allowLelantus = (chainActive.Height() > consensus.nLelantusStartBlock);
 
     if (!isVerifyDB && !isCheckWallet) {
         if (allowLelantus && lelantusState.IsSurgeConditionDetected()) {
@@ -613,7 +604,7 @@ bool CheckLelantusTransaction(
 
         if (!isVerifyDB) {
             if (!CheckLelantusJoinSplitTransaction(
-                tx, state, hashTx, isVerifyDB, nHeight, realHeight,
+                tx, state, hashTx, isVerifyDB, nHeight,
                 isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo, lelantusTxInfo)) {
                     return false;
             }
