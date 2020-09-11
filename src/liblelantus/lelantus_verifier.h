@@ -17,7 +17,7 @@ public:
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,
-            uint64_t f,
+            uint64_t fee,
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof);
 
@@ -27,7 +27,7 @@ public:
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,
-            uint64_t f,
+            uint64_t fee,
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof,
             Scalar& x,
@@ -52,7 +52,7 @@ private:
             const Scalar& zR,
             const Scalar& Vin,
             const Scalar& Vout,
-            const Scalar f,
+            const Scalar fee,
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof);
 

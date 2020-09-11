@@ -13,12 +13,12 @@ bool LelantusVerifier::verify(
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
-        uint64_t f,
+        uint64_t fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
     Scalar x;
     bool fSkipVerification = 0;
-    return verify(anonymity_sets, serialNumbers, groupIds, Vin, Vout, f, Cout, proof, x, fSkipVerification);
+    return verify(anonymity_sets, serialNumbers, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
 }
 
 bool LelantusVerifier::verify(
@@ -27,13 +27,13 @@ bool LelantusVerifier::verify(
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
-        uint64_t f,
+        uint64_t fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof,
         Scalar& x,
         bool fSkipVerification) {
     //check the overflow of Vout and fee
-    if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && f < (1000 * CENT))) // 1000 * CENT is the value of max fee defined at validation.h
+    if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) // 1000 * CENT is the value of max fee defined at validation.h
         return false;
 
     std::vector<std::vector<PublicCoin>> vAnonymity_sets;
@@ -55,7 +55,7 @@ bool LelantusVerifier::verify(
     Scalar zV, zR;
     if(!(verify_sigma(vAnonymity_sets, vSin, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
-         verify_schnorrproof(x, zV, zR, Vin, Vout, f, Cout, proof)))
+         verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof)))
         return false;
     return true;
 }
@@ -146,7 +146,7 @@ bool LelantusVerifier::verify_schnorrproof(
         const Scalar& zR,
         const Scalar& Vin,
         const Scalar& Vout,
-        const Scalar f,
+        const Scalar fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof) {
     GroupElement A;
@@ -154,7 +154,7 @@ bool LelantusVerifier::verify_schnorrproof(
         A += Cout[i].getValue();
     if(Cout.size() > 0)
         A *= x.exponent(params->get_sigma_m());
-    A += params->get_h1() * ((Vout + f) * x.exponent(params->get_sigma_m()));
+    A += params->get_h1() * ((Vout + fee) * x.exponent(params->get_sigma_m()));
 
     GroupElement B = (params->get_h1() * (Vin * x.exponent(params->get_sigma_m())))
                      + LelantusPrimitives::double_commit(params->get_g(), uint64_t(0), params->get_h1(), zV, params->get_h0(), zR);

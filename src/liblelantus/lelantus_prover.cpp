@@ -12,7 +12,7 @@ void LelantusProver::proof(
         const std::vector<size_t>& indexes,
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
-        const Scalar& f,
+        const Scalar& fee,
         LelantusProof& proof_out) {
     Scalar input = Vin;
     for (std::size_t i = 0; i < Cin.size(); ++i)
@@ -21,7 +21,7 @@ void LelantusProver::proof(
     Scalar out = Vout;
     for (std::size_t i = 0; i < Cout.size(); ++i)
         out += Cout[i].getV();
-    out += f;
+    out += fee;
 
     if(input != out)
         throw ZerocoinException("Input and output are not equal");

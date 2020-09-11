@@ -18,7 +18,7 @@ public:
             const std::vector <size_t>& indexes,
             const Scalar& Vout,
             const std::vector <PrivateCoin>& Cout,
-            const Scalar& f,
+            const Scalar& fee,
             LelantusProof& proof_out);
 
 private:
