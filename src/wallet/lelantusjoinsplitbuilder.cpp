@@ -118,7 +118,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             pwalletMain->zwallet->SetCount(nCountNextUse);
         }
         CAmount required = vOut + mint;
-
+        CAmount currentVout = vOut;
         tx.vin.clear();
         tx.vout.clear();
 
@@ -128,8 +128,9 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         // If no any recipients to subtract fee then the sender need to pay by themself.
         if (!recipientsToSubtractFee) {
             required += fee;
+        } else {
+            currentVout -= fee;
         }
-
         // fill outputs
         bool remainderSubtracted = false;
 
@@ -181,17 +182,18 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             for (auto coin : coins) {
                 availableBalance += coin.get_denomination_value();
             }
-
             if(availableBalance > 0) {
                 CAmount inputFromSigma;
                 if (required > availableBalance)
                     inputFromSigma = availableBalance;
                 else
                     inputFromSigma = required;
-                wallet.GetCoinsToSpend(required, sigmaSpendCoins, denomChanges, //try to spend sigma first
+
+                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, //try to spend sigma first
                                        consensusParams.nMaxLelantusInputPerTransaction,
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
                 required -= inputFromSigma;
+
                 isSigmaToLelantusJoinSplit = true;
             }
         } catch (std::runtime_error) {
@@ -211,6 +213,15 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             changeToMint += intDenom;
         }
 
+        CAmount input(0);
+        for (const auto &spend : sigmaSpendCoins) {
+            input += spend.get_denomination_value();
+        }
+        for (const auto &spend : spendCoins) {
+            input += spend.amount;
+        }
+
+        changeToMint += (input - currentVout - fee - changeToMint);
 
         // get outputs
         mintCoins.clear();
@@ -270,7 +281,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 
-        CreateJoinSplit(sig, Cout, vOut, fee, tx);
+        CreateJoinSplit(sig, Cout, currentVout, fee, tx);
 
         // check fee
         result.SetTx(MakeTransactionRef(tx));

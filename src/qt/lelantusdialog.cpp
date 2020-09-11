@@ -302,13 +302,7 @@ void LelantusDialog::on_anonymizeButton_clicked()
 {
     updateGlobalFeeVariables();
 
-    CAmount val = 0;
-    if (!BitcoinUnits::parse(
-        walletModel->getOptionsModel()->getDisplayUnit(),
-        ui->anonymizeAmount->text(),
-        &val)) {
-        val = 0;
-    }
+    CAmount val = ui->anonymizeAmount->value() * COIN /  CENT * CENT;
 
     if (val < 0 || val > BitcoinUnits::maxMoney()) {
         val = 0;

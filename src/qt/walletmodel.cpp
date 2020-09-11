@@ -514,7 +514,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
             *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, mintCoins, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(feeRequired);
-            return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            return SendCoinsReturn(AmountExceedsBalance);
         } catch (std::runtime_error const &e) {
             Q_EMIT message(
                 tr("Send Coins"),
@@ -1074,10 +1074,10 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         auto const &vout = out.tx->tx->vout[out.i];
         bool isMint = vout.scriptPubKey.IsMint();
 
-        if(nCoinType == ALL_COINS){
+        if(nCoinType == CoinType::ALL_COINS){
             // We are now taking ALL_COINS to mean everything sans mints
             if (isMint) continue;
-        } else if(nCoinType == ONLY_MINTS){
+        } else if(nCoinType == CoinType::ONLY_MINTS){
             // Do not consider anything other than mints
             if (!isMint) continue;
         }

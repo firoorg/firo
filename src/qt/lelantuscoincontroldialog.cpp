@@ -650,7 +650,7 @@ void LelantusCoinControlDialog::updateView()
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
     std::map<QString, std::vector<COutput> > mapCoins;
-    model->listCoins(mapCoins, ALL_COINS);
+    model->listCoins(mapCoins, CoinType::ALL_COINS);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
         CCoinControlWidgetItem *itemWalletAddress = new CCoinControlWidgetItem();

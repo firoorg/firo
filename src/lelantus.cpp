@@ -331,7 +331,9 @@ bool CheckLelantusJoinSplitTransaction(
     for(auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
         int coinGroupId = idAndHash.first % (CENT / 1000);
-        int64_t intDenom = (idAndHash.first - coinGroupId) * 1000;
+        int64_t intDenom = (idAndHash.first - coinGroupId);
+        intDenom *= 1000;
+
         sigma::CoinDenomination denomination;
         if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT && sigma::IntegerToDenomination(intDenom, denomination)) {
 
@@ -408,25 +410,17 @@ bool CheckLelantusJoinSplitTransaction(
     if (passVerify) {
         const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
-        if (joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
-            if (!(sigmaTxInfo && sigmaTxInfo->zcTransactions.count(hashTx) > 0)) {
-                for (const auto &serial : serials) {
-                    if (!sigma::CheckSigmaSpendSerial(
-                            state, sigmaTxInfo, serial, nHeight, false)) {
-                        LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serial);
-                        return false;
-                    }
-                }
-            }
-        } else {
-            if (!(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
-                for (const auto &serial : serials) {
-                    if (!CheckLelantusSpendSerial(
-                            state, lelantusTxInfo, serial, nHeight, false)) {
-                        LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serial);
-                        return false;
+        if (!(sigmaTxInfo && sigmaTxInfo->zcTransactions.count(hashTx) > 0) && !(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
+            for (const auto &serial : serials) {
+                if (!sigma::CheckSigmaSpendSerial(
+                        state, sigmaTxInfo, serial, nHeight, false)) {
+                    LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serial);
+                    return false;
+                } else if (!CheckLelantusSpendSerial(
+                        state, lelantusTxInfo, serial, nHeight, false)) {
+                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serial);
+                    return false;
 
-                    }
                 }
             }
         }
@@ -451,11 +445,14 @@ bool CheckLelantusJoinSplitTransaction(
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     for (size_t i = 0; i < serials.size(); i++) {
                         int coinGroupId = ids[i] % (CENT / 1000);
-                        int64_t intDenom = (ids[i] - coinGroupId) * 1000;
+                        int64_t intDenom = (ids[i] - coinGroupId);
+                        intDenom *= 1000;
                         sigma::CoinDenomination denomination;
-                        sigma::IntegerToDenomination(intDenom, denomination);
-                        sigmaTxInfo->spentSerials.insert(std::make_pair(
-                                serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
+                        if(!sigma::IntegerToDenomination(intDenom, denomination) && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete)
+                            lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
+                        else
+                            sigmaTxInfo->spentSerials.insert(std::make_pair(
+                                    serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
                     }
                 }
             } else {

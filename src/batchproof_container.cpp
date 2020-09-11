@@ -33,7 +33,7 @@ void BatchProofContainer::finalize() {
         batch_sigma();
         batch_lelantus();
     }
-
+    fCollectProofs = false;
 }
 
 void BatchProofContainer::add(sigma::CoinSpend* spend,

@@ -663,7 +663,7 @@ void CoinControlDialog::updateView()
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
     std::map<QString, std::vector<COutput> > mapCoins;
-    model->listCoins(mapCoins, anonymousMode ? ONLY_MINTS : ALL_COINS);
+    model->listCoins(mapCoins, anonymousMode ? CoinType::ONLY_MINTS : CoinType::ALL_COINS);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
         CCoinControlWidgetItem *itemWalletAddress = new CCoinControlWidgetItem();
