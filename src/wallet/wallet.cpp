@@ -1863,6 +1863,7 @@ bool CWallet::IsHDEnabled()
 void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter]
 {
     if (bip47Loaded) return;
+    if (IsLocked()) return;
     LogPrintf("Bip47Wallet Loading....\n");
     
     CWalletDB bip47walletdb(strWalletFile, "cr+");
