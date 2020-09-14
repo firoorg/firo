@@ -667,8 +667,8 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
-liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
-liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
+liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
   liblelantus/challenge_generator.h \
   liblelantus/challenge_generator.cpp \
