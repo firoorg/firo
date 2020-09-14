@@ -95,8 +95,10 @@ void BatchProofContainer::batch_sigma() {
         auto params = sigma::Params::get_default();
         sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
 
-        if(!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
+        if(!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs)) {
             LogPrintf("Sigma batch verification failed.");
+            throw std::invalid_argument("Sigma batch verification failed, please run Zcoin with -reindex -batching=0");
+        }
     }
     sigmaProofs.clear();
 }
@@ -161,8 +163,10 @@ void BatchProofContainer::batch_lelantus() {
         lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                             params->get_sigma_m());
 
-        if(!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
+        if(!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs)) {
             LogPrintf("Lelantus batch verification failed.");
+            throw std::invalid_argument("Lelantus batch verification failed, please run Zcoin with -reindex -batching=0");
+        }
     }
 
     lelantusSigmaProofs.clear();
