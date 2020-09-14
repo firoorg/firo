@@ -19,7 +19,8 @@ public:
     void add(sigma::CoinSpend* spend,
              bool fPadding,
              int group_id,
-             size_t setSize);
+             size_t setSize,
+             bool fStartSigmaBlacklist);
 
     void add(lelantus::JoinSplit* joinSplit,
              const std::map<uint32_t, size_t>& setSizes,
@@ -68,12 +69,12 @@ private:
     static std::unique_ptr<BatchProofContainer> instance;
     // map (denom, id) to (sigma proof, serial, set size)
     // temp containers, to forget in case block connection fails
-    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<SigmaProofData>> tempSigmaProofs;
+    std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> tempSigmaProofs;
     // map (id, fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
     std::map<std::pair<uint32_t, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
 
     // containers to keep proofs for batching
-    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<SigmaProofData>> sigmaProofs;
+    std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> sigmaProofs;
     std::map<std::pair<uint32_t, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
 };
 

@@ -159,6 +159,12 @@ public:
         uint256& blockHash_out,
         std::vector<sigma::PublicCoin>& coins_out);
 
+    void GetAnonymitySet(
+            sigma::CoinDenomination denomination,
+            int coinGroupID,
+            bool fStartSigmaBlacklist,
+            std::vector<GroupElement>& coins_out);
+
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const sigma::PublicCoin& pubCoin);
 

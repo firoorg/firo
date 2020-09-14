@@ -925,7 +925,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "\nResult:\n"
                         "{\n"
                         "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"anonimityset\"(std::string[]) array of Serialized GroupElements\n"
+                        "  \"anonymityset\"(std::string[]) array of Serialized GroupElements\n"
                         "}\n"
                 + HelpExampleCli("getanonymityset", "100000000 1")
                 + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")

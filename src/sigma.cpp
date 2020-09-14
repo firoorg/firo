@@ -305,7 +305,7 @@ bool CheckSigmaSpendTransaction(
 
         // add proofs into container
         if(batchProofContainer->fCollectProofs) {
-            batchProofContainer->add(spend.get(), fPadding, coinGroupId, anonymity_set.size());
+            batchProofContainer->add(spend.get(), fPadding, coinGroupId, anonymity_set.size(), nHeight >= params.nStartSigmaBlacklist);
         }
 
         if (passVerify) {
@@ -1087,6 +1087,47 @@ int CSigmaState::GetCoinSetForSpend(
         }
     }
     return numberOfCoins;
+}
+
+void CSigmaState::GetAnonymitySet(
+        sigma::CoinDenomination denomination,
+        int coinGroupID,
+        bool fStartSigmaBlacklist,
+        std::vector<GroupElement>& coins_out) {
+
+    coins_out.clear();
+
+    pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
+
+    if (coinGroups.count(denomAndId) == 0)
+        return;
+
+    SigmaCoinGroupInfo coinGroup = coinGroups[denomAndId];
+    auto params = ::Params().GetConsensus();
+    int maxHeight = fStartSigmaBlacklist ? (chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1)) : (params.nStartSigmaBlacklist - 1);
+
+    for (CBlockIndex *block = coinGroup.lastBlock;
+            ;
+            block = block->pprev) {
+        if (block->sigmaMintedPubCoins.count(denomAndId) > 0 &&
+                block->sigmaMintedPubCoins[denomAndId].size() > 0) {
+            if (block->nHeight <= maxHeight) {
+                BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
+                        block->sigmaMintedPubCoins[denomAndId]) {
+                    if (fStartSigmaBlacklist && chainActive.Height() >= params.nStartSigmaBlacklist) {
+                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
+                    coins_out.push_back(pubCoinValue.getValue());
+                }
+            }
+        }
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
 }
 
 std::pair<int, int> CSigmaState::GetMintedCoinHeightAndId(

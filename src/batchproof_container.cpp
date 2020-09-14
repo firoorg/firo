@@ -39,9 +39,10 @@ void BatchProofContainer::finalize() {
 void BatchProofContainer::add(sigma::CoinSpend* spend,
                               bool fPadding,
                               int group_id,
-                              size_t setSize) {
-    std::pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(
-            spend->getDenomination(), group_id);
+                              size_t setSize,
+                              bool fStartSigmaBlacklist) {
+    std::pair<sigma::CoinDenomination,  std::pair<int, bool>> denominationAndId = std::make_pair(
+            spend->getDenomination(), std::make_pair(group_id, fStartSigmaBlacklist));
     tempSigmaProofs[denominationAndId].push_back(SigmaProofData(spend->getProof(), spend->getCoinSerialNumber(), fPadding, setSize));
 }
 
@@ -66,21 +67,13 @@ void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
 
 void BatchProofContainer::batch_sigma() {
     for(const auto& itr : sigmaProofs) {
-        std::vector<sigma::PublicCoin> coins;
-        uint256 blockHash;
-        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-        sigmaState->GetCoinSetForSpend(
-                &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                itr.first.first,
-                itr.first.second,
-                blockHash,
-                coins);
-
         std::vector<GroupElement> anonymity_set;
-        anonymity_set.reserve(coins.size());
-        for(auto& coin : coins)
-            anonymity_set.emplace_back(coin.getValue());
+        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+        sigmaState->GetAnonymitySet(
+                itr.first.first,
+                itr.first.second.first,
+                itr.first.second.second,
+                anonymity_set);
 
         size_t m = itr.second.size();
         std::vector<Scalar> serials;
@@ -133,21 +126,18 @@ void BatchProofContainer::batch_lelantus() {
             sigma::CoinDenomination denomination;
             sigma::IntegerToDenomination(intDenom, denomination);
 
-            std::vector<sigma::PublicCoin> coins;
-            uint256 blockHash;
+            std::vector<GroupElement> coins;
             sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-            sigmaState->GetCoinSetForSpend(
-                    &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+            sigmaState->GetAnonymitySet(
                     denomination,
                     coinGroupId,
-                    blockHash,
+                    true,
                     coins);
 
             std::vector<GroupElement> anonymity_set;
             anonymity_set.reserve(coins.size());
             for(auto& coin : coins)
-                anonymity_set.emplace_back(coin.getValue() + params->get_h1() * intDenom);
+                anonymity_set.emplace_back(coin + params->get_h1() * intDenom);
 
         }
 
