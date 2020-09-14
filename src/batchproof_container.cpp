@@ -136,11 +136,9 @@ void BatchProofContainer::batch_lelantus() {
                     true,
                     coins);
 
-            std::vector<GroupElement> anonymity_set;
             anonymity_set.reserve(coins.size());
             for(auto& coin : coins)
                 anonymity_set.emplace_back(coin + params->get_h1() * intDenom);
-
         }
 
         size_t m = itr.second.size();

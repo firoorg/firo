@@ -1124,7 +1124,6 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
                     Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
 
-                Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
             assert(fCheckResult);
             UpdateCoins(tx, mempoolDuplicate, 1000000);
         }
