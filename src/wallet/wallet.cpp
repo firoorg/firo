@@ -1284,46 +1284,49 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
             bool ret = AddToWallet(wtx, false);
 
             LogPrintf("Check If Notification Transaction\n");
-            if(isNotificationTransaction(tx))
+            if (pcodeEnabled) 
             {
-                LogPrintf("Process Notification Transaction\n");
-                processNotificationTransaction(tx);
-                LogPrintf("Process Notification Transaction finished\n");
-                //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
-                LogPrintf("Process Notification Transaction finished block hash %d\n", pIndex == NULL);
-                CBlockIndex *pIterator = (pIndex != NULL)?mapBlockIndex[pIndex->GetBlockHash()]:chainActive.Tip();
-                int count = 10;
-                while (pIterator && count >= 0)
+                if(isNotificationTransaction(tx))
                 {
-                    CBlock block;
-                    if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
-                        LogPrintf("Process Notification Transaction read block success\n");
-                        size_t size = (pIterator == pIndex)?posInBlock:block.vtx.size();
-                        for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
-                            AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
-                            LogPrintf("Process Notification Transaction add to wallet\n");
-                        }
-                    } 
-                    pIterator = pIterator->pprev;
-                    count--;
-                }
-                LogPrintf("Process Notification Transaction rescan finished\n");
-            }
-            else
-            {   
-                CBIP47PaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
-                if (pchannel != NULL) 
-                {
-                    std::string toaddr = getAddressOfReceived(tx).ToString();
-                    LogPrintf("New Bip47 payment Recevied to address %s\n", toaddr);
-
-                    if(generateNewBip47IncomingAddress(toaddr, pchannel))
+                    LogPrintf("Process Notification Transaction\n");
+                    processNotificationTransaction(tx);
+                    LogPrintf("Process Notification Transaction finished\n");
+                    //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
+                    LogPrintf("Process Notification Transaction finished block hash %d\n", pIndex == NULL);
+                    CBlockIndex *pIterator = (pIndex != NULL)?mapBlockIndex[pIndex->GetBlockHash()]:chainActive.Tip();
+                    int count = 10;
+                    while (pIterator && count >= 0)
                     {
-                        LogPrintf("saving bip47 channel \n");
-                        saveCBIP47PaymentChannelData(pchannel->getPaymentCode());
-                        LogPrintf("saved bip47 channel \n");
+                        CBlock block;
+                        if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
+                            LogPrintf("Process Notification Transaction read block success\n");
+                            size_t size = (pIterator == pIndex)?posInBlock:block.vtx.size();
+                            for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
+                                AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
+                                LogPrintf("Process Notification Transaction add to wallet\n");
+                            }
+                        } 
+                        pIterator = pIterator->pprev;
+                        count--;
                     }
-                    LogPrintf("generated bip47 incoming address \n");
+                    LogPrintf("Process Notification Transaction rescan finished\n");
+                }
+                else
+                {   
+                    CBIP47PaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
+                    if (pchannel != NULL) 
+                    {
+                        std::string toaddr = getAddressOfReceived(tx).ToString();
+                        LogPrintf("New Bip47 payment Recevied to address %s\n", toaddr);
+
+                        if(generateNewBip47IncomingAddress(toaddr, pchannel))
+                        {
+                            LogPrintf("saving bip47 channel \n");
+                            saveCBIP47PaymentChannelData(pchannel->getPaymentCode());
+                            LogPrintf("saved bip47 channel \n");
+                        }
+                        LogPrintf("generated bip47 incoming address \n");
+                    }
                 }
             }
 
