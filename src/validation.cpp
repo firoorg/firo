@@ -1081,7 +1081,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             CAmount inChainInputValue = 0;
             bool fSpendsCoinbase = false;
-            if (!tx.IsSigmaSpend() && tx.IsLelantusJoinSplit()) {
+            if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
                 // Keep track of transactions that spend a coinbase, which we re-scan
                 // during reorgs to ensure COINBASE_MATURITY is still met.
                 BOOST_FOREACH(const CTxIn &txin, tx.vin) {

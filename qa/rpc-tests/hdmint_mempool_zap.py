@@ -47,8 +47,6 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
 
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
 
-        self.nodes[0].generate(401)
-
         for denom in sigma_denoms:
             self.nodes[0].mint(denom)
             self.nodes[0].mint(denom)
@@ -107,7 +105,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
     def run_test(self):
         getcontext().prec = 6
         self.sync_all()
-
+        self.nodes[0].generate(401)
         zapwal1 = ["-zapwallettxes=1"]
         self.hdmint_zap(zapwal1)
 

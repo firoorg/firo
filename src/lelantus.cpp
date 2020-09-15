@@ -61,7 +61,7 @@ bool IsLelantusAllowed()
 
 bool IsLelantusAllowed(int height)
 {
-	return height > ::Params().GetConsensus().nLelantusStartBlock;
+	return height >= ::Params().GetConsensus().nLelantusStartBlock;
 }
 
 bool IsAvailableToMint(const CAmount& amount)
@@ -567,7 +567,14 @@ bool CheckLelantusTransaction(
 
     }
 
-    bool const allowLelantus = (chainActive.Height() > consensus.nLelantusStartBlock);
+    int realHeight = nHeight;
+
+    if (realHeight == INT_MAX) {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
+
+    bool const allowLelantus = (realHeight >= consensus.nLelantusStartBlock);
 
     if (!isVerifyDB && !isCheckWallet) {
         if (allowLelantus && lelantusState.IsSurgeConditionDetected()) {
