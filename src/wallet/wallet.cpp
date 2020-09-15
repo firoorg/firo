@@ -2662,6 +2662,7 @@ bool CWallet::setBip47ChannelLabel(std::string pcodestr, std::string label)
     //also set the first chanel for this pcodestr
     m_Bip47channels[pcodestr][0].setLabel(label);
     saveCBIP47PaymentChannelData(pcodestr); // lgtm [cpp/missing-return]
+    return true;
 }
 
 void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large-parameter] 
