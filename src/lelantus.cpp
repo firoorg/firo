@@ -352,10 +352,13 @@ bool CheckLelantusJoinSplitTransaction(
 
             auto lelantusParams = lelantus::Params::get_default();
             while(true) {
-                BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
-                index->sigmaMintedPubCoins[denominationAndId]) {
-                    lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
-                    anonymity_set.push_back(publicCoin);
+                if(index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
+                    BOOST_FOREACH(
+                    const sigma::PublicCoin &pubCoinValue,
+                    index->sigmaMintedPubCoins[denominationAndId]) {
+                        lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
+                        anonymity_set.push_back(publicCoin);
+                    }
                 }
                 if (index == coinGroup.firstBlock)
                     break;
@@ -378,10 +381,12 @@ bool CheckLelantusJoinSplitTransaction(
             // This list of public coins is required by function "Verify" of JoinSplit.
 
             while (true) {
-                BOOST_FOREACH(
-                const lelantus::PublicCoin &pubCoinValue,
-                index->lelantusMintedPubCoins[idAndHash.first]) {
-                    anonymity_set.push_back(pubCoinValue);
+                if(index->lelantusMintedPubCoins.count(idAndHash.first) > 0) {
+                    BOOST_FOREACH(
+                    const lelantus::PublicCoin &pubCoinValue,
+                    index->lelantusMintedPubCoins[idAndHash.first]) {
+                        anonymity_set.push_back(pubCoinValue);
+                    }
                 }
                 if (index == coinGroup.firstBlock)
                     break;
@@ -1024,23 +1029,25 @@ void CLelantusState::AddSpend(const Scalar &serial, int coinGroupId) {
 
 void CLelantusState::AddBlock(CBlockIndex *index) {
     for (auto const &pubCoins : index->lelantusMintedPubCoins) {
-        if (!pubCoins.second.empty()) {
-            auto &coinGroup = coinGroups[pubCoins.first];
 
-            if (coinGroup.firstBlock == nullptr) {
-                coinGroup.firstBlock = index;
+        if (pubCoins.second.empty())
+            continue;
 
-                if (pubCoins.first > 1) {
-                    CBlockIndex *first;
-                    coinGroup.nCoins = CountLastNCoins(pubCoins.first - 1, startGroupSize, first);
-                    coinGroup.firstBlock = first ? first : index;
+        auto &coinGroup = coinGroups[pubCoins.first];
 
-                    containers.AddExtendedMints(pubCoins.first, coinGroup.nCoins);
-                }
+        if (coinGroup.firstBlock == nullptr) {
+            coinGroup.firstBlock = index;
+
+            if (pubCoins.first > 1) {
+                CBlockIndex *first;
+                coinGroup.nCoins = CountLastNCoins(pubCoins.first - 1, startGroupSize, first);
+                coinGroup.firstBlock = first ? first : index;
+
+                containers.AddExtendedMints(pubCoins.first, coinGroup.nCoins);
             }
-            coinGroup.lastBlock = index;
-            coinGroup.nCoins += pubCoins.second.size();
         }
+        coinGroup.lastBlock = index;
+        coinGroup.nCoins += pubCoins.second.size();
 
         latestCoinId = pubCoins.first;
         for (auto const &coin : pubCoins.second) {
@@ -1063,6 +1070,9 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
 
         LelantusCoinGroupInfo& coinGroup = coinGroups[coins.first];
         auto nMintsToForget = coins.second.size();
+
+        if (nMintsToForget == 0)
+            continue;
 
         assert(coinGroup.nCoins >= nMintsToForget);
         auto isExtended = coins.first > 1;
