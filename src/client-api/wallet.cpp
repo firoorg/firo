@@ -1051,8 +1051,11 @@ UniValue editpaymentcodebook(Type type, const UniValue& data, const UniValue& au
     }
     UniValue ret(UniValue::VOBJ);
     pwalletMain->setBip47ChannelLabel(paymentCodeStr, label);
+    LogPrintf("Save channel for payment code %s\n", paymentCodeStr);
     const std::vector<CBIP47PaymentChannel>& channels = pwalletMain->m_Bip47channels[paymentCodeStr];
+    LogPrintf("Read channels %s\n", paymentCodeStr);
     UniValue arrChannels = listPaymentChannels(channels);
+    LogPrintf("List channels %s\n", paymentCodeStr);
     ret.push_back(Pair(paymentCodeStr, arrChannels));    
     return ret;
 }
