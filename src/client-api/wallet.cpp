@@ -1025,6 +1025,7 @@ UniValue editpaymentcodebook(Type type, const UniValue& data, const UniValue& au
 {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
+    LOCK(pwalletMain->cs_wallet);
     std::string paymentCodeStr = find_value(data, "paymentCode").getValStr();
     CPaymentCode paymentCode(paymentCodeStr);
     if (!paymentCode.isValid()) {
