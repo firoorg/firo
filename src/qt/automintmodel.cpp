@@ -290,6 +290,10 @@ void AutoMintModel::startAutoMint()
         return;
     }
 
+    if (!optionsModel->getAutoAnonymize()) {
+        return;
+    }
+
     CAmount mintable = 0;
     {
         LOCK2(cs_main, wallet->cs_wallet);
