@@ -1,6 +1,7 @@
 #include "lelantus_verifier.h"
 #include "../amount.h"
 #include "chainparams.h"
+#include "util.h"
 
 namespace lelantus {
 
@@ -33,8 +34,10 @@ bool LelantusVerifier::verify(
         Scalar& x,
         bool fSkipVerification) {
     //check the overflow of Vout and fee
-    if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) // 1000 * CENT is the value of max fee defined at validation.h
+    if(!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
+        LogPrintf("Lelantus verification failed due to transparent values check failed.");
         return false;
+    }
 
     std::vector<std::vector<PublicCoin>> vAnonymity_sets;
     std::vector<std::vector<Scalar>> vSin;
@@ -100,8 +103,10 @@ bool LelantusVerifier::verify_sigma(
         for (std::size_t j = 0; j < anonymity_sets[k].size(); ++j)
             C_.emplace_back(anonymity_sets[k][j].getValue());
 
-        if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k))
+        if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k)) {
+            LogPrintf("Lelantus verification failed due sigma verification failed.");
             return false;
+        }
     }
     return true;
 }
@@ -135,8 +140,10 @@ bool LelantusVerifier::verify_rangeproof(
         V.push_back(GroupElement());
 
     RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
-    if (!rangeVerifier.verify_batch(V, bulletproofs))
+    if (!rangeVerifier.verify_batch(V, bulletproofs)) {
+        LogPrintf("Lelantus verification failed due range proof verification failed.");
         return false;
+    }
     return true;
 }
 
@@ -183,8 +190,10 @@ bool LelantusVerifier::verify_schnorrproof(
     SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0());
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
-    if(!schnorrVerifier.verify(Y, schnorrProof))
+    if(!schnorrVerifier.verify(Y, schnorrProof)) {
+        LogPrintf("Lelantus verification failed due schnorr proof verification failed.");
         return false;
+    }
     return true;
 }
 
