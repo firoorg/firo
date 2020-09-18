@@ -12,6 +12,13 @@
 #include <boost/format.hpp>
 #include <random>
 
+struct CoinCompare
+{
+    bool operator()( const std::pair<lelantus::PrivateCoin, uint32_t>& left, const std::pair<lelantus::PrivateCoin, uint32_t>& right ) const {
+        return left.second < right.second;
+    }
+};
+
 LelantusJoinSplitBuilder::LelantusJoinSplitBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl) :
     wallet(wallet),
     mintWallet(mintWallet)
@@ -427,6 +434,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+
     for (const auto &spend : sigmaSpendCoins) {
         int64_t denom = spend.get_denomination_value();
         // construct public part of the mint
@@ -476,6 +484,8 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
         }
 
     }
+
+    std::sort(coins.begin(), coins.end(), CoinCompare());
 
     lelantus::JoinSplit joinSplit(params, coins, anonymity_sets, Vout, Cout, fee, groupBlockHashes, txHash);
     joinSplit.setVersion(version);
