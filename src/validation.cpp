@@ -1439,6 +1439,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
+            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
         }
 #endif
     }
