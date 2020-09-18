@@ -21,7 +21,7 @@ public:
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
               uint64_t fee,
-              const std::vector<uint256>& groupBlockHashes,
+              const std::map<uint32_t, uint256>& groupBlockHashes,
               const uint256& txHash);
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,

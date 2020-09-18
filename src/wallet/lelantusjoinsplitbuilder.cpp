@@ -385,7 +385,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
     coins.reserve(spendCoins.size());
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
-    std::vector<uint256> groupBlockHashes;
+    std::map<uint32_t, uint256> groupBlockHashes;
     int version = 0;
 
     if(!isSigmaToLelantusJoinSplit) {
@@ -427,7 +427,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
                     set) < 2)
                 throw std::runtime_error(
                         _("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
-            groupBlockHashes.push_back(blockHash);
+            groupBlockHashes[groupId] = blockHash;
             anonymity_sets[groupId] = set;
         }
     }
@@ -479,7 +479,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             for(auto& coin : group) {
                 set.push_back(coin.getValue() + params->get_h1() * denom);
             }
-            groupBlockHashes.push_back(blockHash);
+            groupBlockHashes[denom / 1000 + groupId] = blockHash;
             anonymity_sets[denom / 1000 + groupId] = set;
         }
 

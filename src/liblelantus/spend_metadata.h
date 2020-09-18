@@ -11,8 +11,7 @@ class SpendMetaData {
 public:
 
     SpendMetaData(
-            const std::map<uint32_t, std::vector<PublicCoin>>& anonymitySets,
-            const std::vector<uint256>& groupBlockHashes,
+            const std::map<uint32_t, uint256>& groupBlockHashes,
             const uint256& txHash);
 
     std::vector<std::pair<uint32_t, uint256>> coinGroupIdAndBlockHash;

@@ -12,7 +12,7 @@ JoinSplit::JoinSplit(const Params *p,
              const Scalar& Vout,
              const std::vector<PrivateCoin>& Cout,
              uint64_t fee,
-             const std::vector<uint256>& groupBlockHashes,
+             const std::map<uint32_t, uint256>& groupBlockHashes,
              const uint256& txHash)
         :
         params (p),
@@ -47,7 +47,10 @@ JoinSplit::JoinSplit(const Params *p,
 
     prover.proof(anonymity_sets, uint64_t(0), Cin, indexes, Vout, Cout, fee, lelantusProof);
 
-    SpendMetaData m(anonymity_sets, groupBlockHashes, txHash);
+    if(groupBlockHashes.size() != anonymity_sets.size())
+        throw std::invalid_argument("Mismatch blockHashes and anonymity sets sizes.");
+
+    SpendMetaData m(groupBlockHashes, txHash);
 
     signMetaData(Cin, m, Cout.size());
 
@@ -115,14 +118,14 @@ bool JoinSplit::Verify(
         const uint256& txHash,
         Scalar& challenge,
         bool fSkipVerification ) const {
-    std::vector<uint256> groupBlockHashes;
-    groupBlockHashes.reserve(coinGroupIdAndBlockHash.size());
+    std::map<uint32_t, uint256> groupBlockHashes;
 
     for(const auto& idAndHash : coinGroupIdAndBlockHash) {
-        groupBlockHashes.emplace_back(idAndHash.second);
+        groupBlockHashes[idAndHash.first] = idAndHash.second;
     }
 
-    SpendMetaData m(anonymity_sets, groupBlockHashes, txHash);
+
+    SpendMetaData m(groupBlockHashes, txHash);
 
     uint256 metahash = signatureHash(m, Cout.size());
 
