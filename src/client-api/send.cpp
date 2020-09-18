@@ -466,6 +466,7 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
     bool hasCoinControl = GetCoinControl(data, cc);
     string pcodeString = find_value(data, "paymentCode").get_str();
     string myPCodeString = find_value(data, "myPaymentCode").get_str();
+    string label = find_value(data, "label").get_str();
     int accIndex = pwalletMain->getBIP47AccountIndex(myPCodeString);
 
     CPaymentCode paymentCode(pcodeString);
@@ -478,7 +479,11 @@ UniValue sendtopaymentcode(Type type, const UniValue& data, const UniValue& auth
     fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
     
     CBIP47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPCodeString);
-    
+    if (label != "") 
+    {
+        pwalletMain->setBip47ChannelLabel(paymentCode.toString(), label);
+    }
+
     if (channel->isNotificationTransactionSent()) 
     {
         std::string addressTo = pwalletMain->getCurrentOutgoingAddress(*channel);

@@ -345,11 +345,15 @@ UniValue privatesendtopaymentcode(Type type, const UniValue& data, const UniValu
 
         string pcodeString = find_value(data, "paymentCode").get_str();
         string myPCodeString = find_value(data, "myPaymentCode").get_str();
+        string label = find_value(data, "label").get_str();
         int accIndex = pwalletMain->getBIP47AccountIndex(myPCodeString);
 
         CPaymentCode paymentCode(pcodeString);
         CBIP47PaymentChannel* channel = pwalletMain->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPCodeString);
-
+        if (label != "") 
+        {
+            pwalletMain->setBip47ChannelLabel(paymentCode.toString(), label);
+        }
         if (channel->isNotificationTransactionSent()) 
         {
             // Amount
