@@ -77,6 +77,11 @@ BOOST_AUTO_TEST_CASE(verify)
     anons[1][1] = privs[1].getPublicCoin();
     anons[2][0] = privs[2].getPublicCoin();
 
+    std::map<uint32_t, uint256> groupBlockHashes = {
+        {1, ArithToUint256(1)},
+        {2, ArithToUint256(3)},
+    };
+
     // inputs = 111
     // outputs = 0.01(fee) + 99(mint) + 11.99(vout)
     auto vout = 12 * COIN - CENT;
@@ -87,7 +92,7 @@ BOOST_AUTO_TEST_CASE(verify)
         vout, // vout
         {privs[3]}, // cout
         CENT, // fee
-        {ArithToUint256(1), ArithToUint256(2)},
+        groupBlockHashes,
         ArithToUint256(3));
 
     std::vector<uint32_t> expectedGroupIds = {1, 1, 2};
