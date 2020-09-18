@@ -73,7 +73,7 @@ void IncomingFundNotifier::check()
                 continue;
             }
 
-            credit += std::max(0L, wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
+            credit += std::max(CAmount(0), wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
 
             if (wtx->second.GetImmatureCredit() > 0) {
                 immatures.push_back(tx);
@@ -287,6 +287,10 @@ void AutoMintModel::resetSyncing()
 void AutoMintModel::startAutoMint()
 {
     if (autoMintCheckTimer->isActive()) {
+        return;
+    }
+
+    if (!optionsModel->getAutoAnonymize()) {
         return;
     }
 
