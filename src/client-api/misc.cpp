@@ -163,6 +163,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         CWalletDB db(pwalletMain->strWalletFile);
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
         obj.push_back(Pair("bip47Enabled", pwalletMain->pcodeEnabled));
+        obj.push_back(Pair("remindRAPDescription", db.ReadRemindRAPDescription()));
     }
 
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));

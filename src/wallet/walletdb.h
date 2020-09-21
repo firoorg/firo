@@ -215,6 +215,8 @@ public:
     bool WritePaymentRequestAddress(const std::string& address);
     bool ReadPaymentRequestAddress(std::string& address);
     bool ErasePaymentRequestAddress();
+    bool WriteRemindRAPDescription(bool show);
+    bool ReadRemindRAPDescription();
 #endif
 
     bool WriteOrderPosNext(int64_t nOrderPosNext);

@@ -135,6 +135,17 @@ bool CWalletDB::ReadShowMnemonicsWarning() {
     if (!Read(std::string("mnemonicswarning"), shouldShow)) return true;
     return shouldShow;
 }
+
+bool CWalletDB::WriteRemindRAPDescription(bool show) {
+    nWalletDBUpdateCounter++;
+    return Write(std::string("RemindRAPDescription"), show);
+}
+
+bool CWalletDB::ReadRemindRAPDescription() {
+    bool show = true;
+    Read(std::string("RemindRAPDescription"), show); 
+    return show;
+}
 #endif
 
 bool CWalletDB::WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey)

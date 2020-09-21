@@ -867,6 +867,17 @@ UniValue writeshowmnemonicwarning(Type type, const UniValue& data, const UniValu
     return true;
 }
 
+UniValue writeremindrapdescription(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+    CWalletDB db(pwalletMain->strWalletFile);
+    UniValue temp(UniValue::VBOOL, data.getValStr());
+    bool remind = temp.get_bool();
+    db.WriteRemindRAPDescription(remind);
+    return true;
+}
+
 UniValue readwalletmnemonicwarningstate(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue ret(UniValue::VOBJ);
@@ -1183,6 +1194,7 @@ static const CAPICommand commands[] =
         {"wallet", "balance", &balance, true, false, false},
         {"wallet", "lockCoins", &lockcoins, true, false, false},
         {"wallet", "writeShowMnemonicWarning", &writeshowmnemonicwarning, true, false, false},
+        {"wallet", "writeRemindRAPDescription", &writeremindrapdescription, true, false, false},
         {"wallet", "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true, false, false},
         {"wallet", "showMnemonics", &showmnemonics, true, true, false},
         {"wallet", "verifyMnemonicValidity", &verifymnemonicvalidity, true, false, false},
