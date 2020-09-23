@@ -81,7 +81,11 @@ bool ConnectBlockLelantus(
 bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block);
 bool GetOutPoint(COutPoint& outPoint, const lelantus::PublicCoin &pubCoin);
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
+// This one gets outpoint from hash of full Lelantus commitment
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+// This one gets outpoint from hash of reduced Lelantus commitment
+bool GetReducedOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+
 
 bool BuildLelantusStateFromIndex(CChain *chain);
 
@@ -138,6 +142,9 @@ public:
     bool HasCoin(const lelantus::PublicCoin& pubCoin);
     // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
     bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
+    // Query if there is a coin with given hash of a reduced commitment hash
+    bool HasReducedCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
+
 
     // Given id returns latest anonymity set and corresponding block hash
     // Do not take into account coins with height more than maxHeight
@@ -172,8 +179,6 @@ public:
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const vector<Scalar>& coinSerials);
-
-
 
     static CLelantusState* GetState();
 
@@ -225,6 +230,7 @@ private:
 
         mint_info_container const & GetMints() const;
         std::unordered_map<Scalar, int> const & GetSpends() const;
+        std::unordered_map<uint256, GroupElement>& GetReducedHashToGroupElement();
         bool IsSurgeCondition() const;
     private:
         // Set of all minted pubCoin values, keyed by the public coin.
@@ -232,6 +238,9 @@ private:
         mint_info_container mintedPubCoins;
         // Set of all used coin serials.
         std::unordered_map<Scalar, int> usedCoinSerials;
+
+        //this map keeps hashes of reduced commitments to full commitments
+        std::unordered_map<uint256, GroupElement> reducedHashToGroupElement;
 
         std::atomic<bool> & surgeCondition;
 

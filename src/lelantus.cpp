@@ -243,10 +243,13 @@ bool CheckLelantusJMintTransaction(
                 "CheckLelantusMintTransaction: double mint");
     }
 
+     uint64_t amount;
+     if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+         amount = 0;
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, 0));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, amount));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -814,6 +817,16 @@ bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
     return GetOutPoint(outPoint, pubCoinValue);
 }
 
+bool GetReducedOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
+    GroupElement pubCoinValue;
+    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
+    if(!lelantusState->HasReducedCoinHash(pubCoinValue, pubCoinValueHash)){
+        return false;
+    }
+
+    return GetOutPoint(outPoint, pubCoinValue);
+}
+
 bool BuildLelantusStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
@@ -908,6 +921,10 @@ mint_info_container const & CLelantusState::Containers::GetMints() const {
     return mintedPubCoins;
 }
 
+std::unordered_map<uint256, GroupElement>&  CLelantusState::Containers::GetReducedHashToGroupElement() {
+    return reducedHashToGroupElement;
+}
+
 std::unordered_map<Scalar, int> const & CLelantusState::Containers::GetSpends() const {
     return usedCoinSerials;
 }
@@ -921,6 +938,7 @@ void CLelantusState::Containers::Reset() {
     usedCoinSerials.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
+    reducedHashToGroupElement.clear();
     surgeCondition = false;
 }
 
@@ -1165,6 +1183,62 @@ bool CLelantusState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubC
         const lelantus::PublicCoin & pubCoin = (*it).first;
         if(pubCoin.getValueHash()==pubCoinValueHash){
             pubCoinValue = pubCoin.getValue();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CLelantusState::HasReducedCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
+    auto const& mints = GetMints();
+    auto& reducedHashToGroupElement = containers.GetReducedHashToGroupElement();
+    if(pwalletMain->IsLocked()) {
+        return false;
+    }
+    for ( auto it = mints.begin(); it != mints.end(); ++it ){
+        const lelantus::PublicCoin & pubCoin = (*it).first;
+        COutPoint outPoint;
+        GetOutPoint(outPoint, pubCoin);
+        uint256 hashBlock;
+        CTransactionRef tx;
+        if (!GetTransaction(outPoint.hash, tx, ::Params().GetConsensus(), hashBlock, true)) {
+            continue;
+        }
+        for (const CTxOut& out : tx->vout) {
+            if (!out.scriptPubKey.IsLelantusMint() || !out.scriptPubKey.IsLelantusJMint())
+                continue;
+            secp_primitives::GroupElement pubcoin;
+            lelantus::ParseLelantusMintScript(out.scriptPubKey, pubcoin);
+            bool skip = false;
+            for (auto it = reducedHashToGroupElement.begin(); it != reducedHashToGroupElement.end(); ++it) {
+                if (it->second == pubcoin)
+                    skip = true;
+            }
+            if(skip)
+                continue;
+
+            uint64_t amount  = 0;
+            try {
+                if (out.scriptPubKey.IsLelantusMint()) {
+                    amount = out.nValue;
+                }  else {
+                    std::vector<unsigned char> encryptedValue;
+                    lelantus::ParseLelantusJMintScript(out.scriptPubKey, pubcoin, encryptedValue);
+                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubcoin, amount))
+                        continue;
+                }
+            } catch (std::invalid_argument&) {
+                continue;
+            }
+
+            uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate());
+            reducedHashToGroupElement[hashPubcoin] = pubcoin;
+        }
+    }
+
+    for (auto it = reducedHashToGroupElement.begin(); it != reducedHashToGroupElement.end(); ++it ) {
+        if ((*it).first == pubCoinValueHash) {
+            pubCoinValue = (*it).second;
             return true;
         }
     }

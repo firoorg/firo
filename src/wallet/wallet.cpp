@@ -723,20 +723,8 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             return meta.isUsed;
         } else if (zwallet && (script.IsLelantusMint() || script.IsLelantusJMint())) {
             secp_primitives::GroupElement pubcoin;
-            uint64_t amount;
-            if(script.IsLelantusMint()) {
-                amount = tx->tx->vout[n].nValue;
-                lelantus::ParseLelantusMintScript(script, pubcoin);
-            } else {
-                std::vector<unsigned char> encryptedValue;
-                lelantus::ParseLelantusJMintScript(script, pubcoin, encryptedValue);
-                if(!DecryptMintAmount(encryptedValue, pubcoin, amount))
-                    return false;
-            }
-
-            pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
+            lelantus::ParseLelantusMintScript(script, pubcoin);
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
-
             CLelantusMintMeta meta;
             if(!zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
                 return false;
@@ -1642,26 +1630,21 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
 
-        try {
-            if (txout.scriptPubKey.IsSigmaMint())
-                pub = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-            else {
-                uint64_t amount;
-                if(txout.scriptPubKey.IsLelantusMint()) {
-                    amount = txout.nValue;
-                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
-                } else {
-                    std::vector<unsigned char> encryptedValue;
-                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
-                    if(!DecryptMintAmount(encryptedValue, pub, amount))
-                        return ISMINE_NO;
+            if (txout.scriptPubKey.IsSigmaMint()) {
+                try {
+                    pub = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                } catch (std::invalid_argument &) {
+                    return ISMINE_NO;
                 }
-                pub += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
-            }
-        } catch (std::invalid_argument&) {
-            return ISMINE_NO;
-        }
 
+            }
+            else {
+                try {
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+                } catch (std::invalid_argument &) {
+                    return ISMINE_NO;
+                }
+            }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else {
         return ::IsMine(*this, txout.scriptPubKey);
@@ -1678,15 +1661,11 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
         try {
             std::vector<unsigned char> encryptedValue;
             lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
-            uint64_t amount;
-            if(!DecryptMintAmount(encryptedValue, pub, amount))
-                return ISMINE_NO;
-            pub += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();  //reduce h1^amount
         } catch (std::invalid_argument&) {
             return ISMINE_NO;
         }
-        CHDMint dMint;
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+        CHDMint dMint;
         if (db.ReadHDMint(hashPubcoin, true, dMint)) {
             return dMint.GetAmount();
         }
@@ -2953,6 +2932,11 @@ std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const sec
 }
 
 bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
+    if(IsLocked()) {
+        amount = 0;
+        return true;
+    }
+
     AssertLockHeld(pwalletMain->cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Decrypt dec(key.data());

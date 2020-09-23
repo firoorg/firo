@@ -23,7 +23,7 @@ struct MintMeta
     int nId;
     GroupElement const & GetPubCoinValue() const;
     void SetPubCoinValue(GroupElement const & other);
-    virtual uint256 GetPubCoinValueHash() const = 0;
+    uint256 GetPubCoinValueHash() const ;
     uint256 hashSerial;
     uint8_t nVersion;
     uint256 txid;
@@ -37,14 +37,12 @@ protected:
 
 struct CMintMeta : MintMeta
 {
-    uint256 GetPubCoinValueHash() const;
     bool isDeterministic;
     sigma::CoinDenomination denom;
 };
 
 struct CLelantusMintMeta : MintMeta
 {
-    uint256 GetPubCoinValueHash() const;
     uint64_t amount;
 };
 

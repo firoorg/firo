@@ -288,6 +288,10 @@ public:
     bool EraseHDMint(const CHDMint& dMint);
     bool HasHDMint(const secp_primitives::GroupElement& pub);
 
+    bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);
+    bool ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash);
+    bool ErasePubcoinHashes(const uint256& fullHash);
+
     std::list<CHDMint> ListHDMints(bool isLelantus);
     bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
     bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
