@@ -26,11 +26,13 @@ public:
     LelantusDb(size_t nCacheSize, bool fMemory = false, bool fWipe = false, size_t groupSize = DEFAULT_GROUPSIZE, size_t startCoins = DEFAULT_STARTCOINS);
 
 public:
-    bool HasSerial(PropertyId id, Scalar const &serial);
+    bool HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx);
     bool RemoveSerials(int block);
-    bool WriteSerials(
+    bool WriteSerial(
+        PropertyId id,
+        secp_primitives::Scalar serial,
         int block,
-        std::vector<std::pair<PropertyId, std::vector<Scalar>>> const &serials);
+        uint256 const &spendTx);
 
     std::vector<lelantus::PublicCoin> GetMints(PropertyId id, int block);
     bool RemoveMints(int block);

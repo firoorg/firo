@@ -22,9 +22,9 @@ LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe, size_t group
     WriteGroupSize(groupSize, startCoins);
 }
 
-bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial)
+bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx)
 {
-    return db.Exists(std::make_tuple(DB_SERIAL, id, serial));
+    return db.Read(std::make_tuple(DB_SERIAL, id, serial), spendTx);
 }
 
 bool LelantusDb::RemoveSerials(int block)
@@ -86,23 +86,25 @@ bool LelantusDb::RemoveSerials(int block)
     return true;
 }
 
-bool LelantusDb::WriteSerials(
+bool LelantusDb::WriteSerial(
+    PropertyId id,
+    secp_primitives::Scalar serial,
     int block,
-    std::vector<std::pair<PropertyId, std::vector<Scalar>>> const &serials)
+    uint256 const &spendTx)
 {
-    auto sequence = ReadNextSerialSequence();
-
-    for (auto const &propertySerials : serials) {
-        for (auto const &serial : propertySerials.second) {
-            auto _sequence = sequence++;
-            swapByteOrder(_sequence);
-
-            db.Write(std::make_tuple(DB_SERIAL_SEQUENCE, _sequence),
-                std::make_tuple(propertySerials.first, serial, block));
-
-            db.Write(std::make_tuple(DB_SERIAL, propertySerials.first, serial), 0);
-        }
+    if (db.Exists(std::make_tuple(DB_SERIAL, id, serial))) {
+        return false;
     }
+
+    auto sequence = ReadNextSerialSequence();
+    auto _sequence = sequence++;
+
+    swapByteOrder(_sequence);
+
+    db.Write(std::make_tuple(DB_SERIAL_SEQUENCE, _sequence),
+        std::make_tuple(id, serial, block));
+
+    db.Write(std::make_tuple(DB_SERIAL, id, serial), spendTx);
 
     WriteNextSerialSequence(sequence);
 

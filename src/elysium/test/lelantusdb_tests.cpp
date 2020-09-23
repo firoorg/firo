@@ -70,50 +70,90 @@ BOOST_AUTO_TEST_CASE(scalars)
 {
     auto db = CreateDb(1024, true, true);
 
-#define HAS(id, s) BOOST_CHECK_MESSAGE(db->HasSerial(id, s), \
+    uint256 spendTx;
+
+#define HAS(id, s) BOOST_CHECK_MESSAGE(db->HasSerial(id, s, spendTx), \
     strprintf("Expect to have %s in group %d, but not found", secp_primitives::Scalar(s).GetHex(), id))
 
-#define HAS_NO(id, s) BOOST_CHECK_MESSAGE(!db->HasSerial(id, s), \
+#define HAS_NO(id, s) BOOST_CHECK_MESSAGE(!db->HasSerial(id, s, spendTx), \
     strprintf("Expect to have no %s in group %d, but found", secp_primitives::Scalar(s).GetHex(), id))
 
+    // have no serials before adding
     HAS_NO(2, 1);
     HAS_NO(3, 2);
     HAS_NO(3, 3);
 
     BOOST_CHECK_EQUAL(0, db->ReadNextSerialSequence());
 
-    db->WriteSerials(10, {
-        {2, {1}},
-        {3, {2, 3}}
-    });
+    uint256 dummyTx = ArithToUint256(arith_uint256(100));
+
+    // add some serials
+    BOOST_CHECK(db->WriteSerial(2, 1, 10, dummyTx));
+    BOOST_CHECK(db->WriteSerial(3, 2, 10, dummyTx));
+    BOOST_CHECK(db->WriteSerial(3, 3, 10, dummyTx));
 
     BOOST_CHECK_EQUAL(3, db->ReadNextSerialSequence());
 
+    // confirm serials are added
     HAS(2, 1);
     HAS(3, 2);
+    HAS(3, 3);
 
+    // confirm serials are not included
     HAS_NO(2, 2);
-
     HAS_NO(2, 3);
     HAS_NO(2, 4);
 
-    db->WriteSerials(11, {
-        {2, {3, 4}},
-    });
+    // test spend tx
+    uint256 tx1 = ArithToUint256(arith_uint256(101));
+    uint256 tx2 = ArithToUint256(arith_uint256(102));
+
+    // add some serials with unique spend txs
+    BOOST_CHECK(db->WriteSerial(2, 3, 11, tx1));
+    BOOST_CHECK(db->WriteSerial(2, 4, 11, tx2));
 
     BOOST_CHECK_EQUAL(5, db->ReadNextSerialSequence());
+
+    // verify serials are added
+    HAS(2, 3);
+    HAS(2, 4);
+
+    // verify spend tx are recorded correctly
+    uint256 recordedTx;
+    BOOST_CHECK(db->HasSerial(2, 3, recordedTx));
+    BOOST_CHECK_MESSAGE(tx1 == recordedTx,
+        strprintf("Expected spendTx %s, got %s", tx1.GetHex(), recordedTx.GetHex()));
+
+    BOOST_CHECK(db->HasSerial(2, 4, recordedTx));
+    BOOST_CHECK_MESSAGE(tx2 == recordedTx,
+        strprintf("Expected spendTx %s, got %s", tx2.GetHex(), recordedTx.GetHex()));
+
+    // try to add duplicated serial, should fail
+    BOOST_CHECK_MESSAGE(!db->WriteSerial(2, 3, 12, tx1), "Success to write duplicated serial");
+
+    // add one more should success
+    BOOST_CHECK_MESSAGE(db->WriteSerial(4, 99, 12, tx1), "Fail to write serial");
+
+    HAS(4, 99);
+
+    // remove by block number
+    db->RemoveSerials(12);
+
+    HAS_NO(4, 99);
+
+    // verify serials in block before 12 are included
+    HAS(2, 1);
+    HAS(3, 2);
+    HAS(3, 3);
 
     HAS(2, 3);
     HAS(2, 4);
 
-    db->RemoveSerials(11);
-
-    BOOST_CHECK_EQUAL(3, db->ReadNextSerialSequence());
+    // remove to all
+    db->RemoveSerials(0);
 
     HAS_NO(2, 3);
     HAS_NO(2, 4);
-
-    db->RemoveSerials(0);
 
     HAS_NO(2, 1);
     HAS_NO(3, 2);
