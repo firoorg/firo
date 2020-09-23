@@ -1,9 +1,12 @@
+#include "../convert.h"
 #include "../lelantusdb.h"
 
 #include "../../test/fixtures.h"
 #include "../../test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
+
+static const char DB_SERIAL_SEQUENCE    = 0x01;
 
 namespace elysium {
 
@@ -30,7 +33,7 @@ public:
 public:
     uint64_t ReadNextSerialSequence()
     {
-        return LelantusDb::ReadNextSerialSequence();
+        return GetNextSequence(DB_SERIAL_SEQUENCE);
     }
 
     bool WriteGroupSize(uint64_t groupSize, uint64_t mintAmount)
