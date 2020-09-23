@@ -12,7 +12,17 @@ namespace {
 class TestLelantusDb : public LelantusDb
 {
 public:
-    TestLelantusDb() : LelantusDb(100)
+    static const size_t DEFAULT_GROUPSIZE = 65000;
+    static const size_t DEFAULT_STARTCOINS = 16000;
+
+public:
+    TestLelantusDb(
+        size_t nCacheSize,
+        bool fMemory = false,
+        bool fWipe = false,
+        size_t groupSize = DEFAULT_GROUPSIZE,
+        size_t startCoins = DEFAULT_STARTCOINS)
+        : LelantusDb(nCacheSize, fMemory, fWipe, groupSize, startCoins)
     {
     }
 
@@ -21,6 +31,16 @@ public:
     uint64_t ReadNextSerialSequence()
     {
         return LelantusDb::ReadNextSerialSequence();
+    }
+
+    bool WriteGroupSize(uint64_t groupSize, uint64_t mintAmount)
+    {
+        return LelantusDb::WriteGroupSize(groupSize, mintAmount);
+    }
+
+    std::pair<uint64_t, uint64_t> ReadGroupSize()
+    {
+        return LelantusDb::ReadGroupSize();
     }
 };
 
@@ -31,9 +51,14 @@ public:
     {
     }
 
-    std::unique_ptr<TestLelantusDb> CreateDb()
+    std::unique_ptr<TestLelantusDb> CreateDb(
+        size_t nCacheSize,
+        bool fMemory = false,
+        bool fWipe = false,
+        size_t groupSize = TestLelantusDb::DEFAULT_GROUPSIZE,
+        size_t startCoins = TestLelantusDb::DEFAULT_STARTCOINS)
     {
-        return std::unique_ptr<TestLelantusDb>(new TestLelantusDb());
+        return std::unique_ptr<TestLelantusDb>(new TestLelantusDb(nCacheSize, fMemory, fWipe, groupSize, startCoins));
     }
 };
 
@@ -43,7 +68,7 @@ BOOST_FIXTURE_TEST_SUITE(elysium_lelantusdb_tests, LelantusDbTestingSetup)
 
 BOOST_AUTO_TEST_CASE(scalars)
 {
-    auto db = CreateDb();
+    auto db = CreateDb(1024, true, true);
 
 #define HAS(id, s) BOOST_CHECK_MESSAGE(db->HasSerial(id, s), \
     strprintf("Expect to have %s in group %d, but not found", secp_primitives::Scalar(s).GetHex(), id))
@@ -98,6 +123,16 @@ BOOST_AUTO_TEST_CASE(scalars)
 
 #undef HAS
 #undef HAS_NO
+}
+
+BOOST_AUTO_TEST_CASE(groupsize)
+{
+    auto db = CreateDb(1024, true, true, 1000, 200);
+
+    BOOST_CHECK_MESSAGE(!db->WriteGroupSize(500, 100), "Success to overwrite group size");
+
+    std::pair<uint64_t, uint64_t> expected(1000, 200);
+    BOOST_CHECK(db->ReadGroupSize() == expected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -7,14 +7,19 @@
 
 namespace elysium {
 
+
+
 static const char DB_SERIAL             = 0x00;
 static const char DB_SERIAL_SEQUENCE    = 0x01;
 static const char DB_SERIAL_NEXT        = 0x02;
 
+static const char DB_GROUPSIZE = 0x03;
+
 // DB
-LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe) :
+LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe, size_t groupSize, size_t startCoins) :
     db(fMemory ? "" : GetDataDir() / "elysium_lelantusdb", nCacheSize, fMemory, fWipe)
 {
+    WriteGroupSize(groupSize, startCoins);
 }
 
 bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial)
@@ -104,6 +109,24 @@ bool LelantusDb::WriteSerials(
     return true;
 }
 
+std::vector<lelantus::PublicCoin> LelantusDb::GetMints(PropertyId id, int block)
+{
+    // TODO: implement
+}
+
+bool RemoveMints(int block)
+{
+    // TODO: implement
+}
+
+bool WriteMints(
+    int block,
+    std::vector<std::pair<PropertyId, std::vector<lelantus::PublicCoin>>> const &mints
+    )
+{
+    // TODO: implement
+}
+
 bool LelantusDb::WriteNextSerialSequence(uint64_t sequence)
 {
     return db.Write(DB_SERIAL_NEXT, sequence);
@@ -117,6 +140,25 @@ uint64_t LelantusDb::ReadNextSerialSequence()
     }
 
     return sequence;
+}
+
+bool LelantusDb::WriteGroupSize(size_t groupSize, size_t mintAmount)
+{
+    if (db.Exists(DB_GROUPSIZE)) {
+        return false;
+    }
+
+    return db.Write(DB_GROUPSIZE, std::make_pair(groupSize, mintAmount));
+}
+
+std::pair<size_t, size_t> LelantusDb::ReadGroupSize()
+{
+    std::pair<size_t, size_t> groupSizes;
+    if (!db.Read(DB_GROUPSIZE, groupSizes)) {
+        throw std::runtime_error("Fail to read group size");
+    }
+
+    return groupSizes;
 }
 
 } // namespace elysium
