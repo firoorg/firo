@@ -7,13 +7,15 @@
 
 namespace elysium {
 
-
-
 static const char DB_SERIAL             = 0x00;
 static const char DB_SERIAL_SEQUENCE    = 0x01;
-static const char DB_SERIAL_NEXT        = 0x02;
 
-static const char DB_GROUPSIZE = 0x03;
+static const char DB_COIN = 0x02;
+static const char DB_COIN_SEQUENCE = 0x03;
+static const char DB_COIN_GROUP = 0x04;
+static const char DB_COIN_GLOBAL_SEQUENCE = 0x05;
+
+static const char DB_GROUPSIZE = 0x10;
 
 // DB
 LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe, size_t groupSize, size_t startCoins) :
@@ -29,12 +31,12 @@ bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx
 
 bool LelantusDb::RemoveSerials(int block)
 {
-    auto sequence = ReadNextSerialSequence();
+    auto sequence = GetNextSequence(DB_SERIAL_SEQUENCE);
     if (sequence <= 0) {
         return false;
     }
 
-    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+    auto it = NewIterator();
     auto _sequence = sequence - 1;
     swapByteOrder(_sequence);
 
@@ -81,8 +83,6 @@ bool LelantusDb::RemoveSerials(int block)
         }
     }
 
-    WriteNextSerialSequence(sequence);
-
     return true;
 }
 
@@ -96,7 +96,7 @@ bool LelantusDb::WriteSerial(
         return false;
     }
 
-    auto sequence = ReadNextSerialSequence();
+    auto sequence = GetNextSequence(DB_SERIAL_SEQUENCE);
     auto _sequence = sequence++;
 
     swapByteOrder(_sequence);
@@ -106,42 +106,25 @@ bool LelantusDb::WriteSerial(
 
     db.Write(std::make_tuple(DB_SERIAL, id, serial), spendTx);
 
-    WriteNextSerialSequence(sequence);
-
     return true;
 }
 
-std::vector<lelantus::PublicCoin> LelantusDb::GetMints(PropertyId id, int block)
+std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
+    PropertyId id,
+    uint32_t groupId,
+    size_t count)
 {
-    // TODO: implement
 }
 
-bool RemoveMints(int block)
+bool LelantusDb::RemoveMints(int block)
 {
-    // TODO: implement
 }
 
-bool WriteMints(
-    int block,
-    std::vector<std::pair<PropertyId, std::vector<lelantus::PublicCoin>>> const &mints
-    )
+bool LelantusDb::WriteMint(
+    PropertyId propertyId,
+    lelantus::PublicCoin const &pubKey,
+    int block)
 {
-    // TODO: implement
-}
-
-bool LelantusDb::WriteNextSerialSequence(uint64_t sequence)
-{
-    return db.Write(DB_SERIAL_NEXT, sequence);
-}
-
-uint64_t LelantusDb::ReadNextSerialSequence()
-{
-    uint64_t sequence;
-    if (!db.Read(DB_SERIAL_NEXT, sequence)) {
-        return 0;
-    }
-
-    return sequence;
 }
 
 bool LelantusDb::WriteGroupSize(size_t groupSize, size_t mintAmount)
@@ -161,6 +144,11 @@ std::pair<size_t, size_t> LelantusDb::ReadGroupSize()
     }
 
     return groupSizes;
+}
+
+std::unique_ptr<CDBIterator> LelantusDb::NewIterator()
+{
+    return std::unique_ptr<CDBIterator>(db.NewIterator());
 }
 
 } // namespace elysium

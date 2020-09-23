@@ -34,19 +34,56 @@ public:
         int block,
         uint256 const &spendTx);
 
-    std::vector<lelantus::PublicCoin> GetMints(PropertyId id, int block);
+    std::vector<lelantus::PublicCoin> GetAnonimityGroup(
+        PropertyId id,
+        uint32_t groupId,
+        size_t count);
+
     bool RemoveMints(int block);
-    bool WriteMints(
-        int block,
-        std::vector<std::pair<PropertyId, std::vector<lelantus::PublicCoin>>> const &mints
-        );
+    bool WriteMint(
+        PropertyId propertyId,
+        lelantus::PublicCoin const &pubKey,
+        int block);
 
 protected:
-    bool WriteNextSerialSequence(uint64_t);
-    uint64_t ReadNextSerialSequence();
+
+    template<typename ...T>
+    uint64_t GetNextSequence(T ...t) {
+        auto key = std::make_tuple(t..., UINT64_MAX);
+        auto it = NewIterator();
+
+        it->Seek(key);
+
+        if (!it->Valid()) {
+            return 0;
+        }
+
+        it->Prev();
+        if (!it->Valid()) {
+            return 0;
+        }
+
+        auto key2 = key;
+        if (!it->GetKey(key2)) {
+            return 0;
+        }
+
+        std::get<sizeof...(t)>(key) = std::get<sizeof...(t)>(key2);
+
+        if (key != key2) {
+            return 0;
+        }
+
+        auto v = std::get<sizeof...(t)>(key);
+        swapByteOrder(v);
+
+        return v + 1;
+    }
 
     bool WriteGroupSize(size_t groupSize, size_t mintAmount);
     std::pair<size_t, size_t> ReadGroupSize();
+
+    std::unique_ptr<CDBIterator> NewIterator();
 };
 
 } // namespace elysium
