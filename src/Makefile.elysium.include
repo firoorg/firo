@@ -30,6 +30,7 @@ ELYSIUM_H = \
   elysium/sigma.h \
   elysium/sigmaprimitives.h \
   elysium/sigmadb.h \
+  elysium/lelantusdb.h \
   elysium/signaturebuilder.h \
   elysium/sp.h \
   elysium/sto.h \
@@ -74,6 +75,7 @@ ELYSIUM_CPP = \
   elysium/sigma.cpp \
   elysium/sigmaprimitives.cpp \
   elysium/sigmadb.cpp \
+  elysium/lelantusdb.cpp \
   elysium/signaturebuilder.cpp \
   elysium/sp.cpp \
   elysium/sto.cpp \

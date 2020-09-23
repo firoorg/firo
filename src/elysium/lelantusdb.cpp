@@ -7,68 +7,116 @@
 
 namespace elysium {
 
-enum class KeyType : uint8_t
-{
-    // mint
-    Coin = 0, // 0<id><order> = <public coin>
-    CoinIndex = 1, // 1<id><block> = <order_i><order_j>
-    BlockStoringIndex = 2, // 2<order> = 1<id><block>
-    GroupIndex = 3, // 3<id><group_id> = <block_i><block_j>
-
-    // serials
-    Serial = 4, // 4<id><serial> = <block>
-    SerialStoringOrder = 5, // 5<order> = <id><serial>
-    SerialLastOrder = 6,
-};
-
-void SafeSeekToPreviousKey(leveldb::Iterator *it, const leveldb::Slice& key)
-{
-    it->Seek(key);
-    if (it->Valid()) {
-        it->Prev();
-    } else {
-        it->SeekToLast();
-    }
-}
+static const char DB_SERIAL             = 0x00;
+static const char DB_SERIAL_SEQUENCE    = 0x01;
+static const char DB_SERIAL_NEXT        = 0x02;
 
 // DB
-LelantusDB::LelantusDB(size_t nCacheSize, bool fMemory, bool fWipe) :
+LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe) :
     db(fMemory ? "" : GetDataDir() / "elysium_lelantusdb", nCacheSize, fMemory, fWipe)
 {
 }
 
-bool LelantusDB::HasSerial(Scalar const &serial)
+bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial)
 {
+    return db.Exists(std::make_tuple(DB_SERIAL, id, serial));
 }
 
-bool LelantusDB::RemoveSerials(int block)
+bool LelantusDb::RemoveSerials(int block)
 {
+    auto sequence = ReadNextSerialSequence();
+    if (sequence <= 0) {
+        return false;
+    }
+
+    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+    auto _sequence = sequence - 1;
+    swapByteOrder(_sequence);
+
+    it->Seek(std::make_tuple(DB_SERIAL_SEQUENCE, _sequence));
+
+    std::tuple<PropertyId, secp_primitives::Scalar, int> val;
+
+    std::vector<std::tuple<char, uint64_t>> toBeRemoveSerialOrders;
+    std::vector<std::tuple<char, PropertyId, secp_primitives::Scalar>> toBeRemoveSerials;
+
+    CDataStream keyStream(SER_DISK, CLIENT_VERSION);
+    for (; it->Valid()
+        && (keyStream = it->GetKey()).size() > 0
+        && keyStream[0] == DB_SERIAL_SEQUENCE;
+        it->Prev()) {
+
+        if (!it->GetValue(val)) {
+            throw std::runtime_error("Fail to get value");
+        }
+
+        if (std::get<2>(val) < block) {
+            break;
+        }
+
+        toBeRemoveSerialOrders.emplace_back();
+        if (!it->GetKey(toBeRemoveSerialOrders.back())) {
+            throw std::runtime_error("Fail to get sequence key");
+        }
+
+        toBeRemoveSerials.emplace_back(DB_SERIAL, std::get<0>(val), std::get<1>(val));
+
+        sequence--;
+    }
+
+    for (auto const &removeKey : toBeRemoveSerialOrders) {
+        if (!db.Erase(removeKey)) {
+            throw std::runtime_error("Fail to erase key");
+        }
+    }
+
+    for (auto const &removeKey : toBeRemoveSerials) {
+        if (!db.Erase(removeKey)) {
+            throw std::runtime_error("Fail to erase key");
+        }
+    }
+
+    WriteNextSerialSequence(sequence);
+
+    return true;
 }
 
-bool LelantusDB::WriteSerials(
+bool LelantusDb::WriteSerials(
     int block,
     std::vector<std::pair<PropertyId, std::vector<Scalar>>> const &serials)
 {
-    auto order = ReadSerialOrder();
+    auto sequence = ReadNextSerialSequence();
 
     for (auto const &propertySerials : serials) {
-        // db.Write(std::make_tuple(), );
+        for (auto const &serial : propertySerials.second) {
+            auto _sequence = sequence++;
+            swapByteOrder(_sequence);
+
+            db.Write(std::make_tuple(DB_SERIAL_SEQUENCE, _sequence),
+                std::make_tuple(propertySerials.first, serial, block));
+
+            db.Write(std::make_tuple(DB_SERIAL, propertySerials.first, serial), 0);
+        }
     }
+
+    WriteNextSerialSequence(sequence);
+
+    return true;
 }
 
-bool LelantusDB::WriteSerialOrder(uint64_t order)
+bool LelantusDb::WriteNextSerialSequence(uint64_t sequence)
 {
-    return db.Write(KeyType::SerialLastOrder, order);
+    return db.Write(DB_SERIAL_NEXT, sequence);
 }
 
-uint64_t LelantusDB::ReadSerialOrder()
+uint64_t LelantusDb::ReadNextSerialSequence()
 {
-    uint64_t order;
-    if (!db.Read(KeyType::SerialLastOrder, order)) {
+    uint64_t sequence;
+    if (!db.Read(DB_SERIAL_NEXT, sequence)) {
         return 0;
     }
 
-    return order;
+    return sequence;
 }
 
 } // namespace elysium

@@ -13,25 +13,25 @@
 
 namespace elysium {
 
-class LelantusDB
+class LelantusDb
 {
 private:
     CCriticalSection cs;
     CDBWrapper db;
 
 public:
-    LelantusDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    LelantusDb(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
 public:
-    bool HasSerial(Scalar const &serial);
+    bool HasSerial(PropertyId id, Scalar const &serial);
     bool RemoveSerials(int block);
     bool WriteSerials(
         int block,
         std::vector<std::pair<PropertyId, std::vector<Scalar>>> const &serials);
 
-private:
-    bool WriteSerialOrder(uint64_t);
-    uint64_t ReadSerialOrder();
+protected:
+    bool WriteNextSerialSequence(uint64_t);
+    uint64_t ReadNextSerialSequence();
 };
 
 } // namespace elysium
