@@ -34,6 +34,7 @@ ELYSIUM_TEST_CPP = \
   elysium/test/sp_tests.cpp \
   elysium/test/strtoint64_tests.cpp \
   elysium/test/swapbyteorder_tests.cpp \
+  elysium/test/lelantusdb_tests.cpp \
   elysium/test/tally_tests.cpp \
   elysium/test/uint256_extensions_tests.cpp \
   elysium/test/utils_tx.cpp
