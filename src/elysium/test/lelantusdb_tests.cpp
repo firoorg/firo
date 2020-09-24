@@ -45,6 +45,11 @@ public:
     {
         return LelantusDb::ReadGroupSize();
     }
+
+    int GetLastGroup(PropertyId id, size_t &coins)
+    {
+        return LelantusDb::GetLastGroup(id, coins);
+    }
 };
 
 class LelantusDbTestingSetup : public TestingSetup
@@ -176,6 +181,61 @@ BOOST_AUTO_TEST_CASE(groupsize)
 
     std::pair<uint64_t, uint64_t> expected(1000, 200);
     BOOST_CHECK(db->ReadGroupSize() == expected);
+}
+
+BOOST_AUTO_TEST_CASE(sliding_windows)
+{
+    auto db = CreateDb(1024, true, true, 100, 10);
+
+    auto addCoins = [&](PropertyId id, size_t coins, int block) {
+        for (size_t i = 0; i != coins; i++) {
+            secp_primitives::GroupElement g;
+            g.randomize();
+
+            db->WriteMint(id, g, block);
+        }
+    };
+
+    auto verifyLastGroup = [&](PropertyId id, int group, size_t coins) {
+        size_t actualCoins;
+        auto actualGroup = db->GetLastGroup(id, actualCoins);
+
+        BOOST_CHECK_MESSAGE(actualGroup == group, strprintf("Expect group %d, actual %d", group, actualGroup));
+        BOOST_CHECK_MESSAGE(actualCoins == coins, strprintf("Expect coins %d, actual %d", coins, actualCoins));
+    };
+
+    addCoins(1, 50, 10);
+    verifyLastGroup(1, 0, 50);
+
+    addCoins(1, 50, 11);
+    verifyLastGroup(1, 0, 100);
+
+    addCoins(1, 1, 12);
+    verifyLastGroup(1, 1, 51);
+
+    addCoins(1, 20, 13);
+    verifyLastGroup(1, 1, 71);
+
+    addCoins(1, 29, 13);
+    verifyLastGroup(1, 1, 100);
+
+    addCoins(1, 10, 14);
+    verifyLastGroup(1, 2, 59);
+
+    addCoins(1, 26, 15);
+    verifyLastGroup(1, 2, 85);
+
+    addCoins(1, 10, 16);
+    verifyLastGroup(1, 2, 95);
+
+    addCoins(1, 4, 17);
+    verifyLastGroup(1, 2, 99);
+
+    addCoins(1, 1, 17);
+    verifyLastGroup(1, 2, 100);
+
+    addCoins(1, 1, 17);
+    verifyLastGroup(1, 3, 16);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -13,6 +13,8 @@
 
 namespace elysium {
 
+
+
 class LelantusDb
 {
 protected:
@@ -82,6 +84,10 @@ protected:
 
     bool WriteGroupSize(size_t groupSize, size_t mintAmount);
     std::pair<size_t, size_t> ReadGroupSize();
+
+    int GetLastGroup(PropertyId id, size_t &coins);
+
+    int StartNewGroup(PropertyId id, size_t startCoins);
 
     std::unique_ptr<CDBIterator> NewIterator();
 };
