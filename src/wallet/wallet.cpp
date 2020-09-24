@@ -2921,7 +2921,7 @@ std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoi
 }
 
 std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const {
-    AssertLockHeld(pwalletMain->cs_wallet);
+    LOCK(cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Encrypt enc(key.data());
     std::vector<unsigned char> ciphertext(16);
@@ -2937,7 +2937,7 @@ bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue
         return true;
     }
 
-    AssertLockHeld(pwalletMain->cs_wallet);
+    LOCK(cs_wallet);
     std::vector<unsigned char> key = GetAESKey(pubcoin);
     AES256Decrypt dec(key.data());
     std::vector<unsigned char> plaintext(16);
