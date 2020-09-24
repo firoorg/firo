@@ -1205,8 +1205,9 @@ bool CLelantusState::HasReducedCoinHash(GroupElement &pubCoinValue, const uint25
             continue;
         }
         for (const CTxOut& out : tx->vout) {
-            if (!out.scriptPubKey.IsLelantusMint() || !out.scriptPubKey.IsLelantusJMint())
+            if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint()) {
                 continue;
+            }
             secp_primitives::GroupElement pubcoin;
             lelantus::ParseLelantusMintScript(out.scriptPubKey, pubcoin);
             bool skip = false;
