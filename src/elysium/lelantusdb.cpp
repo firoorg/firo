@@ -23,6 +23,24 @@ static const char DB_COIN_GLOBAL_SEQUENCE = 0x05;
 
 static const char DB_GROUPSIZE = 0x10;
 
+namespace {
+
+struct GroupData {
+    uint64_t startSequence = 0;
+    uint64_t extendedSequence = 0;
+
+    ADD_SERIALIZE_METHODS
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action)
+    {
+        READWRITE(startSequence);
+        READWRITE(extendedSequence);
+    }
+};
+
+} // unnamed namespace
+
 // DB
 LelantusDb::LelantusDb(size_t nCacheSize, bool fMemory, bool fWipe, size_t groupSize, size_t startCoins) :
     db(fMemory ? "" : GetDataDir() / "elysium_lelantusdb", nCacheSize, fMemory, fWipe)
@@ -120,10 +138,11 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
     int groupId,
     size_t count)
 {
-    uint64_t first;
-    if (!db.Read(std::make_tuple(DB_COIN_GROUP, id, groupId), first)) {
+    GroupData groupData;
+    if (!db.Read(std::make_tuple(DB_COIN_GROUP, id, groupId), groupData)) {
         throw std::runtime_error("Fail to read first sequence in group");
     }
+    auto first = groupData.extendedSequence;
 
     auto it = NewIterator();
     it->Seek(std::make_tuple(DB_COIN_SEQUENCE, id, ::swapByteOrder(first)));
@@ -168,20 +187,24 @@ bool LelantusDb::RemoveMints(int block)
     std::vector<std::tuple<char, PropertyId, uint64_t>> toBeRemoveLocalSequences;
 
     do {
+
         auto sequenceKey = std::make_tuple(DB_COIN_GLOBAL_SEQUENCE, ::swapByteOrder(--nextGlobalSequence));
         if (!db.Read(sequenceKey, idAndSequence)) {
             throw std::runtime_error("Fail to get global sequence");
         }
-        toBeRemoveSequences.push_back(sequenceKey);
 
         auto localSequenceKey = std::make_tuple(DB_COIN_SEQUENCE, idAndSequence.first, ::swapByteOrder(idAndSequence.second));
         if (!db.Read(localSequenceKey, coinAndBlock)) {
             throw std::runtime_error("Fail to get local sequence");
         }
-        toBeRemoveLocalSequences.push_back(localSequenceKey);
 
-        // record last local sequence
-        lastLocalSequences[idAndSequence.first] = idAndSequence.second;
+        if (coinAndBlock.second >= block) {
+            toBeRemoveSequences.push_back(sequenceKey);
+            toBeRemoveLocalSequences.push_back(localSequenceKey);
+
+            // record last local sequence
+            lastLocalSequences[idAndSequence.first] = idAndSequence.second;
+        }
 
     } while(nextGlobalSequence > 0 && coinAndBlock.second >= block);
 
@@ -206,13 +229,13 @@ bool LelantusDb::RemoveMints(int block)
             size_t coins;
             auto lastGroup = GetLastGroup(idAndSequence.first, coins);
 
-            uint64_t firstSequence;
+            GroupData groupData;
             auto groupKey = std::make_tuple(DB_COIN_GROUP, idAndSequence.first, lastGroup);
-            if (!db.Read(groupKey, firstSequence)) {
+            if (!db.Read(groupKey, groupData)) {
                 throw std::runtime_error("Fail to get first sequence");
             }
 
-            if (firstSequence >= idAndSequence.second) {
+            if (groupData.startSequence >= idAndSequence.second) {
                 if (!db.Erase(groupKey)) {
                     throw std::runtime_error("Fail to erase group");
                 }
@@ -291,16 +314,16 @@ int LelantusDb::GetLastGroup(PropertyId id, size_t &coins)
     auto nextSeq = GetNextSequence(DB_COIN_SEQUENCE, id);
     coins = nextSeq;
 
+    GroupData groupData;
     int group = 0;
     if (!db.Exists(std::make_tuple(DB_COIN_GROUP, id, group))) {
-        if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, group), (uint64_t)0)) {
+        if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, group), groupData)) {
             throw std::runtime_error("Fail to record group id 0");
         }
     }
 
-    uint64_t startSequence;
-    while (db.Read(std::make_tuple(DB_COIN_GROUP, id, group + 1), startSequence)) {
-        coins = nextSeq - startSequence;
+    while (db.Read(std::make_tuple(DB_COIN_GROUP, id, group + 1), groupData)) {
+        coins = nextSeq - groupData.extendedSequence;
         group++;
     }
 
@@ -310,8 +333,9 @@ int LelantusDb::GetLastGroup(PropertyId id, size_t &coins)
 int LelantusDb::StartNewGroup(PropertyId id, size_t startCoins)
 {
     auto nextSequence = GetNextSequence(DB_COIN_SEQUENCE, id);
+    GroupData groupData;
     if (nextSequence == 0) {
-        if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, 0), 0)) {
+        if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, 0), groupData)) {
             throw std::runtime_error("Fail to record group id 0");
         }
         return 0;
@@ -334,7 +358,7 @@ int LelantusDb::StartNewGroup(PropertyId id, size_t startCoins)
 
     // find the first coin which is in the same block with first candidate
     int block = coin.second;
-    auto firstSeq = firstSeqCandidate;
+    uint64_t firstSeq = firstSeqCandidate;
 
     std::tuple<char, PropertyId, uint64_t> key;
     while (it->Valid() && firstSeq > 0) {
@@ -363,7 +387,10 @@ int LelantusDb::StartNewGroup(PropertyId id, size_t startCoins)
     size_t coins;
     auto nextGroup = GetLastGroup(id, coins) + 1;
 
-    if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, nextGroup), firstSeq)) {
+    groupData.startSequence = nextSequence - 1;
+    groupData.extendedSequence = firstSeq;
+
+    if (!db.Write(std::make_tuple(DB_COIN_GROUP, id, nextGroup), groupData)) {
         throw std::runtime_error("Fail to record group id n");
     }
 

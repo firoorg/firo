@@ -279,6 +279,24 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
     VERIFY_GROUP(1, 2, 10, addedCoins.begin() + 101, addedCoins.begin() + 111);
     VERIFY_GROUP(1, 3, 10, addedCoins.begin() + 186, addedCoins.begin() + 196);
     VERIFY_GROUP(1, 3, 1000, addedCoins.begin() + 186, addedCoins.end());
+
+    db->RemoveMints(17); // 50, *50, 1, *(20 + 29), 10, 26, 10
+    verifyLastGroup(1, 2, 95);
+    VERIFY_GROUP(1, 2, 1000, addedCoins.begin() + 101, addedCoins.begin() + 196);
+
+    // remove many blocks
+    db->RemoveMints(14); // 50, *50, 1, (20 + 29)
+    verifyLastGroup(1, 1, 100);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    VERIFY_GROUP(1, 1, 1000, addedCoins.begin() + 50, addedCoins.begin() + 150);
+
+    addedCoins.resize(150);
+
+    // add some
+    addCoins(1, 20, 14); // 50, *50, 1, *(20 + 29), 20
+    verifyLastGroup(1, 2, 69);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    VERIFY_GROUP(1, 2, 1000, addedCoins.begin() + 101, addedCoins.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
