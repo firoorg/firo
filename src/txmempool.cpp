@@ -492,6 +492,21 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             newit->isKeyChangeProTx = true;
         }
+    } else if (tx.nType == TRANSACTION_SPORK) {
+        sporkManager.AcceptSporkToMemoryPool(tx);
+
+        // evict all the transactions disabled by sporks
+        std::set<uint256> evictList;
+        for (txiter mi = mapTx.begin(); mi != mapTx.end(); ++mi) {
+            if (!sporkManager.IsTransactionAllowed(mi->GetTx()))
+                evictList.insert(mi->GetTx().GetHash());
+        }
+
+        for (uint256 evictTxHash: evictList) {
+            txiter txit = mapTx.find(evictTxHash);
+            if (txit != mapTx.end())
+                removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
     }
 
     return true;
@@ -558,6 +573,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             assert(false);
         }
         eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
+    } else if (it->GetTx().nType == TRANSACTION_SPORK) {
+        sporkManager.RemovedFromMemoryPool(it->GetTx());
     }
 
     totalTxSize -= it->GetTxSize();

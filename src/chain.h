@@ -248,6 +248,11 @@ public:
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
+
+    //! list of disabling sporks active at this block height
+    //! map {feature name} -> {block number when feature is re-enabled again, parameter}
+    std::map<std::string, std::pair<int, int64_t>> activeDisablingSporks;
+
     void SetNull()
     {
         phashBlock = NULL;
@@ -280,6 +285,7 @@ public:
         spentSerials.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
+        activeDisablingSporks.clear();
     }
 
     CBlockIndex()
@@ -467,8 +473,10 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        // Firo - MTP
-        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime) {
+        const auto &params = Params().GetConsensus();
+
+        // Zcoin - MTP
+        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= params.nMTPSwitchTime) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
             READWRITE(reserved[0]);
@@ -481,14 +489,14 @@ public:
             READWRITE(spentSerials);
 	    }
 
-        if (!(s.GetType() & SER_GETHASH) && nHeight >= Params().GetConsensus().nSigmaStartBlock) {
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSigmaStartBlock) {
             READWRITE(sigmaMintedPubCoins);
             READWRITE(sigmaSpentSerials);
         }
 
         if (!(s.GetType() & SER_GETHASH)
-        && nHeight >= Params().GetConsensus().nLelantusStartBlock
-        && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
+                && nHeight >= params.nLelantusStartBlock
+                && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
             if(nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
                 std::map<int, vector<lelantus::PublicCoin>>  lelantusPubCoins;
                 READWRITE(lelantusPubCoins);
@@ -502,6 +510,9 @@ public:
                 READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
         }
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock && nHeight < params.nEvoSporkStopBlock)
+            READWRITE(activeDisablingSporks);
 
         nDiskBlockVersion = nVersion;
     }

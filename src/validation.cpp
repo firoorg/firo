@@ -70,6 +70,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "evo/spork.h"
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
@@ -682,12 +683,17 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
                 tx.nType != TRANSACTION_COINBASE &&
-                tx.nType != TRANSACTION_QUORUM_COMMITMENT) {
+                tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
+                tx.nType != TRANSACTION_SPORK) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
-        } else if (tx.nType != TRANSACTION_NORMAL) {
+            if (tx.nType == TRANSACTION_SPORK &&
+                    !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+        }
+        else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
     }
@@ -2716,8 +2722,30 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
-    if (fJustCheck)
+    // evo spork handling
+    // back up spork state if fJustCheck is true
+    auto sporkSetBackup = pindex->activeDisablingSporks;
+
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+        if (!sporkManager->BlockConnected(block, pindex)) {
+            pindex->activeDisablingSporks = sporkSetBackup;
+            return false;
+        }
+
+        // check if transaction is allowed under spork rules
+        for (CTransactionRef tx: block.vtx) {
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex, state))
+                return false;
+        }
+    }
+
+    if (fJustCheck) {
+        // roll back spork set if needed
+        pindex->activeDisablingSporks = sporkSetBackup;
         return true;
+    }
 
     // Write undo information to disk
     if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS))

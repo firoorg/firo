@@ -813,6 +813,11 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
+        // evo spork
+        consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
+        consensus.nEvoSporkStartBlock = 500;
+        consensus.nEvoSporkStopBlock = 1500;
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = 0;
         consensus.nDandelionEmbargoAvgAdd = 1;

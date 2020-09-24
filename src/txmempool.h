@@ -24,6 +24,8 @@
 #include "netaddress.h"
 #include "bls/bls.h"
 
+#include "evo/spork.h"
+
 #undef foreach
 #include "boost/multi_index_container.hpp"
 #include "boost/multi_index/ordered_index.hpp"
@@ -549,6 +551,8 @@ private:
     void UpdateChild(txiter entry, txiter child, bool add);
 
     std::vector<indexed_transaction_set::const_iterator> GetSortedDepthAndScore() const;
+
+    CMempoolSporkManager sporkManager;
 
 public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx;
