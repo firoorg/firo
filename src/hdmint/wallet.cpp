@@ -553,7 +553,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
             walletdb.ReadPubcoinHashes(primitives::GetPubCoinValueHash(pubcoin), reducedHash);
             if(hashPubcoin == reducedHash){
                 LogPrintf("%s: Found pubcoin and serial hash\n", __func__);
-                bnValue = pubcoin + (params->get_h1() * Scalar(amount).negate());
+                bnValue = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
                 break;
