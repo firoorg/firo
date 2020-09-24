@@ -12,7 +12,8 @@ enum struct AddressType
     , sigmaSpend = 6
     , zerocoinRemint = 7
     , lelantusMint = 8
-    , lelantusJoinSplit = 9
+    , lelantusJMint = 9
+    , lelantusJSplit = 10
 };
 
 namespace zerocoin { namespace utils {
@@ -45,12 +46,20 @@ inline bool isZerocoinRemint(std::string const & str){
     return str == "Remint";
 }
 
+inline bool isLelantus(std::string const & str){
+    return str == "Lelantus";
+}
+
 inline bool isLelantusMint(std::string const & str){
     return str == "Lelantusmint";
 }
 
-inline bool isLelantusJoinSplit(std::string const & str){
-    return str == "Lelantusjoinsplit";
+inline bool isLelantusJMint(std::string const & str){
+    return str == "Lelantusjmint";
+}
+
+inline bool isLelantusJSplit(std::string const & str){
+    return str == "Lelantusjsplit";
 }
 
 }}

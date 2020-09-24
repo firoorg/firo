@@ -171,8 +171,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        if(!tx.IsLelantusMint())
+        if(!tx.IsLelantusMint()) {
             out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        } else {
+            out.push_back(Pair("value", 0));
+        }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);

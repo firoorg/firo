@@ -544,7 +544,7 @@ void handleRemint(CTxIn const & input, uint256 const & txHash, int height, int t
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
-        AddressIndexPtr & addressIndex, bool isV3)
+        AddressIndexPtr & addressIndex, CTransaction const & tx)
 {
     if(!addressIndex)
         return;
@@ -553,21 +553,14 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
     for(Iterator iter = begin; iter != end; ++iter)
         spendAmount += iter->nValue;
 
-    addressIndex->push_back(make_pair(CAddressIndexKey(isV3 ? AddressType::sigmaSpend : AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
-}
+    AddressType addrType = AddressType::lelantusJSplit;
+    if(tx.IsZerocoinSpend()) {
+        addrType = AddressType::zerocoinSpend;
+    } else if(tx.IsSigmaSpend()){
+        addrType = AddressType::sigmaSpend;
+    }
 
-template <class Iterator>
-void handleLelantusJoinSplit(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
-        AddressIndexPtr & addressIndex)
-{
-    if(!addressIndex)
-        return;
-
-    CAmount spendAmount = 0;
-    for(Iterator iter = begin; iter != end; ++iter)
-        spendAmount += iter->nValue;
-
-    addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusJoinSplit, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+    addressIndex->push_back(make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
 }
 
 void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
@@ -586,7 +579,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     if(out.scriptPubKey.IsLelantusJMint())
-        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusMint, uint160(), height, txNumber, txHash, outNo, false), 0));
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusJMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
 
     txnouttype type;
@@ -630,11 +623,8 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
         handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
-    else if(tx.IsLelantusJoinSplit())
-        handleLelantusJoinSplit(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
-
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
@@ -689,10 +679,8 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
-    else if(tx.IsLelantusJoinSplit())
-        handleLelantusJoinSplit(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
