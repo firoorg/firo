@@ -186,6 +186,7 @@ BOOST_AUTO_TEST_CASE(groupsize)
 BOOST_AUTO_TEST_CASE(sliding_windows)
 {
     auto db = CreateDb(1024, true, true, 100, 10);
+    std::vector<lelantus::PublicCoin> addedCoins;
 
     auto addCoins = [&](PropertyId id, size_t coins, int block) {
         for (size_t i = 0; i != coins; i++) {
@@ -193,7 +194,28 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
             g.randomize();
 
             db->WriteMint(id, g, block);
+
+            addedCoins.push_back(g);
         }
+    };
+
+    typedef std::vector<lelantus::PublicCoin>::const_iterator CoinItr;
+    auto verifyGroup = [&](PropertyId id, int group, size_t count, CoinItr i, CoinItr j, std::string &result) {
+        auto mints = db->GetAnonimityGroup(id, group, count);
+        if (mints.size() != std::distance(i, j)) {
+            result = strprintf("Check id %d, group %d, got %d but expect %d", id, group, mints.size(), std::distance(i, j));
+            return;
+        }
+
+        auto it = mints.begin();
+        for (; it != mints.end() && i != j; i++, it++) {
+            if (*it != *i) {
+                result = strprintf("Coin add possition %d are not equal", std::distance(mints.begin(), it));
+                return;
+            }
+        }
+
+        result = "";
     };
 
     auto verifyLastGroup = [&](PropertyId id, int group, size_t coins) {
@@ -204,38 +226,59 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
         BOOST_CHECK_MESSAGE(actualCoins == coins, strprintf("Expect coins %d, actual %d", coins, actualCoins));
     };
 
-    addCoins(1, 50, 10);
+#define VERIFY_GROUP(id, group, count, i, j) \
+{ \
+    std::string result; \
+    verifyGroup(id, group, count, i, j, result); \
+    BOOST_CHECK_MESSAGE(result == "", result); \
+}
+
+    addCoins(1, 50, 10); // 50
     verifyLastGroup(1, 0, 50);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    VERIFY_GROUP(1, 0, 50, addedCoins.begin(), addedCoins.begin() + 50);
+    VERIFY_GROUP(1, 0, 900, addedCoins.begin(), addedCoins.begin() + 50);
 
-    addCoins(1, 50, 11);
+    addCoins(1, 50, 11); // 50, 50
     verifyLastGroup(1, 0, 100);
+    VERIFY_GROUP(1, 0, 100, addedCoins.begin(), addedCoins.begin() + 100);
 
-    addCoins(1, 1, 12);
+    addCoins(1, 1, 12); // 50, *50, 1
     verifyLastGroup(1, 1, 51);
+    VERIFY_GROUP(1, 1, 10, addedCoins.begin() + 50, addedCoins.begin() + 60);
+    VERIFY_GROUP(1, 1, 51, addedCoins.begin() + 50, addedCoins.begin() + 101);
 
-    addCoins(1, 20, 13);
+    addCoins(1, 20, 13); // 50, *50, 1, 20
     verifyLastGroup(1, 1, 71);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    // VERIFY_GROUP(1, 0, 900, addedCoins.begin(), addedCoins.begin() + 50);
+    VERIFY_GROUP(1, 1, 1000, addedCoins.begin() + 50, addedCoins.begin() + 121);
 
-    addCoins(1, 29, 13);
+    addCoins(1, 29, 13); // 50, *50, 1, (20 + 29)
     verifyLastGroup(1, 1, 100);
 
-    addCoins(1, 10, 14);
+    addCoins(1, 10, 14); // 50, *50, 1, *(20 + 29), 10
     verifyLastGroup(1, 2, 59);
 
-    addCoins(1, 26, 15);
+    addCoins(1, 26, 15); // 50, *50, 1, *(20 + 29), 10, 26
     verifyLastGroup(1, 2, 85);
 
-    addCoins(1, 10, 16);
+    addCoins(1, 10, 16); // 50, *50, 1, *(20 + 29), 10, 26, 10
     verifyLastGroup(1, 2, 95);
 
-    addCoins(1, 4, 17);
+    addCoins(1, 4, 17); // 50, *50, 1, *(20 + 29), 10, 26, 10, 4
     verifyLastGroup(1, 2, 99);
 
-    addCoins(1, 1, 17);
+    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, 10, (4 + 1)
     verifyLastGroup(1, 2, 100);
 
-    addCoins(1, 1, 17);
+    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, *10, (4 + 1 + 1)
     verifyLastGroup(1, 3, 16);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    VERIFY_GROUP(1, 1, 10, addedCoins.begin() + 50, addedCoins.begin() + 60);
+    VERIFY_GROUP(1, 2, 10, addedCoins.begin() + 101, addedCoins.begin() + 111);
+    VERIFY_GROUP(1, 3, 10, addedCoins.begin() + 186, addedCoins.begin() + 196);
+    VERIFY_GROUP(1, 3, 1000, addedCoins.begin() + 186, addedCoins.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
