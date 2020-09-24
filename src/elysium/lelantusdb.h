@@ -38,7 +38,7 @@ public:
 
     std::vector<lelantus::PublicCoin> GetAnonimityGroup(
         PropertyId id,
-        uint32_t groupId,
+        int groupId,
         size_t count);
 
     bool RemoveMints(int block);

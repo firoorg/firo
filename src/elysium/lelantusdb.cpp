@@ -117,13 +117,111 @@ bool LelantusDb::WriteSerial(
 
 std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
     PropertyId id,
-    uint32_t groupId,
+    int groupId,
     size_t count)
 {
+    uint64_t first;
+    if (!db.Read(std::make_tuple(DB_COIN_GROUP, id, groupId), first)) {
+        throw std::runtime_error("Fail to read first sequence in group");
+    }
+
+    auto it = NewIterator();
+    it->Seek(std::make_tuple(DB_COIN_SEQUENCE, id, ::swapByteOrder(first)));
+
+    std::vector<lelantus::PublicCoin> coins;
+    coins.reserve(count);
+
+    std::pair<lelantus::PublicCoin, int> pubAndBlock;
+    for (size_t i = 0; it->Valid() && i != count; it->Next(), i++) {
+        std::tuple<char, PropertyId, uint64_t> key;
+        if (!it->GetKey(key)) {
+            break;
+        }
+
+        if (key != std::make_tuple(DB_COIN_SEQUENCE, id, ::swapByteOrder(first + i))) {
+            break;
+        }
+
+        if (!it->GetValue(pubAndBlock)) {
+            throw std::runtime_error("Fail to parse public coin and block");
+        }
+
+        coins.push_back(pubAndBlock.first);
+    }
+
+    return coins;
 }
 
 bool LelantusDb::RemoveMints(int block)
 {
+    auto nextGlobalSequence = GetNextSequence(DB_COIN_GLOBAL_SEQUENCE);
+    if (nextGlobalSequence <= 0) {
+        return false;
+    }
+
+    std::pair<PropertyId, uint64_t> idAndSequence;
+    std::pair<lelantus::PublicCoin, int> coinAndBlock;
+
+    std::unordered_map<PropertyId, uint64_t> lastLocalSequences;
+
+    std::vector<std::tuple<char, uint64_t>> toBeRemoveSequences;
+    std::vector<std::tuple<char, PropertyId, uint64_t>> toBeRemoveLocalSequences;
+
+    do {
+        auto sequenceKey = std::make_tuple(DB_COIN_GLOBAL_SEQUENCE, ::swapByteOrder(--nextGlobalSequence));
+        if (!db.Read(sequenceKey, idAndSequence)) {
+            throw std::runtime_error("Fail to get global sequence");
+        }
+        toBeRemoveSequences.push_back(sequenceKey);
+
+        auto localSequenceKey = std::make_tuple(DB_COIN_SEQUENCE, idAndSequence.first, ::swapByteOrder(idAndSequence.second));
+        if (!db.Read(localSequenceKey, coinAndBlock)) {
+            throw std::runtime_error("Fail to get local sequence");
+        }
+        toBeRemoveLocalSequences.push_back(localSequenceKey);
+
+        // record last local sequence
+        lastLocalSequences[idAndSequence.first] = idAndSequence.second;
+
+    } while(nextGlobalSequence > 0 && coinAndBlock.second >= block);
+
+    // remove sequence
+    for (auto const &key : toBeRemoveSequences) {
+        if (!db.Erase(key)) {
+            throw std::runtime_error("Fail to remove sequence");
+        }
+    }
+
+    for (auto const &key : toBeRemoveLocalSequences) {
+        if (!db.Erase(key)) {
+            throw std::runtime_error("Fail to remove global sequence");
+        }
+    }
+
+    // prune groups
+    for (auto const &idAndSequence : lastLocalSequences) {
+        bool remove = true;
+        while (remove) {
+            remove = false;
+            size_t coins;
+            auto lastGroup = GetLastGroup(idAndSequence.first, coins);
+
+            uint64_t firstSequence;
+            auto groupKey = std::make_tuple(DB_COIN_GROUP, idAndSequence.first, lastGroup);
+            if (!db.Read(groupKey, firstSequence)) {
+                throw std::runtime_error("Fail to get first sequence");
+            }
+
+            if (firstSequence >= idAndSequence.second) {
+                if (!db.Erase(groupKey)) {
+                    throw std::runtime_error("Fail to erase group");
+                }
+                remove = true;
+            }
+        }
+    }
+
+    return !lastLocalSequences.empty();
 }
 
 bool LelantusDb::WriteMint(
