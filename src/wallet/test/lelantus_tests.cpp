@@ -1,5 +1,6 @@
 #include "../../test/fixtures.h"
 #include "../../validation.h"
+#include "../../lelantus.h"
 
 #include "../wallet.h"
 
@@ -60,6 +61,9 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     }
 
     BOOST_CHECK_EQUAL(amount, mintAmount);
+
+    auto lelantusState = lelantus::CLelantusState::GetState();
+    lelantusState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_and_list_mints)
