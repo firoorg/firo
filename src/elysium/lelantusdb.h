@@ -9,43 +9,35 @@
 #include "../sync.h"
 #include "../liblelantus/coin.h"
 
+#include "persistence.h"
 #include "property.h"
 
 namespace elysium {
 
-
-
-class LelantusDb
+class LelantusDb : public CDBBase
 {
 protected:
     CCriticalSection cs;
-    CDBWrapper db;
 
     static const size_t DEFAULT_GROUPSIZE = 65000;
     static const size_t DEFAULT_STARTCOINS = 16000;
 
+    size_t groupSize;
+    size_t startGroupSize;
+
 public:
-    LelantusDb(size_t nCacheSize, bool fMemory = false, bool fWipe = false, size_t groupSize = DEFAULT_GROUPSIZE, size_t startCoins = DEFAULT_STARTCOINS);
+    LelantusDb(const boost::filesystem::path& path, bool wipe, size_t groupSize = DEFAULT_GROUPSIZE, size_t startCoins = DEFAULT_STARTCOINS);
 
 public:
     bool HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx);
-    bool RemoveSerials(int block);
-    bool WriteSerial(
-        PropertyId id,
-        secp_primitives::Scalar serial,
-        int block,
-        uint256 const &spendTx);
+    bool WriteSerial(PropertyId id, secp_primitives::Scalar serial, int block, uint256 const &spendTx);
 
-    std::vector<lelantus::PublicCoin> GetAnonimityGroup(
-        PropertyId id,
-        int groupId,
-        size_t count);
+    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, int groupId, size_t count);
+    bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block);
 
-    bool RemoveMints(int block);
-    bool WriteMint(
-        PropertyId propertyId,
-        lelantus::PublicCoin const &pubKey,
-        int block);
+    void DeleteAll(int startBlock);
+
+    void CommitCoins();
 
 protected:
 
@@ -54,7 +46,11 @@ protected:
         auto key = std::make_tuple(t..., UINT64_MAX);
         auto it = NewIterator();
 
-        it->Seek(key);
+        {
+            CDataStream ss(SER_DISK, CLIENT_VERSION);
+            ss << key;
+            it->Seek(ss.str());
+        }
 
         if (!it->Valid()) {
             return 0;
@@ -65,9 +61,11 @@ protected:
             return 0;
         }
 
-        auto key2 = key;
-        if (!it->GetKey(key2)) {
-            return 0;
+        std::tuple<T..., uint64_t> key2;
+        {
+            auto k = it->key();
+            CDataStream ss(k.data(), k.data() + k.size(), SER_DISK, CLIENT_VERSION);
+            ss >> key2;
         }
 
         std::get<sizeof...(t)>(key) = std::get<sizeof...(t)>(key2);
@@ -87,9 +85,7 @@ protected:
 
     int GetLastGroup(PropertyId id, size_t &coins);
 
-    int StartNewGroup(PropertyId id, size_t startCoins);
-
-    std::unique_ptr<CDBIterator> NewIterator();
+    std::unique_ptr<leveldb::Iterator> NewIterator();
 };
 
 } // namespace elysium
