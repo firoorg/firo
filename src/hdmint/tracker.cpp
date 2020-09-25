@@ -219,7 +219,7 @@ std::vector<uint256> CHDMintTracker::GetSerialHashes()
  * @param hashPubcoin mint pubcoin hash
  * @return success
  */
-bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
+bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const
 {
     for (auto const & it : mapSerialHashes) {
         CMintMeta meta = it.second;
@@ -228,7 +228,6 @@ bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
     }
 
     for (auto const & it : mapLelantusSerialHashes) {
-        CWalletDB walletdb(strWalletFile);
         CLelantusMintMeta meta = it.second;
         uint256 reducedHash;
         walletdb.ReadPubcoinHashes(meta.GetPubCoinValueHash(), reducedHash);

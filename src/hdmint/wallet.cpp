@@ -277,7 +277,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             int32_t& mintCount = get<2>(pMint.second);
 
             // halt processing if mint already in tracker
-            if (tracker.HasPubcoinHash(pMint.first))
+            if (tracker.HasPubcoinHash(pMint.first, walletdb))
                 continue;
 
             COutPoint outPoint;
