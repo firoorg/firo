@@ -634,6 +634,18 @@ bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub))) || Exists(std::make_pair(std::string("hdmint_lelantus"), primitives::GetPubCoinValueHash(pub)));
 }
 
+bool CWalletDB::WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash) {
+    return Write(make_pair(std::string("pubhash"), fullHash), reducedHash, true);
+}
+
+bool CWalletDB::ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash) {
+    return Read(make_pair(std::string("pubhash"), fullHash), reducedHash);
+}
+
+bool CWalletDB::ErasePubcoinHashes(const uint256& fullHash) {
+    return Erase(make_pair(std::string("pubhash"), fullHash));
+}
+
 class CWalletScanState {
 public:
     unsigned int nKeys;

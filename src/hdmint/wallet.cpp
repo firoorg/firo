@@ -277,7 +277,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             int32_t& mintCount = get<2>(pMint.second);
 
             // halt processing if mint already in tracker
-            if (tracker.HasPubcoinHash(pMint.first))
+            if (tracker.HasPubcoinHash(pMint.first, walletdb))
                 continue;
 
             COutPoint outPoint;
@@ -351,7 +351,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } else if (lelantus::GetOutPoint(outPoint, pMint.first)) {
+            } else if (!pwalletMain->IsLocked() && lelantus::GetReducedOutPoint(outPoint, pMint.first)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
@@ -385,8 +385,8 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     } catch (std::invalid_argument&) {
                         continue;
                     }
-
-                    pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
+                    if(amount != 0)
+                        pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
 
                     // See if this is the mint that we are looking for
                     uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
@@ -549,9 +549,11 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
         bool fFound = false;
         for(auto serialPubcoinPair : serialPubcoinPairs){
             GroupElement pubcoin = serialPubcoinPair.second;
-            if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
+            uint256 reducedHash;
+            walletdb.ReadPubcoinHashes(primitives::GetPubCoinValueHash(pubcoin), reducedHash);
+            if(hashPubcoin == reducedHash){
                 LogPrintf("%s: Found pubcoin and serial hash\n", __func__);
-                bnValue = pubcoin + (params->get_h1() * Scalar(amount).negate());
+                bnValue = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
                 break;

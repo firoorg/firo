@@ -14,16 +14,9 @@ void MintMeta::SetPubCoinValue(GroupElement const & other) {
 }
 
 
-uint256 CMintMeta::GetPubCoinValueHash() const {
+uint256 MintMeta::GetPubCoinValueHash() const {
     if(!pubCoinValueHash)
         pubCoinValueHash.reset(primitives::GetPubCoinValueHash(pubCoinValue));
-    return *pubCoinValueHash;
-}
-
-uint256 CLelantusMintMeta::GetPubCoinValueHash() const {
-    GroupElement pubCoin = pubCoinValue + (lelantus::Params::get_default()->get_h1() * Scalar(amount).negate());
-    if(!pubCoinValueHash)
-        pubCoinValueHash.reset(primitives::GetPubCoinValueHash(pubCoin));
     return *pubCoinValueHash;
 }
 
