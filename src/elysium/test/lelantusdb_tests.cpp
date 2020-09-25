@@ -6,8 +6,6 @@
 
 #include <boost/test/unit_test.hpp>
 
-static const char DB_SERIAL_SEQUENCE    = 0x01;
-
 namespace elysium {
 
 namespace {
@@ -20,22 +18,16 @@ public:
 
 public:
     TestLelantusDb(
-        size_t nCacheSize,
-        bool fMemory = false,
-        bool fWipe = false,
+        const boost::filesystem::path& path,
+        bool wipe,
         size_t groupSize = DEFAULT_GROUPSIZE,
         size_t startCoins = DEFAULT_STARTCOINS)
-        : LelantusDb(nCacheSize, fMemory, fWipe, groupSize, startCoins)
+        : LelantusDb(path, wipe, groupSize, startCoins)
     {
     }
 
 // proxy
 public:
-    uint64_t ReadNextSerialSequence()
-    {
-        return GetNextSequence(DB_SERIAL_SEQUENCE);
-    }
-
     bool WriteGroupSize(uint64_t groupSize, uint64_t mintAmount)
     {
         return LelantusDb::WriteGroupSize(groupSize, mintAmount);
@@ -50,6 +42,23 @@ public:
     {
         return LelantusDb::GetLastGroup(id, coins);
     }
+
+// debug
+public:
+    void DumpDB() {
+#define HEX(x) HexStr(x.data(), x.data() + x.size())
+
+        auto it = NewIterator();
+        it->SeekToFirst();
+
+        for (; it->Valid(); it->Next()) {
+            auto k = it->key();
+            auto v = it->value();
+            std::cout << "x'" << k[0] << " " << HEX(k) << " " << HEX(v) << std::endl;
+        }
+
+#undef HEX
+    }
 };
 
 class LelantusDbTestingSetup : public TestingSetup
@@ -60,13 +69,12 @@ public:
     }
 
     std::unique_ptr<TestLelantusDb> CreateDb(
-        size_t nCacheSize,
-        bool fMemory = false,
-        bool fWipe = false,
+        const boost::filesystem::path& path,
+        bool wipe,
         size_t groupSize = TestLelantusDb::DEFAULT_GROUPSIZE,
         size_t startCoins = TestLelantusDb::DEFAULT_STARTCOINS)
     {
-        return std::unique_ptr<TestLelantusDb>(new TestLelantusDb(nCacheSize, fMemory, fWipe, groupSize, startCoins));
+        return std::unique_ptr<TestLelantusDb>(new TestLelantusDb(path, wipe, groupSize, startCoins));
     }
 };
 
@@ -76,7 +84,7 @@ BOOST_FIXTURE_TEST_SUITE(elysium_lelantusdb_tests, LelantusDbTestingSetup)
 
 BOOST_AUTO_TEST_CASE(scalars)
 {
-    auto db = CreateDb(1024, true, true);
+    auto db = CreateDb(GetDataDir() / "test_lelantusdb", true);
 
     uint256 spendTx;
 
@@ -91,16 +99,12 @@ BOOST_AUTO_TEST_CASE(scalars)
     HAS_NO(3, 2);
     HAS_NO(3, 3);
 
-    BOOST_CHECK_EQUAL(0, db->ReadNextSerialSequence());
-
     uint256 dummyTx = ArithToUint256(arith_uint256(100));
 
     // add some serials
     BOOST_CHECK(db->WriteSerial(2, 1, 10, dummyTx));
     BOOST_CHECK(db->WriteSerial(3, 2, 10, dummyTx));
     BOOST_CHECK(db->WriteSerial(3, 3, 10, dummyTx));
-
-    BOOST_CHECK_EQUAL(3, db->ReadNextSerialSequence());
 
     // confirm serials are added
     HAS(2, 1);
@@ -119,8 +123,6 @@ BOOST_AUTO_TEST_CASE(scalars)
     // add some serials with unique spend txs
     BOOST_CHECK(db->WriteSerial(2, 3, 11, tx1));
     BOOST_CHECK(db->WriteSerial(2, 4, 11, tx2));
-
-    BOOST_CHECK_EQUAL(5, db->ReadNextSerialSequence());
 
     // verify serials are added
     HAS(2, 3);
@@ -145,7 +147,7 @@ BOOST_AUTO_TEST_CASE(scalars)
     HAS(4, 99);
 
     // remove by block number
-    db->RemoveSerials(12);
+    db->DeleteAll(12);
 
     HAS_NO(4, 99);
 
@@ -158,7 +160,7 @@ BOOST_AUTO_TEST_CASE(scalars)
     HAS(2, 4);
 
     // remove to all
-    db->RemoveSerials(0);
+    db->DeleteAll(0);
 
     HAS_NO(2, 3);
     HAS_NO(2, 4);
@@ -167,15 +169,13 @@ BOOST_AUTO_TEST_CASE(scalars)
     HAS_NO(3, 2);
     HAS_NO(3, 3);
 
-    BOOST_CHECK_EQUAL(0, db->ReadNextSerialSequence());
-
 #undef HAS
 #undef HAS_NO
 }
 
 BOOST_AUTO_TEST_CASE(groupsize)
 {
-    auto db = CreateDb(1024, true, true, 1000, 200);
+    auto db = CreateDb(GetDataDir() / "test_lelantusdb", true, 1000, 200);
 
     BOOST_CHECK_MESSAGE(!db->WriteGroupSize(500, 100), "Success to overwrite group size");
 
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(groupsize)
 
 BOOST_AUTO_TEST_CASE(sliding_windows)
 {
-    auto db = CreateDb(1024, true, true, 100, 10);
+    auto db = CreateDb(GetDataDir() / "test_lelantusdb", true, 100, 10);
     std::vector<lelantus::PublicCoin> addedCoins;
 
     auto addCoins = [&](PropertyId id, size_t coins, int block) {
@@ -234,58 +234,58 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
 }
 
     addCoins(1, 50, 10); // 50
+    db->CommitCoins();
     verifyLastGroup(1, 0, 50);
     VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
     VERIFY_GROUP(1, 0, 50, addedCoins.begin(), addedCoins.begin() + 50);
     VERIFY_GROUP(1, 0, 900, addedCoins.begin(), addedCoins.begin() + 50);
 
     addCoins(1, 50, 11); // 50, 50
+    db->CommitCoins();
     verifyLastGroup(1, 0, 100);
     VERIFY_GROUP(1, 0, 100, addedCoins.begin(), addedCoins.begin() + 100);
 
     addCoins(1, 1, 12); // 50, *50, 1
+    db->CommitCoins();
     verifyLastGroup(1, 1, 51);
     VERIFY_GROUP(1, 1, 10, addedCoins.begin() + 50, addedCoins.begin() + 60);
     VERIFY_GROUP(1, 1, 51, addedCoins.begin() + 50, addedCoins.begin() + 101);
 
     addCoins(1, 20, 13); // 50, *50, 1, 20
-    verifyLastGroup(1, 1, 71);
-    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
-    // VERIFY_GROUP(1, 0, 900, addedCoins.begin(), addedCoins.begin() + 50);
-    VERIFY_GROUP(1, 1, 1000, addedCoins.begin() + 50, addedCoins.begin() + 121);
 
     addCoins(1, 29, 13); // 50, *50, 1, (20 + 29)
+    db->CommitCoins();
     verifyLastGroup(1, 1, 100);
+    VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
+    // VERIFY_GROUP(1, 0, 900, addedCoins.begin(), addedCoins.begin() + 50);
+    VERIFY_GROUP(1, 1, 1000, addedCoins.begin() + 50, addedCoins.end());
 
-    addCoins(1, 10, 14); // 50, *50, 1, *(20 + 29), 10
-    verifyLastGroup(1, 2, 59);
+    addCoins(1, 5, 14); // 50, *50, 1, *(20 + 29), 5
+    db->CommitCoins();
+    verifyLastGroup(1, 2, 54);
 
-    addCoins(1, 26, 15); // 50, *50, 1, *(20 + 29), 10, 26
-    verifyLastGroup(1, 2, 85);
+    addCoins(1, 26, 15); // 50, *50, 1, *(20 + 29), 5, 26
+    db->CommitCoins();
+    verifyLastGroup(1, 2, 80);
 
-    addCoins(1, 10, 16); // 50, *50, 1, *(20 + 29), 10, 26, 10
+    addCoins(1, 15, 16); // 50, *50, 1, *(20 + 29), 5, 26, 15
+    db->CommitCoins();
     verifyLastGroup(1, 2, 95);
 
-    addCoins(1, 4, 17); // 50, *50, 1, *(20 + 29), 10, 26, 10, 4
-    verifyLastGroup(1, 2, 99);
+    addCoins(1, 4, 17); // 50, *50, 1, *(20 + 29), 10, 26, 15, 4
+    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, 15, (4 + 1)
+    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, *15, (4 + 1 + 1)
+    db->CommitCoins();
+    verifyLastGroup(1, 3, 21);
 
-    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, 10, (4 + 1)
-    verifyLastGroup(1, 2, 100);
-
-    addCoins(1, 1, 17); // 50, *50, 1, *(20 + 29), 10, 26, *10, (4 + 1 + 1)
-    verifyLastGroup(1, 3, 16);
+    db->DeleteAll(17); // 50, *50, 1, *(20 + 29), 5, 26, 15
+    verifyLastGroup(1, 2, 95);
     VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
     VERIFY_GROUP(1, 1, 10, addedCoins.begin() + 50, addedCoins.begin() + 60);
     VERIFY_GROUP(1, 2, 10, addedCoins.begin() + 101, addedCoins.begin() + 111);
-    VERIFY_GROUP(1, 3, 10, addedCoins.begin() + 186, addedCoins.begin() + 196);
-    VERIFY_GROUP(1, 3, 1000, addedCoins.begin() + 186, addedCoins.end());
-
-    db->RemoveMints(17); // 50, *50, 1, *(20 + 29), 10, 26, 10
-    verifyLastGroup(1, 2, 95);
-    VERIFY_GROUP(1, 2, 1000, addedCoins.begin() + 101, addedCoins.begin() + 196);
 
     // remove many blocks
-    db->RemoveMints(14); // 50, *50, 1, (20 + 29)
+    db->DeleteAll(14); // 50, *50, 1, (20 + 29)
     verifyLastGroup(1, 1, 100);
     VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
     VERIFY_GROUP(1, 1, 1000, addedCoins.begin() + 50, addedCoins.begin() + 150);
@@ -293,8 +293,9 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
     addedCoins.resize(150);
 
     // add some
-    addCoins(1, 20, 14); // 50, *50, 1, *(20 + 29), 20
-    verifyLastGroup(1, 2, 69);
+    addCoins(1, 9, 14); // 50, *50, 1, *(20 + 29), 9
+    db->CommitCoins();
+    verifyLastGroup(1, 2, 58);
     VERIFY_GROUP(1, 0, 10, addedCoins.begin(), addedCoins.begin() + 10);
     VERIFY_GROUP(1, 2, 1000, addedCoins.begin() + 101, addedCoins.end());
 }
