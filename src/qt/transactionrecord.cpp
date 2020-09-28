@@ -45,15 +45,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe;
-
+    bool isAllSigmaSpendFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
         isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
-    bool isAllJoinSplitFromMe;
+    bool isAllJoinSplitFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
         isAllJoinSplitFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
         if (!isAllJoinSplitFromMe)
