@@ -3867,7 +3867,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
                 "      \"address\"            (string) Subtract fee from this address\n"
                 "      ,...\n"
                 "    ]\n"
-                "3. output mints            (numeric, optional) A json object with amounts to mont\n"
+                "3. output mints            (numeric, optional) A json object with amounts to mint\n"
                 "    {\n"
                 "      \"mint\"\n"
                 "      ,...\n"

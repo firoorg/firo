@@ -38,6 +38,7 @@
 #include "evo/specialtx.h"
 #include "llmq/quorums_commitment.h"
 #include "evo/providertx.h"
+#include "lelantus.h"
 
 using namespace std;
 
@@ -78,7 +79,8 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 }
 
 namespace {
-    void fillStdFields(UniValue & out, CTxIn const & txin) {
+    void fillStdFields(UniValue & out, CTxIn const & txin)
+    {
         UniValue o(UniValue::VOBJ);
         o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
         o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
@@ -120,8 +122,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             in.push_back(Pair("valueSat", spend->getIntDenomination()));
         } else if (txin.IsLelantusJoinSplit()) {
             in.push_back("joinsplit");
-
             fillStdFields(in, txin);
+            in.push_back(Pair("nFees", ValueFromAmount(lelantus::ParseLelantusJoinSplit(txin)->getFee())));
         } else if (txin.IsZerocoinRemint()) {
             std::shared_ptr<sigma::CoinRemintToV3>  remint;
             try {
@@ -171,10 +173,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        if(!txout.scriptPubKey.IsLelantusMint() && !txout.scriptPubKey.IsLelantusJMint()) {
-            out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        } else {
+        if (txout.scriptPubKey.IsLelantusJMint()) {
             out.push_back(Pair("value", 0));
+        } else {
+            out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);

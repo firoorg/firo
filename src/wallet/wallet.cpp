@@ -3123,16 +3123,18 @@ bool CWallet::GetCoinsToJoinSplit(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
+        throw WalletError(
+                _("The required amount exceeds 21 MLN XZC"));
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
-        throw std::invalid_argument(_("Amount limit is exceed max money"));
+        throw WalletError(
+                _("The amount limit exceeds max money"));
     }
 
     if (required > amountToSpendLimit) {
-        throw std::invalid_argument(
-                _("Required amount exceed value spend limit"));
+        throw WalletError(
+                _("The required amount exceeds spend limit"));
     }
 
     std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl);
