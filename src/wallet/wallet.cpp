@@ -2683,7 +2683,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
 
     // overall Lelantus mint script size is 1 + 34 + 98 = 133 byte
-    return {script, coin.getV(), false};
+    return {script, CAmount(coin.getV()), false};
 
 }
 

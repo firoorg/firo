@@ -29,7 +29,7 @@ JoinSplit::JoinSplit(const Params *p,
 
     std::vector <size_t> indexes;
     for(size_t i = 0; i < Cin.size(); i++) {
-        uint64_t index;
+        size_t index;
         const auto& set = anonymity_sets.find(Cin[i].second);
         if(set == anonymity_sets.end())
             throw std::invalid_argument("No such anonymity set");
