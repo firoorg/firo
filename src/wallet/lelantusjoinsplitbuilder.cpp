@@ -47,7 +47,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
     const std::vector<CAmount>& newMints)
 {
     if (recipients.empty() && newMints.empty()) {
-        throw std::invalid_argument(_("At least either recipients or newMints has to be on empty."));
+        throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
     }
 
     // calculate total value to spend
@@ -59,7 +59,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         auto& recipient = recipients[i];
 
         if (!MoneyRange(recipient.nAmount)) {
-            throw std::invalid_argument(boost::str(boost::format(_("Recipient  has invalid amount")) % i));
+            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
         }
 
         vOut += recipient.nAmount;
@@ -169,7 +169,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
                     err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
                 }
 
-                throw std::invalid_argument(err);
+                throw std::runtime_error(err);
             }
 
             tx.vout.push_back(vout);
