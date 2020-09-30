@@ -210,7 +210,7 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    lelantusModel->askToMint();
+    lelantusModel->mintAll(AutoMintMode::MintAll);
 }
 
 void OverviewPage::setBalance(

@@ -9,25 +9,21 @@
 #include <QPushButton>
 #include <QDebug>
 
-AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
+AutoMintDialog::AutoMintDialog(AutoMintMode mode, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AutoMintDialog),
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    userAsk(userAsk),
-    minting(false)
+    minting(false),
+    mode(mode)
 {
     ENTER_CRITICAL_SECTION(cs_main);
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Ask me later");
-
-    if (userAsk) {
-        ui->warningLabel->setVisible(false);
-    }
+    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Cancel");
 }
 
 AutoMintDialog::~AutoMintDialog()
@@ -56,8 +52,6 @@ void AutoMintDialog::accept()
         }
     }
 
-    ui->warningLabel->setVisible(false);
-    ui->warningLabel->setVisible(false);
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);
@@ -117,19 +111,11 @@ void AutoMintDialog::setModel(WalletModel *model)
 
     ENTER_CRITICAL_SECTION(lelantusModel->cs);
 
-    if (userAsk) {
-        ui->lockWarningLabel->setText(QString("Unlock your wallet to anonymize all transparent funds."));
-    }
-
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         ui->lockCheckBox->setVisible(false);
-
-        ui->lockWarningLabel->setText(
-            userAsk
-            ? QString("Do you want to anonymize all transparent funds?")
-            : QString("Do you want to anonymize these funds?"));
+        ui->lockWarningLabel->setText(QString("Do you want to anonymize all transparent funds?"));
 
         requiredPassphase = false;
     }

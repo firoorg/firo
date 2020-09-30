@@ -9,6 +9,8 @@
 #include "../config/bitcoin-config.h"
 #endif
 
+#include "automintdialog.h"
+#include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
 #include "sigmadialog.h"
@@ -123,6 +125,8 @@ private:
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
+    AutomintNotification *automintNotification;
+
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
@@ -190,8 +194,15 @@ public Q_SLOTS:
     /** User has requested more information about the out of sync state */
     void requestedSyncWarningInfo();
 
+    /** Show automint notification */
+    void showAutomintNotification();
+
+    /** Check mintable amount to close automint notification */
+    void checkMintableAmount(
+        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
+
     /** Ask user to do auto mint */
-    void askMintAll(bool userAsk);
+    void askMintAll(AutoMintMode mode);
 
 Q_SIGNALS:
     /** Signal that we want to show the main window */

@@ -206,17 +206,13 @@ bool AutoMintModel::askingUser() const
     return autoMintState == AutoMintState::WaitingForUserResponse;
 }
 
-void AutoMintModel::userAskToMint()
-{
-    autoMintCheckTimer->stop();
-    checkAutoMint(true);
-}
-
 void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
     LOCK(lelantusModel->cs);
     if (ack == AutoMintAck::WaitUserToActive) {
         autoMintState = AutoMintState::WaitingUserToActivate;
+    } else if (ack == AutoMintAck::AskToMint) {
+        autoMintState = AutoMintState::Anonymizing;
     } else {
         autoMintState = AutoMintState::WaitingIncomingFund;
         autoMintCheckTimer->stop();
@@ -259,6 +255,7 @@ void AutoMintModel::checkAutoMint(bool force)
         case AutoMintState::WaitingUserToActivate:
             break;
         case AutoMintState::WaitingForUserResponse:
+        case AutoMintState::Anonymizing:
             return;
         default:
             throw std::runtime_error("Unknown auto mint state");
@@ -267,7 +264,7 @@ void AutoMintModel::checkAutoMint(bool force)
         autoMintState = AutoMintState::WaitingForUserResponse;
     }
 
-    lelantusModel->askUserToMint(force);
+    lelantusModel->notifyUserToMint();
 }
 
 void AutoMintModel::setSyncing()

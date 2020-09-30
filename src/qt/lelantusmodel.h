@@ -1,6 +1,7 @@
 #ifndef ZCOIN_QT_LELANTUSMODEL_H
 #define ZCOIN_QT_LELANTUSMODEL_H
 
+#include "automintdialog.h"
 #include "automintmodel.h"
 #include "platformstyle.h"
 #include "optionsmodel.h"
@@ -23,7 +24,6 @@ public:
     ~LelantusModel();
 
 public:
-    void askToMint();
     CAmount getMintableAmount();
     AutoMintModel* getAutoMintModel();
 
@@ -35,16 +35,19 @@ public:
 
     CAmount mintAll();
 
-    void ackMintAll(AutoMintAck ack, CAmount minted = 0, QString error = QString(""));
-
 public:
     mutable CCriticalSection cs;
 
 Q_SIGNALS:
-    void askMintAll(bool userAsk);
+    void askMintAll(AutoMintMode);
+    void notifyAutomint();
 
 public Q_SLOTS:
-    void askUserToMint(bool userAsk = false);
+    void ackMintAll(AutoMintAck ack, CAmount minted = 0, QString error = QString(""));
+
+    void mintAll(AutoMintMode);
+    void notifyUserToMint();
+
     void lock();
 
 private:

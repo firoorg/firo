@@ -28,11 +28,6 @@ LelantusModel::~LelantusModel()
     autoMintModel = nullptr;
 }
 
-void LelantusModel::askToMint()
-{
-    autoMintModel->userAskToMint();
-}
-
 CAmount LelantusModel::getMintableAmount()
 {
     std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
@@ -156,14 +151,22 @@ CAmount LelantusModel::mintAll()
     return s;
 }
 
-void LelantusModel::askUserToMint(bool userAsk)
+void LelantusModel::mintAll(AutoMintMode mode)
 {
-    Q_EMIT askMintAll(userAsk);
+    Q_EMIT askMintAll(mode);
+}
+
+void LelantusModel::notifyUserToMint()
+{
+    Q_EMIT notifyAutomint();
 }
 
 void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
     autoMintModel->ackMintAll(ack, minted, error);
+    if (ack == AutoMintAck::AskToMint) {
+        mintAll(AutoMintMode::AutoMintAll);
+    }
 }
 
 void LelantusModel::lock()

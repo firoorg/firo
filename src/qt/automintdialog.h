@@ -7,6 +7,11 @@
 #include <QPainter>
 #include <QPaintEvent>
 
+enum class AutoMintMode : uint8_t {
+    MintAll, // come from overview page
+    AutoMintAll // come from notification
+};
+
 namespace Ui {
     class AutoMintDialog;
 }
@@ -16,7 +21,7 @@ class AutoMintDialog : public QDialog
     Q_OBJECT;
 
 public:
-    explicit AutoMintDialog(bool userAsk, QWidget *parent = 0);
+    explicit AutoMintDialog(AutoMintMode mode, QWidget *parent = 0);
     ~AutoMintDialog();
 
 public:
@@ -34,8 +39,8 @@ private:
     WalletModel *model;
     LelantusModel *lelantusModel;
     bool requiredPassphase;
-    bool userAsk;
     bool minting;
+    AutoMintMode mode;
 
     void ensureLelantusModel();
 };

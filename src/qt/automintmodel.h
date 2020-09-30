@@ -6,6 +6,8 @@
 #include "../uint256.h"
 #include "../validation.h"
 
+#include "automintdialog.h"
+
 #include <QDateTime>
 #include <QObject>
 #include <QTimer>
@@ -18,10 +20,12 @@ enum class AutoMintState : uint8_t {
     Disabled,
     WaitingIncomingFund,
     WaitingUserToActivate,
-    WaitingForUserResponse
+    WaitingForUserResponse,
+    Anonymizing
 };
 
 enum class AutoMintAck : uint8_t {
+    AskToMint,
     Success,
     WaitUserToActive,
     FailToMint,
@@ -75,7 +79,6 @@ public:
 
 public:
     bool askingUser() const;
-    void userAskToMint();
 
 public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
