@@ -19,10 +19,16 @@ LelantusModel::LelantusModel(
     wallet(wallet)
 {
     autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);
+
+    connect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
 }
 
 LelantusModel::~LelantusModel()
 {
+    disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+
     delete autoMintModel;
 
     autoMintModel = nullptr;
@@ -156,17 +162,9 @@ void LelantusModel::mintAll(AutoMintMode mode)
     Q_EMIT askMintAll(mode);
 }
 
-void LelantusModel::notifyUserToMint()
+void LelantusModel::sendAckMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
-    Q_EMIT notifyAutomint();
-}
-
-void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
-{
-    autoMintModel->ackMintAll(ack, minted, error);
-    if (ack == AutoMintAck::AskToMint) {
-        mintAll(AutoMintMode::AutoMintAll);
-    }
+    Q_EMIT ackMintAll(ack, minted, error);
 }
 
 void LelantusModel::lock()

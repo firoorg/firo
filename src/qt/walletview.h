@@ -201,6 +201,9 @@ public Q_SLOTS:
     void checkMintableAmount(
         CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
 
+    /** Close automint notification */
+    void closeAutomintNotification();
+
     /** Ask user to do auto mint */
     void askMintAll(AutoMintMode mode);
 

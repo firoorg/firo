@@ -30,7 +30,8 @@ enum class AutoMintAck : uint8_t {
     FailToMint,
     NotEnoughFund,
     UserReject,
-    FailToUnlock
+    FailToUnlock,
+    Close
 };
 
 class IncomingFundNotifier : public QObject
@@ -92,6 +93,9 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
+
+    void requireShowAutomintNotification();
+    void closeAutomintNotification();
 
 private:
     void subscribeToCoreSignals();

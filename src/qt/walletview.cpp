@@ -389,11 +389,15 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
 
         auto lelantusModel = _walletModel->getLelantusModel();
         if (lelantusModel) {
-            connect(lelantusModel, SIGNAL(notifyAutomint()), this, SLOT(showAutomintNotification()));
             connect(lelantusModel, SIGNAL(askMintAll(AutoMintMode)), this, SLOT(askMintAll(AutoMintMode)));
 
             auto autoMintModel = lelantusModel->getAutoMintModel();
-            connect(autoMintModel, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+            connect(autoMintModel, SIGNAL(message(QString,QString,unsigned int)),
+                this, SIGNAL(message(QString,QString,unsigned int)));
+            connect(autoMintModel, SIGNAL(requireShowAutomintNotification()),
+                this, SLOT(showAutomintNotification()));
+            connect(autoMintModel, SIGNAL(closeAutomintNotification()),
+                this, SLOT(closeAutomintNotification()));
         }
     }
 }
@@ -677,7 +681,7 @@ void WalletView::showAutomintNotification()
     }
 
     if (!isActiveWindow() || !underMouse()) {
-        lelantusModel->ackMintAll(AutoMintAck::WaitUserToActive);
+        lelantusModel->sendAckMintAll(AutoMintAck::WaitUserToActive);
         return;
     }
 
@@ -701,8 +705,14 @@ void WalletView::showAutomintNotification()
 void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
 {
     if (automintNotification->isVisible() && anonymizableBalance == 0) {
-        automintNotification->close();
+        // hide if notification is showing but there no any fund to anonymize
+        closeAutomintNotification();
     }
+}
+
+void WalletView::closeAutomintNotification()
+{
+    automintNotification->close();
 }
 
 void WalletView::askMintAll(AutoMintMode mode)

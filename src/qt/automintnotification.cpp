@@ -19,8 +19,11 @@ AutomintNotification::AutomintNotification(QWidget *parent) :
 AutomintNotification::~AutomintNotification()
 {
     if (lelantusModel) {
-        disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
-            lelantusModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+        auto automintModel = lelantusModel->getAutoMintModel();
+        if (automintModel) {
+            disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+                automintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+        }
     }
 
     delete ui;
@@ -31,10 +34,17 @@ void AutomintNotification::setModel(WalletModel *model)
     if (model) {
         lelantusModel = model->getLelantusModel();
 
-        if (lelantusModel) {
-            connect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
-                lelantusModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+        if (!lelantusModel) {
+            return;
         }
+
+        auto automintModel = lelantusModel->getAutoMintModel();
+        if (!automintModel) {
+            return;
+        }
+
+        connect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+            automintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
     }
 }
 

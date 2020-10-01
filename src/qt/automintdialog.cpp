@@ -56,7 +56,7 @@ void AutoMintDialog::accept()
 
         if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
             QDialog::accept();
-            lelantusModel->ackMintAll(AutoMintAck::FailToUnlock);
+            lelantusModel->sendAckMintAll(AutoMintAck::FailToUnlock);
             return;
         }
     }
@@ -78,14 +78,14 @@ void AutoMintDialog::accept()
 
     QDialog::accept();
 
-    lelantusModel->ackMintAll(status, minted, error);
+    lelantusModel->sendAckMintAll(status, minted, error);
 }
 
 int AutoMintDialog::exec()
 {
     ensureLelantusModel();
     if (lelantusModel->getMintableAmount() <= 0) {
-        lelantusModel->ackMintAll(AutoMintAck::NotEnoughFund);
+        lelantusModel->sendAckMintAll(AutoMintAck::NotEnoughFund);
         return 0;
     }
 
@@ -95,7 +95,7 @@ int AutoMintDialog::exec()
 void AutoMintDialog::reject()
 {
     ensureLelantusModel();
-    lelantusModel->ackMintAll(AutoMintAck::UserReject);
+    lelantusModel->sendAckMintAll(AutoMintAck::UserReject);
     QDialog::reject();
 }
 

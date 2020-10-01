@@ -205,18 +205,29 @@ bool AutoMintModel::isAnonymizing() const
 
 void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
-    LOCK(lelantusModel->cs);
-    if (ack == AutoMintAck::WaitUserToActive) {
-        autoMintState = AutoMintState::WaitingUserToActivate;
-    } else if (ack == AutoMintAck::AskToMint) {
-        autoMintState = AutoMintState::Anonymizing;
-        autoMintCheckTimer->stop();
-    } else {
-        autoMintState = AutoMintState::WaitingIncomingFund;
-        autoMintCheckTimer->stop();
+    bool mint = false;
+    {
+        LOCK(lelantusModel->cs);
+        if (autoMintState == AutoMintState::Disabled) {
+            // Do nothing
+            return;
+        } else if (ack == AutoMintAck::WaitUserToActive) {
+            autoMintState = AutoMintState::WaitingUserToActivate;
+        } else if (ack == AutoMintAck::AskToMint) {
+            autoMintState = AutoMintState::Anonymizing;
+            autoMintCheckTimer->stop();
+            mint = true;
+        } else {
+            autoMintState = AutoMintState::WaitingIncomingFund;
+            autoMintCheckTimer->stop();
+        }
+
+        processAutoMintAck(ack, minted, error);
     }
 
-    processAutoMintAck(ack, minted, error);
+    if (mint) {
+        lelantusModel->mintAll(AutoMintMode::AutoMintAll);
+    }
 }
 
 void AutoMintModel::checkAutoMint(bool force)
@@ -261,7 +272,7 @@ void AutoMintModel::checkAutoMint(bool force)
         autoMintState = AutoMintState::Anonymizing;
     }
 
-    lelantusModel->notifyUserToMint();
+    Q_EMIT requireShowAutomintNotification();
 }
 
 void AutoMintModel::setSyncing()
@@ -319,6 +330,8 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
 
         // stop mint
         autoMintState = AutoMintState::Disabled;
+
+        Q_EMIT closeAutomintNotification();
     }
 }
 

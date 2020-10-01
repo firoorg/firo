@@ -35,19 +35,17 @@ public:
 
     CAmount mintAll();
 
+    void sendAckMintAll(AutoMintAck ack, CAmount minted = 0, QString error = QString());
+
 public:
     mutable CCriticalSection cs;
 
 Q_SIGNALS:
     void askMintAll(AutoMintMode);
-    void notifyAutomint();
+    void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
 
 public Q_SLOTS:
-    void ackMintAll(AutoMintAck ack, CAmount minted = 0, QString error = QString(""));
-
     void mintAll(AutoMintMode);
-    void notifyUserToMint();
-
     void lock();
 
 private:

@@ -23,7 +23,6 @@ public:
 
 Q_SIGNALS:
     void ackMintAll(AutoMintAck, CAmount, QString);
-    void requireMintAll();
 
 public Q_SLOTS:
     bool close();
