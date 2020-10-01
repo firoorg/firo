@@ -172,7 +172,7 @@ void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 void LelantusModel::lock()
 {
     LOCK2(wallet->cs_wallet, cs);
-    if (autoMintModel->askingUser()) {
+    if (autoMintModel->isAnonymizing()) {
         QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(lock()));
         return;
     }

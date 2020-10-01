@@ -41,7 +41,7 @@ void AutomintNotification::setModel(WalletModel *model)
 bool AutomintNotification::close()
 {
     Q_EMIT ackMintAll(AutoMintAck::NotEnoughFund, 0, QString());
-    QDialog::close();
+    return QDialog::close();
 }
 
 void AutomintNotification::accept()

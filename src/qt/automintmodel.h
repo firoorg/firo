@@ -20,7 +20,6 @@ enum class AutoMintState : uint8_t {
     Disabled,
     WaitingIncomingFund,
     WaitingUserToActivate,
-    WaitingForUserResponse,
     Anonymizing
 };
 
@@ -78,7 +77,7 @@ public:
     ~AutoMintModel();
 
 public:
-    bool askingUser() const;
+    bool isAnonymizing() const;
 
 public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);

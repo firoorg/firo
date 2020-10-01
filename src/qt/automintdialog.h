@@ -35,11 +35,17 @@ private Q_SLOTS:
     void reject();
 
 private:
+    enum class AutoMintProgress : uint8_t {
+        Start,
+        Unlocking,
+        Minting
+    };
+
     Ui::AutoMintDialog *ui;
     WalletModel *model;
     LelantusModel *lelantusModel;
     bool requiredPassphase;
-    bool minting;
+    AutoMintProgress progress;
     AutoMintMode mode;
 
     void ensureLelantusModel();

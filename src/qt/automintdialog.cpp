@@ -15,7 +15,7 @@ AutoMintDialog::AutoMintDialog(AutoMintMode mode, QWidget *parent) :
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    minting(false),
+    progress(AutoMintProgress::Start),
     mode(mode)
 {
     ENTER_CRITICAL_SECTION(cs_main);
@@ -40,10 +40,19 @@ void AutoMintDialog::accept()
 {
     ensureLelantusModel();
 
+    ui->buttonBox->setVisible(false);
+    ui->passEdit->setVisible(false);
+    ui->passLabel->setVisible(false);
+    ui->lockWarningLabel->setVisible(false);
+    ui->lockCheckBox->setVisible(false);
+
     if (requiredPassphase) {
         auto rawPassphase = ui->passEdit->text().toStdString();
         SecureString passphase(rawPassphase.begin(), rawPassphase.end());
         auto lock = ui->lockCheckBox->isChecked();
+
+        progress = AutoMintProgress::Unlocking;
+        repaint();
 
         if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
             QDialog::accept();
@@ -52,14 +61,7 @@ void AutoMintDialog::accept()
         }
     }
 
-    ui->buttonBox->setVisible(false);
-    ui->passEdit->setVisible(false);
-    ui->passLabel->setVisible(false);
-    ui->lockWarningLabel->setVisible(false);
-    ui->lockCheckBox->setVisible(false);
-
-    minting = true;
-
+    progress = AutoMintProgress::Minting;
     repaint();
 
     AutoMintAck status;
@@ -126,12 +128,13 @@ void AutoMintDialog::paintEvent(QPaintEvent *event)
     QPainter painter;
     painter.begin(this);
 
-    if (minting) {
-        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, "Anonymizing...");
+    if (progress != AutoMintProgress::Start) {
+        auto progressMessage = progress == AutoMintProgress::Unlocking ? "Unlocking wallet..." : "Anonymizing...";
+        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
         painter.drawText(
             (width() - size.width()) / 2,
             (height() - size.height()) / 2,
-            QString("Anonymizing..."));
+            QString(progressMessage));
     }
 
     QWidget::paintEvent(event);

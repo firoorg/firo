@@ -707,7 +707,7 @@ void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount
 
 void WalletView::askMintAll(AutoMintMode mode)
 {
-    automintNotification->close();
+    automintNotification->setVisible(false);
 
     if (!walletModel) {
         return;

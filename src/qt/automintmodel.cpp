@@ -182,10 +182,7 @@ AutoMintModel::AutoMintModel(
 
     connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
 
-    connect(optionsModel,
-        SIGNAL(autoAnonymizeChanged(bool)),
-        this,
-        SLOT(updateAutoMintOption(bool)));
+    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
 
     subscribeToCoreSignals();
 }
@@ -201,9 +198,9 @@ AutoMintModel::~AutoMintModel()
     autoMintCheckTimer = nullptr;
 }
 
-bool AutoMintModel::askingUser() const
+bool AutoMintModel::isAnonymizing() const
 {
-    return autoMintState == AutoMintState::WaitingForUserResponse;
+    return autoMintState == AutoMintState::Anonymizing;
 }
 
 void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
@@ -213,6 +210,7 @@ void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
         autoMintState = AutoMintState::WaitingUserToActivate;
     } else if (ack == AutoMintAck::AskToMint) {
         autoMintState = AutoMintState::Anonymizing;
+        autoMintCheckTimer->stop();
     } else {
         autoMintState = AutoMintState::WaitingIncomingFund;
         autoMintCheckTimer->stop();
@@ -254,14 +252,13 @@ void AutoMintModel::checkAutoMint(bool force)
             return;
         case AutoMintState::WaitingUserToActivate:
             break;
-        case AutoMintState::WaitingForUserResponse:
         case AutoMintState::Anonymizing:
             return;
         default:
             throw std::runtime_error("Unknown auto mint state");
         }
 
-        autoMintState = AutoMintState::WaitingForUserResponse;
+        autoMintState = AutoMintState::Anonymizing;
     }
 
     lelantusModel->notifyUserToMint();
@@ -356,7 +353,7 @@ void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString 
     switch (ack)
     {
     case AutoMintAck::Success:
-        msgParams.first = tr("Success to anonymize, %1")
+        msgParams.first = tr("Successfully anonymized %1")
             .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), minted));
         msgParams.second = CClientUIInterface::MSG_INFORMATION;
         break;
