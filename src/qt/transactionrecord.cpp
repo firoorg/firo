@@ -8,6 +8,7 @@
 
 #include "base58.h"
 #include "consensus/consensus.h"
+#include "lelantus.h"
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
@@ -44,16 +45,26 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe;
-
+    bool isAllSigmaSpendFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
         isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
-    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe) {
+    bool isAllJoinSplitFromMe = false;
+    for (const auto& vin : wtx.tx->vin) {
+        isAllJoinSplitFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
+        if (!isAllJoinSplitFromMe)
+            break;
+    }
+
+    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe || isAllJoinSplitFromMe) {
         CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
+        if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
+            nTxFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
+        }
+
         bool first = true;
 
         bool isAllToMe = true;
@@ -66,7 +77,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             if (!mine) {
                 isAllToMe = false;
                 break;
-            } else if (!txout.scriptPubKey.IsSigmaMint()) {
+            } else if (!txout.scriptPubKey.IsSigmaMint() && !txout.scriptPubKey.IsLelantusJMint()) {
                 CTxDestination address;
                 ExtractDestination(txout.scriptPubKey, address);
                 if (firstAddress) {
@@ -79,7 +90,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 involvesWatchAddress = true;
         }
 
-        if(isAllToMe){
+        if (isAllToMe) {
             TransactionRecord sub(hash, nTime);
             sub.involvesWatchAddress = involvesWatchAddress;
             sub.type = TransactionRecord::SpendToSelf;
