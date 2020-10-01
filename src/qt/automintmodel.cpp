@@ -64,6 +64,8 @@ void IncomingFundNotifier::check()
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
+        CCoinControl coinControl;
+        coinControl.nCoinType = CoinType::ONLY_NOT1000IFMN;
         while (!txs.empty()) {
             auto const &tx = txs.back();
             txs.pop_back();
@@ -73,11 +75,20 @@ void IncomingFundNotifier::check()
                 continue;
             }
 
-            credit += std::max(CAmount(0), wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
+            for (size_t i = 0; i != wtx->second.tx->vout.size(); i++) {
+                coinControl.Select({wtx->first, i});
+            }
 
             if (wtx->second.GetImmatureCredit() > 0) {
                 immatures.push_back(tx);
             }
+        }
+
+        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
+        pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
+
+        for (auto const &valueAndUTXO : valueAndUTXOs) {
+            credit += valueAndUTXO.first;
         }
     }
 
