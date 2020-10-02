@@ -16,6 +16,7 @@
 
 #include "../init.h"
 #include "../validation.h"
+#include "../lelantus.h"
 #include "../rpc/server.h"
 #include "../sync.h"
 #include "../wallet/wallet.h"
@@ -1585,7 +1586,6 @@ UniValue elysium_sendcreatedenomination(const JSONRPCRequest& request)
     }
 }
 
-
 UniValue elysium_sendmint(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
@@ -1821,6 +1821,58 @@ UniValue elysium_sendspend(const JSONRPCRequest& request)
     }
 }
 
+UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        throw std::runtime_error(
+            "elysium_sendlelantusmint \"fromaddress\" propertyid amount\n"
+            "\nCreate mints.\n"
+            "\nArguments:\n"
+            "1. fromaddress                  (string, required) the address to send from\n"
+            "2. propertyid                   (number, required) the property to create mints\n"
+            "3. amount                       (number, required) amount to mint\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 100")
+            + HelpExampleRpc("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 100")
+        );
+    }
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireLelantus(propertyId);
+
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+
+    RequireBalance(fromAddress, propertyId, amount);
+
+    lelantus::PrivateCoin coin(lelantus::Params::get_default(), amount);
+    CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
+    lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+
+    uint256 txid;
+    std::string rawHex;
+
+    auto payload = CreatePayload_CreateLelantusMint(propertyId, amount, coin.getPublicCoin(), {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+    auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    }
+
+    if (!autoCommit) {
+        return rawHex;
+    } else {
+        PendingAdd(txid, fromAddress, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, amount);
+        return txid.GetHex();
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -1851,6 +1903,7 @@ static const CRPCCommand commands[] =
     { "elysium (transaction creation)",  "elysium_sendcreatedenomination",    &elysium_sendcreatedenomination,     false },
     { "elysium (transaction creation)",  "elysium_sendmint",                  &elysium_sendmint,                   false },
     { "elysium (transaction creation)",  "elysium_sendspend",                 &elysium_sendspend,                  false },
+    { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false },
 
     /* depreciated: */
     { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },

@@ -28,6 +28,7 @@ void RequireSigmaStatus(SigmaStatus status);
 namespace elysium {
 
 void RequireSigma(PropertyId property);
+void RequireLelantus(PropertyId property);
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);
 void RequireSigmaSpendV1Feature();
 

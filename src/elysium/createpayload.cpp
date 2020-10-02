@@ -672,5 +672,35 @@ std::vector<unsigned char> CreatePayload_SimpleSpend(
     return payload;
 }
 
+std::vector<unsigned char> CreatePayload_CreateLelantusMint(
+    uint32_t propertyId, uint64_t value, lelantus::PublicCoin const &pubcoin,
+    std::vector<unsigned char> const &schnorrProof)
+{
+    if (schnorrProof.size() != 98) {
+        throw std::invalid_argument("Schnorr proof size is invalid");
+    }
+
+    std::vector<unsigned char> payload;
+    uint16_t messageVer = 0;
+    uint16_t messageType = ELYSIUM_TYPE_LELANTUS_MINT;
+    elysium::swapByteOrder(messageVer);
+    elysium::swapByteOrder(messageType);
+    elysium::swapByteOrder(propertyId);
+    elysium::swapByteOrder(value);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, value);
+
+    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+    serialized << pubcoin;
+
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
+    payload.insert(payload.end(), schnorrProof.begin(), schnorrProof.end());
+
+    return payload;
+}
+
 #undef PUSH_BACK_BYTES
 #undef PUSH_BACK_BYTES_PTR
