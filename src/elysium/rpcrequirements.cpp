@@ -186,6 +186,11 @@ void RequireSigma(PropertyId property)
     }
 }
 
+void RequireLelantus(PropertyId property)
+{
+    // TODO: implement this
+}
+
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination)
 {
     if (!IsDenominationValid(property, denomination)) {

@@ -610,6 +610,39 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
     );
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint)
+{
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+    std::string data2 = "62f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059";
+
+    lelantus::PublicCoin pubcoin;
+    std::vector<unsigned char> schnorrProof;
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> schnorrProof;
+
+    // Simple mint [type 1027, version 0]
+    std::vector<unsigned char> vch = CreatePayload_CreateLelantusMint(1, 100, pubcoin, schnorrProof);
+
+    BOOST_CHECK_EQUAL(HexStr(vch),
+        "00000403000000010000000000000064353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000" \
+        "f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059"
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint_invalid_schnorrproof_size)
+{
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+
+    lelantus::PublicCoin pubcoin;
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, 100, pubcoin, std::vector<unsigned char>(32, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, 100, pubcoin, std::vector<unsigned char>(97, 0x00)), std::invalid_argument);
+    BOOST_CHECK_NO_THROW(CreatePayload_CreateLelantusMint(1, 100, pubcoin, std::vector<unsigned char>(98, 0x00)));
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, 100, pubcoin, std::vector<unsigned char>(99, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, 100, pubcoin, std::vector<unsigned char>(1000, 0x00)), std::invalid_argument);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace elysium
