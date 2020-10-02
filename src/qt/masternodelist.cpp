@@ -115,6 +115,7 @@ void MasternodeList::updateDIP3ListScheduled()
     if (!fMainAcquired) return;
 
 #ifdef ENABLE_WALLET
+    if (!pwalletMain) return;
     TRY_LOCK(pwalletMain->cs_wallet, fWalletAcquired);
     if (!fWalletAcquired) return;
 #endif

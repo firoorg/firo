@@ -4196,7 +4196,7 @@ bool IsBlockHashInChain(const uint256& hashBlock)
     return chainActive.Contains(mapBlockIndex[hashBlock]);
 }
 
-bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransactionRef tx)
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransactionRef & tx)
 {
     uint256 hashBlock;
     if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock, true))
