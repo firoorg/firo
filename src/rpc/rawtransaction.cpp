@@ -127,7 +127,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
             UniValue serials(UniValue::VARR);
             for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-                serials.push_back(serial.tostring());
+                serials.push_back(serial.GetHex());
             }
             in.push_back(Pair("serials", serials));
         } else if (txin.IsZerocoinRemint()) {
