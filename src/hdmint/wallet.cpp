@@ -1059,7 +1059,7 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CL
  * @param tx full transaction object
  * @return success
  */
-bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx)
+bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef & tx)
 {
     txidSpend.SetNull();
     CMintMeta mMeta;
@@ -1075,7 +1075,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     return IsTransactionInChain(txidSpend, nHeightTx, tx);
 }
 
-bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef tx)
+bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef & tx)
 {
     txidSpend.SetNull();
     CLelantusMintMeta mMeta;
