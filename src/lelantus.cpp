@@ -89,7 +89,7 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     return verifier.verify(comm, schnorrProof);
 }
 
-void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof)
+void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& hashForRecover)
 {
     if (script.size() < 1) {
         throw std::invalid_argument("Script is not a valid Lelantus mint");
@@ -109,33 +109,48 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     );
 
     stream >> schnorrProof;
+    stream >> hashForRecover;
 }
 
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue)
+{
+    uint256 hashForRecover;
+    ParseLelantusJMintScript(script, pubcoin, encryptedValue, hashForRecover);
+}
+
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& hashForRecover)
 {
     if (script.size() < 1) {
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
-    // 16 is the size of encrypted mint value
-    if (serialized.size() < (pubcoin.memoryRequired() + 16)) {
+    // 16 is the size of encrypted mint value, 32 is size of hashForRecover
+    if (serialized.size() < (pubcoin.memoryRequired() + 16 + 32)) {
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
 
     pubcoin.deserialize(serialized.data());
     encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired(), serialized.end());
+    CDataStream stream(
+            std::vector<unsigned char>(serialized.begin() + pubcoin.memoryRequired() + 16, serialized.end()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+
+    stream >> hashForRecover;
 }
 
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin)
 {
+    uint256 hashForRecover;
     if(script.IsLelantusMint()) {
         SchnorrProof schnorrProof;
-        ParseLelantusMintScript(script, pubcoin, schnorrProof);
+        ParseLelantusMintScript(script, pubcoin, schnorrProof, hashForRecover);
     } else if (script.IsLelantusJMint()) {
         std::vector<unsigned char> encryptedValue;
-        ParseLelantusJMintScript(script, pubcoin, encryptedValue);
+        ParseLelantusJMintScript(script, pubcoin, encryptedValue, hashForRecover);
     }
 }
 
@@ -204,9 +219,10 @@ bool CheckLelantusJMintTransaction(
     LogPrintf("CheckLelantusJMintTransaction txHash = %s\n", txout.GetHash().ToString());
 
     secp_primitives::GroupElement pubCoinValue;
+    uint256 hashForRecover;
     std::vector<unsigned char> encryptedValue;
     try {
-        ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+        ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue, hashForRecover);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
@@ -249,7 +265,7 @@ bool CheckLelantusJMintTransaction(
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, amount));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(amount, hashForRecover)));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -386,9 +402,9 @@ bool CheckLelantusJoinSplitTransaction(
             while (true) {
                 if(index->lelantusMintedPubCoins.count(idAndHash.first) > 0) {
                     BOOST_FOREACH(
-                    const lelantus::PublicCoin &pubCoinValue,
+                    const auto& pubCoinValue,
                     index->lelantusMintedPubCoins[idAndHash.first]) {
-                        anonymity_set.push_back(pubCoinValue);
+                        anonymity_set.push_back(pubCoinValue.first);
                     }
                 }
                 if (index == coinGroup.firstBlock)
@@ -492,6 +508,7 @@ bool CheckLelantusMintTransaction(
         bool fStatefulSigmaCheck,
         CLelantusTxInfo* lelantusTxInfo) {
     secp_primitives::GroupElement pubCoinValue;
+    uint256 hashForRecover;
     SchnorrProof schnorrProof;
 
     LogPrintf("CheckLelantusMintTransaction txHash = %s\n", txout.GetHash().ToString());
@@ -503,7 +520,7 @@ bool CheckLelantusMintTransaction(
                          "CTransaction::CheckTransaction() : Mint is out of limit.");
 
     try {
-        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue, schnorrProof);
+        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue, schnorrProof, hashForRecover);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
@@ -543,7 +560,7 @@ bool CheckLelantusMintTransaction(
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, txout.nValue));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(txout.nValue, hashForRecover)));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -871,8 +888,9 @@ CLelantusState::Containers::Containers(std::atomic<bool> & surgeCondition)
 : surgeCondition(surgeCondition)
 {}
 
-void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo) {
+void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo, const uint256& hash) {
     mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
+    hashToGroupElement.insert(std::make_pair(hash, pubCoin));
     mintMetaInfo[coinInfo.coinGroupId] += 1;
     CheckSurgeCondition();
 }
@@ -884,6 +902,11 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
         CMintedCoinInfo tmpMintInfo(iter->second);
         mintedPubCoins.erase(iter);
         CheckSurgeCondition();
+        for(auto hashPair =  hashToGroupElement.begin(); hashPair !=  hashToGroupElement.end(); hashPair++)
+            if(hashPair->second == pubCoin) {
+                hashToGroupElement.erase(hashPair);
+                break;
+            }
     }
 }
 
@@ -921,8 +944,8 @@ mint_info_container const & CLelantusState::Containers::GetMints() const {
     return mintedPubCoins;
 }
 
-std::unordered_map<uint256, GroupElement>&  CLelantusState::Containers::GetReducedHashToGroupElement() {
-    return reducedHashToGroupElement;
+std::unordered_map<uint256, lelantus::PublicCoin>&  CLelantusState::Containers::GetHashToGroupElement() {
+    return hashToGroupElement;
 }
 
 std::unordered_map<Scalar, int> const & CLelantusState::Containers::GetSpends() const {
@@ -938,7 +961,7 @@ void CLelantusState::Containers::Reset() {
     usedCoinSerials.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
-    reducedHashToGroupElement.clear();
+    hashToGroupElement.clear();
     surgeCondition = false;
 }
 
@@ -997,9 +1020,9 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    std::vector<lelantus::PublicCoin> blockMints;
+    std::vector<std::pair<lelantus::PublicCoin, uint256>> blockMints;
     for (const auto& mint : pblock->lelantusTxInfo->mints) {
-        blockMints.push_back(mint.first);
+        blockMints.push_back(std::make_pair(mint.first, mint.second.second));
     }
 
     latestCoinId = std::max(1, latestCoinId);
@@ -1034,7 +1057,7 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        containers.AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+        containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second);
 
         LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
         index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
@@ -1069,7 +1092,7 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
 
         latestCoinId = pubCoins.first;
         for (auto const &coin : pubCoins.second) {
-            containers.AddMint(coin, CMintedCoinInfo::make(pubCoins.first, index->nHeight));
+            containers.AddMint(coin.first, CMintedCoinInfo::make(pubCoins.first, index->nHeight), coin.second);
         }
     }
 
@@ -1133,7 +1156,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     // roll back mints
     for (auto const &pubCoins : index->lelantusMintedPubCoins) {
         for (auto const &coin : pubCoins.second) {
-            auto coins = containers.GetMints().equal_range(coin);
+            auto coins = containers.GetMints().equal_range(coin.first);
             auto coinIt = find_if(
                 coins.first, coins.second,
                 [&pubCoins](const mint_info_container::value_type &v) {
@@ -1189,59 +1212,11 @@ bool CLelantusState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubC
     return false;
 }
 
-bool CLelantusState::HasReducedCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
-    auto const& mints = GetMints();
-    auto& reducedHashToGroupElement = containers.GetReducedHashToGroupElement();
-    if(pwalletMain->IsLocked()) {
-        return false;
-    }
-    for ( auto it = mints.begin(); it != mints.end(); ++it ){
-        const lelantus::PublicCoin & pubCoin = (*it).first;
-        COutPoint outPoint;
-        GetOutPoint(outPoint, pubCoin);
-        uint256 hashBlock;
-        CTransactionRef tx;
-        if (!GetTransaction(outPoint.hash, tx, ::Params().GetConsensus(), hashBlock, true)) {
-            continue;
-        }
-        for (const CTxOut& out : tx->vout) {
-            if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint()) {
-                continue;
-            }
-            secp_primitives::GroupElement pubcoin;
-            lelantus::ParseLelantusMintScript(out.scriptPubKey, pubcoin);
-            bool skip = false;
-            for (auto it = reducedHashToGroupElement.begin(); it != reducedHashToGroupElement.end(); ++it) {
-                if (it->second == pubcoin)
-                    skip = true;
-            }
-            if(skip)
-                continue;
-
-            uint64_t amount  = 0;
-            try {
-                if (out.scriptPubKey.IsLelantusMint()) {
-                    amount = out.nValue;
-                }  else {
-                    std::vector<unsigned char> encryptedValue;
-                    lelantus::ParseLelantusJMintScript(out.scriptPubKey, pubcoin, encryptedValue);
-                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubcoin, amount))
-                        continue;
-                }
-            } catch (std::invalid_argument&) {
-                continue;
-            }
-
-            uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate());
-            reducedHashToGroupElement[hashPubcoin] = pubcoin;
-        }
-    }
-
-    for (auto it = reducedHashToGroupElement.begin(); it != reducedHashToGroupElement.end(); ++it ) {
-        if ((*it).first == pubCoinValueHash) {
-            pubCoinValue = (*it).second;
-            return true;
-        }
+bool CLelantusState::HasReducedCoinHash(GroupElement& pubCoinValue, const uint256& pubCoinValueHash) {
+    auto const& mints = containers.GetHashToGroupElement();
+    if(mints.count(pubCoinValueHash) > 0) {
+        pubCoinValue = mints.at(pubCoinValueHash).getValue();
+        return true;
     }
     return false;
 }
@@ -1284,9 +1259,8 @@ int CLelantusState::GetCoinSetForSpend(
                 blockHash_out = block->GetBlockHash();
             }
             numberOfCoins += block->lelantusMintedPubCoins[id].size();
-            coins_out.insert(coins_out.end(),
-                block->lelantusMintedPubCoins[id].begin(),
-                block->lelantusMintedPubCoins[id].end());
+            for(const auto& coin : block->lelantusMintedPubCoins[id])
+                coins_out.push_back(coin.first);
         }
 
         if (block == coinGroup.firstBlock) {

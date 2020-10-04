@@ -836,7 +836,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
-void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelantus::PublicCoin, uint64_t>>& mints) {
+void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>>& mints) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -846,7 +846,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelant
     std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& mint : mints) {
         uint256 reducedHash;
-        uint64_t amount = mint.second;
+        uint64_t amount = mint.second.first;
         auto pubcoin = mint.first.getValue() + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
         reducedHash = primitives::GetPubCoinValueHash(pubcoin);
         CLelantusMintMeta meta;
