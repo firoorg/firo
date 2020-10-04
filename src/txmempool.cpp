@@ -875,10 +875,17 @@ void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
             if (conflictIt != mapTx.end()) {
                 removeRecursive(conflictIt->GetTx(), MemPoolRemovalReason::CONFLICT);
             } else {
-                // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
-                // But lets be on the safe side and not run into an endless loop...
-                LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s", __func__, proTxHash.ToString(), it->second.ToString());
-                mapProTxRefs.erase(it);
+                auto protxIt = mapTx.find(proTxHash);
+                if (protxIt != mapTx.end()) {
+                    // Remove proTx from the mempool because its collateral has been spent
+                    removeRecursive(protxIt->GetTx(), MemPoolRemovalReason::CONFLICT);
+                }
+                else {
+                    // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
+                    // But lets be on the safe side and not run into an endless loop...
+                    LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s\n", __func__, proTxHash.ToString(), it->second.ToString());
+                    mapProTxRefs.erase(it);
+                }
             }
         }
     };
