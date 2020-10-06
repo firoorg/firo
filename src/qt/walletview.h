@@ -78,6 +78,8 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
+    bool eventFilter(QObject *watched, QEvent *event);
+
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
@@ -196,6 +198,9 @@ public Q_SLOTS:
 
     /** Show automint notification */
     void showAutomintNotification();
+
+    /** Re-position automint notification */
+    void repositionAutomintNotification();
 
     /** Check mintable amount to close automint notification */
     void checkMintableAmount(

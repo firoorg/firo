@@ -91,7 +91,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 #endif
     masternodeListPage = new MasternodeList(platformStyle);
 
-    automintNotification = new AutomintNotification;
+    automintNotification = new AutomintNotification(this);
+    automintNotification->setWindowModality(Qt::NonModal);
 
     setupTransactionPage();
     setupSendCoinPage();
@@ -702,6 +703,24 @@ void WalletView::showAutomintNotification()
     automintNotification->raise();
 }
 
+void WalletView::repositionAutomintNotification()
+{
+    if (automintNotification->isVisible()) {
+        QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
+        auto pos = QStyle::alignedRect(
+            Qt::LeftToRight,
+            Qt::AlignRight | Qt::AlignBottom,
+            automintNotification->size(),
+            rect).topLeft();
+
+        pos.setX(pos.x() - 10);
+        pos.setY(pos.y() + 18);
+
+        automintNotification->setWindowFlags(automintNotification->windowFlags() | Qt::FramelessWindowHint);
+        automintNotification->move(pos);
+    }
+}
+
 void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
 {
     if (automintNotification->isVisible() && anonymizableBalance == 0) {
@@ -726,4 +745,16 @@ void WalletView::askMintAll(AutoMintMode mode)
     AutoMintDialog dlg(mode, this);
     dlg.setModel(walletModel);
     dlg.exec();
+}
+
+bool WalletView::eventFilter(QObject *watched, QEvent *event)
+{
+    switch (event->type()) {
+    case QEvent::Type::Resize:
+    case QEvent::Type::Move:
+        repositionAutomintNotification();
+        break;
+    }
+
+    return QStackedWidget::eventFilter(watched, event);
 }
