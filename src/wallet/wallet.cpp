@@ -2692,7 +2692,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     serializedHash << hashForRecover;
     script.insert(script.end(), serializedHash.begin(), serializedHash.end());
 
-    // overall Lelantus mint script size is 1 + 34 + 98 = 133 byte
+    // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
     return {script, CAmount(coin.getV()), false};
 
 }

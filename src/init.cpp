@@ -817,6 +817,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     // Need this to restore Sigma spend state
     if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         pwalletMain->zwallet->GetTracker().ListMints();
+        pwalletMain->zwallet->GetTracker().ListLelantusMints();
     }
 #endif
     fDumpMempoolLater = !fRequestShutdown;
