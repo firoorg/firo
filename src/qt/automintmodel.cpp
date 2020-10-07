@@ -1,12 +1,13 @@
 #include "../lelantus.h"
+#include "../masternode-sync.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 
 #include "automintmodel.h"
 #include "bitcoinunits.h"
 #include "guiconstants.h"
-#include "optionsmodel.h"
 #include "lelantusmodel.h"
+#include "optionsmodel.h"
 
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
@@ -175,18 +176,12 @@ AutoMintModel::AutoMintModel(
     optionsModel(_optionsModel),
     wallet(_wallet),
     autoMintState(AutoMintState::Disabled),
-    resetSyncingTimer(0),
     autoMintCheckTimer(0),
-    syncing(false),
     notifier(0)
 {
-    resetSyncingTimer = new QTimer(this);
-    resetSyncingTimer->setSingleShot(true);
-
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
-    connect(resetSyncingTimer, SIGNAL(timeout()), this, SLOT(resetSyncing()));
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
 
     notifier = new IncomingFundNotifier(wallet, this);
@@ -194,18 +189,12 @@ AutoMintModel::AutoMintModel(
     connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
 
     connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
-
-    subscribeToCoreSignals();
 }
 
 AutoMintModel::~AutoMintModel()
 {
-    unsubscribeFromCoreSignals();
-
-    delete resetSyncingTimer;
     delete autoMintCheckTimer;
 
-    resetSyncingTimer = nullptr;
     autoMintCheckTimer = nullptr;
 }
 
@@ -246,8 +235,7 @@ void AutoMintModel::checkAutoMint(bool force)
     // if lelantus is not allow or client is in initial syncing state then wait
     // except user force to check
     if (!force) {
-        // check syncing first to reduce main locking
-        if (syncing) {
+        if (!masternodeSync.IsBlockchainSynced()) {
             return;
         }
 
@@ -284,20 +272,6 @@ void AutoMintModel::checkAutoMint(bool force)
     }
 
     Q_EMIT requireShowAutomintNotification();
-}
-
-void AutoMintModel::setSyncing()
-{
-    syncing.store(true);
-    resetSyncingTimer->stop();
-
-    // wait 2.5 seconds if there are no new signal then reset flag
-    resetSyncingTimer->start(2500);
-}
-
-void AutoMintModel::resetSyncing()
-{
-    syncing.store(false);
 }
 
 void AutoMintModel::startAutoMint()
@@ -344,29 +318,6 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
 
         Q_EMIT closeAutomintNotification();
     }
-}
-
-// Handlers for core signals
-static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockIndex *pIndex)
-{
-    Q_UNUSED(pIndex);
-    Q_UNUSED(initialSync);
-    QMetaObject::invokeMethod(
-        model,
-        "setSyncing",
-        Qt::QueuedConnection);
-}
-
-void AutoMintModel::subscribeToCoreSignals()
-{
-    uiInterface.NotifyBlockTip.connect(
-        boost::bind(NotifyBlockTip, this, _1, _2));
-}
-
-void AutoMintModel::unsubscribeFromCoreSignals()
-{
-    uiInterface.NotifyBlockTip.disconnect(
-        boost::bind(NotifyBlockTip, this, _1, _2));
 }
 
 void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString error)

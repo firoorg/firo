@@ -84,9 +84,6 @@ public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
     void checkAutoMint(bool force = false);
 
-    void resetSyncing();
-    void setSyncing();
-
     void startAutoMint();
 
     void updateAutoMintOption(bool);
@@ -98,9 +95,6 @@ Q_SIGNALS:
     void closeAutomintNotification();
 
 private:
-    void subscribeToCoreSignals();
-    void unsubscribeFromCoreSignals();
-
     void processAutoMintAck(AutoMintAck ack, CAmount minted, QString error);
 
 private:
@@ -110,10 +104,7 @@ private:
 
     AutoMintState autoMintState;
 
-    QTimer *resetSyncingTimer;
     QTimer *autoMintCheckTimer;
-
-    std::atomic<bool> syncing;
 
     IncomingFundNotifier *notifier;
 };
