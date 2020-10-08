@@ -148,6 +148,11 @@ private:
     CPubKey ecdsaPubkey;
     ECDSASignature ecdsaSignature;
 
+    // Lelantus
+    std::unique_ptr<lelantus::PublicCoin> lelantusMint;
+    uint64_t lelantusMintValue;
+    std::vector<unsigned char> lelantusSchnorrProof;
+
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
 
@@ -181,6 +186,7 @@ private:
     bool interpret_CreateDenomination();
     bool interpret_SimpleMint();
     bool interpret_SimpleSpend();
+    bool interpret_LelantusMint();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -293,6 +299,16 @@ public:
         return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
     }
 
+    /** Lelantus */
+    lelantus::PublicCoin getLelantusMint() const { return *lelantusMint; }
+    uint64_t getLelantusMintValue() const { return lelantusMintValue; }
+    lelantus::SchnorrProof getLelantusSchnorrProof() const {
+        lelantus::SchnorrProof proof;
+        CDataStream ss(lelantusSchnorrProof, SER_NETWORK, CLIENT_VERSION);
+        ss >> proof;
+
+        return proof;
+    }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

@@ -5,6 +5,8 @@
 #include "convert.h"
 #include "lelantusdb.h"
 
+#include "ui_interface.h"
+
 template<typename T>
 T swapByteOrder(T t) {
     elysium::swapByteOrder(t);
@@ -140,8 +142,11 @@ LelantusDb::LelantusDb(const boost::filesystem::path& path, bool wipe, size_t gr
         throw std::runtime_error("Failed to create " + path.string() + ": " + status.ToString());
     }
 
-    if (!WriteGroupSize(groupSize, startCoins)) {
-        throw std::runtime_error("Failed to write group size");
+    auto size = ReadGroupSize();
+    if (size != std::make_pair(groupSize, startCoins)) {
+        if (!WriteGroupSize(groupSize, startCoins)) {
+            throw std::runtime_error("Failed to write group size");
+        }
     }
 
     // TODO: throw if found pending coins
@@ -179,8 +184,6 @@ bool LelantusDb::WriteSerial(
     auto key = MakeRaw(DB_SERIAL, id, serial);
     batch.Put(key, MakeRaw(spendTx));
 
-    // std::cout << "key : " << HexStr(key.data(), key.data() + key.size()) << std::endl;
-
     // write undo
     undoRecorder.Record(UNDO_REMOVE_SERIAL, block, key);
 
@@ -200,7 +203,6 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
     if (!pdb->Get(readoptions, MakeRaw(DB_COIN_GROUP, id, groupId), &rawStartSeq).ok() || !ParseRaw(rawStartSeq, startSeq)) {
         throw std::runtime_error("Fail to read first sequence in group");
     }
-    // std::cout << "startSeq = " << startSeq << std::endl;
 
     auto it = NewIterator();
     it->Seek(MakeRaw(DB_COIN_SEQUENCE, id, ::swapByteOrder(startSeq)));
@@ -212,14 +214,18 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
         && it->Valid()
         && it->key() == MakeRaw(DB_COIN_SEQUENCE, id, ::swapByteOrder(startSeq + i)); it->Next(), i++) {
 
-        auto k = it->key();
-        auto v = it->value();
-        std::cout << "query : x'" << k[0] << " " << HexStr(k.data(), k.data() + k.size()) << " " << HexStr(v.data(), v.data() + v.size()) << std::endl;
         ParseRaw(it->value(), coinSeqData);
         coins.push_back(coinSeqData.publicCoin);
     }
 
     return coins;
+}
+
+bool LelantusDb::HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey)
+{
+    auto coinKey = MakeRaw(DB_COIN, propertyId, pubKey);
+    std::string val;
+    return pdb->Get(readoptions, coinKey, &val).ok();
 }
 
 bool LelantusDb::WriteMint(
@@ -354,19 +360,12 @@ void LelantusDb::DeleteAll(int startBlock)
     leveldb::WriteBatch batch;
     leveldb::Slice key;
     for (; it->Valid() && (key = it->key()).size() > 0 && key[0] == DB_UNDO; it->Prev()) {
-        auto k = it->key();
-        auto v = it->value();
-        // std::cout << "xyz : " << k[0] << " " << HexStr(k.data(), k.data() + k.size()) << " " << HexStr(v.data(), v.data() + v.size()) << std::endl;
         UndoEntry undoEntry;
         ParseRaw(it->value(), undoEntry);
-        // std::cout << "Foo" << std::endl;
 
         if (undoEntry.block < startBlock) {
             break;
         }
-
-        auto r = undoEntry.data;
-        // std::cout << "raw data : " << HexStr(r) << std::endl;
 
         switch (undoEntry.undoType) {
         case UNDO_REMOVE_SERIAL:
@@ -407,7 +406,7 @@ std::pair<size_t, size_t> LelantusDb::ReadGroupSize()
 {
     std::string data;
     if (!pdb->Get(readoptions, MakeRaw(DB_GROUPSIZE), &data).ok()) {
-        throw std::runtime_error("Fail to read group size");
+        return {0, 0};
     }
 
     std::pair<size_t, size_t> groupSizes;
@@ -445,5 +444,7 @@ std::unique_ptr<leveldb::Iterator> LelantusDb::NewIterator()
 {
     return std::unique_ptr<leveldb::Iterator>(CDBBase::NewIterator());
 }
+
+LelantusDb *lelantusDb;
 
 } // namespace elysium

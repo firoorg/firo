@@ -2,6 +2,8 @@
 
 #include "rules.h"
 #include "sigma.h"
+#include "lelantus.h"
+#include "lelantusdb.h"
 #include "signaturebuilder.h"
 
 #include "../base58.h"
@@ -27,6 +29,10 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
 
         case ELYSIUM_TYPE_SIMPLE_SPEND:
             result = ProcessSimpleSpend(tx);
+            break;
+
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            result = ProcessLelantusMint(tx);
             break;
         }
     }
@@ -218,5 +224,66 @@ int TxProcessor::ProcessSimpleSpend(const CMPTransaction& tx)
     return 0;
 }
 
+int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
+{
+    auto block = tx.getBlock();
+    auto type = tx.getType();
+    auto version = tx.getVersion();
+    auto property = tx.getProperty();
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block
+        );
+        return PKT_ERROR_LELANTUS - 22;
+    }
+
+    auto mintValue = tx.getMintAmount();
+    if (mintValue <= 0 || MAX_INT_8_BYTES < mintValue) {
+        PrintToLog("%s(): ");
+        return PKT_ERROR_LELANTUS - 23;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_LELANTUS - 24;
+    }
+
+    auto coin = tx.getLelantusMint();
+    auto proof = tx.getLelantusSchnorrProof();
+    if (!lelantus::VerifyMintSchnorrProof(mintValue, coin.getValue(), proof)) {
+        PrintToLog("%s(): rejected: schnorr proof is not exist\n", __func__);
+        return PKT_ERROR_LELANTUS - 907;
+    }
+
+    if (lelantusDb->HasMint(property, coin)) {
+        PrintToLog("%s(): rejected: public coin are already found on chain\n", __func__);
+        return PKT_ERROR_LELANTUS - 907;
+    }
+
+    auto& sender = tx.getSender();
+    int64_t balance = getMPbalance(sender, property, BALANCE);
+
+    if (balance < mintValue) {
+        PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
+            __func__,
+            tx.getSender(),
+            property,
+            FormatMP(property, balance),
+            FormatMP(property, mintValue)
+        );
+        return PKT_ERROR_SIGMA - 25;
+    }
+
+    // subtract balance
+    assert(update_tally_map(sender, property, -mintValue, BALANCE));
+    lelantusDb->WriteMint(property, coin, tx.getBlock());
+
+    return 0;
+}
 
 }
