@@ -35,7 +35,7 @@ public:
     bool GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
     bool GetLelantusHDMintFromMintPoolEntry(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry);
     bool GenerateMint(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
-    bool GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
+    bool GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, uint160& seedIdOut, boost::optional<MintPoolEntry> mintPoolEntry = boost::none, bool fAllowUnsynced=false);
     bool LoadMintPoolFromDB();
     bool RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma);
     bool RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& sigma);

@@ -349,7 +349,8 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         newCoin.setVersion(LELANTUS_TX_VERSION_4);
         CWalletDB walletdb(pwalletMain->strWalletFile);
 
-        mintWallet.GenerateLelantusMint(walletdb, newCoin, hdMint, boost::none, true);
+        uint160 seedID;
+        mintWallet.GenerateLelantusMint(walletdb, newCoin, hdMint, seedID, boost::none, true);
         Cout.emplace_back(newCoin);
         auto& pubCoin = newCoin.getPublicCoin();
 
@@ -367,6 +368,17 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
 
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
+
+        auto pubcoin = hdMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(hdMint.GetAmount()).negate();
+        uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
+        CDataStream ss(SER_GETHASH, 0);
+        ss << hashPub;
+        ss << seedID;
+        uint256 hashForRecover = Hash(ss.begin(), ss.end());
+        CDataStream serializedHash(SER_NETWORK, 0);
+        serializedHash << hashForRecover;
+        scriptSerializedCoin.insert(scriptSerializedCoin.end(), serializedHash.begin(), serializedHash.end());
+
         outputs.push_back(CTxOut(0, scriptSerializedCoin));
         mintCoins.push_back(hdMint);
     }

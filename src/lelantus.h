@@ -22,8 +22,8 @@ public:
     // all the zerocoin transactions encountered so far
     std::set<uint256> zcTransactions;
 
-    // Vector of <pubCoin, amount> for all the mints.
-    std::vector<std::pair<lelantus::PublicCoin, uint64_t>> mints;
+    // Vector of <pubCoin, <amount, hash>> for all the mints.
+    std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> mints;
 
     // serial for every spend (map from serial to coin group id)
     std::unordered_map<Scalar, int> spentSerials;
@@ -44,8 +44,9 @@ bool IsAvailableToMint(const CAmount& amount);
 
 void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  serializedSchnorrProof);
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof& schnorrProof);
-void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof);
+void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& mintTag);
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue);
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& mintTag);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
 std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
 
@@ -84,7 +85,7 @@ bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 // This one gets outpoint from hash of full Lelantus commitment
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 // This one gets outpoint from hash of reduced Lelantus commitment
-bool GetReducedOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+bool GetOutPointFromMintTag(COutPoint& outPoint, const uint256 &pubCoinTag);
 
 
 bool BuildLelantusStateFromIndex(CChain *chain);
@@ -142,8 +143,8 @@ public:
     bool HasCoin(const lelantus::PublicCoin& pubCoin);
     // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
     bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
-    // Query if there is a coin with given hash of a reduced commitment hash
-    bool HasReducedCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
+    // Query if there is a coin with given tag
+    bool HasCoinTag(GroupElement &pubCoinValue, const uint256 &pubCoinTag);
 
 
     // Given id returns latest anonymity set and corresponding block hash
@@ -217,7 +218,7 @@ private:
     struct Containers {
         Containers(std::atomic<bool> & surgeCondition);
 
-        void AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo);
+        void AddMint(lelantus::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo, const uint256& tag);
         void RemoveMint(lelantus::PublicCoin const & pubCoin);
 
         void AddSpend(Scalar const & serial, int coinGroupId);
@@ -230,7 +231,7 @@ private:
 
         mint_info_container const & GetMints() const;
         std::unordered_map<Scalar, int> const & GetSpends() const;
-        std::unordered_map<uint256, GroupElement>& GetReducedHashToGroupElement();
+        std::unordered_map<uint256, lelantus::PublicCoin>& GetTagToPublicCoin();
         bool IsSurgeCondition() const;
     private:
         // Set of all minted pubCoin values, keyed by the public coin.
@@ -239,8 +240,8 @@ private:
         // Set of all used coin serials.
         std::unordered_map<Scalar, int> usedCoinSerials;
 
-        //this map keeps hashes of reduced commitments to full commitments
-        std::unordered_map<uint256, GroupElement> reducedHashToGroupElement;
+        //this map keeps hash(G^s*H0^r|seedId) to G^s*H0^r*H1^v
+        std::unordered_map<uint256, lelantus::PublicCoin> tagToPublicCoin;
 
         std::atomic<bool> & surgeCondition;
 

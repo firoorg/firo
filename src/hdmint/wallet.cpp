@@ -280,6 +280,12 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (tracker.HasPubcoinHash(pMint.first, walletdb))
                 continue;
 
+            uint160 seedId = get<1>(pMint.second);
+            CDataStream ss(SER_GETHASH, 0);
+            ss << pMint.first;
+            ss << seedId;
+            uint256 mintTag = Hash(ss.begin(), ss.end());
+
             COutPoint outPoint;
             if (sigma::GetOutPoint(outPoint, pMint.first)) {
                 const uint256& txHash = outPoint.hash;
@@ -351,7 +357,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } else if (!pwalletMain->IsLocked() && lelantus::GetReducedOutPoint(outPoint, pMint.first)) {
+            } else if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
@@ -387,7 +393,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     }
                     if(amount != 0)
                         pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
-
                     // See if this is the mint that we are looking for
                     uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
                     if (pMint.first == hashPubcoin) {
@@ -936,7 +941,7 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
  * @param fAllowUnsynced allow mint creation if chain is not synced (for tests)
  * @return success
  */
-bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
+bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, uint160& seedIdOut, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
     if(!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
         throw ZerocoinException("Unable to generate mint: Blockchain not yet synced.");
@@ -949,6 +954,7 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
         if(hashSeedMaster.IsNull())
             throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
         CKeyID seedId = GetMintSeedID(walletdb, nCountNextUse);
+        seedIdOut = seedId;
         mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
         UpdateCountLocal();
@@ -1027,7 +1033,8 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CL
     CKeyID seedId = dMint.GetSeedId();
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    GenerateLelantusMint(walletdb, coin, dMintDummy, mintPoolEntry, true);
+    uint160 dummySeedId;
+    GenerateLelantusMint(walletdb, coin, dMintDummy, dummySeedId, mintPoolEntry, true);
 
     //Fill in the lelantus object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();

@@ -242,7 +242,8 @@ public:
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
-    std::map<int, vector<lelantus::PublicCoin>>  lelantusMintedPubCoins;
+    //! Map id to <public coin, tag>
+    std::map<int, vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;

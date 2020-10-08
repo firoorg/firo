@@ -2654,10 +2654,10 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     EnsureMintWalletAvailable();
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
-
+    uint160 seedID;
     if (generate) {
         // Generate and store secrets deterministically in the following function.
-        pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin, vDMint);
+        pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin, vDMint, seedID);
     }
 
     // Get a copy of the 'public' portion of the coin. You should
@@ -2682,7 +2682,17 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
     script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
 
-    // overall Lelantus mint script size is 1 + 34 + 98 = 133 byte
+    auto pubcoin = vDMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(vDMint.GetAmount()).negate();
+    uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
+    CDataStream ss(SER_GETHASH, 0);
+    ss << hashPub;
+    ss << seedID;
+    uint256 hashForRecover = Hash(ss.begin(), ss.end());
+    CDataStream serializedHash(SER_NETWORK, 0);
+    serializedHash << hashForRecover;
+    script.insert(script.end(), serializedHash.begin(), serializedHash.end());
+
+    // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
     return {script, CAmount(coin.getV()), false};
 
 }
