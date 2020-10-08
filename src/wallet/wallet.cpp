@@ -2688,7 +2688,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     ss << hashPub;
     ss << seedID;
     uint256 hashForRecover = Hash(ss.begin(), ss.end());
-    CDataStream serializedHash(SER_GETHASH, 0);
+    CDataStream serializedHash(SER_NETWORK, 0);
     serializedHash << hashForRecover;
     script.insert(script.end(), serializedHash.begin(), serializedHash.end());
 
