@@ -191,6 +191,9 @@ bool CMPTransaction::interpret_Transaction()
         case ELYSIUM_TYPE_SIMPLE_SPEND:
             return interpret_SimpleSpend();
 
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            return interpret_LelantusMint();
+
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 
@@ -962,6 +965,41 @@ bool CMPTransaction::interpret_SimpleMint()
 
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           mints: %s\n", denomsStr);
+    }
+
+    return true;
+}
+
+/** Tx 1027 */
+bool CMPTransaction::interpret_LelantusMint()
+{
+    constexpr unsigned elysiumMintSize = 34, schnorrProofSize = 98;
+
+    if (raw.size() != 16 + elysiumMintSize + schnorrProofSize) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder(property);
+
+    memcpy(&lelantusMintValue, &raw[8], 8);
+    swapByteOrder(lelantusMintValue);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[16]),
+        reinterpret_cast<char*>(&raw[16] + elysiumMintSize),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    lelantusMint = std::unique_ptr<lelantus::PublicCoin>(new lelantus::PublicCoin);
+
+    deserialized >> *lelantusMint;
+    lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
+        raw.begin() + 16 + elysiumMintSize, raw.end());
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           mints: %d\n", FormatShortMP(property, lelantusMintValue));
     }
 
     return true;

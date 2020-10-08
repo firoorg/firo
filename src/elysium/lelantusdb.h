@@ -33,6 +33,7 @@ public:
     bool WriteSerial(PropertyId id, secp_primitives::Scalar serial, int block, uint256 const &spendTx);
 
     std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, int groupId, size_t count);
+    bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block);
 
     void DeleteAll(int startBlock);
@@ -87,6 +88,8 @@ protected:
 
     std::unique_ptr<leveldb::Iterator> NewIterator();
 };
+
+extern LelantusDb *lelantusDb;
 
 } // namespace elysium
 

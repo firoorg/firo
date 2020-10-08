@@ -6,6 +6,7 @@
 #include "dex.h"
 #include "errors.h"
 #include "fees.h"
+#include "lelantusdb.h"
 #include "log.h"
 #include "mdex.h"
 #include "notifications.h"
@@ -2007,6 +2008,7 @@ int elysium_init()
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
     sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
+    lelantusDb = new LelantusDb(GetDataDir() / "MP_lelantus", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ElysiumTXDB = new CElysiumTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
     p_feecache = new CElysiumFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);

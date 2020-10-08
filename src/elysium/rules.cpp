@@ -73,6 +73,7 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { ELYSIUM_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V1,  false,   SIGMA_SPENDV1_FEATURE_BLOCK },
         { ELYSIUM_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
         { ELYSIUM_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { ELYSIUM_TYPE_LELANTUS_MINT,             MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);
@@ -133,6 +134,7 @@ CMainConsensusParams::CMainConsensusParams()
     // Sigma releated
     SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
     SIGMA_SPENDV1_FEATURE_BLOCK = 281532; // 1 July 2020
+    SIGMA_FEATURE_BLOCK = 9999999; // TODO: choose date to activate
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 212000;
@@ -183,6 +185,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     // sigma related
     SIGMA_FEATURE_BLOCK = 100000;
     SIGMA_SPENDV1_FEATURE_BLOCK = 140000;
+    SIGMA_FEATURE_BLOCK = 9999999; // TODO: choose date to activate
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 100000;
@@ -233,6 +236,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
     SIGMA_SPENDV1_FEATURE_BLOCK = 550;
+    SIGMA_FEATURE_BLOCK = 1000;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 500;
@@ -409,6 +413,9 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_SIGMA_SPENDV1:
             MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = activationBlock;
         break;
+        case FEATURE_LELANTUS:
+            MutableConsensusParams().LELANTUS_FEATURE_BLOCK = activationBlock;
+        break;
         default:
             supported = false;
         break;
@@ -485,6 +492,9 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         break;
         case FEATURE_SIGMA_SPENDV1:
             MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = 999999;
+        break;
+        case FEATURE_LELANTUS:
+            MutableConsensusParams().LELANTUS_FEATURE_BLOCK = 999999;
         break;
         default:
             return false;
@@ -571,6 +581,9 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             break;
         case FEATURE_SIGMA_SPENDV1:
             activationBlock = params.SIGMA_SPENDV1_FEATURE_BLOCK;
+            break;
+        case FEATURE_LELANTUS:
+            activationBlock = params.LELANTUS_FEATURE_BLOCK;
             break;
         default:
             return false;
