@@ -371,11 +371,11 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
 
         auto pubcoin = hdMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(hdMint.GetAmount()).negate();
         uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
-        CDataStream ss(SER_NETWORK, 0);
+        CDataStream ss(SER_GETHASH, 0);
         ss << hashPub;
         ss << seedID;
         uint256 hashForRecover = Hash(ss.begin(), ss.end());
-        CDataStream serializedHash(SER_GETHASH, 0);
+        CDataStream serializedHash(SER_NETWORK, 0);
         serializedHash << hashForRecover;
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), serializedHash.begin(), serializedHash.end());
 

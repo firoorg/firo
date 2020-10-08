@@ -284,7 +284,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             CDataStream ss(SER_GETHASH, 0);
             ss << pMint.first;
             ss << seedId;
-            uint256 hashForRecover = Hash(ss.begin(), ss.end());
+            uint256 mintTag = Hash(ss.begin(), ss.end());
 
             COutPoint outPoint;
             if (sigma::GetOutPoint(outPoint, pMint.first)) {
@@ -357,7 +357,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } else if (!pwalletMain->IsLocked() && lelantus::GetReducedOutPoint(outPoint, hashForRecover)) {
+            } else if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());

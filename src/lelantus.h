@@ -44,9 +44,9 @@ bool IsAvailableToMint(const CAmount& amount);
 
 void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  serializedSchnorrProof);
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof& schnorrProof);
-void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& tagForRecover);
+void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& mintTag);
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue);
-void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& tagForRecover);
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& mintTag);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
 std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
 
@@ -85,7 +85,7 @@ bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 // This one gets outpoint from hash of full Lelantus commitment
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 // This one gets outpoint from hash of reduced Lelantus commitment
-bool GetReducedOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+bool GetOutPointFromMintTag(COutPoint& outPoint, const uint256 &pubCoinTag);
 
 
 bool BuildLelantusStateFromIndex(CChain *chain);

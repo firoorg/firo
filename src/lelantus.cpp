@@ -89,7 +89,7 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     return verifier.verify(comm, schnorrProof);
 }
 
-void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& tagForRecover)
+void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& mintTag)
 {
     if (script.size() < 1) {
         throw std::invalid_argument("Script is not a valid Lelantus mint");
@@ -109,23 +109,23 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     );
 
     stream >> schnorrProof;
-    stream >> tagForRecover;
+    stream >> mintTag;
 }
 
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue)
 {
-    uint256 tagForRecover;
-    ParseLelantusJMintScript(script, pubcoin, encryptedValue, tagForRecover);
+    uint256 mintTag;
+    ParseLelantusJMintScript(script, pubcoin, encryptedValue, mintTag);
 }
 
-void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& tagForRecover)
+void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& mintTag)
 {
     if (script.size() < 1) {
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
-    // 16 is the size of encrypted mint value, 32 is size of tagForRecover
+    // 16 is the size of encrypted mint value, 32 is size of mintTag
     if (serialized.size() < (pubcoin.memoryRequired() + 16 + 32)) {
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
@@ -138,19 +138,19 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
             PROTOCOL_VERSION
     );
 
-    stream >> tagForRecover;
+    stream >> mintTag;
 }
 
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin)
 {
-    uint256 tagForRecover;
+    uint256 mintTag;
     if(script.IsLelantusMint()) {
         SchnorrProof schnorrProof;
-        ParseLelantusMintScript(script, pubcoin, schnorrProof, tagForRecover);
+        ParseLelantusMintScript(script, pubcoin, schnorrProof, mintTag);
     } else if (script.IsLelantusJMint()) {
         std::vector<unsigned char> encryptedValue;
-        ParseLelantusJMintScript(script, pubcoin, encryptedValue, tagForRecover);
+        ParseLelantusJMintScript(script, pubcoin, encryptedValue, mintTag);
     }
 }
 
@@ -219,10 +219,10 @@ bool CheckLelantusJMintTransaction(
     LogPrintf("CheckLelantusJMintTransaction txHash = %s\n", txout.GetHash().ToString());
 
     secp_primitives::GroupElement pubCoinValue;
-    uint256 tagForRecover;
+    uint256 mintTag;
     std::vector<unsigned char> encryptedValue;
     try {
-        ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue, tagForRecover);
+        ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue, mintTag);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
@@ -265,7 +265,7 @@ bool CheckLelantusJMintTransaction(
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(amount, tagForRecover)));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(amount, mintTag)));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -508,7 +508,7 @@ bool CheckLelantusMintTransaction(
         bool fStatefulSigmaCheck,
         CLelantusTxInfo* lelantusTxInfo) {
     secp_primitives::GroupElement pubCoinValue;
-    uint256 tagForRecover;
+    uint256 mintTag;
     SchnorrProof schnorrProof;
 
     LogPrintf("CheckLelantusMintTransaction txHash = %s\n", txout.GetHash().ToString());
@@ -520,7 +520,7 @@ bool CheckLelantusMintTransaction(
                          "CTransaction::CheckTransaction() : Mint is out of limit.");
 
     try {
-        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue, schnorrProof, tagForRecover);
+        ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue, schnorrProof, mintTag);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
@@ -560,7 +560,7 @@ bool CheckLelantusMintTransaction(
 
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
         // Update public coin list in the info
-        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(txout.nValue, tagForRecover)));
+        lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(txout.nValue, mintTag)));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -834,10 +834,10 @@ bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
     return GetOutPoint(outPoint, pubCoinValue);
 }
 
-bool GetReducedOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
+bool GetOutPointFromMintTag(COutPoint& outPoint, const uint256 &pubCoinTag) {
     GroupElement pubCoinValue;
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    if(!lelantusState->HasCoinTag(pubCoinValue, pubCoinValueHash)){
+    if(!lelantusState->HasCoinTag(pubCoinValue, pubCoinTag)){
         return false;
     }
 
