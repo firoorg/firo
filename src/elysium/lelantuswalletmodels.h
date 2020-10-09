@@ -48,32 +48,6 @@ private:
     }
 };
 
-class LelantusMintId
-{
-public:
-    PropertyId property;
-    LelantusAmount amount;
-    MintEntryId id;
-
-public:
-    LelantusMintId();
-    LelantusMintId(PropertyId property, LelantusAmount amount, MintEntryId const &id);
-
-    bool operator==(const LelantusMintId& other) const;
-    bool operator!=(const LelantusMintId& other) const;
-
-    ADD_SERIALIZE_METHODS;
-
-private:
-    template<typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(property);
-        READWRITE(amount);
-        READWRITE(id);
-    }
-};
-
 class LelantusMint
 {
 public:
@@ -122,14 +96,14 @@ private:
 class LelantusSpend
 {
 public:
-    LelantusMintId mint;
+    MintEntryId mint;
     LelantusGroup group;
     size_t groupSize;
     // SigmaProof proof;
 
 public:
     LelantusSpend(
-        LelantusMintId const & mint,
+        MintEntryId const & mint,
         LelantusGroup group,
         size_t groupSize/*,
         const SigmaProof& proof*/);
@@ -164,17 +138,6 @@ struct hash<MintEntryId>
 };
 
 template<>
-struct hash<LelantusMintId>
-{
-    size_t operator()(const LelantusMintId& id) const
-    {
-        return hash<PropertyId>()(id.property)
-            ^ hash<LelantusAmount>()(id.amount)
-            ^ hash<MintEntryId>()(id.id);
-    }
-};
-
-template<>
 struct hash<LelantusMint>
 {
     size_t operator()(const LelantusMint& mint) const
@@ -190,12 +153,6 @@ struct hash<LelantusMint>
 };
 
 // basic_ostream supports.
-
-template<class Char, class Traits>
-basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const LelantusMintId& id)
-{
-    return os << "{property: " << id.property << ", id: " << id.id.GetHex() << '}';
-}
 
 template<class Char, class Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const LelantusMintChainState& state)
