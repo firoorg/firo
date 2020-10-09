@@ -152,7 +152,7 @@ private:
     // Lelantus
     boost::optional<lelantus::PublicCoin> lelantusMint;
     uint64_t lelantusMintValue;
-    boost::optional<MintTag> lelantusTag;
+    boost::optional<MintEntryId> lelantusId;
     std::vector<unsigned char> lelantusSchnorrProof;
 
     // Indicates whether the transaction can be used to execute logic
@@ -304,7 +304,7 @@ public:
     /** Lelantus */
     lelantus::PublicCoin getLelantusMint() const { return lelantusMint.get(); }
     uint64_t getLelantusMintValue() const { return lelantusMintValue; }
-    MintTag getLelantusMintTag() const { return lelantusTag.get(); }
+    MintEntryId getLelantusMintId() const { return lelantusId.get(); }
     std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
 
     /** Creates a new CMPTransaction object. */

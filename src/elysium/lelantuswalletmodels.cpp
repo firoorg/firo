@@ -38,8 +38,9 @@ LelantusMintId::LelantusMintId() : property(0)
 {
 }
 
-LelantusMintId::LelantusMintId(PropertyId property, LelantusCoinId const &id) :
+LelantusMintId::LelantusMintId(PropertyId property, LelantusAmount amount, MintEntryId const &id) :
     property(property),
+    amount(amount),
     id(id)
 {
 }

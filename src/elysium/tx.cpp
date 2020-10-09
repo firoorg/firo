@@ -994,10 +994,10 @@ bool CMPTransaction::interpret_LelantusMint()
     );
 
     lelantusMint = lelantus::PublicCoin();
-    lelantusTag = MintTag();
+    lelantusId = MintEntryId();
 
     deserialized >> lelantusMint.get();
-    deserialized >> lelantusTag.get();
+    deserialized >> lelantusId.get();
 
     lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
         raw.begin() + 16 + ElysiumMintSize + TagSize, raw.end());

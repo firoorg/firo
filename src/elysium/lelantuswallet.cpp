@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "ecdsa_context.h"
 #include "lelantuswallet.h"
-
 #include "walletmodels.h"
 
 #include "../uint256.h"
@@ -28,14 +28,14 @@ LelantusWallet::MintPoolEntry::MintPoolEntry()
 {
 }
 
-LelantusWallet::MintPoolEntry::MintPoolEntry(LelantusMintId const &coinId, CKeyID const &seedId, uint32_t index)
-    : coinId(coinId), seedId(seedId), index(index)
+LelantusWallet::MintPoolEntry::MintPoolEntry(MintEntryId const &id, CKeyID const &seedId, uint32_t index)
+    : id(id), seedId(seedId), index(index)
 {
 }
 
 bool LelantusWallet::MintPoolEntry::operator==(MintPoolEntry const &another) const
 {
-    return coinId == another.coinId &&
+    return id == another.id &&
         seedId == another.seedId &&
         index == another.index;
 }
@@ -46,7 +46,7 @@ bool LelantusWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) con
 }
 
 LelantusWallet::LelantusWallet(Database *database)
-    : walletFile(pwalletMain->strWalletFile), database(database)
+    : walletFile(pwalletMain->strWalletFile), database(database), context(ECDSAContext::CreateSignContext())
 {
 }
 
@@ -140,6 +140,70 @@ uint32_t LelantusWallet::GetSeedIndex(CKeyID const &seedId, uint32_t &change)
     }
 }
 
+bool LelantusWallet::GetPublicKey(ECDSAPrivateKey const &priv, secp256k1_pubkey &out)
+{
+    return 1 == secp256k1_ec_pubkey_create(
+        context.Get(),
+        &out,
+        priv.data());
+}
+
+secp_primitives::Scalar LelantusWallet::GenerateSerial(secp256k1_pubkey const &pubkey)
+{
+    std::array<uint8_t, 33> compressedPub;
+
+    size_t outSize = compressedPub.size();
+    secp256k1_ec_pubkey_serialize(
+        context.Get(),
+        compressedPub.data(),
+        &outSize,
+        &pubkey,
+        SECP256K1_EC_COMPRESSED);
+
+    if (outSize != 33) {
+        throw std::runtime_error("Compressed public key size is invalid.");
+    }
+
+    std::array<uint8_t, CSHA256::OUTPUT_SIZE> hash;
+    CSHA256().Write(compressedPub.data(), compressedPub.size()).Finalize(hash.data());
+
+    secp_primitives::Scalar serial;
+    serial.memberFromSeed(hash.data());
+
+    return serial;
+}
+
+uint32_t LelantusWallet::BIP44ChangeIndex() const
+{
+    return BIP44_ELYSIUM_LELANTUSMINT_INDEX;
+}
+
+LelantusPrivateKey LelantusWallet::GeneratePrivateKey(uint512 const &seed)
+{
+    auto params = lelantus::Params::get_default();
+
+    ECDSAPrivateKey signatureKey;
+
+    // last 32 bytes as seed of randomness
+    std::array<uint8_t, 32> randomnessSeed;
+    std::copy(seed.begin() + 32, seed.end(), randomnessSeed.begin());
+    secp_primitives::Scalar randomness;
+    randomness.memberFromSeed(randomnessSeed.data());
+
+    // first 32 bytes as seed of ecdsa key and serial
+    std::copy(seed.begin(), seed.begin() + 32, signatureKey.begin());
+
+    // hash until get valid private key
+    secp256k1_pubkey pubkey;
+    do {
+        CSHA256().Write(signatureKey.data(), signatureKey.size()).Finalize(signatureKey.data());
+    } while (!GetPublicKey(signatureKey, pubkey));
+
+    auto serial = GenerateSerial(pubkey);
+
+    return LelantusPrivateKey(params, serial, randomness, signatureKey);
+}
+
 // Mint Updating
 void LelantusWallet::WriteMint(LelantusMintId const &id, LelantusMint const &mint)
 {
@@ -151,11 +215,11 @@ void LelantusWallet::WriteMint(LelantusMintId const &id, LelantusMint const &min
         throw std::runtime_error("fail to record id");
     }
 
-    RemoveFromMintPool(id);
+    RemoveFromMintPool(id.id);
     FillMintPool();
 }
 
-lelantus::PrivateCoin LelantusWallet::GeneratePrivateKey(CKeyID const &seedId)
+LelantusPrivateKey LelantusWallet::GeneratePrivateKey(CKeyID const &seedId)
 {
     uint512 seed;
 
@@ -188,12 +252,12 @@ LelantusMintId LelantusWallet::GenerateMint(PropertyId property, LelantusAmount 
 
     // Generate private & public key.
     auto priv = GeneratePrivateKey(seedId.get());
-    auto mintId = GetReduceCommitment(priv.getPublicCoin(), amount);
+    auto mintId = MintEntryId(priv.serial, priv.randomness, seedId.get());
 
     // Create a new mint.
-    auto serialId = GetSerialId(priv.getSerialNumber());
+    auto serialId = GetSerialId(priv.serial);
     LelantusMint mint(property, amount, seedId.get(), serialId);
-    LelantusMintId id(property, mintId);
+    LelantusMintId id(property, amount, mintId);
 
     WriteMint(id, mint);
 
@@ -388,7 +452,7 @@ void LelantusWallet::DeleteUnconfirmedMint(LelantusMintId const &id)
 bool LelantusWallet::IsMintInPool(LelantusMintId const &id)
 {
     LOCK(pwalletMain->cs_wallet);
-    return mintPool.get<1>().count(id);
+    return mintPool.get<1>().count(id.id);
 }
 
 bool LelantusWallet::GetMintPoolEntry(LelantusMintId const &id, MintPoolEntry &entry)
@@ -396,7 +460,7 @@ bool LelantusWallet::GetMintPoolEntry(LelantusMintId const &id, MintPoolEntry &e
     LOCK(pwalletMain->cs_wallet);
 
     auto &publicKeyIndex = mintPool.get<1>();
-    auto it = publicKeyIndex.find(id);
+    auto it = publicKeyIndex.find(id.id);
 
     if (it == publicKeyIndex.end()) {
         return false;
@@ -464,21 +528,21 @@ void LelantusWallet::SaveMintPool()
     }
 }
 
-bool LelantusWallet::RemoveFromMintPool(SigmaPublicKey const &publicKey)
+bool LelantusWallet::RemoveFromMintPool(MintEntryId const &id)
 {
     LOCK(pwalletMain->cs_wallet);
 
-    auto &publicKeyIndex = mintPool.get<1>();
-    auto it = publicKeyIndex.find(publicKey);
+    auto &mintIdIndex = mintPool.get<1>();
+    auto it = mintIdIndex.find(id);
 
-    if (it != publicKeyIndex.end()) {
+    if (it != mintIdIndex.end()) {
 
-        publicKeyIndex.erase(it);
+        mintIdIndex.erase(it);
         SaveMintPool();
         return true;
     }
 
-    // publicKey is not in the pool
+    // mint is not in the pool
     return false;
 }
 

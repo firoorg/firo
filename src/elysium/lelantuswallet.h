@@ -31,12 +31,12 @@ class LelantusWallet
 {
 public:
     struct MintPoolEntry {
-        LelantusMintId coinId;
+        MintEntryId id;
         CKeyID seedId;
         uint32_t index;
 
         MintPoolEntry();
-        MintPoolEntry(LelantusMintId const &coinId, CKeyID const &seedId, uint32_t index);
+        MintPoolEntry(MintEntryId const &id, CKeyID const &seedId, uint32_t index);
 
         bool operator==(MintPoolEntry const &another) const;
         bool operator!=(MintPoolEntry const &another) const;
@@ -46,7 +46,7 @@ public:
         template<typename Stream, typename Operation>
         void SerializationOp(Stream& s, Operation ser_action)
         {
-            READWRITE(coinId);
+            READWRITE(id);
             READWRITE(seedId);
             READWRITE(index);
         }
@@ -59,10 +59,10 @@ public:
             boost::multi_index::ordered_unique<
                 boost::multi_index::member<MintPoolEntry, LelantusIndex, &MintPoolEntry::index>
             >,
-            // Lelantus coin index
+            // Mint entry id index
             boost::multi_index::hashed_unique<
-                boost::multi_index::member<MintPoolEntry, LelantusMintId, &MintPoolEntry::coinId>,
-                std::hash<LelantusMintId>
+                boost::multi_index::member<MintPoolEntry, MintEntryId, &MintPoolEntry::id>,
+                std::hash<MintEntryId>
             >
         >
     > MintPool;
@@ -129,12 +129,15 @@ protected:
     uint32_t GetSeedIndex(CKeyID const &seedId, uint32_t &change);
 
 protected:
-    virtual uint32_t BIP44ChangeIndex() const = 0;
-    virtual lelantus::PrivateCoin GeneratePrivateKey(uint512 const &seed) = 0;
+    bool GetPublicKey(ECDSAPrivateKey const &privateKey, secp256k1_pubkey &out);
+    secp_primitives::Scalar GenerateSerial(secp256k1_pubkey const &pubkey);
+
+    uint32_t BIP44ChangeIndex() const;
+    LelantusPrivateKey GeneratePrivateKey(uint512 const &seed);
 
     // Mint updating
 public:
-    lelantus::PrivateCoin GeneratePrivateKey(CKeyID const &seedId);
+    LelantusPrivateKey GeneratePrivateKey(CKeyID const &seedId);
     LelantusMintId GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
@@ -187,7 +190,10 @@ protected:
     void LoadMintPool();
     void SaveMintPool();
 
-    bool RemoveFromMintPool(LelantusMintId const &id);
+    bool RemoveFromMintPool(MintEntryId const &id);
+
+private:
+    ECDSAContext context;
 };
 
 } // namespace elysium
