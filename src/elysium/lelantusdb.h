@@ -9,6 +9,7 @@
 #include "../sync.h"
 #include "../liblelantus/coin.h"
 
+#include "lelantusprimitives.h"
 #include "persistence.h"
 #include "property.h"
 
@@ -34,7 +35,8 @@ public:
 
     std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, int groupId, size_t count);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
-    bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block);
+    bool HasMint(PropertyId propertyId, MintTag const &tag);
+    bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintTag const &tag, std::vector<unsigned char> const &additional);
 
     void DeleteAll(int startBlock);
 

@@ -20,12 +20,14 @@ static const char DB_PENDING_COIN       = 'p';
 static const char DB_COIN               = 'c';
 static const char DB_COIN_SEQUENCE      = 'C';
 static const char DB_COIN_GROUP         = 'g';
+static const char DB_TAG_INDEX          = 't';
 static const char DB_UNDO               = 'u';
 static const char DB_GROUPSIZE          = 'x';
 
 static const char UNDO_REMOVE_SERIAL    = 's';
 static const char UNDO_REMOVE_COIN      = 'c';
 static const char UNDO_REMOVE_COIN_SEQ  = 'S';
+static const char UNDO_REMOVE_TAG_INDEX = 'T';
 static const char UNDO_REMOVE_GROUP     = 'g';
 
 namespace {
@@ -231,7 +233,9 @@ bool LelantusDb::HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubK
 bool LelantusDb::WriteMint(
     PropertyId propertyId,
     lelantus::PublicCoin const &pubKey,
-    int block)
+    int block,
+    MintTag const &tag,
+    std::vector<unsigned char> const &additional)
 {
     leveldb::WriteBatch batch;
 
@@ -245,14 +249,26 @@ bool LelantusDb::WriteMint(
     }
 
     // add coin index
-    batch.Put(coinKey, "");
+    batch.Put(coinKey, MakeRaw(tag, additional));
     undoRecorder.Record(UNDO_REMOVE_COIN, block, coinKey);
+
+    // add tag index
+    auto tagIndexKey = MakeRaw(DB_TAG_INDEX, propertyId, tag);
+    batch.Put(tagIndexKey, coinKey);
+    undoRecorder.Record(UNDO_REMOVE_TAG_INDEX, block, tagIndexKey);
 
     // add pending
     auto nextPendingSeq = GetNextSequence(DB_PENDING_COIN);
     batch.Put(MakeRaw(DB_PENDING_COIN, ::swapByteOrder(nextPendingSeq++)), MakeRaw(propertyId, pubKey, block));
 
     return pdb->Write(syncoptions, &batch).ok();
+}
+
+bool LelantusDb::HasMint(PropertyId propertyId, MintTag const &tag)
+{
+    auto tagKey = MakeRaw(DB_TAG_INDEX, propertyId, tag);
+    std::string val;
+    return pdb->Get(readoptions, tagKey, &val).ok();
 }
 
 void LelantusDb::CommitCoins()
@@ -378,6 +394,9 @@ void LelantusDb::DeleteAll(int startBlock)
             batch.Delete(undoEntry.data);
             break;
         case UNDO_REMOVE_GROUP:
+            batch.Delete(undoEntry.data);
+            break;
+        case UNDO_REMOVE_TAG_INDEX:
             batch.Delete(undoEntry.data);
             break;
         default:

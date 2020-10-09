@@ -254,7 +254,11 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
     }
 
     auto coin = tx.getLelantusMint();
-    auto proof = tx.getLelantusSchnorrProof();
+    auto rawProof = tx.getLelantusSchnorrProof();
+    CDataStream ss(rawProof, SER_DISK, CLIENT_VERSION);
+    lelantus::SchnorrProof proof;
+    ss >> proof;
+
     if (!lelantus::VerifyMintSchnorrProof(mintValue, coin.getValue(), proof)) {
         PrintToLog("%s(): rejected: schnorr proof is not exist\n", __func__);
         return PKT_ERROR_LELANTUS - 907;
@@ -281,7 +285,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(sender, property, -mintValue, BALANCE));
-    lelantusDb->WriteMint(property, coin, tx.getBlock());
+    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintTag(), rawProof);
 
     return 0;
 }
