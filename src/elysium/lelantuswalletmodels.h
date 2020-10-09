@@ -52,11 +52,12 @@ class LelantusMintId
 {
 public:
     PropertyId property;
-    LelantusCoinId id;
+    LelantusAmount amount;
+    MintEntryId id;
 
 public:
     LelantusMintId();
-    LelantusMintId(PropertyId property, LelantusCoinId const &id);
+    LelantusMintId(PropertyId property, LelantusAmount amount, MintEntryId const &id);
 
     bool operator==(const LelantusMintId& other) const;
     bool operator!=(const LelantusMintId& other) const;
@@ -68,6 +69,7 @@ private:
     void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(property);
+        READWRITE(amount);
         READWRITE(id);
     }
 };
@@ -86,7 +88,7 @@ public:
 
 public:
     LelantusMint();
-    LelantusMint(PropertyId property, uint64_t amount, CKeyID const &seedId, uint160 const &serialId);
+    LelantusMint(PropertyId property, LelantusAmount amount, CKeyID const &seedId, uint160 const &serialId);
 
     bool operator==(const LelantusMint& other) const;
     bool operator!=(const LelantusMint& other) const;
@@ -153,12 +155,22 @@ struct hash<LelantusMintChainState>
 };
 
 template<>
+struct hash<MintEntryId>
+{
+    size_t operator()(const MintEntryId &id) const
+    {
+        return id.GetCheapHash();
+    }
+};
+
+template<>
 struct hash<LelantusMintId>
 {
     size_t operator()(const LelantusMintId& id) const
     {
         return hash<PropertyId>()(id.property)
-            ^ hash<LelantusCoinId>()(id.id);
+            ^ hash<LelantusAmount>()(id.amount)
+            ^ hash<MintEntryId>()(id.id);
     }
 };
 

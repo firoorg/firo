@@ -255,6 +255,12 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     auto coin = tx.getLelantusMint();
     auto rawProof = tx.getLelantusSchnorrProof();
+
+    if (rawProof.size() != 98) {
+        PrintToLog("%s(): rejected: schnorr proof size is invalid\n", __func__);
+        return PKT_ERROR_LELANTUS - 907;
+    }
+
     CDataStream ss(rawProof, SER_DISK, CLIENT_VERSION);
     lelantus::SchnorrProof proof;
     ss >> proof;
@@ -285,7 +291,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(sender, property, -mintValue, BALANCE));
-    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintTag(), rawProof);
+    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), rawProof);
 
     return 0;
 }

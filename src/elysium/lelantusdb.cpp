@@ -20,14 +20,14 @@ static const char DB_PENDING_COIN       = 'p';
 static const char DB_COIN               = 'c';
 static const char DB_COIN_SEQUENCE      = 'C';
 static const char DB_COIN_GROUP         = 'g';
-static const char DB_TAG_INDEX          = 't';
+static const char DB_COIN_ID            = 'i';
 static const char DB_UNDO               = 'u';
 static const char DB_GROUPSIZE          = 'x';
 
 static const char UNDO_REMOVE_SERIAL    = 's';
 static const char UNDO_REMOVE_COIN      = 'c';
 static const char UNDO_REMOVE_COIN_SEQ  = 'S';
-static const char UNDO_REMOVE_TAG_INDEX = 'T';
+static const char UNDO_REMOVE_COIN_ID   = 'I';
 static const char UNDO_REMOVE_GROUP     = 'g';
 
 namespace {
@@ -234,7 +234,7 @@ bool LelantusDb::WriteMint(
     PropertyId propertyId,
     lelantus::PublicCoin const &pubKey,
     int block,
-    MintTag const &tag,
+    MintEntryId const &id,
     std::vector<unsigned char> const &additional)
 {
     leveldb::WriteBatch batch;
@@ -249,13 +249,13 @@ bool LelantusDb::WriteMint(
     }
 
     // add coin index
-    batch.Put(coinKey, MakeRaw(tag, additional));
+    batch.Put(coinKey, MakeRaw(id, additional));
     undoRecorder.Record(UNDO_REMOVE_COIN, block, coinKey);
 
     // add tag index
-    auto tagIndexKey = MakeRaw(DB_TAG_INDEX, propertyId, tag);
+    auto tagIndexKey = MakeRaw(DB_COIN_ID, propertyId, id);
     batch.Put(tagIndexKey, coinKey);
-    undoRecorder.Record(UNDO_REMOVE_TAG_INDEX, block, tagIndexKey);
+    undoRecorder.Record(UNDO_REMOVE_COIN_ID, block, tagIndexKey);
 
     // add pending
     auto nextPendingSeq = GetNextSequence(DB_PENDING_COIN);
@@ -264,9 +264,9 @@ bool LelantusDb::WriteMint(
     return pdb->Write(syncoptions, &batch).ok();
 }
 
-bool LelantusDb::HasMint(PropertyId propertyId, MintTag const &tag)
+bool LelantusDb::HasMint(PropertyId propertyId, MintEntryId const &id)
 {
-    auto tagKey = MakeRaw(DB_TAG_INDEX, propertyId, tag);
+    auto tagKey = MakeRaw(DB_COIN_ID, propertyId, id);
     std::string val;
     return pdb->Get(readoptions, tagKey, &val).ok();
 }
@@ -396,7 +396,7 @@ void LelantusDb::DeleteAll(int startBlock)
         case UNDO_REMOVE_GROUP:
             batch.Delete(undoEntry.data);
             break;
-        case UNDO_REMOVE_TAG_INDEX:
+        case UNDO_REMOVE_COIN_ID:
             batch.Delete(undoEntry.data);
             break;
         default:

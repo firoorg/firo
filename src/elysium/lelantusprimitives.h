@@ -21,11 +21,33 @@ class MintEntryId : public uint256 {
 public:
     MintEntryId();
     MintEntryId(lelantus::PrivateCoin const &coin, uint160 const &seedId);
-    MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness);
+    MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness, uint160 const &seedId);
     MintEntryId(uint256 const &tag);
 };
 
-secp_primitives::GroupElement GetReduceCommitment(lelantus::PublicCoin const &pubCoin, LelantusAmount amount);
+typedef std::array<uint8_t, 32> ECDSAPrivateKey;
+
+// class to store secret data except amount
+class LelantusPrivateKey {
+public:
+    LelantusPrivateKey(lelantus::Params const *params);
+    LelantusPrivateKey(
+        lelantus::Params const *params,
+        secp_primitives::Scalar const &serial,
+        secp_primitives::Scalar const &randomness,
+        ECDSAPrivateKey const &ecdsaPrivateKey);
+
+public:
+    lelantus::PrivateCoin GetPrivateCoin(LelantusAmount amount) const;
+
+private:
+    const lelantus::Params* params;
+
+public:
+    secp_primitives::Scalar serial;
+    secp_primitives::Scalar randomness;
+    ECDSAPrivateKey ecdsaPrivateKey;
+};
 
 } // namespace elysium
 

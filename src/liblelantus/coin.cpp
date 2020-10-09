@@ -2,7 +2,7 @@
 #include "primitives/zerocoin.h"
 
 namespace lelantus {
-    
+
 static std::string zpts("PUBLICKEY_TO_SERIALNUMBER");
 
 //class PublicCoin
