@@ -12,23 +12,20 @@
 
 namespace elysium {
 
-typedef secp_primitives::GroupElement LelantusCoinId;
-
 typedef uint64_t LelantusAmount;
 typedef uint32_t LelantusGroup;
 typedef uint32_t LelantusIndex;
 
-class MintTag : public uint256 {
+// Id of mint calculated from seed regardless of amount
+class MintEntryId : public uint256 {
 public:
-    MintTag();
-    MintTag(uint256 const &tag);
-
-public:
-    static MintTag CreateMintTag(
-        lelantus::PrivateCoin const &coin,
-        uint160 const &seedId,
-        LelantusAmount amount);
+    MintEntryId();
+    MintEntryId(lelantus::PrivateCoin const &coin, uint160 const &seedId);
+    MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness);
+    MintEntryId(uint256 const &tag);
 };
+
+secp_primitives::GroupElement GetReduceCommitment(lelantus::PublicCoin const &pubCoin, LelantusAmount amount);
 
 } // namespace elysium
 
