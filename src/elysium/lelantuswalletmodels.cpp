@@ -32,29 +32,6 @@ void LelantusMintChainState::Clear() noexcept
     index = 0;
 }
 
-// LelantusMintId Implementation.
-
-LelantusMintId::LelantusMintId() : property(0)
-{
-}
-
-LelantusMintId::LelantusMintId(PropertyId property, LelantusAmount amount, MintEntryId const &id) :
-    property(property),
-    amount(amount),
-    id(id)
-{
-}
-
-bool LelantusMintId::operator==(const LelantusMintId& other) const
-{
-    return property == other.property && id == other.id;
-}
-
-bool LelantusMintId::operator!=(const LelantusMintId& other) const
-{
-    return !(*this == other);
-}
-
 // LelantusMint Implementation.
 
 LelantusMint::LelantusMint() : property(0), amount(0)
@@ -85,7 +62,7 @@ bool LelantusMint::operator!=(const LelantusMint& other) const
 // LelantusSpend Implementation.
 
 LelantusSpend::LelantusSpend(
-    LelantusMintId const & mint,
+    MintEntryId const & mint,
     LelantusGroup group,
     size_t groupSize) :
     mint(mint),

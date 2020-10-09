@@ -73,20 +73,20 @@ protected:
         Database();
 
     public:
-        virtual bool WriteMint(LelantusMintId const &id, LelantusMint const &mint, CWalletDB *db = nullptr) = 0;
-        virtual bool ReadMint(LelantusMintId const &id, LelantusMint &mint, CWalletDB *db = nullptr) const = 0;
-        virtual bool EraseMint(LelantusMintId const &id, CWalletDB *db = nullptr) = 0;
-        virtual bool HasMint(LelantusMintId const &id, CWalletDB *db = nullptr) const = 0;
+        virtual bool WriteMint(MintEntryId const &id, LelantusMint const &mint, CWalletDB *db = nullptr) = 0;
+        virtual bool ReadMint(MintEntryId const &id, LelantusMint &mint, CWalletDB *db = nullptr) const = 0;
+        virtual bool EraseMint(MintEntryId const &id, CWalletDB *db = nullptr) = 0;
+        virtual bool HasMint(MintEntryId const &id, CWalletDB *db = nullptr) const = 0;
 
-        virtual bool WriteMintId(uint160 const &hash, LelantusMintId const &mintId, CWalletDB *db = nullptr) = 0;
-        virtual bool ReadMintId(uint160 const &hash, LelantusMintId &mintId, CWalletDB *db = nullptr) const = 0;
+        virtual bool WriteMintId(uint160 const &hash, MintEntryId const &mintId, CWalletDB *db = nullptr) = 0;
+        virtual bool ReadMintId(uint160 const &hash, MintEntryId &mintId, CWalletDB *db = nullptr) const = 0;
         virtual bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
         virtual bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
 
         virtual bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
         virtual bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
 
-        virtual void ListMints(std::function<void(LelantusMintId&, LelantusMint&)> const&, CWalletDB *db = nullptr) = 0;
+        virtual void ListMints(std::function<void(MintEntryId&, LelantusMint&)> const&, CWalletDB *db = nullptr) = 0;
 
     protected:
         // Helper
@@ -138,38 +138,37 @@ protected:
     // Mint updating
 public:
     LelantusPrivateKey GeneratePrivateKey(CKeyID const &seedId);
-    LelantusMintId GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
+    MintEntryId GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
 
-    bool TryRecoverMint(LelantusMintId const &id, LelantusMintChainState const &chainState);
-    bool TryRecoverMint(
-        LelantusMintId const &id, LelantusMintChainState const &chainState, uint256 const &spendTx);
+    bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, PropertyId property, CAmount amount);
+    bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, uint256 const &spendTx, PropertyId property, CAmount amount);
 
 private:
-    LelantusMint UpdateMint(LelantusMintId const &id, std::function<void(LelantusMint &)> const &modifier);
+    LelantusMint UpdateMint(MintEntryId const &id, std::function<void(LelantusMint &)> const &modifier);
 
-    void WriteMint(LelantusMintId const &id, LelantusMint const &mint);
+    void WriteMint(MintEntryId const &id, LelantusMint const &mint);
 
 public:
-    void UpdateMintCreatedTx(LelantusMintId const &id, const uint256& tx);
-    void UpdateMintChainstate(LelantusMintId const &id, LelantusMintChainState const &state);
-    void UpdateMintSpendTx(LelantusMintId const &id, uint256 const &tx);
+    void UpdateMintCreatedTx(MintEntryId const &id, uint256 const &tx);
+    void UpdateMintChainstate(MintEntryId const &id, LelantusMintChainState const &state);
+    void UpdateMintSpendTx(MintEntryId const &id, uint256 const &tx);
 
     // Mint querying
 public:
 
-    bool HasMint(LelantusMintId const &id) const;
+    bool HasMint(MintEntryId const &id) const;
     bool HasMint(secp_primitives::Scalar const &serial) const;
 
-    LelantusMint GetMint(LelantusMintId const &id) const;
+    LelantusMint GetMint(MintEntryId const &id) const;
     LelantusMint GetMint(secp_primitives::Scalar const &serial) const;
-    LelantusMintId GetMintId(secp_primitives::Scalar const &serial) const;
+    MintEntryId GetMintId(secp_primitives::Scalar const &serial) const;
 
     template<class Output>
     Output ListMints(Output output, CWalletDB *db = nullptr)
     {
-        database->ListMints([&](const LelantusMintId& id, const LelantusMint &m) {
+        database->ListMints([&](const MintEntryId& id, const LelantusMint &m) {
             *output++ = std::make_pair(id, m);
         }, db);
 
@@ -178,10 +177,10 @@ public:
 
     // MintPool state
 public:
-    void DeleteUnconfirmedMint(LelantusMintId const &id);
-    bool IsMintInPool(LelantusMintId const &id);
+    void DeleteUnconfirmedMint(MintEntryId const &id);
+    bool IsMintInPool(MintEntryId const &id);
 
-    bool GetMintPoolEntry(LelantusMintId const &id, MintPoolEntry &entry);
+    bool GetMintPoolEntry(MintEntryId const &id, MintPoolEntry &entry);
 
 protected:
     void RemoveInvalidMintPoolEntries(); // Remove MintPool entries that aren't belong to current masterId.
