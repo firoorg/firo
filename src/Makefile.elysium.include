@@ -91,6 +91,9 @@ ELYSIUM_CPP = \
 if ENABLE_WALLET
 ELYSIUM_H += \
   elysium/rpctx.h \
+  elysium/lelantusprimitives.h \
+  elysium/lelantuswallet.h \
+  elysium/lelantuswalletmodels.cpp \
   elysium/sigmawallet.h \
   elysium/sigmawalletv0.h \
   elysium/sigmawalletv1.h \
@@ -99,6 +102,9 @@ ELYSIUM_H += \
 
 ELYSIUM_CPP += \
   elysium/rpctx.cpp \
+  elysium/lelantusprimitives.cpp \
+  elysium/lelantuswallet.cpp \
+  elysium/lelantuswalletmodels.cpp \
   elysium/sigmawallet.cpp \
   elysium/sigmawalletv0.cpp \
   elysium/sigmawalletv1.cpp \

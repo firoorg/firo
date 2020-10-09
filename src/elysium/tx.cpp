@@ -973,9 +973,11 @@ bool CMPTransaction::interpret_SimpleMint()
 /** Tx 1027 */
 bool CMPTransaction::interpret_LelantusMint()
 {
-    constexpr unsigned elysiumMintSize = 34, schnorrProofSize = 98;
+    constexpr unsigned ElysiumMintSize = 34,
+        TagSize = 32,
+        SchnorrProofSize = 98;
 
-    if (raw.size() != 16 + elysiumMintSize + schnorrProofSize) {
+    if (raw.size() != 16 + ElysiumMintSize + TagSize + SchnorrProofSize) {
         return false;
     }
 
@@ -987,15 +989,18 @@ bool CMPTransaction::interpret_LelantusMint()
 
     CDataStream deserialized(
         reinterpret_cast<char*>(&raw[16]),
-        reinterpret_cast<char*>(&raw[16] + elysiumMintSize),
+        reinterpret_cast<char*>(&raw[16] + ElysiumMintSize + TagSize),
         SER_NETWORK, CLIENT_VERSION
     );
 
-    lelantusMint = std::unique_ptr<lelantus::PublicCoin>(new lelantus::PublicCoin);
+    lelantusMint = lelantus::PublicCoin();
+    lelantusTag = MintTag();
 
-    deserialized >> *lelantusMint;
+    deserialized >> lelantusMint.get();
+    deserialized >> lelantusTag.get();
+
     lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
-        raw.begin() + 16 + elysiumMintSize, raw.end());
+        raw.begin() + 16 + ElysiumMintSize + TagSize, raw.end());
 
     if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));

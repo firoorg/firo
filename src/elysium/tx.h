@@ -9,6 +9,7 @@ class CTransaction;
 #include "elysium.h"
 #include "packetencoder.h"
 #include "sp.h"
+#include "lelantusprimitives.h"
 
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional.hpp>
@@ -149,8 +150,9 @@ private:
     ECDSASignature ecdsaSignature;
 
     // Lelantus
-    std::unique_ptr<lelantus::PublicCoin> lelantusMint;
+    boost::optional<lelantus::PublicCoin> lelantusMint;
     uint64_t lelantusMintValue;
+    boost::optional<MintTag> lelantusTag;
     std::vector<unsigned char> lelantusSchnorrProof;
 
     // Indicates whether the transaction can be used to execute logic
@@ -300,15 +302,10 @@ public:
     }
 
     /** Lelantus */
-    lelantus::PublicCoin getLelantusMint() const { return *lelantusMint; }
+    lelantus::PublicCoin getLelantusMint() const { return lelantusMint.get(); }
     uint64_t getLelantusMintValue() const { return lelantusMintValue; }
-    lelantus::SchnorrProof getLelantusSchnorrProof() const {
-        lelantus::SchnorrProof proof;
-        CDataStream ss(lelantusSchnorrProof, SER_NETWORK, CLIENT_VERSION);
-        ss >> proof;
-
-        return proof;
-    }
+    MintTag getLelantusMintTag() const { return lelantusTag.get(); }
+    std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()

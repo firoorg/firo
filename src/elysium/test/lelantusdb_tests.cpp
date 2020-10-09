@@ -193,7 +193,9 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
             secp_primitives::GroupElement g;
             g.randomize();
 
-            db->WriteMint(id, g, block);
+            uint256 tag;
+
+            db->WriteMint(id, g, block, tag, {});
 
             addedCoins.push_back(g);
         }
