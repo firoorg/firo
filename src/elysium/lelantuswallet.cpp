@@ -188,12 +188,12 @@ LelantusMintId LelantusWallet::GenerateMint(PropertyId property, LelantusAmount 
 
     // Generate private & public key.
     auto priv = GeneratePrivateKey(seedId.get());
-    auto pub = priv.getPublicCoin();
+    auto mintId = GetReduceCommitment(priv.getPublicCoin(), amount);
 
     // Create a new mint.
     auto serialId = GetSerialId(priv.getSerialNumber());
     LelantusMint mint(property, amount, seedId.get(), serialId);
-    LelantusMintId id(property, pub);
+    LelantusMintId id(property, mintId);
 
     WriteMint(id, mint);
 
@@ -215,14 +215,14 @@ LelantusMint LelantusWallet::UpdateMint(LelantusMintId const &id, std::function<
 void LelantusWallet::ClearMintsChainState()
 {
     CWalletDB db(walletFile);
-    std::vector<std::pair<SigmaMintId, SigmaMint>> mints;
+    std::vector<std::pair<LelantusMintId, LelantusMint>> mints;
 
     db.TxnBegin();
 
     ListMints(std::back_inserter(mints), &db);
 
     for (auto &m : mints) {
-        m.second.chainState = SigmaMintChainState();
+        m.second.chainState = LelantusMintChainState();
         m.second.spendTx = uint256();
 
         if (!database->WriteMint(m.first, m.second, &db)) {
@@ -234,71 +234,71 @@ void LelantusWallet::ClearMintsChainState()
 }
 
 bool LelantusWallet::TryRecoverMint(
-    SigmaMintId const &id,
-    SigmaMintChainState const &chainState,
+    LelantusMintId const &id,
+    LelantusMintChainState const &chainState,
     uint256 const &spendTx)
 {
-    LOCK(pwalletMain->cs_wallet);
+    // LOCK(pwalletMain->cs_wallet);
 
-    MintPoolEntry entry;
-    if (!GetMintPoolEntry(id.pubKey, entry)) {
-        return false;
-    }
+    // MintPoolEntry entry;
+    // if (!GetMintPoolEntry(id, entry)) {
+    //     return false;
+    // }
 
-    // Regenerate the mint
-    auto const &seedId = entry.seedId;
+    // // Regenerate the mint
+    // auto const &seedId = entry.seedId;
 
-    uint512 seed;
-    GenerateSeed(seedId, seed);
+    // uint512 seed;
+    // GenerateSeed(seedId, seed);
 
-    auto privKey = GeneratePrivateKey(seed);
+    // auto privKey = GeneratePrivateKey(seed);
 
-    auto serialId = GetSerialId(privKey.serial);
+    // auto serialId = GetSerialId(privKey.getSerialNumber());
 
-    // Create mint object
-    SigmaMint mint(
-        id.property,
-        id.denomination,
-        seedId,
-        serialId);
-    mint.chainState = chainState;
-    mint.spendTx = spendTx;
+    // // Create mint object
+    // SigmaMint mint(
+    //     id.property,
+    //     id.denomination,
+    //     seedId,
+    //     serialId);
+    // mint.chainState = chainState;
+    // mint.spendTx = spendTx;
 
-    WriteMint(id, mint);
+    // WriteMint(id, mint);
 
-    return true;
+    // return true;
 }
 
 bool LelantusWallet::TryRecoverMint(
-    SigmaMintId const &id,
-    SigmaMintChainState const &chainState)
+    LelantusMintId const &id,
+    LelantusMintChainState const &chainState)
 {
     return TryRecoverMint(id, chainState, uint256());
 }
 
-void LelantusWallet::UpdateMintCreatedTx(const SigmaMintId& id, const uint256& tx)
+void LelantusWallet::UpdateMintCreatedTx(LelantusMintId const &id, const uint256& tx)
 {
-    UpdateMint(id, [&](SigmaMint& m) {
+    UpdateMint(id, [&](LelantusMint& m) {
         m.createdTx = tx;
     });
 }
 
-void LelantusWallet::UpdateMintChainstate(SigmaMintId const &id, SigmaMintChainState const &state)
+void LelantusWallet::UpdateMintChainstate(LelantusMintId const &id, LelantusMintChainState const &state)
 {
-    UpdateMint(id, [&](SigmaMint &m) {
+    UpdateMint(id, [&](LelantusMint &m) {
         m.chainState = state;
     });
 }
 
-void LelantusWallet::UpdateMintSpendTx(SigmaMintId const &id, uint256 const &tx)
+void LelantusWallet::UpdateMintSpendTx(LelantusMintId const &id, uint256 const &tx)
 {
-    UpdateMint(id, [&](SigmaMint &m) {
+    UpdateMint(id, [&](LelantusMint &m) {
         m.spendTx = tx;
     });
 }
 
 // Mint querying
-bool LelantusWallet::HasMint(SigmaMintId const &id) const
+bool LelantusWallet::HasMint(LelantusMintId const &id) const
 {
     return database->HasMint(id);
 }
@@ -309,9 +309,9 @@ bool LelantusWallet::HasMint(secp_primitives::Scalar const &serial) const
     return database->HasMintId(id);
 }
 
-SigmaMint LelantusWallet::GetMint(SigmaMintId const &id) const
+LelantusMint LelantusWallet::GetMint(LelantusMintId const &id) const
 {
-    SigmaMint m;
+    LelantusMint m;
     if (!database->ReadMint(id, m)) {
         throw std::runtime_error("fail to read hdmint");
     }
@@ -319,14 +319,14 @@ SigmaMint LelantusWallet::GetMint(SigmaMintId const &id) const
     return m;
 }
 
-SigmaMint LelantusWallet::GetMint(secp_primitives::Scalar const &serial) const
+LelantusMint LelantusWallet::GetMint(secp_primitives::Scalar const &serial) const
 {
     return GetMint(GetMintId(serial));
 }
 
-SigmaMintId LelantusWallet::GetMintId(secp_primitives::Scalar const &serial) const
+LelantusMintId LelantusWallet::GetMintId(secp_primitives::Scalar const &serial) const
 {
-    SigmaMintId id;
+    LelantusMintId id;
     auto serialHash = GetSerialId(serial);
     if (!database->ReadMintId(serialHash, id)) {
         throw std::runtime_error("fail to read id");
@@ -357,46 +357,46 @@ void LelantusWallet::RemoveInvalidMintPoolEntries() // Remove MintPool entry tha
     }
 }
 
-void LelantusWallet::DeleteUnconfirmedMint(SigmaMintId const &id)
+void LelantusWallet::DeleteUnconfirmedMint(LelantusMintId const &id)
 {
-    SigmaMint mint;
-    if (!database->ReadMint(id, mint)) {
-        throw std::runtime_error("no mint data in wallet");
-    }
+    // LelantusMint mint;
+    // if (!database->ReadMint(id, mint)) {
+    //     throw std::runtime_error("no mint data in wallet");
+    // }
 
-    if (mint.IsOnChain()) {
-        throw std::invalid_argument("try to delete onchain mint");
-    }
+    // if (mint.IsOnChain()) {
+    //     throw std::invalid_argument("try to delete onchain mint");
+    // }
 
-    SigmaPublicKey pubKey(GeneratePrivateKey(mint.seedId), DefaultSigmaParams);
+    // auto pubKey = GeneratePrivateKey(mint.seedId).getPublicCoin();
 
-    uint32_t change;
-    auto index = GetSeedIndex(mint.seedId, change);
+    // uint32_t change;
+    // auto index = GetSeedIndex(mint.seedId, change);
 
-    if (change != BIP44ChangeIndex()) {
-        throw std::invalid_argument("Try to delete invalid seed id mint");
-    }
+    // if (change != BIP44ChangeIndex()) {
+    //     throw std::invalid_argument("Try to delete invalid seed id mint");
+    // }
 
-    mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
-    SaveMintPool();
+    // mintPool.insert(MintPoolEntry(pubKey, mint.seedId, index));
+    // SaveMintPool();
 
-    if (!database->EraseMint(id)) {
-        throw std::runtime_error("fail to erase mint from wallet");
-    }
+    // if (!database->EraseMint(id)) {
+    //     throw std::runtime_error("fail to erase mint from wallet");
+    // }
 }
 
-bool LelantusWallet::IsMintInPool(SigmaPublicKey const &pubKey)
+bool LelantusWallet::IsMintInPool(LelantusMintId const &id)
 {
     LOCK(pwalletMain->cs_wallet);
-    return mintPool.get<1>().count(pubKey);
+    return mintPool.get<1>().count(id);
 }
 
-bool LelantusWallet::GetMintPoolEntry(SigmaPublicKey const &pubKey, MintPoolEntry &entry)
+bool LelantusWallet::GetMintPoolEntry(LelantusMintId const &id, MintPoolEntry &entry)
 {
     LOCK(pwalletMain->cs_wallet);
 
     auto &publicKeyIndex = mintPool.get<1>();
-    auto it = publicKeyIndex.find(pubKey);
+    auto it = publicKeyIndex.find(id);
 
     if (it == publicKeyIndex.end()) {
         return false;
@@ -420,8 +420,9 @@ size_t LelantusWallet::FillMintPool()
         auto index = GenerateNewSeed(seedId, seed);
         auto privKey = GeneratePrivateKey(seed);
 
-        SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
-        mintPool.insert(MintPoolEntry(pubKey, seedId, index));
+        // privKey.getPublicCoin();
+        // SigmaPublicKey pubKey(privKey, DefaultSigmaParams);
+        // mintPool.insert(MintPoolEntry(pubKey, seedId, index));
 
         generatedCoins++;
     }

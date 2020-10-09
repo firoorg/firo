@@ -8,12 +8,22 @@
 
 namespace elysium {
 
-MintTag::MintTag()
+MintEntryId::MintEntryId()
 {
     SetNull();
 }
 
-MintTag::MintTag(uint256 const &tag) : uint256(tag)
+MintEntryId::MintEntryId(lelantus::PrivateCoin const &coin, uint160 const &seedId)
+    : MintEntryId(coin.getSerialNumber(), coin.getRandomness())
+{
+}
+
+MintEntryId::MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness)
+{
+
+}
+
+MintEntryId::MintEntryId(uint256 const &tag) : uint256(tag)
 {
 }
 
@@ -31,6 +41,11 @@ MintTag MintTag::CreateMintTag(
     ss << seedId;
 
     return Hash(ss.begin(), ss.end());
+}
+
+secp_primitives::GroupElement GetReduceCommitment(lelantus::PublicCoin const &pubCoin, LelantusAmount amount)
+{
+    return pubCoin.getValue() + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
 }
 
 } // namespace elysium
