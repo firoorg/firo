@@ -1858,7 +1858,9 @@ UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
     uint256 txid;
     std::string rawHex;
 
-    auto payload = CreatePayload_CreateLelantusMint(propertyId, amount, coin.getPublicCoin(), {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+    MintEntryId mintId;
+
+    auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mintId, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
     auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
 
     if (result != 0) {

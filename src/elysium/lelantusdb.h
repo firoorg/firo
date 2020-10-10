@@ -36,11 +36,15 @@ public:
     std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, int groupId, size_t count);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool HasMint(PropertyId propertyId, MintEntryId const &id);
-    bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, std::vector<unsigned char> const &additional);
+    bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);
 
     void DeleteAll(int startBlock);
 
     void CommitCoins();
+
+public:
+    boost::signals2::signal<void(PropertyId, MintEntryId, LelantusGroup, LelantusIndex, boost::optional<LelantusAmount>)> MintAdded;
+    boost::signals2::signal<void(PropertyId, MintEntryId)> MintRemoved;
 
 protected:
 

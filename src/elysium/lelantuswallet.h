@@ -33,7 +33,7 @@ public:
     struct MintPoolEntry {
         MintEntryId id;
         CKeyID seedId;
-        uint32_t index;
+        LelantusIndex index;
 
         MintPoolEntry();
         MintPoolEntry(MintEntryId const &id, CKeyID const &seedId, uint32_t index);
