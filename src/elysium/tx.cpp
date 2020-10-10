@@ -974,22 +974,19 @@ bool CMPTransaction::interpret_SimpleMint()
 bool CMPTransaction::interpret_LelantusMint()
 {
     constexpr unsigned ElysiumMintSize = 34,
-        TagSize = 32,
+        IdSize = 32,
         SchnorrProofSize = 98;
 
-    if (raw.size() != 16 + ElysiumMintSize + TagSize + SchnorrProofSize) {
+    if (raw.size() != 16 + ElysiumMintSize + IdSize + SchnorrProofSize) {
         return false;
     }
 
     memcpy(&property, &raw[4], 4);
     swapByteOrder(property);
 
-    memcpy(&lelantusMintValue, &raw[8], 8);
-    swapByteOrder(lelantusMintValue);
-
     CDataStream deserialized(
-        reinterpret_cast<char*>(&raw[16]),
-        reinterpret_cast<char*>(&raw[16] + ElysiumMintSize + TagSize),
+        reinterpret_cast<char*>(&raw[8]),
+        reinterpret_cast<char*>(&raw[8] + ElysiumMintSize + IdSize),
         SER_NETWORK, CLIENT_VERSION
     );
 
@@ -999,8 +996,11 @@ bool CMPTransaction::interpret_LelantusMint()
     deserialized >> lelantusMint.get();
     deserialized >> lelantusId.get();
 
+    memcpy(&lelantusMintValue, &raw[8 + ElysiumMintSize + IdSize], 8);
+    swapByteOrder(lelantusMintValue);
+
     lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
-        raw.begin() + 16 + ElysiumMintSize + TagSize, raw.end());
+        raw.begin() + 8 + ElysiumMintSize + IdSize + 8, raw.end());
 
     if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));

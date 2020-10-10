@@ -4,6 +4,7 @@
 #include "../lelantus.h"
 
 #include "ecdsa_signature.h"
+#include "lelantusprimitives.h"
 #include "sp.h"
 #include "sigma.h"
 
@@ -50,7 +51,7 @@ std::vector<unsigned char> CreatePayload_ElysiumAlert(uint16_t alertType, uint32
 std::vector<unsigned char> CreatePayload_DeactivateFeature(uint16_t featureId);
 std::vector<unsigned char> CreatePayload_ActivateFeature(uint16_t featureId, uint32_t activationBlock, uint32_t minClientVersion);
 std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId, uint64_t value);
-std::vector<unsigned char> CreatePayload_CreateLelantusMint(uint32_t propertyId, uint64_t value, lelantus::PublicCoin const &pubcoin,
-                                                                  std::vector<unsigned char> const &schnorrProof);
+std::vector<unsigned char> CreatePayload_CreateLelantusMint(uint32_t propertyId, lelantus::PublicCoin const &pubcoin, MintEntryId const &id,
+                                                            uint64_t value, std::vector<unsigned char> const &schnorrProof);
 
 #endif // ZCOIN_ELYSIUM_CREATEPAYLOAD_H

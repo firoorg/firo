@@ -119,6 +119,7 @@ public:
     }
 };
 
+// data models
 struct CoinSequenceData {
     lelantus::PublicCoin publicCoin;
     int block;
@@ -130,6 +131,22 @@ struct CoinSequenceData {
     {
         READWRITE(publicCoin);
         READWRITE(block);
+    }
+};
+
+struct CoinData {
+    MintEntryId id;
+    LelantusAmount amount;
+    std::vector<unsigned char> additionalData;
+
+    ADD_SERIALIZE_METHODS
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action)
+    {
+        READWRITE(id);
+        READWRITE(amount);
+        READWRITE(additionalData);
     }
 };
 
@@ -235,6 +252,7 @@ bool LelantusDb::WriteMint(
     lelantus::PublicCoin const &pubKey,
     int block,
     MintEntryId const &id,
+    LelantusAmount amount,
     std::vector<unsigned char> const &additional)
 {
     leveldb::WriteBatch batch;
@@ -249,7 +267,8 @@ bool LelantusDb::WriteMint(
     }
 
     // add coin index
-    batch.Put(coinKey, MakeRaw(id, additional));
+    CoinData coinData = { .id = id, .amount = amount, .additionalData = additional };
+    batch.Put(coinKey, MakeRaw(coinData));
     undoRecorder.Record(UNDO_REMOVE_COIN, block, coinKey);
 
     // add tag index
@@ -313,11 +332,26 @@ void LelantusDb::CommitCoins()
         auto propertyId = idAndPubKeys.first;
         auto nextCoinSeq = GetNextSequence(DB_COIN_SEQUENCE, propertyId);
 
+        std::vector<std::tuple<MintEntryId, LelantusIndex, LelantusAmount>> entries;
+
         // record sequence
         for (auto const &pubKey : idAndPubKeys.second) {
-            auto coinSequenceKey = MakeRaw(DB_COIN_SEQUENCE, propertyId, ::swapByteOrder(nextCoinSeq++));
+            auto coinSequenceKey = MakeRaw(DB_COIN_SEQUENCE, propertyId, ::swapByteOrder(nextCoinSeq));
             batch.Put(coinSequenceKey, MakeRaw(CoinSequenceData{ .publicCoin = pubKey, .block = block }));
             undoRecorder.Record(UNDO_REMOVE_COIN_SEQ, block, coinSequenceKey);
+
+            // prepare data to emit
+            auto coinKey = MakeRaw(DB_COIN, propertyId, pubKey);
+            std::string raw;
+            if (!pdb->Get(readoptions, coinKey, &raw).ok()) {
+                throw std::runtime_error("Fail to get coin data");
+            }
+
+            CoinData coinData;
+            ParseRaw(raw, coinData);
+            entries.emplace_back(coinData.id, nextCoinSeq, coinData.amount);
+
+            nextCoinSeq++;
         }
 
         size_t newCoins = idAndPubKeys.second.size();
@@ -353,9 +387,14 @@ void LelantusDb::CommitCoins()
             }
 
             // write group
-            auto groupKey = MakeRaw(DB_COIN_GROUP, propertyId, lastGroup + 1);
+            auto groupKey = MakeRaw(DB_COIN_GROUP, propertyId, ++lastGroup);
             batch.Put(groupKey, MakeRaw(firstSeq));
             undoRecorder.Record(UNDO_REMOVE_GROUP, block, groupKey);
+        }
+
+        // emit mints
+        for (auto const &e : entries) {
+            MintAdded(propertyId, std::get<0>(e), lastGroup, std::get<1>(e), std::get<2>(e));
         }
     }
 
@@ -385,23 +424,34 @@ void LelantusDb::DeleteAll(int startBlock)
 
         switch (undoEntry.undoType) {
         case UNDO_REMOVE_SERIAL:
-            batch.Delete(undoEntry.data);
             break;
         case UNDO_REMOVE_COIN:
-            batch.Delete(undoEntry.data);
+            {
+                std::tuple<char, PropertyId, lelantus::PublicCoin> coinKey;
+                ParseRaw(undoEntry.data, coinKey);
+
+                string rawCoinData;
+                if (!pdb->Get(readoptions, undoEntry.data, &rawCoinData).ok()) {
+                    throw std::runtime_error("Fail to read mint data");
+                }
+
+                CoinData coinData;
+                ParseRaw(rawCoinData, coinData);
+
+                MintRemoved(std::get<1>(coinKey), coinData.id);
+            }
             break;
         case UNDO_REMOVE_COIN_SEQ:
-            batch.Delete(undoEntry.data);
             break;
         case UNDO_REMOVE_GROUP:
-            batch.Delete(undoEntry.data);
             break;
         case UNDO_REMOVE_COIN_ID:
-            batch.Delete(undoEntry.data);
             break;
         default:
             throw std::runtime_error(strprintf("Unknown type : %d", undoEntry.undoType));
         }
+
+        batch.Delete(undoEntry.data);
     }
 
     auto status = pdb->Write(syncoptions, &batch);

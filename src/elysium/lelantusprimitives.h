@@ -14,7 +14,7 @@ namespace elysium {
 
 typedef uint64_t LelantusAmount;
 typedef uint32_t LelantusGroup;
-typedef uint32_t LelantusIndex;
+typedef uint64_t LelantusIndex;
 
 // Id of mint calculated from seed regardless of amount
 class MintEntryId : public uint256 {

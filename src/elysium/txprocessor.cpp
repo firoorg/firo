@@ -291,7 +291,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(sender, property, -mintValue, BALANCE));
-    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), rawProof);
+    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), mintValue, rawProof);
 
     return 0;
 }
