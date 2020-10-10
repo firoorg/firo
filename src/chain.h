@@ -487,7 +487,17 @@ public:
         }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= Params().GetConsensus().nLelantusStartBlock) {
-            READWRITE(lelantusMintedPubCoins);
+            if(nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
+                std::map<int, vector<lelantus::PublicCoin>>  lelantusPubCoins;
+                READWRITE(lelantusPubCoins);
+                for(auto& itr : lelantusPubCoins) {
+                    if(!itr.second.empty()) {
+                        for(auto& coin : itr.second)
+                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, uint256()));
+                    }
+                }
+            } else
+                READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
         }
 

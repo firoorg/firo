@@ -100,6 +100,8 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
         throw std::invalid_argument("Script is not a valid Lelantus mint");
     }
 
+    bool skipTag = serialized.size() == (pubcoin.memoryRequired() + schnorrProof.memoryRequired());
+
     pubcoin.deserialize(serialized.data());
 
     CDataStream stream(
@@ -109,7 +111,8 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     );
 
     stream >> schnorrProof;
-    stream >> mintTag;
+    if(!skipTag)
+        stream >> mintTag;
 }
 
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue)
@@ -126,9 +129,11 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
     // 16 is the size of encrypted mint value, 32 is size of mintTag
-    if (serialized.size() < (pubcoin.memoryRequired() + 16 + 32)) {
+    if (serialized.size() < (pubcoin.memoryRequired() + 16)) {
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
+
+    bool skipTag = serialized.size() == (pubcoin.memoryRequired() + 16);
 
     pubcoin.deserialize(serialized.data());
     encryptedValue.insert(encryptedValue.begin(), serialized.begin() + pubcoin.memoryRequired(), serialized.end());
@@ -137,8 +142,8 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
             SER_NETWORK,
             PROTOCOL_VERSION
     );
-
-    stream >> mintTag;
+    if(!skipTag)
+        stream >> mintTag;
 }
 
 
