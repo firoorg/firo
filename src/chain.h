@@ -486,7 +486,9 @@ public:
             READWRITE(sigmaSpentSerials);
         }
 
-        if (!(s.GetType() & SER_GETHASH) && nHeight >= Params().GetConsensus().nLelantusStartBlock) {
+        if (!(s.GetType() & SER_GETHASH)
+        && nHeight >= Params().GetConsensus().nLelantusStartBlock
+        && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
             if(nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
                 std::map<int, vector<lelantus::PublicCoin>>  lelantusPubCoins;
                 READWRITE(lelantusPubCoins);
