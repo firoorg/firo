@@ -3,6 +3,7 @@
 
 #include "elysium.h"
 #include "property.h"
+#include "lelantuswallet.h"
 #include "sigmaprimitives.h"
 #include "sigmawalletv0.h"
 #include "sigmawalletv1.h"
@@ -119,6 +120,7 @@ private:
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
     SigmaWalletV0 mintWalletV0;
     SigmaWalletV1 mintWalletV1;
+    LelantusWallet lelantusWallet;
 };
 
 extern Wallet *wallet;

@@ -575,4 +575,70 @@ LelantusWallet::Database::Database()
 {
 }
 
+bool LelantusWallet::Database::WriteMint(MintEntryId const &id, LelantusMint const &mint, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->WriteElysiumLelantusMint(id, mint);
+}
+
+bool LelantusWallet::Database::ReadMint(MintEntryId const &id, LelantusMint &mint, CWalletDB *db) const
+{
+    auto local = Connection(db);
+    return local->ReadElysiumLelantusMint(id, mint);
+}
+
+bool LelantusWallet::Database::EraseMint(MintEntryId const &id, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->EraseElysiumLelantusMint(id);
+}
+
+bool LelantusWallet::Database::HasMint(MintEntryId const &id, CWalletDB *db) const
+{
+    auto local = Connection(db);
+    return local->HasElysiumLelantusMint(id);
+}
+
+bool LelantusWallet::Database::WriteMintId(uint160 const &hash, MintEntryId const &mintId, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->WriteElysiumLelantusMintId(hash, mintId);
+}
+
+bool LelantusWallet::Database::ReadMintId(uint160 const &hash, MintEntryId &mintId, CWalletDB *db) const
+{
+    auto local = Connection(db);
+    return local->ReadElysiumLelantusMintId(hash, mintId);
+}
+
+bool LelantusWallet::Database::EraseMintId(uint160 const &hash, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->EraseElysiumLelantusMintId(hash);
+}
+
+bool LelantusWallet::Database::HasMintId(uint160 const &hash, CWalletDB *db) const
+{
+    auto local = Connection(db);
+    return local->HasElysiumLelantusMintId(hash);
+}
+
+bool LelantusWallet::Database::WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->WriteElysiumLelantusMintPool(mints);
+}
+
+bool LelantusWallet::Database::ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db)
+{
+    auto local = Connection(db);
+    return local->ReadElysiumLelantusMintPool(mints);
+}
+
+void LelantusWallet::Database::ListMints(std::function<void(MintEntryId&, LelantusMint&)> const &inserter, CWalletDB *db)
+{
+    auto local = Connection(db);
+    local->ListElysiumLelantusMints<MintEntryId, LelantusMint>(inserter);
+}
+
 } // namespace elysium
