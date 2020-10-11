@@ -5,6 +5,7 @@
 #ifndef ZCOIN_ELYSIUM_LELANTUSWALLET_H
 #define ZCOIN_ELYSIUM_LELANTUSWALLET_H
 
+#include "ecdsa_context.h"
 #include "property.h"
 #include "lelantusprimitives.h"
 #include "lelantuswalletmodels.h"
@@ -73,20 +74,20 @@ protected:
         Database();
 
     public:
-        virtual bool WriteMint(MintEntryId const &id, LelantusMint const &mint, CWalletDB *db = nullptr) = 0;
-        virtual bool ReadMint(MintEntryId const &id, LelantusMint &mint, CWalletDB *db = nullptr) const = 0;
-        virtual bool EraseMint(MintEntryId const &id, CWalletDB *db = nullptr) = 0;
-        virtual bool HasMint(MintEntryId const &id, CWalletDB *db = nullptr) const = 0;
+        bool WriteMint(MintEntryId const &id, LelantusMint const &mint, CWalletDB *db = nullptr);
+        bool ReadMint(MintEntryId const &id, LelantusMint &mint, CWalletDB *db = nullptr) const;
+        bool EraseMint(MintEntryId const &id, CWalletDB *db = nullptr);
+        bool HasMint(MintEntryId const &id, CWalletDB *db = nullptr) const;
 
-        virtual bool WriteMintId(uint160 const &hash, MintEntryId const &mintId, CWalletDB *db = nullptr) = 0;
-        virtual bool ReadMintId(uint160 const &hash, MintEntryId &mintId, CWalletDB *db = nullptr) const = 0;
-        virtual bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr) = 0;
-        virtual bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const = 0;
+        bool WriteMintId(uint160 const &hash, MintEntryId const &mintId, CWalletDB *db = nullptr);
+        bool ReadMintId(uint160 const &hash, MintEntryId &mintId, CWalletDB *db = nullptr) const;
+        bool EraseMintId(uint160 const &hash, CWalletDB *db = nullptr);
+        bool HasMintId(uint160 const &hash, CWalletDB *db = nullptr) const;
 
-        virtual bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr) = 0;
-        virtual bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr) = 0;
+        bool WriteMintPool(std::vector<MintPoolEntry> const &mints, CWalletDB *db = nullptr);
+        bool ReadMintPool(std::vector<MintPoolEntry> &mints, CWalletDB *db = nullptr);
 
-        virtual void ListMints(std::function<void(MintEntryId&, LelantusMint&)> const&, CWalletDB *db = nullptr) = 0;
+        void ListMints(std::function<void(MintEntryId&, LelantusMint&)> const&, CWalletDB *db = nullptr) ;
 
     protected:
         // Helper
