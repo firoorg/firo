@@ -14,6 +14,7 @@ ELYSIUM_TEST_CPP = \
   elysium/test/encoding_c_tests.cpp \
   elysium/test/elysium_handler_tx.cpp \
   elysium/test/elysium_tests.cpp \
+  elysium/test/lelantuswallet_tests.cpp \
   elysium/test/lock_tests.cpp \
   elysium/test/marker_tests.cpp \
   elysium/test/output_restriction_tests.cpp \
