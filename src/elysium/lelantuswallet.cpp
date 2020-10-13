@@ -45,9 +45,15 @@ bool LelantusWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) con
     return !(*this == another);
 }
 
-LelantusWallet::MintReservation::MintReservation(LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint) : wallet(_wallet), id(_id), coin(_coin), mint(_mint), commited(false)
+LelantusWallet::MintReservation::MintReservation(
+    LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint) :
+    wallet(_wallet),
+    id(_id),
+    coin(_coin),
+    mint(_mint),
+    commited(false),
+    mintpoolEntry(wallet->ReserveMint(_id))
 {
-    wallet->ReserveMint(_id);
 }
 
 LelantusWallet::MintReservation::~MintReservation()

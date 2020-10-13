@@ -61,6 +61,9 @@ public:
         ~MintReservation();
         bool Commit();
 
+    public:
+        MintPoolEntry GetMintPoolEntry() const { return mintpoolEntry; }
+
     private:
         LelantusWallet *wallet;
         LelantusMint mint;
