@@ -242,7 +242,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
         return PKT_ERROR_LELANTUS - 22;
     }
 
-    auto mintValue = tx.getMintAmount();
+    auto mintValue = tx.getLelantusMintValue();
     if (mintValue <= 0 || MAX_INT_8_BYTES < mintValue) {
         PrintToLog("%s(): ");
         return PKT_ERROR_LELANTUS - 23;
@@ -291,7 +291,10 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     // subtract balance
     assert(update_tally_map(sender, property, -mintValue, BALANCE));
-    lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), mintValue, rawProof);
+    if (lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), mintValue, rawProof)) {
+        PrintToLog("%s(): rejected: fail to write mint to database\n", __func__);
+        return PKT_ERROR_LELANTUS - 907;
+    }
 
     return 0;
 }

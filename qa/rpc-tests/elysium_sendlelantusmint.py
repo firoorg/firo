@@ -43,7 +43,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         )
 
         assert_equal("100", self.nodes[0].elysium_getbalance(addr, sigmaProperty)['balance'])
-        # assert_equal(0, len(self.nodes[0].elysium_listpendingmints()))
+        assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
 
         # mint without token then fail
         addr = self.nodes[0].getnewaddress()
@@ -57,7 +57,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         )
 
         assert_equal("0", self.nodes[0].elysium_getbalance(addr, sigmaProperty)['balance'])
-        # assert_equal(0, len(self.nodes[0].elysium_listpendingmints()))
+        assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
 
         # success to mint should be shown on pending
         addr = self.nodes[0].getnewaddress()
@@ -67,12 +67,12 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         self.nodes[0].generate(10)
         self.nodes[0].elysium_sendlelantusmint(addr, sigmaProperty, "10")
 
-        # assert_equal(1, len(self.nodes[0].elysium_listpendingmints()))
+        assert_equal(1, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal("90", self.nodes[0].elysium_getbalance(addr, sigmaProperty)['balance'])
 
         self.nodes[0].generate(1)
-        # assert_equal(0, len(self.nodes[0].elysium_listpendingmints()))
-        # assert_equal(1, len(self.nodes[0].elysium_listmints()))
+        assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
+        assert_equal(1, len(self.nodes[0].elysium_listlelantusmints()))
 
 if __name__ == '__main__':
     ElysiumSendLelantusMintTest().main()

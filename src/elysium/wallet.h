@@ -39,6 +39,7 @@ public:
 
 public:
     SigmaMintId CreateSigmaMint(PropertyId property, SigmaDenomination denomination);
+    LelantusWallet::MintReservation CreateLelantusMint(PropertyId property, LelantusAmount amount);
 
     template<class Denomination, class Output>
     Output CreateSigmaMints(PropertyId property, Denomination begin, Denomination end, Output output)
@@ -54,6 +55,8 @@ public:
     void SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& tx);
 
     void ClearAllChainState();
+
+    void SyncWithChain();
 
     SigmaSpend CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding);
     SigmaSpend CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding);
@@ -73,6 +76,12 @@ public:
         mintWalletV1.ListMints(it);
     }
 
+    template<class OutputIt>
+    void ListLelantusMints(OutputIt it)
+    {
+        lelantusWallet.ListMints(it);
+    }
+
     SigmaMint GetSigmaMint(const SigmaMintId& id);
     CKey GetSigmaSignatureKey(const SigmaMintId &id);
     SigmaPrivateKey GetKey(const SigmaMint &mint);
@@ -80,10 +89,15 @@ public:
     bool HasSigmaMint(const SigmaMintId& id);
     bool HasSigmaMint(const secp_primitives::Scalar &serial);
 
+    bool HasLelantusMint(const MintEntryId& id);
+    bool HasLelantusMint(const secp_primitives::Scalar &serial);
+
 protected:
     boost::optional<SigmaMint> GetSpendableSigmaMint(
         PropertyId property, SigmaDenomination denomination, SigmaMintVersion version);
     void SetSigmaMintChainState(const SigmaMintId &id, const SigmaMintChainState &state);
+
+    void SetLelantusMintChainState(const MintEntryId &id, const LelantusMintChainState &state);
 
     SigmaWallet& GetMintWallet(SigmaMintVersion version);
     SigmaWallet& GetMintWallet(SigmaMintId const &id);
@@ -114,6 +128,18 @@ private:
         int block);
 
     void OnMintRemoved(PropertyId property, SigmaDenomination denomination, const SigmaPublicKey& pubKey);
+
+    void OnLelantusMintAdded(
+        PropertyId property,
+        MintEntryId id,
+        LelantusGroup group,
+        LelantusIndex idx,
+        boost::optional<LelantusAmount> amount,
+        int block);
+
+    void OnLelantusMintRemoved(
+        PropertyId property,
+        MintEntryId id);
 
 private:
     std::string walletFile;

@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
 
             uint256 tag;
 
-            db->WriteMint(id, g, block, tag, {});
+            db->WriteMint(id, g, block, tag, 1, {});
 
             addedCoins.push_back(g);
         }

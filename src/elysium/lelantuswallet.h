@@ -53,6 +53,22 @@ public:
         }
     };
 
+    struct MintReservation {
+        MintEntryId id;
+        lelantus::PrivateCoin coin;
+
+        MintReservation(LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint);
+        ~MintReservation();
+        bool Commit();
+
+    private:
+        LelantusWallet *wallet;
+        LelantusMint mint;
+        MintPoolEntry mintpoolEntry;
+
+        bool commited;
+    };
+
     typedef boost::multi_index_container<
         MintPoolEntry,
         boost::multi_index::indexed_by<
@@ -118,6 +134,7 @@ public:
     static constexpr unsigned MINTPOOL_CAPACITY = 20;
 
 public:
+    LelantusWallet();
     LelantusWallet(Database *database);
 
 public:
@@ -139,9 +156,10 @@ protected:
     // Mint updating
 public:
     LelantusPrivateKey GeneratePrivateKey(CKeyID const &seedId);
-    MintEntryId GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
+    MintReservation GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
+    void SyncWithChain();
 
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, PropertyId property, CAmount amount);
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, uint256 const &spendTx, PropertyId property, CAmount amount);
@@ -150,6 +168,8 @@ private:
     LelantusMint UpdateMint(MintEntryId const &id, std::function<void(LelantusMint &)> const &modifier);
 
     void WriteMint(MintEntryId const &id, LelantusMint const &mint);
+    MintPoolEntry ReserveMint(MintEntryId const &id);
+    void RollbackMint(MintEntryId const &id, MintPoolEntry const &entry);
 
 public:
     void UpdateMintCreatedTx(MintEntryId const &id, uint256 const &tx);

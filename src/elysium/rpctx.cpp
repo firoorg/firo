@@ -1851,21 +1851,24 @@ UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
 
     RequireBalance(fromAddress, propertyId, amount);
 
-    lelantus::PrivateCoin coin(lelantus::Params::get_default(), amount);
+    auto mint = wallet->CreateLelantusMint(propertyId, amount);
+    auto coin = mint.coin;
+
     CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
     lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
 
     uint256 txid;
     std::string rawHex;
 
-    MintEntryId mintId;
-
-    auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mintId, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+    auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
     auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
 
     if (result != 0) {
         throw JSONRPCError(result, error_str(result));
     }
+
+    // success then commit
+    mint.Commit();
 
     if (!autoCommit) {
         return rawHex;

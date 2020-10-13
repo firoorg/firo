@@ -1,5 +1,7 @@
 #include "wallet.h"
 
+#include "lelantusdb.h"
+
 #include "sigma.h"
 
 #include "../validation.h"
@@ -46,6 +48,14 @@ Wallet::Wallet(const std::string& walletFile) : walletFile(walletFile)
         auto h = std::bind(&Wallet::OnSpendRemoved, this, _1, _2, _3);
         eventConnections.emplace_front(sigmaDb->SpendRemoved.connect(h));
     }
+    {
+        auto h = std::bind(&Wallet::OnLelantusMintAdded, this, _1, _2, _3, _4, _5, _6);
+        eventConnections.emplace_front(lelantusDb->MintAdded.connect(h));
+    }
+    {
+        auto h = std::bind(&Wallet::OnLelantusMintRemoved, this, _1, _2);
+        eventConnections.emplace_front(lelantusDb->MintRemoved.connect(h));
+    }
 }
 
 Wallet::~Wallet()
@@ -61,6 +71,11 @@ void Wallet::ReloadMasterKey()
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     return mintWalletV1.GenerateMint(property, denomination);
+}
+
+LelantusWallet::MintReservation Wallet::CreateLelantusMint(PropertyId property, LelantusAmount amount)
+{
+    return lelantusWallet.GenerateMint(property, amount);
 }
 
 void Wallet::SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx)
@@ -79,6 +94,11 @@ void Wallet::ClearAllChainState()
 {
     mintWalletV0.ClearMintsChainState();
     mintWalletV1.ClearMintsChainState();
+}
+
+void Wallet::SyncWithChain()
+{
+    lelantusWallet.SyncWithChain();
 }
 
 SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding)
@@ -140,6 +160,16 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
 bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 {
     return GetSigmaMintVersion(serial) != boost::none;
+}
+
+bool Wallet::HasLelantusMint(const MintEntryId& id)
+{
+    return lelantusWallet.HasMint(id);
+}
+
+bool Wallet::HasLelantusMint(const secp_primitives::Scalar &serial)
+{
+    return lelantusWallet.HasMint(serial);
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
@@ -206,6 +236,11 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 {
     auto &mintWallet = GetMintWallet(id);
     mintWallet.UpdateMintChainstate(id, state);
+}
+
+void Wallet::SetLelantusMintChainState(const MintEntryId &id, const LelantusMintChainState &state)
+{
+    lelantusWallet.UpdateMintChainstate(id, state);
 }
 
 SigmaWallet& Wallet::GetMintWallet(SigmaMintVersion version)
@@ -332,6 +367,40 @@ void Wallet::OnMintRemoved(PropertyId property, SigmaDenomination denomination, 
     }
 
     SetSigmaMintChainState(id, SigmaMintChainState());
+}
+
+void Wallet::OnLelantusMintAdded(
+    PropertyId property,
+    MintEntryId id,
+    LelantusGroup group,
+    LelantusIndex idx,
+    boost::optional<LelantusAmount> amount,
+    int block)
+{
+    LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
+    if (HasLelantusMint(id)) {
+
+        // 1. is in wallet then update state
+        SetLelantusMintChainState(id, {block, group, idx});
+    } else {
+
+        // 2. try to recover new mint
+        LelantusMintChainState state(block, group, idx);
+        if (!lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
+            LogPrintf("%s : Found new mint when try to recover\n", __func__);
+        }
+    }
+}
+
+void Wallet::OnLelantusMintRemoved(
+    PropertyId property,
+    MintEntryId id)
+{
+    if (!HasLelantusMint(id)) {
+        return;
+    }
+
+    SetLelantusMintChainState(id, {});
 }
 
 } // namespace elysium

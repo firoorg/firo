@@ -116,6 +116,53 @@ UniValue SigmaMintsToJson(It begin, It end, bool verbose = false)
 
     return json;
 }
+
+UniValue LelantusMintToJson(const LelantusMint& mint, bool verbose)
+{
+    // Load property info.
+    CMPSPInfo::Entry info;
+
+    {
+        LOCK(cs_main);
+
+        if (!_my_sps->getSP(mint.property, info)) {
+            throw std::invalid_argument("property " + std::to_string(mint.property) + " is not valid");
+        }
+    }
+
+    auto value = mint.amount;
+
+    // Construct JSON.
+    UniValue json(UniValue::VOBJ);
+
+    json.push_back(Pair("propertyid", static_cast<uint64_t>(mint.property)));
+
+    if (info.isDivisible()) {
+        json.push_back(Pair("value", FormatDivisibleMP(value)));
+    } else {
+        json.push_back(Pair("value", FormatIndivisibleMP(value)));
+    }
+
+    if (verbose/* && mint.chainState.block >= 0*/) {
+        json.push_back(Pair("block", mint.chainState.block));
+        json.push_back(Pair("group", static_cast<uint64_t>(mint.chainState.group)));
+        json.push_back(Pair("index", mint.chainState.index));
+    }
+
+    return json;
+}
+
+template<class It>
+UniValue LelantusMintsToJson(It begin, It end, bool verbose = false)
+{
+    UniValue json(UniValue::VARR);
+
+    for (auto it = begin; it != end; it++) {
+        json.push_back(LelantusMintToJson(*it, verbose));
+    }
+
+    return json;
+}
 #endif
 
 }
@@ -1972,6 +2019,97 @@ UniValue elysium_listpendingmints(const JSONRPCRequest& request)
 
     return SigmaMintsToJson(mints.begin(), mints.end());
 }
+
+UniValue elysium_listlelantusmints(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 2) {
+        throw std::runtime_error(
+            "elysium_listlelantusmints ( propertyid verbose )\n"
+            "\nList all non-pending unused sigma mints in the wallet, optionally filtered by property.\n"
+            "\nArguments:\n"
+            "1. propertyid           (number, optional) show only mints that belonged to this property\n"
+            "2. verbose              (boolean, optional) show additional information (default: false)\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "    \"block\" : n              (number) the block number that mint got mined (if verbose enabled)\n"
+            "    \"group\" : n              (number) group identifier that mint belonged to (if verbose enabled)\n"
+            "    \"index\" : n              (number) index of the mint in the group (if verbose enabled)\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_listlelantusmints", "")
+            + HelpExampleRpc("elysium_listlelantusmints", "")
+        );
+    }
+
+    // Get parameters.
+    boost::optional<PropertyId> property;
+    boost::optional<SigmaDenomination> denomination;
+    bool verbose = false;
+
+    if (request.params.size() > 0) {
+        property = ParsePropertyId(request.params[0]);
+        RequireExistingProperty(property.get());
+    }
+
+    if (request.params.size() > 1) {
+        verbose = request.params[1].get_bool();
+    }
+
+    // Get mints that meet criteria.
+    std::vector<LelantusMint> mints;
+
+    wallet->ListLelantusMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
+        }
+
+        if (property && m.second.property != property.get()) {
+            return;
+        }
+
+        mints.push_back(m.second);
+    }));
+
+    return LelantusMintsToJson(mints.begin(), mints.end(), verbose);
+}
+
+UniValue elysium_listpendinglelantusmints(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0) {
+        throw std::runtime_error(
+            "elysium_listpendinglelantusmints\n"
+            "\nList all pending sigma mints in the wallet.\n"
+            "\nResult:\n"
+            "[                       (array of JSON objects)\n"
+            "  {\n"
+            "    \"propertyid\" : n,        (number) property identifier that mint belonged to\n"
+            "    \"value\" : \"n.nnnnnnnn\" (string) value of the mint\n"
+            "  },\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_listpendinglelantusmints", "")
+            + HelpExampleRpc("elysium_listpendinglelantusmints", "")
+        );
+    }
+
+    std::vector<LelantusMint> mints;
+
+    wallet->ListLelantusMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+        if (m.second.IsOnChain()) {
+            return;
+        }
+
+        mints.push_back(m.second);
+    }));
+
+    return LelantusMintsToJson(mints.begin(), mints.end());
+}
 #endif
 
 UniValue elysium_listpendingtransactions(const JSONRPCRequest& request)
@@ -2431,6 +2569,8 @@ static const CRPCCommand commands[] =
     { "elysium (data retrieval)", "elysium_listtransactions",          &elysium_listtransactions,           false },
     { "elysium (data retrieval)", "elysium_listmints",                 &elysium_listmints,                  false },
     { "elysium (data retrieval)", "elysium_listpendingmints",          &elysium_listpendingmints,           false },
+    { "elysium (data retrieval)", "elysium_listlelantusmints",         &elysium_listlelantusmints,          false },
+    { "elysium (data retrieval)", "elysium_listpendinglelantusmints",  &elysium_listpendinglelantusmints,   false },
     { "elysium (data retrieval)", "elysium_getfeeshare",               &elysium_getfeeshare,                false },
     { "elysium (configuration)",  "elysium_setautocommit",             &elysium_setautocommit,              true  },
 #endif
