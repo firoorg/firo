@@ -394,7 +394,7 @@ void LelantusDb::CommitCoins()
 
         // emit mints
         for (auto const &e : entries) {
-            MintAdded(propertyId, std::get<0>(e), lastGroup, std::get<1>(e), std::get<2>(e));
+            MintAdded(propertyId, std::get<0>(e), lastGroup, std::get<1>(e), std::get<2>(e), block);
         }
     }
 

@@ -43,7 +43,7 @@ public:
     void CommitCoins();
 
 public:
-    boost::signals2::signal<void(PropertyId, MintEntryId, LelantusGroup, LelantusIndex, boost::optional<LelantusAmount>)> MintAdded;
+    boost::signals2::signal<void(PropertyId, MintEntryId, LelantusGroup, LelantusIndex, boost::optional<LelantusAmount>, int)> MintAdded;
     boost::signals2::signal<void(PropertyId, MintEntryId)> MintRemoved;
 
 protected:

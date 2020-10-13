@@ -3761,6 +3761,8 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
 {
     LOCK(cs_main);
 
+    lelantusDb->CommitCoins();
+
     if (!elysiumInitialized) {
         elysium_init();
     }

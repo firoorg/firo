@@ -45,6 +45,32 @@ bool LelantusWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) con
     return !(*this == another);
 }
 
+LelantusWallet::MintReservation::MintReservation(LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint) : wallet(_wallet), id(_id), coin(_coin), mint(_mint), commited(false)
+{
+    wallet->ReserveMint(_id);
+}
+
+LelantusWallet::MintReservation::~MintReservation()
+{
+    if (!commited) {
+        wallet->RollbackMint(id, mintpoolEntry);
+    }
+}
+
+bool LelantusWallet::MintReservation::Commit()
+{
+    if (commited) {
+        throw std::runtime_error("The mint is already be commited.");
+    }
+
+    wallet->WriteMint(id, mint);
+    commited = true;
+}
+
+LelantusWallet::LelantusWallet() : LelantusWallet(new Database)
+{
+}
+
 LelantusWallet::LelantusWallet(Database *database)
     : walletFile(pwalletMain->strWalletFile), database(database), context(ECDSAContext::CreateSignContext())
 {
@@ -219,6 +245,36 @@ void LelantusWallet::WriteMint(MintEntryId const &id, LelantusMint const &mint)
     FillMintPool();
 }
 
+LelantusWallet::MintPoolEntry LelantusWallet::ReserveMint(MintEntryId const &id)
+{
+    LOCK(pwalletMain->cs_wallet);
+
+    auto &mintIdIndex = mintPool.get<1>();
+    auto it = mintIdIndex.find(id);
+
+    if (it == mintIdIndex.end()) {
+        throw std::runtime_error("Mint is not in pool");
+    }
+
+    MintPoolEntry entry = *it;
+
+    mintIdIndex.erase(it);
+    FillMintPool();
+    SaveMintPool();
+
+    return entry;
+}
+
+void LelantusWallet::RollbackMint(MintEntryId const &id, MintPoolEntry const &entry)
+{
+    if (HasMint(id)) {
+        throw std::runtime_error("Mint is not rollbackable");
+    }
+
+    mintPool.insert(entry);
+    SaveMintPool();
+}
+
 LelantusPrivateKey LelantusWallet::GeneratePrivateKey(CKeyID const &seedId)
 {
     uint512 seed;
@@ -227,7 +283,7 @@ LelantusPrivateKey LelantusWallet::GeneratePrivateKey(CKeyID const &seedId)
     return GeneratePrivateKey(seed);
 }
 
-MintEntryId LelantusWallet::GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId)
+LelantusWallet::MintReservation LelantusWallet::GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId)
 {
     LOCK(pwalletMain->cs_wallet);
 
@@ -258,9 +314,7 @@ MintEntryId LelantusWallet::GenerateMint(PropertyId property, LelantusAmount amo
     auto serialId = GetSerialId(priv.serial);
     LelantusMint mint(property, amount, seedId.get(), serialId);
 
-    WriteMint(id, mint);
-
-    return id;
+    return {this, id, priv.GetPrivateCoin(amount), mint};
 }
 
 LelantusMint LelantusWallet::UpdateMint(MintEntryId const &id, std::function<void(LelantusMint &)> const &modifier)
@@ -294,6 +348,11 @@ void LelantusWallet::ClearMintsChainState()
     }
 
     db.TxnCommit();
+}
+
+void LelantusWallet::SyncWithChain()
+{
+    // TODO: implement
 }
 
 bool LelantusWallet::TryRecoverMint(
