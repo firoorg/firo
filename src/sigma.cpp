@@ -442,11 +442,10 @@ bool CheckSigmaTransaction(
     }
 
     // accept sigma tx into 5 more blocks, to allow mempool cleared
-    if(realHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
+    if (!isVerifyDB && realHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
         return state.DoS(100, false,
                          REJECT_INVALID,
                          "Sigma already is not available, start using Lelantus.");
-
     bool const allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
     if (!isVerifyDB && !isCheckWallet) {
