@@ -33,10 +33,13 @@ public:
     bool HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx);
     bool WriteSerial(PropertyId id, secp_primitives::Scalar serial, int block, uint256 const &spendTx);
 
-    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, int groupId, size_t count);
+    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, LelantusGroup groupId, size_t count, int &block);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool HasMint(PropertyId propertyId, MintEntryId const &id);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);
+
+    LelantusGroup GetGroup(PropertyId property, lelantus::PublicCoin const &pubKey);
+    LelantusGroup GetGroup(PropertyId property, MintEntryId const &id);
 
     void DeleteAll(int startBlock);
 
@@ -90,7 +93,7 @@ protected:
     bool WriteGroupSize(size_t groupSize, size_t mintAmount);
     std::pair<size_t, size_t> ReadGroupSize();
 
-    int GetLastGroup(PropertyId id, size_t &coins);
+    LelantusGroup GetLastGroup(PropertyId id, size_t &coins);
 
     std::unique_ptr<leveldb::Iterator> NewIterator();
 };

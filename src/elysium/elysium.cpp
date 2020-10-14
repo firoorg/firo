@@ -2290,6 +2290,11 @@ int elysium::WalletTxBuilder(
     std::vector<CSigmaEntry> sigmaSelected;
     std::vector<CHDMint> sigmaChanges;
 
+    std::vector<CLelantusEntry> lelantusSpendCoins;
+    std::vector<CHDMint> lelantusMintCoins;
+
+    CAmount fee;
+
     switch (inputMode) {
     case InputMode::NORMAL:
         // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
@@ -2299,7 +2304,6 @@ int elysium::WalletTxBuilder(
         }
         break;
     case InputMode::SIGMA:
-        CAmount fee;
         try {
             bool changeAddedToFee;
             wtxNew = pwalletMain->CreateSigmaSpendTransaction(
@@ -2309,6 +2313,14 @@ int elysium::WalletTxBuilder(
             return MP_ERR_CREATE_SIGMA_TX;
         }
         break;
+    case InputMode::LELANTUS:
+        try {
+            wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
+                vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins);
+        } catch (std::exception const &err) {
+            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
+            return MP_ERR_CREATE_SIGMA_TX;
+        }
     default:
         PrintToLog("%s: ERROR: wallet transaction creation failed: input mode is invalid\n", __func__);
         return MP_ERR_CREATE_TX;
@@ -2331,6 +2343,13 @@ int elysium::WalletTxBuilder(
         case InputMode::SIGMA:
             try {
                 if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
+            } catch (...) {
+                return MP_ERR_COMMIT_TX;
+            }
+            break;
+        case InputMode::LELANTUS:
+            try {
+                if (!pwalletMain->CommitLelantusTransaction(wtxNew, lelantusSpendCoins, lelantusMintCoins)) return MP_ERR_COMMIT_TX;
             } catch (...) {
                 return MP_ERR_COMMIT_TX;
             }

@@ -203,7 +203,8 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
 
     typedef std::vector<lelantus::PublicCoin>::const_iterator CoinItr;
     auto verifyGroup = [&](PropertyId id, int group, size_t count, CoinItr i, CoinItr j, std::string &result) {
-        auto mints = db->GetAnonimityGroup(id, group, count);
+        int block;
+        auto mints = db->GetAnonimityGroup(id, group, count, block);
         if (mints.size() != std::distance(i, j)) {
             result = strprintf("Check id %d, group %d, got %d but expect %d", id, group, mints.size(), std::distance(i, j));
             return;

@@ -6,6 +6,7 @@
 #define ZCOIN_ELYSIUM_LELANTUSPRIMITIVES_H
 
 #include "../liblelantus/coin.h"
+#include "../liblelantus/joinsplit.h"
 #include "../uint256.h"
 
 #include <cstdint>
@@ -48,6 +49,25 @@ public:
     secp_primitives::Scalar randomness;
     ECDSAPrivateKey ecdsaPrivateKey;
 };
+
+// class to store all data needed for joinsplit
+class SpendableCoin {
+public:
+    SpendableCoin(LelantusPrivateKey const &_privateKey, LelantusAmount _amount, MintEntryId const &_id);
+
+public:
+    LelantusPrivateKey privateKey;
+    LelantusAmount amount;
+    MintEntryId id;
+};
+
+lelantus::JoinSplit CreateJoinSplit(
+    std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,
+    LelantusAmount amount,
+    std::vector<lelantus::PrivateCoin> const &coinOuts,
+    std::map<uint32_t, uint256> const &groupBlockHashs,
+    uint256 const &metaData);
 
 } // namespace elysium
 

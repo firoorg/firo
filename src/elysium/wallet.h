@@ -53,6 +53,7 @@ public:
 
     void SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx);
     void SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& tx);
+    void SetLelantusMintUsedTransaction(const MintEntryId& id, const uint256& tx);
 
     void ClearAllChainState();
 
@@ -60,6 +61,12 @@ public:
 
     SigmaSpend CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding);
     SigmaSpend CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding);
+    lelantus::JoinSplit CreateLelantusJoinSplit(
+        PropertyId property,
+        CAmount amountToSpend,
+        uint256 const &metadata,
+        std::vector<SpendableCoin> &spendables,
+        boost::optional<LelantusWallet::MintReservation> &changeMint);
 
     void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 

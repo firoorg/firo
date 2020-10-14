@@ -3,10 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "ecdsa_context.h"
+#include "lelantusdb.h"
 #include "lelantuswallet.h"
 #include "walletmodels.h"
 
 #include "../uint256.h"
+#include "../validation.h"
 
 #include "../crypto/hmac_sha256.h"
 #include "../crypto/hmac_sha512.h"
@@ -611,6 +613,98 @@ bool LelantusWallet::RemoveFromMintPool(MintEntryId const &id)
 
     // mint is not in the pool
     return false;
+}
+
+CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, CAmount &changed, CWalletDB *db)
+{
+    coins.clear();
+
+    std::vector<std::pair<MintEntryId, LelantusMint>> mints;
+    ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
+        }
+
+        if (property && m.second.property != property) {
+            return;
+        }
+
+        mints.push_back(m);
+    }));
+
+    std::sort(mints.begin(), mints.end(),
+        [](std::pair<elysium::MintEntryId, elysium::LelantusMint> const &a, std::pair<elysium::MintEntryId, elysium::LelantusMint> const &b) -> bool {
+            if (a.second.amount != b.second.amount) {
+                return a.second.amount > b.second.amount;
+            }
+            return a.second.chainState.block < b.second.chainState.block;
+        });
+
+    LelantusAmount amount = 0;
+    for (auto const &m : mints) {
+        if (amount >= required) {
+            break;
+        }
+
+        amount += m.second.amount;
+
+        auto privkey = GeneratePrivateKey(m.second.seedId);
+        coins.emplace_back(privkey, m.second.amount, m.first);
+    }
+
+    if (amount < required) {
+        throw InsufficientFunds();
+    }
+
+    return amount;
+}
+
+lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
+    PropertyId property,
+    CAmount amountToSpend,
+    uint256 const &metadata,
+    std::vector<SpendableCoin> &spendables,
+    boost::optional<LelantusWallet::MintReservation> &changeMint)
+{
+    if (amountToSpend < 0) {
+        throw std::invalid_argument("Amount to spend could not be negative");
+    }
+
+    spendables.clear();
+    CAmount change;
+    if (GetCoinsToJoinSplit(property, amountToSpend, spendables, change) < amountToSpend) {
+        throw InsufficientFunds();
+    }
+
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
+    std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
+    coins.reserve(spendables.size());
+
+    for (auto const &s : spendables) {
+        auto priv = s.privateKey.GetPrivateCoin(s.amount);
+        auto group = lelantusDb->GetGroup(property, priv.getPublicCoin());
+
+        anonss[group] = {};
+
+        coins.emplace_back(priv, group);
+    }
+
+    std::map<uint32_t, uint256> blockHashes;
+    for (auto &anons : anonss) {
+        int block;
+        anons.second = lelantusDb->GetAnonimityGroup(property, anons.first, SIZE_MAX, block);
+        blockHashes[anons.first] = chainActive[block]->GetBlockHash();
+    }
+
+    // reserve change
+    changeMint = GenerateMint(property, change);
+    std::vector<lelantus::PrivateCoin> coinOuts;
+
+    if (changeMint.has_value()) {
+        coinOuts = {changeMint->coin};
+    }
+
+    return ::CreateJoinSplit(coins, anonss, amountToSpend, coinOuts, blockHashes, metadata);
 }
 
 LelantusWallet::Database::Connection::Connection(CWalletDB *db)
