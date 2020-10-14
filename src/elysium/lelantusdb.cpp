@@ -329,10 +329,10 @@ LelantusGroup LelantusDb::GetGroup(PropertyId property, lelantus::PublicCoin con
         if (!pdb->Get(readoptions, groupKey, &val).ok()) {
             throw std::runtime_error("Fail to get group data");
         }
-        LelantusIndex firstIndex;
-        ParseRaw(val, firstIndex);
+        CoinGroupData groupData;
+        ParseRaw(val, groupData);
 
-        if (data.index > firstIndex) {
+        if (data.index > groupData.firstSequence) {
             return group;
         }
 
@@ -602,14 +602,18 @@ LelantusGroup LelantusDb::GetLastGroup(PropertyId id, size_t &coins)
 
     std::string data;
     if (!pdb->Get(readoptions, MakeRaw(DB_COIN_GROUP, id, group), &data).ok()) {
-        if (!pdb->Put(writeoptions, MakeRaw(DB_COIN_GROUP, id, group), MakeRaw(uint64_t(0))).ok()) {
+        CoinGroupData groupData = {
+            .firstSequence = 0,
+            .lastBlock = -1,
+        };
+        if (!pdb->Put(writeoptions, MakeRaw(DB_COIN_GROUP, id, group), MakeRaw(groupData)).ok()) {
             throw std::runtime_error("Fail to record group id 0");
         }
     }
 
-    uint64_t startSequence;
-    while (pdb->Get(readoptions, MakeRaw(DB_COIN_GROUP, id, group + 1), &data).ok() && ParseRaw(data, startSequence)) {
-        coins = nextSeq - startSequence;
+    CoinGroupData groupData;
+    while (pdb->Get(readoptions, MakeRaw(DB_COIN_GROUP, id, group + 1), &data).ok() && ParseRaw(data, groupData)) {
+        coins = nextSeq - groupData.firstSequence;
         group++;
     }
 

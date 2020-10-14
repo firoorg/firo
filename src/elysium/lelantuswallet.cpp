@@ -615,7 +615,7 @@ bool LelantusWallet::RemoveFromMintPool(MintEntryId const &id)
     return false;
 }
 
-CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, CAmount &changed, CWalletDB *db)
+CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, CAmount &change, CWalletDB *db)
 {
     coins.clear();
 
@@ -655,6 +655,8 @@ CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount 
     if (amount < required) {
         throw InsufficientFunds();
     }
+
+    change = amount - required;
 
     return amount;
 }
