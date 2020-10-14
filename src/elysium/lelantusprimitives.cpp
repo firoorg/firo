@@ -57,4 +57,21 @@ lelantus::PrivateCoin LelantusPrivateKey::GetPrivateCoin(LelantusAmount amount) 
         LELANTUS_TX_VERSION_4);
 }
 
+SpendableCoin::SpendableCoin(LelantusPrivateKey const &_privateKey, LelantusAmount _amount, MintEntryId const &_id)
+    : privateKey(_privateKey), amount(_amount), id(_id)
+{
+}
+
+lelantus::JoinSplit CreateJoinSplit(
+    std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,
+    LelantusAmount amount,
+    std::vector<lelantus::PrivateCoin> const &coinOuts,
+    std::map<uint32_t, uint256> const &groupBlockHashs,
+    uint256 const &metaData)
+{
+    auto params = lelantus::Params::get_default();
+    return {params, coins, anonss, amount, coinOuts, 0, groupBlockHashs, metaData};
+}
+
 } // namespace elysium

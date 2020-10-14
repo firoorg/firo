@@ -90,6 +90,11 @@ void Wallet::SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& t
     wallet.UpdateMintSpendTx(id, tx);
 }
 
+void Wallet::SetLelantusMintUsedTransaction(const MintEntryId& id, const uint256& tx)
+{
+    lelantusWallet.UpdateMintSpendTx(id, tx);
+}
+
 void Wallet::ClearAllChainState()
 {
     mintWalletV0.ClearMintsChainState();
@@ -109,6 +114,16 @@ SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination den
 SigmaSpend Wallet::CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
     return CreateSigmaSpend(property, denomination, fPadding, SigmaMintVersion::V1);
+}
+
+lelantus::JoinSplit Wallet::CreateLelantusJoinSplit(
+    PropertyId property,
+    CAmount amountToSpend,
+    uint256 const &metadata,
+    std::vector<SpendableCoin> &spendables,
+    boost::optional<LelantusWallet::MintReservation> &changeMint)
+{
+    return lelantusWallet.CreateJoinSplit(property, amountToSpend, metadata, spendables, changeMint);
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, SigmaMintVersion version)

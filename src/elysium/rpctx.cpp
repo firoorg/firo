@@ -11,6 +11,7 @@
 #include "signaturebuilder.h"
 #include "sp.h"
 #include "tx.h"
+#include "lelantusutils.h"
 #include "utilsbitcoin.h"
 #include "wallet.h"
 
@@ -1878,6 +1879,105 @@ UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
     }
 }
 
+UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        throw std::runtime_error(
+            "elysium_sendlelantusspend \"toaddress\" propertyid amount ( \"referenceamount\" )\n"
+            "\nCreate spend.\n"
+            "\nArguments:\n"
+            "1. toaddress                    (string, required) the address to spend to\n"
+            "2. propertyid                   (number, required) the property to spend\n"
+            "3. amount                       (number, required) the amount to spend\n"
+            "4. referenceamount              (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendlelantusspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("elysium_sendlelantusspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
+        );
+    }
+
+    // obtain parameters & info
+    auto toAddress = ParseAddress(request.params[0]);
+    auto propertyId = ParsePropertyId(request.params[1]);
+    auto amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+    auto referenceAmount = (request.params.size() > 3) ? ParseAmount(request.params[3], true): 0;
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireSaneReferenceAmount(referenceAmount);
+    RequireLelantus(propertyId);
+
+    // create spend
+    std::vector<unsigned char> payload;
+
+    // calculate reference amount
+    CBitcoinAddress address(toAddress);
+    if (referenceAmount <= 0) {
+        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(address).Get());
+        referenceAmount = GetDustThreshold(scriptPubKey);
+    }
+
+    auto metaData = PrepareSpendMetadata(address, referenceAmount);
+
+    std::vector<SpendableCoin> spendables;
+    boost::optional<LelantusWallet::MintReservation> reservation;
+
+    try {
+        auto joinSplit = wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation);
+        payload = CreatePayload_CreateLelantusJoinSplit(propertyId, joinSplit);
+
+    } catch (InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (WalletError &e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(
+        "",
+        toAddress,
+        "",
+        referenceAmount,
+        payload,
+        txid,
+        rawHex,
+        autoCommit,
+        InputMode::LELANTUS
+    );
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        // mark the coin as used
+        for (auto const &s : spendables) {
+            wallet->SetLelantusMintUsedTransaction(s.id, txid);
+        }
+
+        if (reservation.has_value()) {
+            reservation->Commit();
+        }
+
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            PendingAdd(
+                txid,
+                "Spend",
+                ELYSIUM_TYPE_SIMPLE_SPEND,
+                propertyId,
+                amount,
+                false,
+                toAddress);
+            return txid.GetHex();
+        }
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -1909,6 +2009,7 @@ static const CRPCCommand commands[] =
     { "elysium (transaction creation)",  "elysium_sendmint",                  &elysium_sendmint,                   false },
     { "elysium (transaction creation)",  "elysium_sendspend",                 &elysium_sendspend,                  false },
     { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false },
+    { "elysium (transaction creation)",  "elysium_sendlelantusspend",         &elysium_sendlelantusspend,          false },
 
     /* depreciated: */
     { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },

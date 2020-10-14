@@ -53,5 +53,6 @@ std::vector<unsigned char> CreatePayload_ActivateFeature(uint16_t featureId, uin
 std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId, uint64_t value);
 std::vector<unsigned char> CreatePayload_CreateLelantusMint(uint32_t propertyId, lelantus::PublicCoin const &pubcoin, MintEntryId const &id,
                                                             uint64_t value, std::vector<unsigned char> const &schnorrProof);
+std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(uint32_t propertyId, lelantus::JoinSplit const &joinSplit);
 
 #endif // ZCOIN_ELYSIUM_CREATEPAYLOAD_H

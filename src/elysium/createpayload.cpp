@@ -706,5 +706,28 @@ std::vector<unsigned char> CreatePayload_CreateLelantusMint(
     return payload;
 }
 
+std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
+    uint32_t propertyId, lelantus::JoinSplit const &joinSplit)
+{
+    std::vector<unsigned char> payload;
+    uint16_t messageVer = 0;
+    uint16_t messageType = ELYSIUM_TYPE_LELANTUS_JOINSPLIT;
+    elysium::swapByteOrder(messageVer);
+    elysium::swapByteOrder(messageType);
+    elysium::swapByteOrder(propertyId);
+
+    // Meta data
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+
+    // Mint data
+    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+    serialized << joinSplit;
+    payload.insert(payload.end(), serialized.begin(), serialized.end());
+
+    return payload;
+}
+
 #undef PUSH_BACK_BYTES
 #undef PUSH_BACK_BYTES_PTR

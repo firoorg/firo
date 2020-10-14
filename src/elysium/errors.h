@@ -25,6 +25,7 @@ enum MPRPCErrorCode
     MP_ERR_INPUTSELECT_FAIL =       -206,
     MP_ERR_CREATE_TX =              -211,
     MP_ERR_CREATE_SIGMA_TX =        -215,
+    MP_ERR_CREATE_LELANTUS_TX =     -216,
     MP_ERR_COMMIT_TX =              -213,
 
     //gettransaction_MP, listtransactions_MP
