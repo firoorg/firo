@@ -2240,7 +2240,14 @@ int elysium::WalletTxBuilder(
 
     // Select the inputs
     if (0 >= SelectCoins(senderAddress, coinControl, referenceAmount, inputMode)) {
-        return inputMode == InputMode::SIGMA ? MP_SIGMA_INPUTS_INVALID : MP_INPUTS_INVALID;
+        switch (inputMode) {
+        case InputMode::NORMAL:
+            return MP_INPUTS_INVALID;
+        case InputMode::SIGMA:
+            return MP_SIGMA_INPUTS_INVALID;
+        case InputMode::LELANTUS:
+            return MP_LELANTUS_INPUTS_INVALID;
+        }
     }
 
     // Encode the data outputs
@@ -2316,11 +2323,12 @@ int elysium::WalletTxBuilder(
     case InputMode::LELANTUS:
         try {
             wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
-                vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins);
+                vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins, &coinControl);
         } catch (std::exception const &err) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
             return MP_ERR_CREATE_SIGMA_TX;
         }
+        break;
     default:
         PrintToLog("%s: ERROR: wallet transaction creation failed: input mode is invalid\n", __func__);
         return MP_ERR_CREATE_TX;

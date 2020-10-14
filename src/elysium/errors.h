@@ -15,6 +15,7 @@ enum MPRPCErrorCode
     //ClassAgnosticWalletTXBuilder(
     MP_INPUTS_INVALID =             -212,
     MP_SIGMA_INPUTS_INVALID =       -214,
+    MP_LELANTUS_INPUTS_INVALID =    -217,
     MP_ENCODING_ERROR =             -250,
     MP_REDEMP_ILLEGAL =             -233,
     MP_REDEMP_BAD_KEYID =           -220,
@@ -86,6 +87,9 @@ inline std::string error_str(int ec) {
           break;
       case MP_ERR_CREATE_SIGMA_TX:
           ec_str = "Error creating sigma spend transaction (wallet may be locked or sigma fees may not be sufficient)";
+          break;
+      case MP_ERR_CREATE_LELANTUS_TX:
+          ec_str = "Error creating lelantus spend transaction (wallet may be locked or lelantus fees may not be sufficient)";
           break;
       case MP_ERR_COMMIT_TX:
           ec_str = "Error committing transaction";
