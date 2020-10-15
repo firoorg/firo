@@ -62,6 +62,18 @@ SpendableCoin::SpendableCoin(LelantusPrivateKey const &_privateKey, LelantusAmou
 {
 }
 
+JoinSplitMint::JoinSplitMint()
+{
+    std::fill(encryptedValue, encryptedValue + sizeof(encryptedValue), 0);
+}
+
+JoinSplitMint::JoinSplitMint(MintEntryId _id, lelantus::PublicCoin const &_publicCoin, EncryptedValue const &_encryptedValue)
+    : id(_id),
+    publicCoin(_publicCoin)
+{
+    std::copy(_encryptedValue, _encryptedValue + sizeof(_encryptedValue), encryptedValue);
+}
+
 lelantus::JoinSplit CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,

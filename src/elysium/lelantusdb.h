@@ -37,6 +37,7 @@ public:
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool HasMint(PropertyId propertyId, MintEntryId const &id);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);
+    bool WriteMint(PropertyId propertyId, JoinSplitMint const &mint, int block);
 
     LelantusGroup GetGroup(PropertyId property, lelantus::PublicCoin const &pubKey);
     LelantusGroup GetGroup(PropertyId property, MintEntryId const &id);

@@ -156,6 +156,10 @@ private:
     boost::optional<MintEntryId> lelantusId;
     std::vector<unsigned char> lelantusSchnorrProof;
 
+    boost::optional<lelantus::JoinSplit> lelantusJoinSplit;
+    uint64_t lelantusSpendAmount;
+    boost::optional<JoinSplitMint> lelantusJoinSplitMint;
+
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
 
@@ -190,6 +194,7 @@ private:
     bool interpret_SimpleMint();
     bool interpret_SimpleSpend();
     bool interpret_LelantusMint();
+    bool interpret_LelantusJoinSplit();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -307,6 +312,10 @@ public:
     uint64_t getLelantusMintValue() const { return lelantusMintValue; }
     MintEntryId getLelantusMintId() const { return lelantusId.get(); }
     std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
+
+    lelantus::JoinSplit getLelantusJoinSplit() const { return lelantusJoinSplit.get(); };
+    uint64_t getLelantusSpendAmount() const { return lelantusSpendAmount; }
+    boost::optional<JoinSplitMint> getLelantusJoinSplitMint() const { return lelantusJoinSplitMint; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
