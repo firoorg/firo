@@ -141,6 +141,8 @@ struct CoinData {
     LelantusAmount amount;
     std::vector<unsigned char> additionalData;
     LelantusIndex index;
+    LelantusGroup group;
+    int block;
 
     ADD_SERIALIZE_METHODS
 
@@ -151,6 +153,8 @@ struct CoinData {
         READWRITE(amount);
         READWRITE(additionalData);
         READWRITE(index);
+        READWRITE(group);
+        READWRITE(block);
     }
 };
 
@@ -306,7 +310,7 @@ bool LelantusDb::WriteMint(
     undoRecorder.Record(UNDO_REMOVE_COIN, block, coinKey);
 
     // add tag index
-    auto tagIndexKey = MakeRaw(DB_COIN_ID, propertyId, id);
+    auto tagIndexKey = MakeRaw(DB_COIN_ID/*, propertyId*/, id);
     batch.Put(tagIndexKey, coinKey);
     undoRecorder.Record(UNDO_REMOVE_COIN_ID, block, tagIndexKey);
 
@@ -360,7 +364,7 @@ LelantusGroup LelantusDb::GetGroup(PropertyId property, MintEntryId const &id)
 {
     // get coin data
     std::string val;
-    if (!pdb->Get(readoptions, MakeRaw(DB_COIN_ID, property, id), &val).ok()) {
+    if (!pdb->Get(readoptions, MakeRaw(DB_COIN_ID/*, property*/, id), &val).ok()) {
         throw std::invalid_argument("Mint id is not in database");
     }
 
@@ -370,11 +374,37 @@ LelantusGroup LelantusDb::GetGroup(PropertyId property, MintEntryId const &id)
     return GetGroup(property, std::get<2>(keyData));
 }
 
-bool LelantusDb::HasMint(PropertyId propertyId, MintEntryId const &id)
+bool LelantusDb::HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, std::vector<unsigned char> &additional)
 {
-    auto tagKey = MakeRaw(DB_COIN_ID, propertyId, id);
+    auto tagKey = MakeRaw(DB_COIN_ID/*, propertyId*/, id);
     std::string val;
-    return pdb->Get(readoptions, tagKey, &val).ok();
+    auto success = pdb->Get(readoptions, tagKey, &val).ok();
+
+    if (!success) {
+        return false;
+    }
+
+    std::tuple<char, PropertyId, lelantus::PublicCoin> keyData;
+    ParseRaw(val, keyData);
+
+    property = std::get<1>(keyData);
+    publicKey = std::get<2>(keyData);
+
+    auto coinKey = MakeRaw(DB_COIN, property, publicKey);
+    std::string raw;
+    if (!pdb->Get(readoptions, coinKey, &raw).ok()) {
+        throw std::runtime_error("Fail to get coin data");
+    }
+
+    CoinData coinData;
+    ParseRaw(raw, coinData);
+
+    index = coinData.index;
+    group = coinData.group;
+    block = coinData.block;
+    additional = coinData.additionalData;
+
+    return true;
 }
 
 void LelantusDb::CommitCoins()
@@ -421,29 +451,6 @@ void LelantusDb::CommitCoins()
 
         std::vector<std::tuple<LelantusIndex, CoinData, lelantus::PublicCoin>> entries;
 
-        // record sequence
-        for (auto const &pubKey : idAndPubKeys.second) {
-            auto coinSequenceKey = MakeRaw(DB_COIN_SEQUENCE, propertyId, ::swapByteOrder(nextCoinSeq));
-            batch.Put(coinSequenceKey, MakeRaw(CoinSequenceData{ .publicCoin = pubKey, .block = block }));
-            undoRecorder.Record(UNDO_REMOVE_COIN_SEQ, block, coinSequenceKey);
-
-            // prepare data to emit
-            auto coinKey = MakeRaw(DB_COIN, propertyId, pubKey);
-            std::string raw;
-            if (!pdb->Get(readoptions, coinKey, &raw).ok()) {
-                throw std::runtime_error("Fail to get coin data");
-            }
-
-            CoinData coinData;
-            ParseRaw(raw, coinData);
-            entries.emplace_back(nextCoinSeq, coinData, pubKey);
-
-            // record index
-            coinData.index = nextCoinSeq;
-            batch.Put(raw, MakeRaw(coinData));
-
-            nextCoinSeq++;
-        }
 
         size_t newCoins = idAndPubKeys.second.size();
         size_t coins = 0;
@@ -499,6 +506,32 @@ void LelantusDb::CommitCoins()
             groupData.lastBlock = block;
             batch.Put(groupKey, MakeRaw(groupData));
             undoRecorder.Record(UNDO_REVERSE_GROUP_DATA, block, MakeRaw(groupKey, val));
+        }
+
+        // record sequence
+        for (auto const &pubKey : idAndPubKeys.second) {
+            auto coinSequenceKey = MakeRaw(DB_COIN_SEQUENCE, propertyId, ::swapByteOrder(nextCoinSeq));
+            batch.Put(coinSequenceKey, MakeRaw(CoinSequenceData{ .publicCoin = pubKey, .block = block }));
+            undoRecorder.Record(UNDO_REMOVE_COIN_SEQ, block, coinSequenceKey);
+
+            // prepare data to emit
+            auto coinKey = MakeRaw(DB_COIN, propertyId, pubKey);
+            std::string raw;
+            if (!pdb->Get(readoptions, coinKey, &raw).ok()) {
+                throw std::runtime_error("Fail to get coin data");
+            }
+
+            CoinData coinData;
+            ParseRaw(raw, coinData);
+            entries.emplace_back(nextCoinSeq, coinData, pubKey);
+
+            // record index
+            coinData.index = nextCoinSeq;
+            coinData.block = block;
+            coinData.group = lastGroup;
+            batch.Put(raw, MakeRaw(coinData));
+
+            nextCoinSeq++;
         }
 
         // emit mints

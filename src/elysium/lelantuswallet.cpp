@@ -4,6 +4,7 @@
 
 #include "ecdsa_context.h"
 #include "lelantusdb.h"
+#include "lelantusutils.h"
 #include "lelantuswallet.h"
 #include "walletmodels.h"
 
@@ -358,9 +359,54 @@ void LelantusWallet::ClearMintsChainState()
     db.TxnCommit();
 }
 
-void LelantusWallet::SyncWithChain()
+bool LelantusWallet::SyncWithChain()
 {
-    // TODO: implement
+    if (pwalletMain->IsLocked()) {
+        return false;
+    }
+
+    bool keepFinding = true;
+
+    while (keepFinding) {
+        keepFinding = false;
+
+        for (auto const &entry : mintPool) {
+            PropertyId property;
+
+            lelantus::PublicCoin publicKey;
+            LelantusIndex index;
+            LelantusGroup group;
+            int block;
+            std::vector<unsigned char> additional;
+
+            if (!lelantusDb->HasMint(entry.id, property, publicKey, index, group, block, additional)) {
+                continue;
+            }
+
+            EncryptedValue enc;
+            if (additional.size() != sizeof(enc)) {
+                LogPrintf("%s : Addition data size is not correct\n", __func__);
+                continue;
+            }
+
+            std::copy(additional.begin(), additional.end(), &enc[0]);
+            uint64_t amount;
+            if (!DecryptMintAmount(enc, publicKey.getValue(), amount)) {
+                LogPrintf("%s : Fail to decrypted\n", __func__);
+                continue;
+            }
+
+            LelantusMintChainState state(block, group, index);
+            if (!TryRecoverMint(entry.id, state, property, amount)) {
+                LogPrintf("%s : Fail to recover mint\n", __func__);
+                continue;
+            }
+
+            keepFinding = true;
+        }
+    }
+
+    return true;
 }
 
 bool LelantusWallet::TryRecoverMint(
