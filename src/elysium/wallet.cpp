@@ -402,7 +402,7 @@ void Wallet::OnLelantusMintAdded(
 
         // 2. try to recover new mint
         LelantusMintChainState state(block, group, idx);
-        if (!lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
+        if (lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
             LogPrintf("%s : Found new mint when try to recover\n", __func__);
         }
     }

@@ -162,7 +162,7 @@ public:
     MintReservation GenerateMint(PropertyId property, LelantusAmount amount, boost::optional<CKeyID> seedId = boost::none);
 
     void ClearMintsChainState();
-    void SyncWithChain();
+    bool SyncWithChain();
 
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, PropertyId property, CAmount amount);
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, uint256 const &spendTx, PropertyId property, CAmount amount);

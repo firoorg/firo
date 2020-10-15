@@ -35,7 +35,7 @@ public:
 
     std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, LelantusGroup groupId, size_t count, int &block);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
-    bool HasMint(PropertyId propertyId, MintEntryId const &id);
+    bool HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, std::vector<unsigned char> &additional);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);
     bool WriteMint(PropertyId propertyId, JoinSplitMint const &mint, int block);
 
