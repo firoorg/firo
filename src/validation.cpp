@@ -3149,6 +3149,15 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
 
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    if (block.sigmaTxInfo->spentSerials.size() > 0) {
+        batchProofContainer->removeSigma(block.sigmaTxInfo->spentSerials);
+    }
+
+    if (block.lelantusTxInfo->spentSerials.size() > 0) {
+        batchProofContainer->removeLelantus(block.lelantusTxInfo->spentSerials);
+    }
+
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
     if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {

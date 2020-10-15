@@ -65,6 +65,53 @@ void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
     }
 }
 
+void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSerials) {
+    for(auto& spendSerial : spendSerials) {
+        bool foundAtSigma =  false;
+        for(auto& itr :sigmaProofs) {
+            if(itr.first.first == spendSerial.second.denomination && itr.first.second.first == spendSerial.second.coinGroupId) {
+                auto& vProofs = itr.second;
+                for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+                    if (dataItr->coinSerialNumber == spendSerial.first) {
+                        vProofs.erase(dataItr);
+                        foundAtSigma = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if(!foundAtSigma) {
+            int64_t denom;
+            sigma::DenominationToInteger(spendSerial.second.denomination, denom);
+            int id = denom / 1000 + spendSerial.second.coinGroupId;
+            std::pair<uint32_t, bool> key = std::make_pair(id, true);
+            if (lelantusSigmaProofs.count(key) > 0) {
+                auto &vProofs = lelantusSigmaProofs[key];
+                for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+                    if (dataItr->serialNumber == spendSerial.first) {
+                        vProofs.erase(dataItr);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSerials) {
+    for(auto& spendSerial : spentSerials) {
+        std::pair<uint32_t, bool> key = std::make_pair(spendSerial.second, false);
+        if (lelantusSigmaProofs.count(key) > 0) {
+            auto &vProofs = lelantusSigmaProofs[key];
+            for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+                if (dataItr->serialNumber == spendSerial.first) {
+                    vProofs.erase(dataItr);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void BatchProofContainer::batch_sigma() {
     for(const auto& itr : sigmaProofs) {
         std::vector<GroupElement> anonymity_set;
