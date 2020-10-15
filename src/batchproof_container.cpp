@@ -71,7 +71,7 @@ void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSe
         for(auto& itr :sigmaProofs) {
             if(itr.first.first == spendSerial.second.denomination && itr.first.second.first == spendSerial.second.coinGroupId) {
                 auto& vProofs = itr.second;
-                for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+                for (auto dataItr = vProofs.begin(); dataItr != vProofs.end(); dataItr++) {
                     if (dataItr->coinSerialNumber == spendSerial.first) {
                         vProofs.erase(dataItr);
                         foundAtSigma = true;
@@ -87,7 +87,7 @@ void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSe
             std::pair<uint32_t, bool> key = std::make_pair(id, true);
             if (lelantusSigmaProofs.count(key) > 0) {
                 auto &vProofs = lelantusSigmaProofs[key];
-                for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+                for (auto dataItr = vProofs.begin(); dataItr != vProofs.end(); dataItr++) {
                     if (dataItr->serialNumber == spendSerial.first) {
                         vProofs.erase(dataItr);
                         break;
@@ -102,7 +102,7 @@ void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSe
         std::pair<uint32_t, bool> key = std::make_pair(spendSerial.second, false);
         if (lelantusSigmaProofs.count(key) > 0) {
             auto &vProofs = lelantusSigmaProofs[key];
-            for (auto dataItr = vProofs.begin(); dataItr < vProofs.end(); dataItr++) {
+            for (auto dataItr = vProofs.begin(); dataItr != vProofs.end(); dataItr++) {
                 if (dataItr->serialNumber == spendSerial.first) {
                     vProofs.erase(dataItr);
                     break;
