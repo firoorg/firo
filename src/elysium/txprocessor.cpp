@@ -4,6 +4,7 @@
 #include "sigma.h"
 #include "lelantus.h"
 #include "lelantusdb.h"
+#include "lelantusutils.h"
 #include "signaturebuilder.h"
 
 #include "../base58.h"
@@ -33,6 +34,10 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
 
         case ELYSIUM_TYPE_LELANTUS_MINT:
             result = ProcessLelantusMint(tx);
+            break;
+
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            result = ProcessLelantusJoinSplit(tx);
             break;
         }
     }
@@ -295,6 +300,89 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
         PrintToLog("%s(): rejected: fail to write mint to database\n", __func__);
         return PKT_ERROR_LELANTUS - 907;
     }
+
+    return 0;
+}
+
+int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
+{
+    auto block = tx.getBlock();
+    auto type = tx.getType();
+    auto version = tx.getVersion();
+    auto property = tx.getProperty();
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block);
+        return PKT_ERROR_LELANTUS - 22;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return PKT_ERROR_LELANTUS - 24;
+    }
+
+    auto joinSplit = tx.getLelantusJoinSplit();
+
+    CBitcoinAddress receiver(tx.getReceiver());
+    if (!receiver.IsValid()) {
+        PrintToLog("%s(): rejected: receiver address is invalid\n", __func__);
+        return PKT_ERROR_LELANTUS - 45;
+    }
+
+    auto metadata = PrepareSpendMetadata(receiver, tx.getReferenceAmount().get());
+
+    // check serials
+    auto serials = joinSplit.getCoinSerialNumbers();
+    std::unordered_set<secp_primitives::Scalar> txSerials;
+    for (auto const &s : serials) {
+        uint256 spendTx;
+        if (txSerials.count(s) || lelantusDb->HasSerial(property, s, spendTx)) {
+            PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
+            return PKT_ERROR_LELANTUS - 907;
+        }
+
+        txSerials.insert(s);
+    }
+
+    // get anons
+    auto idAndBlockHashes = joinSplit.getIdAndBlockHashes();
+
+    std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
+    for (auto const &idAndBlockHash : idAndBlockHashes) {
+        int block = mapBlockIndex[idAndBlockHash.second]->nHeight;
+        anonss[idAndBlockHash.first] = lelantusDb->GetAnonimityGroup(
+            property, idAndBlockHash.first, SIZE_MAX, block);
+    }
+
+    auto spendAmount = tx.getLelantusSpendAmount();
+    auto joinSplitMint = tx.getLelantusJoinSplitMint();
+
+    std::vector<lelantus::PublicCoin> cout;
+    if (joinSplitMint.has_value()) {
+        cout.push_back(joinSplitMint->publicCoin);
+    }
+
+    // verify
+    if (!joinSplit.Verify(anonss, cout, spendAmount, metadata)) {
+        PrintToLog("%s(): rejected: joinsplit is invalid\n", __func__);
+        return PKT_ERROR_LELANTUS - 907;
+    }
+
+    // record serial and change
+    for (auto const &s : serials) {
+        lelantusDb->WriteSerial(property, s, block, tx.getHash());
+    }
+
+    if (joinSplitMint.has_value()) {
+        lelantusDb->WriteMint(property, joinSplitMint.get(), block);
+    }
+
+    assert(update_tally_map(tx.getReceiver(), property, spendAmount, BALANCE));
 
     return 0;
 }

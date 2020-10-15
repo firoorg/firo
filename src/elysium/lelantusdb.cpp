@@ -4,6 +4,7 @@
 
 #include "convert.h"
 #include "lelantusdb.h"
+#include "lelantusutils.h"
 
 #include "ui_interface.h"
 
@@ -244,6 +245,8 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
     auto it = NewIterator();
     it->Seek(MakeRaw(DB_COIN_SEQUENCE, id, ::swapByteOrder(groupData.firstSequence)));
 
+    int outBlock = 0;
+
     std::vector<lelantus::PublicCoin> coins;
     CoinSequenceData coinSeqData;
     for (size_t i = 0;
@@ -252,10 +255,15 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
         && it->key() == MakeRaw(DB_COIN_SEQUENCE, id, ::swapByteOrder(groupData.firstSequence + i)); it->Next(), i++) {
 
         ParseRaw(it->value(), coinSeqData);
+
+        if (coinSeqData.block > block) {
+            break;
+        }
+        outBlock = coinSeqData.block;
+
         coins.push_back(coinSeqData.publicCoin);
     }
-
-    block = groupData.lastBlock;
+    block = outBlock;
 
     return coins;
 }
@@ -307,6 +315,13 @@ bool LelantusDb::WriteMint(
     batch.Put(MakeRaw(DB_PENDING_COIN, ::swapByteOrder(nextPendingSeq++)), MakeRaw(propertyId, pubKey, block));
 
     return pdb->Write(syncoptions, &batch).ok();
+}
+
+bool LelantusDb::WriteMint(PropertyId propertyId, JoinSplitMint const &mint, int block)
+{
+    std::vector<unsigned char> additional;
+    additional.insert(additional.end(), mint.encryptedValue, mint.encryptedValue + sizeof(mint.encryptedValue));
+    return WriteMint(propertyId, mint.publicCoin, block, mint.id, 0, additional);
 }
 
 LelantusGroup LelantusDb::GetGroup(PropertyId property, lelantus::PublicCoin const &pubKey)
@@ -404,7 +419,7 @@ void LelantusDb::CommitCoins()
         auto propertyId = idAndPubKeys.first;
         auto nextCoinSeq = GetNextSequence(DB_COIN_SEQUENCE, propertyId);
 
-        std::vector<std::tuple<MintEntryId, LelantusIndex, LelantusAmount>> entries;
+        std::vector<std::tuple<LelantusIndex, CoinData, lelantus::PublicCoin>> entries;
 
         // record sequence
         for (auto const &pubKey : idAndPubKeys.second) {
@@ -421,7 +436,7 @@ void LelantusDb::CommitCoins()
 
             CoinData coinData;
             ParseRaw(raw, coinData);
-            entries.emplace_back(coinData.id, nextCoinSeq, coinData.amount);
+            entries.emplace_back(nextCoinSeq, coinData, pubKey);
 
             // record index
             coinData.index = nextCoinSeq;
@@ -488,7 +503,19 @@ void LelantusDb::CommitCoins()
 
         // emit mints
         for (auto const &e : entries) {
-            MintAdded(propertyId, std::get<0>(e), lastGroup, std::get<1>(e), std::get<2>(e), block);
+            auto coinData = std::get<1>(e);
+            auto pubkey = std::get<2>(e);
+
+            auto const &additional = coinData.additionalData;
+            auto amount = coinData.amount;
+
+            if (amount == 0 && additional.size() == 16) {
+                EncryptedValue enc;
+                std::copy(additional.begin(), additional.end(), &enc[0]);
+                DecryptMintAmount(enc, pubkey.getValue(), amount);
+            }
+
+            MintAdded(propertyId, coinData.id, lastGroup, std::get<0>(e), amount, block);
         }
     }
 

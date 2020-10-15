@@ -1010,6 +1010,39 @@ bool CMPTransaction::interpret_LelantusMint()
     return true;
 }
 
+/** Tx 1028 */
+bool CMPTransaction::interpret_LelantusJoinSplit()
+{
+    if (raw.size() < 8) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    memcpy(&lelantusSpendAmount, &raw[8], 8);
+    swapByteOrder(property);
+    swapByteOrder(lelantusSpendAmount);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[16]),
+        reinterpret_cast<char*>(&raw[raw.size()]),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    lelantusJoinSplit = lelantus::JoinSplit(lelantus::Params::get_default(), deserialized);
+
+    if (!deserialized.eof()) {
+        lelantusJoinSplitMint = JoinSplitMint();
+        deserialized >> lelantusJoinSplitMint.get();
+    }
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           value: %s\n", FormatMP(property, lelantusSpendAmount));
+    }
+
+    return true;
+}
+
 /** Tx 65533 */
 bool CMPTransaction::interpret_Deactivation()
 {

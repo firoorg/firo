@@ -1923,10 +1923,26 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
 
     std::vector<SpendableCoin> spendables;
     boost::optional<LelantusWallet::MintReservation> reservation;
+    LelantusAmount changeValue = 0;
 
     try {
-        auto joinSplit = wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation);
-        payload = CreatePayload_CreateLelantusJoinSplit(propertyId, joinSplit);
+        auto joinSplit = wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation, changeValue);
+
+        boost::optional<JoinSplitMint> joinSplitMint;
+        if (reservation.has_value()) {
+            auto pub = reservation->coin.getPublicCoin();
+            EncryptedValue enc;
+            EncryptMintAmount(changeValue, pub.getValue(), enc);
+
+            joinSplitMint = JoinSplitMint(
+                reservation->id,
+                pub,
+                enc
+            );
+        }
+
+        payload = CreatePayload_CreateLelantusJoinSplit(
+            propertyId, amount, joinSplit, joinSplitMint);
 
     } catch (InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());

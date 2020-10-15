@@ -199,14 +199,15 @@ public:
         return output;
     }
 
-    CAmount GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, CAmount &changed, CWalletDB *db = nullptr);
+    CAmount GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, LelantusAmount &changed, CWalletDB *db = nullptr);
 
     lelantus::JoinSplit CreateJoinSplit(
         PropertyId property,
         CAmount amountToSpend,
         uint256 const &metadata,
         std::vector<SpendableCoin> &spendables,
-        boost::optional<LelantusWallet::MintReservation> &changeMint);
+        boost::optional<LelantusWallet::MintReservation> &changeMint,
+        LelantusAmount &change);
 
     // MintPool state
 public:

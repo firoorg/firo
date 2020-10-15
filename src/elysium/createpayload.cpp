@@ -707,7 +707,10 @@ std::vector<unsigned char> CreatePayload_CreateLelantusMint(
 }
 
 std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
-    uint32_t propertyId, lelantus::JoinSplit const &joinSplit)
+    uint32_t propertyId,
+    uint64_t amount,
+    lelantus::JoinSplit const &joinSplit,
+    boost::optional<JoinSplitMint> const &mint)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
@@ -721,10 +724,23 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
 
+    // amount
+    elysium::swapByteOrder(amount);
+    PUSH_BACK_BYTES(payload, amount);
+
     // Mint data
-    CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
-    serialized << joinSplit;
-    payload.insert(payload.end(), serialized.begin(), serialized.end());
+    {
+        CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+        serialized << joinSplit;
+        payload.insert(payload.end(), serialized.begin(), serialized.end());
+    }
+
+    // change
+    if (mint.has_value()) {
+        CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+        serialized << mint.get();
+        payload.insert(payload.end(), serialized.begin(), serialized.end());
+    }
 
     return payload;
 }

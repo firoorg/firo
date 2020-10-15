@@ -615,7 +615,7 @@ bool LelantusWallet::RemoveFromMintPool(MintEntryId const &id)
     return false;
 }
 
-CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, CAmount &change, CWalletDB *db)
+CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, LelantusAmount &change, CWalletDB *db)
 {
     coins.clear();
 
@@ -666,14 +666,14 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
     CAmount amountToSpend,
     uint256 const &metadata,
     std::vector<SpendableCoin> &spendables,
-    boost::optional<LelantusWallet::MintReservation> &changeMint)
+    boost::optional<LelantusWallet::MintReservation> &changeMint,
+    LelantusAmount &change)
 {
     if (amountToSpend < 0) {
         throw std::invalid_argument("Amount to spend could not be negative");
     }
 
     spendables.clear();
-    CAmount change;
     if (GetCoinsToJoinSplit(property, amountToSpend, spendables, change) < amountToSpend) {
         throw InsufficientFunds();
     }
@@ -693,7 +693,7 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
 
     std::map<uint32_t, uint256> blockHashes;
     for (auto &anons : anonss) {
-        int block;
+        int block = INT_MAX;
         anons.second = lelantusDb->GetAnonimityGroup(property, anons.first, SIZE_MAX, block);
         blockHashes[anons.first] = chainActive[block]->GetBlockHash();
     }

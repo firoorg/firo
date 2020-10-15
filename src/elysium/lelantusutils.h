@@ -9,4 +9,10 @@ namespace elysium {
 
 uint256 PrepareSpendMetadata(CBitcoinAddress const &receiver, CAmount referenceAmount);
 
+std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoin);
+
+bool EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin, EncryptedValue ciphertext);
+
+bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount);
+
 } // namespace elysium

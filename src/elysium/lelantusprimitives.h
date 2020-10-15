@@ -61,6 +61,28 @@ public:
     MintEntryId id;
 };
 
+typedef unsigned char EncryptedValue[16];
+
+class JoinSplitMint {
+public:
+    JoinSplitMint();
+    JoinSplitMint(MintEntryId _id, lelantus::PublicCoin const &_publicCoin, EncryptedValue const &_encryptedValue);
+
+public:
+    MintEntryId id;
+    lelantus::PublicCoin publicCoin;
+    EncryptedValue encryptedValue;
+
+    ADD_SERIALIZE_METHODS
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(id);
+        READWRITE(publicCoin);
+        READWRITE(FLATDATA(encryptedValue));
+    }
+};
+
 lelantus::JoinSplit CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,

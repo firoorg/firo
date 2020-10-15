@@ -66,7 +66,8 @@ public:
         CAmount amountToSpend,
         uint256 const &metadata,
         std::vector<SpendableCoin> &spendables,
-        boost::optional<LelantusWallet::MintReservation> &changeMint);
+        boost::optional<LelantusWallet::MintReservation> &changeMint,
+        LelantusAmount &changeValue);
 
     void DeleteUnconfirmedSigmaMint(SigmaMintId const &id);
 

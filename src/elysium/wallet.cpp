@@ -121,9 +121,10 @@ lelantus::JoinSplit Wallet::CreateLelantusJoinSplit(
     CAmount amountToSpend,
     uint256 const &metadata,
     std::vector<SpendableCoin> &spendables,
-    boost::optional<LelantusWallet::MintReservation> &changeMint)
+    boost::optional<LelantusWallet::MintReservation> &changeMint,
+    LelantusAmount &changeValue)
 {
-    return lelantusWallet.CreateJoinSplit(property, amountToSpend, metadata, spendables, changeMint);
+    return lelantusWallet.CreateJoinSplit(property, amountToSpend, metadata, spendables, changeMint, changeValue);
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, SigmaMintVersion version)

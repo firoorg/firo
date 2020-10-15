@@ -58,6 +58,9 @@ inline std::string error_str(int ec) {
       case MP_SIGMA_INPUTS_INVALID:
           ec_str = "Error no sigma mints to pay as transaction fee";
           break;
+      case MP_LELANTUS_INPUTS_INVALID:
+          ec_str = "Error no lelantus mints to pay as transaction fee";
+          break;
       case MP_ENCODING_ERROR:
           ec_str = "Packet too large";
           break;
