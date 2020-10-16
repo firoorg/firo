@@ -664,6 +664,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             }
         }
     }
+
     return true;
 }
 
@@ -3078,12 +3079,72 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
 
+
     // retrieve all mints
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
+
+    std::unordered_map<Scalar, int> lelantusSerialsToRemove;
+    sigma::spend_info_container sigmaSerialsToRemove;
+
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
             false, false, nullptr, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
+
+        if(GetBoolArg("-batching", true)) {
+            if (tx->IsLelantusJoinSplit()) {
+                const CTxIn &txin = tx->vin[0];
+                std::unique_ptr<lelantus::JoinSplit> joinsplit;
+
+                try {
+                    joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+                }
+                catch (CBadTxIn &) {
+                    continue;
+                }
+
+                const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
+                const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+
+                if (serials.size() != ids.size()) {
+                    continue;
+                }
+
+                if (joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
+                    for (size_t i = 0; i < serials.size(); i++) {
+                        int coinGroupId = ids[i] % (CENT / 1000);
+                        int64_t intDenom = (ids[i] - coinGroupId);
+                        intDenom *= 1000;
+                        sigma::CoinDenomination denomination;
+                        if (!sigma::IntegerToDenomination(intDenom, denomination))
+                            lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
+                        else
+                            sigmaSerialsToRemove.insert(std::make_pair(
+                                    serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
+                    }
+                } else {
+                    for (size_t i = 0; i < serials.size(); i++) {
+                        lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
+                    }
+                }
+            } else if (tx->IsSigmaSpend()) {
+                for (const CTxIn &txin : tx->vin) {
+                    std::unique_ptr<sigma::CoinSpend> spend;
+                    uint32_t coinGroupId;
+
+                    try {
+                        std::tie(spend, coinGroupId) = sigma::ParseSigmaSpend(txin);
+                    }
+                    catch (CBadTxIn &) {
+                        continue;
+                    }
+
+                    Scalar serial = spend->getCoinSerialNumber();
+                    sigmaSerialsToRemove.insert(std::make_pair(
+                            serial, sigma::CSpendCoinInfo::make(spend->getDenomination(), coinGroupId)));
+                }
+            }
+        }
     }
 
     // Apply the block atomically to the chain state.
@@ -3150,12 +3211,12 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     UpdateTip(pindexDelete->pprev, chainparams);
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (block.sigmaTxInfo->spentSerials.size() > 0) {
-        batchProofContainer->removeSigma(block.sigmaTxInfo->spentSerials);
+    if (sigmaSerialsToRemove.size() > 0) {
+        batchProofContainer->removeSigma(sigmaSerialsToRemove);
     }
 
-    if (block.lelantusTxInfo->spentSerials.size() > 0) {
-        batchProofContainer->removeLelantus(block.lelantusTxInfo->spentSerials);
+    if (lelantusSerialsToRemove.size() > 0) {
+        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
     }
 
 #ifdef ENABLE_WALLET
