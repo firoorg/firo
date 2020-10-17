@@ -19,18 +19,19 @@ LelantusModel::LelantusModel(
     wallet(wallet)
 {
     autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);
+
+    connect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
 }
 
 LelantusModel::~LelantusModel()
 {
+    disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
+        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+
     delete autoMintModel;
 
     autoMintModel = nullptr;
-}
-
-void LelantusModel::askToMint()
-{
-    autoMintModel->userAskToMint();
 }
 
 CAmount LelantusModel::getMintableAmount()
@@ -156,20 +157,20 @@ CAmount LelantusModel::mintAll()
     return s;
 }
 
-void LelantusModel::askUserToMint(bool userAsk)
+void LelantusModel::mintAll(AutoMintMode mode)
 {
-    Q_EMIT askMintAll(userAsk);
+    Q_EMIT askMintAll(mode);
 }
 
-void LelantusModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
+void LelantusModel::sendAckMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
-    autoMintModel->ackMintAll(ack, minted, error);
+    Q_EMIT ackMintAll(ack, minted, error);
 }
 
 void LelantusModel::lock()
 {
     LOCK2(wallet->cs_wallet, cs);
-    if (autoMintModel->askingUser()) {
+    if (autoMintModel->isAnonymizing()) {
         QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(lock()));
         return;
     }

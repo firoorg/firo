@@ -59,6 +59,9 @@ bool WalletFrame::addWallet(const QString& name, WalletModel *walletModel)
 
     connect(walletView, SIGNAL(outOfSyncWarningClicked()), this, SLOT(outOfSyncWarningClicked()));
 
+    // Ensure walletview is able to response to resize and move events
+    gui->installEventFilter(walletView);
+
     return true;
 }
 

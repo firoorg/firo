@@ -9,25 +9,21 @@
 #include <QPushButton>
 #include <QDebug>
 
-AutoMintDialog::AutoMintDialog(bool userAsk, QWidget *parent) :
+AutoMintDialog::AutoMintDialog(AutoMintMode mode, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AutoMintDialog),
     model(0),
     lelantusModel(0),
     requiredPassphase(true),
-    userAsk(userAsk),
-    minting(false)
+    progress(AutoMintProgress::Start),
+    mode(mode)
 {
     ENTER_CRITICAL_SECTION(cs_main);
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Ask me later");
-
-    if (userAsk) {
-        ui->warningLabel->setVisible(false);
-    }
+    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Cancel");
 }
 
 AutoMintDialog::~AutoMintDialog()
@@ -44,28 +40,28 @@ void AutoMintDialog::accept()
 {
     ensureLelantusModel();
 
-    if (requiredPassphase) {
-        auto rawPassphase = ui->passEdit->text().toStdString();
-        SecureString passphase(rawPassphase.begin(), rawPassphase.end());
-        auto lock = ui->lockCheckBox->isChecked();
-
-        if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
-            QDialog::accept();
-            lelantusModel->ackMintAll(AutoMintAck::FailToUnlock);
-            return;
-        }
-    }
-
-    ui->warningLabel->setVisible(false);
-    ui->warningLabel->setVisible(false);
     ui->buttonBox->setVisible(false);
     ui->passEdit->setVisible(false);
     ui->passLabel->setVisible(false);
     ui->lockWarningLabel->setVisible(false);
     ui->lockCheckBox->setVisible(false);
 
-    minting = true;
+    if (requiredPassphase) {
+        auto rawPassphase = ui->passEdit->text().toStdString();
+        SecureString passphase(rawPassphase.begin(), rawPassphase.end());
+        auto lock = ui->lockCheckBox->isChecked();
 
+        progress = AutoMintProgress::Unlocking;
+        repaint();
+
+        if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
+            QDialog::accept();
+            lelantusModel->sendAckMintAll(AutoMintAck::FailToUnlock);
+            return;
+        }
+    }
+
+    progress = AutoMintProgress::Minting;
     repaint();
 
     AutoMintAck status;
@@ -82,14 +78,14 @@ void AutoMintDialog::accept()
 
     QDialog::accept();
 
-    lelantusModel->ackMintAll(status, minted, error);
+    lelantusModel->sendAckMintAll(status, minted, error);
 }
 
 int AutoMintDialog::exec()
 {
     ensureLelantusModel();
     if (lelantusModel->getMintableAmount() <= 0) {
-        lelantusModel->ackMintAll(AutoMintAck::NotEnoughFund);
+        lelantusModel->sendAckMintAll(AutoMintAck::NotEnoughFund);
         return 0;
     }
 
@@ -99,7 +95,7 @@ int AutoMintDialog::exec()
 void AutoMintDialog::reject()
 {
     ensureLelantusModel();
-    lelantusModel->ackMintAll(AutoMintAck::UserReject);
+    lelantusModel->sendAckMintAll(AutoMintAck::UserReject);
     QDialog::reject();
 }
 
@@ -117,19 +113,11 @@ void AutoMintDialog::setModel(WalletModel *model)
 
     ENTER_CRITICAL_SECTION(lelantusModel->cs);
 
-    if (userAsk) {
-        ui->lockWarningLabel->setText(QString("Unlock your wallet to anonymize all transparent funds."));
-    }
-
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         ui->lockCheckBox->setVisible(false);
-
-        ui->lockWarningLabel->setText(
-            userAsk
-            ? QString("Do you want to anonymize all transparent funds?")
-            : QString("Do you want to anonymize these funds?"));
+        ui->lockWarningLabel->setText(QString("Do you want to anonymize all transparent funds?"));
 
         requiredPassphase = false;
     }
@@ -140,12 +128,13 @@ void AutoMintDialog::paintEvent(QPaintEvent *event)
     QPainter painter;
     painter.begin(this);
 
-    if (minting) {
-        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, "Anonymizing...");
+    if (progress != AutoMintProgress::Start) {
+        auto progressMessage = progress == AutoMintProgress::Unlocking ? "Unlocking wallet..." : "Anonymizing...";
+        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
         painter.drawText(
             (width() - size.width()) / 2,
             (height() - size.height()) / 2,
-            QString("Anonymizing..."));
+            QString(progressMessage));
     }
 
     QWidget::paintEvent(event);

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>598</width>
-    <height>231</height>
+    <height>252</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -30,22 +30,9 @@
     <enum>QLayout::SetMinimumSize</enum>
    </property>
    <item>
-    <widget class="QLabel" name="warningLabel">
-     <property name="text">
-      <string notr="true">You have incoming transaction(s)!</string>
-     </property>
-     <property name="textFormat">
-      <enum>Qt::RichText</enum>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QLabel" name="lockWarningLabel">
      <property name="text">
-      <string>Unlock your wallet to anonymize these funds.</string>
+      <string>Unlock your wallet to anonymize all transparent funds.</string>
      </property>
     </widget>
    </item>

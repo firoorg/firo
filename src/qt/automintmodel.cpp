@@ -1,12 +1,13 @@
 #include "../lelantus.h"
+#include "../masternode-sync.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 
 #include "automintmodel.h"
 #include "bitcoinunits.h"
 #include "guiconstants.h"
-#include "optionsmodel.h"
 #include "lelantusmodel.h"
+#include "optionsmodel.h"
 
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
@@ -64,6 +65,8 @@ void IncomingFundNotifier::check()
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
+        CCoinControl coinControl;
+        coinControl.nCoinType = CoinType::ONLY_NOT1000IFMN;
         while (!txs.empty()) {
             auto const &tx = txs.back();
             txs.pop_back();
@@ -73,11 +76,20 @@ void IncomingFundNotifier::check()
                 continue;
             }
 
-            credit += std::max(CAmount(0), wtx->second.GetAvailableCredit() - wtx->second.GetDebit(ISMINE_ALL));
+            for (size_t i = 0; i != wtx->second.tx->vout.size(); i++) {
+                coinControl.Select({wtx->first, i});
+            }
 
             if (wtx->second.GetImmatureCredit() > 0) {
                 immatures.push_back(tx);
             }
+        }
+
+        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
+        pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
+
+        for (auto const &valueAndUTXO : valueAndUTXOs) {
+            credit += valueAndUTXO.first;
         }
     }
 
@@ -164,65 +176,58 @@ AutoMintModel::AutoMintModel(
     optionsModel(_optionsModel),
     wallet(_wallet),
     autoMintState(AutoMintState::Disabled),
-    resetSyncingTimer(0),
     autoMintCheckTimer(0),
-    syncing(false),
     notifier(0)
 {
-    resetSyncingTimer = new QTimer(this);
-    resetSyncingTimer->setSingleShot(true);
-
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
-    connect(resetSyncingTimer, SIGNAL(timeout()), this, SLOT(resetSyncing()));
     connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
 
     notifier = new IncomingFundNotifier(wallet, this);
 
     connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
 
-    connect(optionsModel,
-        SIGNAL(autoAnonymizeChanged(bool)),
-        this,
-        SLOT(updateAutoMintOption(bool)));
-
-    subscribeToCoreSignals();
+    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
 }
 
 AutoMintModel::~AutoMintModel()
 {
-    unsubscribeFromCoreSignals();
-
-    delete resetSyncingTimer;
     delete autoMintCheckTimer;
 
-    resetSyncingTimer = nullptr;
     autoMintCheckTimer = nullptr;
 }
 
-bool AutoMintModel::askingUser() const
+bool AutoMintModel::isAnonymizing() const
 {
-    return autoMintState == AutoMintState::WaitingForUserResponse;
-}
-
-void AutoMintModel::userAskToMint()
-{
-    autoMintCheckTimer->stop();
-    checkAutoMint(true);
+    return autoMintState == AutoMintState::Anonymizing;
 }
 
 void AutoMintModel::ackMintAll(AutoMintAck ack, CAmount minted, QString error)
 {
-    LOCK(lelantusModel->cs);
-    if (ack == AutoMintAck::WaitUserToActive) {
-        autoMintState = AutoMintState::WaitingUserToActivate;
-    } else {
-        autoMintState = AutoMintState::WaitingIncomingFund;
-        autoMintCheckTimer->stop();
+    bool mint = false;
+    {
+        LOCK(lelantusModel->cs);
+        if (autoMintState == AutoMintState::Disabled) {
+            // Do nothing
+            return;
+        } else if (ack == AutoMintAck::WaitUserToActive) {
+            autoMintState = AutoMintState::WaitingUserToActivate;
+        } else if (ack == AutoMintAck::AskToMint) {
+            autoMintState = AutoMintState::Anonymizing;
+            autoMintCheckTimer->stop();
+            mint = true;
+        } else {
+            autoMintState = AutoMintState::WaitingIncomingFund;
+            autoMintCheckTimer->stop();
+        }
+
+        processAutoMintAck(ack, minted, error);
     }
 
-    processAutoMintAck(ack, minted, error);
+    if (mint) {
+        lelantusModel->mintAll(AutoMintMode::AutoMintAll);
+    }
 }
 
 void AutoMintModel::checkAutoMint(bool force)
@@ -230,8 +235,7 @@ void AutoMintModel::checkAutoMint(bool force)
     // if lelantus is not allow or client is in initial syncing state then wait
     // except user force to check
     if (!force) {
-        // check syncing first to reduce main locking
-        if (syncing) {
+        if (!masternodeSync.IsBlockchainSynced()) {
             return;
         }
 
@@ -258,30 +262,16 @@ void AutoMintModel::checkAutoMint(bool force)
             return;
         case AutoMintState::WaitingUserToActivate:
             break;
-        case AutoMintState::WaitingForUserResponse:
+        case AutoMintState::Anonymizing:
             return;
         default:
             throw std::runtime_error("Unknown auto mint state");
         }
 
-        autoMintState = AutoMintState::WaitingForUserResponse;
+        autoMintState = AutoMintState::Anonymizing;
     }
 
-    lelantusModel->askUserToMint(force);
-}
-
-void AutoMintModel::setSyncing()
-{
-    syncing.store(true);
-    resetSyncingTimer->stop();
-
-    // wait 2.5 seconds if there are no new signal then reset flag
-    resetSyncingTimer->start(2500);
-}
-
-void AutoMintModel::resetSyncing()
-{
-    syncing.store(false);
+    Q_EMIT requireShowAutomintNotification();
 }
 
 void AutoMintModel::startAutoMint()
@@ -325,30 +315,9 @@ void AutoMintModel::updateAutoMintOption(bool enabled)
 
         // stop mint
         autoMintState = AutoMintState::Disabled;
+
+        Q_EMIT closeAutomintNotification();
     }
-}
-
-// Handlers for core signals
-static void NotifyBlockTip(AutoMintModel *model, bool initialSync, const CBlockIndex *pIndex)
-{
-    Q_UNUSED(pIndex);
-    Q_UNUSED(initialSync);
-    QMetaObject::invokeMethod(
-        model,
-        "setSyncing",
-        Qt::QueuedConnection);
-}
-
-void AutoMintModel::subscribeToCoreSignals()
-{
-    uiInterface.NotifyBlockTip.connect(
-        boost::bind(NotifyBlockTip, this, _1, _2));
-}
-
-void AutoMintModel::unsubscribeFromCoreSignals()
-{
-    uiInterface.NotifyBlockTip.disconnect(
-        boost::bind(NotifyBlockTip, this, _1, _2));
 }
 
 void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString error)
@@ -359,7 +328,7 @@ void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString 
     switch (ack)
     {
     case AutoMintAck::Success:
-        msgParams.first = tr("Success to anonymize, %1")
+        msgParams.first = tr("Successfully anonymized %1")
             .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), minted));
         msgParams.second = CClientUIInterface::MSG_INFORMATION;
         break;

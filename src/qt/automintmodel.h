@@ -6,6 +6,8 @@
 #include "../uint256.h"
 #include "../validation.h"
 
+#include "automintdialog.h"
+
 #include <QDateTime>
 #include <QObject>
 #include <QTimer>
@@ -18,16 +20,18 @@ enum class AutoMintState : uint8_t {
     Disabled,
     WaitingIncomingFund,
     WaitingUserToActivate,
-    WaitingForUserResponse
+    Anonymizing
 };
 
 enum class AutoMintAck : uint8_t {
+    AskToMint,
     Success,
     WaitUserToActive,
     FailToMint,
     NotEnoughFund,
     UserReject,
-    FailToUnlock
+    FailToUnlock,
+    Close
 };
 
 class IncomingFundNotifier : public QObject
@@ -74,15 +78,11 @@ public:
     ~AutoMintModel();
 
 public:
-    bool askingUser() const;
-    void userAskToMint();
+    bool isAnonymizing() const;
 
 public Q_SLOTS:
     void ackMintAll(AutoMintAck ack, CAmount minted, QString error);
     void checkAutoMint(bool force = false);
-
-    void resetSyncing();
-    void setSyncing();
 
     void startAutoMint();
 
@@ -91,10 +91,10 @@ public Q_SLOTS:
 Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
 
-private:
-    void subscribeToCoreSignals();
-    void unsubscribeFromCoreSignals();
+    void requireShowAutomintNotification();
+    void closeAutomintNotification();
 
+private:
     void processAutoMintAck(AutoMintAck ack, CAmount minted, QString error);
 
 private:
@@ -104,10 +104,7 @@ private:
 
     AutoMintState autoMintState;
 
-    QTimer *resetSyncingTimer;
     QTimer *autoMintCheckTimer;
-
-    std::atomic<bool> syncing;
 
     IncomingFundNotifier *notifier;
 };
