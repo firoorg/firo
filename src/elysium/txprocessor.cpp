@@ -306,6 +306,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
 int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
 {
+    PrintToLog("=== %s(): processing: calling...\n", __func__);
     auto block = tx.getBlock();
     auto type = tx.getType();
     auto version = tx.getVersion();
@@ -381,6 +382,8 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     if (joinSplitMint.has_value()) {
         lelantusDb->WriteMint(property, joinSplitMint.get(), block);
     }
+
+    PrintToLog("=== %s(): spendAmount = %d\n", __func__, spendAmount);
 
     assert(update_tally_map(tx.getReceiver(), property, spendAmount, BALANCE));
 
