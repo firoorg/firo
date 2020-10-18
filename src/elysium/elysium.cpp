@@ -37,6 +37,7 @@
 #include "../init.h"
 #include "../validation.h"
 #include "../net.h"
+#include "../lelantus.h"
 #include "../primitives/block.h"
 #include "../primitives/transaction.h"
 #include "../script/script.h"
@@ -690,9 +691,13 @@ static bool FillTxInputCache(const CTransaction& tx)
 // RETURNS: >0 if 1 or more payments have been made
 static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, unsigned int idx, CMPTransaction& mp_tx, unsigned int nTime)
 {
+    PrintToLog("=== %s(): parsing transaction\n", __func__);
     InputMode inputMode = InputMode::NORMAL;
     if (wtx.IsSigmaSpend()) {
         inputMode = InputMode::SIGMA;
+    }
+    if (wtx.IsLelantusJoinSplit()) {
+        inputMode = InputMode::LELANTUS;
     }
 
     assert(bRPConly == mp_tx.isRpcOnly());
@@ -801,6 +806,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     case InputMode::SIGMA:
         inAll = sigma::GetSpendAmount(wtx);
         break;
+    case InputMode::LELANTUS:
+        inAll = lelantus::GetSpendTransparentAmount(wtx);
     case InputMode::NORMAL:
     default:
         inAll = view.GetValueIn(wtx);

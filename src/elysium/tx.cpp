@@ -1013,6 +1013,7 @@ bool CMPTransaction::interpret_LelantusMint()
 /** Tx 1028 */
 bool CMPTransaction::interpret_LelantusJoinSplit()
 {
+    PrintToLog("=== %s(): interpreting: calling...\n", __func__);
     if (raw.size() < 8) {
         return false;
     }
