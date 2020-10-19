@@ -26,6 +26,9 @@ public:
              const std::map<uint32_t, size_t>& setSizes,
              const Scalar& challenge);
 
+    void removeSigma(const sigma::spend_info_container& spendSerials);
+    void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
+
     void batch_sigma();
     void batch_lelantus();
 
