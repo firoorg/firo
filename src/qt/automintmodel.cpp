@@ -76,7 +76,7 @@ void IncomingFundNotifier::check()
                 continue;
             }
 
-            for (size_t i = 0; i != wtx->second.tx->vout.size(); i++) {
+            for (uint32_t i = 0; i != wtx->second.tx->vout.size(); i++) {
                 coinControl.Select({wtx->first, i});
             }
 
