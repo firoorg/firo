@@ -841,7 +841,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     vector<GroupElement> lelantusMintPubcoins;
     vector<uint64_t> lelantusAmounts;
     {
-    LOCK(pool.cs); // protect pool.mapNextTx
+    LOCK2(pwalletMain->cs_wallet, pool.cs); // protect pool.mapNextTx
     if (tx.IsZerocoinSpend()) {
         BOOST_FOREACH(const CTxIn &txin, tx.vin)
         {
