@@ -250,6 +250,7 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
  */
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
+    LOCK(pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     bool found = true;
 

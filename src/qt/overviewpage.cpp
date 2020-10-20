@@ -177,16 +177,16 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 
 void OverviewPage::handleEnabledTorChanged(){
 
-	QMessageBox msgBox;
+    QMessageBox msgBox;
 
-	if(ui->checkboxEnabledTor->isChecked()){
+    if(ui->checkboxEnabledTor->isChecked()){
         settings.setValue("fTorSetup", true);
         msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
-	}else{
+    }else{
         settings.setValue("fTorSetup", false);
         msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
-	}
-	msgBox.exec();
+    }
+    msgBox.exec();
 }
 
 void OverviewPage::handleOutOfSyncWarningClicks()
