@@ -74,6 +74,7 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { ELYSIUM_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
         { ELYSIUM_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
         { ELYSIUM_TYPE_LELANTUS_MINT,             MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
+        { ELYSIUM_TYPE_LELANTUS_JOINSPLIT,        MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);

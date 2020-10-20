@@ -194,6 +194,9 @@ bool CMPTransaction::interpret_Transaction()
         case ELYSIUM_TYPE_LELANTUS_MINT:
             return interpret_LelantusMint();
 
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            return interpret_LelantusJoinSplit();
+
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
 

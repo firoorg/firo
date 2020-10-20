@@ -8,6 +8,7 @@
 #include "lelantuswallet.h"
 #include "walletmodels.h"
 
+#include "../liblelantus/coin.h"
 #include "../uint256.h"
 #include "../validation.h"
 
@@ -234,7 +235,8 @@ LelantusPrivateKey LelantusWallet::GeneratePrivateKey(uint512 const &seed)
         CSHA256().Write(signatureKey.data(), signatureKey.size()).Finalize(signatureKey.data());
     } while (!GetPublicKey(signatureKey, pubkey));
 
-    auto serial = GenerateSerial(pubkey);
+    auto serial = lelantus::PrivateCoin::serialNumberFromSerializedPublicKey(
+        OpenSSLContext::get_context(), &pubkey);
 
     return LelantusPrivateKey(params, serial, randomness, signatureKey);
 }
@@ -745,14 +747,24 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
     }
 
     // reserve change
-    changeMint = GenerateMint(property, change);
     std::vector<lelantus::PrivateCoin> coinOuts;
-
-    if (changeMint.has_value()) {
-        coinOuts = {changeMint->coin};
+    if (change) {
+        changeMint = GenerateMint(property, change);
     }
 
-    return ::CreateJoinSplit(coins, anonss, amountToSpend, coinOuts, blockHashes, metadata);
+    std::vector<lelantus::PublicCoin> pubCoinOuts;
+    if (changeMint.has_value()) {
+        coinOuts = {changeMint->coin};
+        pubCoinOuts = {changeMint->coin.getPublicCoin()};
+    }
+
+    auto js = ::CreateJoinSplit(coins, anonss, amountToSpend, coinOuts, blockHashes, metadata);
+
+    if (!js.Verify(anonss, pubCoinOuts, amountToSpend, metadata)) {
+        throw std::runtime_error("Fail to verify created join/split object");
+    }
+
+    return js;
 }
 
 LelantusWallet::Database::Connection::Connection(CWalletDB *db)
