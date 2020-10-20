@@ -1912,6 +1912,15 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         newSP.sigmaStatus = sigmaStatus;
     }
 
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.lelantusStatus = lelantusStatus;
+    }
+
     // ------------------------------------------
 
     newSP.issuer = sender;
@@ -2164,6 +2173,15 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         }
 
         newSP.sigmaStatus = sigmaStatus;
+    }
+
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.lelantusStatus = lelantusStatus;
     }
 
     // ------------------------------------------

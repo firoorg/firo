@@ -132,11 +132,12 @@ std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint6
 
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
-                                                       boost::optional<SigmaStatus> sigmaStatus)
+                                                       boost::optional<SigmaStatus> sigmaStatus, boost::optional<LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_FIXED;
     uint16_t messageVer = sigmaStatus ? 1 : 0;
+    messageVer = lelantusStatus ? 2 : messageVer;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
@@ -169,6 +170,10 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
 
     if (sigmaStatus) {
         PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    }
+
+    if (lelantusStatus) {
+        PUSH_BACK_BYTES(payload, lelantusStatus.get());
     }
 
     return payload;
@@ -220,11 +225,12 @@ std::vector<unsigned char> CreatePayload_IssuanceVariable(uint8_t ecosystem, uin
 
 std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data,
-                                                       boost::optional<SigmaStatus> sigmaStatus)
+                                                       boost::optional<SigmaStatus> sigmaStatus, boost::optional<LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL;
     uint16_t messageVer = sigmaStatus ? 1 : 0;
+    messageVer = lelantusStatus ? 2 : messageVer;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
@@ -255,6 +261,10 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
 
     if (sigmaStatus) {
         PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    }
+
+    if (lelantusStatus) {
+        PUSH_BACK_BYTES(payload, lelantusStatus.get());
     }
 
     return payload;

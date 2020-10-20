@@ -440,9 +440,9 @@ UniValue elysium_sendissuancecrowdsale(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 10 || request.params.size() > 11)
+    if (request.fHelp || request.params.size() < 10 || request.params.size() > 12)
         throw runtime_error(
-            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
+            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma ) ( lelantus )\n"
 
             "\nCreate new tokens with fixed supply.\n"
 
@@ -458,6 +458,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
             "10. amount              (string, required) the number of tokens to create\n"
             "11. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+            "12. lelantus            (number, optional, default=0) flag to control lelantus feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -479,9 +480,14 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
     std::string data = ParseText(request.params[8]);
     int64_t amount = ParseAmount(request.params[9], type);
     boost::optional<SigmaStatus> sigma;
+    boost::optional<LelantusStatus> lelantus;
 
     if (request.params.size() > 10) {
         sigma = static_cast<SigmaStatus>(request.params[10].get_int());
+    }
+
+    if (request.params.size() > 11) {
+        lelantus = static_cast<LelantusStatus>(request.params[11].get_int());
     }
 
     // perform checks
@@ -489,6 +495,10 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 
     if (sigma) {
         RequireSigmaStatus(sigma.get());
+    }
+
+    if (lelantus) {
+        RequireLelantusStatus(lelantus.get());
     }
 
     // create a payload for the transaction
@@ -502,7 +512,8 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
         url,
         data,
         amount,
-        sigma
+        sigma,
+        lelantus
     );
 
     // request the wallet build the transaction (and if needed commit it)
@@ -534,7 +545,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 9 || request.params.size() > 10)
+    if (request.fHelp || request.params.size() < 9 || request.params.size() > 11)
         throw runtime_error(
             "elysium_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
 
@@ -551,6 +562,7 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
             "8. url                  (string, required) an URL for further information about the new tokens (can be \"\")\n"
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
             "10. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+            "10. lelantus            (number, optional, default=0) flag to control lelantus feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -571,9 +583,14 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
     std::string url = ParseText(request.params[7]);
     std::string data = ParseText(request.params[8]);
     boost::optional<SigmaStatus> sigma;
+    boost::optional<LelantusStatus> lelantus;
 
     if (request.params.size() > 9) {
         sigma = static_cast<SigmaStatus>(request.params[9].get_int());
+    }
+
+    if (request.params.size() > 10) {
+        lelantus = static_cast<LelantusStatus>(request.params[10].get_int());
     }
 
     // perform checks
@@ -581,6 +598,10 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
 
     if (sigma) {
         RequireSigmaStatus(sigma.get());
+    }
+
+    if (lelantus) {
+        RequireLelantusStatus(lelantus.get());
     }
 
     // create a payload for the transaction
@@ -593,7 +614,8 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
         name,
         url,
         data,
-        sigma
+        sigma,
+        lelantus
     );
 
     // request the wallet build the transaction (and if needed commit it)

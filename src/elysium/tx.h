@@ -151,6 +151,7 @@ private:
     ECDSASignature ecdsaSignature;
 
     // Lelantus
+    LelantusStatus lelantusStatus;
     boost::optional<lelantus::PublicCoin> lelantusMint;
     uint64_t lelantusMintValue;
     boost::optional<MintEntryId> lelantusId;
@@ -368,6 +369,7 @@ public:
         min_client_version = 0;
         distribution_property = 0;
         sigmaStatus = SigmaStatus::SoftDisabled;
+        lelantusStatus = LelantusStatus::SoftDisabled;
     }
 
     /** Sets the given values. */

@@ -94,6 +94,7 @@ public:
         bool fixed;
         bool manual;
         elysium::SigmaStatus sigmaStatus;
+        elysium::LelantusStatus lelantusStatus;
         std::vector<int64_t> denominations;
 
         // For crowdsale properties:
@@ -109,6 +110,7 @@ public:
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             auto sigmaStatus = static_cast<uint8_t>(this->sigmaStatus);
+            auto lelantusStatus = static_cast<uint8_t>(this->lelantusStatus);
 
             READWRITE(issuer);
             READWRITE(prop_type);
@@ -149,12 +151,20 @@ public:
                 } catch (std::ios_base::failure&) {
                     denominations.clear();
                 }
+
+                try {
+                    READWRITE(lelantusStatus);
+                } catch (std::ios_base::failure&) {
+                    lelantusStatus = static_cast<uint8_t>(elysium::LelantusStatus::SoftDisabled);
+                }
             } else {
                 READWRITE(sigmaStatus);
                 READWRITE(denominations);
+                READWRITE(lelantusStatus);
             }
 
             this->sigmaStatus = static_cast<elysium::SigmaStatus>(sigmaStatus);
+            this->lelantusStatus = static_cast<elysium::LelantusStatus>(lelantusStatus);
         }
 
         bool isDivisible() const;
@@ -260,6 +270,9 @@ bool IsSigmaEnabled(PropertyId property);
 bool IsDenominationValid(PropertyId property, SigmaDenomination denomination);
 int64_t GetDenominationValue(PropertyId property, SigmaDenomination denomination);
 
+bool IsLelantusStatusValid(LelantusStatus status);
+bool IsLelantusEnabled(PropertyId property);
+
 CMPCrowd* getCrowd(const std::string& address);
 
 bool isCrowdsaleActive(uint32_t propertyId);
@@ -312,6 +325,7 @@ namespace std {
 using namespace elysium;
 
 string to_string(SigmaStatus status);
+string to_string(LelantusStatus status);
 
 } // namespace std
 

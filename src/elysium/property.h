@@ -23,7 +23,15 @@ enum class SigmaStatus : uint8_t {
     HardEnabled     = 3
 };
 
+enum class LelantusStatus : uint8_t {
+    SoftDisabled    = 0,
+    SoftEnabled     = 1,
+    HardDisabled    = 2,
+    HardEnabled     = 3
+};
+
 bool IsEnabledFlag(SigmaStatus status);
+bool IsEnabledFlag(LelantusStatus status);
 bool IsRequireCreationFee(EcosystemId ecosystem);
 bool IsRequireCreationFee(EcosystemId ecosystem, int block);
 bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network);

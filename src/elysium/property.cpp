@@ -13,6 +13,11 @@ bool IsEnabledFlag(SigmaStatus status)
     return status == SigmaStatus::SoftEnabled || status == SigmaStatus::HardEnabled;
 }
 
+bool IsEnabledFlag(LelantusStatus status)
+{
+    return status == LelantusStatus::SoftEnabled || status == LelantusStatus::HardEnabled;
+}
+
 bool IsRequireCreationFee(EcosystemId ecosystem)
 {
     return IsRequireCreationFee(ecosystem, GetHeight());
