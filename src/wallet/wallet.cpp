@@ -1417,6 +1417,43 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                 }
             }
         }
+
+        if (wtx.tx->IsSigmaMint()) {
+            for (const CTxOut &txout: wtx.tx->vout) {
+                if (!txout.scriptPubKey.IsSigmaMint())
+                    continue;
+
+                try {
+                    auto groupElement = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(groupElement);
+                    CMintMeta meta;
+                    if (zwallet->GetTracker().GetMetaFromPubcoin(hashPubcoin, meta))
+                        zwallet->GetTracker().Archive(meta);
+                }
+                catch (std::invalid_argument &) {
+                    continue;
+                }
+            }
+        }
+
+        if (wtx.tx->IsLelantusMint()) {
+            for (const CTxOut &txout: wtx.tx->vout) {
+                if (!txout.scriptPubKey.IsLelantusMint() && !txout.scriptPubKey.IsLelantusJMint())
+                    continue;
+
+                try {
+                    secp_primitives::GroupElement groupElement;
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, groupElement);
+                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(groupElement);
+                    CLelantusMintMeta meta;
+                    if (zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta))
+                        zwallet->GetTracker().Archive(meta);
+                }
+                catch (std::invalid_argument &) {
+                    continue;
+                }
+            }
+        }
     }
 
     return true;

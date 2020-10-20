@@ -520,6 +520,7 @@ void SigmaDialog::updateAvailableToMintBalance(const CAmount& balance)
 void SigmaDialog::updateMintableBalance()
 {
     updateAvailableToMintBalance(this->walletModel->getBalance(NULL, true));
+    walletModel->checkSigmaAmount(true);
 }
 
 // Coin Control: copy label "Quantity" to clipboard
