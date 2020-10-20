@@ -659,6 +659,10 @@ static bool FillTxInputCache(const CTransaction& tx)
             continue;
         }
 
+        if (it->scriptSig.IsLelantusJoinSplit()) {
+            continue;
+        }
+
         unsigned int nOut = txIn.prevout.n;
         Coin coin = view.AccessCoin(txIn.prevout);
 
@@ -691,7 +695,6 @@ static bool FillTxInputCache(const CTransaction& tx)
 // RETURNS: >0 if 1 or more payments have been made
 static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, unsigned int idx, CMPTransaction& mp_tx, unsigned int nTime)
 {
-    PrintToLog("=== %s(): parsing transaction\n", __func__);
     InputMode inputMode = InputMode::NORMAL;
     if (wtx.IsSigmaSpend()) {
         inputMode = InputMode::SIGMA;
@@ -774,7 +777,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             return -5;
         }
     }
-    else if (inputMode != InputMode::SIGMA)
+    else if (inputMode != InputMode::SIGMA && inputMode != InputMode::LELANTUS)
     {
         // NEW LOGIC - the sender is chosen based on the first vin
 
