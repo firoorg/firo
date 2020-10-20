@@ -173,6 +173,17 @@ void RequireSigmaStatus(SigmaStatus status)
     }
 }
 
+void RequireLelantusStatus(LelantusStatus status)
+{
+    if (!elysium::IsLelantusStatusValid(status)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus status is not valid");
+    }
+
+    if (!elysium::IsFeatureActivated(elysium::FEATURE_LELANTUS, elysium::GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+}
+
 namespace elysium {
 
 void RequireSigma(PropertyId property)
