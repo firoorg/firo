@@ -1017,7 +1017,8 @@ UniValue elysium_getproperty(const JSONRPCRequest& request)
             "      \"value\" : \"n.nnnnnnnn\"       (string) the value of the denomination\n"
             "    },\n"
             "    ...\n"
-            "  ]\n"
+            "  ],\n"
+            "  \"lelantusstatus\" : \"status\",     (string) the lelantus status of the tokens\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("elysium_getproperty", "3")
@@ -1069,6 +1070,13 @@ UniValue elysium_getproperty(const JSONRPCRequest& request)
     }
 
     response.push_back(Pair("denominations", denominations));
+
+    try {
+        response.push_back(Pair("lelantusstatus", std::to_string(sp.lelantusStatus)));
+    } catch (const std::invalid_argument& e) {
+        // status is invalid
+        throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
+    }
 
     return response;
 }

@@ -470,6 +470,11 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
             return false;
         }
         break;
+    case 2:
+        if (raw.size() < 27) {
+            return false;
+        }
+        break;
     default:
         return false;
     }
@@ -501,8 +506,13 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
     p += 8;
     nNewValue = nValue;
 
-    if (version == 1) {
+    if (version >= 1) {
         memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
+    if (version >= 2) {
+        memcpy(&lelantusStatus, p, 1);
         p += 1;
     }
 
@@ -517,6 +527,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t           value: %s\n", FormatByType(nValue, prop_type));
         PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
+        PrintToLog("\t lelantus status: %u\n", static_cast<uint8_t>(lelantusStatus));
     }
 
     if (isOverrun(p)) {

@@ -46,6 +46,7 @@ constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 // Elysium Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
+#define MP_TX_PKT_V2  2
 
 #define MIN_PAYLOAD_SIZE     5
 
