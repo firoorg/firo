@@ -138,6 +138,7 @@ CMainConsensusParams::CMainConsensusParams()
     SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
     SIGMA_SPENDV1_FEATURE_BLOCK = 281532; // 1 July 2020
     SIGMA_FEATURE_BLOCK = 9999999; // TODO: choose date to activate
+    LELANTUS_FEATURE_BLOCK = 9999999;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 212000;
@@ -189,6 +190,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     SIGMA_FEATURE_BLOCK = 100000;
     SIGMA_SPENDV1_FEATURE_BLOCK = 140000;
     SIGMA_FEATURE_BLOCK = 9999999; // TODO: choose date to activate
+    LELANTUS_FEATURE_BLOCK = 9999999;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 100000;
@@ -239,6 +241,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     // sigma related
     SIGMA_FEATURE_BLOCK = 500;
     SIGMA_SPENDV1_FEATURE_BLOCK = 550;
+    LELANTUS_FEATURE_BLOCK = 1000;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 500;
