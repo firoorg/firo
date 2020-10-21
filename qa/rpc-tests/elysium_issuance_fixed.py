@@ -140,6 +140,21 @@ class ElysiumIssuanceFixedTest(ElysiumTestFramework):
         self.sync_all()
 
         tx5 = self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token5', 'http://token5.com', 'data5', '1', 3)
+        self.nodes[1].generate(1)
+        self.sync_all()
+
+        assert_raises_message(
+            JSONRPCException,
+            'Lelantus status is not valid',
+            self.nodes[0].elysium_sendissuancefixed, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', '1', 0, 4
+        )
+
+        assert_raises_message(
+            JSONRPCException,
+            'Lelantus feature is not activated yet',
+            self.nodes[0].elysium_sendissuancefixed, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', '1', 0, 1
+        )
+
         self.nodes[0].generate(500) # we need 1000 blocks in order to specify lelantus flag
         self.sync_all()
 
