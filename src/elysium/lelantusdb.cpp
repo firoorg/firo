@@ -374,7 +374,7 @@ LelantusGroup LelantusDb::GetGroup(PropertyId property, MintEntryId const &id)
     return GetGroup(property, std::get<2>(keyData));
 }
 
-bool LelantusDb::HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, std::vector<unsigned char> &additional)
+bool LelantusDb::HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, LelantusAmount &amount, std::vector<unsigned char> &additional)
 {
     auto tagKey = MakeRaw(DB_COIN_ID/*, propertyId*/, id);
     std::string val;
@@ -402,6 +402,7 @@ bool LelantusDb::HasMint(MintEntryId const &id, PropertyId &property, lelantus::
     index = coinData.index;
     group = coinData.group;
     block = coinData.block;
+    amount = coinData.amount;
     additional = coinData.additionalData;
 
     return true;

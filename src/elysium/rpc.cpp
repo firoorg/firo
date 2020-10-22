@@ -28,6 +28,7 @@
 #include "tx.h"
 #include "utilsbitcoin.h"
 #include "version.h"
+#include "wallet.h"
 #include "wallettxs.h"
 
 #ifdef ENABLE_WALLET
@@ -2542,6 +2543,27 @@ UniValue elysium_getbalanceshash(const JSONRPCRequest& request)
     return response;
 }
 
+UniValue elysium_recoverlelantusmints(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+            "elysium_recoverlelantusmints\n"
+            "\nRecover Lelantus mints from chain state.\n"
+            "\nResult:\n"
+            "\"status\"                       (boolean) return true if success to recover\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_getbalanceshash", "31")
+            + HelpExampleRpc("elysium_getbalanceshash", "31")
+        );
+
+    if (!wallet->SyncWithChain()) {
+        return "false";
+    }
+
+    return "true";
+}
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -2581,6 +2603,7 @@ static const CRPCCommand commands[] =
     { "elysium (data retrieval)", "elysium_listpendinglelantusmints",  &elysium_listpendinglelantusmints,   false },
     { "elysium (data retrieval)", "elysium_getfeeshare",               &elysium_getfeeshare,                false },
     { "elysium (configuration)",  "elysium_setautocommit",             &elysium_setautocommit,              true  },
+    { "elysium (update)",         "elysium_recoverlelantusmints",      &elysium_recoverlelantusmints,       false },
 #endif
     { "hidden",                   "elysiumrpc",                        &elysiumrpc,                          true  },
 

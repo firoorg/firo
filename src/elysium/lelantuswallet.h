@@ -163,6 +163,7 @@ public:
 
     void ClearMintsChainState();
     bool SyncWithChain();
+    bool SyncWithChain(MintEntryId const &id);
 
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, PropertyId property, CAmount amount);
     bool TryRecoverMint(MintEntryId const &id, LelantusMintChainState const &chainState, uint256 const &spendTx, PropertyId property, CAmount amount);

@@ -101,9 +101,9 @@ void Wallet::ClearAllChainState()
     mintWalletV1.ClearMintsChainState();
 }
 
-void Wallet::SyncWithChain()
+bool Wallet::SyncWithChain()
 {
-    lelantusWallet.SyncWithChain();
+    return lelantusWallet.SyncWithChain();
 }
 
 SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding)
