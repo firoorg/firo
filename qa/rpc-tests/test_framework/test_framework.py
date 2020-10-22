@@ -303,7 +303,7 @@ class ElysiumTestFramework(BitcoinTestFramework):
         self.sync_all()
 
     def setup_nodes(self):
-        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium'] for _ in range(self.num_nodes)])
+        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium', '-debug=1'] for _ in range(self.num_nodes)])
 
     def assert_property_summary(self, prop, id, divisible, cat, subcat, name, url, data):
         assert_equal(prop['propertyid'], id)

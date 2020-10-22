@@ -644,7 +644,6 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
     }
 }
 
-
 UniValue elysium_sendsto(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
