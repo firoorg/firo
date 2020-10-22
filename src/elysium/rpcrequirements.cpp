@@ -199,7 +199,13 @@ void RequireSigma(PropertyId property)
 
 void RequireLelantus(PropertyId property)
 {
-    // TODO: implement this
+    if (!IsFeatureActivated(FEATURE_LELANTUS, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+
+    if (!IsLelantusEnabled(property)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Property has not enabled Lelantus");
+    }
 }
 
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination)

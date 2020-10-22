@@ -258,6 +258,11 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
         return PKT_ERROR_LELANTUS - 24;
     }
 
+    if (!IsLelantusEnabled(property)) {
+        PrintToLog("%s(): rejected: property %d does not enable lelantus\n", __func__, property);
+        return PKT_ERROR_LELANTUS - 901;
+    }
+
     auto coin = tx.getLelantusMint();
     auto rawProof = tx.getLelantusSchnorrProof();
 
@@ -324,6 +329,11 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     if (!IsPropertyIdValid(property)) {
         PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
         return PKT_ERROR_LELANTUS - 24;
+    }
+
+    if (!IsLelantusEnabled(property)) {
+        PrintToLog("%s(): rejected: property %d does not enable lelantus\n", __func__, property);
+        return PKT_ERROR_LELANTUS - 901;
     }
 
     auto joinSplit = tx.getLelantusJoinSplit();
