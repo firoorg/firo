@@ -57,7 +57,7 @@ public:
 
     void ClearAllChainState();
 
-    void SyncWithChain();
+    bool SyncWithChain();
 
     SigmaSpend CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding);
     SigmaSpend CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding);

@@ -370,42 +370,77 @@ bool LelantusWallet::SyncWithChain()
     bool keepFinding = true;
 
     while (keepFinding) {
+
         keepFinding = false;
 
+        // recover from mintpool
         for (auto const &entry : mintPool) {
-            PropertyId property;
-
-            lelantus::PublicCoin publicKey;
-            LelantusIndex index;
-            LelantusGroup group;
-            int block;
-            std::vector<unsigned char> additional;
-
-            if (!lelantusDb->HasMint(entry.id, property, publicKey, index, group, block, additional)) {
+            if (!SyncWithChain(entry.id)) {
                 continue;
             }
 
-            EncryptedValue enc;
-            if (additional.size() != sizeof(enc)) {
-                LogPrintf("%s : Addition data size is not correct\n", __func__);
-                continue;
-            }
-
-            std::copy(additional.begin(), additional.end(), &enc[0]);
-            uint64_t amount;
-            if (!DecryptMintAmount(enc, publicKey.getValue(), amount)) {
-                LogPrintf("%s : Fail to decrypted\n", __func__);
-                continue;
-            }
-
-            LelantusMintChainState state(block, group, index);
-            if (!TryRecoverMint(entry.id, state, property, amount)) {
-                LogPrintf("%s : Fail to recover mint\n", __func__);
-                continue;
+            if (!RemoveFromMintPool(entry.id)) {
+                throw std::runtime_error("Fail to remove recovered mint from mintpool");
             }
 
             keepFinding = true;
         }
+
+        // found from mempool then refill it
+        if (keepFinding) {
+            FillMintPool();
+        }
+
+        // recover from state
+        ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+            if (m.second.IsSpent() || m.second.IsOnChain()) {
+                return;
+            }
+
+            SyncWithChain(m.first);
+        }));
+    }
+
+    return true;
+}
+
+bool LelantusWallet::SyncWithChain(MintEntryId const &id)
+{
+    if (pwalletMain->IsLocked()) {
+        return false;
+    }
+
+    PropertyId property;
+
+    lelantus::PublicCoin publicKey;
+    LelantusIndex index;
+    LelantusGroup group;
+    int block;
+    LelantusAmount amount;
+    std::vector<unsigned char> additional;
+
+    if (!lelantusDb->HasMint(id, property, publicKey, index, group, block, amount, additional)) {
+        return false;
+    }
+
+    if (!amount) {
+        EncryptedValue enc;
+        if (additional.size() != sizeof(enc)) {
+            LogPrintf("%s : Addition data size is not correct\n", __func__);
+            return false;
+        }
+
+        std::copy(additional.begin(), additional.end(), &enc[0]);
+        if (!DecryptMintAmount(enc, publicKey.getValue(), amount)) {
+            LogPrintf("%s : Fail to decrypted\n", __func__);
+            return false;
+        }
+    }
+
+    LelantusMintChainState state(block, group, index);
+    if (!TryRecoverMint(id, state, property, amount)) {
+        LogPrintf("%s : Fail to recover mint\n", __func__);
+        return false;
     }
 
     return true;
