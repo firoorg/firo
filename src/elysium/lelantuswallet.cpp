@@ -363,6 +363,7 @@ void LelantusWallet::ClearMintsChainState()
 
 bool LelantusWallet::SyncWithChain()
 {
+    throw std::runtime_error("Reached here!");
     if (pwalletMain->IsLocked()) {
         return false;
     }
@@ -390,16 +391,17 @@ bool LelantusWallet::SyncWithChain()
         if (keepFinding) {
             FillMintPool();
         }
-
-        // recover from state
-        ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
-            if (m.second.IsSpent() || m.second.IsOnChain()) {
-                return;
-            }
-
-            SyncWithChain(m.first);
-        }));
     }
+
+    // recover from state
+    ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+        if (m.second.IsSpent() || m.second.IsOnChain()) {
+            return;
+        }
+        throw std::runtime_error("Found not on chain");
+
+        SyncWithChain(m.first);
+    }));
 
     return true;
 }
