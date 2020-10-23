@@ -2549,6 +2549,8 @@ UniValue elysium_recoverlelantusmints(const JSONRPCRequest& request)
         throw runtime_error(
             "elysium_recoverlelantusmints\n"
             "\nRecover Lelantus mints from chain state.\n"
+            "\nArguments:\n"
+            "1. \"passphrase\"     (string, optional) The wallet passphrase if wallet is encrypted\n"
             "\nResult:\n"
             "\"status\"                       (boolean) return true if success to recover\n"
 
@@ -2557,7 +2559,34 @@ UniValue elysium_recoverlelantusmints(const JSONRPCRequest& request)
             + HelpExampleRpc("elysium_getbalanceshash", "31")
         );
 
-    if (!wallet->SyncWithChain()) {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool needToClose = false;
+    if (pwalletMain->IsCrypted()) {
+        if (request.params.size() < 1) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error: require passphrase to unlock wallet");
+        }
+
+        SecureString pass;
+        pass.reserve(100);
+
+        pass = request.params[0].get_str().c_str();
+
+        if (pass.length() > 0) {
+            if (!pwalletMain->Unlock(pass)) {
+                throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+            }
+            needToClose = true;
+        }
+    }
+
+    auto result = wallet->SyncWithChain();
+    if (needToClose) {
+        pwalletMain->nRelockTime = 0;
+        pwalletMain->Lock();
+    }
+
+    if (!result) {
         return "false";
     }
 
