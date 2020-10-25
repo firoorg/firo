@@ -216,6 +216,7 @@ public:
      */
     int lookupAddress(const QString &address) const;
     void emitDataChanged(int idx);
+    void refreshMyRAPTable();
 private:
     MyRAPTablePriv *priv;
 

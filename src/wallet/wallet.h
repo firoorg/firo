@@ -647,6 +647,8 @@ class CWallet : public CCryptoKeyStore, public CValidationInterface // lgtm [cpp
 {
 private:
     static std::atomic<bool> fFlushThreadRunning;
+    bool bip47Loaded;
+    CBlockIndex* pindexRescanForBip47;
 
     /**
      * Select a set of coins such that nValueRet >= nTargetValue and at least
@@ -721,7 +723,6 @@ public:
     mutable CCriticalSection cs_wallet;
 
     const std::string strWalletFile;
-    static std::string bip47WalletFile;
 
     void LoadKeyPool(int nIndex, const CKeyPool &keypool)
     {
@@ -781,6 +782,7 @@ public:
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
+        bip47Loaded = false;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -1310,6 +1312,7 @@ public:
     //map other wallet => map(my wallet pcode => chanel)
     std::map<string, std::vector<CBIP47PaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
+    bool IsBIP47Loaded() const;
     void LoadBip47Wallet();
     void deriveBip47Keys();
     std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
@@ -1390,11 +1393,10 @@ public:
                 }
                 if (result.size() == 3)
                 {
-                    if (result[0] == "CBIP47PAYMENT") 
+                    if (result[0].find("BIP47PAYMENT") != std::string::npos)
                         return true;
                 }
-            }
-            
+            }    
         }
         return false;
     }

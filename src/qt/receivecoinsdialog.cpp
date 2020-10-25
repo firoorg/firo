@@ -15,12 +15,15 @@
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
 
+#include "addresstablemodel.h"
+
 #include <QAction>
 #include <QCursor>
 #include <QItemSelection>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
+#include <QSortFilterProxyModel>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -121,6 +124,39 @@ void ReceiveCoinsDialog::on_reusableAddressButton_clicked()
     setAddressType();
 }
 
+void ReceiveCoinsDialog::selectionChanged() {
+    // Set button states based on selected tab and selection
+    selectionChanged(ui->myRapAddressesView);
+}
+
+void ReceiveCoinsDialog::selectionChanged(const QTableView *table) 
+{
+    if (!table) return;
+    if (!table->selectionModel())
+        return;
+
+    if (table->selectionModel()->hasSelection())
+    {
+        
+    }
+    else
+    {
+        // ui->deleteAddress->setEnabled(false);
+        // ui->copyAddress->setEnabled(false);
+    }
+}
+
+void ReceiveCoinsDialog::selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/)
+{
+    // QModelIndex idx = pcodeProxyModel->mapFromSource(pcodeModel->index(begin, ZCoinTableModel::Address, parent));
+    // if (idx.isValid() && (idx.data(Qt::EditRole).toString() == newAddressToSelect)) {
+    //     // Select row of newly created address, once
+    //     ui->paymentcodeTableView->setFocus();
+    //     ui->paymentcodeTableView->selectRow(idx.row());
+    //     newAddressToSelect.clear();
+    // }
+}
+
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
 {
     this->model = _model;
@@ -150,18 +186,21 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
     
         QTableView* myRAPView = ui->myRapAddressesView;
+        pRapTableModel = _model->getMyRAPTableModel();
         myRAPView->verticalHeader()->hide();
         myRAPView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        myRAPView->setModel(_model->getMyRAPTableModel());
+        myRAPView->setModel(pRapTableModel);
         myRAPView->setAlternatingRowColors(true);
         myRAPView->setSelectionBehavior(QAbstractItemView::SelectRows);
         myRAPView->setSelectionMode(QAbstractItemView::ContiguousSelection);
         myRAPView->setColumnWidth(MyRAPTableModel::Label, LABEL_COLUMN_WIDTH);
         myRAPView->setColumnWidth(MyRAPTableModel::Address, 600);
+        myRAPView->horizontalHeader()->setStretchLastSection(true);
 
         connect(myRAPView->selectionModel(),
             SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
             SLOT(myRAPAddressesView_selectionChanged(QItemSelection, QItemSelection)));
+        connect(pRapTableModel, SIGNAL(rowsInserted(QModelIndex, int, int)), this, SLOT(selectNewPaymentCode(QModelIndex, int, int)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
     }
 }

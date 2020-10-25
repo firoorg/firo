@@ -254,7 +254,6 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     AddressTableEntry *rec = static_cast<AddressTableEntry*>(index.internalPointer());
-
     if(role == Qt::DisplayRole || role == Qt::EditRole)
     {
         switch(index.column())
@@ -357,8 +356,10 @@ QVariant AddressTableModel::headerData(int section, Qt::Orientation orientation,
 {
     if(orientation == Qt::Horizontal)
     {
+        qWarning() << "AddressTableModel Header data inside 1";
         if(role == Qt::DisplayRole && section < columns.size())
         {
+            qWarning() << "AddressTableModel Header data inside 2";
             return columns[section];
         }
     }
@@ -651,6 +652,7 @@ public:
                 cachedPaymentCodeTable.append(PaymentCodeTableEntry(addressType,
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address)));
+                LogPrintf("Appended address %s\n", address);
             }
             
         }
@@ -739,6 +741,7 @@ public:
 
     void refreshMyRAPTable()
     {
+        LogPrintf("refreshMyRAPTable %d\n", wallet->m_CBIP47Accounts.size());
         cachedRAPTable.clear();
         {
             LOCK(wallet->cs_wallet);
@@ -759,6 +762,7 @@ public:
 
     void updateEntry(const QString &address, const QString &label, int status)
     {
+        LogPrintf("MyRAPTable updateEntry\n");  
         // Find address / label in model
         QList<MyRAPEntry>::iterator lower = qLowerBound(
             cachedRAPTable.begin(), cachedRAPTable.end(), address, MyRAPTableEntryLessThan());
@@ -845,8 +849,6 @@ QVariant PaymentCodeTableModel::data(const QModelIndex &index, int role) const
 
     PaymentCodeTableEntry *rec = static_cast<PaymentCodeTableEntry*>(index.internalPointer());
     
-    qWarning() << "address of rec" << rec->address;
-
     if(role == Qt::DisplayRole || role == Qt::EditRole)
     {
         switch(index.column())
@@ -888,7 +890,7 @@ QVariant PaymentCodeTableModel::data(const QModelIndex &index, int role) const
 }
 
 bool PaymentCodeTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
-{
+{   LogPrintf("PaymentCodeTableModel::setData\n");
     if(!index.isValid())
         return false;
     PaymentCodeTableEntry *rec = static_cast<PaymentCodeTableEntry*>(index.internalPointer());
@@ -1072,6 +1074,10 @@ void PaymentCodeTableModel::refreshModel()
     priv->refreshPaymentCodeTable();
 }
 
+void MyRAPTableModel::refreshMyRAPTable() {
+    priv->refreshMyRAPTable();
+}
+
 
 // MyRAPTableModel implementation
 
@@ -1090,24 +1096,27 @@ MyRAPTableModel::~MyRAPTableModel()
 
 int MyRAPTableModel::rowCount(const QModelIndex &parent) const
 {
+    qWarning() << "MyRAPTableModel rowCount";
     Q_UNUSED(parent);
     return priv->size();
 }
 
 int MyRAPTableModel::columnCount(const QModelIndex &parent) const
 {
+    qWarning() << "MyRAPTableModel columnCount";
     Q_UNUSED(parent);
     return columns.length();
 }
 
 QVariant MyRAPTableModel::data(const QModelIndex &index, int role) const
 {
+    qWarning() << "address of rec MyRAPTableModel before";
     if(!index.isValid())
         return QVariant();
 
     MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
     
-    qWarning() << "address of rec" << rec->address;
+    qWarning() << "address of rec MyRAPTableModel" << rec->address;
 
     if(role == Qt::DisplayRole || role == Qt::EditRole)
     {
@@ -1140,6 +1149,7 @@ QVariant MyRAPTableModel::data(const QModelIndex &index, int role) const
 
 bool MyRAPTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
+    qWarning() << "MyRAPTableModel setData";
     if(!index.isValid())
         return false;
     MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
@@ -1180,10 +1190,13 @@ bool MyRAPTableModel::setData(const QModelIndex &index, const QVariant &value, i
 
 QVariant MyRAPTableModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
+    qWarning() << "MyRAPTableModel Header data";
     if(orientation == Qt::Horizontal)
     {
+        qWarning() << "MyRAPTableModel Header data inside 1";
         if(role == Qt::DisplayRole && section < columns.size())
         {
+            qWarning() << "MyRAPTableModel Header data inside 2";
             return columns[section];
         }
     }
@@ -1192,6 +1205,7 @@ QVariant MyRAPTableModel::headerData(int section, Qt::Orientation orientation, i
 
 Qt::ItemFlags MyRAPTableModel::flags(const QModelIndex &index) const
 {
+    qWarning() << "MyRAPTableModel flags";
     if(!index.isValid())
         return 0;
     MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
@@ -1208,6 +1222,7 @@ Qt::ItemFlags MyRAPTableModel::flags(const QModelIndex &index) const
 
 QModelIndex MyRAPTableModel::index(int row, int column, const QModelIndex &parent) const
 {
+    qWarning() << "MyRAPTableModel index";
     Q_UNUSED(parent);
     MyRAPEntry *data = priv->index(row);
     if(data)
@@ -1223,12 +1238,14 @@ QModelIndex MyRAPTableModel::index(int row, int column, const QModelIndex &paren
 void MyRAPTableModel::updateEntry(const QString &address,
         const QString &label, int status)
 {
+    qWarning() << "MyRAPTableModel update entry";
     // Update address book model from Bitcoin core
     priv->updateEntry(address, label, status);
 }
 
 QString MyRAPTableModel::addRow(const QString &type, const QString &label, const QString &address)
 {
+    qWarning() << "MyRAPTableModel add row";
     std::string strLabel = label.toStdString();
     std::string strAddress = address.toStdString();
 
@@ -1248,6 +1265,7 @@ bool MyRAPTableModel::removeRows(int row, int count, const QModelIndex &parent)
  */
 QString MyRAPTableModel::labelForAddress(const QString &address) const
 {
+    qWarning() << "MyRAPTableModel remove for address";
     {
         LOCK(wallet->cs_wallet);
         return QString::fromStdString(wallet->GetPaymentCodeLabel(address.toStdString()));
@@ -1270,6 +1288,7 @@ int MyRAPTableModel::lookupAddress(const QString &address) const
 
 void MyRAPTableModel::emitDataChanged(int idx)
 {
+    qWarning() << "MyRAPTableModel emit data changed";
     Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
 }
 

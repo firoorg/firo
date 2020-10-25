@@ -61,7 +61,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     myRapTableModel = new MyRAPTableModel(wallet, this);
     recentPCodeTransactionsTableModel = new RecentPCodeTransactionsTableModel(wallet, this);
     paymentCodeTableModel = new PaymentCodeTableModel(wallet, this);
-
+    myRapTableModel = new MyRAPTableModel(wallet, this);
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(pollBalanceChanged()));
@@ -284,36 +284,20 @@ void WalletModel::updateWatchOnlyFlag(bool fHaveWatchonly)
 
 bool WalletModel::tryEnablePaymentCode()
 {
-    if(wallet->pcodeEnabled && wallet->m_Bip47PendingKeys.empty())
+    if(wallet->pcodeEnabled)
         return true;
     if(wallet->IsLocked())
     {
-        QMessageBox::information(0, tr("Unlock Wallet"), tr("To Receive PaymentCode Transaction You need to Unlock Wallet"));
+        QMessageBox::information(0, tr("Unlock Wallet"), tr("Please enter your passphrase to unlock Reusable Address transactions."));
         WalletModel::UnlockContext ctx(requestUnlock());
         if(!ctx.isValid())
         {
             // Unlock wallet was cancelled
             return false;
         }
-        if(wallet->pcodeEnabled)
-        {
-            wallet->importBip47PendingKeys();
-            return true;
-        }
-        CExtKey masterKey;
-        if(wallet->ReadMasterKey(masterKey))
-        {
-            wallet->loadBip47Wallet(masterKey);
-            wallet->pcodeEnabled = true;
-            return true;
-        }
-        else
-        {
-            LogPrintf("Pcode disabled\n");
-            wallet->pcodeEnabled = false;
-            return false;
-        }
     }
+    paymentCodeTableModel->refreshModel();
+    myRapTableModel->refreshMyRAPTable();
     return true;
 }
 
@@ -1008,6 +992,7 @@ WalletModel::UnlockContext::~UnlockContext()
 {
     if(valid && relock)
     {
+        LogPrintf("Relocking wallet");
         wallet->setWalletLocked(true);
     }
 }

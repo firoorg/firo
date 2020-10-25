@@ -38,7 +38,7 @@ public:
 
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
-    void tryEnablePaymentCode();
+    bool tryEnablePaymentCode();
 
 private:
     QMenu *contextMenu;

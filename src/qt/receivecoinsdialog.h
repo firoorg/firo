@@ -18,6 +18,8 @@
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
+class QSortFilterProxyModel;
+class MyRAPTableModel;
 
 namespace Ui {
     class ReceiveCoinsDialog;
@@ -44,6 +46,7 @@ public:
     ~ReceiveCoinsDialog();
 
     void setModel(WalletModel *model);
+    void setModel(MyRAPTableModel *pRapTableModel);
 
 public Q_SLOTS:
     void clear();
@@ -65,6 +68,9 @@ private:
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     virtual void resizeEvent(QResizeEvent *event);
+    QSortFilterProxyModel *proxyModel;
+    MyRAPTableModel *pRapTableModel;
+    void selectionChanged(const QTableView *table);
 
 private Q_SLOTS:
     void on_receiveButton_clicked();
@@ -81,6 +87,8 @@ private Q_SLOTS:
     void copyAmount();
     void on_regularAddressButton_clicked();
     void on_reusableAddressButton_clicked();
+    void selectionChanged();
+    void selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/);
 };
 
 #endif // BITCOIN_QT_RECEIVECOINSDIALOG_H

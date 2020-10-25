@@ -384,12 +384,18 @@ void WalletView::gotoOverviewPage()
 void WalletView::gotoElyAssetsPage()
 {
     setCurrentWidget(elyAssetsPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 #endif
 
 void WalletView::gotoHistoryPage()
 {
     setCurrentWidget(transactionsPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 #ifdef ENABLE_ELYSIUM
@@ -401,6 +407,9 @@ void WalletView::gotoElysiumHistoryTab()
 
     setCurrentWidget(transactionsPage);
     transactionTabs->setCurrentIndex(1);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 #endif
 
@@ -413,6 +422,9 @@ void WalletView::gotoBitcoinHistoryTab()
         transactionTabs->setCurrentIndex(0);
     }
 #endif
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 #ifdef ENABLE_ELYSIUM
@@ -436,27 +448,41 @@ void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 void WalletView::gotoMasternodePage()
 {
     setCurrentWidget(masternodeListPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 void WalletView::gotoPaymentcodePage()
 {
     setCurrentWidget(paymentcodePage);
-    paymentcodePage->tryEnablePaymentCode();
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 void WalletView::gotoZerocoinPage()
 {
     setCurrentWidget(zerocoinPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 void WalletView::gotoSigmaPage()
 {
     setCurrentWidget(sigmaPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 void WalletView::gotoZc2SigmaPage()
@@ -466,12 +492,18 @@ void WalletView::gotoZc2SigmaPage()
     } else {
         setCurrentWidget(sigmaPage);
     }
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 
 #ifdef ENABLE_ELYSIUM
 void WalletView::gotoToolboxPage()
 {
     setCurrentWidget(toolboxPage);
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
+    }
 }
 #endif
 
@@ -481,6 +513,9 @@ void WalletView::gotoSendCoinsPage(QString addr)
 
     if (!addr.isEmpty()){
         sendZcoinView->setAddress(addr);
+    }
+    if (!paymentcodePage->tryEnablePaymentCode()) {
+        gotoOverviewPage();
     }
 }
 

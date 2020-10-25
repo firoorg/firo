@@ -115,7 +115,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     toolboxAction(0),
 #endif
     historyAction(0),
-    paymentcodeAction(0),
     quitAction(0),
     sendCoinsAction(0),
     sendCoinsMenuAction(0),
@@ -347,13 +346,6 @@ void BitcoinGUI::createActions()
 	receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
 	receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
-    paymentcodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/paymentcode"), tr("&Payment Codes"), this);
-    paymentcodeAction->setStatusTip(tr("Browse payment codes"));
-    paymentcodeAction->setToolTip(paymentcodeAction->statusTip());
-    paymentcodeAction->setCheckable(true);
-    paymentcodeAction->setShortcut(QKeySequence(Qt::ALT + key++));
-    tabGroup->addAction(paymentcodeAction);
-
 	historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
 	historyAction->setStatusTip(tr("Browse transaction history"));
 	historyAction->setToolTip(historyAction->statusTip());
@@ -425,8 +417,8 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-	connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-	connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(gotoPaymentcodePage()));
+	//connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	//connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(gotoPaymentcodePage()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
@@ -572,7 +564,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
-        toolbar->addAction(paymentcodeAction);
+        //toolbar->addAction(paymentcodeAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
         toolbar->addAction(zc2SigmaAction);
@@ -690,7 +682,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
-    paymentcodeAction->setEnabled(enabled);
+    //paymentcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
@@ -835,7 +827,7 @@ void BitcoinGUI::gotoElyAssetsPage()
 
 void BitcoinGUI::gotoPaymentcodePage()
 {
-    paymentcodeAction->setChecked(true);
+    //paymentcodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoPaymentcodePage();
 }
 

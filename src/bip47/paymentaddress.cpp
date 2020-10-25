@@ -108,7 +108,6 @@ GroupElement CPaymentAddress::getECPoint(bool isMine) {
 std::vector<unsigned char> CPaymentAddress::hashSharedSecret() {
 
     std::vector<unsigned char> shardbytes = getSharedSecret().ECDHSecretAsBytes();
-    LogPrintf("Hash Shared Secret: %s\n", HexStr(shardbytes));
     
     return shardbytes;
 }
@@ -151,31 +150,21 @@ CPubKey CPaymentAddress::getSendECKey(Scalar s)
 }
 
 CPubKey CPaymentAddress::getReceiveECPubKey(Scalar s)
-{
-    LogPrintf("getSendECKey:SecretPoint = %s\n", s.GetHex());
-    
+{    
     GroupElement ecPoint = getECPoint(true);
-    LogPrintf("getSendECKey:ecPoint = %s\n", ecPoint.GetHex());
     
     GroupElement sG = get_sG(s);
-    LogPrintf("getSendECKey:sG = %s\n", sG.GetHex());
     GroupElement ecG = ecPoint + sG;
-    LogPrintf("getSendECKey:ecG= %s\n", ecG.GetHex());
-    LogPrintf("getSendECKey:buffersize required = %d\n", ecG.memoryRequired());
 
     vector<unsigned char> pubkey_vch  = ecG.getvch();
     pubkey_vch.pop_back();
     unsigned char header_char = pubkey_vch[pubkey_vch.size()-1] == 0 ? 0x02 : 0x03;
     pubkey_vch.pop_back();
     pubkey_vch.insert(pubkey_vch.begin(), header_char);
-    
-    LogPrintf("getSendECKey:pubkey_bytes = %s size = %d\n", HexStr(pubkey_vch), pubkey_vch.size());
-    
+        
     CPubKey pkey;
     pkey.Set(pubkey_vch.begin(), pubkey_vch.end());
     
-    LogPrintf("Validate getSendECKey is %s\n", pkey.IsValid()? "true":"false");
-
     return pkey;
 }
 
@@ -188,7 +177,6 @@ CKey CPaymentAddress::getReceiveECKey(Scalar s)
     
     vector<unsigned char> ppkeybytes = ParseHex(newKeyS.GetHex());
     pkey.Set(ppkeybytes.begin(), ppkeybytes.end(), true);
-    LogPrintf( "getReceiveECKey validate key is %s\n", pkey.IsValid() ? "true":"false");
     return pkey;
 }
 

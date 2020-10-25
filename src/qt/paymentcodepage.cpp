@@ -144,10 +144,9 @@ void PaymentcodePage::setWalletModel(WalletModel *model)
     
 }
 
-void PaymentcodePage::tryEnablePaymentCode()
+bool PaymentcodePage::tryEnablePaymentCode()
 {
-    if(walletModel->tryEnablePaymentCode())
-        loadPaymentCode();
+    return walletModel->tryEnablePaymentCode();
 }
 
 void PaymentcodePage::showContextMenu(const QPoint &point)

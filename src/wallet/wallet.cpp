@@ -1261,43 +1261,46 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
             bool ret = AddToWallet(wtx, false);
 
             LogPrintf("Check If Notification Transaction\n");
-            if(isNotificationTransaction(tx))
+            if (pcodeEnabled) 
             {
-                LogPrintf("Process Notification Transaction\n");
-                processNotificationTransaction(tx);
-                LogPrintf("Process Notification Transaction finished\n");
-                //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
-                LogPrintf("Process Notification Transaction finished block hash %d\n", pIndex == NULL);
-                CBlockIndex *pIterator = (pIndex != NULL)?mapBlockIndex[pIndex->GetBlockHash()]:chainActive.Tip();
-                int count = 10;
-                while (pIterator && count >= 0)
+                if(isNotificationTransaction(tx))
                 {
-                    CBlock block;
-                    if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
-                        LogPrintf("Process Notification Transaction read block success\n");
-                        size_t size = (pIterator == pIndex)?posInBlock:block.vtx.size();
-                        for (size_t pos = 0; pos < size; ++pos) {
-                            AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
-                            LogPrintf("Process Notification Transaction add to wallet\n");
-                        }
-                    } 
-                    pIterator = pIterator->pprev;
-                    count--;
-                }
-                LogPrintf("Process Notification Transaction rescan finished\n");
-            }
-            else
-            {   
-                CBIP47PaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
-                if (pchannel != NULL) 
-                {
-                    std::string toaddr = getAddressOfReceived(tx).ToString();
-                    LogPrintf("New Bip47 payment Recevied to address %s\n", toaddr);
-
-                    if(generateNewBip47IncomingAddress(toaddr, pchannel))
+                    LogPrintf("Process Notification Transaction\n");
+                    processNotificationTransaction(tx);
+                    LogPrintf("Process Notification Transaction finished\n");
+                    //rescan the last 10 blocks to see whether there is payment transaction processed before notification transaction
+                    LogPrintf("Process Notification Transaction finished block hash %d\n", pIndex == NULL);
+                    CBlockIndex *pIterator = (pIndex != NULL)?mapBlockIndex[pIndex->GetBlockHash()]:chainActive.Tip();
+                    int count = 10;
+                    while (pIterator && count >= 0)
                     {
+                        CBlock block;
+                        if (ReadBlockFromDisk(block, pIterator, Params().GetConsensus())) {
+                            LogPrintf("Process Notification Transaction read block success\n");
+                            size_t size = (pIterator == pIndex)?posInBlock:block.vtx.size();
+                            for (size_t pos = 0; pos < block.vtx.size(); ++pos) {
+                                AddToWalletIfInvolvingMe(*block.vtx[pos], pIterator, pos, false);
+                                LogPrintf("Process Notification Transaction add to wallet\n");
+                            }
+                        } 
+                        pIterator = pIterator->pprev;
+                        count--;
+                    }
+                    LogPrintf("Process Notification Transaction rescan finished\n");
+                }
+                else
+                {   
+                    CBIP47PaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
+                    if (pchannel != NULL) 
+                    {
+                        std::string toaddr = getAddressOfReceived(tx).ToString();
+                        LogPrintf("New Bip47 payment Recevied to address %s\n", toaddr);
 
-                        saveCBIP47PaymentChannelData(pchannel->getPaymentCode());
+                        if(generateNewBip47IncomingAddress(toaddr, pchannel))
+                        {
+
+                            saveCBIP47PaymentChannelData(pchannel->getPaymentCode());
+                        }
                     }
                 }
             }
@@ -1836,6 +1839,8 @@ bool CWallet::IsHDEnabled()
 
 void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter]
 {
+    if (bip47Loaded) return;
+    if (IsLocked()) return;
     LogPrintf("Bip47Wallet Loading....\n");
     
     CWalletDB bip47walletdb(strWalletFile, "cr+");
@@ -1847,7 +1852,12 @@ void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter
     deriveCBIP47Accounts(masterExtKey);
     
     deriveBip47Keys();
-
+    if (pindexRescanForBip47) 
+    {
+        ScanForWalletTransactions(pindexRescanForBip47, true);
+    }
+    LogPrintf("finish Bip47Wallet Loading....\n");
+    bip47Loaded = true;
 }
 void CWallet::LoadBip47Wallet()
 {
@@ -1855,10 +1865,15 @@ void CWallet::LoadBip47Wallet()
     if (ReadMasterKey(masterExtKey))
     {
         this->masterKey = masterExtKey;
-        deriveCBIP47Accounts(masterExtKey);
+        loadBip47Wallet(masterExtKey);
         this->pcodeEnabled = true;
     }
 }
+
+bool CWallet::IsBIP47Loaded() const {
+    return bip47Loaded;
+}
+
 std::string CWallet::makeNotificationTransaction(std::string paymentCode, int accountIndex) // Make Notification Transaction
 {
     CBIP47Account toCBIP47Account(paymentCode);
@@ -2113,24 +2128,37 @@ CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTransaction
 }
 
 CBitcoinAddress CWallet::getAddressOfReceived(CTransaction tx) const
-
 {
     isminefilter filter = ISMINE_ALL; // surpress false alarm on filter use lgtm [cpp/unused-local-variable]
     for (int i = 0; i < tx.vout.size(); i++) {
-        try
-        {
-            if(tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
+        try {
+            if (tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
                 CTxDestination address;
-                if(ExtractDestination(tx.vout[i].scriptPubKey, address)) {
+                if (ExtractDestination(tx.vout[i].scriptPubKey, address)) {
                     isminefilter mine = ::IsMine(*this, address);
-                    if(mine & ISMINE_ALL) {
+                    CKeyID keyID;
+                    CBitcoinAddress(address).GetKeyID(keyID);
+                    if (mine & ISMINE_ALL) {
                         return CBitcoinAddress(address);
+                    } else if (this->mapAddressBook.count(address) > 0) {
+                        map<CTxDestination, CAddressBookData>::const_iterator mi = this->mapAddressBook.find(address);
+                        std::string label = mi->second.name;
+                        vector<string> result;
+                        stringstream ss(label);
+                        string item;
+                        LogPrintf("label:%s\n", label);
+                        while (getline(ss, item, '-')) {
+                            result.push_back(item);
+                        }
+                        if (result.size() == 3) {
+                            if (result[0].find("BIP47PAYMENT") != std::string::npos && this->m_Bip47channels.count(result[1]) > 0) {
+                                return CBitcoinAddress(address);
+                            }
+                        }
                     }
                 }
             }
-        }
-        catch(const std::exception& e)
-        {
+        } catch (const std::exception& e) {
             std::cerr << e.what() << '\n';
         }
     }
@@ -2475,6 +2503,10 @@ void CWallet::SetPaymentCodeBookLabel(string paymentCode, string label)
     CWalletDB walletDB(strWalletFile);
     paymentCodeBook[paymentCode] = label;
     walletDB.WritePaymentCodeLabel(paymentCode, label);
+
+    if (m_Bip47channels.count(paymentCode) == 1 && m_Bip47channels[paymentCode][0].getLabel() != label) {
+        setBip47ChannelLabel(paymentCode, label);
+    }
 }
 
 
@@ -2558,6 +2590,7 @@ bool CWallet::generateNewBip47IncomingAddress(string address, CBIP47PaymentChann
     {
         if(l_it->getAddress().compare(address)) 
         {
+            l_it++;
             continue;
         }
         if(l_it->isSeen())
@@ -2569,9 +2602,11 @@ bool CWallet::generateNewBip47IncomingAddress(string address, CBIP47PaymentChann
         CBIP47Account acc = getBIP47Account(pchannel->getMyPaymentCode());
         CKey nkey = CBIP47Util::getReceiveAddress(&acc, this, pcode, nextIndex).getReceiveECKey();
         CPubKey npkey = nkey.GetPubKey();
+        importKey(nkey);
         CBitcoinAddress newaddr(npkey.GetID());
         pchannel->addNewIncomingAddress(newaddr.ToString(), nextIndex);
         l_it->setSeen(true);
+        l_it++;
         return true;
     }
     
@@ -2619,6 +2654,8 @@ bool CWallet::setBip47ChannelLabel(std::string pcodestr, std::string label)
     //also set the first chanel for this pcodestr
     m_Bip47channels[pcodestr][0].setLabel(label);
     saveCBIP47PaymentChannelData(pcodestr); // lgtm [cpp/missing-return]
+    SetPaymentCodeBookLabel(pcodestr, label);
+    return true;
 }
 
 void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large-parameter] 
@@ -2656,13 +2693,12 @@ std::string CWallet::getCurrentOutgoingAddress(CBIP47PaymentChannel paymentChann
 bool CWallet::importKey(CKey imKey, bool fRescan)
 {
     if(!imKey.IsValid()) {
-        LogPrintf("Import Key Invalied Error\n");
         return false;
     }
 
     CPubKey pubkey = imKey.GetPubKey();
     assert(imKey.VerifyPubKey(pubkey));
-    
+    AddBip47KeyPubkey(imKey, pubkey);
     if(IsLocked())
     {
         if(m_Bip47PendingKeys.empty())
@@ -2670,7 +2706,6 @@ bool CWallet::importKey(CKey imKey, bool fRescan)
             m_Bip47PendingPStarIndex = chainActive.Height() - 2;
         }
         m_Bip47PendingKeys.push_back(imKey);
-        AddBip47KeyPubkey(imKey, pubkey);
         return false;
     }
     
@@ -2681,7 +2716,6 @@ bool CWallet::importKey(CKey imKey, bool fRescan)
 
         if(HaveKey(vchAddress))
         {
-            LogPrintf("Key Already Imported!\n");
             return false;
         }
 
@@ -2710,7 +2744,6 @@ bool CWallet::importBip47PendingKeys()
         importKey(m_Bip47PendingKeys[i]);
     }
     m_Bip47PendingKeys.clear();
-    ScanForWalletTransactions(chainActive[m_Bip47PendingPStarIndex], true);
     return true;
 }
 
@@ -2730,9 +2763,7 @@ void CWallet::deriveBip47Keys()
                 CBIP47Account acc = getBIP47Account(channel.getMyPaymentCode());
                 CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, this, pcode, bip47Address.getIndex());
                 CKey newgenKey = paddr.getReceiveECKey();
-                LogPrintf("finish new key gen \n");
                 importKey(newgenKey);
-                LogPrintf("imported new key gen \n");
                 CBitcoinAddress btcAddr = getAddressOfKey(newgenKey.GetPubKey());
                 SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + channel.getPaymentCode() + "-" + std::to_string(bip47Address.getIndex()), "receive");
             }
@@ -3044,7 +3075,6 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool f
     CBlockIndex* pindex = pindexStart;
     {
         LOCK2(cs_main, cs_wallet);
-        LogPrintf("2Rescanning last\n");
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
         // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
@@ -3052,13 +3082,16 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool f
             pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             if (pindex == NULL)
                 pindex = chainActive.Tip();
-        } else
+        } else {
+            LogPrintf("2Rescanning last\n");
             while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                 pindex = chainActive.Next(pindex);
-
+        }
+        LogPrintf("2Rescanning last\n");
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
+        LogPrintf("2Rescanning last\n");
         while (pindex)
         {
             if (pindex->nHeight % 100 == 0 && dProgressTip - dProgressStart > 0.0)
@@ -9115,6 +9148,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         else
             pindexRescan = chainActive.Genesis();
     }
+    walletInstance->pindexRescanForBip47 = pindexRescan;
     if (chainActive.Tip() && chainActive.Tip() != pindexRescan)
     {
         //We can't rescan beyond non-pruned blocks, stop and throw an error

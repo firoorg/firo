@@ -264,14 +264,13 @@ void AddressBookPage::setActiveModel()
         this->pActiveAddressModel = this->pcodeModel;
         this->pActiveProxyModel = this->pcodeProxyModel;
         this->pActiveTableView = this->ui->paymentcodeTableView;
-        editAction->setEnabled(false);
         deleteAction->setEnabled(false);
-        this->ui->newAddress->setEnabled(false);
         this->ui->deleteAddress->setEnabled(false);
     }
 }
 
-void AddressBookPage::on_newAddress_clicked() {
+void AddressBookPage::on_newAddress_clicked() 
+{
     if (!pActiveAddressModel)
         return;
 
