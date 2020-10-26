@@ -16,6 +16,7 @@
 
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
@@ -36,31 +37,49 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    //200 blocks already mined, create another 350. See Params::nSigmaPaddingBlock
-    CreateAndProcessEmptyBlocks(350, scriptPubKey);
+    //200 blocks already mined, create another 200.
+    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    vector<pair<std::string, int>> denominationPairs;
+    std::vector<sigma::PrivateCoin> privCoins;
+    const auto& sigmaParams = sigma::Params::get_default();
 
     for(size_t i = 0; i < denominations.size() - 1; i++)
     {
-        thirdPartyAddress = "";
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
+        CAmount nAmount(0);
+        sigma::CoinDenomination denom;
+        BOOST_CHECK_MESSAGE(StringToDenomination(denominationsForTx[0], denom), "Unable to convert denomination string to value.");
+
+        CAmount intDenom;
+        DenominationToInteger(denom, intDenom);
+        nAmount += intDenom;
         denominationsForTx.push_back(denominations[i+1]);
+        BOOST_CHECK_MESSAGE(StringToDenomination(denominationsForTx[1], denom), "Unable to convert denomination string to value.");
+
+        DenominationToInteger(denom, intDenom);
+        nAmount += intDenom;
+
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
-        denominationPairs.clear();
+        privCoins.clear();
+
         //Verify Mint is successful
         for(int i = 0; i < 2; ++i) {
-             std::pair<std::string, int> denominationPair(denominationsForTx[i], 1);
-             denominationPairs.push_back(denominationPair);
+            sigma::CoinDenomination denomination;
+            sigma::StringToDenomination(denominationsForTx[i], denomination);
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
         }
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+        vector<CHDMint> vDMints;
+        auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        wtx.Init(NULL);
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         // Verify mint tx get added in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
@@ -71,11 +90,20 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         previousHeight = chainActive.Height();
         wtx.Init(NULL);
+
+        // Generate address
+        CPubKey newKey;
+        BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+
+        const CBitcoinAddress randomAddr(newKey.GetID());
+
+        std::vector<CRecipient> recipients = {
+                {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+        };
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
 
             b = CreateAndProcessBlock(scriptPubKey);
             wtx.Init(NULL);
@@ -83,15 +111,15 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
         wtx.Init(NULL);
-        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(
-            wtx, stringError, thirdPartyAddress, denominationsForTx),
-            "Spend succeeded although not at least two mints");
-        BOOST_CHECK_MESSAGE(
-            stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin",
-            stringError + " - Incorrect error message");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + "Create Mint failed");
+        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 6 confirmation
+
+        vDMints.clear();
+        vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        wtx.Init(NULL);
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
@@ -105,8 +133,8 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         wtx.Init(NULL);
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
+
             b = CreateAndProcessBlock(scriptPubKey);
             wtx.Init(NULL);
         }
@@ -114,15 +142,29 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
         // Create two spend transactions using the same mints
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
+        std::vector<CSigmaEntry> coins;
+        {
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+        }
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+
         wtx.Init(NULL);
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), stringError + " - Spend failed");
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
 
 //        Try to put two in the same block and it will fail, expect 1
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
-
+        wtx.Init(NULL);
+        //roll back mints used
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
         b = CreateBlock(scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
@@ -130,7 +172,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), stringError + " - Spend failed");
+        coins.clear();
+        {
+            std::vector <CHDMint> changes;
+            CAmount fee;
+            bool fChangeAddedToFee;
+            wtx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, coins, changes, fChangeAddedToFee);
+            pwalletMain->CommitSigmaTransaction(wtx, coins, changes);
+        }
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
@@ -144,8 +193,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
         wtx.Init(NULL);
-        //Test double spend with previous spend in last block
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), "Spend created although double");
+
+        //Set mints unused, and try to spend again
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
         //This confirms that double spend is blocked and cannot enter mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
@@ -154,12 +207,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         sigmaState->containers.usedCoinSerials.clear();
 
         wtx.Init(NULL);
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), "Spend created although double");
+
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinNotUsed(primitives::GetPubCoinValueHash(mint.value));
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after used coin serials removed");
         sigmaState->containers.usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock(scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after block created");
+
         tempSerials = sigmaState->containers.usedCoinSerials;
         sigmaState->containers.usedCoinSerials.clear();
         CreateBlock(scriptPubKey);
@@ -176,13 +233,20 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         // Test: send to third party address.
         // mint two of each denom
-        denominationPairs.clear();
+        privCoins.clear();
         for(int i=0;i<2;i++){
-             std::pair<std::string, int> denominationPair(denominationsForTx[i], 2);
-             denominationPairs.push_back(denominationPair);
+            sigma::CoinDenomination denomination;
+            sigma::StringToDenomination(denominationsForTx[i], denomination);
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+            privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+
         }
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+        vDMints.clear();
+        vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        wtx.Init(NULL);
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         // verify mints got to mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mint tx not added to mempool");
@@ -201,9 +265,18 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
         previousHeight = chainActive.Height();
 
+        //roll back mints used
+        for(auto mint : coins)
+            pwalletMain->zwallet->GetTracker().SetPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
+
         // send to third party address.
         thirdPartyAddress = "TXYb6pEWBDcxQvTxbFQ9sEV1c3rWUPGW3v";
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
+        const CBitcoinAddress address(thirdPartyAddress);
+
+        recipients = {
+                {GetScriptForDestination(address.Get()), nAmount, true},
+                };
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
@@ -219,21 +292,24 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         sigmaState->Reset();
     }
 
-    thirdPartyAddress = "";
 
     // create transactions using the same denomination
     for(size_t i = 0; i < denominations.size(); i++)
     {
-        denominationsForTx.clear();
-        denominationsForTx.push_back(denominations[i]);
-        denominationsForTx.push_back(denominations[i]);
         string stringError;
-        denominationPairs.clear();
-        std::pair<std::string, int> denominationPair(denominations[i].c_str(), 2);
-        denominationPairs.push_back(denominationPair);
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+        privCoins.clear();
+        sigma::CoinDenomination denomination;
+        sigma::StringToDenomination(denominations[i], denomination);
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+
+        vector<CHDMint> vDMints;
+        auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+        wtx.Init(NULL);
+        stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+        BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Same denom mint tx not added to mempool");
 
@@ -250,7 +326,23 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
         previousHeight = chainActive.Height();
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
+        // Generate address
+        CPubKey newKey;
+        BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+
+        const CBitcoinAddress randomAddr(newKey.GetID());
+
+        sigma::CoinDenomination denom;
+        BOOST_CHECK_MESSAGE(StringToDenomination(denominations[i], denom), "Unable to convert denomination string to value.");
+
+        CAmount nAmount;
+        DenominationToInteger(denom, nAmount);
+
+        std::vector<CRecipient> recipients = {
+                {GetScriptForDestination(randomAddr.Get()), nAmount * 2, true},
+        };
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
+
         BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
@@ -267,11 +359,15 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     }
 }
 
-BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
+BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput)
+{
     vector<string> denominationsForTx;
-    vector<pair<std::string, int>> denominationPairs;
     vector<uint256> vtxid;
-    string thirdPartyAddress;
+    // Generate address
+    CPubKey newKey;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey), "Fail to get new address");
+    const CBitcoinAddress randomAddr(newKey.GetID());
+
     int previousHeight;
     CBlock b;
     CWalletTx wtx;
@@ -291,14 +387,26 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     denominationsForTx.push_back(denominations[rand() % 7]);
     string stringError;
 
-    denominationPairs.clear();
+    std::vector<sigma::PrivateCoin> privCoins;
+    const auto& sigmaParams = sigma::Params::get_default();
+    CAmount nAmount(0);
+    CAmount lastIntDenom(0);
     for (int i = 0; i < 2; i++){
-        std::pair<std::string, int> denominationPair(denominationsForTx[i].c_str(), 2);
-        denominationPairs.push_back(denominationPair);
+        sigma::CoinDenomination denomination;
+        sigma::StringToDenomination(denominationsForTx[i], denomination);
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+        privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+
+        DenominationToInteger(denomination, lastIntDenom);
+        nAmount += lastIntDenom;
     }
 
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    wtx.Init(NULL);
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Used input mint not added to mempool");
 
@@ -315,11 +423,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
     previousHeight = chainActive.Height();
 
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
+    std::vector<CRecipient> recipients = {
+        {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+    };
+
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
     BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == denominationsForTx.size(), "Incorrect inputs size");
     BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, wtx));
     BOOST_CHECK_MESSAGE(wtx.tx->vin.size() == denominationsForTx.size(), "Incorrect inputs size");
     BOOST_CHECK_MESSAGE(wtx.tx->vout.size() == 1, "Incorrect output size");
 
@@ -331,19 +443,28 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Same denom spend not succeeded");
 
     // Now add one of the inputs into another spend and verify it fails..
-    denominationsForTx.pop_back();
-    BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "First spend succeeded with used mint");
-    BOOST_CHECK_MESSAGE(stringError=="it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", "Incorrect error message: " + stringError);
+    nAmount -= lastIntDenom;
+    recipients = {
+        {GetScriptForDestination(randomAddr.Get()), nAmount, true},
+    };
+    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError);
 
     // Now mint two more of the first denomination, but don't mine the needed blocks, preventing their usage. verify transaction creation fails
-    denominationPairs.clear();
-    std::pair<std::string, int> denominationPair(denominationsForTx[0], 2);
-    denominationPairs.push_back(denominationPair);
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+    privCoins.clear();
 
-    BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Second spend succeeded with used mint");
-    BOOST_CHECK_MESSAGE(stringError=="it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", "Incorrect error message: " + stringError);
+    sigma::CoinDenomination denomination;
+    sigma::StringToDenomination(denominationsForTx[0], denomination);
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+    privCoins.push_back(sigma::PrivateCoin(sigmaParams, denomination));
+
+    vDMints.clear();
+    vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
+    wtx.Init(NULL);
+    stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
+
+    BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
+
+    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError);
 
     vtxid.clear();
     mempool.clear();

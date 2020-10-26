@@ -531,7 +531,7 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         return false;
     }
 
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount, ZEROCOIN);
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
 }
 
 bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)

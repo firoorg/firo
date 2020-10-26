@@ -122,10 +122,11 @@ testScripts = [
     # 'p2p-compactblocks.py',
     # 'segwit.py',
     # vv Tests less than 2m vv
-    # 'wallet.py',
-     'wallet-hd.py',
-     'wallet-dump.py',
-     'walletbackup.py',
+    'wallet.py',
+    'wallet-encryption.py',
+    'wallet-hd.py',
+    'wallet-dump.py',
+    'walletbackup.py',
     # 'wallet-accounts.py',
     # 'p2p-segwit.py',
     'listtransactions.py',
@@ -169,6 +170,7 @@ testScripts = [
     # 'rpcnamedargs.py',
     'listsinceblock.py',
     'p2p-leaktests.py',
+    'notifications.py',
 
     # Zcoin-specific tests
     'wallet_dumpnonhd.py',

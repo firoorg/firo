@@ -391,6 +391,26 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 222400;
     }
+    virtual bool SkipUndoForBlock(int nHeight) const
+    {
+        return nHeight == 293526;
+    }
+    virtual bool ApplyUndoForTxout(int nHeight, uint256 const & txid, int n) const
+    {
+        // We only apply first 23 tx inputs UNDOs for the tx 7702 in block 293526
+        if (!SkipUndoForBlock(nHeight)) {
+            return true;
+        }
+        static std::map<uint256, int> const txs = { {uint256S("7702eaa0e042846d39d01eeb4c87f774913022e9958cfd714c5c2942af380569"), 22} };
+        std::map<uint256, int>::const_iterator const itx = txs.find(txid);
+        if (itx == txs.end()) {
+            return false;
+        }
+        if (n <= itx->second) {
+            return true;
+        }
+        return false;
+    }
 };
 
 static CMainParams mainParams;
@@ -759,8 +779,8 @@ public:
 
         // Sigma related values.
         consensus.nSigmaStartBlock = 400;
-        consensus.nSigmaPaddingBlock = 550;
-        consensus.nDisableUnpaddedSigmaBlock = 510;
+        consensus.nSigmaPaddingBlock = 1;
+        consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 450;
