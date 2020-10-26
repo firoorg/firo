@@ -251,6 +251,23 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
     CWalletDB walletdb(strWalletFile);
+    std::vector<std::pair<uint256, std::vector<unsigned char>>> encryptedValues = walletdb.ReadAllEncryptedValues();
+    if(!pwalletMain->IsLocked() && !encryptedValues.empty()) {
+        for(const auto& itr : encryptedValues) {
+            uint64_t amount  = 0;
+            CHDMint dMint;
+            if(!walletdb.ReadHDMint(itr.first, true, dMint))
+                continue;
+            secp_primitives::GroupElement pubcoin = dMint.GetPubcoinValue();
+            if(!pwalletMain->DecryptMintAmount(itr.second, pubcoin, amount))
+                continue;
+            dMint.SetAmount(amount);
+            if(!walletdb.WriteHDMint(dMint.GetPubCoinHash(), dMint, true))
+                continue;
+            walletdb.EraseEncryptedValue(itr.first);
+        }
+    }
+
     bool found = true;
 
     set<uint256> setAddedTx;
@@ -357,7 +374,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } else if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
+            } else if (lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
@@ -372,8 +389,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 }
 
                 uint64_t amount  = 0;
-
+                uint256 tagFromCoin;
                 bool fFoundMint = false;
+                std::vector<unsigned char> encryptedValue;
                 for (const CTxOut& out : tx->vout) {
                     if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint())
                         continue;
@@ -383,10 +401,14 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                             amount = out.nValue;
                             lelantus::ParseLelantusMintScript(out.scriptPubKey, pubcoin);
                         }  else {
-                            std::vector<unsigned char> encryptedValue;
-                            lelantus::ParseLelantusJMintScript(out.scriptPubKey, pubcoin, encryptedValue);
-                            if(!pwalletMain->DecryptMintAmount(encryptedValue, pubcoin, amount))
-                                continue;
+                            encryptedValue.clear();
+                            lelantus::ParseLelantusJMintScript(out.scriptPubKey, pubcoin, encryptedValue, tagFromCoin);
+                            // if wallet is locked, save encrypted data, to decrypt after unlock
+                            if(!pwalletMain->IsLocked()) {
+
+                                if(!pwalletMain->DecryptMintAmount(encryptedValue, pubcoin, amount))
+                                    continue;
+                            }
                         }
                     } catch (std::invalid_argument&) {
                         continue;
@@ -395,7 +417,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                         pubcoin += lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
                     // See if this is the mint that we are looking for
                     uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
-                    if (pMint.first == hashPubcoin) {
+                    if (pMint.first == hashPubcoin || mintTag == tagFromCoin) {
                         fFoundMint = true;
                         break;
                     }
@@ -423,7 +445,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     setAddedTx.insert(txHash);
                 }
 
-                if(!SetLelantusMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, amount))
+                if(!pwalletMain->IsLocked())
+                    encryptedValue.clear();
+                if(!SetLelantusMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, amount, encryptedValue))
                     continue;
 
                 // Only update if the current hashSeedMaster matches the mints'
@@ -525,7 +549,12 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     return true;
 }
 
-bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount)
+bool CHDMintWallet::SetLelantusMintSeedSeen(
+        CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair,
+        const int& nHeight,
+        const uint256& txid,
+        const uint64_t amount,
+        std::vector<unsigned char>& encryptedValue)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
@@ -542,7 +571,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
         LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(walletdb, mintSeed, mintCount, seedId);
-        lelantus::PrivateCoin coin(params, amount); // create commitment with reduced h1^amount
+        lelantus::PrivateCoin coin(params, amount);
         if(!SeedToLelantusMint(mintSeed, coin))
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
@@ -576,6 +605,8 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
+    if(!encryptedValue.empty())
+        walletdb.WriteEncryptedValue(dMint.GetPubCoinHash(), encryptedValue);
 
     // Check if this is also already spent
     int nHeightTx;

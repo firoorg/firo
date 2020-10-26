@@ -643,7 +643,58 @@ bool CWalletDB::ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash)
 }
 
 bool CWalletDB::ErasePubcoinHashes(const uint256& fullHash) {
+    EraseEncryptedValue(fullHash);
     return Erase(make_pair(std::string("pubhash"), fullHash));
+}
+
+bool CWalletDB::WriteEncryptedValue(const uint256& fullHash, std::vector<unsigned char>& encryptedData) {
+    return Write(make_pair(std::string("encryptedAmount"), fullHash), encryptedData, true);
+}
+std::vector<std::pair<uint256, std::vector<unsigned char>>> CWalletDB::ReadAllEncryptedValues() {
+    std::vector<std::pair<uint256, std::vector<unsigned char>>> listEncryptedValues;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    bool setRange = true;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << make_pair(string("encryptedAmount"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "encryptedAmount")
+            break;
+
+        uint256 hashPub;
+        ssKey >> hashPub;
+
+        std::vector<unsigned char> encryptedAmount;
+        ssValue >> encryptedAmount;
+
+        listEncryptedValues.push_back(make_pair(hashPub, encryptedAmount));
+    }
+
+    pcursor->close();
+
+    return listEncryptedValues;
+}
+
+bool CWalletDB::EraseEncryptedValue(const uint256& fullHash) {
+    return Erase(make_pair(std::string("encryptedAmount"), fullHash));
 }
 
 class CWalletScanState {
