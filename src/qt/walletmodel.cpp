@@ -769,6 +769,8 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
     std::vector<CHDMint> &mints)
 {
     auto reservekey = reservekeys.begin();
+    CWalletDB db(wallet->strWalletFile);
+
     for (size_t i = 0; i != transactions.size(); i++) {
 
         auto tx = transactions[i].getTransaction();
@@ -781,11 +783,10 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
         auto &mintTmp = mints[i];
         mintTmp.SetTxHash(tx->GetHash());
         {
-            CWalletDB db(wallet->strWalletFile);
             wallet->zwallet->GetTracker().AddLelantus(db, mintTmp, true);
         }
     }
-
+    wallet->zwallet->UpdateCountDB(db);
     return SendCoinsReturn(OK);
 }
 
