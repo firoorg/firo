@@ -125,7 +125,7 @@ bool RunTest(TestVector &test) {
     return true;
 }
 
-BOOST_FIXTURE_TEST_SUITE(bip47_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(bip47_tests, TestingSetup)
 
 /**
  * 

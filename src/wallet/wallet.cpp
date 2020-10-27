@@ -2365,7 +2365,7 @@ std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
     return "";
 }
 
-void CWallet::deriveCBIP47Accounts(vector<unsigned char> hd_seed)
+void CWallet::deriveCBIP47Accounts(vector<unsigned char> const & hd_seed)
 {
     CExtKey masterKey;             //bip47 master key
     CExtKey purposeKey;            //key at m/47'
@@ -2412,7 +2412,7 @@ bool CWallet::ReadMasterKey(CExtKey& masterKey)
     return false;
 }
 
-void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-parameter]
+void CWallet::deriveCBIP47Accounts(CExtKey const & masterKey)
 {
     LogPrintf("Dervie CBIP47Accounts\n");
     CExtKey purposeKey;            //key at m/47'
@@ -2438,8 +2438,8 @@ void CWallet::deriveCBIP47Accounts(CExtKey masterKey) // lgtm [cpp/large-paramet
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
         LogPrintf("NotificationScript address %s\n", notificationAddress.ToString());
-        if (!HaveWatchOnly(notificationScript))
-        {
+        if (!HaveWatchOnly(notificationScript)) {
+            LOCK(cs_wallet);
             AddWatchOnly(notificationScript);
         }
         SetAddressBook(notificationAddress.Get(), "BIP47PAYMENT-notification" + std::to_string(i), "receive");
@@ -2461,7 +2461,7 @@ std::string CWallet::generateNewPCode() {
     return generateNewPCode(masterKey);
 }
 
-std::string CWallet::generateNewPCode(CExtKey masterKey) {
+std::string CWallet::generateNewPCode(CExtKey const & masterKey) {
     CExtKey purposeKey;            //key at m/47'
     CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
 
@@ -7934,15 +7934,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         walletInstance->SetBestChain(chainActive.GetLocator());
 
-        // Load Bip47Wallet
         CExtKey masterKey;
-        if(walletInstance->ReadMasterKey(masterKey))
-        {        
+        if(walletInstance->ReadMasterKey(masterKey)) {
             walletInstance->loadBip47Wallet(masterKey);
             walletInstance->pcodeEnabled = true;
-        }
-        else
-        {
+        } else {
             LogPrintf("Pcode disabled\n");
             walletInstance->pcodeEnabled = false;
         }

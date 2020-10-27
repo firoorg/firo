@@ -778,6 +778,7 @@ public:
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
         bip47Loaded = false;
+        pindexRescanForBip47 = nullptr;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -1284,9 +1285,9 @@ public:
     std::string getPaymentCode(size_t i) const;
     std::string getPaymentCodeForAddress(std::string const & address) const;
     
-    void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
-    void deriveCBIP47Accounts(CExtKey masterKey);
-    std::string generateNewPCode(CExtKey masterKey);
+    void deriveCBIP47Accounts(std::vector<unsigned char> const & hd_seed);
+    void deriveCBIP47Accounts(CExtKey const & masterKey);
+    std::string generateNewPCode(CExtKey const & masterKey);
     std::string generateNewPCode();
 
     void saveCBIP47PaymentChannelData(string pchannelId);
