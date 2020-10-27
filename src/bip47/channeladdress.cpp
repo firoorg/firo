@@ -1,6 +1,6 @@
 #include "bip47/channeladdress.h"
 
-CBIP47ChannelAddress::CBIP47ChannelAddress(CExtPubKey& cKey, int child)
+CBIP47ChannelAddress::CBIP47ChannelAddress(CExtPubKey const & cKey, int child)
 {
     childNum = child;
     CExtPubKey dk;

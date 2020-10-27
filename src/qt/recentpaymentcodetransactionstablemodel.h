@@ -28,8 +28,8 @@ public:
     static const int CURRENT_VERSION = 1;
     int nVersion;
     int64_t id;
-    QDateTime date;
     CAmount fee;
+    QDateTime date;
     QString rpcode;
 
     ADD_SERIALIZE_METHODS;

@@ -1271,18 +1271,18 @@ public:
     
     bool savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txHash=uint256());
 
-    int getPaymentCodeCount() const;
-    bool IsMyPaymentCode(string strPaymentCode) const;
+    size_t getPaymentCodeCount() const;
+    bool IsMyPaymentCode(std::string const & strPaymentCode) const;
 
 
-    CBIP47Account getBIP47Account(int i) const;
-    CBIP47Account getBIP47Account(string paymentCode) const;
-    int getBIP47AccountIndex(string paymentCode) const;
+    CBIP47Account const & getBIP47Account(size_t i) const;
+    CBIP47Account getBIP47Account(std::string const & paymentCode) const;
+    int getBIP47AccountIndex(std::string const & paymentCode) const;
     
     std::string getNotificationAddress(int i) const;
 
-    std::string getPaymentCode(int i) const;
-    std::string getPaymentCodeForAddress(std::string address) const;
+    std::string getPaymentCode(size_t i) const;
+    std::string getPaymentCodeForAddress(std::string const & address) const;
     
     void deriveCBIP47Accounts(std::vector<unsigned char> hd_seed);
     void deriveCBIP47Accounts(CExtKey masterKey);

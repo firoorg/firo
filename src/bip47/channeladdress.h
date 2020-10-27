@@ -9,7 +9,7 @@ class CBIP47ChannelAddress
 {
 public:
     CBIP47ChannelAddress() {}
-    CBIP47ChannelAddress(CExtPubKey& cKey, int child);
+    CBIP47ChannelAddress(CExtPubKey const & cKey, int child);
 
     std::vector<unsigned char>& getPubKey();
     std::string getPath();

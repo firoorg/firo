@@ -547,7 +547,7 @@ void SigmaDialog::processPaymentCodeTransactions()
 
     // Format confirmation message
     QStringList formatted;
-    bool is_notification_tx;
+    bool is_notification_tx = false;
     QString pcodeqstr;
     
     for (auto const &rcp : currentTransaction.getRecipients()) {
@@ -645,7 +645,7 @@ void SigmaDialog::processPaymentCodeTransactions()
         .arg(tr(info.c_str())));
     
     QMessageBox::StandardButton retval;
-    if(is_notification_tx) // Used Later on lgtm [cpp/uninitialized-local] 
+    if(is_notification_tx)
     {
         SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
         formatted.join("<br />"), SEND_CONFIRM_DELAY, this);

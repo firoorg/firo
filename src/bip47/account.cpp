@@ -28,7 +28,7 @@ bool CBIP47Account::SetPaymentCodeString(std::string strPaymentCode)
     return true;
 }
 
-bool CBIP47Account::isValid()
+bool CBIP47Account::isValid() const
 {
 
     CBIP47Account testAccount(paymentCode.toString());
@@ -82,7 +82,7 @@ std::string CBIP47Account::getStringPaymentCode() const
     return paymentCode.toString();
 }
 
-CBitcoinAddress CBIP47Account::getNotificationAddress() 
+CBitcoinAddress CBIP47Account::getNotificationAddress() const
 {
     CExtPubKey key0;
     key.Derive(key0, 0);
@@ -115,17 +115,17 @@ CExtKey CBIP47Account::getNotificationPrivKey()
     
 }
 
-CPaymentCode CBIP47Account::getPaymentCode() 
+CPaymentCode const & CBIP47Account::getPaymentCode() const
 {
     return paymentCode;
 }
 
-CBIP47ChannelAddress CBIP47Account::addressAt(int idx) 
+CBIP47ChannelAddress CBIP47Account::addressAt(int idx) const
 {
     return CBIP47ChannelAddress(key, idx);
 }
 
-CExtPubKey CBIP47Account::keyAt(int idx) 
+CExtPubKey CBIP47Account::keyAt(int idx) const
 {
     CExtPubKey result;
     if(!key.Derive(result, idx))
@@ -135,7 +135,7 @@ CExtPubKey CBIP47Account::keyAt(int idx)
     return result;
 }
 
-CExtKey CBIP47Account::keyPrivAt(int idx)
+CExtKey CBIP47Account::keyPrivAt(int idx) const
 {
     CExtKey result;
     if(!prvkey.Derive(result, idx))

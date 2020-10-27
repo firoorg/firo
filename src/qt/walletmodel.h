@@ -281,11 +281,11 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
     PaymentCodeTableModel *paymentCodeTableModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
     MyRAPTableModel *myRapTableModel;
-    RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;

@@ -18,8 +18,8 @@ class CPaymentCode {
         
         CBIP47ChannelAddress notificationAddress();
 
-        CBIP47ChannelAddress addressAt(int idx);
-        std::vector<unsigned char> getPayload();
+        CBIP47ChannelAddress addressAt(int idx) const;
+        std::vector<unsigned char> getPayload() const;
 
         int getVersion();
 

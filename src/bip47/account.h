@@ -16,18 +16,18 @@ public:
     bool SetPaymentCodeString(std::string strPaymentCode);
     std::string getStringPaymentCode() const;
 
-    CBitcoinAddress getNotificationAddress();
+    CBitcoinAddress getNotificationAddress() const;
 
     CExtPubKey getNotificationKey();
     CExtKey getNotificationPrivKey();
 
-    CPaymentCode getPaymentCode();
+    CPaymentCode const & getPaymentCode() const;
 
-    CBIP47ChannelAddress addressAt(int idx);
+    CBIP47ChannelAddress addressAt(int idx) const;
 
-    CExtPubKey keyAt(int idx);
-    CExtKey keyPrivAt(int idx);
-    bool isValid();
+    CExtPubKey keyAt(int idx) const;
+    CExtKey keyPrivAt(int idx) const;
+    bool isValid() const;
 
 private:
     CExtKey prvkey;

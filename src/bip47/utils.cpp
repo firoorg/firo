@@ -105,6 +105,7 @@ bool CBIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
         } 
         
     }
+    return false;
 }
 
 bool CBIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode) {

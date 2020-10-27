@@ -91,8 +91,6 @@ private:
 
     OverviewPage *overviewPage;
 
-    PaymentcodePage *paymentcodePage;
-
 #ifdef ENABLE_ELYSIUM
     ElyAssetsDialog *elyAssetsPage;
     QWidget *toolboxPage;
@@ -113,6 +111,7 @@ private:
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
     SigmaDialog *sigmaView;
+    PaymentcodePage *paymentcodePage;
     BlankSigmaDialog *blankSigmaView;
     QWidget *sigmaPage;
     Zc2SigmaPage *zc2SigmaPage;

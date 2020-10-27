@@ -2288,7 +2288,7 @@ bool CWallet::savePaymentCode(CPaymentCode from_pcode, int accIndex, uint256 txH
     return true;
 }
 
-bool CWallet::IsMyPaymentCode(string strPaymentCode) const
+bool CWallet::IsMyPaymentCode(std::string const & strPaymentCode) const
 {
     for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
     {
@@ -2298,15 +2298,18 @@ bool CWallet::IsMyPaymentCode(string strPaymentCode) const
     return false;
 }
 
-CBIP47Account CWallet::getBIP47Account(int i) const
+CBIP47Account const & CWallet::getBIP47Account(size_t i) const
 {
+    if(m_CBIP47Accounts.size() <= i) {
+        throw std::out_of_range("There is no BIP47 account with number: " + std::to_string(i));
+    }
     return m_CBIP47Accounts[i];
 }
 
-CBIP47Account CWallet::getBIP47Account(string paymentCode) const
+CBIP47Account CWallet::getBIP47Account(std::string const & paymentCode) const
 {
     CBIP47Account acc;
-    for(int i = 0; i < getPaymentCodeCount(); i++) {
+    for(size_t i = 0; i < getPaymentCodeCount(); i++) {
         if (getPaymentCode(i) == paymentCode) {
             return m_CBIP47Accounts[i];
         }
@@ -2314,9 +2317,9 @@ CBIP47Account CWallet::getBIP47Account(string paymentCode) const
     return acc;
 }
 
-int CWallet::getBIP47AccountIndex(string paymentCode) const
+int CWallet::getBIP47AccountIndex(std::string const & paymentCode) const
 {
-    for(int i = 0; i < getPaymentCodeCount(); i++) {
+    for(size_t i = 0; i < getPaymentCodeCount(); i++) {
         if (getPaymentCode(i) == paymentCode) {
             return i;
         }
@@ -2324,22 +2327,24 @@ int CWallet::getBIP47AccountIndex(string paymentCode) const
     return 0;
 }
 
-string CWallet::getNotificationAddress(int i) const
+std::string CWallet::getNotificationAddress(int i) const
 {
     return getBIP47Account(i).getNotificationAddress().ToString();
 }
 
-string CWallet::getPaymentCode(int i) const
+std::string CWallet::getPaymentCode(size_t i) const
 {
-    int index = (i >= m_CBIP47Accounts.size()) ? 0: i;
-    return getBIP47Account(index).getStringPaymentCode();
+    if( i >= m_CBIP47Accounts.size()) {
+        throw std::out_of_range("There no BIP47 account with number: " + std::to_string(i));
+    }
+    return getBIP47Account(i).getStringPaymentCode();
 }
 
-int CWallet::getPaymentCodeCount() const {
+size_t CWallet::getPaymentCodeCount() const {
     return m_CBIP47Accounts.size();
 }
 
-std::string CWallet::getPaymentCodeForAddress(std::string address) const
+std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
 {
     std::map<string, std::vector<CBIP47PaymentChannel>>::iterator m_it = m_Bip47channels.begin();
     while(m_it != m_Bip47channels.end())

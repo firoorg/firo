@@ -59,7 +59,7 @@ CBIP47ChannelAddress CPaymentCode::notificationAddress()
     return addressAt (0);
 }
 
-CBIP47ChannelAddress CPaymentCode::addressAt ( int idx )
+CBIP47ChannelAddress CPaymentCode::addressAt ( int idx ) const
 {
     CExtPubKey key;
     if ( !createMasterPubKeyFromPaymentCode ( strPaymentCode,key ) ) {
@@ -70,7 +70,7 @@ CBIP47ChannelAddress CPaymentCode::addressAt ( int idx )
     return CBIP47ChannelAddress ( key, idx );
 }
 
-std::vector<unsigned char> CPaymentCode::getPayload()
+std::vector<unsigned char> CPaymentCode::getPayload() const
 {
     std::vector<unsigned char> pcBytes;
     if ( !DecodeBase58Check ( strPaymentCode,pcBytes ) ) {
@@ -131,9 +131,7 @@ std::string CPaymentCode::toString() const
 std::vector<unsigned char> CPaymentCode::getMask ( std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint )
 {
     std::vector<unsigned char> mac_data ( PUBLIC_KEY_X_LEN + CHAIN_CODE_LEN );
-    unsigned char out[PUBLIC_KEY_X_LEN + CHAIN_CODE_LEN];
-    CHMAC_SHA512 (sPoint.data(), sPoint.size() ).Write ( oPoint.data(), oPoint.size()).Finalize (out);
-    memcpy (mac_data.data(), out, PUBLIC_KEY_X_LEN + CHAIN_CODE_LEN);
+    CHMAC_SHA512 (sPoint.data(), sPoint.size() ).Write ( oPoint.data(), oPoint.size()).Finalize (mac_data.data());
     return mac_data;
 }
 
@@ -193,7 +191,7 @@ string CPaymentCode::make (int version)
     std::vector<unsigned char> payload (PAYLOAD_LEN);
     std::vector<unsigned char> payment_code (PAYMENT_CODE_LEN);
 
-    for ( int checksum = 0; checksum < payload.size(); ++checksum ) {
+    for ( size_t checksum = 0; checksum < payload.size(); ++checksum ) {
         payload[checksum] = 0;
     }
 
@@ -228,7 +226,7 @@ std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char>
     } else {
         std::vector<unsigned char> ret ( a.size() );
 
-        for ( int i = 0; i < a.size(); ++i ) {
+        for ( size_t i = 0; i < a.size(); ++i ) {
             ret[i] = ( unsigned char ) ( b[i] ^ a[i] );
         }
 
