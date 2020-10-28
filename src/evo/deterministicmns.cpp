@@ -18,6 +18,10 @@
 
 #include <univalue.h>
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/server.h"
+#endif
+
 static const std::string DB_LIST_SNAPSHOT = "dmn_S";
 static const std::string DB_LIST_DIFF = "dmn_D";
 
@@ -79,6 +83,10 @@ void CDeterministicMN::ToJson(UniValue& obj) const
 
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
+    if(deterministicMNManager->GetStatuses().count(proTxHash))
+        stateObj.push_back(Pair("status", deterministicMNManager->GetStatuses()[proTxHash]));
+    if(deterministicMNManager->GetNextPayments().count(proTxHash))
+        stateObj.push_back(Pair("nextPaymentHeight", deterministicMNManager->GetNextPayments()[proTxHash]));
 
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
@@ -427,7 +435,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     }
     for (const auto& dmn : diff.addedMNs) {
         assert(dmn->internalId == result.GetTotalRegisteredCount());
-        result.AddMN(dmn);
+        result.AddMN(dmn, false);
         result.SetTotalRegisteredCount(result.GetTotalRegisteredCount() + 1);
     }
     for (const auto& p : diff.updatedMNs) {
@@ -438,7 +446,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     return result;
 }
 
-void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
+void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fPublish)
 {
     assert(!mnMap.find(dmn->proTxHash));
     mnMap = mnMap.set(dmn->proTxHash, dmn);
@@ -464,6 +472,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CD
     UpdateUniqueProperty(dmn, oldState->addr, pdmnState->addr);
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
+    deterministicMNManager->GetUpdates().emplace(dmn->proTxHash, true);
 }
 
 void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
@@ -496,11 +505,64 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     }
     mnMap = mnMap.erase(proTxHash);
     mnInternalIdMap = mnInternalIdMap.erase(dmn->internalId);
+    deterministicMNManager->GetUpdates().emplace(dmn->proTxHash, true);
 }
 
 CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
     evoDb(_evoDb)
 {
+}
+
+void CDeterministicMNManager::UpdateNextPayments() {
+    CDeterministicMNList mnList;
+    if(GetListFromCache(mnList))
+        UpdateNextPayments(mnList);
+}
+
+void CDeterministicMNManager::UpdateNextPayments(CDeterministicMNList& mnList) {
+    auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
+    for (size_t i = 0; i < projectedPayees.size(); i++) {
+        const auto& dmn = projectedPayees[i];
+        int currentPayment = INT_MAX;
+        int nextPayment;
+        if(nextPayments.count(dmn->proTxHash))
+            currentPayment = nextPayments[dmn->proTxHash];
+
+        nextPayment = mnList.GetHeight() + (int)i + 1;
+
+        if(currentPayment != nextPayment){
+            nextPayments.emplace(dmn->proTxHash, nextPayment);
+            updates.emplace(dmn->proTxHash, true);
+        }
+    }
+}
+
+void CDeterministicMNManager::UpdateStatuses() {
+    CDeterministicMNList mnList;
+    if(GetListFromCache(mnList))
+        UpdateStatuses(mnList);
+}
+
+void CDeterministicMNManager::UpdateStatuses(CDeterministicMNList& mnList) {
+
+    mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+        std::string currentStatus = "";
+        std::string nextStatus;
+        if(statuses.count(dmn->proTxHash))
+            currentStatus = statuses[dmn->proTxHash];
+
+        if (mnList.IsMNValid(dmn))
+            nextStatus = "ENABLED";
+        else if (mnList.IsMNPoSeBanned(dmn))
+            nextStatus = "POSE_BANNED";
+        else
+            nextStatus =  "UNKNOWN";
+
+        if(currentStatus != nextStatus){
+            statuses.emplace(dmn->proTxHash, nextStatus);
+            updates.emplace(dmn->proTxHash, true);
+        }
+    });
 }
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
@@ -552,6 +614,10 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         uiInterface.NotifyMasternodeListChanged(newList);
     }
 
+    // Update list of next payments
+    UpdateNextPayments(newList);
+    UpdateStatuses(newList);
+
     // TODO: uncomment when DIP3 enforcement block hash is known
     /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
         if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
@@ -597,6 +663,9 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
         GetMainSignals().NotifyMasternodeListChanged(true, curList, inversedDiff);
         uiInterface.NotifyMasternodeListChanged(prevList);
     }
+
+    UpdateNextPayments(prevList);
+    UpdateStatuses(prevList);
 
     const auto& consensusParams = Params().GetConsensus();
     if (nHeight == consensusParams.DIP0003EnforcementHeight) {
@@ -895,8 +964,25 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     }
 }
 
+bool CDeterministicMNManager::GetListFromCache(CDeterministicMNList& mnList)
+{
+    if (!tipIndex)
+        return false;
+
+    auto it = mnListsCache.find(tipIndex->GetBlockHash());
+    if (it != mnListsCache.end()) {
+        mnList = it->second;
+        return true;
+    }
+
+    return false;
+}
+
 CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex* pindex)
 {
+    if(!pindex)
+        return {};
+
     LOCK(cs);
 
     CDeterministicMNList snapshot;
@@ -1114,8 +1200,11 @@ void CDeterministicMNManager::UpgradeDBIfNeeded()
     evoDb.GetRawDB().CompactFull();
 }
 
-bool CDeterministicMNManager::IsDIP3Active(int height)
+bool CDeterministicMNManager::IsDIP3Active(int nHeight)
 {
     const Consensus::Params& params = ::Params().GetConsensus();
-    return height >= params.DIP0003Height;
+    if (nHeight == -1) {
+        nHeight = tipIndex->nHeight;
+    }
+    return nHeight >= params.DIP0003Height;
 }

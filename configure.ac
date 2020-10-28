@@ -94,6 +94,11 @@ AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 # Enable wallet
 enable_wallet=yes
 
+AC_ARG_ENABLE([clientapi],
+  [AS_HELP_STRING([--enable-clientapi],[enable clientapi (disabled by default)])],
+  [enable_clientapi=$enableval],
+  [enable_clientapi=no])
+
 AC_ARG_ENABLE([elysium],
   [AS_HELP_STRING([--enable-elysium],[enable elysium (disabled by default)])],
   [enable_elysium=$enableval],
@@ -167,11 +172,6 @@ AC_ARG_WITH([system-univalue],
   [system_univalue=$withval],
   [system_univalue=no]
 )
-AC_ARG_ENABLE([zmq],
-  [AS_HELP_STRING([--disable-zmq],
-  [disable ZMQ notifications])],
-  [use_zmq=$enableval],
-  [use_zmq=yes])
 
 AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[specify protoc bin path])], [protoc_bin_path=$withval], [])
 
@@ -844,7 +844,7 @@ if test x$use_pkgconfig = xyes; then
     [
       PKG_CHECK_MODULES([SSL], [libssl],, [AC_MSG_ERROR(openssl  not found.)])
       PKG_CHECK_MODULES([CRYPTO], [libcrypto],,[AC_MSG_ERROR(libcrypto  not found.)])
-      PKG_CHECK_MODULES(ZLIB, [zlib], [], [AC_MSG_ERROR([zlib not found])])
+      PKG_CHECK_MODULES([ZLIB], [zlib], [], [AC_MSG_ERROR([zlib not found])])
       BITCOIN_QT_CHECK([PKG_CHECK_MODULES([PROTOBUF], [protobuf], [have_protobuf=yes], [BITCOIN_QT_FAIL(libprotobuf not found)])])
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
@@ -856,14 +856,9 @@ if test x$use_pkgconfig = xyes; then
         fi
       fi
 
-      if test "x$use_zmq" = "xyes"; then
-        PKG_CHECK_MODULES([ZMQ],[libzmq >= 4],
-          [AC_DEFINE([ENABLE_ZMQ],[1],[Define to 1 to enable ZMQ functions])],
-          [AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
-           AC_MSG_WARN([libzmq version 4.x or greater not found, disabling])
-           use_zmq=no])
-      else
-          AC_DEFINE_UNQUOTED([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
+      if test "x$enable_clientapi" = "xyes"; then
+        PKG_CHECK_MODULES([ZMQ],[libzmq >= 4], [], [AC_MSG_ERROR([libzmq version 4.x or greater not found])])
+        PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
       fi
     ]
   )
@@ -882,19 +877,13 @@ else
     fi
   fi
 
-  if test "x$use_zmq" = "xyes"; then
-     AC_CHECK_HEADER([zmq.h],
-       [AC_DEFINE([ENABLE_ZMQ],[1],[Define to 1 to enable ZMQ functions])],
-       [AC_MSG_WARN([zmq.h not found, disabling zmq support])
-        use_zmq=no
-        AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])])
-     AC_CHECK_LIB([zmq],[zmq_ctx_shutdown],ZMQ_LIBS=-lzmq,
-       [AC_MSG_WARN([libzmq >= 4.0 not found, disabling zmq support])
-        use_zmq=no
-        AC_DEFINE([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])])
-  else
-    AC_DEFINE_UNQUOTED([ENABLE_ZMQ],[0],[Define to 1 to enable ZMQ functions])
-  fi
+  if test "x$enable_clientapi" = "xyes"; then
+    AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
+    AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
+
+    AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
+    AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
+  fi 
 
   if test "x$use_zmq" = "xyes"; then
     dnl Assume libzmq was built for static linking
@@ -1032,6 +1021,15 @@ else
   AC_MSG_RESULT(no)
 fi
 
+dnl enable clientapi
+AC_MSG_CHECKING([if clientapi should be enabled])
+if test x$enable_clientapi != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE_UNQUOTED([ENABLE_CLIENTAPI],[1],[Define if clientapi should be compiled in])
+else
+  AC_MSG_RESULT(no)
+fi
+
 dnl enable elysium
 AC_MSG_CHECKING([if elysium should be enabled])
 if test x$enable_elysium != xno; then
@@ -1108,7 +1106,7 @@ if test x$bitcoin_enable_qt != xno; then
   fi
 fi
 
-AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
+AM_CONDITIONAL([ENABLE_CLIENTAPI], [test "x$enable_clientapi" = "xyes"])
 
 AC_MSG_CHECKING([whether to build test_bitcoin])
 if test x$use_tests = xyes; then
@@ -1211,6 +1209,7 @@ AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
+AC_SUBST(MINIZIP_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)

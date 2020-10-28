@@ -97,6 +97,10 @@ qrc_*.cpp
 .DS_Store
 build
 
+# Xcode
+.settings
+*.xcodeproj
+
 #lcov
 *.gcno
 *.gcda
@@ -122,6 +126,7 @@ doc/doxygen/
 doc/man/Makefile
 
 libzcoinconsensus.pc
+libbitcoinconsensus.pc
 contrib/devtools/split-debug.sh
 
 libbitcoinconsensus.pc

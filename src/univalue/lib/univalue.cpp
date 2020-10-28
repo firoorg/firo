@@ -179,6 +179,36 @@ bool UniValue::push_back(const UniValue& val_)
     return true;
 }
 
+bool UniValue::erase(const UniValue& key)
+{
+    if (typ != VOBJ)
+        return false;
+
+    int index = findKey(key.get_str());
+    if(!(index == -1)){
+        keys.erase(keys.begin() + index);
+        values.erase(values.begin() + index);
+    }
+    else return false;
+    
+    return true;
+}
+
+bool UniValue::replace(const UniValue& key, const UniValue& value)
+{
+    if (typ != VOBJ)
+        return false;
+
+    int index = findKey(key.get_str());
+    if(!(index == -1)){
+        keys.erase(keys.begin() + index);
+        values.erase(values.begin() + index);
+    }
+    
+    pushKV(key.get_str(), value);
+    return true;
+}
+
 bool UniValue::push_backV(const std::vector<UniValue>& vec)
 {
     if (typ != VARR)

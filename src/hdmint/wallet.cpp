@@ -464,7 +464,7 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     uint256 hashSerial;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()){
-        LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
+        LogPrintf("%s: Wallet not locked, creating mint seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(walletdb, mintSeed, mintCount, seedId);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
@@ -472,7 +472,7 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
-        LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
+        LogPrintf("%s: Wallet locked, retrieving mint seed..\n", __func__);
         // Get serial and pubcoin data from the db
         std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
         bool fFound = false;

@@ -9,20 +9,23 @@
 #include "messagesigner.h"
 #include "rpc/server.h"
 #include "utilmoneystr.h"
+#include "util.h"
 #include "validation.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/coincontrol.h"
-#include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
 #endif//ENABLE_WALLET
+
+#include "rpc/rpcevo.h"
 
 #include "netbase.h"
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
-#include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
+#include "masternode-sync.h"
+
 
 #include "bls/bls.h"
 
@@ -906,21 +909,21 @@ UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMNCPtr& dmn, bo
     bool hasOwnerKey = CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDOwner);
     bool hasOperatorKey = false; //CheckWalletOwnsKey(dmn->pdmnState->keyIDOperator);
     bool hasVotingKey = CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDVoting);
-
+    bool ownsPayeeScript = CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout);
+    bool ownsOperatorRewardScript = CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout);
     bool ownsCollateral = false;
-    CTransactionRef collateralTx;
-    uint256 tmpHashBlock;
-    if (GetTransaction(dmn->collateralOutpoint.hash, collateralTx, Params().GetConsensus(), tmpHashBlock)) {
-        ownsCollateral = CheckWalletOwnsScript(pwallet, collateralTx->vout[dmn->collateralOutpoint.n].scriptPubKey);
-    }
+    if(pwallet)
+        ownsCollateral = pwallet->mapWallet.count(dmn->collateralOutpoint.hash);
+    bool ownsMasternode = ownsPayeeScript && ownsCollateral;
 
     UniValue walletObj(UniValue::VOBJ);
     walletObj.push_back(Pair("hasOwnerKey", hasOwnerKey));
     walletObj.push_back(Pair("hasOperatorKey", hasOperatorKey));
     walletObj.push_back(Pair("hasVotingKey", hasVotingKey));
     walletObj.push_back(Pair("ownsCollateral", ownsCollateral));
-    walletObj.push_back(Pair("ownsPayeeScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout)));
-    walletObj.push_back(Pair("ownsOperatorRewardScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout)));
+    walletObj.push_back(Pair("ownsPayeeScript", ownsPayeeScript));
+    walletObj.push_back(Pair("ownsOperatorRewardScript", ownsOperatorRewardScript));
+    walletObj.push_back(Pair("hasMasternode", ownsMasternode));
     o.push_back(Pair("wallet", walletObj));
 
     return o;

@@ -39,7 +39,6 @@
 using namespace std;
 
 int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
 
 static void EnsureZerocoinMintIsAllowed()
 {
@@ -213,7 +212,7 @@ UniValue getnewaddress(const JSONRPCRequest& request)
 }
 
 
-CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew=false)
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew)
 {
     CPubKey pubKey;
     if (!pwallet->GetAccountPubkey(pubKey, strAccount, bForceNew)) {
@@ -221,6 +220,20 @@ CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bo
     }
 
     return CBitcoinAddress(pubKey.GetID());
+}
+
+vector<string> GetMyAccountNames()
+{    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    isminefilter includeWatchonly = ISMINE_SPENDABLE;
+
+    vector<string> accounts;
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
+        if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
+            accounts.push_back(entry.second.name);
+    }
+    return accounts;
 }
 
 UniValue getaccountaddress(const JSONRPCRequest& request)
@@ -5232,7 +5245,7 @@ extern UniValue importprunedfunds(const JSONRPCRequest& request);
 extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 extern UniValue importmulti(const JSONRPCRequest& request);
 
-static const CRPCCommand commands[] =
+static const CRPCCommand rpcCommands[] =
 { //  category              name                        actor (function)           okSafeMode
     //  --------------------- ------------------------    -----------------------    ----------
     { "rawtransactions",    "fundrawtransaction",       &fundrawtransaction,       false,  {"hexstring","options"} },
@@ -5325,6 +5338,6 @@ void RegisterWalletRPCCommands(CRPCTable &t)
     if (GetBoolArg("-disablewallet", false))
         return;
 
-    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
-        t.appendCommand(commands[vcidx].name, &commands[vcidx]);
+    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(rpcCommands); vcidx++)
+        t.appendCommand(rpcCommands[vcidx].name, &rpcCommands[vcidx]);
 }

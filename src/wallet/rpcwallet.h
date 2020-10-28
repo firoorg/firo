@@ -5,11 +5,19 @@
 #ifndef BITCOIN_WALLET_RPCWALLET_H
 #define BITCOIN_WALLET_RPCWALLET_H
 
+#include "base58.h"
+
+extern int64_t nWalletUnlockTime;
+static CCriticalSection cs_nWalletUnlockTime;
+
 class CRPCTable;
 class JSONRPCRequest;
 
 void RegisterWalletRPCCommands(CRPCTable &t);
 
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew=false);
+
+vector<string> GetMyAccountNames();
 /**
  * Figures out what wallet, if any, to use for a JSONRPCRequest.
  *

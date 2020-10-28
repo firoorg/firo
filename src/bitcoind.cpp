@@ -26,6 +26,11 @@
 
 #include <stdio.h>
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/settings.h"
+#include "client-api/server.h"
+#endif
+
 /* Introduction text for doxygen: */
 
 /*! \mainpage Developer documentation
@@ -118,11 +123,18 @@ bool AppInit(int argc, char* argv[])
         }
         // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
         try {
-            SelectParams(ChainNameFromCommandLine());
+            SelectParams(GetBoolArg("-clientapi", false) ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
         } catch (const std::exception& e) {
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
+#ifdef ENABLE_CLIENTAPI
+        int port = GetArg("-rpcport", BaseParams().RPCPort());
+        if(GetBoolArg("-clientapi", false) && IsZMQPort(port)){
+            fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
+            exit(EXIT_FAILURE);
+        }
+#endif
 
         // Command-line RPC
         bool fCommandLine = false;
@@ -171,7 +183,18 @@ bool AppInit(int argc, char* argv[])
 #endif // HAVE_DECL_DAEMON
         }
 
+        // Set this early so that parameter interactions go to console
+        InitLogging();
+        InitParameterInteraction();
+#ifdef ENABLE_CLIENTAPI
+        if(GetBoolArg("-clientapi", false)){
+            ReadAPISettingsFile();
+            if (!StartAPI())
+                return false;
+        }
+#endif
         fRet = AppInitMain(threadGroup, scheduler);
+        LogPrintf("AppInit done!\n");
     }
     catch (...) {
         PrintExceptionContinue(std::current_exception(), "AppInit()");

@@ -161,7 +161,9 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         // Temporary disable usedCoinSerials check to force double spend in mempool
         auto tempSerials = sigmaState->containers.usedCoinSerials;
+        auto tempPubcoins = sigmaState->containers.mintedPubCoins;
         sigmaState->containers.usedCoinSerials.clear();
+        sigmaState->containers.mintedPubCoins.clear();
 
         // Add invalid transaction to mempool, this will pass because we have removed serials from state
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
@@ -169,6 +171,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         // Bring serials back to zerocoin state
         sigmaState->containers.usedCoinSerials = tempSerials;
+        sigmaState->containers.mintedPubCoins = tempPubcoins;
 
         // CreateBlock throw exception because invalid transaction is in mempool
         BOOST_CHECK_EXCEPTION(CreateBlock(scriptPubKey), std::runtime_error, no_check);
@@ -177,11 +180,15 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
         tempSerials = sigmaState->containers.usedCoinSerials;
+        tempPubcoins = sigmaState->containers.mintedPubCoins;
         sigmaState->containers.usedCoinSerials.clear();
+        sigmaState->containers.mintedPubCoins.clear();
+
         CreateBlock(scriptPubKey);
 
         // Bring serials back
         sigmaState->containers.usedCoinSerials = tempSerials;
+        sigmaState->containers.mintedPubCoins = tempPubcoins;
 
         // Create new block, last block should be remove because it contain invalid spend tx
         mempool.clear();

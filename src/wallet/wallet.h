@@ -54,6 +54,8 @@ extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
 extern bool fSendFreeTransactions;
 extern bool fWalletRbf;
+extern bool fRescanning;
+extern bool fWalletInitialized;
 
 static const unsigned int DEFAULT_KEYPOOL_SIZE = 100;
 //! -paytxfee default
@@ -469,6 +471,9 @@ public:
     CAmount GetAnonymizedCredit(bool fUseCache=true) const;
     CAmount GetChange() const;
 
+    void GetAPIAmounts(std::list<COutputEntry>& listReceived,
+                    std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter, bool ignoreChange=true) const;
+
     void GetAmounts(std::list<COutputEntry>& listReceived,
                     std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter) const;
 
@@ -819,6 +824,7 @@ public:
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
     void ListProTxCoins(std::vector<COutPoint>& vOutpts);
+    bool HasProTxCoin(COutPoint& coin);
 
     bool HasMasternode();
 
@@ -926,7 +932,7 @@ public:
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
+    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool fDummy = false) const;
 
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
 
@@ -947,7 +953,8 @@ public:
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsLimit = SIZE_MAX,
         const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL) const;
+        const CCoinControl *coinControl = NULL,
+        bool fDummy = false) const;
 
     bool GetCoinsToJoinSplit(
             CAmount required,
@@ -971,10 +978,10 @@ public:
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0);
 
-    /**
-     * Add zerocoin Mint and Spend function
-     */
+    bool IsSigmaMintFromTxOutAvailable(CTxOut txout);
+
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
+
     void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
     void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
@@ -995,7 +1002,8 @@ public:
         std::vector<CSigmaEntry>& selected,
         std::vector<CHDMint>& changes,
         bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = NULL,
+        bool fDummy = false);
 
     CWalletTx CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
@@ -1016,6 +1024,7 @@ public:
 
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+
     std::string MintAndStoreSigma(
         const vector<CRecipient>& vecSend,
         const vector<sigma::PrivateCoin>& privCoins,

@@ -22,10 +22,20 @@ public:
 
     const std::string& DataDir() const { return strDataDir; }
     int RPCPort() const { return nRPCPort; }
+    int APIAuthREPPort() const { return nAPIAuthREPPort; }
+    int APIOpenREPPort() const { return nAPIOpenREPPort; }
+    int APIAuthPUBPort() const { return nAPIAuthPUBPort; }
+    int APIOpenPUBPort() const { return nAPIOpenPUBPort; }
+    std::string APIAddr() const { return nAPIAddr; }
 
 protected:
     CBaseChainParams() {}
 
+    std::string nAPIAddr;
+    int nAPIAuthREPPort;
+    int nAPIOpenREPPort;
+    int nAPIAuthPUBPort;
+    int nAPIOpenPUBPort;
     int nRPCPort;
     std::string strDataDir;
 };
@@ -52,6 +62,19 @@ void SelectBaseParams(const std::string& chain);
  * @return CBaseChainParams::MAX_NETWORK_TYPES if an invalid combination is given. CBaseChainParams::MAIN by default.
  */
 std::string ChainNameFromCommandLine();
+
+/**
+ * Looks for -regtest, -testnet and -mainnet and returns the appropriate BIP70 chain name.
+ * @return CBaseChainParams::MAX_NETWORK_TYPES if an invalid combination is given. CBaseChainParams::MAIN by default.
+ */
+std::string ChainNameFromCommandLineAPI();
+
+/**
+ * Checks if the port parameter is the same as any ZMQ port for base params.
+ */
+#ifdef ENABLE_CLIENTAPI
+bool IsZMQPort(int64_t port);
+#endif
 
 /**
  * Return true if SelectBaseParamsFromCommandLine() has been called to select

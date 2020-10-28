@@ -468,7 +468,7 @@ public:
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
     CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
-    void AddMN(const CDeterministicMNCPtr& dmn);
+    void AddMN(const CDeterministicMNCPtr& dmn, bool fPublish=true);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateDiff& stateDiff);
@@ -635,6 +635,9 @@ private:
     CEvoDB& evoDb;
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
+    std::map<uint256, int> nextPayments;
+    std::map<uint256, std::string> statuses;
+    std::map<uint256, bool> updates;
     const CBlockIndex* tipIndex{nullptr};
 
 public:
@@ -649,20 +652,34 @@ public:
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet, bool debugLogs);
     void HandleQuorumCommitment(llmq::CFinalCommitment& qc, const CBlockIndex* pindexQuorum, CDeterministicMNList& mnList, bool debugLogs);
     void DecreasePoSePenalties(CDeterministicMNList& mnList);
+    void UpdateNextPayments(CDeterministicMNList& mnList);
+    void UpdateNextPayments();
+    void UpdateStatuses(CDeterministicMNList& mnList);
+    void UpdateStatuses();
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
+    bool GetListFromCache(CDeterministicMNList& mnList);
+    std::map<uint256, int>& GetNextPayments() {
+        return nextPayments;
+    }
+    std::map<uint256, std::string>& GetStatuses() {
+        return statuses;
+    }
+    std::map<uint256, bool>& GetUpdates() {
+        return updates;
+    }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     bool IsDIP3Enforced(int nHeight = -1);
+    bool IsDIP3Active(int nHeight = -1);
 
 public:
     // TODO these can all be removed in a future version
     bool UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
     void UpgradeDBIfNeeded();
-    static bool IsDIP3Active(int height);
 
 private:
     void CleanupCache(int nHeight);

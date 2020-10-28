@@ -201,6 +201,11 @@ UniValue CallRPC(const std::string& strMethod, const UniValue& params)
     std::string host = GetArg("-rpcconnect", DEFAULT_RPCCONNECT);
     int port = GetArg("-rpcport", BaseParams().RPCPort());
 
+#ifdef ENABLE_CLIENTAPI
+    if(GetArg("-clientapi", false) && IsZMQPort(port)){
+        throw std::runtime_error("Cannot call RPC: Port crossover with ZMQ.");
+    }
+#endif
     // Obtain event base
     raii_event_base base = obtain_event_base();
 

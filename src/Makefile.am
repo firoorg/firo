@@ -108,6 +108,10 @@ BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/src
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
+if ENABLE_CLIENTAPI
+BITCOIN_INCLUDES += $(MINIZIP_CFLAGS)
+endif
+
 LIBBITCOIN_SERVER=libbitcoin_server.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
@@ -120,7 +124,7 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 
 LIBZCOIN_SIGMA=libsigma.a
 
-if ENABLE_ZMQ
+if ENABLE_CLIENTAPI
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
 if BUILD_BITCOIN_LIBS
@@ -237,6 +241,7 @@ BITCOIN_CORE_H = \
   rpc/protocol.h \
   rpc/server.h \
   rpc/register.h \
+  rpc/rpcevo.h \
   scheduler.h \
   script/sigcache.h \
   script/sign.h \
@@ -282,10 +287,6 @@ BITCOIN_CORE_H = \
   wallet/bip39_english.h \
   definition.h \
   warnings.h \
-  zmq/zmqabstractnotifier.h \
-  zmq/zmqconfig.h\
-  zmq/zmqnotificationinterface.h \
-  zmq/zmqpublishnotifier.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
@@ -432,6 +433,7 @@ libbitcoin_server_a_SOURCES = \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/client.cpp \
   rpc/masternode.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \
@@ -458,15 +460,15 @@ libbitcoin_server_a_SOURCES = \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
-if ENABLE_ZMQ
+if ENABLE_CLIENTAPI
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
+  rpc/client.cpp \
   zmq/zmqabstractnotifier.cpp \
   zmq/zmqnotificationinterface.cpp \
   zmq/zmqpublishnotifier.cpp
 endif
-
 
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled
@@ -631,6 +633,9 @@ libbitcoin_util_a_SOURCES = \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
+  univalue/lib/univalue.cpp \
+  univalue/lib/univalue_read.cpp \
+  univalue/lib/univalue_write.cpp \
   util.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
@@ -784,7 +789,13 @@ zcoind_LDADD = \
   $(LIBSECP256K1) \
   $(LIBBLSSIG_LIBS)
 
-zcoind_LDADD += $(BACKTRACE_LIB) $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS) -lz
+zcoind_LDADD += $(BACKTRACE_LIB) $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(LIBBLSSIG_DEPENDS)
+
+if ENABLE_CLIENTAPI
+zcoind_LDADD += $(MINIZIP_LIBS)
+endif
+
+zcoind_LDADD += -lz
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
@@ -803,7 +814,9 @@ zcoin_cli_LDADD = \
   $(LIBBITCOIN_CRYPTO)
 
 zcoin_cli_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
-#
+if ENABLE_CLIENTAPI
+zcoin_cli_LDADD += $(MINIZIP_LIBS)
+endif
 
 # bitcoin-tx binary #
 zcoin_tx_SOURCES = bitcoin-tx.cpp
@@ -824,7 +837,9 @@ zcoin_tx_LDADD = \
   $(LIBSECP256K1)
 
 zcoin_tx_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(CRYPTO_LIBS)
-#
+if ENABLE_CLIENTAPI
+zcoin_tx_LDADD += $(MINIZIP_LIBS)
+endif
 
 # bitcoinconsensus library #
 if BUILD_BITCOIN_LIBS
@@ -936,4 +951,8 @@ endif
 
 if ENABLE_ELYSIUM
 include Makefile.elysium.include
+endif
+
+if ENABLE_CLIENTAPI
+include Makefile.clientapi.include
 endif

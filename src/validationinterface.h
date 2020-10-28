@@ -9,6 +9,7 @@
 #include <boost/signals2/signal.hpp>
 #include <boost/shared_ptr.hpp>
 #include <memory>
+#include "primitives/transaction.h"
 
 class CBlock;
 class CBlockIndex;
@@ -21,9 +22,12 @@ class CValidationInterface;
 class CValidationState;
 class CGovernanceVote;
 class CGovernanceObject;
+class CDeterministicMN;
 class CDeterministicMNList;
 class CDeterministicMNListDiff;
 class uint256;
+
+typedef std::shared_ptr<const CDeterministicMN> CDeterministicMNCPtr;
 
 // These functions dispatch to one or all registered wallets
 
@@ -36,6 +40,7 @@ void UnregisterAllValidationInterfaces();
 
 class CValidationInterface {
 protected:
+    virtual void WalletTransaction(const CTransaction& tx) {}
     virtual void AcceptedBlockHeader(const CBlockIndex *pindexNew) {}
     virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
@@ -53,7 +58,16 @@ protected:
     virtual void BlockChecked(const CBlock&, const CValidationState&) {}
     virtual void GetScriptForMining(boost::shared_ptr<CReserveScript>&) {};
     virtual void ResetRequestCount(const uint256 &hash) {};
+    virtual void NumConnectionsChanged() {}
+    virtual void UpdateSyncStatus() {}
+    virtual void UpdatedMasternode(CDeterministicMNCPtr masternode) {};
+    virtual void UpdatedMintStatus(std::string update) {};
+    virtual void UpdatedSettings(std::string update) {};
+    virtual void NotifyAPIStatus() {}
+    virtual void NotifyMasternodeList() {}
+    virtual void UpdatedBalance() {}
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
+    virtual void WalletSegment(const std::string &) {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -63,21 +77,23 @@ struct CMainSignals {
     /** Notifies listeners of accepted block header */
     boost::signals2::signal<void (const CBlockIndex *)> AcceptedBlockHeader;
     /** Notifies listeners of updated block header tip */
-    boost::signals2::signal<void (const CBlockIndex *, bool fInitialDownload)> NotifyHeaderTip;    
+    boost::signals2::signal<void (const CBlockIndex *, bool fInitialDownload)> NotifyHeaderTip;
     /** Notifies listeners of updated block chain tip */
     boost::signals2::signal<void (const CBlockIndex *, const CBlockIndex *, bool fInitialDownload)> UpdatedBlockTip;
     /** A posInBlock value for SyncTransaction calls for tranactions not
      * included in connected blocks such as transactions removed from mempool,
      * accepted to mempool or appearing in disconnected blocks.*/
     static const int SYNC_TRANSACTION_NOT_IN_BLOCK = -1;
+    boost::signals2::signal<void (const CTransaction &, const CBlockIndex *pindex, int posInBlock)> SyncTransaction;    
     /** Notifies listeners of updated transaction data (transaction, and
      * optionally the block it is found in). Called with block data when
      * transaction is included in a connected block, and without block data when
      * transaction was accepted to mempool, removed from mempool (only when
      * removal was due to conflict from connected block), or appeared in a
      * disconnected block.*/
-    boost::signals2::signal<void (const CTransaction &, const CBlockIndex *pindex, int posInBlock)> SyncTransaction;
-    /** Notifies listeners of an updated transaction without new data (for now: a coinbase potentially becoming visible). */
+
+    /** Notifies listeners of a valid wallet transaction (decoupled from SyncTransaction in order to allow wallet update). */
+    boost::signals2::signal<void (const CTransaction &)> WalletTransaction;
     /** Notifies listeners of an updated transaction lock without new data. */
     boost::signals2::signal<void (const CTransaction &)> NotifyTransactionLock;
     /** Notifies listeners of a ChainLock. */
@@ -104,10 +120,28 @@ struct CMainSignals {
     boost::signals2::signal<void (boost::shared_ptr<CReserveScript>&)> ScriptForMining;
     /** Notifies listeners that a block has been successfully mined */
     boost::signals2::signal<void (const uint256 &)> BlockFound;
+    /** Notifies listeners of change in number of active connections */
+    boost::signals2::signal<void ()> NumConnectionsChanged;
+    /** Notifies listeners of change of blockchain syncing state */
+    boost::signals2::signal<void ()> UpdateSyncStatus;
+    /** Notifies listeners of change to a Masternode entry */
+    boost::signals2::signal<void (CDeterministicMNCPtr)> UpdatedMasternode;
+    /** Notifies listeners of an updated mint status */
+    boost::signals2::signal<void (std::string)> UpdatedMintStatus;
+    /** Notifies listeners of settings following an update */
+    boost::signals2::signal<void (std::string)> UpdatedSettings;
+    /** Notifies listeners of API status */
+    boost::signals2::signal<void ()> NotifyAPIStatus;
+    /** Notifies listeners of Masternode list */
+    boost::signals2::signal<void ()> NotifyMasternodeList;
+    /** Notifies listeners of balance */
+    boost::signals2::signal<void ()> UpdatedBalance;
     /**
      * Notifies listeners that a block which builds directly on our current tip
      * has been received and connected to the headers tree, though not validated yet */
     boost::signals2::signal<void (const CBlockIndex *, const std::shared_ptr<const CBlock>&)> NewPoWValidBlock;
+    /** Notifies listeners of wallet segment (stateWallet) */
+    boost::signals2::signal<void (const std::string &)> WalletSegment;
 };
 
 CMainSignals& GetMainSignals();
