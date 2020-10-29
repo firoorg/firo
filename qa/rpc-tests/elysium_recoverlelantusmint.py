@@ -45,13 +45,13 @@ class ElysiumRecoverLelantusMintTest(BitcoinTestFramework):
         connect_nodes_bi(self.nodes, 0, 1)
         connect_nodes_bi(self.nodes, 0, 2)
 
-        self.nodes[0].walletpassphrase(passphrase, 10)
+        self.nodes[0].walletpassphrase(passphrase, 20)
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].generatetoaddress(1000, addr)
         self.nodes[0].elysium_sendissuancefixed(
             addr, 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 0 ,1
         )
-        sleep(10)
+        sleep(20)
 
         self.nodes[0].generate(1)
         lelantus_property = 3
