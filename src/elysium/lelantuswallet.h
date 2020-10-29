@@ -133,6 +133,7 @@ public:
     std::string walletFile;
     MintPool mintPool;
     uint160 masterId;
+    std::atomic<bool> loaded;
 
     static constexpr unsigned MINTPOOL_CAPACITY = 20;
 
@@ -148,6 +149,8 @@ protected:
     uint32_t GenerateNewSeed(CKeyID &seedId, uint512 &seed);
     uint32_t GenerateSeed(CKeyID const &seedId, uint512 &seed);
     uint32_t GetSeedIndex(CKeyID const &seedId, uint32_t &change);
+
+    void EnsureMasterKeyIsLoaded();
 
 protected:
     bool GetPublicKey(ECDSAPrivateKey const &privateKey, secp256k1_pubkey &out);

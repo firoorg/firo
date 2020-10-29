@@ -82,7 +82,7 @@ LelantusWallet::LelantusWallet() : LelantusWallet(new Database)
 }
 
 LelantusWallet::LelantusWallet(Database *database)
-    : walletFile(pwalletMain->strWalletFile), database(database), context(ECDSAContext::CreateSignContext())
+    : walletFile(pwalletMain->strWalletFile), database(database), context(ECDSAContext::CreateSignContext()), loaded(false)
 {
 }
 
@@ -108,6 +108,15 @@ void LelantusWallet::ReloadMasterKey()
 
     // Refill mint pool
     FillMintPool();
+
+    loaded = true;
+}
+
+void LelantusWallet::EnsureMasterKeyIsLoaded()
+{
+    if (!loaded) {
+        ReloadMasterKey();
+    }
 }
 
 uint32_t LelantusWallet::GenerateNewSeed(CKeyID &seedId, uint512 &seed)
@@ -363,10 +372,11 @@ void LelantusWallet::ClearMintsChainState()
 
 bool LelantusWallet::SyncWithChain()
 {
-    throw std::runtime_error("Reached here!");
     if (pwalletMain->IsLocked()) {
         return false;
     }
+
+    EnsureMasterKeyIsLoaded();
 
     bool keepFinding = true;
 
@@ -394,14 +404,18 @@ bool LelantusWallet::SyncWithChain()
     }
 
     // recover from state
+    std::vector<MintEntryId> idsToUpdate;
     ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
         if (m.second.IsSpent() || m.second.IsOnChain()) {
             return;
         }
-        throw std::runtime_error("Found not on chain");
 
-        SyncWithChain(m.first);
+        idsToUpdate.push_back(m.first);
     }));
+
+    for (auto const &id : idsToUpdate) {
+        SyncWithChain(id);
+    }
 
     return true;
 }
@@ -439,10 +453,15 @@ bool LelantusWallet::SyncWithChain(MintEntryId const &id)
         }
     }
 
+    bool found = false;
     LelantusMintChainState state(block, group, index);
-    if (!TryRecoverMint(id, state, property, amount)) {
-        LogPrintf("%s : Fail to recover mint\n", __func__);
-        return false;
+    if (HasMint(id)) {
+        UpdateMintChainstate(id, state);
+    } else {
+        if (!TryRecoverMint(id, state, property, amount)) {
+            LogPrintf("%s : Fail to recover mint\n", __func__);
+            return false;
+        }
     }
 
     return true;
@@ -492,7 +511,19 @@ bool LelantusWallet::TryRecoverMint(
     PropertyId property,
     CAmount amount)
 {
-    return TryRecoverMint(id, chainState, uint256(), property, amount);
+    // update tx
+    uint256 spendTx;
+    MintPoolEntry entry;
+    if (GetMintPoolEntry(id, entry)) {
+        auto priv = GeneratePrivateKey(entry.seedId);
+        if (!lelantusDb->HasSerial(property, priv.serial, spendTx)) {
+            spendTx.SetNull();
+        }
+    } else {
+        return false;
+    }
+
+    return TryRecoverMint(id, chainState, spendTx, property, amount);
 }
 
 void LelantusWallet::UpdateMintCreatedTx(MintEntryId const &id, const uint256& tx)

@@ -3,6 +3,7 @@
 #include "lelantusdb.h"
 
 #include "sigma.h"
+#include "lelantusutils.h"
 
 #include "../validation.h"
 #include "../sync.h"
@@ -66,6 +67,7 @@ void Wallet::ReloadMasterKey()
 {
     mintWalletV0.ReloadMasterKey();
     mintWalletV1.ReloadMasterKey();
+    lelantusWallet.ReloadMasterKey();
 }
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
@@ -394,17 +396,31 @@ void Wallet::OnLelantusMintAdded(
     int block)
 {
     LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
+    auto locked = pwalletMain->IsLocked();
+    auto knowAmount = amount.has_value();
+
+    // Can set state if wallet is not encrypt or encrypted but amount is known
+    auto canSetState = !locked || knowAmount;
+    if (!canSetState) {
+        LogPrintf("%s : Can not set state\n", __func__);
+        return;
+    }
+
     if (HasLelantusMint(id)) {
 
         // 1. is in wallet then update state
         SetLelantusMintChainState(id, {block, group, idx});
-    } else {
+        return;
+    }
 
-        // 2. try to recover new mint
+    if (!locked) {
+
+        // 2. try to recover new mint from pool
         LelantusMintChainState state(block, group, idx);
         if (lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
             LogPrintf("%s : Found new mint when try to recover\n", __func__);
         }
+        return;
     }
 }
 
