@@ -2,6 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "../wallet/wallet.h"
+
 #include "convert.h"
 #include "lelantusdb.h"
 #include "lelantusutils.h"
@@ -390,14 +392,16 @@ bool LelantusDb::HasMint(MintEntryId const &id, PropertyId &property, lelantus::
     property = std::get<1>(keyData);
     publicKey = std::get<2>(keyData);
 
-    auto coinKey = MakeRaw(DB_COIN, property, publicKey);
+    // auto coinKey = MakeRaw(DB_COIN, property, publicKey);
     std::string raw;
-    if (!pdb->Get(readoptions, coinKey, &raw).ok()) {
+    if (!pdb->Get(readoptions, val, &raw).ok()) {
         throw std::runtime_error("Fail to get coin data");
     }
 
     CoinData coinData;
-    ParseRaw(raw, coinData);
+    if (!ParseRaw(raw, coinData)) {
+        throw std::runtime_error("Fail to parse coin data");
+    }
 
     index = coinData.index;
     group = coinData.group;
@@ -530,7 +534,7 @@ void LelantusDb::CommitCoins()
             coinData.index = nextCoinSeq;
             coinData.block = block;
             coinData.group = lastGroup;
-            batch.Put(raw, MakeRaw(coinData));
+            batch.Put(coinKey, MakeRaw(coinData));
 
             nextCoinSeq++;
         }
@@ -541,13 +545,23 @@ void LelantusDb::CommitCoins()
             auto pubkey = std::get<2>(e);
 
             auto const &additional = coinData.additionalData;
-            auto amount = coinData.amount;
+            boost::optional<LelantusAmount> amount;
+            if (coinData.amount > 0) {
+                amount = coinData.amount;
+            }
 
-            if (amount == 0 && additional.size() == 16) {
+#ifdef ENABLE_WALLET
+            if (pwalletMain && !amount.has_value() && additional.size() == 16) {
                 EncryptedValue enc;
                 std::copy(additional.begin(), additional.end(), &enc[0]);
-                DecryptMintAmount(enc, pubkey.getValue(), amount);
+                LelantusAmount retrieved;
+                if (DecryptMintAmount(enc, pubkey.getValue(), retrieved)) {
+                    LogPrint("handler", "Elysium handler: decrypted = %d\n", itostr(retrieved));
+
+                    amount = retrieved;
+                }
             }
+#endif
 
             MintAdded(propertyId, coinData.id, lastGroup, std::get<0>(e), amount, block);
         }

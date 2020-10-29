@@ -62,7 +62,7 @@ bool EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pub
 bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) {
     if(pwalletMain->IsLocked()) {
         amount = 0;
-        return true;
+        return false;
     }
 
     LOCK(pwalletMain->cs_wallet);
