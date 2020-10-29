@@ -15,6 +15,7 @@
 #include <zmqserver/zmqabstract.h>
 #include "univalue.h"
 #include "masternode-sync.h"
+#include "lelantus.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/erase.hpp>
@@ -158,6 +159,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
 
+    obj.push_back(Pair("isLelantusAllowed", lelantus::IsLelantusAllowed()));
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
