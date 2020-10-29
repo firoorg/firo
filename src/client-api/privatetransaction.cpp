@@ -196,7 +196,7 @@ bool createSigmaSpendAPITransaction(CWalletTx& wtx,
     return true;
 }
 
-UniValue GetDenominations(){
+UniValue GetSigmaDenominations(){
     std::vector<CMintMeta> listMints = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
 
     UniValue denominations(UniValue::VOBJ);

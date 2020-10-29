@@ -4,7 +4,7 @@ CLIENTAPI_H = \
   client-api/send.h \
   client-api/server.h \
   client-api/settings.h \
-  client-api/sigma.h \
+  client-api/privatetransaction.h \
   client-api/wallet.h \
   zmqserver/zmqabstract.h \
   zmqserver/zmqconfig.h \
@@ -20,7 +20,7 @@ CLIENTAPI_CPP = \
   client-api/send.cpp \
   client-api/server.cpp \
   client-api/settings.cpp \
-  client-api/sigma.cpp \
+  client-api/privatetransaction.cpp \
   client-api/wallet.cpp \
   zmqserver/zmqabstract.cpp \
   zmqserver/zmqinterface.cpp \

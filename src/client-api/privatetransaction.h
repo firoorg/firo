@@ -4,4 +4,4 @@
 
 #include "univalue.h"
 
-UniValue GetDenominations();
+UniValue GetSigmaDenominations();

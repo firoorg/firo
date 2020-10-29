@@ -9,7 +9,7 @@
 #include "wallet/rpcwallet.h"
 #include "client-api/server.h"
 #include "client-api/send.h"
-#include "client-api/sigma.h"
+#include "client-api/privatetransaction.h"
 #include "client-api/protocol.h"
 #include "client-api/wallet.h"
 #include "wallet/coincontrol.h"
@@ -735,7 +735,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     balanceObj.push_back(Pair("public", xzcObj));
     balanceObj.push_back(Pair("private", sigmaObj));
 
-    balanceObj.push_back(Pair("unspentMints", GetDenominations()));
+    balanceObj.push_back(Pair("unspentMints", GetSigmaDenominations()));
 
     return balanceObj;
 }
