@@ -7,6 +7,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
+#include "lelantus.h"
 #include "client-api/server.h"
 #include "client-api/send.h"
 #include "client-api/privatetransaction.h"
@@ -106,6 +107,29 @@ void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
         if (coin.nHeight > 0
             && coin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())
             sigmaConfirmed += coinValue;
+    }
+}
+
+// partially taken from qt/LelantusModel.cpp:LelantusModel::getPrivateBalance
+void GetLelantusBalance(CAmount& lelantusAll, CAmount& lelantusConfirmed) {
+    lelantusAll = 0;
+    lelantusConfirmed = 0;
+
+    auto zwallet = pwalletMain->zwallet.get();
+
+    auto coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
+    for (auto const &c : coins) {
+        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
+            continue;
+        }
+
+        auto conf = c.nHeight > 0
+                    ? chainActive.Height() - c.nHeight + 1 : 0;
+
+        lelantusAll += c.amount;
+        if (conf >= ZC_MINT_CONFIRMATIONS) {
+            lelantusConfirmed += c.amount;
+        }
     }
 }
 
@@ -698,8 +722,8 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     
     UniValue balanceObj(UniValue::VOBJ);
     UniValue totalObj(UniValue::VOBJ);
-    UniValue xzcObj(UniValue::VOBJ);
-    UniValue sigmaObj(UniValue::VOBJ);
+    UniValue publicObj(UniValue::VOBJ);
+    UniValue privateObj(UniValue::VOBJ);
 
     // various balances
     CAmount xzcConfirmed = pwalletMain->GetBalance();
@@ -712,30 +736,53 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount sigmaConfirmed = 0;
     GetSigmaBalance(sigmaAll, sigmaConfirmed);
 
-    //the difference of all and confirmed gives unconfirmed
-    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed; 
+    CAmount lelantusAll = 0;
+    CAmount lelantusConfirmed = 0;
+    if (lelantus::IsLelantusAllowed()) {
+        GetLelantusBalance(lelantusAll, lelantusConfirmed);
+    }
 
-    // // We now have all base units, derive return values.
-    CAmount total = xzcConfirmed + xzcUnconfirmed + sigmaAll + xzcImmature;
-    CAmount pending = total - xzcConfirmed - sigmaConfirmed;
-    CAmount available = total - xzcLocked - xzcUnconfirmed - sigmaUnconfirmed - xzcImmature;
+    //the difference of all and confirmed gives unconfirmed
+    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed;
+    CAmount lelantusUnconfirmed = lelantusAll - lelantusConfirmed;
+
+    // We now have all base units, derive return values.
+    CAmount total = xzcConfirmed + xzcUnconfirmed + sigmaAll + lelantusAll + xzcImmature;
+    CAmount pending = total - xzcConfirmed - xzcLocked - sigmaConfirmed - lelantusConfirmed;
+    CAmount available = total - xzcLocked - xzcUnconfirmed - sigmaUnconfirmed - lelantusUnconfirmed - xzcImmature;
+
+    CAmount publicConfirmed = 0;
+    CAmount publicUnconfirmed = 0;
+    CAmount privateConfirmed = 0;
+    CAmount privateUnconfirmed = 0;
+    if (lelantus::IsLelantusAllowed()) {
+        publicConfirmed = xzcConfirmed + sigmaConfirmed;
+        publicUnconfirmed = xzcUnconfirmed + sigmaUnconfirmed;
+        privateConfirmed = lelantusConfirmed;
+        privateUnconfirmed = lelantusUnconfirmed;
+    } else {
+        publicConfirmed = xzcConfirmed;
+        publicUnconfirmed = xzcUnconfirmed;
+        privateConfirmed = sigmaConfirmed;
+        privateUnconfirmed = sigmaUnconfirmed;
+    }
     
     totalObj.push_back(Pair("all", total));
     totalObj.push_back(Pair("pending", pending));
     totalObj.push_back(Pair("available", available));
 
-    xzcObj.push_back(Pair("confirmed", xzcConfirmed));
-    xzcObj.push_back(Pair("unconfirmed", xzcUnconfirmed));
-    xzcObj.push_back(Pair("locked", xzcLocked));
+    publicObj.push_back(Pair("confirmed", publicConfirmed));
+    publicObj.push_back(Pair("unconfirmed", publicUnconfirmed));
+    publicObj.push_back(Pair("locked", xzcLocked));
 
-    sigmaObj.push_back(Pair("confirmed", sigmaConfirmed));
-    sigmaObj.push_back(Pair("unconfirmed", sigmaUnconfirmed));
+    privateObj.push_back(Pair("confirmed", privateConfirmed));
+    privateObj.push_back(Pair("unconfirmed", privateUnconfirmed));
 
     balanceObj.push_back(Pair("total", totalObj));
-    balanceObj.push_back(Pair("public", xzcObj));
-    balanceObj.push_back(Pair("private", sigmaObj));
+    balanceObj.push_back(Pair("public", publicObj));
+    balanceObj.push_back(Pair("private", privateObj));
 
-    balanceObj.push_back(Pair("unspentMints", GetSigmaDenominations()));
+    balanceObj.push_back(Pair("unspentSigmaMints", GetSigmaDenominations()));
 
     return balanceObj;
 }
