@@ -423,7 +423,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
-### `listMints`:
+### `listSigmaMints`:
 `none`:
 ```
     data: {
@@ -497,7 +497,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
-### `mint`
+### `sigmaMint`
 `none`:
 ```
     data: {
@@ -665,7 +665,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 }
 ```
 
-### `privateTxFee`
+### `sigmaTxFee`
 `none`:
 ```
     data: {
@@ -794,7 +794,7 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
     }
 ```
 
-### `sendPrivate`
+### `sendSigma`
 `none`:
 ```
     data: {

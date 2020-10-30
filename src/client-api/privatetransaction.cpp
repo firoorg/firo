@@ -234,7 +234,7 @@ UniValue GetSigmaDenominations(){
     return denominations;
 }
 
-UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+UniValue sigmaMint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoin> privCoins;
@@ -251,7 +251,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue sigmaTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     UniValue result(UniValue::VOBJ);
 
     CWalletTx wtx;
@@ -267,7 +267,7 @@ UniValue privatetxfee(Type type, const UniValue& data, const UniValue& auth, boo
     return result;
 }
 
-UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue sendSigma(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
     switch(type){
         case Create: {
@@ -301,7 +301,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
     }
 }
 
-UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+UniValue listSigmaMints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
     EnsureWalletIsUnlocked(pwalletMain);
 
@@ -326,12 +326,12 @@ UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool f
 }
 
 static const CAPICommand commands[] =
-{ //  category              collection            actor (function)          authPort   authPassphrase   warmupOk
-  //  --------------------- ------------          ----------------          --------   --------------   --------
-    { "sigma",              "mint",               &mint,                    true,      true,            false  },
-    { "sigma",              "sendPrivate",        &sendprivate,             true,      true,            false  },
-    { "sigma",              "listMints",          &listmints,               true,      true,            false  },
-    { "sigma",              "privateTxFee",       &privatetxfee,            true,      false,           false  }
+{ //  category               collection            actor (function)          authPort   authPassphrase   warmupOk
+  //  ---------------------  ------------          ----------------          --------   --------------   --------
+    { "privatetransaction",  "sigmaMint",          &sigmaMint,               true,      true,            false  },
+    { "privatetransaction",  "sendSigma",          &sendSigma,               true,      true,            false  },
+    { "privatetransaction",  "listSigmaMints",     &listSigmaMints,          true,      true,            false  },
+    { "privatetransaction",  "sigmaTxFee",         &sigmaTxFee,              true,      false,           false  },
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {
