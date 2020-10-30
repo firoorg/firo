@@ -386,6 +386,8 @@ bool LelantusWallet::SyncWithChain()
 
         // recover from mintpool
         for (auto const &entry : mintPool) {
+            LDebug() << "Recover : " << entry.id.GetHex() << ", index = " << std::to_string(entry.index) << std::endl;
+
             if (!SyncWithChain(entry.id)) {
                 continue;
             }
@@ -674,6 +676,7 @@ size_t LelantusWallet::FillMintPool()
         mintPool.insert(MintPoolEntry(id, seedId, index));
 
         generatedCoins++;
+        LDebug() << "filling pool with " << id.GetHex() << ", index = " << std::to_string(index) << std::endl;
     }
 
     if (generatedCoins)  {
@@ -693,6 +696,7 @@ void LelantusWallet::LoadMintPool()
     if (database->ReadMintPool(mintPoolData)) {
         for (auto &entry : mintPoolData) {
             mintPool.insert(std::move(entry));
+            LDebug() << "reload : " << entry.id.GetHex() << ", index = " << std::to_string(entry.index) << std::endl;
         }
     }
 

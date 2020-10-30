@@ -2,8 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#ifndef ZCOIN_ELYSIUM_LELANTUSUTILS_H
+#define ZCOIN_ELYSIUM_LELANTUSUTILS_H
+
 #include "../base58.h"
 #include "../uint256.h"
+
+#include <fstream>
 
 namespace elysium {
 
@@ -15,4 +20,8 @@ bool EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pub
 
 bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount);
 
+ofstream LDebug();
+
 } // namespace elysium
+
+#endif // ZCOIN_ELYSIUM_LELANTUSUTILS_H
