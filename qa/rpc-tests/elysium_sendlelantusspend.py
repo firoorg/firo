@@ -106,7 +106,6 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         receiver = self.nodes[0].getnewaddress()
 
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
-        print(mints)
         assert_equal(2, len(mints))
 
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
@@ -118,12 +117,17 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         assert_equal('2', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
         # spend all, there are 2 of 9 now
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15')
+        assert_raises_message(
+            JSONRPCException,
+            'Insufficient funds',
+            testing_node.elysium_sendlelantusspend, receiver, lelantus_property, '19'
+        )
+
+        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '16')
 
         testing_node.generate(1)
         self.sync_all()
-
-        assert_equal('17', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
+        assert_equal('18', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
         assert_equal(1, len(mints))
@@ -132,20 +136,60 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         passphrase = '1234'
         testing_node.encryptwallet(passphrase)
 
-        print(bitcoind_processes)
         bitcoind_processes[2].wait()
-        testing_node = self.nodes[1] = start_node(1, self.options.tmpdir, ['-elysium'])
+        testing_node = self.nodes[2] = start_node(2, self.options.tmpdir, ['-elysium'])
 
-        connect_nodes_bi(self.nodes, 0, 1)
-
-        testing_node.elysium_recoverlelantusmints(passphrase)
+        connect_nodes_bi(self.nodes, 0, 2)
+        connect_nodes_bi(self.nodes, 1, 2)
 
         # mint still there
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
         assert_equal(1, len(mints))
 
-        # testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2')
-        # testing_node.generate(10)
+        assert_raises_message(
+            JSONRPCException,
+            'Unable to retrieve generated key for mint seed. Is the wallet locked?',
+            testing_node.elysium_sendlelantusspend, receiver, lelantus_property, '2'
+        )
+
+        testing_node.walletpassphrase(passphrase, 2)
+        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2')
+        time.sleep(2)
+
+        testing_node.generate(110)
+        assert_equal('20', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
+
+        # try to mint on encrypted wallet
+        assert_raises_message(
+            JSONRPCException,
+            'Wallet locked, unable to create transaction!',
+            testing_node.elysium_sendlelantusmint, addr, lelantus_property, '10'
+        )
+
+        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
+        assert_equal(0, len(mints))
+
+        testing_node.walletpassphrase(passphrase, 2)
+        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
+        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
+        time.sleep(2)
+
+        testing_node.generate(10)
+
+        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
+        assert_equal(2, len(mints))
+
+        assert_raises_message(
+            JSONRPCException,
+            'Unable to retrieve generated key for mint seed. Is the wallet locked?',
+            testing_node.elysium_sendlelantusspend, receiver, lelantus_property, '15'
+        )
+
+        testing_node.walletpassphrase(passphrase, 2)
+        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15')
+        testing_node.generate(10)
+
+        assert_equal('35', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
 if __name__ == '__main__':
     ElysiumSendSpendTest().main()
