@@ -31,6 +31,8 @@
 #include "wallet.h"
 #include "wallettxs.h"
 
+#include "lelantusutils.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet.h"
 #include "walletmodels.h"
@@ -2072,7 +2074,9 @@ UniValue elysium_listlelantusmints(const JSONRPCRequest& request)
     // Get mints that meet criteria.
     std::vector<LelantusMint> mints;
 
+    LDebug() << "Querying..." << std::endl;
     wallet->ListLelantusMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
+        LDebug() << "filter : " << m.first.GetHex() << std::endl;
         if (m.second.IsSpent() || !m.second.IsOnChain()) {
             return;
         }
@@ -2083,6 +2087,7 @@ UniValue elysium_listlelantusmints(const JSONRPCRequest& request)
 
         mints.push_back(m.second);
     }));
+    LDebug() << "Done" << std::endl;
 
     return LelantusMintsToJson(mints.begin(), mints.end(), verbose);
 }

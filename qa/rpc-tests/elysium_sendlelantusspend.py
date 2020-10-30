@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 from test_framework.authproxy import JSONRPCException
 from test_framework.test_framework import ElysiumTestFramework
-from test_framework.util import assert_equal, assert_raises_message
+from test_framework.util import (
+    assert_equal,
+    assert_raises_message,
+    bitcoind_processes,
+    connect_nodes_bi,
+    start_node,
+)
 import time
 
 class ElysiumSendSpendTest(ElysiumTestFramework):
@@ -91,12 +97,17 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         )
 
         # met all requirements
-        testing_node.mintlelantus(2)
-        testing_node.mintlelantus(2)
+        for _ in range(0, 10):
+            testing_node.mintlelantus(1)
+
         testing_node.generate(10)
         self.sync_all()
 
         receiver = self.nodes[0].getnewaddress()
+
+        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
+        print(mints)
+        assert_equal(2, len(mints))
 
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
@@ -105,6 +116,36 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         self.sync_all()
 
         assert_equal('2', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
+
+        # spend all, there are 2 of 9 now
+        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15')
+
+        testing_node.generate(1)
+        self.sync_all()
+
+        assert_equal('17', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
+
+        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
+        assert_equal(1, len(mints))
+
+        # encrypt wallet
+        passphrase = '1234'
+        testing_node.encryptwallet(passphrase)
+
+        print(bitcoind_processes)
+        bitcoind_processes[2].wait()
+        testing_node = self.nodes[1] = start_node(1, self.options.tmpdir, ['-elysium'])
+
+        connect_nodes_bi(self.nodes, 0, 1)
+
+        testing_node.elysium_recoverlelantusmints(passphrase)
+
+        # mint still there
+        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
+        assert_equal(1, len(mints))
+
+        # testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2')
+        # testing_node.generate(10)
 
 if __name__ == '__main__':
     ElysiumSendSpendTest().main()
