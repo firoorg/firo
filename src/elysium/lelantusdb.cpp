@@ -93,7 +93,11 @@ template <typename T>
 bool ParseRaw(std::string const &raw, T &t)
 {
     CDataStream ss(raw.data(), raw.data() + raw.size(), SER_DISK, CLIENT_VERSION);
-    ss >> t;
+    try {
+        ss >> t;
+    } catch (std::iostream::failure const&) {
+        return false;
+    }
 
     return ss.eof();
 }
@@ -279,7 +283,12 @@ LelantusDb::LelantusDb(const boost::filesystem::path& path, bool wipe, size_t gr
         }
     }
 
-    // TODO: throw if found pending coins
+    auto it = NewIterator();
+    it->Seek(PendingCoinParser().GetKey(0));
+
+    if (it->Valid() && PendingCoinParser().ParseKey(it->key().ToString()) != boost::none) {
+        throw std::runtime_error("Found pending coins");
+    }
 }
 
 bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx)
