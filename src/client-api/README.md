@@ -56,6 +56,7 @@ A function with one or more operations.
 | [sendZcoin](#sendzcoin)                                           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
 | [setPassphrase](#setpassphrase)                                   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
 | [sendLelantus](#sendlelantus)                                     | Make a Lelantus spend to the specified address(es). | 🔐 | ✅ | – |
+| [autoMintLelantus](#automintlelantus)                             | Anonymize all public funds. | 🔐 | ✅ | – |
 | [setting](#setting)                                               | Interact with settings. | 🔐 | - | – |
 | [showMnemonics](#showmnemonics)                                   | Show the wallet mnemonic. | 🔐 | ✅ | – |
 | [stateWallet](#statewallet)                                       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
@@ -894,6 +895,30 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 {
     data: {
         STRING (txid)
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `autoMintLelantus`
+`create`:
+```
+    data: {
+    },
+    auth: {
+        passphrase: STRING
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        [
+            STRING (txid),
+            ...
+        ]
     },
     meta:{
        status: 200

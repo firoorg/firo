@@ -13,6 +13,7 @@
 #include "client-api/send.h"
 #include "client-api/protocol.h"
 #include "wallet/coincontrol.h"
+#include "lelantus.h"
 #include <zerocoin.h>
 #include <sigma.h>
 #include <vector>
@@ -350,6 +351,35 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
     }
 }
 
+UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    // Ensure Lelantus mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    EnsureWalletIsUnlocked(pwalletMain);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
+    std::vector<CHDMint> mints;
+    std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
+
+    if (strError != "") {
+        throw JSONAPIError(RPC_WALLET_ERROR, strError);
+    }
+
+    UniValue retval(UniValue::VARR);
+    for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
+        retval.push_back(wtxAndFee.first.GetHash().GetHex());
+    }
+    GetMainSignals().UpdatedBalance();
+    return retval;
+}
+
 UniValue listSigmaMints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
     EnsureWalletIsUnlocked(pwalletMain);
@@ -381,7 +411,8 @@ static const CAPICommand commands[] =
     { "privatetransaction",  "sendSigma",          &sendSigma,               true,      true,            false  },
     { "privatetransaction",  "listSigmaMints",     &listSigmaMints,          true,      true,            false  },
     { "privatetransaction",  "sigmaTxFee",         &sigmaTxFee,              true,      false,           false  },
-    { "privatetransaction",  "sendLelantus",       &sendLelantus,            true,      true,            false  }
+    { "privatetransaction",  "sendLelantus",       &sendLelantus,            true,      true,            false  },
+    { "privatetransaction",  "autoMintLelantus",   &autoMintLelantus,        true,      true,            false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {
