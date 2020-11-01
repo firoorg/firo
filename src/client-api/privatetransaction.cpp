@@ -301,6 +301,55 @@ UniValue sendSigma(Type type, const UniValue& data, const UniValue& auth, bool f
     }
 }
 
+UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    CBitcoinAddress address = find_value(data, "recipient").get_str();
+    CAmount amount = find_value(data, "amount").get_int();
+
+    if (!address.IsValid()) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
+    if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
+
+    CCoinControl coinControl;
+    bool fHasCoinControl = GetCoinControl(data, coinControl);
+
+    bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    CRecipient recipient = {scriptPubKey, amount, fSubtractFeeFromAmount};
+    std::vector<CRecipient> recipients = {recipient};
+
+    std::vector<CAmount> amounts = {amount};
+
+    CAmount fee = 0;
+    std::vector<CAmount> newMints;
+    std::vector<CLelantusEntry> spendCoins;
+    std::vector<CHDMint> mintCoins;
+
+    try {
+        CWalletTx transaction = pwalletMain->CreateLelantusJoinSplitTransaction(
+            recipients,
+            fee, // clobbered
+            newMints, // clobbered
+            spendCoins, // clobbered
+            mintCoins, // clobbered
+            fHasCoinControl ? &coinControl : nullptr
+        );
+
+        pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins);
+        GetMainSignals().WalletTransaction(transaction);
+
+        return transaction.GetHash().GetHex();
+    }
+    catch (const InsufficientFunds& e) {
+       throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
+    }
+    catch (const std::exception& e) {
+      throw JSONAPIError(API_WALLET_ERROR, e.what());
+    }
+}
+
 UniValue listSigmaMints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
     EnsureWalletIsUnlocked(pwalletMain);
@@ -332,6 +381,7 @@ static const CAPICommand commands[] =
     { "privatetransaction",  "sendSigma",          &sendSigma,               true,      true,            false  },
     { "privatetransaction",  "listSigmaMints",     &listSigmaMints,          true,      true,            false  },
     { "privatetransaction",  "sigmaTxFee",         &sigmaTxFee,              true,      false,           false  },
+    { "privatetransaction",  "sendLelantus",       &sendLelantus,            true,      true,            false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {

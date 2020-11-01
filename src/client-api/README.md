@@ -55,6 +55,7 @@ A function with one or more operations.
 | [sendPrivate](#sendprivate)                                       | Spend 1 or more Sigma mints. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
 | [sendZcoin](#sendzcoin)                                           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
 | [setPassphrase](#setpassphrase)                                   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
+| [sendLelantus](#sendlelantus)                                     | Make a Lelantus spend to the specified address(es). | 🔐 | ✅ | – |
 | [setting](#setting)                                               | Interact with settings. | 🔐 | - | – |
 | [showMnemonics](#showmnemonics)                                   | Show the wallet mnemonic. | 🔐 | ✅ | – |
 | [stateWallet](#statewallet)                                       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
@@ -867,6 +868,33 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
            STRING (txid)
        }
     }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `sendLelantus`
+`create`:
+```
+    data: {
+        recipient: STRING,
+        amount: INT,
+        subtractFeeFromAmount: BOOL,
+        coinControl: { (OPTIONAL)
+            selected: STRING ("txid0|vout:txid1|vout...txidn|vout")
+        }
+    },
+    auth: {
+        passphrase: STRING
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        STRING (txid)
+    },
     meta:{
        status: 200
     }
