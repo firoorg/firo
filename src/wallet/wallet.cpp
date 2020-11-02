@@ -1939,12 +1939,12 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         vector<unsigned char> outpoint(wtx.tx->vin[0].prevout.hash.begin(), wtx.tx->vin[0].prevout.hash.end());
 
         LogPrintf("output: %s\n", wtx.tx->vin[0].prevout.hash.GetHex());
-        uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
+        uint256 secretPBytes(secretPoint.getEcdhSecret());
         LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
 
         LogPrintf("Get Mask from payment code\n"); //Masking Protections for Secret Point
-        vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+        vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
 
         LogPrintf("Get op_return bytes via blind:%s\n", m_CBIP47Accounts[accountIndex].getPaymentCode().toString());
         vector<unsigned char> op_return = CPaymentCode::blind(m_CBIP47Accounts[accountIndex].getPaymentCode().getPayload(), mask);

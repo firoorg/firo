@@ -644,11 +644,11 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
 
             LogPrintf("output: %s\n", newTx->tx->vin[0].prevout.hash.GetHex());
-            uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
+            uint256 secretPBytes(secretPoint.getEcdhSecret());
             LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
             LogPrintf("Get Mask from payment code\n");
-            vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+            vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
 
             LogPrintf("Get op_return bytes via blind\n");
             vector<unsigned char> op_return = CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);

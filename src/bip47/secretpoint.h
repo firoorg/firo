@@ -17,14 +17,12 @@ class SecretPoint {
         secp256k1_pubkey& getPubKey();
         void setPubKey(secp256k1_pubkey &v_pubKey);
 
-        std::vector<unsigned char> ECDHSecretAsBytes();
+        std::vector<unsigned char> getEcdhSecret() const;
 
-        bool isShared(SecretPoint secret);
+        bool isShared(SecretPoint const & secret) const;
 
     private:
-        std::vector<unsigned char> ECDHSecret();
-
-        bool equals(SecretPoint &v_secret);
+        bool equals(SecretPoint const & v_secret) const;
 
         void loadPublicKey(std::vector<unsigned char> data);
         void loadPrivateKey(std::vector<unsigned char> data);

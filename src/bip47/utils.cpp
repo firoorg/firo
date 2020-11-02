@@ -151,10 +151,10 @@ bool CBIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> p
     LogPrintf("Generating Secret Point for Decode with \n privekey: %s\n pubkey: %s\n", HexStr(privKeyBytes), HexStr(pubKeyBytes));
     
     LogPrintf("output: %s\n", tx.vin[0].prevout.hash.GetHex());
-    uint256 secretPBytes(secretPoint.ECDHSecretAsBytes());
+    uint256 secretPBytes(secretPoint.getEcdhSecret());
     LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
-    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.ECDHSecretAsBytes(), outpoint);
+    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
     vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
     CPaymentCode pcode(payload.data(), payload.size());
     paymentCode = pcode;

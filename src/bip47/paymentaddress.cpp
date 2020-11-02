@@ -107,7 +107,7 @@ GroupElement CPaymentAddress::getECPoint(bool isMine) {
 
 std::vector<unsigned char> CPaymentAddress::hashSharedSecret() {
 
-    std::vector<unsigned char> shardbytes = getSharedSecret().ECDHSecretAsBytes();
+    std::vector<unsigned char> shardbytes = getSharedSecret().getEcdhSecret();
     
     return shardbytes;
 }
