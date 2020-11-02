@@ -20,8 +20,6 @@ bool EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pub
 
 bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount);
 
-ofstream LDebug();
-
 } // namespace elysium
 
 #endif // ZCOIN_ELYSIUM_LELANTUSUTILS_H

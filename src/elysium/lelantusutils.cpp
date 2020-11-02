@@ -76,10 +76,4 @@ bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitiv
     return true;
 }
 
-ofstream LDebug() {
-    ofstream f;
-    f.open("/tmp/debuglog.txt", ios::app);
-    return std::move(f);
-}
-
 } // namespace elysium
