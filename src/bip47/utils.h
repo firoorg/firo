@@ -25,11 +25,11 @@ class CPaymentAddress;
 class CAccount;
 
 namespace util {
-static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+void arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+void copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+
 bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
 bool isValidNotificationTransactionOpReturn(CTxOut txout);
 bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);

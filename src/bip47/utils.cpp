@@ -13,24 +13,21 @@ using namespace std;
 namespace bip47 {
 namespace util {
 
-unsigned char* arraycopy(const unsigned char *source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
-    return (unsigned char*)memcpy(dest_arr + destPos,source_arr + sourcePos , len);
-}
-unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len){
+void arraycopy(const std::vector<unsigned char> &source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
     if(source_arr.size() < sourcePos + len)
     {
         throw std::runtime_error("arraycopy error, source_arr has invalid size");
     }
-    return (unsigned char*)memcpy(dest_arr + destPos,source_arr.data() + sourcePos , len);
+    memcpy(dest_arr + destPos,source_arr.data() + sourcePos , len);
 }
-unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+void arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
     }
-    return (unsigned char*)memcpy(dest_arr.data() + destPos, source_arr + sourcePos , len);
+    memcpy(dest_arr.data() + destPos, source_arr + sourcePos , len);
 }
-unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
@@ -39,9 +36,9 @@ unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int source
     {
         throw std::runtime_error("arraycopy error, source_arr has invalid size");
     }
-    return (unsigned char*)memcpy(dest_arr.data() + destPos, source_arr.data() + sourcePos , len);
+    memcpy(dest_arr.data() + destPos, source_arr.data() + sourcePos , len);
 }
-unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result) {
+void copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result) {
     int newLength = to - from;
     if (newLength < 0)
         throw std::runtime_error(from + " > " + to);
@@ -49,7 +46,6 @@ unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from,
     int len = original.size() - from;
     if(len > newLength) len = newLength;
     arraycopy(original, from, result, 0, len);
-    return result.data();
 }
 bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result)
 {
