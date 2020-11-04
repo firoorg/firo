@@ -7,11 +7,11 @@
 
 namespace bip47 {
 
-class CBIP47ChannelAddress
+class CChannelAddress
 {
 public:
-    CBIP47ChannelAddress() {}
-    CBIP47ChannelAddress(CExtPubKey const & cKey, int child);
+    CChannelAddress() {}
+    CChannelAddress(CExtPubKey const & cKey, int child);
 
     std::vector<unsigned char>& getPubKey();
     std::string getPath();

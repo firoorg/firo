@@ -12,20 +12,20 @@ class CWallet;
 
 namespace bip47 {
 
-class CBIP47PaymentChannel
+class CPaymentChannel
 {
 public:
-    CBIP47PaymentChannel();
-    CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode);
-    CBIP47PaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label);
+    CPaymentChannel();
+    CPaymentChannel(string v_myPaymentCode, string v_paymentCode);
+    CPaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label);
 
     string getPaymentCode() const;
     string getMyPaymentCode() const;
     void setPaymentCode(string pc);
-    std::vector<CBIP47Address> getIncomingAddresses() const;
+    std::vector<CAddress> getIncomingAddresses() const;
     int getCurrentIncomingIndex() const;
     void generateKeys(CWallet* bip47Wallet);
-    CBIP47Address* getIncomingAddress(string address);
+    CAddress* getIncomingAddress(string address);
     void addNewIncomingAddress(string newAddress, int nextIndex);
     string getLabel() const;
     void setLabel(string l);
@@ -65,7 +65,7 @@ private:
     string myPaymentCode;
     string paymentCode;
     string label;
-    std::vector<CBIP47Address> incomingAddresses;
+    std::vector<CAddress> incomingAddresses;
     std::vector<string> outgoingAddresses;
     std::vector<uint256> transactions;
     int status;

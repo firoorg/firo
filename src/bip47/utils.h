@@ -22,24 +22,23 @@ namespace bip47 {
 
 class CPaymentCode;
 class CPaymentAddress;
-class CBIP47Account;
+class CAccount;
 
-class CBIP47Util {
-    public:
-		static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-	    static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-	    static unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-	    static unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
-	    static bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
-	    static bool isValidNotificationTransactionOpReturn(CTxOut txout);
-	    static bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
-	    static bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode);
-	    static bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data);
-	    static bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes);
-	    static CPaymentAddress getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey);
-	    static CPaymentAddress getReceiveAddress(CBIP47Account* v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx);
-	    static CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx);
+namespace util {
+static unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
+unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
+unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
+bool isValidNotificationTransactionOpReturn(CTxOut txout);
+bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
+bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode);
+bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data);
+bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes);
+CPaymentAddress getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey);
+CPaymentAddress getReceiveAddress(CAccount* v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx);
+CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx);
 
 };
 

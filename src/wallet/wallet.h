@@ -1245,24 +1245,24 @@ private:
     CExtKey masterKey;
     
 public:
-    std::vector<bip47::CBIP47Account> m_CBIP47Accounts;
+    std::vector<bip47::CAccount> m_CAccounts;
     std::vector<CKey> m_Bip47PendingKeys;
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;
     //map other wallet => map(my wallet pcode => chanel)
-    std::map<string, std::vector<bip47::CBIP47PaymentChannel>> mutable m_Bip47channels;
+    std::map<string, std::vector<bip47::CPaymentChannel>> mutable m_Bip47channels;
     void loadBip47Wallet(CExtKey masterExtKey);
     bool IsBIP47Loaded() const;
     void LoadBip47Wallet();
     void deriveBip47Keys();
     std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
-    bip47::CBIP47PaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
+    bip47::CPaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
 
     bool IsNotificationScript(const CScript& scriptPubkey) const;
     bool isNotificationTransaction(const CTransaction& tx) const;
     bool isNotificationTransactionSent(string pcodestr) const;
     bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
-    const bip47::CBIP47PaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
+    const bip47::CPaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
     bip47::CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
     string findPaymentChannelForOutgoingAddress(string address) const ;
     string findPaymentChannelForIncomingAddress(string address) const ;
@@ -1276,8 +1276,8 @@ public:
     bool IsMyPaymentCode(std::string const & strPaymentCode) const;
 
 
-    bip47::CBIP47Account const & getBIP47Account(size_t i) const;
-    bip47::CBIP47Account getBIP47Account(std::string const & paymentCode) const;
+    bip47::CAccount const & getBIP47Account(size_t i) const;
+    bip47::CAccount getBIP47Account(std::string const & paymentCode) const;
     int getBIP47AccountIndex(std::string const & paymentCode) const;
     
     std::string getNotificationAddress(int i) const;
@@ -1285,13 +1285,13 @@ public:
     std::string getPaymentCode(size_t i) const;
     std::string getPaymentCodeForAddress(std::string const & address) const;
     
-    void deriveCBIP47Accounts(std::vector<unsigned char> const & hd_seed);
-    void deriveCBIP47Accounts(CExtKey const & masterKey);
+    void deriveCAccounts(std::vector<unsigned char> const & hd_seed);
+    void deriveCAccounts(CExtKey const & masterKey);
     std::string generateNewPCode(CExtKey const & masterKey);
     std::string generateNewPCode();
 
-    void saveCBIP47PaymentChannelData(string pchannelId);
-    bool addToCBIP47PaymentChannel(bip47::CBIP47PaymentChannel paymentChannel);
+    void saveCPaymentChannelData(string pchannelId);
+    bool addToCPaymentChannel(bip47::CPaymentChannel paymentChannel);
     
     //! Adds a notification data tuple to the store, and saves it to disk
     bool AddPCodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);
@@ -1299,13 +1299,13 @@ public:
     bool ErasePCodeNotificationData(const std::string &rpcodestr, const std::string &key);
     bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     
-    bool generateNewBip47IncomingAddress(string address, bip47::CBIP47PaymentChannel* channel);
-    bip47::CBIP47PaymentChannel* getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode="") const;
+    bool generateNewBip47IncomingAddress(string address, bip47::CPaymentChannel* channel);
+    bip47::CPaymentChannel* getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode="") const;
     bool setBip47ChannelLabel(std::string const & pcodestr, std::string const & label);
     
     void processNotificationTransaction(CTransaction tx);
     
-    std::string getCurrentOutgoingAddress(bip47::CBIP47PaymentChannel paymentChannel);
+    std::string getCurrentOutgoingAddress(bip47::CPaymentChannel paymentChannel);
     
     bool importKey(CKey imKey, bool fRescan = false);
     bool importBip47PendingKeys();

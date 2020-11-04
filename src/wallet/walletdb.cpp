@@ -319,17 +319,17 @@ bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
 
-bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<bip47::CBIP47PaymentChannel>& channels)
+bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<bip47::CPaymentChannel>& channels)
 {
     //read payment code list
     std::vector<string> paymentCodes;
-    Read("CBIP47PaymentChannelList", paymentCodes);
+    Read("CPaymentChannelList", paymentCodes);
     if (std::find(paymentCodes.begin(), paymentCodes.end(), paymentCode) == paymentCodes.end()) {
         paymentCodes.push_back(paymentCode);
-        Write("CBIP47PaymentChannelList", paymentCodes);
+        Write("CPaymentChannelList", paymentCodes);
     }
     nWalletDBUpdateCounter++;
-    return Write(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+    return Write(std::make_pair(std::string("CPaymentChannel"), paymentCode), channels);
 }
 
 bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
@@ -1442,7 +1442,7 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
 // BIP47
 /******************************************************************************/
 
-void CWalletDB::ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CBIP47PaymentChannel>> &mPchannels)
+void CWalletDB::ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CPaymentChannel>> &mPchannels)
 {
     //read payment code list
     std::vector<string> paymentCodes;
@@ -1450,7 +1450,7 @@ void CWalletDB::ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CB
     for(size_t i = 0; i < paymentCodes.size(); i++) 
     {
         std::string paymentCode = paymentCodes[i];
-        std::vector<bip47::CBIP47PaymentChannel> channels;
+        std::vector<bip47::CPaymentChannel> channels;
         Read(std::make_pair(std::string("bip47channel"), paymentCode), channels);
         mPchannels[paymentCode] = channels;    
     }

@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(payment_address)
     
     CPaymentCode toPcode("PM8TJK7t44xGE2DSbFGCk2wCypTzeq3L5i5r5iUGyNruaFLMCshtANUiBN1d9LCyQ9JrfDt3LFwRPSRkWPFBJAT7kdJgCaLDc3kQpQuwEVWxa6UmpR64");
     
-    CPaymentAddress payaddr = CBIP47Util::getPaymentAddress(toPcode, 0, pwalletMain->getBIP47Account(0).keyPrivAt(0));
+    CPaymentAddress payaddr = util::getPaymentAddress(toPcode, 0, pwalletMain->getBIP47Account(0).keyPrivAt(0));
     
     CExtPubKey extPubkey = pwalletMain->getBIP47Account(0).keyAt(0);
     CExtKey extKey = pwalletMain->getBIP47Account(0).keyPrivAt(0);

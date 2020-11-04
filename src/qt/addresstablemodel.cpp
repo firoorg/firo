@@ -644,7 +644,7 @@ public:
         cachedPaymentCodeTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, wallet->m_Bip47channels)
+            BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, wallet->m_Bip47channels)
             {
                 const string& address = item.first;
                 PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Sending;
@@ -741,11 +741,11 @@ public:
 
     void refreshMyRAPTable()
     {
-        LogPrintf("refreshMyRAPTable %d\n", wallet->m_CBIP47Accounts.size());
+        LogPrintf("refreshMyRAPTable %d\n", wallet->m_CAccounts.size());
         cachedRAPTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const bip47::CBIP47Account& item, wallet->m_CBIP47Accounts)
+            BOOST_FOREACH(const bip47::CAccount& item, wallet->m_CAccounts)
             {
                 const string& pcode = item.getStringPaymentCode();
                 std::string label = wallet->GetPaymentCodeLabel(pcode);
@@ -1041,7 +1041,7 @@ QString PaymentCodeTableModel::labelForAddress(const QString &address) const
 {
     {
         LOCK(wallet->cs_wallet);
-        std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
+        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
         if (mi != wallet->m_Bip47channels.end())
         {
             return QString::fromStdString(mi->second[0].getLabel());

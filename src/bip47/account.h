@@ -8,12 +8,12 @@
 
 namespace bip47 {
 
-class CBIP47Account
+class CAccount
 {
 public:
-    CBIP47Account() { accountId = 0; }
-    CBIP47Account(CExtKey& coinType, int identity);
-    CBIP47Account(std::string strPaymentCode);
+    CAccount() { accountId = 0; }
+    CAccount(CExtKey& coinType, int identity);
+    CAccount(std::string strPaymentCode);
 
     bool SetPaymentCodeString(std::string strPaymentCode);
     std::string getStringPaymentCode() const;
@@ -25,7 +25,7 @@ public:
 
     CPaymentCode const & getPaymentCode() const;
 
-    CBIP47ChannelAddress addressAt(int idx) const;
+    CChannelAddress addressAt(int idx) const;
 
     CExtPubKey keyAt(int idx) const;
     CExtKey keyPrivAt(int idx) const;

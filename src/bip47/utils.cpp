@@ -11,25 +11,26 @@
 using namespace std;
 
 namespace bip47 {
+namespace util {
 
-unsigned char* CBIP47Util::arraycopy(const unsigned char *source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
+unsigned char* arraycopy(const unsigned char *source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
     return (unsigned char*)memcpy(dest_arr + destPos,source_arr + sourcePos , len);
 }
-unsigned char* CBIP47Util::arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len){
+unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len){
     if(source_arr.size() < sourcePos + len)
     {
         throw std::runtime_error("arraycopy error, source_arr has invalid size");
     }
     return (unsigned char*)memcpy(dest_arr + destPos,source_arr.data() + sourcePos , len);
 }
-unsigned char* CBIP47Util::arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+unsigned char* arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
     }
     return (unsigned char*)memcpy(dest_arr.data() + destPos, source_arr + sourcePos , len);
 }
-unsigned char* CBIP47Util::arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+unsigned char* arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
@@ -40,7 +41,7 @@ unsigned char* CBIP47Util::arraycopy(const std::vector<unsigned char> &source_ar
     }
     return (unsigned char*)memcpy(dest_arr.data() + destPos, source_arr.data() + sourcePos , len);
 }
-unsigned char* CBIP47Util::copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result) {
+unsigned char* copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result) {
     int newLength = to - from;
     if (newLength < 0)
         throw std::runtime_error(from + " > " + to);
@@ -50,7 +51,7 @@ unsigned char* CBIP47Util::copyOfRange(const std::vector<unsigned char> &origina
     arraycopy(original, from, result, 0, len);
     return result.data();
 }
-bool CBIP47Util::doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result)
+bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result)
 {
     try{
         SHA256_CTX shaCtx;
@@ -65,13 +66,13 @@ bool CBIP47Util::doublehash(const std::vector<unsigned char> &input,std::vector<
     }
     catch(std::exception &e)
     {
-        printf("bool CBIP47Util::doublehash is failed ...\n");
+        printf("bool util::doublehash is failed ...\n");
         return false;
     }
     
 }
 
-bool CBIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
+bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
     for(int i = 0; i < tx.vout.size(); i++) {
         if (tx.vout[i].scriptPubKey[0] == OP_RETURN) {
             txout = tx.vout[i];
@@ -82,12 +83,12 @@ bool CBIP47Util::getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
 }
 
 
-bool CBIP47Util::isValidNotificationTransactionOpReturn(CTxOut txout) {
+bool isValidNotificationTransactionOpReturn(CTxOut txout) {
     vector<unsigned char> op_date;
     return getOpCodeData(txout, op_date);
 }
 
-bool CBIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
+bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
     CScript::const_iterator pc = txout.scriptPubKey.begin();
     vector<unsigned char> data;
     
@@ -110,7 +111,7 @@ bool CBIP47Util::getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
     return false;
 }
 
-bool CBIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode) {
+bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode) {
     // tx.vin[0].scriptSig
 //     CWalletTx wtx(pwalletMain, tx);
 
@@ -163,7 +164,7 @@ bool CBIP47Util::getPaymentCodeInNotificationTransaction(vector<unsigned char> p
     return true;
 }
 
-bool CBIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
+bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
 {
 
     LogPrintf("ScriptSig size = %d\n", txin.scriptSig.size());
@@ -222,7 +223,7 @@ bool CBIP47Util::getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyByt
     return false;
 }
 
-CPaymentAddress CBIP47Util::getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey) {
+CPaymentAddress getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey) {
     CKey prvkey = extkey.key;
     
     vector<unsigned char> ppkeybytes(prvkey.begin(), prvkey.end());
@@ -233,7 +234,7 @@ CPaymentAddress CBIP47Util::getPaymentAddress(CPaymentCode &pcode, int idx, CExt
     
 }
 
-CPaymentAddress CBIP47Util::getReceiveAddress(CBIP47Account *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
+CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
 {
     CPaymentAddress pm_address;
     //loook for bip47 account that has payment address as in the chanel 
@@ -245,7 +246,7 @@ CPaymentAddress CBIP47Util::getReceiveAddress(CBIP47Account *v_bip47Account, CWa
     return pm_address;
 }
 
-CPaymentAddress CBIP47Util::getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx)
+CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx)
 {
     CPaymentAddress pm_address;
     CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(0);
@@ -257,4 +258,4 @@ CPaymentAddress CBIP47Util::getSendAddress(CWallet* pbip47Wallet, CPaymentCode &
     
 }
 
-}
+} }

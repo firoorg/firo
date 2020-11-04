@@ -11,12 +11,12 @@
 
 namespace bip47 {
 
-class CBIP47Address
+class CAddress
 {
 public:
-    CBIP47Address(){}
-    CBIP47Address(std::string v_address, int v_index): address(v_address), index(v_index) {}
-    CBIP47Address(std::string v_address, int v_index, bool v_seen): address(v_address), index(v_index), seen(v_seen) {}
+    CAddress(){}
+    CAddress(std::string v_address, int v_index): address(v_address), index(v_index) {}
+    CAddress(std::string v_address, int v_index, bool v_seen): address(v_address), index(v_index), seen(v_seen) {}
 
     std::string getAddress();
     int getIndex() const;

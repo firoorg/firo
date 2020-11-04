@@ -1290,7 +1290,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                 }
                 else
                 {   
-                    bip47::CBIP47PaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
+                    bip47::CPaymentChannel* pchannel = findPaymentChannelForIncomingAddress(tx);
                     if (pchannel != NULL) 
                     {
                         std::string toaddr = getAddressOfReceived(tx).ToString();
@@ -1299,7 +1299,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                         if(generateNewBip47IncomingAddress(toaddr, pchannel))
                         {
 
-                            saveCBIP47PaymentChannelData(pchannel->getPaymentCode());
+                            saveCPaymentChannelData(pchannel->getPaymentCode());
                         }
                     }
                 }
@@ -1849,7 +1849,7 @@ void CWallet::loadBip47Wallet(CExtKey masterExtKey) // lgtm [cpp/large-parameter
     
     LogPrintf("Loaded m_Bip47channels count = %d\n", m_Bip47channels.size());
     
-    deriveCBIP47Accounts(masterExtKey);
+    deriveCAccounts(masterExtKey);
     
     deriveBip47Keys();
     if (pindexRescanForBip47) 
@@ -1876,9 +1876,9 @@ bool CWallet::IsBIP47Loaded() const {
 
 std::string CWallet::makeNotificationTransaction(std::string paymentCode, int accountIndex) // Make Notification Transaction
 {
-    bip47::CBIP47Account toCBIP47Account(paymentCode);
+    bip47::CAccount toCAccount(paymentCode);
     CAmount ntValue = CENT / 2;
-    CBitcoinAddress ntAddress = toCBIP47Account.getNotificationAddress();
+    CBitcoinAddress ntAddress = toCAccount.getNotificationAddress();
     LogPrintf("Bip47Wallet getNotificationAddress: %s\n", ntAddress.ToString().c_str());
 
     // Wallet comments
@@ -1913,7 +1913,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         CPubKey designatedPubKey;
         CKey privKey;
         vector<unsigned char> pubKeyBytes;
-        if (!bip47::CBIP47Util::getScriptSigPubkey(wtx.tx->vin[0], pubKeyBytes))
+        if (!bip47::util::getScriptSigPubkey(wtx.tx->vin[0], pubKeyBytes))
         {
             throw std::runtime_error("Bip47UtilesCPaymentCode ScriptSig GetPubkey error\n");
         }
@@ -1926,12 +1926,12 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         GetKey(designatedPubKey.GetID(), privKey);
 
 
-        CPubKey pubkey = toCBIP47Account.getNotificationKey().pubkey;
+        CPubKey pubkey = toCAccount.getNotificationKey().pubkey;
         vector<unsigned char> dataPriv(privKey.size());
         vector<unsigned char> dataPub(pubkey.size());
 
-        bip47::CBIP47Util::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
-        bip47::CBIP47Util::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
+        bip47::util::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
+        bip47::util::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
         LogPrintf("Generate Secret Point\n"); 
         bip47::SecretPoint secretPoint(dataPriv, dataPub); // Generate Secret Point
@@ -1946,8 +1946,8 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         LogPrintf("Get Mask from payment code\n"); //Masking Protections for Secret Point
         vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
 
-        LogPrintf("Get op_return bytes via blind:%s\n", m_CBIP47Accounts[accountIndex].getPaymentCode().toString());
-        vector<unsigned char> op_return = bip47::CPaymentCode::blind(m_CBIP47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
+        LogPrintf("Get op_return bytes via blind:%s\n", m_CAccounts[accountIndex].getPaymentCode().toString());
+        vector<unsigned char> op_return = bip47::CPaymentCode::blind(m_CAccounts[accountIndex].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
@@ -1958,7 +1958,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
             LogPrintf("Bip47Wallet Error CreateTransaction 2\n");
             throw std::runtime_error(std::string("Bip47Wallet:error ").append(strError));
         }
-        if (!bip47::CBIP47Util::getScriptSigPubkey(wtx.tx->vin[0], pubKeyBytes))
+        if (!bip47::util::getScriptSigPubkey(wtx.tx->vin[0], pubKeyBytes))
         {
             throw std::runtime_error("Bip47UtilesCPaymentCode ScriptSig GetPubkey error\n");
         }
@@ -1972,7 +1972,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
             }
 
         }
-        bip47::CBIP47PaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
+        bip47::CPaymentChannel* channel = getPaymentChannelFromPaymentCode(paymentCode, getPaymentCode(accountIndex));
         channel->setStatusSent(wtx.GetHash());
         CValidationState state;
         if(!CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
@@ -1982,7 +1982,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         }
 
         //save notification tx hash to wallet db
-        saveCBIP47PaymentChannelData(paymentCode);
+        saveCPaymentChannelData(paymentCode);
         return wtx.GetHash().GetHex();
     }
     catch(const std::exception& e)
@@ -2013,7 +2013,7 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [c
     LogPrintf("getAddress Of Recevied\n");
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++) {
+    for(size_t i = 0; i < m_CAccounts.size(); i++) {
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
             return true;
@@ -2024,7 +2024,7 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [c
         LogPrintf("isNotificationTransaction: payment code size %d\n", myPaymentCodes.size());
         for(size_t i = 0; i < myPaymentCodes.size(); i++)
         {
-            bip47::CBIP47Account acc(myPaymentCodes[i]);
+            bip47::CAccount acc(myPaymentCodes[i]);
             LogPrintf("isNotificationTransaction: payment cde %s\n", myPaymentCodes[i]);
             CBitcoinAddress notificationAddress = acc.getNotificationAddress();
             if (addr == notificationAddress) 
@@ -2041,7 +2041,7 @@ bool CWallet::isNotificationTransactionSent(string pcodestr) const
         return false;
     if(m_Bip47channels.count(pcodestr) > 0)
     {
-        const bip47::CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
+        const bip47::CPaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
         return pchannel->isNotificationTransactionSent();
     }
     return false;
@@ -2050,9 +2050,9 @@ bool CWallet::isNotificationTransactionSent(string pcodestr) const
 
 bool CWallet::isNotificationTransactionSentByMe(const CTransaction& tx) const
 {
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        std::vector<bip47::CBIP47PaymentChannel>& channels = m_Bip47channels[item.first];
+        std::vector<bip47::CPaymentChannel>& channels = m_Bip47channels[item.first];
         for(size_t i = 0; i < channels.size(); i++)
         {
             if (channels[i].getNotificationTxHash() == tx.GetHash()) 
@@ -2063,11 +2063,11 @@ bool CWallet::isNotificationTransactionSentByMe(const CTransaction& tx) const
     }
     return false;
 }
-const bip47::CBIP47PaymentChannel* CWallet::findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const
+const bip47::CPaymentChannel* CWallet::findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const
 {
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        std::vector<bip47::CBIP47PaymentChannel>& channels = m_Bip47channels[item.first];
+        std::vector<bip47::CPaymentChannel>& channels = m_Bip47channels[item.first];
         for(size_t i = 0; i < channels.size(); i++)
         {
             if (channels[i].getNotificationTxHash() == tx.GetHash()) 
@@ -2079,18 +2079,18 @@ const bip47::CBIP47PaymentChannel* CWallet::findPaymentChannelFromNotificationTr
     return NULL;
 }
 
-bip47::CBIP47PaymentChannel* CWallet::findPaymentChannelForIncomingAddress(const CTransaction& tx)
+bip47::CPaymentChannel* CWallet::findPaymentChannelForIncomingAddress(const CTransaction& tx)
 {
     CBitcoinAddress incomingAddr = getAddressOfReceived(tx);
     if (!incomingAddr.IsValid()) 
         return NULL;
     std::string incomingAddrStr = incomingAddr.ToString();
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        std::vector<bip47::CBIP47PaymentChannel>& channels = m_Bip47channels[item.first];
+        std::vector<bip47::CPaymentChannel>& channels = m_Bip47channels[item.first];
         for(size_t i = 0; i < channels.size(); i++)
         {
-            std::vector<bip47::CBIP47Address> incomingAddresses = channels[i].getIncomingAddresses();
+            std::vector<bip47::CAddress> incomingAddresses = channels[i].getIncomingAddresses();
             for(size_t j = 0; j < incomingAddresses.size(); j++)
             {
                 if (incomingAddrStr == incomingAddresses[j].getAddress())
@@ -2108,13 +2108,13 @@ bip47::CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTran
     bip47::CPaymentCode paymentCode;
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++) {
+    for(size_t i = 0; i < m_CAccounts.size(); i++) {
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
-            CKey notificationPKey = m_CBIP47Accounts[i].getNotificationPrivKey().key;
+            CKey notificationPKey = m_CAccounts[i].getNotificationPrivKey().key;
             vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
             LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
-            if(bip47::CBIP47Util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
+            if(bip47::util::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
             {   
                 if (paymentCode.isValid()) {
                     accIndex = i;
@@ -2170,9 +2170,9 @@ string CWallet::findPaymentChannelForOutgoingAddress(string address) const
     CTxDestination btcAddr = CBitcoinAddress(address).Get();
     if (mapAddressBook.count(btcAddr) > 0) 
         return pwalletMain->mapAddressBook[btcAddr].name;
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        const std::vector<bip47::CBIP47PaymentChannel>& channels = item.second;
+        const std::vector<bip47::CPaymentChannel>& channels = item.second;
         for(size_t i = 0; i < channels.size(); i++)
         {
             std::vector<string> outgoingAddresses = channels[i].getOutgoingAddresses();
@@ -2191,12 +2191,12 @@ string CWallet::findPaymentChannelForOutgoingAddress(string address) const
 
 string CWallet::findPaymentChannelForIncomingAddress(string address) const
 {
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        const std::vector<bip47::CBIP47PaymentChannel>& channels = item.second;
+        const std::vector<bip47::CPaymentChannel>& channels = item.second;
         for(size_t i = 0; i < channels.size(); i++)
         {
-            std::vector<bip47::CBIP47Address> incomingAddresses = channels[i].getIncomingAddresses();
+            std::vector<bip47::CAddress> incomingAddresses = channels[i].getIncomingAddresses();
             for(size_t j = 0; j < incomingAddresses.size(); j++)
             {
                 if (address == incomingAddresses[j].toString())
@@ -2240,13 +2240,13 @@ bool CWallet::savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint
     LogPrintf("save PaymentCode with my payment code index %d %s\n", accIndex, myPaymentCode);
     if(m_Bip47channels.count(from_pcode.toString()) > 0)
     {
-        map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator mi = m_Bip47channels.find(from_pcode.toString());
+        map<string, std::vector<bip47::CPaymentChannel>>::iterator mi = m_Bip47channels.find(from_pcode.toString());
         if(mi != m_Bip47channels.end())
         {
             LogPrintf("Existing PaymentCode In Bip47Channels\n");
             for(size_t i = 0; i < mi->second.size(); i++) 
             {
-                bip47::CBIP47PaymentChannel *paymentChannel = &(mi->second[i]);
+                bip47::CPaymentChannel *paymentChannel = &(mi->second[i]);
                 if (paymentChannel->getMyPaymentCode() != myPaymentCode) 
                     continue;
                 paymentChannel->addTransaction(txHash);
@@ -2263,7 +2263,7 @@ bool CWallet::savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint
                 }
             }
         }
-        bip47::CBIP47PaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
+        bip47::CPaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
         paymentChannel.generateKeys(this);
         paymentChannel.addTransaction(txHash);
         m_Bip47channels[from_pcode.toString()].push_back(paymentChannel);
@@ -2272,12 +2272,12 @@ bool CWallet::savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint
 
     try {
         LogPrintf("Generate PaymentChannel from PaymentCode\n");
-        bip47::CBIP47PaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
+        bip47::CPaymentChannel paymentChannel(myPaymentCode, from_pcode.toString());
         LogPrintf("Initialize payment channel\n");
         paymentChannel.generateKeys(this);
         paymentChannel.addTransaction(txHash);
         LogPrintf("Insert Bip47Channels New Pair\n");
-        std::vector<bip47::CBIP47PaymentChannel> channels{paymentChannel};
+        std::vector<bip47::CPaymentChannel> channels{paymentChannel};
         m_Bip47channels.insert(make_pair(from_pcode.toString(),channels));
         return true;
     } catch (std::exception &e) {
@@ -2290,7 +2290,7 @@ bool CWallet::savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint
 
 bool CWallet::IsMyPaymentCode(std::string const & strPaymentCode) const
 {
-    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
+    for(size_t i = 0; i < m_CAccounts.size(); i++)
     {
         if (getPaymentCode(i) == strPaymentCode)
             return true;
@@ -2298,20 +2298,20 @@ bool CWallet::IsMyPaymentCode(std::string const & strPaymentCode) const
     return false;
 }
 
-bip47::CBIP47Account const & CWallet::getBIP47Account(size_t i) const
+bip47::CAccount const & CWallet::getBIP47Account(size_t i) const
 {
-    if(m_CBIP47Accounts.size() <= i) {
+    if(m_CAccounts.size() <= i) {
         throw std::out_of_range("There is no BIP47 account with number: " + std::to_string(i));
     }
-    return m_CBIP47Accounts[i];
+    return m_CAccounts[i];
 }
 
-bip47::CBIP47Account CWallet::getBIP47Account(std::string const & paymentCode) const
+bip47::CAccount CWallet::getBIP47Account(std::string const & paymentCode) const
 {
-    bip47::CBIP47Account acc;
+    bip47::CAccount acc;
     for(size_t i = 0; i < getPaymentCodeCount(); i++) {
         if (getPaymentCode(i) == paymentCode) {
-            return m_CBIP47Accounts[i];
+            return m_CAccounts[i];
         }
     }
     return acc;
@@ -2334,26 +2334,26 @@ std::string CWallet::getNotificationAddress(int i) const
 
 std::string CWallet::getPaymentCode(size_t i) const
 {
-    if( i >= m_CBIP47Accounts.size()) {
+    if( i >= m_CAccounts.size()) {
         throw std::out_of_range("There no BIP47 account with number: " + std::to_string(i));
     }
     return getBIP47Account(i).getStringPaymentCode();
 }
 
 size_t CWallet::getPaymentCodeCount() const {
-    return m_CBIP47Accounts.size();
+    return m_CAccounts.size();
 }
 
 std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
 {
-    std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator m_it = m_Bip47channels.begin();
+    std::map<string, std::vector<bip47::CPaymentChannel>>::iterator m_it = m_Bip47channels.begin();
     while(m_it != m_Bip47channels.end())
     {
-        std::vector<bip47::CBIP47PaymentChannel>::iterator pc_it = m_it->second.begin();
+        std::vector<bip47::CPaymentChannel>::iterator pc_it = m_it->second.begin();
         while(pc_it != m_it->second.end())
         {
-            std::vector<bip47::CBIP47Address> income_addresses = pc_it->getIncomingAddresses();
-            std::vector<bip47::CBIP47Address>::iterator l_it = income_addresses.begin();
+            std::vector<bip47::CAddress> income_addresses = pc_it->getIncomingAddresses();
+            std::vector<bip47::CAddress>::iterator l_it = income_addresses.begin();
             while(l_it != income_addresses.end())
             {
                 if(l_it->getAddress().compare(address) == 0)
@@ -2365,7 +2365,7 @@ std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
     return "";
 }
 
-void CWallet::deriveCBIP47Accounts(vector<unsigned char> const & hd_seed)
+void CWallet::deriveCAccounts(vector<unsigned char> const & hd_seed)
 {
     CExtKey masterKey;             //bip47 master key
     CExtKey purposeKey;            //key at m/47'
@@ -2375,14 +2375,14 @@ void CWallet::deriveCBIP47Accounts(vector<unsigned char> const & hd_seed)
     CWalletDB walletDB(strWalletFile);
     int lastPCodeIndex = 0;
     walletDB.ReadLastPCodeIndex(lastPCodeIndex);
-    m_CBIP47Accounts.clear();
+    m_CAccounts.clear();
     for(int i = 0; i <= lastPCodeIndex; i++) {
         masterKey.SetMaster(&hd_seed[0], hd_seed.size());
         masterKey.Derive(purposeKey, BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
         purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
-        bip47::CBIP47Account bip47Account(coinTypeKey, i);
+        bip47::CAccount bip47Account(coinTypeKey, i);
 
-        m_CBIP47Accounts.push_back(bip47Account);
+        m_CAccounts.push_back(bip47Account);
 
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2412,9 +2412,9 @@ bool CWallet::ReadMasterKey(CExtKey& masterKey)
     return false;
 }
 
-void CWallet::deriveCBIP47Accounts(CExtKey const & masterKey)
+void CWallet::deriveCAccounts(CExtKey const & masterKey)
 {
-    LogPrintf("Dervie CBIP47Accounts\n");
+    LogPrintf("Dervie CAccounts\n");
     CExtKey purposeKey;            //key at m/47'
     CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
 
@@ -2425,15 +2425,15 @@ void CWallet::deriveCBIP47Accounts(CExtKey const & masterKey)
     CWalletDB walletDB(strWalletFile);
     int lastPCodeIndex = 0;
     walletDB.ReadLastPCodeIndex(lastPCodeIndex);
-    m_CBIP47Accounts.clear();
+    m_CAccounts.clear();
     std::vector<string> myPaymentCodes;
     for(int i = 0; i <= lastPCodeIndex; i++) {
         purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
         LogPrintf("Derive CoinTypeKey Done\n");
-        bip47::CBIP47Account bip47Account(coinTypeKey, i);
+        bip47::CAccount bip47Account(coinTypeKey, i);
         LogPrintf("Bip47 Account Created Done\n");
 
-        m_CBIP47Accounts.push_back(bip47Account);
+        m_CAccounts.push_back(bip47Account);
 
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2452,9 +2452,9 @@ void CWallet::deriveCBIP47Accounts(CExtKey const & masterKey)
         myPaymentCodes.push_back(bip47Account.getStringPaymentCode());
         paymentCodeBook[bip47Account.getStringPaymentCode()] = existingLabel;
     }
-    LogPrintf("deriveCBIP47Accounts save %d payment code\n", myPaymentCodes.size());
+    LogPrintf("deriveCAccounts save %d payment code\n", myPaymentCodes.size());
     walletDB.SavePaymentCodes(myPaymentCodes);
-    LogPrintf("Dervie CBIP47Accounts Done\n");
+    LogPrintf("Dervie CAccounts Done\n");
 }
 
 std::string CWallet::generateNewPCode() {           
@@ -2475,10 +2475,10 @@ std::string CWallet::generateNewPCode(CExtKey const & masterKey) {
     lastPCodeIndex++;
     purposeKey.Derive(coinTypeKey, lastPCodeIndex | BIP32_HARDENED_KEY_LIMIT);
     LogPrintf("Derive CoinTypeKey Done\n");
-    bip47::CBIP47Account bip47Account(coinTypeKey, lastPCodeIndex);
+    bip47::CAccount bip47Account(coinTypeKey, lastPCodeIndex);
     LogPrintf("Bip47 Account Created Done\n");
 
-    m_CBIP47Accounts.push_back(bip47Account);
+    m_CAccounts.push_back(bip47Account);
 
     CBitcoinAddress notificationAddress = getBIP47Account(lastPCodeIndex).getNotificationAddress();
     CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2493,10 +2493,10 @@ std::string CWallet::generateNewPCode(CExtKey const & masterKey) {
     paymentCodeBook[bip47Account.getStringPaymentCode()] = label;
 
     std::vector<string> paymentCodes;
-    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
+    for(size_t i = 0; i < m_CAccounts.size(); i++)
     {
 
-        string pcode = m_CBIP47Accounts[i].getStringPaymentCode();
+        string pcode = m_CAccounts[i].getStringPaymentCode();
         paymentCodes.push_back(pcode);
     }
     walletDB.SavePaymentCodes(paymentCodes);
@@ -2523,11 +2523,11 @@ string CWallet::GetPaymentCodeLabel(string paymentCode)
     return label;
 }
 
-void CWallet::saveCBIP47PaymentChannelData(string pchannelId)
+void CWallet::saveCPaymentChannelData(string pchannelId)
 {
     try {
         CWalletDB walletdb(strWalletFile);
-        std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator it = m_Bip47channels.find(pchannelId);
+        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator it = m_Bip47channels.find(pchannelId);
         if(it != m_Bip47channels.end())
         {
             LogPrintf("Save PaymentChannels with payment code %s\n", pchannelId);
@@ -2545,11 +2545,11 @@ void CWallet::saveCBIP47PaymentChannelData(string pchannelId)
     }
 }
 
-bool CWallet::addToCBIP47PaymentChannel(bip47::CBIP47PaymentChannel paymentChannel)
+bool CWallet::addToCPaymentChannel(bip47::CPaymentChannel paymentChannel)
 {
     if (m_Bip47channels.count(paymentChannel.getPaymentCode()) > 0)
     {
-        std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator it = m_Bip47channels.find(paymentChannel.getPaymentCode());
+        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator it = m_Bip47channels.find(paymentChannel.getPaymentCode());
         //search for the chanel with the same my payment code
         bool found = false;
         for(size_t i = 0; i < it->second.size(); i++) 
@@ -2566,7 +2566,7 @@ bool CWallet::addToCBIP47PaymentChannel(bip47::CBIP47PaymentChannel paymentChann
         }
         return false;
     }
-    std::vector<bip47::CBIP47PaymentChannel> channels{paymentChannel};
+    std::vector<bip47::CPaymentChannel> channels{paymentChannel};
     m_Bip47channels.insert(make_pair(paymentChannel.getPaymentCode(), channels));
     return true;
 
@@ -2586,11 +2586,11 @@ bool CWallet::loadPCodeNotificationTransactions(std::vector<std::string>& vPCode
     return CWalletDB(strWalletFile).loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
 }
 
-bool CWallet::generateNewBip47IncomingAddress(string address, bip47::CBIP47PaymentChannel* pchannel)
+bool CWallet::generateNewBip47IncomingAddress(string address, bip47::CPaymentChannel* pchannel)
 {
     std::string pcodestr = pchannel->getPaymentCode();
-    std::vector<bip47::CBIP47Address> income_addresses = pchannel->getIncomingAddresses();
-    std::vector<bip47::CBIP47Address>::iterator l_it = income_addresses.begin();
+    std::vector<bip47::CAddress> income_addresses = pchannel->getIncomingAddresses();
+    std::vector<bip47::CAddress>::iterator l_it = income_addresses.begin();
     while(l_it != income_addresses.end()) 
     {
         if(l_it->getAddress().compare(address)) 
@@ -2604,8 +2604,8 @@ bool CWallet::generateNewBip47IncomingAddress(string address, bip47::CBIP47Payme
         }
         bip47::CPaymentCode pcode(pcodestr);
         int nextIndex = pchannel->getCurrentIncomingIndex() + 1;
-        bip47::CBIP47Account acc = getBIP47Account(pchannel->getMyPaymentCode());
-        CKey nkey = bip47::CBIP47Util::getReceiveAddress(&acc, this, pcode, nextIndex).getReceiveECKey();
+        bip47::CAccount acc = getBIP47Account(pchannel->getMyPaymentCode());
+        CKey nkey = bip47::util::getReceiveAddress(&acc, this, pcode, nextIndex).getReceiveECKey();
         CPubKey npkey = nkey.GetPubKey();
         importKey(nkey);
         CBitcoinAddress newaddr(npkey.GetID());
@@ -2618,16 +2618,16 @@ bool CWallet::generateNewBip47IncomingAddress(string address, bip47::CBIP47Payme
     return false;
 }
 
-bip47::CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode) const
+bip47::CPaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode) const
 {
     if (m_Bip47channels.count(pcodestr) > 0)
     {
         LogPrintf("Found Pcode %s in Bip47Channels\n", pcodestr);
-        std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator it = m_Bip47channels.find(pcodestr);
+        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator it = m_Bip47channels.find(pcodestr);
         if (myPaymentCode == "") {
             return &it->second[0];
         } else {
-            std::vector<bip47::CBIP47PaymentChannel>& channels = it->second;
+            std::vector<bip47::CPaymentChannel>& channels = it->second;
             for (size_t i = 0; i < channels.size(); i++) {
                 if (channels[i].getMyPaymentCode() == myPaymentCode) {
                     return &channels[i];
@@ -2641,11 +2641,11 @@ bip47::CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::stri
         //default to the first payment code to handshake with the counter party
         myPaymentCodeForHandshake = getPaymentCode(0); 
     }
-    bip47::CBIP47PaymentChannel newChannel(myPaymentCodeForHandshake, pcodestr);
+    bip47::CPaymentChannel newChannel(myPaymentCodeForHandshake, pcodestr);
     if (m_Bip47channels.count(pcodestr) > 0) {
         m_Bip47channels[pcodestr].push_back(newChannel);
     } else {
-        std::vector<bip47::CBIP47PaymentChannel> channels;
+        std::vector<bip47::CPaymentChannel> channels;
         channels.push_back(newChannel);
         m_Bip47channels[pcodestr] = channels;
     }
@@ -2654,11 +2654,11 @@ bip47::CBIP47PaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::stri
 
 bool CWallet::setBip47ChannelLabel(std::string const & pcodestr, std::string const & label)
 {
-    bip47::CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
+    bip47::CPaymentChannel* pchannel = getPaymentChannelFromPaymentCode(pcodestr);
     pchannel->setLabel(label);
     //also set the first chanel for this pcodestr
     m_Bip47channels[pcodestr][0].setLabel(label);
-    saveCBIP47PaymentChannelData(pcodestr); // lgtm [cpp/missing-return]
+    saveCPaymentChannelData(pcodestr); // lgtm [cpp/missing-return]
     SetPaymentCodeBookLabel(pcodestr, label);
     return true;
 }
@@ -2672,9 +2672,9 @@ void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large
         bool needsSaving = savePaymentCode(from_pcode, accIndex, tx.GetHash());
         if(needsSaving)
         {
-            /*CBIP47PaymentChannel* pchannel = getPaymentChannelFromPaymentCode(from_pcode.toString(), getPaymentCode(accIndex));
+            /*CPaymentChannel* pchannel = getPaymentChannelFromPaymentCode(from_pcode.toString(), getPaymentCode(accIndex));
             pchannel->setStatusSent(tx.GetHash());*/
-            saveCBIP47PaymentChannelData(from_pcode.toString());
+            saveCPaymentChannelData(from_pcode.toString());
             LogPrintf("NotifyPaymentCodeTx\n");
             NotifyPaymentCodeTx();
         }
@@ -2686,10 +2686,10 @@ void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large
     
 }
 
-std::string CWallet::getCurrentOutgoingAddress(bip47::CBIP47PaymentChannel paymentChannel)
+std::string CWallet::getCurrentOutgoingAddress(bip47::CPaymentChannel paymentChannel)
 {
     bip47::CPaymentCode payment_to(paymentChannel.getPaymentCode());
-    bip47::CPaymentAddress paddr = bip47::CBIP47Util::getSendAddress(this, payment_to, paymentChannel.getCurrentOutgoingIndex());
+    bip47::CPaymentAddress paddr = bip47::util::getSendAddress(this, payment_to, paymentChannel.getCurrentOutgoingIndex());
     CPubKey outgoingKey = paddr.getSendECKey();
     CBitcoinAddress outAddress(outgoingKey.GetID());
     return outAddress.ToString();
@@ -2754,19 +2754,19 @@ bool CWallet::importBip47PendingKeys()
 
 void CWallet::deriveBip47Keys()
 {
-    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, m_Bip47channels)
+    BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, m_Bip47channels)
     {
-        std::vector<bip47::CBIP47PaymentChannel>& channels = m_Bip47channels[item.first];
+        std::vector<bip47::CPaymentChannel>& channels = m_Bip47channels[item.first];
         for(size_t i = 0; i < channels.size(); i++)
         {
-            bip47::CBIP47PaymentChannel& channel = channels[i];
-            const std::vector<bip47::CBIP47Address>& incomingAddresses = channel.getIncomingAddresses();
+            bip47::CPaymentChannel& channel = channels[i];
+            const std::vector<bip47::CAddress>& incomingAddresses = channel.getIncomingAddresses();
             for(size_t j = 0; j < incomingAddresses.size(); j++)
             {
-                const bip47::CBIP47Address& bip47Address = incomingAddresses[j];
+                const bip47::CAddress& bip47Address = incomingAddresses[j];
                 bip47::CPaymentCode pcode(channel.getPaymentCode());
-                bip47::CBIP47Account acc = getBIP47Account(channel.getMyPaymentCode());
-                bip47::CPaymentAddress paddr = bip47::CBIP47Util::getReceiveAddress(&acc, this, pcode, bip47Address.getIndex());
+                bip47::CAccount acc = getBIP47Account(channel.getMyPaymentCode());
+                bip47::CPaymentAddress paddr = bip47::util::getReceiveAddress(&acc, this, pcode, bip47Address.getIndex());
                 CKey newgenKey = paddr.getReceiveECKey();
                 importKey(newgenKey);
                 CBitcoinAddress btcAddr = getAddressOfKey(newgenKey.GetPubKey());
@@ -2867,7 +2867,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer)
 
 bool CWallet::IsNotificationScript(const CScript& scriptPubkey) const
 {
-    for(size_t i = 0; i < m_CBIP47Accounts.size(); i++)
+    for(size_t i = 0; i < m_CAccounts.size(); i++)
     {
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2882,7 +2882,7 @@ bool CWallet::IsNotificationScript(const CScript& scriptPubkey) const
         LogPrintf("IsNotificationScript: payment code size %d\n", myPaymentCodes.size());
         for(size_t i = 0; i < myPaymentCodes.size(); i++)
         {
-            bip47::CBIP47Account acc(myPaymentCodes[i]);
+            bip47::CAccount acc(myPaymentCodes[i]);
             LogPrintf("IsNotificationScript: payment cde %s\n", myPaymentCodes[i]);
             CBitcoinAddress notificationAddress = acc.getNotificationAddress();
             CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2916,7 +2916,7 @@ bool CWallet::IsNotificationScript(const CScript& scriptPubkey) const
                     }
                     if (result.size() == 3)
                     {
-                        if (result[0] == "CBIP47PAYMENT-notification") 
+                        if (result[0] == "CPAYMENT-notification") 
                             return true;
                     }
                 }

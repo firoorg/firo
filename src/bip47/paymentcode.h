@@ -18,9 +18,9 @@ class CPaymentCode {
         CPaymentCode(unsigned char* v_pubkey, unsigned char* v_chain);
         CPaymentCode(const unsigned char* v_pubkey,  const unsigned char *v_chain);
         
-        CBIP47ChannelAddress notificationAddress();
+        CChannelAddress notificationAddress();
 
-        CBIP47ChannelAddress addressAt(int idx) const;
+        CChannelAddress addressAt(int idx) const;
         std::vector<unsigned char> getPayload() const;
 
         int getVersion();
