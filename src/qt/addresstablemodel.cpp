@@ -644,7 +644,7 @@ public:
         cachedPaymentCodeTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>)& item, wallet->m_Bip47channels)
+            BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>)& item, wallet->m_Bip47channels)
             {
                 const string& address = item.first;
                 PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Sending;
@@ -745,7 +745,7 @@ public:
         cachedRAPTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const CBIP47Account& item, wallet->m_CBIP47Accounts)
+            BOOST_FOREACH(const bip47::CBIP47Account& item, wallet->m_CBIP47Accounts)
             {
                 const string& pcode = item.getStringPaymentCode();
                 std::string label = wallet->GetPaymentCodeLabel(pcode);
@@ -913,7 +913,7 @@ bool PaymentCodeTableModel::setData(const QModelIndex &index, const QVariant &va
         } else if(index.column() == Address) {
             std::string newAddress = value.toString().toStdString();
             // Refuse to set invalid address, set error status and return false
-            if(!CPaymentCode(newAddress).isValid())
+            if(!bip47::CPaymentCode(newAddress).isValid())
             {
                 editStatus = INVALID_PAYMENTCODE;
                 return false;
@@ -1041,7 +1041,7 @@ QString PaymentCodeTableModel::labelForAddress(const QString &address) const
 {
     {
         LOCK(wallet->cs_wallet);
-        std::map<string, std::vector<CBIP47PaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
+        std::map<string, std::vector<bip47::CBIP47PaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
         if (mi != wallet->m_Bip47channels.end())
         {
             return QString::fromStdString(mi->second[0].getLabel());
@@ -1171,7 +1171,7 @@ bool MyRAPTableModel::setData(const QModelIndex &index, const QVariant &value, i
         } else if(index.column() == Address) {
             std::string newAddress = value.toString().toStdString();
             // Refuse to set invalid address, set error status and return false
-            if(!CPaymentCode(newAddress).isValid())
+            if(!bip47::CPaymentCode(newAddress).isValid())
             {
                 editStatus = INVALID_PAYMENTCODE;
                 return false;

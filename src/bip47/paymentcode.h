@@ -6,6 +6,8 @@
 #include "bip47/channeladdress.h"
 #include "chainparamsbase.h"
 
+namespace bip47 {
+
 class CPaymentCode {
 
     public:
@@ -60,4 +62,7 @@ class CPaymentCode {
         bool valid;
 
 };
+
+}
+
 #endif // ZCOIN_BIP47PAYMENTCODE_H

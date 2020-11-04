@@ -1,6 +1,8 @@
 
 #include "bip47/address.h"
 
+namespace bip47 {
+
 std::string CBIP47Address::getAddress() 
 {
     return address;
@@ -24,4 +26,6 @@ void CBIP47Address::setSeen(bool v_seen)
 std::string CBIP47Address::toString() 
 {
     return address;
+}
+
 }

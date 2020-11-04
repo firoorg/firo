@@ -3,6 +3,8 @@
 #include "bip47/paymentcode.h"
 #include "util.h"
 
+namespace bip47 {
+
 CBIP47Account::CBIP47Account(CExtKey &coinType, int identity) 
 {
     accountId = identity;
@@ -144,5 +146,7 @@ CExtKey CBIP47Account::keyPrivAt(int idx) const
     }
     
     return result;
+}
 
 }
+

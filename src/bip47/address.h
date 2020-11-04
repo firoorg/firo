@@ -9,6 +9,8 @@
 #include "clientversion.h"
 #include "serialize.h"
 
+namespace bip47 {
+
 class CBIP47Address
 {
 public:
@@ -36,5 +38,7 @@ private:
     int index = 0;
     bool seen = false;
 };
+
+}
 
 #endif

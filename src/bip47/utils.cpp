@@ -10,6 +10,8 @@
 
 using namespace std;
 
+namespace bip47 {
+
 unsigned char* CBIP47Util::arraycopy(const unsigned char *source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
     return (unsigned char*)memcpy(dest_arr + destPos,source_arr + sourcePos , len);
 }
@@ -255,6 +257,4 @@ CPaymentAddress CBIP47Util::getSendAddress(CWallet* pbip47Wallet, CPaymentCode &
     
 }
 
-
-
-
+}

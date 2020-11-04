@@ -3,6 +3,8 @@
 #include "bip47/channeladdress.h"
 #include "util.h"
 
+namespace bip47 {
+
 int CPaymentCode::PUBLIC_KEY_Y_OFFSET = 2;
 int CPaymentCode::PUBLIC_KEY_X_OFFSET = 3;
 int CPaymentCode::CHAIN_OFFSET = 35;
@@ -246,4 +248,6 @@ bool CPaymentCode::createMasterPubKeyFromPaymentCode ( string payment_code_str,C
 
     CPaymentCode pcode ( payment_code_str );
     return CPaymentCode::createMasterPubKeyFromBytes ( pcode.getPubKey(), pcode.getChainCode(), masterPubKey );
+}
+
 }

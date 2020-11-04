@@ -5,6 +5,8 @@
 #include "bip47/paymentcode.h"
 #include "bip47/secretpoint.h"
 
+namespace bip47 {
+
 class CPaymentAddress
 {
     public:
@@ -42,4 +44,7 @@ class CPaymentAddress
         CPaymentCode paymentCode;
 
 };
+
+}
+
 #endif // ZCOIN_BIP47PAYMENTADDRESS_H

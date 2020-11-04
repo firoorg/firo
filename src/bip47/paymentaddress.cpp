@@ -2,7 +2,7 @@
 #include "bip47/paymentcode.h"
 #include "bip47/utils.h"
 
-
+namespace bip47 {
 
 CPaymentAddress::CPaymentAddress()
 {
@@ -192,4 +192,4 @@ secp_primitives::Scalar CPaymentAddress::secretPoint()
 
 }
 
-
+}

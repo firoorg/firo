@@ -13,12 +13,15 @@
 
 #define HARDENED_BIT 0x80000000
 
-class CPaymentCode;
-class CPaymentAddress;
 class CWallet;
 class CTxOut;
 class CTxIn;
 class CTransaction;
+
+namespace bip47 {
+
+class CPaymentCode;
+class CPaymentAddress;
 class CBIP47Account;
 
 class CBIP47Util {
@@ -39,4 +42,7 @@ class CBIP47Util {
 	    static CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx);
 
 };
+
+}
+
 #endif // ZCOIN_BIP47UTIL_H

@@ -5,6 +5,8 @@
 #include "chainparamsbase.h"
 #include "key.h"
 
+namespace bip47 {
+
 class CBIP47ChannelAddress
 {
 public:
@@ -20,4 +22,7 @@ private:
     CExtPubKey ecKey;
     std::vector<unsigned char> pubKey;
 };
+
+}
+
 #endif

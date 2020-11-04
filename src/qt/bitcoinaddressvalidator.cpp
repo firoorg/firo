@@ -158,7 +158,7 @@ QValidator::State PaymentCodeOrBitcoinAddressEntryValidator::validate(QString &i
         }
         else
         {
-            CPaymentCode pcode(input.toStdString());
+            bip47::CPaymentCode pcode(input.toStdString());
             if (!pcode.isValid())
                 state = QValidator::Invalid;
         }
@@ -166,17 +166,6 @@ QValidator::State PaymentCodeOrBitcoinAddressEntryValidator::validate(QString &i
 
     return state;
 }
-
-
-
-
-
-
-
-
-
-///// PaymentCodeOrBitcoinAddress?
-
 
 PaymentCodeOrBitcoinAddressCheckValidator::PaymentCodeOrBitcoinAddressCheckValidator(QObject *parent) :
     QValidator(parent)
@@ -191,9 +180,9 @@ QValidator::State PaymentCodeOrBitcoinAddressCheckValidator::validate(QString &i
     if (addr.IsValid())
         return QValidator::Acceptable;
 
-    CPaymentCode pcode(input.toStdString());
-            if (pcode.isValid())
-                return QValidator::Acceptable;
-            else
-                return QValidator::Invalid;
+    bip47::CPaymentCode pcode(input.toStdString());
+    if (pcode.isValid())
+        return QValidator::Acceptable;
+    else
+        return QValidator::Invalid;
 }

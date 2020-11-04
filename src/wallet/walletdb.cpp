@@ -319,7 +319,7 @@ bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
 
-bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<CBIP47PaymentChannel>& channels)
+bool CWalletDB::SavePaymentChannels(std::string paymentCode, const std::vector<bip47::CBIP47PaymentChannel>& channels)
 {
     //read payment code list
     std::vector<string> paymentCodes;
@@ -1438,54 +1438,57 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
     return Write(std::string("hdchain"), chain);
 }
 
-void CWalletDB::ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels)
+/******************************************************************************/
+// BIP47
+/******************************************************************************/
+
+void CWalletDB::ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CBIP47PaymentChannel>> &mPchannels)
 {
     //read payment code list
     std::vector<string> paymentCodes;
-    Read("CBIP47PaymentChannelList", paymentCodes);
+    Read("bip47channellist", paymentCodes);
     for(size_t i = 0; i < paymentCodes.size(); i++) 
     {
         std::string paymentCode = paymentCodes[i];
-        std::vector<CBIP47PaymentChannel> channels;
-        Read(std::make_pair(std::string("CBIP47PaymentChannel"), paymentCode), channels);
+        std::vector<bip47::CBIP47PaymentChannel> channels;
+        Read(std::make_pair(std::string("bip47channel"), paymentCode), channels);
         mPchannels[paymentCode] = channels;    
     }
-}
-
-bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value) {
-    nWalletDBUpdateCounter++;
-    return Write(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)), value);
 }
 
 void CWalletDB::SavePaymentCodes(const std::vector<string>& paymentCodes)
 {
     nWalletDBUpdateCounter++;
-    Write("CBIP47MyPaymentCodesList", paymentCodes);
+    Write("bip47paymentcodelist", paymentCodes);
 }
 void CWalletDB::ReadPaymentCodes(std::vector<string>& paymentCodes)
 {
-    Read("CBIP47MyPaymentCodesList", paymentCodes);
+    Read("bip47paymentcodelist", paymentCodes);
 }
 
 bool CWalletDB::WriteBip47SeedMaster(const vector<unsigned char> &seedmaster) {
     nWalletDBUpdateCounter++;
-    return Write(string("Bip47SeedMaster"), seedmaster);
+    return Write(string("bip47seedmaster"), seedmaster);
 }
 
 bool CWalletDB::ReadBip47SeedMaster(vector<unsigned char>& seedmaster)
 {
-    return Read(string("Bip47SeedMaster"), seedmaster);
-}
-
-bool CWalletDB::ErasePcodeNotificationData(const std::string &rpcodestr, const std::string &key) {
-    nWalletDBUpdateCounter++;
-    return Erase(std::make_pair(std::string("pcodentdata"), std::make_pair(rpcodestr, key)));
+    return Read(string("bip47seedmaster"), seedmaster);
 }
 
 bool CWalletDB::ReadLastPCodeIndex(int& lastIndex)
 {
     lastIndex = 0;
-    return Read(string("LastPCodeIndex"), lastIndex);
+    return Read(string("bip47lastpcodeindex"), lastIndex);
+}
+
+bool CWalletDB::UpdateLastPCodeIndex() {
+    int lastIndex = 0;
+    if (ReadLastPCodeIndex(lastIndex)) {
+        lastIndex++;
+    }
+    nWalletDBUpdateCounter++;
+    return Write(string("bip47lastpcodeindex"), lastIndex);
 }
 
 std::string CWalletDB::ReadPaymentCodeLabel(std::string paymentCode)
@@ -1501,13 +1504,14 @@ bool CWalletDB::WritePaymentCodeLabel(std::string paymentCode, std::string label
     return Write(paymentCode, label);
 }
 
-bool CWalletDB::UpdateLastPCodeIndex() {
-    int lastIndex = 0;
-    if (ReadLastPCodeIndex(lastIndex)) {
-        lastIndex++;
-    } 
+bool CWalletDB::ErasePcodeNotificationData(const std::string &rpcodestr, const std::string &key) {
     nWalletDBUpdateCounter++;
-    return Write(string("LastPCodeIndex"), lastIndex);
+    return Erase(std::make_pair(std::string("bip47pcodentdata"), std::make_pair(rpcodestr, key)));
+}
+
+bool CWalletDB::WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value) {
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("bip47pcodentdata"), std::make_pair(rpcodestr, key)), value);
 }
 
 bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
@@ -1521,7 +1525,7 @@ bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCo
         LogPrintf("Create CDataStream ssKey\n");
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("pcodentdata"), std::make_pair(string(""), string("")));
+            ssKey << make_pair(string("bip47pcodentdata"), std::make_pair(string(""), string("")));
         LogPrintf("Create CDataStream ssValue\n");
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         LogPrintf("ReadAtCursor sskey and ssValue\n");
@@ -1538,7 +1542,7 @@ bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCo
         string strType;
         ssKey >> strType;
         LogPrintf("strType is %s\n", strType);
-        if (strType != "pcodentdata")
+        if (strType != "bip47pcodentdata")
             break;
         std::pair<string, string> key2data;
         ssKey >> key2data;
@@ -1551,6 +1555,10 @@ bool CWalletDB::loadPCodeNotificationTransactions(std::vector<std::string>& vPCo
     pcursor->close();
     return true;
 }
+
+/******************************************************************************/
+// Mnemonic
+/******************************************************************************/
 
 bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
     nWalletDBUpdateCounter++;

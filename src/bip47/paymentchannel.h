@@ -6,10 +6,11 @@
 #include "serialize.h"
 #include "streams.h"
 #include "uint256.h"
-#include <string>
 
 
 class CWallet;
+
+namespace bip47 {
 
 class CBIP47PaymentChannel
 {
@@ -72,4 +73,7 @@ private:
     int currentIncomingIndex;
     uint256 notiTxHash;
 };
+
+}
+
 #endif // ZCOIN_BIP47CHANNEL_H

@@ -163,6 +163,8 @@ BOOST_FIXTURE_TEST_SUITE(bip47_tests, TestingSetup)
  *  
  * */
 
+using namespace bip47;
+
 BOOST_AUTO_TEST_CASE(payment_address)
 {
     

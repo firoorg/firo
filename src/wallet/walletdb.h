@@ -50,7 +50,9 @@ class CZerocoinEntry;
 class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
+namespace bip47 {
 class CBIP47PaymentChannel;
+}
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -259,7 +261,7 @@ public:
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
 
-    bool SavePaymentChannels(std::string paymentCode, const std::vector<CBIP47PaymentChannel>& channels);
+    bool SavePaymentChannels(std::string paymentCode, const std::vector<bip47::CBIP47PaymentChannel>& channels);
 
     DBErrors ReorderTransactions(CWallet* pwallet);
     DBErrors LoadWallet(CWallet* pwallet);
@@ -300,8 +302,8 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-    // @bip47 channel data write
-    void ListCBIP47PaymentChannel(std::map <string, std::vector<CBIP47PaymentChannel>> &mPchannels);
+    //bip47 data
+    void ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CBIP47PaymentChannel>> &mPchannels);
 
     void SavePaymentCodes(const std::vector<string>& paymentCodes);
     void ReadPaymentCodes(std::vector<string>& paymentCodes);

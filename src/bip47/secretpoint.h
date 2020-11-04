@@ -5,6 +5,8 @@
 #include "pubkey.h"
 #include "sigma/openssl_context.h"
 
+namespace bip47 {
+
 class SecretPoint {
 
     public:
@@ -31,4 +33,7 @@ class SecretPoint {
         secp256k1_pubkey pubKey;
 
 };
+
+}
+
 #endif // ZCOIN_BIP47SECRETPOINT_H

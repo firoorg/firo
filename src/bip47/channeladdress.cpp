@@ -1,5 +1,7 @@
 #include "bip47/channeladdress.h"
 
+namespace bip47 {
+
 CBIP47ChannelAddress::CBIP47ChannelAddress(CExtPubKey const & cKey, int child)
 {
     childNum = child;
@@ -19,4 +21,6 @@ std::vector<unsigned char>& CBIP47ChannelAddress::getPubKey()
 std::string CBIP47ChannelAddress::getPath()
 {
     return strPath;
+}
+
 }

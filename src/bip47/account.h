@@ -6,6 +6,8 @@
 #include "key.h"
 #include "pubkey.h"
 
+namespace bip47 {
+
 class CBIP47Account
 {
 public:
@@ -35,5 +37,7 @@ private:
     int accountId;
     CPaymentCode paymentCode;
 };
+
+}
 
 #endif // ZCOIN_BIP47ACCOUNT_H

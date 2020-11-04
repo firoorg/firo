@@ -4333,7 +4333,7 @@ UniValue getnotificationaddressfrompaymentcode(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
 
-    CBIP47Account bip47Account(request.params[0].get_str());
+    bip47::CBIP47Account bip47Account(request.params[0].get_str());
 
     return bip47Account.getNotificationAddress().ToString();
 }
@@ -4363,7 +4363,7 @@ UniValue getpaymentcodefromnotificationtx(const JSONRPCRequest& request)
 
     if (pwallet->isNotificationTransaction(tx)) {
         int accIndex;
-        CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx, accIndex);
+        bip47::CPaymentCode pcode = pwallet->getPaymentCodeInNotificationTransaction(tx, accIndex);
         if (pcode.isValid()) {
             bool needsSaving = pwallet->savePaymentCode(pcode, accIndex);
             if (needsSaving) {
@@ -4416,8 +4416,8 @@ UniValue validatepcode(const JSONRPCRequest& request)
 #endif
 
     std::string strPcode = request.params[0].get_str();
-    CPaymentCode paymentCode(strPcode);
-    CBIP47Account bip47Account(strPcode);
+    bip47::CPaymentCode paymentCode(strPcode);
+    bip47::CBIP47Account bip47Account(strPcode);
     bool isValid = paymentCode.isValid();
     bool walletCBIP47AccountValid = pwallet->getBIP47Account(0).isValid();
 
@@ -4432,13 +4432,13 @@ UniValue validatepcode(const JSONRPCRequest& request)
         ret.push_back(Pair("IsMine", false));
         if (pwallet->m_Bip47channels.count(strPcode) > 0) {
             ret.push_back(Pair("Exist in CBIP47PaymentChannel", true));
-            CBIP47PaymentChannel* pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
+            bip47::CBIP47PaymentChannel* pchannel = pwallet->getPaymentChannelFromPaymentCode(strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(*pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if (pchannel->getIncomingAddresses().size() == 0) {
-                CBIP47Account acc = pwallet->getBIP47Account(pchannel->getMyPaymentCode());
-                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
+                bip47::CBIP47Account acc = pwallet->getBIP47Account(pchannel->getMyPaymentCode());
+                bip47::CPaymentAddress paddr = bip47::CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4449,12 +4449,12 @@ UniValue validatepcode(const JSONRPCRequest& request)
             }
         } else {
             ret.push_back(Pair("Exist in CBIP47PaymentChannel", false));
-            CBIP47PaymentChannel pchannel(pwallet->getPaymentCode(0), strPcode);
+            bip47::CBIP47PaymentChannel pchannel(pwallet->getPaymentCode(0), strPcode);
             std::string outaddress = pwallet->getCurrentOutgoingAddress(pchannel);
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if (pchannel.getIncomingAddresses().size() == 0) {
-                CBIP47Account acc = pwallet->getBIP47Account(0);
-                CPaymentAddress paddr = CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
+                bip47::CBIP47Account acc = pwallet->getBIP47Account(0);
+                bip47::CPaymentAddress paddr = bip47::CBIP47Util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4468,12 +4468,12 @@ UniValue validatepcode(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue listPaymentChannelsRPC(const std::vector<CBIP47PaymentChannel>& channels)
+UniValue listPaymentChannelsRPC(const std::vector<bip47::CBIP47PaymentChannel>& channels)
 {
     UniValue arrChannels(UniValue::VARR);
     for (size_t i = 0; i < channels.size(); i++) {
         UniValue uniChannelItem(UniValue::VOBJ);
-        const CBIP47PaymentChannel& paymentChannelItem = channels[i];
+        const bip47::CBIP47PaymentChannel& paymentChannelItem = channels[i];
         uniChannelItem.push_back(Pair("paymentCode", paymentChannelItem.getPaymentCode()));
         uniChannelItem.push_back(Pair("myPaymentCode", paymentChannelItem.getMyPaymentCode()));
         uniChannelItem.push_back(Pair("label", paymentChannelItem.getLabel()));
@@ -4483,7 +4483,7 @@ UniValue listPaymentChannelsRPC(const std::vector<CBIP47PaymentChannel>& channel
         uniChannelItem.push_back(Pair("notiTx", paymentChannelItem.getNotificationTxHash().GetHex()));
 
         UniValue uniIncomingAddresses(UniValue::VARR);
-        std::vector<CBIP47Address> incomingAddresses = paymentChannelItem.getIncomingAddresses();
+        std::vector<bip47::CBIP47Address> incomingAddresses = paymentChannelItem.getIncomingAddresses();
         for (size_t j = 0; j < incomingAddresses.size(); j++) {
             uniIncomingAddresses.push_back(incomingAddresses[j].getAddress());
         }
@@ -4504,11 +4504,11 @@ UniValue listPaymentChannelsRPC(const std::vector<CBIP47PaymentChannel>& channel
 UniValue readpaymentchannels(const JSONRPCRequest& request)
 {
     UniValue ret(UniValue::VOBJ);
-    std::map<string, std::vector<CBIP47PaymentChannel> > mPchannels;
+    std::map<string, std::vector<bip47::CBIP47PaymentChannel> > mPchannels;
     CWalletDB db(pwalletMain->strWalletFile);
-    db.ListCBIP47PaymentChannel(mPchannels);
-    BOOST_FOREACH (const PAIRTYPE(string, std::vector<CBIP47PaymentChannel>) & item, mPchannels) {
-        const std::vector<CBIP47PaymentChannel>& channels = item.second;
+    db.ListBIP47PaymentChannels(mPchannels);
+    BOOST_FOREACH (const PAIRTYPE(string, std::vector<bip47::CBIP47PaymentChannel>) & item, mPchannels) {
+        const std::vector<bip47::CBIP47PaymentChannel>& channels = item.second;
         UniValue arrChannels = listPaymentChannelsRPC(channels);
         ret.push_back(Pair(item.first, arrChannels));
     }
@@ -4534,8 +4534,8 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CPaymentCode myPaymentCode(request.params[0].get_str());
-    CPaymentCode paymentCode(request.params[1].get_str());
+    bip47::CPaymentCode myPaymentCode(request.params[0].get_str());
+    bip47::CPaymentCode paymentCode(request.params[1].get_str());
     if (!paymentCode.isValid() || !myPaymentCode.isValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin paymentcode");
 
@@ -4550,7 +4550,7 @@ UniValue sendtopaymentcode(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
 
-    const CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPaymentCode.toString());
+    const bip47::CBIP47PaymentChannel* channel = pwallet->getPaymentChannelFromPaymentCode(paymentCode.toString(), myPaymentCode.toString());
 
     if (channel->isNotificationTransactionSent()) {
         std::string addressTo = pwallet->getCurrentOutgoingAddress(*channel);

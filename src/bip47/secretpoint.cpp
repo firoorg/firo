@@ -1,6 +1,8 @@
 #include "sigma/coin.h"
 #include "bip47/secretpoint.h"
 
+namespace bip47 {
+
 SecretPoint::SecretPoint() {
 }
 
@@ -58,3 +60,4 @@ void SecretPoint::loadPrivateKey(std::vector<unsigned char> data) {
     privKey.Set(data.begin(),data.end(),false);
 }
 
+}
