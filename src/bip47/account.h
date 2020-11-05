@@ -2,7 +2,6 @@
 #ifndef ZCOIN_BIP47ACCOUNT_H
 #define ZCOIN_BIP47ACCOUNT_H
 #include "bip47/paymentcode.h"
-#include "bip47/utils.h"
 #include "key.h"
 #include "pubkey.h"
 
@@ -13,9 +12,9 @@ class CAccount
 public:
     CAccount() { accountId = 0; }
     CAccount(CExtKey& coinType, int identity);
-    CAccount(std::string strPaymentCode);
+    CAccount(std::string const & strPaymentCode);
 
-    bool SetPaymentCodeString(std::string strPaymentCode);
+    bool SetPaymentCodeString(std::string const & strPaymentCode);
     std::string getStringPaymentCode() const;
 
     CBitcoinAddress getNotificationAddress() const;

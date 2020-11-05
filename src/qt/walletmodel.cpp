@@ -615,7 +615,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             vector<unsigned char> pubKeyBytes;
             
-            if (!bip47::util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
+            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
             }
@@ -634,8 +634,8 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             vector<unsigned char> dataPriv(privKey.size());
             vector<unsigned char> dataPub(pubkey.size());
 
-            bip47::util::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
-            bip47::util::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
+            bip47::utils::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
+            bip47::utils::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
             LogPrintf("Generate Secret Point\n");
             bip47::SecretPoint secretPoint(dataPriv, dataPub);
@@ -660,7 +660,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
             
-            if (!bip47::util::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
+            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
             {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
             }

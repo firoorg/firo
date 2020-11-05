@@ -1,8 +1,6 @@
-
 #ifndef BIP47CHANNELADDRESS_H
 #define BIP47CHANNELADDRESS_H
-#include "bip47/utils.h"
-#include "chainparamsbase.h"
+
 #include "key.h"
 
 namespace bip47 {

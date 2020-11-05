@@ -1,30 +1,33 @@
 #include "sigma/coin.h"
 #include "bip47/secretpoint.h"
+#include "sigma/openssl_context.h"
+#include "bip47/utils.h"
+
 
 namespace bip47 {
 
 SecretPoint::SecretPoint() {
 }
 
-SecretPoint::SecretPoint(std::vector<unsigned char> dataPrv, std::vector<unsigned char> dataPub)
+SecretPoint::SecretPoint(std::vector<unsigned char> const & dataPrv, std::vector<unsigned char> const & dataPub)
 {
     loadPrivateKey(dataPrv);
     loadPublicKey(dataPub);
 }
 
-CKey& SecretPoint::getPrivKey() {
+CKey const & SecretPoint::getPrivKey() const {
     return privKey;
 }
 
-void SecretPoint::setPrivKey(CKey &v_privKey) {
+void SecretPoint::setPrivKey(CKey const & v_privKey) {
     privKey = v_privKey;
 }
 
-secp256k1_pubkey& SecretPoint::getPubKey() {
+secp256k1_pubkey const & SecretPoint::getPubKey() const {
     return pubKey;
 }
 
-void SecretPoint::setPubKey(secp256k1_pubkey &v_pubKey) {
+void SecretPoint::setPubKey(secp256k1_pubkey const & v_pubKey) {
     pubKey = v_pubKey;
 }
 
@@ -51,12 +54,12 @@ bool SecretPoint::equals(SecretPoint const & v_secret) const {
     return v1 == v2;
 }
 
-void SecretPoint::loadPublicKey(std::vector<unsigned char> data) {
+void SecretPoint::loadPublicKey(std::vector<unsigned char> const & data) {
     secp256k1_context *context = OpenSSLContext::get_context();
     secp256k1_ec_pubkey_parse(context,&pubKey,data.data(),data.size());
 }
 
-void SecretPoint::loadPrivateKey(std::vector<unsigned char> data) {
+void SecretPoint::loadPrivateKey(std::vector<unsigned char> const & data) {
     privKey.Set(data.begin(),data.end(),false);
 }
 

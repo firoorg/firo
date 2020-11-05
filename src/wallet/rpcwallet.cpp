@@ -4438,7 +4438,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if (pchannel->getIncomingAddresses().size() == 0) {
                 bip47::CAccount acc = pwallet->getBIP47Account(pchannel->getMyPaymentCode());
-                bip47::CPaymentAddress paddr = bip47::util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
+                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());
@@ -4454,7 +4454,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if (pchannel.getIncomingAddresses().size() == 0) {
                 bip47::CAccount acc = pwallet->getBIP47Account(0);
-                bip47::CPaymentAddress paddr = bip47::util::getReceiveAddress(&acc, pwallet, paymentCode, 0);
+                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, pwallet, paymentCode, 0);
                 CKey receiveKey = paddr.getReceiveECKey();
                 CPubKey rePubKey = receiveKey.GetPubKey();
                 CBitcoinAddress rcvAddr(rePubKey.GetID());

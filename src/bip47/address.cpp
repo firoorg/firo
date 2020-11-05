@@ -1,9 +1,9 @@
-
 #include "bip47/address.h"
+#include "bip47/utils.h"
 
 namespace bip47 {
 
-std::string CAddress::getAddress() 
+std::string const & CAddress::getAddress() const
 {
     return address;
 }

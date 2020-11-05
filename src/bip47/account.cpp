@@ -2,24 +2,28 @@
 #include "bip47/account.h"
 #include "bip47/paymentcode.h"
 #include "util.h"
+#include "bip47/utils.h"
+
 
 namespace bip47 {
 
 CAccount::CAccount(CExtKey &coinType, int identity) 
 {
     accountId = identity;
-    assert(coinType.Derive(prvkey,accountId | HARDENED_BIT));
-    this->key = prvkey.Neuter();
-    paymentCode = CPaymentCode(key.pubkey.begin(), (const unsigned char*)key.chaincode.begin());
+    if(!coinType.Derive(prvkey, accountId | HARDENED_BIT)) {
+        throw std::runtime_error("Cannot derive prvkey");
+    }
+    key = prvkey.Neuter();
+    paymentCode = CPaymentCode({key.pubkey.begin(), key.pubkey.end()}, {key.chaincode.begin(), key.chaincode.end()});
 }
 
-CAccount::CAccount(std::string strPaymentCode) 
+CAccount::CAccount(std::string const & strPaymentCode)
 {
     accountId = 0;
     SetPaymentCodeString(strPaymentCode);
 }
 
-bool CAccount::SetPaymentCodeString(std::string strPaymentCode)
+bool CAccount::SetPaymentCodeString(std::string const & strPaymentCode)
 {
     if (!CPaymentCode::createMasterPubKeyFromPaymentCode(strPaymentCode, this->key)) 
     {

@@ -11,7 +11,7 @@
 using namespace std;
 
 namespace bip47 {
-namespace util {
+namespace utils {
 
 void arraycopy(const std::vector<unsigned char> &source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
     if(source_arr.size() < sourcePos + len)
@@ -248,6 +248,24 @@ CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode
     
     return pm_address;
     
+}
+
+CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)
+{
+    CExtKey key1, key2, *currentKey = &key1, *nextKey = &key2;
+
+    if(!source.Derive(key1, path[0])) {
+        throw std::runtime_error("Cannot derive the key on path: " + std::string(path.begin(), path.end()));
+    }
+
+    for(std::vector<uint32_t>::const_iterator i = path.begin() + 1; i < path.end(); ++i) {
+        if(!currentKey->Derive(*nextKey, *i)){
+            throw std::runtime_error("Cannot derive the key on path: " + std::string(path.begin(), path.end()));
+        }
+        std::swap(currentKey, nextKey);
+    }
+
+    return *currentKey;
 }
 
 } }

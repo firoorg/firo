@@ -5,7 +5,6 @@
 
 #ifndef BIP47ADDRESS_H
 #define BIP47ADDRESS_H
-#include "bip47/utils.h"
 #include "clientversion.h"
 #include "serialize.h"
 
@@ -18,7 +17,7 @@ public:
     CAddress(std::string v_address, int v_index): address(v_address), index(v_index) {}
     CAddress(std::string v_address, int v_index, bool v_seen): address(v_address), index(v_index), seen(v_seen) {}
 
-    std::string getAddress();
+    std::string const & getAddress() const;
     int getIndex() const;
     bool isSeen();
     void setSeen(bool v_seen);

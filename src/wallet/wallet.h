@@ -105,9 +105,6 @@ const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
 const uint32_t BIP44_ELYSIUM_MINT_INDEX_V1 = 0x4;
 #endif
 
-// @todo Could be required later 
-const uint32_t BIP47_INDEX = 0x47;
-
 class CBlockIndex;
 class CCoinControl;
 class COutput;
@@ -1251,7 +1248,7 @@ public:
     bool pcodeEnabled;
     //map other wallet => map(my wallet pcode => chanel)
     std::map<string, std::vector<bip47::CPaymentChannel>> mutable m_Bip47channels;
-    void loadBip47Wallet(CExtKey masterExtKey);
+    void loadBip47Wallet(CExtKey const & masterExtKey);
     bool IsBIP47Loaded() const;
     void LoadBip47Wallet();
     void deriveBip47Keys();
@@ -1285,8 +1282,8 @@ public:
     std::string getPaymentCode(size_t i) const;
     std::string getPaymentCodeForAddress(std::string const & address) const;
     
-    void deriveCAccounts(std::vector<unsigned char> const & hd_seed);
-    void deriveCAccounts(CExtKey const & masterKey);
+    void deriveBip47Accounts(std::vector<unsigned char> const & hd_seed);
+    void deriveBip47Accounts(CExtKey const & masterKey);
     std::string generateNewPCode(CExtKey const & masterKey);
     std::string generateNewPCode();
 

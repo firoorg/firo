@@ -1,6 +1,5 @@
 #ifndef ZCOIN_BIP47CHANNEL_H
 #define ZCOIN_BIP47CHANNEL_H
-#include "bip47/utils.h"
 #include "bip47/address.h"
 #include <string>
 #include "serialize.h"
@@ -25,7 +24,7 @@ public:
     std::vector<CAddress> getIncomingAddresses() const;
     int getCurrentIncomingIndex() const;
     void generateKeys(CWallet* bip47Wallet);
-    CAddress* getIncomingAddress(string address);
+    CAddress const * getIncomingAddress(string address) const;
     void addNewIncomingAddress(string newAddress, int nextIndex);
     string getLabel() const;
     void setLabel(string l);

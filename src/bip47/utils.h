@@ -7,9 +7,6 @@
 #include <string.h>
 #include <vector>
 #include <openssl/sha.h>
-#include "uint256.h"
-#include "bip47/utils.h"
-#include "utilstrencodings.h"
 
 #define HARDENED_BIT 0x80000000
 
@@ -24,7 +21,7 @@ class CPaymentCode;
 class CPaymentAddress;
 class CAccount;
 
-namespace util {
+namespace utils {
 void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
 void arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
 void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
@@ -40,8 +37,8 @@ CPaymentAddress getPaymentAddress(CPaymentCode const & pcode, int idx, CExtKey c
 CPaymentAddress getReceiveAddress(CAccount* v_bip47Account, CWallet* pbip47Wallet, CPaymentCode const & pcode_from, int idx);
 CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx);
 
-};
+CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
 
-}
+} }
 
 #endif // ZCOIN_BIP47UTIL_H

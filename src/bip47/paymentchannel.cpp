@@ -2,6 +2,7 @@
 #include "bip47/utils.h"
 #include "bip47/address.h"
 #include "bip47/paymentaddress.h"
+#include "bip47/utils.h"
 #include "wallet/wallet.h"
 
 namespace bip47 {
@@ -63,7 +64,7 @@ void CPaymentChannel::generateKeys(CWallet *bip47Wallet) {
         CPaymentCode pcode(paymentCode);
         CAccount acc = bip47Wallet->getBIP47Account(myPaymentCode);
         int nextIndex = currentIncomingIndex + 1 + i;
-        CPaymentAddress paddr = util::getReceiveAddress(&acc, bip47Wallet, pcode, nextIndex);
+        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, pcode, nextIndex);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
@@ -74,10 +75,10 @@ void CPaymentChannel::generateKeys(CWallet *bip47Wallet) {
     currentIncomingIndex = currentIncomingIndex + LOOKAHEAD;
 }
 
-CAddress* CPaymentChannel::getIncomingAddress(string address) {
-    for (CAddress bip47Address: incomingAddresses) {
+CAddress const * CPaymentChannel::getIncomingAddress(string address) const {
+    for (CAddress const & bip47Address: incomingAddresses) {
         if (bip47Address.getAddress().compare(address)==0) {
-            return &bip47Address; // lgtm [cpp/return-stack-allocated-memory]
+            return &bip47Address;
         }
     }
     return nullptr;

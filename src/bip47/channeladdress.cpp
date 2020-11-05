@@ -1,4 +1,7 @@
 #include "bip47/channeladdress.h"
+#include "bip47/utils.h"
+#include "chainparamsbase.h"
+
 
 namespace bip47 {
 

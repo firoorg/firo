@@ -614,20 +614,6 @@ struct MyRAPTableEntryLessThan
     }
 };
 
-/* Determine address type from address purpose */
-static PaymentCodeTableEntry::Type translatePCodeTransactionType(const QString &strPurpose, bool isMine) // lgtm [cpp/unused-static-function]
-{
-    PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Hidden;
-    // "refund" addresses aren't shown, and change addresses aren't in mapAddressBook at all.
-    if (strPurpose == "send")
-        addressType = PaymentCodeTableEntry::Sending;
-    else if (strPurpose == "receive")
-        addressType = PaymentCodeTableEntry::Receiving;
-    else if (strPurpose == "unknown" || strPurpose == "") // if purpose not set, guess
-        addressType = (isMine ? PaymentCodeTableEntry::Receiving : PaymentCodeTableEntry::Sending);
-    return addressType;
-}
-
 // Private implementation
 class PaymentCodeTablePriv
 {
