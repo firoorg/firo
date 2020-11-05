@@ -84,7 +84,7 @@ bool isValidNotificationTransactionOpReturn(CTxOut txout) {
     return getOpCodeData(txout, op_date);
 }
 
-bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
+bool getOpCodeData(CTxOut const & txout, vector<unsigned char>& op_data) {
     CScript::const_iterator pc = txout.scriptPubKey.begin();
     vector<unsigned char> data;
     
@@ -107,7 +107,7 @@ bool getOpCodeData(CTxOut txout, vector<unsigned char>& op_data) {
     return false;
 }
 
-bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes, CTransaction tx, CPaymentCode &paymentCode) {
+bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privKeyBytes, CTransaction const & tx, CPaymentCode &paymentCode) {
     // tx.vin[0].scriptSig
 //     CWalletTx wtx(pwalletMain, tx);
 
@@ -160,9 +160,8 @@ bool getPaymentCodeInNotificationTransaction(vector<unsigned char> privKeyBytes,
     return true;
 }
 
-bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
+bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes)
 {
-
     LogPrintf("ScriptSig size = %d\n", txin.scriptSig.size());
     CScript::const_iterator pc = txin.scriptSig.begin();
     vector<unsigned char> chunk0data;
@@ -219,18 +218,15 @@ bool getScriptSigPubkey(CTxIn txin, vector<unsigned char>& pubkeyBytes)
     return false;
 }
 
-CPaymentAddress getPaymentAddress(CPaymentCode &pcode, int idx, CExtKey extkey) {
-    CKey prvkey = extkey.key;
-    
-    vector<unsigned char> ppkeybytes(prvkey.begin(), prvkey.end());
-    
+CPaymentAddress getPaymentAddress(CPaymentCode const & pcode, int idx, CExtKey const & extkey) {
+    vector<unsigned char> ppkeybytes(extkey.key.begin(), extkey.key.end());
     
     CPaymentAddress paddr(pcode, idx, ppkeybytes);
     return paddr;
     
 }
 
-CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode &pcode_from, int idx)
+CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode const & pcode_from, int idx)
 {
     CPaymentAddress pm_address;
     //loook for bip47 account that has payment address as in the chanel 
@@ -242,7 +238,7 @@ CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Walle
     return pm_address;
 }
 
-CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode &pcode_to, int idx)
+CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx)
 {
     CPaymentAddress pm_address;
     CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(0);
