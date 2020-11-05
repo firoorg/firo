@@ -1946,8 +1946,8 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         LogPrintf("Get Mask from payment code\n"); //Masking Protections for Secret Point
         vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
 
-        LogPrintf("Get op_return bytes via blind:%s\n", m_CAccounts[accountIndex].getPaymentCode().toString());
-        vector<unsigned char> op_return = bip47::CPaymentCode::blind(m_CAccounts[accountIndex].getPaymentCode().getPayload(), mask);
+        LogPrintf("Get op_return bytes via blind:%s\n", m_bip47Accounts[accountIndex].getPaymentCode().toString());
+        vector<unsigned char> op_return = bip47::CPaymentCode::blind(m_bip47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
@@ -2013,7 +2013,7 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [c
     LogPrintf("getAddress Of Recevied\n");
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    for(size_t i = 0; i < m_CAccounts.size(); i++) {
+    for(size_t i = 0; i < m_bip47Accounts.size(); i++) {
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
             return true;
@@ -2108,10 +2108,10 @@ bip47::CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTran
     bip47::CPaymentCode paymentCode;
     CBitcoinAddress addr = getAddressOfReceived(tx);
     LogPrintf("Address is %s\n", addr.ToString());
-    for(size_t i = 0; i < m_CAccounts.size(); i++) {
+    for(size_t i = 0; i < m_bip47Accounts.size(); i++) {
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
-            CKey notificationPKey = m_CAccounts[i].getNotificationPrivKey().key;
+            CKey notificationPKey = m_bip47Accounts[i].getNotificationPrivKey().key;
             vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
             LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
             if(bip47::utils::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
@@ -2290,7 +2290,7 @@ bool CWallet::savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint
 
 bool CWallet::IsMyPaymentCode(std::string const & strPaymentCode) const
 {
-    for(size_t i = 0; i < m_CAccounts.size(); i++)
+    for(size_t i = 0; i < m_bip47Accounts.size(); i++)
     {
         if (getPaymentCode(i) == strPaymentCode)
             return true;
@@ -2300,10 +2300,10 @@ bool CWallet::IsMyPaymentCode(std::string const & strPaymentCode) const
 
 bip47::CAccount const & CWallet::getBIP47Account(size_t i) const
 {
-    if(m_CAccounts.size() <= i) {
+    if(m_bip47Accounts.size() <= i) {
         throw std::out_of_range("There is no BIP47 account with number: " + std::to_string(i));
     }
-    return m_CAccounts[i];
+    return m_bip47Accounts[i];
 }
 
 bip47::CAccount CWallet::getBIP47Account(std::string const & paymentCode) const
@@ -2311,7 +2311,7 @@ bip47::CAccount CWallet::getBIP47Account(std::string const & paymentCode) const
     bip47::CAccount acc;
     for(size_t i = 0; i < getPaymentCodeCount(); i++) {
         if (getPaymentCode(i) == paymentCode) {
-            return m_CAccounts[i];
+            return m_bip47Accounts[i];
         }
     }
     return acc;
@@ -2334,14 +2334,14 @@ std::string CWallet::getNotificationAddress(int i) const
 
 std::string CWallet::getPaymentCode(size_t i) const
 {
-    if( i >= m_CAccounts.size()) {
+    if( i >= m_bip47Accounts.size()) {
         throw std::out_of_range("There no BIP47 account with number: " + std::to_string(i));
     }
     return getBIP47Account(i).getStringPaymentCode();
 }
 
 size_t CWallet::getPaymentCodeCount() const {
-    return m_CAccounts.size();
+    return m_bip47Accounts.size();
 }
 
 std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
@@ -2365,61 +2365,26 @@ std::string CWallet::getPaymentCodeForAddress(std::string const & address) const
     return "";
 }
 
-void CWallet::deriveBip47Accounts(vector<unsigned char> const & hd_seed)
-{
-    CExtKey masterKey;             //bip47 master key
-    CExtKey purposeKey;            //key at m/47'
-    CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
-    // CExtKey identityKey;           //key identity
-    // CExtKey childKey;              // index
-    CWalletDB walletDB(strWalletFile);
-    int lastPCodeIndex = 0;
-    walletDB.ReadLastPCodeIndex(lastPCodeIndex);
-    m_CAccounts.clear();
-    for(int i = 0; i <= lastPCodeIndex; i++) {
-        masterKey.SetMaster(&hd_seed[0], hd_seed.size());
-        masterKey.Derive(purposeKey, bip47::BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
-        purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
-        bip47::CAccount bip47Account(coinTypeKey, i);
-
-        m_CAccounts.push_back(bip47Account);
-
-        CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
-        CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
-        LogPrintf("NotificationScript address %s\n", notificationAddress.ToString());
-        if (!HaveWatchOnly(notificationScript))
-        {
-            AddWatchOnly(notificationScript);
-        }
-    }
-}
-
 void CWallet::deriveBip47Accounts(CExtKey const & masterKey)
 {
-    LogPrintf("Dervie CAccounts\n");
     CExtKey purposeKey;            //key at m/47'
     CExtKey coinTypeKey;           //key at m/47'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0047)
 
     masterKey.Derive(purposeKey,  bip47::BIP47_INDEX | BIP32_HARDENED_KEY_LIMIT);
 
-    LogPrintf("Derive Purpose Key Done\n");
-
     CWalletDB walletDB(strWalletFile);
     int lastPCodeIndex = 0;
     walletDB.ReadLastPCodeIndex(lastPCodeIndex);
-    m_CAccounts.clear();
+    m_bip47Accounts.clear();
     std::vector<string> myPaymentCodes;
     for(int i = 0; i <= lastPCodeIndex; i++) {
         purposeKey.Derive(coinTypeKey, i | BIP32_HARDENED_KEY_LIMIT);
-        LogPrintf("Derive CoinTypeKey Done\n");
         bip47::CAccount bip47Account(coinTypeKey, i);
-        LogPrintf("Bip47 Account Created Done\n");
 
-        m_CAccounts.push_back(bip47Account);
+        m_bip47Accounts.push_back(bip47Account);
 
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
-        LogPrintf("NotificationScript address %s\n", notificationAddress.ToString());
         if (!HaveWatchOnly(notificationScript)) {
             LOCK(cs_wallet);
             AddWatchOnly(notificationScript);
@@ -2434,9 +2399,7 @@ void CWallet::deriveBip47Accounts(CExtKey const & masterKey)
         myPaymentCodes.push_back(bip47Account.getStringPaymentCode());
         paymentCodeBook[bip47Account.getStringPaymentCode()] = existingLabel;
     }
-    LogPrintf("deriveCAccounts save %d payment code\n", myPaymentCodes.size());
     walletDB.SavePaymentCodes(myPaymentCodes);
-    LogPrintf("Dervie CAccounts Done\n");
 }
 
 bool CWallet::ReadMasterKey(CExtKey& masterKey)
@@ -2477,7 +2440,7 @@ std::string CWallet::generateNewPCode(CExtKey const & masterKey) {
     bip47::CAccount bip47Account(coinTypeKey, lastPCodeIndex);
     LogPrintf("Bip47 Account Created Done\n");
 
-    m_CAccounts.push_back(bip47Account);
+    m_bip47Accounts.push_back(bip47Account);
 
     CBitcoinAddress notificationAddress = getBIP47Account(lastPCodeIndex).getNotificationAddress();
     CScript notificationScript = GetScriptForDestination(notificationAddress.Get());
@@ -2492,10 +2455,10 @@ std::string CWallet::generateNewPCode(CExtKey const & masterKey) {
     paymentCodeBook[bip47Account.getStringPaymentCode()] = label;
 
     std::vector<string> paymentCodes;
-    for(size_t i = 0; i < m_CAccounts.size(); i++)
+    for(size_t i = 0; i < m_bip47Accounts.size(); i++)
     {
 
-        string pcode = m_CAccounts[i].getStringPaymentCode();
+        string pcode = m_bip47Accounts[i].getStringPaymentCode();
         paymentCodes.push_back(pcode);
     }
     walletDB.SavePaymentCodes(paymentCodes);
@@ -2866,7 +2829,7 @@ bool CWallet::DecryptMnemonicContainer(MnemonicContainer& mnContainer)
 
 bool CWallet::IsNotificationScript(const CScript& scriptPubkey) const
 {
-    for(size_t i = 0; i < m_CAccounts.size(); i++)
+    for(size_t i = 0; i < m_bip47Accounts.size(); i++)
     {
         CBitcoinAddress notificationAddress = getBIP47Account(i).getNotificationAddress();
         CScript notificationScript = GetScriptForDestination(notificationAddress.Get());

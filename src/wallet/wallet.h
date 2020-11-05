@@ -1242,7 +1242,7 @@ private:
     CExtKey masterKey;
     
 public:
-    std::vector<bip47::CAccount> m_CAccounts;
+    std::vector<bip47::CAccount> m_bip47Accounts;
     std::vector<CKey> m_Bip47PendingKeys;
     int m_Bip47PendingPStarIndex;
     bool pcodeEnabled;
@@ -1282,7 +1282,6 @@ public:
     std::string getPaymentCode(size_t i) const;
     std::string getPaymentCodeForAddress(std::string const & address) const;
     
-    void deriveBip47Accounts(std::vector<unsigned char> const & hd_seed);
     void deriveBip47Accounts(CExtKey const & masterKey);
     std::string generateNewPCode(CExtKey const & masterKey);
     std::string generateNewPCode();

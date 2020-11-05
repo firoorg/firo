@@ -727,11 +727,11 @@ public:
 
     void refreshMyRAPTable()
     {
-        LogPrintf("refreshMyRAPTable %d\n", wallet->m_CAccounts.size());
+        LogPrintf("refreshMyRAPTable %d\n", wallet->m_bip47Accounts.size());
         cachedRAPTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const bip47::CAccount& item, wallet->m_CAccounts)
+            BOOST_FOREACH(const bip47::CAccount& item, wallet->m_bip47Accounts)
             {
                 const string& pcode = item.getStringPaymentCode();
                 std::string label = wallet->GetPaymentCodeLabel(pcode);
