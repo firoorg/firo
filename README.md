@@ -28,7 +28,7 @@ Running with Docker
 If you are already familiar with Docker, then running Firo with Docker might be the the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
-Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Zcoin via this method.
+Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Firo via this method.
 
 Pull our latest official Docker image:
 
