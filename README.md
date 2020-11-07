@@ -141,7 +141,7 @@ Become a financial contributor and help us sustain our community. [[Contribute](
 
 #### Individuals
 
-<a href="https://opencollective.com/zcoin"><img src="https://opencollective.com/firo/individuals.svg?width=890"></a>
+<a href="https://opencollective.com/firo"><img src="https://opencollective.com/firo/individuals.svg?width=890"></a>
 
 #### Organizations
 
