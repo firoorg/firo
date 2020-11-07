@@ -133,7 +133,7 @@ See (doc/build-windows.md) for instructions on building on Windows 64/32 bit.
 ### Code Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
-<a href="https://github.com/zcoinofficial/zcoin/graphs/contributors"><img src="https://opencollective.com/zcoin/contributors.svg?width=890&button=false" /></a>
+<a href="https://github.com/firoorg/firo/graphs/contributors"><img src="https://opencollective.com/firo/contributors.svg?width=890&button=false" /></a>
 
 ### Financial Contributors
 
@@ -145,7 +145,7 @@ Become a financial contributor and help us sustain our community. [[Contribute](
 
 #### Organizations
 
-Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/zcoin/contribute)]
+Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/firo/contribute)]
 
 <a href="https://opencollective.com/firo/organization/0/website"><img src="https://opencollective.com/firo/organization/0/avatar.svg"></a>
 <a href="https://opencollective.com/firo/organization/1/website"><img src="https://opencollective.com/firo/organization/1/avatar.svg"></a>
