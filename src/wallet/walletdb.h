@@ -292,10 +292,6 @@ public:
     bool ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash);
     bool ErasePubcoinHashes(const uint256& fullHash);
 
-    bool WriteEncryptedValue(const uint256& fullHash, std::vector<unsigned char>& encryptedData);
-    std::vector<std::pair<uint256, std::vector<unsigned char>>> ReadAllEncryptedValues();
-    bool EraseEncryptedValue(const uint256& fullHash);
-
     std::list<CHDMint> ListHDMints(bool isLelantus);
     bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
     bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);

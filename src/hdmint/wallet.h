@@ -46,7 +46,7 @@ public:
     std::pair<uint256,uint256> RegenerateMintPoolEntry(CWalletDB& walletdb, const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
     void GenerateMintPool(CWalletDB& walletdb, int32_t nIndex = 0);
     bool SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
-    bool SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount, std::vector<unsigned char>& encryptedValue);
+    bool SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount);
     bool SeedToMint(const uint512& mintSeed, GroupElement& bnValue, sigma::PrivateCoin& coin);
     bool SeedToLelantusMint(const uint512& mintSeed, lelantus::PrivateCoin& coin);
 
