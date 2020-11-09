@@ -373,7 +373,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 }
 
                 uint64_t amount  = 0;
-
                 bool fFoundMint = false;
                 for (const CTxOut& out : tx->vout) {
                     if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint())
@@ -543,7 +542,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
         LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(walletdb, mintSeed, mintCount, seedId);
-        lelantus::PrivateCoin coin(params, amount); // create commitment with reduced h1^amount
+        lelantus::PrivateCoin coin(params, amount);
         if(!SeedToLelantusMint(mintSeed, coin))
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
@@ -573,10 +572,14 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     }
 
     LogPrintf("%s: Creating mint object.. \n", __func__);
+    int height, id;
+    std::tie(height, id) = lelantus::CLelantusState::GetState()->GetMintedCoinHeightAndId(bnValue);
+
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
+    dMint.SetId(id);
 
     // Check if this is also already spent
     int nHeightTx;
@@ -594,6 +597,13 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 
         wtx.nTimeReceived = pindex->nTime;
         pwalletMain->AddToWallet(wtx, false);
+    } else {
+        lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
+        // this is for some edge cases, when mint is used but the serial is not at map
+        Scalar s;
+        if (lelantusState->IsUsedCoinSerialHash(s, hashSerial)) {
+            dMint.SetUsed(true);
+        }
     }
 
     LogPrintf("%s: Adding mint to tracker.. \n", __func__);
@@ -1088,6 +1098,7 @@ bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int&
     txidSpend.SetNull();
     CLelantusMintMeta mMeta;
     Scalar bnSerial;
+
     if (!lelantus::CLelantusState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
