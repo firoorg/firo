@@ -117,8 +117,8 @@ void GetLelantusBalance(CAmount& lelantusAll, CAmount& lelantusConfirmed) {
 
     auto zwallet = pwalletMain->zwallet.get();
 
-    auto coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
-    for (auto const &c : coins) {
+    std::vector<CLelantusMintMeta> coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
+    for (CLelantusMintMeta const &c : coins) {
         if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
             continue;
         }
