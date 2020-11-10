@@ -308,7 +308,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
     }
 
     CBitcoinAddress address = find_value(data, "recipient").get_str();
-    CAmount amount = find_value(data, "amount").get_int();
+    CAmount amount = find_value(data, "amount").get_int64();
 
     if (!address.IsValid()) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
     if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
