@@ -721,67 +721,37 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     LOCK2(cs_main, pwalletMain->cs_wallet);
     
     UniValue balanceObj(UniValue::VOBJ);
-    UniValue totalObj(UniValue::VOBJ);
     UniValue publicObj(UniValue::VOBJ);
     UniValue privateObj(UniValue::VOBJ);
 
-    // various balances
-    CAmount xzcConfirmed = pwalletMain->GetBalance();
-    CAmount xzcUnconfirmed = pwalletMain->GetUnconfirmedBalance();
-    CAmount xzcLocked = getLockUnspentAmount();
-    CAmount xzcImmature = pwalletMain->GetImmatureBalance();
+    CAmount publicConfirmed = pwalletMain->GetBalance();
+    CAmount publicUnconfirmed = pwalletMain->GetUnconfirmedBalance();
+    CAmount publicLocked = getLockUnspentAmount();
+    CAmount publicImmature = pwalletMain->GetImmatureBalance();
 
-    //get private confirmed
     CAmount sigmaAll = 0;
     CAmount sigmaConfirmed = 0;
     GetSigmaBalance(sigmaAll, sigmaConfirmed);
+    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed;
 
     CAmount lelantusAll = 0;
     CAmount lelantusConfirmed = 0;
-    if (lelantus::IsLelantusAllowed()) {
-        GetLelantusBalance(lelantusAll, lelantusConfirmed);
-    }
-
-    //the difference of all and confirmed gives unconfirmed
-    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed;
+    GetLelantusBalance(lelantusAll, lelantusConfirmed);
     CAmount lelantusUnconfirmed = lelantusAll - lelantusConfirmed;
 
-    // We now have all base units, derive return values.
-    CAmount total = xzcConfirmed + xzcUnconfirmed + sigmaAll + lelantusAll + xzcImmature;
-    CAmount pending = total - xzcConfirmed - xzcLocked - sigmaConfirmed - lelantusConfirmed;
-    CAmount available = total - xzcLocked - xzcUnconfirmed - sigmaUnconfirmed - lelantusUnconfirmed - xzcImmature;
-
-    CAmount publicConfirmed = 0;
-    CAmount publicUnconfirmed = 0;
-    CAmount privateConfirmed = 0;
-    CAmount privateUnconfirmed = 0;
-    if (lelantus::IsLelantusAllowed()) {
-        publicConfirmed = xzcConfirmed + sigmaConfirmed;
-        publicUnconfirmed = xzcUnconfirmed + sigmaUnconfirmed;
-        privateConfirmed = lelantusConfirmed;
-        privateUnconfirmed = lelantusUnconfirmed;
-    } else {
-        publicConfirmed = xzcConfirmed;
-        publicUnconfirmed = xzcUnconfirmed;
-        privateConfirmed = sigmaConfirmed;
-        privateUnconfirmed = sigmaUnconfirmed;
-    }
-    
-    totalObj.push_back(Pair("all", total));
-    totalObj.push_back(Pair("pending", pending));
-    totalObj.push_back(Pair("available", available));
+    CAmount privateConfirmed = lelantusConfirmed + sigmaConfirmed;
+    CAmount privateUnconfirmed = lelantusUnconfirmed + sigmaUnconfirmed;
 
     publicObj.push_back(Pair("confirmed", publicConfirmed));
     publicObj.push_back(Pair("unconfirmed", publicUnconfirmed));
-    publicObj.push_back(Pair("locked", xzcLocked));
+    publicObj.push_back(Pair("locked", publicLocked));
+    publicObj.push_back(Pair("immature", publicImmature));
 
     privateObj.push_back(Pair("confirmed", privateConfirmed));
     privateObj.push_back(Pair("unconfirmed", privateUnconfirmed));
 
-    balanceObj.push_back(Pair("total", totalObj));
     balanceObj.push_back(Pair("public", publicObj));
     balanceObj.push_back(Pair("private", privateObj));
-
     balanceObj.push_back(Pair("unspentSigmaMints", GetSigmaDenominations()));
 
     return balanceObj;

@@ -165,15 +165,12 @@ Another example is a Sigma spend transaction to the wallet: the same output(s) w
 ```
 { 
     data: {
-        total: {
-            all: INT,
-            pending: INT,
-            available: INT
-        },
         public: {
             confirmed: INT,
             unconfirmed: INT,
             locked: INT,
+            immature: INT
+            immature: INT
         },
         private: {
             confirmed: INT,
