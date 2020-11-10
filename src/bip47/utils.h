@@ -7,6 +7,7 @@
 #include <string.h>
 #include <vector>
 #include <openssl/sha.h>
+#include "GroupElement.h"
 
 #define HARDENED_BIT 0x80000000
 
@@ -38,7 +39,7 @@ CPaymentAddress getReceiveAddress(CAccount* v_bip47Account, CWallet* pbip47Walle
 CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx);
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
-
+GroupElement GeFromPubkey(CPubKey const & pubKey);
 } }
 
 #endif // ZCOIN_BIP47UTIL_H

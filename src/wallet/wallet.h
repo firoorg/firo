@@ -1299,7 +1299,7 @@ public:
     bip47::CPaymentChannel* getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode="") const;
     bool setBip47ChannelLabel(std::string const & pcodestr, std::string const & label);
     
-    void processNotificationTransaction(CTransaction tx);
+    void processNotificationTransaction(CTransaction const & tx);
     
     std::string getCurrentOutgoingAddress(bip47::CPaymentChannel paymentChannel);
     

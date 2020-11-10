@@ -1934,7 +1934,7 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         bip47::utils::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
         LogPrintf("Generate Secret Point\n"); 
-        bip47::SecretPoint secretPoint(dataPriv, dataPub); // Generate Secret Point
+        bip47::CSecretPoint secretPoint(dataPriv, dataPub); // Generate Secret Point
 
         vector<unsigned char> outpoint(wtx.tx->vin[0].prevout.hash.begin(), wtx.tx->vin[0].prevout.hash.end());
 
@@ -1992,40 +1992,31 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
     }
 }
 
-bool CWallet::isNotificationTransaction(const CTransaction& tx) const // lgtm [cpp/large-parameter]
+bool CWallet::isNotificationTransaction(const CTransaction& tx) const
 {
     std::vector<string> myPaymentCodes;
     CWalletDB walletDB(strWalletFile);
     walletDB.ReadPaymentCodes(myPaymentCodes);
-    LogPrintf("getAddress Of Recevied %s\n", tx.GetHash().GetHex());
-    if(!pcodeEnabled)
-    {
+    if(!pcodeEnabled) {
         return false;
     }
-    if (!IsMine(tx))
-    {
+    if (!IsMine(tx)) {
         return false;
     }
-    if (!tx.IsPaymentCode())
-    {
+    if (!tx.IsPaymentCode()) {
         return false;
     }
-    LogPrintf("getAddress Of Recevied\n");
+
     CBitcoinAddress addr = getAddressOfReceived(tx);
-    LogPrintf("Address is %s\n", addr.ToString());
     for(size_t i = 0; i < m_bip47Accounts.size(); i++) {
-        if (getNotificationAddress(i).compare(addr.ToString()) == 0)
-        {
+        if (getNotificationAddress(i).compare(addr.ToString()) == 0) {
             return true;
         }
     }
 
     {
-        LogPrintf("isNotificationTransaction: payment code size %d\n", myPaymentCodes.size());
-        for(size_t i = 0; i < myPaymentCodes.size(); i++)
-        {
+        for(size_t i = 0; i < myPaymentCodes.size(); i++) {
             bip47::CAccount acc(myPaymentCodes[i]);
-            LogPrintf("isNotificationTransaction: payment cde %s\n", myPaymentCodes[i]);
             CBitcoinAddress notificationAddress = acc.getNotificationAddress();
             if (addr == notificationAddress) 
                 return true;
@@ -2103,17 +2094,15 @@ bip47::CPaymentChannel* CWallet::findPaymentChannelForIncomingAddress(const CTra
     return NULL;
 }
 
-bip47::CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex) // lgtm [cpp/large-parameter]
+bip47::CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex)
 {
     bip47::CPaymentCode paymentCode;
     CBitcoinAddress addr = getAddressOfReceived(tx);
-    LogPrintf("Address is %s\n", addr.ToString());
     for(size_t i = 0; i < m_bip47Accounts.size(); i++) {
         if (getNotificationAddress(i).compare(addr.ToString()) == 0)
         {
             CKey notificationPKey = m_bip47Accounts[i].getNotificationPrivKey().key;
             vector<unsigned char> prvKeyBytes(notificationPKey.begin(), notificationPKey.end());
-            LogPrintf("The privkey Size is %d\n", prvKeyBytes.size());
             if(bip47::utils::getPaymentCodeInNotificationTransaction(prvKeyBytes, tx, paymentCode))
             {   
                 if (paymentCode.isValid()) {
@@ -2129,7 +2118,7 @@ bip47::CPaymentCode CWallet::getPaymentCodeInNotificationTransaction(const CTran
 
 CBitcoinAddress CWallet::getAddressOfReceived(CTransaction tx) const
 {
-    isminefilter filter = ISMINE_ALL; // surpress false alarm on filter use lgtm [cpp/unused-local-variable]
+    isminefilter filter = ISMINE_ALL;
     for (int i = 0; i < tx.vout.size(); i++) {
         try {
             if (tx.vout[i].scriptPubKey.IsPayToPublicKeyHash()) {
@@ -2625,7 +2614,7 @@ bool CWallet::setBip47ChannelLabel(std::string const & pcodestr, std::string con
     return true;
 }
 
-void CWallet::processNotificationTransaction(CTransaction tx) // lgtm [cpp/large-parameter] 
+void CWallet::processNotificationTransaction(CTransaction const & tx)
 {
     int accIndex;
     bip47::CPaymentCode from_pcode = getPaymentCodeInNotificationTransaction (tx, accIndex);

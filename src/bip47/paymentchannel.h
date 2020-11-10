@@ -15,8 +15,8 @@ class CPaymentChannel
 {
 public:
     CPaymentChannel();
-    CPaymentChannel(string v_myPaymentCode, string v_paymentCode);
-    CPaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label);
+    CPaymentChannel(std::string const & v_myPaymentCode, std::string const & v_paymentCode);
+    CPaymentChannel(std::string const & v_myPaymentCode, std::string const & v_paymentCode, std::string const & v_label);
 
     string getPaymentCode() const;
     string getMyPaymentCode() const;

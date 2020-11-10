@@ -5,26 +5,37 @@
 
 namespace bip47 {
 
-CPaymentCode::CPaymentCode () : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
-{
-}
-CPaymentCode::CPaymentCode (std::string payment_code) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
+CPaymentCode::CPaymentCode ()
+{}
+
+CPaymentCode::CPaymentCode (std::string const & payment_code)
+: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
     strPaymentCode = payment_code;
     valid = parse();
+    if(!valid) {
+        throw std::runtime_error("Cannot parse the payment code");
+    }
+
 }
 
-CPaymentCode::CPaymentCode (unsigned char* payload, int length) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
+CPaymentCode::CPaymentCode (unsigned char* payload, int length)
+: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
+    valid = false;
     if ( length == PAYLOAD_LEN ) {
         utils::arraycopy ( payload, PUBLIC_KEY_Y_OFFSET, pubkey, 0, PUBLIC_KEY_COMPRESSED_LEN );
         utils::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
         strPaymentCode = makeV1();
         valid = parse();
     }
+    if(!valid){
+        throw std::runtime_error("Cannot parse the payment code");
+    }
 }
 
-CPaymentCode::CPaymentCode (std::vector<unsigned char> const & v_pubkey, std::vector<unsigned char> const & v_chaincode) : pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
+CPaymentCode::CPaymentCode (std::vector<unsigned char> const & v_pubkey, std::vector<unsigned char> const & v_chaincode)
+: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
 {
     if(v_pubkey.size() < PUBLIC_KEY_COMPRESSED_LEN || v_chaincode.size() < CHAIN_CODE_LEN) {
         throw std::invalid_argument("v_pubkey or v_chaincode is too short");
@@ -33,6 +44,13 @@ CPaymentCode::CPaymentCode (std::vector<unsigned char> const & v_pubkey, std::ve
     utils::arraycopy ( v_chaincode.data(),0,chaincode, 0, PUBLIC_KEY_X_LEN );
     strPaymentCode = makeV1();
     valid = parse();
+    if(!valid){
+        throw std::runtime_error("Cannot parse the payment code");
+    }
+}
+
+bool CPaymentCode::isValid() const {
+    return valid;
 }
 
 CChannelAddress CPaymentCode::notificationAddress()
@@ -44,9 +62,7 @@ CChannelAddress CPaymentCode::addressAt ( int idx ) const
 {
     CExtPubKey key;
     if ( !createMasterPubKeyFromPaymentCode ( strPaymentCode,key ) ) {
-        LogPrintf ( "CPaymentCode::addressAt is failed idx = %d \n",idx );
-        LogPrintf ( "CChannelAddress CPaymentCode::addressAt.\n" );
-
+       throw std::runtime_error( "CPaymentCode::addressAt is failed");
     }
     return CChannelAddress ( key, idx );
 }
@@ -72,34 +88,12 @@ int CPaymentCode::getVersion()
     return version;
 }
 
-std::vector<unsigned char> CPaymentCode::decode()
-{
-    std::vector<unsigned char> temp;
-
-    if ( !DecodeBase58 ( strPaymentCode,temp ) ) {
-        LogPrintf ( "CPaymentCode::decode error\n" );
-
-    }
-    return temp;
-}
-
-std::vector<unsigned char> CPaymentCode::decodeChecked()
-{
-    std::vector<unsigned char> temp;
-
-    if ( !DecodeBase58Check ( strPaymentCode,temp ) ) {
-        LogPrintf ( "CPaymentCode::decodeChecked error\n" );
-
-    }
-    return temp;
-}
-
-std::vector<unsigned char>& CPaymentCode::getPubKey()
+std::vector<unsigned char> const & CPaymentCode::getPubKey() const
 {
     return pubkey;
 }
 
-std::vector<unsigned char>& CPaymentCode::getChainCode()
+std::vector<unsigned char> const & CPaymentCode::getChainCode() const
 {
     return chaincode;
 }
@@ -183,17 +177,6 @@ string CPaymentCode::make (int version)
 }
 
 
-bool CPaymentCode::createMasterPubKeyFromBytes ( std::vector<unsigned char> &pub, std::vector<unsigned char> &chaincode, CExtPubKey &masterPubKey )
-{
-
-    masterPubKey.nDepth = 3;
-    memset ( masterPubKey.vchFingerprint, 0, sizeof ( masterPubKey.vchFingerprint ) );
-    memcpy ( masterPubKey.chaincode.begin(), chaincode.data(), PUBLIC_KEY_X_LEN );
-    masterPubKey.pubkey.Set ( pub.begin(), pub.end() );
-    return true;
-
-}
-
 std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char> a, std::vector<unsigned char> b )
 {
     if ( a.size() != b.size() ) {
@@ -211,17 +194,19 @@ std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char>
 }
 
 
-bool CPaymentCode::isValid()
+bool CPaymentCode::createMasterPubKeyFromPaymentCode (std::string const & payment_code_str, CExtPubKey &masterPubKey )
 {
-    return valid;
+    CPaymentCode pcode ( payment_code_str );
+    return CPaymentCode::createMasterPubKeyFromBytes ( pcode.getPubKey(), pcode.getChainCode(), masterPubKey);
 }
 
-
-bool CPaymentCode::createMasterPubKeyFromPaymentCode ( string payment_code_str,CExtPubKey &masterPubKey )
+bool CPaymentCode::createMasterPubKeyFromBytes ( std::vector<unsigned char> const &pub, std::vector<unsigned char> const &chaincode, CExtPubKey &masterPubKey )
 {
-
-    CPaymentCode pcode ( payment_code_str );
-    return CPaymentCode::createMasterPubKeyFromBytes ( pcode.getPubKey(), pcode.getChainCode(), masterPubKey );
+    masterPubKey.nDepth = 3;
+    memset ( masterPubKey.vchFingerprint, 0, sizeof ( masterPubKey.vchFingerprint ) );
+    memcpy ( masterPubKey.chaincode.begin(), chaincode.data(), PUBLIC_KEY_X_LEN );
+    masterPubKey.pubkey.Set ( pub.begin(), pub.end() );
+    return true;
 }
 
 }

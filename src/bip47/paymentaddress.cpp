@@ -64,7 +64,7 @@ GroupElement CPaymentAddress::get_sG()
     return get_sG(getSecretPoint());
 }
 
-SecretPoint CPaymentAddress::getSharedSecret() {
+CSecretPoint CPaymentAddress::getSharedSecret() {
     return sharedSecret();
 }
 
@@ -122,16 +122,10 @@ GroupElement CPaymentAddress::get_sG(Scalar s) {
 
 CPubKey CPaymentAddress::getSendECKey(Scalar s)
 {
-    LogPrintf("getSendECKey:SecretPoint = %s\n", s.GetHex());
-    
     GroupElement ecPoint = getECPoint();
-    LogPrintf("getSendECKey:ecPoint = %s\n", ecPoint.GetHex());
     
     GroupElement sG = get_sG(s);
-    LogPrintf("getSendECKey:sG = %s\n", sG.GetHex());
     GroupElement ecG = ecPoint + sG;
-    LogPrintf("getSendECKey:ecG= %s\n", ecG.GetHex());
-    LogPrintf("getSendECKey:buffersize required = %d\n", ecG.memoryRequired());
 
     vector<unsigned char> pubkey_vch  = ecG.getvch();
     pubkey_vch.pop_back();
@@ -139,13 +133,9 @@ CPubKey CPaymentAddress::getSendECKey(Scalar s)
     pubkey_vch.pop_back();
     pubkey_vch.insert(pubkey_vch.begin(), header_char);
     
-    LogPrintf("getSendECKey:pubkey_bytes = %s size = %d\n", HexStr(pubkey_vch), pubkey_vch.size());
-    
     CPubKey pkey;
     pkey.Set(pubkey_vch.begin(), pubkey_vch.end());
     
-    LogPrintf("Validate getSendECKey is %s\n", pkey.IsValid()? "true":"false");
-
     return pkey;
 }
 
@@ -180,9 +170,9 @@ CKey CPaymentAddress::getReceiveECKey(Scalar s)
     return pkey;
 }
 
-SecretPoint CPaymentAddress::sharedSecret()
+CSecretPoint CPaymentAddress::sharedSecret()
 {
-    SecretPoint secP(privKey, paymentCode.addressAt(index).getPubKey());
+    CSecretPoint secP(privKey, paymentCode.addressAt(index).getPubKey());
     return secP;
 }
 

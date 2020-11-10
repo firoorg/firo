@@ -2,35 +2,24 @@
 #define ZCOIN_BIP47SECRETPOINT_H
 #include "key.h"
 #include "pubkey.h"
-#include "sigma/openssl_context.h"
+#include "../secp256k1/include/Scalar.h"
 
 namespace bip47 {
 
-class SecretPoint {
+class CSecretPoint {
+public:
+    CSecretPoint() = delete;
+    CSecretPoint(std::vector<unsigned char> const & dataPrv, std::vector<unsigned char> const & dataPub);
 
-    public:
-        SecretPoint();
-        SecretPoint(std::vector<unsigned char> const & dataPrv, std::vector<unsigned char> const & dataPub);
+    std::vector<unsigned char> getEcdhSecret() const;
 
-        CKey const & getPrivKey() const;
-        void setPrivKey(CKey const & v_privKey);
+    bool isShared(CSecretPoint const & secret) const;
 
-        secp256k1_pubkey const & getPubKey() const;
-        void setPubKey(secp256k1_pubkey const & v_pubKey);
+private:
+    bool equals(CSecretPoint const & v_secret) const;
 
-        std::vector<unsigned char> getEcdhSecret() const;
-
-        bool isShared(SecretPoint const & secret) const;
-
-    private:
-        bool equals(SecretPoint const & v_secret) const;
-
-        void loadPublicKey(std::vector<unsigned char> const & data);
-        void loadPrivateKey(std::vector<unsigned char> const & data);
-
-        CKey privKey;
-        secp256k1_pubkey pubKey;
-
+    secp_primitives::Scalar a;
+    CPubKey pubKey;
 };
 
 }

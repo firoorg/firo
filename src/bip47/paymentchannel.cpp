@@ -18,7 +18,7 @@ currentOutgoingIndex(0),
 currentIncomingIndex(-1)
 {}
 
-CPaymentChannel::CPaymentChannel(string v_myPaymentCode, string v_paymentCode)
+CPaymentChannel::CPaymentChannel(string const & v_myPaymentCode, string const & v_paymentCode)
 : status(STATUS_NOT_SENT),
 currentOutgoingIndex(0),
 currentIncomingIndex(-1)
@@ -27,7 +27,7 @@ currentIncomingIndex(-1)
     myPaymentCode = v_myPaymentCode;
 }
 
-CPaymentChannel::CPaymentChannel(string v_myPaymentCode, string v_paymentCode, string v_label) {
+CPaymentChannel::CPaymentChannel(string const & v_myPaymentCode, string const & v_paymentCode, string const & v_label) {
     paymentCode = v_paymentCode;
     label = v_label;
     myPaymentCode = v_myPaymentCode;

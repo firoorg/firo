@@ -145,7 +145,7 @@ bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privK
 
     vector<unsigned char> outpoint(tx.vin[0].prevout.hash.begin(), tx.vin[0].prevout.hash.end());
     
-    SecretPoint secretPoint(privKeyBytes, pubKeyBytes);
+    CSecretPoint secretPoint(privKeyBytes, pubKeyBytes);
     
     LogPrintf("Generating Secret Point for Decode with \n privekey: %s\n pubkey: %s\n", HexStr(privKeyBytes), HexStr(pubKeyBytes));
     
@@ -266,6 +266,16 @@ CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)
     }
 
     return *currentKey;
+}
+
+GroupElement GeFromPubkey(CPubKey const & pubKey) {
+    GroupElement result;
+    std::vector<unsigned char> serializedGe; serializedGe.reserve(std::distance(pubKey.begin(), pubKey.end()) + 1);
+    std::copy(pubKey.begin()+ 1, pubKey.end(), std::back_inserter(serializedGe));
+    serializedGe.push_back(*pubKey.begin() == 0x02 ? 0 : 1);
+    serializedGe.push_back(0x0);
+    result.deserialize(&serializedGe[0]);
+    return result;
 }
 
 } }

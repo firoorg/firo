@@ -26,13 +26,13 @@ class CPaymentAddress
         CPubKey getReceiveECPubKey();
         CKey getReceiveECKey();
         GroupElement get_sG();
-        SecretPoint getSharedSecret();
+        CSecretPoint getSharedSecret();
         Scalar getSecretPoint();
         GroupElement getECPoint(bool isMine = false);
         std::vector<unsigned char> hashSharedSecret();
         
     private:
-        SecretPoint sharedSecret();
+        CSecretPoint sharedSecret();
         Scalar secretPoint();
         GroupElement get_sG(Scalar s);
         CPubKey getSendECKey(Scalar s);

@@ -13,7 +13,7 @@ static const unsigned int BIP47_INDEX = 47;
 class CPaymentCode {
 public:
     CPaymentCode();
-    CPaymentCode(std::string payment_code);
+    CPaymentCode(std::string const & payment_code);
     CPaymentCode(unsigned char* payload, int length);
     CPaymentCode(std::vector<unsigned char> const & v_pubkey, std::vector<unsigned char> const & v_chain);
 
@@ -24,19 +24,17 @@ public:
 
     int getVersion();
 
-    std::vector<unsigned char> decode();
-    std::vector<unsigned char> decodeChecked();
-    std::vector<unsigned char>& getPubKey();
-    std::vector<unsigned char>& getChainCode();
+    std::vector<unsigned char> const & getPubKey() const;
+    std::vector<unsigned char> const & getChainCode() const;
 
     string toString() const;
 
     static std::vector<unsigned char> getMask(std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint);
     static std::vector<unsigned char> blind(std::vector<unsigned char> payload, std::vector<unsigned char> mask);
 
-    bool isValid();
-    static bool createMasterPubKeyFromPaymentCode(string payment_code_str,CExtPubKey &masterPubKey);
-    static bool createMasterPubKeyFromBytes(std::vector<unsigned char> &pub, std::vector<unsigned char> &chain,CExtPubKey &masterPubKey);
+    bool isValid() const;
+    static bool createMasterPubKeyFromPaymentCode(std::string const & payment_code_str,CExtPubKey &masterPubKey);
+    static bool createMasterPubKeyFromBytes(std::vector<unsigned char> const &pub, std::vector<unsigned char> const &chain,CExtPubKey &masterPubKey);
 private:
     bool parse();
     string makeV1();

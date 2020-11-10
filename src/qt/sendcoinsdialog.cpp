@@ -395,7 +395,7 @@ void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
 
     // Format confirmation message
     QStringList formatted;
-    bool is_notification_tx;
+    bool is_notification_tx = false;
     QString pcodeqstr;
     Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
     {
@@ -471,7 +471,7 @@ void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
 
     QMessageBox::StandardButton retval;
     
-    if(is_notification_tx) // lgtm [cpp/uninitialized-local] 
+    if(is_notification_tx)
     {
         SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
         formatted.join("<br />"), SEND_CONFIRM_DELAY, this);

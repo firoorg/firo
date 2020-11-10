@@ -615,19 +615,11 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             vector<unsigned char> pubKeyBytes;
             
-            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
-            {
+            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes)) {
                 throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
-            }
-            else
-            {
-
+            } else {
                 designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
-                LogPrintf("ScriptSigPubKey Hash %s\n", designatedPubKey.GetHash().GetHex());
-
             }
-
-
             
             wallet->GetKey(designatedPubKey.GetID(), privKey);
             CPubKey pubkey = toCAccount.getNotificationKey().pubkey;
@@ -637,25 +629,18 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             bip47::utils::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
             bip47::utils::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
 
-            LogPrintf("Generate Secret Point\n");
-            bip47::SecretPoint secretPoint(dataPriv, dataPub);
-            LogPrintf("Generating Secret Point with \n privekey: %s\n pubkey: %s\n", HexStr(dataPriv), HexStr(dataPub));
+            bip47::CSecretPoint secretPoint(dataPriv, dataPub);
             
             vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
 
-            LogPrintf("output: %s\n", newTx->tx->vin[0].prevout.hash.GetHex());
             uint256 secretPBytes(secretPoint.getEcdhSecret());
-            LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
-            LogPrintf("Get Mask from payment code\n");
             vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
 
-            LogPrintf("Get op_return bytes via blind\n");
             vector<unsigned char> op_return = bip47::CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
 
             CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
             CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
-            LogPrintf("Add Blind Code to vecSend\n");
             vecSend.push_back(pcodeBlind);
 
             fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
@@ -668,9 +653,7 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             {
 
                 designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
-                LogPrintf("ScriptSigPubKey Hash %s\n", designatedPubKey.GetHash().GetHex());
-                if(!privKey.VerifyPubKey(designatedPubKey))
-                {
+                if(!privKey.VerifyPubKey(designatedPubKey)) {
                     throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig designatedPubKey cannot be verified \n");
                 }
 
