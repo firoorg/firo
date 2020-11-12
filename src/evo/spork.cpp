@@ -51,6 +51,30 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
     return true;
 }
 
+static bool IsTransactionAllowed(const CTransaction &tx, const std::map<std::string, std::pair<int, int64_t>> &sporkMap, CValidationState &state)
+{
+    if (tx.IsLelantusTransaction()) {
+        if (sporkMap.count(CSporkAction::featureLelantus) > 0)
+            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transactions are disabled at the moment");
+
+        if (tx.IsLelantusJoinSplit()) {
+            const auto &limitSpork = sporkMap.find(CSporkAction::featureLelantusTransparentLimit);
+            if (limitSpork != sporkMap.cend()) {
+                CAmount transparentOutAmount = 0;
+
+                for (const CTxOut &txout: tx.vout) {
+                    if (!txout.scriptPubKey.IsLelantusMint())
+                        transparentOutAmount += txout.nValue;
+                }
+
+                if (transparentOutAmount > (CAmount)limitSpork->second.second)
+                    return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transaction is over the transparent limit");
+            }
+        }
+    }
+    return true;
+}
+
 void CSporkTx::ToJson(UniValue& obj) const
 {
     obj.clear();
@@ -136,6 +160,11 @@ bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBloc
     return pindex->activeDisablingSporks.count(featureName) > 0;
 }
 
+bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state)
+{
+    return ::IsTransactionAllowed(tx, pindex->activeDisablingSporks, state);
+}
+
 // CMempoolSporkManager
 
 bool CMempoolSporkManager::AcceptSporkToMemoryPool(const CTransaction &sporkTx)
@@ -189,4 +218,16 @@ bool CMempoolSporkManager::IsFeatureEnabled(const std::string &feature)
         return true;
 
     return CSporkManager::GetSporkManager()->IsFeatureEnabled(feature, chainTip);
+}
+
+bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidationState &state)
+{
+    if (!::IsTransactionAllowed(tx, mempoolSporks, state))
+        return false;
+
+    const CBlockIndex *chainTip = chainActive.Tip();
+    if (!chainTip)
+        return true;
+
+    return ::IsTransactionAllowed(tx, chainTip->activeDisablingSporks, state);
 }

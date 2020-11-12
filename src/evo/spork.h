@@ -115,7 +115,7 @@ public:
     bool IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex);
 
     // test if transaction is allowed under current spork set
-    bool IsTransactionAllowed(const CTransaction &tx, CBlockIndex *pindex, CValidationState &state);
+    bool IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state);
 
     static CSporkManager *GetSporkManager() { return sharedSporkManager; };
 };
@@ -139,7 +139,7 @@ public:
 
     // test if the feature is enabled
     bool IsFeatureEnabled(const std::string &featureName);
-    bool IsTransactionAllowed(const CTransaction &tx);
+    bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state);
 };
 
 #endif

@@ -498,7 +498,8 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         // evict all the transactions disabled by sporks
         std::set<uint256> evictList;
         for (txiter mi = mapTx.begin(); mi != mapTx.end(); ++mi) {
-            if (!sporkManager.IsTransactionAllowed(mi->GetTx()))
+            CValidationState state;
+            if (!sporkManager.IsTransactionAllowed(mi->GetTx(), state))
                 evictList.insert(mi->GetTx().GetHash());
         }
 

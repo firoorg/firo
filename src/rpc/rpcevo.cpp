@@ -1265,6 +1265,11 @@ UniValue spork(const JSONRPCRequest& request)
 
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     CKey secretKey = ParsePrivKey(pwallet, request.params[0].get_str(), true);
+    CKeyID publicKeyID;
+
+    if (!CBitcoinAddress(Params().GetConsensus().evoSporkKeyID).GetKeyID(publicKeyID) || secretKey.GetPubKey().GetID() != publicKeyID) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "incorrect spork secret key");
+    }
 
     CBitcoinAddress feeAddress(request.params[1].get_str());
     if (!feeAddress.IsValid()) {
