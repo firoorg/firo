@@ -623,13 +623,8 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
             
             wallet->GetKey(designatedPubKey.GetID(), privKey);
             CPubKey pubkey = toCAccount.getNotificationKey().pubkey;
-            vector<unsigned char> dataPriv(privKey.size());
-            vector<unsigned char> dataPub(pubkey.size());
 
-            bip47::utils::arraycopy(privKey.begin(), 0, dataPriv, 0, privKey.size());
-            bip47::utils::arraycopy(pubkey.begin(), 0, dataPub, 0, pubkey.size());
-
-            bip47::CSecretPoint secretPoint(dataPriv, dataPub);
+            bip47::CSecretPoint secretPoint(privKey, pubkey);
             
             vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
 
@@ -731,7 +726,6 @@ WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent(transaction.getTransaction()->GetHash());
             needMainTx = true;
         }
         else 
@@ -1481,7 +1475,6 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
         channel->setLabel(strLabel);
         if(!channel->isNotificationTransactionSent())
         {
-            channel->setStatusSent(transaction.getTransaction()->GetHash());
         }
         else 
         {

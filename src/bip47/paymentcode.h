@@ -3,8 +3,7 @@
 #include "bip47/utils.h"
 #include "base58.h"
 #include "crypto/hmac_sha512.h"
-#include "bip47/channeladdress.h"
-#include "chainparamsbase.h"
+#include <boost/optional.hpp>
 
 namespace bip47 {
 
@@ -13,19 +12,19 @@ static const unsigned int BIP47_INDEX = 47;
 class CPaymentCode {
 public:
     CPaymentCode();
-    CPaymentCode(std::string const & payment_code);
-    CPaymentCode(unsigned char* payload, int length);
-    CPaymentCode(std::vector<unsigned char> const & v_pubkey, std::vector<unsigned char> const & v_chain);
+    CPaymentCode(std::string const & paymentCode);
+    CPaymentCode(CPubKey const & pubKey, ChainCode const & chainCode);
 
-    CChannelAddress notificationAddress();
-
-    CChannelAddress addressAt(int idx) const;
     std::vector<unsigned char> getPayload() const;
 
-    int getVersion();
+    CBitcoinAddress notificationAddress() const;
+    CBitcoinAddress getNthAddress(int idx) const;
 
-    std::vector<unsigned char> const & getPubKey() const;
-    std::vector<unsigned char> const & getChainCode() const;
+    CExtPubKey getNthPubkey(int idx) const;
+    CExtPubKey const & getChildPubKey0() const;
+
+    CPubKey const & getPubKey() const;
+    ChainCode const & getChainCode() const;
 
     string toString() const;
 
@@ -33,31 +32,34 @@ public:
     static std::vector<unsigned char> blind(std::vector<unsigned char> payload, std::vector<unsigned char> mask);
 
     bool isValid() const;
-    static bool createMasterPubKeyFromPaymentCode(std::string const & payment_code_str,CExtPubKey &masterPubKey);
-    static bool createMasterPubKeyFromBytes(std::vector<unsigned char> const &pub, std::vector<unsigned char> const &chain,CExtPubKey &masterPubKey);
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(valid);
+        if(!valid)
+            return;
+        READWRITE(pubKey);
+        READWRITE(chainCode);
+    }
+
 private:
-    bool parse();
+    bool valid;
+    CPubKey pubKey;
+    ChainCode  chainCode;
+   
+    bool parse(std::string const & paymentCode);
     string makeV1();
     string makeV2();
     string make(int version);
 
     static std::vector<unsigned char> vector_xor(std::vector<unsigned char> a, std::vector<unsigned char> b);
 
-    static const int PUBLIC_KEY_Y_OFFSET = 2;
-    static const int PUBLIC_KEY_X_OFFSET = 3;
-    static const int CHAIN_OFFSET = 35;
-    static const int PUBLIC_KEY_X_LEN = 32;
-    static const int PUBLIC_KEY_Y_LEN = 1;
-    static const int PUBLIC_KEY_COMPRESSED_LEN = PUBLIC_KEY_X_LEN + PUBLIC_KEY_Y_LEN;
-    static const int CHAIN_CODE_LEN = 32;
-    static const int PAYLOAD_LEN = 80;
-    static const int PAYMENT_CODE_LEN = PAYLOAD_LEN + 1; // (0x47("P") | payload)
-
-    std::string strPaymentCode;
-    std::vector<unsigned char> pubkey;
-    std::vector<unsigned char>  chaincode;
-    bool valid;
+    mutable boost::optional<CExtPubKey> childPubKey0;
 };
+
+bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);
 
 }
 

@@ -24,8 +24,6 @@ public:
 
     CPaymentCode const & getPaymentCode() const;
 
-    CChannelAddress addressAt(int idx) const;
-
     CExtPubKey keyAt(int idx) const;
     CExtKey keyPrivAt(int idx) const;
     bool isValid() const;

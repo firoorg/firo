@@ -7,75 +7,54 @@
 
 namespace bip47 {
 
-string CPaymentChannel::TAG = "CPaymentChannel";
-
-int CPaymentChannel::STATUS_NOT_SENT = -1;
-int CPaymentChannel::STATUS_SENT_CFM = 1;
 int CPaymentChannel::LOOKAHEAD = 10;
-CPaymentChannel::CPaymentChannel()     
-: status(STATUS_NOT_SENT),
-currentOutgoingIndex(0),
-currentIncomingIndex(-1)
+CPaymentChannel::CPaymentChannel()
+: idxSend(0), idxRecv(0), state(State::created)
 {}
 
-CPaymentChannel::CPaymentChannel(string const & v_myPaymentCode, string const & v_paymentCode)
-: status(STATUS_NOT_SENT),
-currentOutgoingIndex(0),
-currentIncomingIndex(-1)
+CPaymentChannel::CPaymentChannel(CPaymentCode const & myPcode, CPaymentCode const & theirPcode)
+: myPcode(myPcode), theirPcode(theirPcode), idxSend(0), idxRecv(0), state(State::created)
+{}
+
+CPaymentCode const & CPaymentChannel::getMyPCode() const
 {
-    paymentCode = v_paymentCode;
-    myPaymentCode = v_myPaymentCode;
+    return myPcode;
 }
 
-CPaymentChannel::CPaymentChannel(string const & v_myPaymentCode, string const & v_paymentCode, string const & v_label) {
-    paymentCode = v_paymentCode;
-    label = v_label;
-    myPaymentCode = v_myPaymentCode;
-}
-
-string CPaymentChannel::getPaymentCode() const {
-    return paymentCode;
-}
-
-string CPaymentChannel::getMyPaymentCode() const {
-    return myPaymentCode;
-}
-
-void CPaymentChannel::setPaymentCode(string pc) {
-    paymentCode = pc;
-}
-
-uint256 CPaymentChannel::getNotificationTxHash() const
+CPaymentCode const & CPaymentChannel::getTheirPCode() const
 {
-    return notiTxHash;
+    return theirPcode;
 }
 
-std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const {
+std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const
+{
     return incomingAddresses;
 }
 
-int CPaymentChannel::getCurrentIncomingIndex() const {
-    return currentIncomingIndex;
+int CPaymentChannel::getIdxRecv() const
+{
+    return idxRecv;
 }
 
-void CPaymentChannel::generateKeys(CWallet *bip47Wallet) {
+void CPaymentChannel::generateKeys(CWallet *bip47Wallet)
+{
     for(int i = 0; i < LOOKAHEAD; i++)
     {
-        CPaymentCode pcode(paymentCode);
-        CAccount acc = bip47Wallet->getBIP47Account(myPaymentCode);
-        int nextIndex = currentIncomingIndex + 1 + i;
-        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, pcode, nextIndex);
+        CAccount acc = bip47Wallet->getBIP47Account(myPcode.toString());
+        int nextIndex = idxRecv + 1 + i;
+        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, myPcode, nextIndex);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
-        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + paymentCode + "-" + std::to_string(nextIndex), "receive");
+        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + myPcode.toString() + "-" + std::to_string(nextIndex), "receive");
         incomingAddresses.push_back(CAddress(btcAddr.ToString(), nextIndex));
     }
     
-    currentIncomingIndex = currentIncomingIndex + LOOKAHEAD;
+    idxRecv = idxRecv + LOOKAHEAD;
 }
 
-CAddress const * CPaymentChannel::getIncomingAddress(string address) const {
+CAddress const * CPaymentChannel::getIncomingAddress(string address) const
+{
     for (CAddress const & bip47Address: incomingAddresses) {
         if (bip47Address.getAddress().compare(address)==0) {
             return &bip47Address;
@@ -94,47 +73,45 @@ void CPaymentChannel::getTransactions(std::vector<uint256>& hashes) const
     hashes.insert(hashes.end(), transactions.begin(), transactions.end());
 }
 
-void CPaymentChannel::addNewIncomingAddress(string newAddress, int nextIndex) {
+void CPaymentChannel::addNewIncomingAddress(string newAddress, int nextIndex)
+{
     incomingAddresses.push_back(CAddress(newAddress, nextIndex));      
-    currentIncomingIndex = nextIndex;
+    idxRecv = nextIndex;
 }
 
-string CPaymentChannel::getLabel() const {
+std::string const & CPaymentChannel::getLabel() const
+{
     return label;
 }
 
-void CPaymentChannel::setLabel(string l) {
+void CPaymentChannel::setLabel(std::string const & l)
+{
     label = l;
 }
 
-std::vector<string> CPaymentChannel::getOutgoingAddresses() const {
+std::vector<string> CPaymentChannel::getOutgoingAddresses() const
+{
     return outgoingAddresses;
 }
 
-bool CPaymentChannel::isNotificationTransactionSent() const {
-    return status == STATUS_SENT_CFM;
+int CPaymentChannel::getIdxSend() const
+{
+    return idxSend;
 }
 
-void CPaymentChannel::setStatusSent(uint256 notiTxHash) {
-    status = STATUS_SENT_CFM;
-    this->notiTxHash = notiTxHash;
+void CPaymentChannel::incrementOutgoingIndex()
+{
+    idxSend++;
 }
 
-int CPaymentChannel::getCurrentOutgoingIndex() const {
-    return currentOutgoingIndex;
-}
-
-void CPaymentChannel::incrementOutgoingIndex() {
-    currentOutgoingIndex++;
-}
-
-void CPaymentChannel::addAddressToOutgoingAddresses(string address) {
+void CPaymentChannel::addAddressToOutgoingAddresses(string address)
+{
     outgoingAddresses.push_back(address);
 }
 
-void CPaymentChannel::setStatusNotSent() {
-    status = STATUS_NOT_SENT;
-    this->notiTxHash.SetNull();
+bool CPaymentChannel::isNotificationTransactionSent() const
+{
+    return false;
 }
 
 }

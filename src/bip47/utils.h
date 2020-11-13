@@ -23,10 +23,10 @@ class CPaymentAddress;
 class CAccount;
 
 namespace utils {
-void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,unsigned char* dest_arr, int destPos, int len);
-void arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len);
-void copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result);
+void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,unsigned char* dest_arr, size_t destPos, size_t len);
+void arraycopy(const unsigned char *source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len);
+void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len);
+void copyOfRange(const std::vector<unsigned char> &original, size_t from, size_t to,std::vector<unsigned char> &result);
 
 bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
 bool isValidNotificationTransactionOpReturn(CTxOut txout);
@@ -39,7 +39,9 @@ CPaymentAddress getReceiveAddress(CAccount* v_bip47Account, CWallet* pbip47Walle
 CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx);
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
+
 GroupElement GeFromPubkey(CPubKey const & pubKey);
+CPubKey PubkeyFromGe(GroupElement const & ge);
 } }
 
 #endif // ZCOIN_BIP47UTIL_H

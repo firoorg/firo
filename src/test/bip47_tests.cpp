@@ -16,6 +16,7 @@
 #include "bip47/secretpoint.h"
 
 using namespace bip47;
+using vchar = std::vector<unsigned char>;
 
 namespace {
 namespace alice {
@@ -29,47 +30,47 @@ std::string const paymentcode = "PM8TJS2JxQ5ztXUpBBRnpTbcUXbUHy2T1abfrb3KkAAtMEG
 
 
 namespace alice {
-std::vector<std::string> const ecdhparams = {
-    "8d6a8ecd8ee5e0042ad0cb56e3a971c760b5145c3917a8e7beaf0ed92d7a520c",
-    "0353883a146a23f988e0f381a9507cbdb3e3130cd81b3ce26daf2af088724ce683"
+std::vector<vchar> const ecdhparams = {
+    ParseHex("8d6a8ecd8ee5e0042ad0cb56e3a971c760b5145c3917a8e7beaf0ed92d7a520c"),
+    ParseHex("0353883a146a23f988e0f381a9507cbdb3e3130cd81b3ce26daf2af088724ce683")
     };
 }
 namespace bob {
-std::vector<std::string> const ecdhparams = {
-    "04448fd1be0c9c13a5ca0b530e464b619dc091b299b98c5cab9978b32b4a1b8b",
-    "024ce8e3b04ea205ff49f529950616c3db615b1e37753858cc60c1ce64d17e2ad8",
-    "6bfa917e4c44349bfdf46346d389bf73a18cec6bc544ce9f337e14721f06107b",
-    "03e092e58581cf950ff9c8fc64395471733e13f97dedac0044ebd7d60ccc1eea4d",
-    "46d32fbee043d8ee176fe85a18da92557ee00b189b533fce2340e4745c4b7b8c",
-    "029b5f290ef2f98a0462ec691f5cc3ae939325f7577fcaf06cfc3b8fc249402156",
-    "4d3037cfd9479a082d3d56605c71cbf8f38dc088ba9f7a353951317c35e6c343",
-    "02094be7e0eef614056dd7c8958ffa7c6628c1dab6706f2f9f45b5cbd14811de44",
-    "97b94a9d173044b23b32f5ab64d905264622ecd3eafbe74ef986b45ff273bbba",
-    "031054b95b9bc5d2a62a79a58ecfe3af000595963ddc419c26dab75ee62e613842",
-    "ce67e97abf4772d88385e66d9bf530ee66e07172d40219c62ee721ff1a0dca01",
-    "03dac6d8f74cacc7630106a1cfd68026c095d3d572f3ea088d9a078958f8593572",
-    "ef049794ed2eef833d5466b3be6fe7676512aa302afcde0f88d6fcfe8c32cc09",
-    "02396351f38e5e46d9a270ad8ee221f250eb35a575e98805e94d11f45d763c4651",
-    "d3ea8f780bed7ef2cd0e38c5d943639663236247c0a77c2c16d374e5a202455b",
-    "039d46e873827767565141574aecde8fb3b0b4250db9668c73ac742f8b72bca0d0",
-    "efb86ca2a3bad69558c2f7c2a1e2d7008bf7511acad5c2cbf909b851eb77e8f3",
-    "038921acc0665fd4717eb87f81404b96f8cba66761c847ebea086703a6ae7b05bd",
-    "18bcf19b0b4148e59e2bba63414d7a8ead135a7c2f500ae7811125fb6f7ce941",
-    "03d51a06c6b48f067ff144d5acdfbe046efa2e83515012cf4990a89341c1440289"
+std::vector<vchar> const ecdhparams = {
+    ParseHex("04448fd1be0c9c13a5ca0b530e464b619dc091b299b98c5cab9978b32b4a1b8b"),
+    ParseHex("024ce8e3b04ea205ff49f529950616c3db615b1e37753858cc60c1ce64d17e2ad8"),
+    ParseHex("6bfa917e4c44349bfdf46346d389bf73a18cec6bc544ce9f337e14721f06107b"),
+    ParseHex("03e092e58581cf950ff9c8fc64395471733e13f97dedac0044ebd7d60ccc1eea4d"),
+    ParseHex("46d32fbee043d8ee176fe85a18da92557ee00b189b533fce2340e4745c4b7b8c"),
+    ParseHex("029b5f290ef2f98a0462ec691f5cc3ae939325f7577fcaf06cfc3b8fc249402156"),
+    ParseHex("4d3037cfd9479a082d3d56605c71cbf8f38dc088ba9f7a353951317c35e6c343"),
+    ParseHex("02094be7e0eef614056dd7c8958ffa7c6628c1dab6706f2f9f45b5cbd14811de44"),
+    ParseHex("97b94a9d173044b23b32f5ab64d905264622ecd3eafbe74ef986b45ff273bbba"),
+    ParseHex("031054b95b9bc5d2a62a79a58ecfe3af000595963ddc419c26dab75ee62e613842"),
+    ParseHex("ce67e97abf4772d88385e66d9bf530ee66e07172d40219c62ee721ff1a0dca01"),
+    ParseHex("03dac6d8f74cacc7630106a1cfd68026c095d3d572f3ea088d9a078958f8593572"),
+    ParseHex("ef049794ed2eef833d5466b3be6fe7676512aa302afcde0f88d6fcfe8c32cc09"),
+    ParseHex("02396351f38e5e46d9a270ad8ee221f250eb35a575e98805e94d11f45d763c4651"),
+    ParseHex("d3ea8f780bed7ef2cd0e38c5d943639663236247c0a77c2c16d374e5a202455b"),
+    ParseHex("039d46e873827767565141574aecde8fb3b0b4250db9668c73ac742f8b72bca0d0"),
+    ParseHex("efb86ca2a3bad69558c2f7c2a1e2d7008bf7511acad5c2cbf909b851eb77e8f3"),
+    ParseHex("038921acc0665fd4717eb87f81404b96f8cba66761c847ebea086703a6ae7b05bd"),
+    ParseHex("18bcf19b0b4148e59e2bba63414d7a8ead135a7c2f500ae7811125fb6f7ce941"),
+    ParseHex("03d51a06c6b48f067ff144d5acdfbe046efa2e83515012cf4990a89341c1440289")
     };
 }
 
-std::vector<std::string> const sharedsecrets = {
-    "f5bb84706ee366052471e6139e6a9a969d586e5fe6471a9b96c3d8caefe86fef",
-    "adfb9b18ee1c4460852806a8780802096d67a8c1766222598dc801076beb0b4d",
-    "79e860c3eb885723bb5a1d54e5cecb7df5dc33b1d56802906762622fa3c18ee5",
-    "d8339a01189872988ed4bd5954518485edebf52762bf698b75800ac38e32816d",
-    "14c687bc1a01eb31e867e529fee73dd7540c51b9ff98f763adf1fc2f43f98e83",
-    "725a8e3e4f74a50ee901af6444fb035cb8841e0f022da2201b65bc138c6066a2",
-    "521bf140ed6fb5f1493a5164aafbd36d8a9e67696e7feb306611634f53aa9d1f",
-    "5f5ecc738095a6fb1ea47acda4996f1206d3b30448f233ef6ed27baf77e81e46",
-    "1e794128ac4c9837d7c3696bbc169a8ace40567dc262974206fcf581d56defb4",
-    "fe36c27c62c99605d6cd7b63bf8d9fe85d753592b14744efca8be20a4d767c37"
+std::vector<vchar> const sharedsecrets = {
+    ParseHex("f5bb84706ee366052471e6139e6a9a969d586e5fe6471a9b96c3d8caefe86fef"),
+    ParseHex("adfb9b18ee1c4460852806a8780802096d67a8c1766222598dc801076beb0b4d"),
+    ParseHex("79e860c3eb885723bb5a1d54e5cecb7df5dc33b1d56802906762622fa3c18ee5"),
+    ParseHex("d8339a01189872988ed4bd5954518485edebf52762bf698b75800ac38e32816d"),
+    ParseHex("14c687bc1a01eb31e867e529fee73dd7540c51b9ff98f763adf1fc2f43f98e83"),
+    ParseHex("725a8e3e4f74a50ee901af6444fb035cb8841e0f022da2201b65bc138c6066a2"),
+    ParseHex("521bf140ed6fb5f1493a5164aafbd36d8a9e67696e7feb306611634f53aa9d1f"),
+    ParseHex("5f5ecc738095a6fb1ea47acda4996f1206d3b30448f233ef6ed27baf77e81e46"),
+    ParseHex("1e794128ac4c9837d7c3696bbc169a8ace40567dc262974206fcf581d56defb4"),
+    ParseHex("fe36c27c62c99605d6cd7b63bf8d9fe85d753592b14744efca8be20a4d767c37")
     };
 
 namespace alice {
@@ -77,6 +78,31 @@ std::string const notificationaddress = "1JDdmqFLhpzcUwPeinhJbUPw4Co3aWLyzW";
 }
 namespace bob {
 std::string const notificationaddress = "1ChvUUvht2hUQufHBXF8NgLhW8SwE2ecGV";
+}
+
+namespace alice {
+std::vector<std::string> sendingaddresses = {
+    "141fi7TY3h936vRUKh1qfUZr8rSBuYbVBK",
+    "12u3Uued2fuko2nY4SoSFGCoGLCBUGPkk6",
+    "1FsBVhT5dQutGwaPePTYMe5qvYqqjxyftc",
+    "1CZAmrbKL6fJ7wUxb99aETwXhcGeG3CpeA",
+    "1KQvRShk6NqPfpr4Ehd53XUhpemBXtJPTL",
+    "1KsLV2F47JAe6f8RtwzfqhjVa8mZEnTM7t",
+    "1DdK9TknVwvBrJe7urqFmaxEtGF2TMWxzD",
+    "16DpovNuhQJH7JUSZQFLBQgQYS4QB9Wy8e",
+    "17qK2RPGZMDcci2BLQ6Ry2PDGJErrNojT5",
+    "1GxfdfP286uE24qLZ9YRP3EWk2urqXgC4s"
+    };
+}
+
+namespace bob {
+std::vector<std::string> sendingaddresses = {
+    "17SSoP6pwU1yq6fTATEQ7gLMDWiycm68VT",
+    "1KNFAqYPoiy29rTQF44YT3v9tvRJYi15Xf",
+    "1HQkbVeZoLoDpkZi1MB6AgaCs5ZbxTBdZA",
+    "14GfiZb1avg3HSiacMLaoG5xdfPjc1Unvm",
+    "15yHVDiYJn146EKHuJiN79L9S2EZAjGVaK"
+    };
 }
 
 
@@ -97,7 +123,7 @@ BOOST_AUTO_TEST_CASE(payment_codes)
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
         CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
-        bip47::CPaymentCode paymentCode({pubkey.pubkey.begin(), pubkey.pubkey.end()}, {pubkey.chaincode.begin(), pubkey.chaincode.end()});
+        bip47::CPaymentCode paymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
         BOOST_CHECK(paymentCode.isValid());
     }
@@ -106,7 +132,7 @@ BOOST_AUTO_TEST_CASE(payment_codes)
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
         CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
-        bip47::CPaymentCode paymentCode = bip47::CPaymentCode({pubkey.pubkey.begin(), pubkey.pubkey.end()}, {pubkey.chaincode.begin(), pubkey.chaincode.end()});
+        bip47::CPaymentCode paymentCode = bip47::CPaymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
         BOOST_CHECK(paymentCode.isValid());
     }
@@ -121,8 +147,8 @@ BOOST_AUTO_TEST_CASE(ecdh_parameters)
 
         CExtKey privkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CExtPubKey pubkey = privkey.Neuter();
-        BOOST_CHECK_EQUAL(HexStr(privkey.key), ecdhparams[0]);
-        BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), ecdhparams[1]);
+        BOOST_CHECK_EQUAL(HexStr(privkey.key), HexStr(ecdhparams[0]));
+        BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), HexStr(ecdhparams[1]));
     }
 
     { using namespace bob;
@@ -132,8 +158,8 @@ BOOST_AUTO_TEST_CASE(ecdh_parameters)
 
             CExtKey privkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, uint32_t(i)});
             CExtPubKey pubkey = privkey.Neuter();
-            BOOST_CHECK_EQUAL(HexStr(privkey.key), ecdhparams[i*2]);
-            BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), ecdhparams[i*2+1]);
+            BOOST_CHECK_EQUAL(HexStr(privkey.key), HexStr(ecdhparams[i*2]));
+            BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), HexStr(ecdhparams[i*2+1]));
         }
     }
 }
@@ -145,20 +171,12 @@ BOOST_AUTO_TEST_CASE(notification_addresses)
 
     {using namespace alice;
         bip47::CPaymentCode paymentCode(paymentcode);
-        CPubKey pubKey(paymentCode.getPubKey()), pubKey0;
-        ChainCode chainCode(paymentCode.getChainCode()), chainCode0;
-        pubKey.Derive(pubKey0, chainCode0, 0, chainCode);
-        CBitcoinAddress notificationAddress(pubKey0.GetID());
-        BOOST_CHECK_EQUAL(notificationAddress.ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(paymentCode.notificationAddress().ToString(), notificationaddress);
     }
 
     {using namespace bob;
         bip47::CPaymentCode paymentCode(paymentcode);
-        CPubKey pubKey(paymentCode.getPubKey()), pubKey0;
-        ChainCode chainCode(paymentCode.getChainCode()), chainCode0;
-        pubKey.Derive(pubKey0, chainCode0, 0, chainCode);
-        CBitcoinAddress notificationAddress(pubKey0.GetID());
-        BOOST_CHECK_EQUAL(notificationAddress.ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(paymentCode.notificationAddress().ToString(), notificationaddress);
     }
 }
 
@@ -166,11 +184,48 @@ BOOST_AUTO_TEST_CASE(notification_addresses)
 BOOST_AUTO_TEST_CASE(shared_secrets)
 {
     for(size_t i = 0; i < sharedsecrets.size(); ++i) {
-        bip47::CSecretPoint s(ParseHex(alice::ecdhparams[0]), ParseHex(bob::ecdhparams[2 * i + 1]));
-        BOOST_CHECK_EQUAL(HexStr(s.getEcdhSecret()), sharedsecrets[i]);
+        CKey privkey; privkey.Set(alice::ecdhparams[0].begin(), alice::ecdhparams[0].end(), false);
+        CPubKey pubkey(bob::ecdhparams[2 * i + 1].begin(), bob::ecdhparams[2 * i + 1].end());
+        bip47::CSecretPoint s(privkey, pubkey);
+        BOOST_CHECK(s.getEcdhSecret() == sharedsecrets[i]);
     }
-    bip47::CSecretPoint s(ParseHex(bob::ecdhparams[0]), ParseHex(alice::ecdhparams[1]));
-    BOOST_CHECK_EQUAL(HexStr(s.getEcdhSecret()), sharedsecrets[0]);
+    CKey privkey_b; privkey_b.Set(bob::ecdhparams[0].begin(), bob::ecdhparams[0].end(), false);
+    CPubKey pubkey_a(alice::ecdhparams[1].begin(), alice::ecdhparams[1].end());
+    bip47::CSecretPoint const s_ba(privkey_b, pubkey_a);
+    BOOST_CHECK(s_ba.getEcdhSecret() == sharedsecrets[0]);
+
+    CKey privkey_a; privkey_a.Set(alice::ecdhparams[0].begin(), alice::ecdhparams[0].end(), false);
+    CPubKey pubkey_b(bob::ecdhparams[1].begin(), bob::ecdhparams[1].end());
+    bip47::CSecretPoint const s_ab(privkey_a, pubkey_b);
+    BOOST_CHECK(s_ab == s_ba);
 }
+
+BOOST_AUTO_TEST_CASE(sending_addresses)
+{
+    ChangeBase58Prefixes _(Params());
+    {using namespace alice;
+//        bip47::CSecretPoint sp(ParseHex(alice::ecdhparams[0]), ParseHex(bob::ecdhparams[1]));
+//        auto vvv = sp.getEcdhSecret();
+//
+//        std::vector<unsigned char> s(32);
+//        CSHA256().Write(vvv.data(), vvv.size()).Finalize(s.data());
+//
+//        auto vv1 = ParseHex(bob::ecdhparams[1]);
+//        CPubKey bobs;
+//        bobs.Set(vv1.begin(), vv1.end());
+//        secp_primitives::GroupElement B = utils::GeFromPubkey(bobs);
+//        GroupElement G;
+//        G.set_base_g();
+//
+//        secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(s.data());
+//
+//        CPubKey pubKey0 = utils::PubkeyFromGe(Bprime);
+//
+//        CBitcoinAddress notificationAddress(pubKey0.GetID());
+//        std::cerr << notificationAddress.ToString() << std::endl;
+    }
+
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

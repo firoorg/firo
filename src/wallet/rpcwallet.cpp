@@ -4437,12 +4437,8 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if (pchannel->getIncomingAddresses().size() == 0) {
-                bip47::CAccount acc = pwallet->getBIP47Account(pchannel->getMyPaymentCode());
-                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, pwallet, paymentCode, 0);
-                CKey receiveKey = paddr.getReceiveECKey();
-                CPubKey rePubKey = receiveKey.GetPubKey();
-                CBitcoinAddress rcvAddr(rePubKey.GetID());
-                ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
+                bip47::CAccount acc = pwallet->getBIP47Account(pchannel->getMyPCode().toString()); //bip47
+                ret.push_back(Pair("IncomingAddress", paymentCode.getNthAddress(0).ToString()));
             } else {
                 LogPrintf("current Incoming Address size = %d\n", pchannel->getIncomingAddresses().size());
                 ret.push_back(Pair("IncomingAddress Size", int64_t(pchannel->getIncomingAddresses().size())));
@@ -4454,11 +4450,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress", outaddress));
             if (pchannel.getIncomingAddresses().size() == 0) {
                 bip47::CAccount acc = pwallet->getBIP47Account(0);
-                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, pwallet, paymentCode, 0);
-                CKey receiveKey = paddr.getReceiveECKey();
-                CPubKey rePubKey = receiveKey.GetPubKey();
-                CBitcoinAddress rcvAddr(rePubKey.GetID());
-                ret.push_back(Pair("IncomingAddress", rcvAddr.ToString()));
+                ret.push_back(Pair("IncomingAddress", paymentCode.getNthAddress(0).ToString()));
             } else {
                 LogPrintf("current Incoming Address size = %d\n", pchannel.getIncomingAddresses().size());
             }
@@ -4474,13 +4466,12 @@ UniValue listPaymentChannelsRPC(const std::vector<bip47::CPaymentChannel>& chann
     for (size_t i = 0; i < channels.size(); i++) {
         UniValue uniChannelItem(UniValue::VOBJ);
         const bip47::CPaymentChannel& paymentChannelItem = channels[i];
-        uniChannelItem.push_back(Pair("paymentCode", paymentChannelItem.getPaymentCode()));
-        uniChannelItem.push_back(Pair("myPaymentCode", paymentChannelItem.getMyPaymentCode()));
+        uniChannelItem.push_back(Pair("theirPCode", paymentChannelItem.getTheirPCode().toString()));
+        uniChannelItem.push_back(Pair("myPCode", paymentChannelItem.getMyPCode().toString()));
         uniChannelItem.push_back(Pair("label", paymentChannelItem.getLabel()));
         uniChannelItem.push_back(Pair("status", paymentChannelItem.isNotificationTransactionSent()));
-        uniChannelItem.push_back(Pair("currentIncomingIndex", paymentChannelItem.getCurrentIncomingIndex()));
-        uniChannelItem.push_back(Pair("currentOutgoingIndex", paymentChannelItem.getCurrentOutgoingIndex()));
-        uniChannelItem.push_back(Pair("notiTx", paymentChannelItem.getNotificationTxHash().GetHex()));
+        uniChannelItem.push_back(Pair("receiveIndex", paymentChannelItem.getIdxRecv()));
+        uniChannelItem.push_back(Pair("sendIndex", paymentChannelItem.getIdxSend()));
 
         UniValue uniIncomingAddresses(UniValue::VARR);
         std::vector<bip47::CAddress> incomingAddresses = paymentChannelItem.getIncomingAddresses();

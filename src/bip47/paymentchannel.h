@@ -1,11 +1,11 @@
 #ifndef ZCOIN_BIP47CHANNEL_H
 #define ZCOIN_BIP47CHANNEL_H
 #include "bip47/address.h"
+#include "bip47/paymentcode.h"
 #include <string>
 #include "serialize.h"
 #include "streams.h"
 #include "uint256.h"
-
 
 class CWallet;
 
@@ -14,28 +14,34 @@ namespace bip47 {
 class CPaymentChannel
 {
 public:
+    enum State {
+        created = 0,
+        settingUp,  //Payment codes are being exchanged
+        allSet      //Both payment codes are received
+    };
+public:
     CPaymentChannel();
-    CPaymentChannel(std::string const & v_myPaymentCode, std::string const & v_paymentCode);
-    CPaymentChannel(std::string const & v_myPaymentCode, std::string const & v_paymentCode, std::string const & v_label);
+    CPaymentChannel(CPaymentCode const & myPcode, CPaymentCode const & theirPcode);
 
-    string getPaymentCode() const;
-    string getMyPaymentCode() const;
-    void setPaymentCode(string pc);
+    CPaymentCode const & getMyPCode() const;
+    CPaymentCode const & getTheirPCode() const;
+
+    int getIdxRecv() const;
+    int getIdxSend() const;
+
+    std::string const & getLabel() const;
+    void setLabel(std::string const & l);
+    
     std::vector<CAddress> getIncomingAddresses() const;
-    int getCurrentIncomingIndex() const;
+    std::vector<string> getOutgoingAddresses() const;
+    
+    
     void generateKeys(CWallet* bip47Wallet);
     CAddress const * getIncomingAddress(string address) const;
     void addNewIncomingAddress(string newAddress, int nextIndex);
-    string getLabel() const;
-    void setLabel(string l);
-    std::vector<string> getOutgoingAddresses() const;
-    uint256 getNotificationTxHash() const;
     bool isNotificationTransactionSent() const;
-    void setStatusSent(uint256 notiTxHash);
-    int getCurrentOutgoingIndex() const;
     void incrementOutgoingIndex();
     void addAddressToOutgoingAddresses(string address);
-    void setStatusNotSent();
     void addTransaction(uint256 hash);
     void getTransactions(std::vector<uint256>& hashes) const;
 
@@ -43,34 +49,30 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(paymentCode);
-        READWRITE(myPaymentCode);
+        READWRITE(myPcode);
+        READWRITE(theirPcode);
         READWRITE(label);
-        READWRITE(status);
-        READWRITE(currentIncomingIndex);
-        READWRITE(currentOutgoingIndex);
+        READWRITE(idxRecv);
+        READWRITE(idxSend);
         READWRITE(incomingAddresses);
         READWRITE(outgoingAddresses);
-        READWRITE(notiTxHash);
         READWRITE(transactions);
+        uint8_t tmpState = state;
+        READWRITE(tmpState);
+        state = State(tmpState);
     }
 
 private:
-    static string TAG;
-
-    static int STATUS_NOT_SENT;
-    static int STATUS_SENT_CFM;
     static int LOOKAHEAD;
-    string myPaymentCode;
-    string paymentCode;
-    string label;
+    CPaymentCode myPcode;
+    CPaymentCode theirPcode;
+    std::string label;
     std::vector<CAddress> incomingAddresses;
-    std::vector<string> outgoingAddresses;
+    std::vector<std::string> outgoingAddresses;
     std::vector<uint256> transactions;
-    int status;
-    int currentOutgoingIndex;
-    int currentIncomingIndex;
-    uint256 notiTxHash;
+    size_t idxSend;
+    size_t idxRecv;
+    State state;
 };
 
 }

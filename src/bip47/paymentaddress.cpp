@@ -74,35 +74,23 @@ Scalar CPaymentAddress::getSecretPoint() {
 
 
 // GetECPoint from the public keys derived in CPaymentCode 
-GroupElement CPaymentAddress::getECPoint(bool isMine) {
-    
-    
-    
-    vector<unsigned char> pubkeybytes;
-    if(isMine)
-    {
-        pubkeybytes = pwalletMain->getBIP47Account(0).getPaymentCode().addressAt(index).getPubKey();
+GroupElement CPaymentAddress::getECPoint(bool isMine)
+{
+    CExtPubKey pubkey;
+    if(isMine) {
+        pubkey = pwalletMain->getBIP47Account(0).getPaymentCode().getNthPubkey(index);
+    } else {
+        pubkey = paymentCode.getNthPubkey(index);
     }
-    else
-    {
-        pubkeybytes = paymentCode.addressAt(index).getPubKey();    
-    }
-    
-    
-    
-    
     GroupElement ge;
-    
     std::vector<unsigned char> serializedGe;
-    std::copy(pubkeybytes.begin() + 1, pubkeybytes.end(), std::back_inserter(serializedGe));
-    serializedGe.push_back(pubkeybytes[0] == 0x02 ? 0 : 1);
+    std::copy(pubkey.pubkey.begin() + 1, pubkey.pubkey.end(), std::back_inserter(serializedGe));
+    serializedGe.push_back(pubkey.pubkey[0] == 0x02 ? 0 : 1);
     serializedGe.push_back(0x0);
     ge.deserialize(&serializedGe[0]);
-    
 
     return ge;
 }
-
 
 
 std::vector<unsigned char> CPaymentAddress::hashSharedSecret() {
@@ -172,7 +160,8 @@ CKey CPaymentAddress::getReceiveECKey(Scalar s)
 
 CSecretPoint CPaymentAddress::sharedSecret()
 {
-    CSecretPoint secP(privKey, paymentCode.addressAt(index).getPubKey());
+    CKey privkey; privkey.Set(privKey.begin(), privKey.end(), false);
+    CSecretPoint secP(privkey, paymentCode.getNthPubkey(index).pubkey);
     return secP;
 }
 

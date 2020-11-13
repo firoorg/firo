@@ -1233,11 +1233,6 @@ public:
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 
-    /** @Todo
-     *  We will need merge bip47 wallet to wallet instead of inherit.
-     *  For now will use separated class
-     * 
-     * */
 private:
     CExtKey masterKey;
     
@@ -1258,11 +1253,7 @@ public:
     bool IsNotificationScript(const CScript& scriptPubkey) const;
     bool isNotificationTransaction(const CTransaction& tx) const;
     bool isNotificationTransactionSent(string pcodestr) const;
-    bool isNotificationTransactionSentByMe(const CTransaction& tx) const;
-    const bip47::CPaymentChannel* findPaymentChannelFromNotificationTransaction(const CTransaction& tx) const;
     bip47::CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
-    string findPaymentChannelForOutgoingAddress(string address) const ;
-    string findPaymentChannelForIncomingAddress(string address) const ;
     CBitcoinAddress getAddressOfReceived(CTransaction tx) const;
     CBitcoinAddress getAddressOfSent(CTransaction tx) const;
     bool ReadMasterKey(CExtKey& masterKey);
@@ -1280,7 +1271,6 @@ public:
     std::string getNotificationAddress(int i) const;
 
     std::string getPaymentCode(size_t i) const;
-    std::string getPaymentCodeForAddress(std::string const & address) const;
     
     void deriveBip47Accounts(CExtKey const & masterKey);
     std::string generateNewPCode(CExtKey const & masterKey);
@@ -1305,7 +1295,7 @@ public:
     
     bool importKey(CKey imKey, bool fRescan = false);
     bool importBip47PendingKeys();
-    CBitcoinAddress getAddressOfKey(CPubKey pkey);
+    CBitcoinAddress getAddressOfKey(CPubKey const & pkey);
 
     bool HaveKey(const CKeyID &address) const
     {

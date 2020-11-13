@@ -14,7 +14,7 @@ CAccount::CAccount(CExtKey &coinType, int identity)
         throw std::runtime_error("Cannot derive prvkey");
     }
     key = prvkey.Neuter();
-    paymentCode = CPaymentCode({key.pubkey.begin(), key.pubkey.end()}, {key.chaincode.begin(), key.chaincode.end()});
+    paymentCode = CPaymentCode(key.pubkey, key.chaincode);
 }
 
 CAccount::CAccount(std::string const & strPaymentCode)
@@ -25,11 +25,6 @@ CAccount::CAccount(std::string const & strPaymentCode)
 
 bool CAccount::SetPaymentCodeString(std::string const & strPaymentCode)
 {
-    if (!CPaymentCode::createMasterPubKeyFromPaymentCode(strPaymentCode, this->key)) 
-    {
-        throw std::runtime_error("createMasterPubKeyFromPaymentCode return false while SetPaymentCodestd::string.\n");
-    }
-
     paymentCode = CPaymentCode(strPaymentCode);
     return true;
 }
@@ -38,10 +33,10 @@ bool CAccount::isValid() const
 {
 
     CAccount testAccount(paymentCode.toString());
-    std::vector<unsigned char> pcodePubkeybytes = testAccount.paymentCode.getPubKey();
+    std::vector<unsigned char> pcodePubkeybytes(testAccount.paymentCode.getPubKey().begin(), testAccount.paymentCode.getPubKey().end());
     std::vector<unsigned char> acPubkeybytes(key.pubkey.begin(), key.pubkey.end());
     
-    for(int i =0; i < pcodePubkeybytes.size(); i++) {
+    for(size_t i =0; i < pcodePubkeybytes.size(); i++) {
         if(pcodePubkeybytes[i] != acPubkeybytes[i])
         {
             return false;
@@ -49,12 +44,7 @@ bool CAccount::isValid() const
     }
     
 
-    CExtPubKey pubkey;
-    if (!CPaymentCode::createMasterPubKeyFromPaymentCode(paymentCode.toString(), pubkey)) 
-    {
-        LogPrintf("createMasterPubKeyFromPaymentCode Error in Function isValid.\n");
-        return false;
-    }
+    CExtPubKey pubkey = paymentCode.getChildPubKey0();
 
     if(pubkey.nDepth != key.nDepth) 
     {
@@ -67,7 +57,7 @@ bool CAccount::isValid() const
         LogPrintf("chaincode invalid CAccount");
         return false;
     }
-    for(int i =0; i< pubkey.pubkey.size(); i++) 
+    for(size_t i =0; i< pubkey.pubkey.size(); i++)
     {
         if(pubkey.pubkey[i] != key.pubkey[i])
         {
@@ -124,11 +114,6 @@ CExtKey CAccount::getNotificationPrivKey()
 CPaymentCode const & CAccount::getPaymentCode() const
 {
     return paymentCode;
-}
-
-CChannelAddress CAccount::addressAt(int idx) const
-{
-    return CChannelAddress(key, idx);
 }
 
 CExtPubKey CAccount::keyAt(int idx) const

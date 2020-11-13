@@ -9,17 +9,14 @@ namespace bip47 {
 class CSecretPoint {
 public:
     CSecretPoint() = delete;
-    CSecretPoint(std::vector<unsigned char> const & dataPrv, std::vector<unsigned char> const & dataPub);
+    CSecretPoint(CKey const & privkey, CPubKey const & pubkey);
 
     std::vector<unsigned char> getEcdhSecret() const;
 
-    bool isShared(CSecretPoint const & secret) const;
-
+    bool operator==(CSecretPoint const & other) const;
 private:
-    bool equals(CSecretPoint const & v_secret) const;
-
     secp_primitives::Scalar a;
-    CPubKey pubKey;
+    CPubKey pubkey;
 };
 
 }

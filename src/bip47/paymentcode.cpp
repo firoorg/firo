@@ -1,51 +1,40 @@
 
 #include "bip47/paymentcode.h"
-#include "bip47/channeladdress.h"
 #include "util.h"
 
 namespace bip47 {
 
+namespace {
+const size_t PUBLIC_KEY_Y_OFFSET = 2;
+const size_t PUBLIC_KEY_X_OFFSET = 3;
+const size_t CHAIN_OFFSET = 35;
+const size_t PUBLIC_KEY_X_LEN = 32;
+const size_t PUBLIC_KEY_Y_LEN = 1;
+const size_t PUBLIC_KEY_COMPRESSED_LEN = PUBLIC_KEY_X_LEN + PUBLIC_KEY_Y_LEN;
+const size_t CHAIN_CODE_LEN = 32;
+const size_t PAYLOAD_LEN = 80;
+const size_t PAYMENT_CODE_LEN = PAYLOAD_LEN + 1; // (0x47("P") | payload)
+const unsigned char THE_P = 0x47; //"P"
+}
+
 CPaymentCode::CPaymentCode ()
+:valid(false)
 {}
 
-CPaymentCode::CPaymentCode (std::string const & payment_code)
-: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
+CPaymentCode::CPaymentCode (std::string const & paymentCode)
 {
-    strPaymentCode = payment_code;
-    valid = parse();
+    valid = parse(paymentCode);
     if(!valid) {
-        throw std::runtime_error("Cannot parse the payment code");
+        throw std::runtime_error("Cannot parse the payment code.");
     }
 
 }
 
-CPaymentCode::CPaymentCode (unsigned char* payload, int length)
-: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
+CPaymentCode::CPaymentCode (CPubKey const & pubKey, ChainCode const & chainCode)
+:  valid(true), pubKey(pubKey), chainCode(chainCode)
 {
-    valid = false;
-    if ( length == PAYLOAD_LEN ) {
-        utils::arraycopy ( payload, PUBLIC_KEY_Y_OFFSET, pubkey, 0, PUBLIC_KEY_COMPRESSED_LEN );
-        utils::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
-        strPaymentCode = makeV1();
-        valid = parse();
-    }
-    if(!valid){
-        throw std::runtime_error("Cannot parse the payment code");
-    }
-}
-
-CPaymentCode::CPaymentCode (std::vector<unsigned char> const & v_pubkey, std::vector<unsigned char> const & v_chaincode)
-: pubkey(PUBLIC_KEY_COMPRESSED_LEN), chaincode(CHAIN_CODE_LEN)
-{
-    if(v_pubkey.size() < PUBLIC_KEY_COMPRESSED_LEN || v_chaincode.size() < CHAIN_CODE_LEN) {
-        throw std::invalid_argument("v_pubkey or v_chaincode is too short");
-    }
-    utils::arraycopy ( v_pubkey.data(),0,pubkey,0,PUBLIC_KEY_COMPRESSED_LEN );
-    utils::arraycopy ( v_chaincode.data(),0,chaincode, 0, PUBLIC_KEY_X_LEN );
-    strPaymentCode = makeV1();
-    valid = parse();
-    if(!valid){
-        throw std::runtime_error("Cannot parse the payment code");
+    if(!pubKey.IsValid() || chainCode.IsNull()) {
+        throw std::runtime_error("Cannot initialize the payment code with invalid data.");
     }
 }
 
@@ -53,54 +42,61 @@ bool CPaymentCode::isValid() const {
     return valid;
 }
 
-CChannelAddress CPaymentCode::notificationAddress()
+CBitcoinAddress CPaymentCode::notificationAddress() const
 {
-    return addressAt (0);
+    return CBitcoinAddress(getChildPubKey0().pubkey.GetID());
 }
 
-CChannelAddress CPaymentCode::addressAt ( int idx ) const
+CExtPubKey CPaymentCode::getNthPubkey(int idx) const
 {
-    CExtPubKey key;
-    if ( !createMasterPubKeyFromPaymentCode ( strPaymentCode,key ) ) {
-       throw std::runtime_error( "CPaymentCode::addressAt is failed");
-    }
-    return CChannelAddress ( key, idx );
+    CExtPubKey result;
+    getChildPubKey0().Derive(result, idx);
+    return result;
+}
+
+CBitcoinAddress CPaymentCode::getNthAddress(int idx) const
+{
+    return CBitcoinAddress(getNthPubkey(idx).pubkey.GetID());
 }
 
 std::vector<unsigned char> CPaymentCode::getPayload() const
 {
-    std::vector<unsigned char> pcBytes;
-    if ( !DecodeBase58Check ( strPaymentCode,pcBytes ) ) {
-        LogPrintf ( "CPaymentCode::getPayload is failed in DecodeBase58Check\n" );
-        return std::vector<unsigned char> (0);
+    std::vector<unsigned char> payload;
+    payload.reserve(PAYLOAD_LEN);
 
+    payload.push_back(1);
+    payload.push_back(0);
+    std::copy(pubKey.begin(), pubKey.begin() + pubKey.size(), std::back_inserter(payload));
+    std::copy(chainCode.begin(), chainCode.begin() + chainCode.size(), std::back_inserter(payload));
+
+    if(payload.size() != 67) {
+        throw std::runtime_error("Payload construction failed");
     }
 
-    std::vector<unsigned char> payload ( PAYLOAD_LEN );
-    utils::arraycopy ( pcBytes, 1, payload, 0, payload.size() );
+    while(payload.size() < PAYLOAD_LEN) {
+        payload.push_back(0);
+    }
+
     return payload;
 }
 
-int CPaymentCode::getVersion()
+CPubKey const & CPaymentCode::getPubKey() const
 {
-    std::vector<unsigned char> payload = getPayload();
-    unsigned char version = payload[0];
-    return version;
+    return pubKey;
 }
 
-std::vector<unsigned char> const & CPaymentCode::getPubKey() const
+ChainCode const & CPaymentCode::getChainCode() const
 {
-    return pubkey;
-}
-
-std::vector<unsigned char> const & CPaymentCode::getChainCode() const
-{
-    return chaincode;
+    return chainCode;
 }
 
 std::string CPaymentCode::toString() const
 {
-    return strPaymentCode;
+    std::vector<unsigned char> pc, pl = getPayload();
+    pc.reserve(1 + PAYLOAD_LEN);
+    pc.push_back(THE_P);
+    pc.insert(pc.end(), pl.begin(), pl.end());
+    return EncodeBase58Check(pc);
 }
 
 std::vector<unsigned char> CPaymentCode::getMask ( std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint )
@@ -131,51 +127,25 @@ std::vector<unsigned char> CPaymentCode::blind ( std::vector<unsigned char> payl
     return ret;
 }
 
-bool CPaymentCode::parse()
+bool CPaymentCode::parse(std::string const & paymentCode)
 {
     std::vector<unsigned char> pcBytes;
-    if (!DecodeBase58Check(strPaymentCode, pcBytes)) 
-        return false;
+    if (!DecodeBase58Check(paymentCode, pcBytes))
+        return error("Cannot Base58-decode the payment code");
 
-    if ( pcBytes[0] != 0x47 ) {
-        LogPrintf ( "invalid payment code version" );
-        return false;
-    } else {
-        utils::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET, pubkey, 0,  PUBLIC_KEY_COMPRESSED_LEN );
-        if ( pubkey[0] != 2 && pubkey[0] != 3 ) {
-            LogPrintf ( "invalid public key" );
-            return false;
-        } else {
-            utils::arraycopy ( pcBytes, PUBLIC_KEY_X_OFFSET+PUBLIC_KEY_COMPRESSED_LEN, chaincode, 0, PUBLIC_KEY_X_LEN );
-        }
+    if(pcBytes.size() != PAYMENT_CODE_LEN)
+        return error("Payment code lenght is invalid");
+
+    if ( pcBytes[0] != THE_P ) {
+        return error("invalid payment code version");
     }
+    pubKey.Set(pcBytes.begin() + PUBLIC_KEY_X_OFFSET, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN);
+    if ( pubKey[0] != 2 && pubKey[0] != 3 ) {
+        return error("invalid public key");
+    }
+    std::copy(pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN + PUBLIC_KEY_X_LEN, chainCode.begin());
     return true;
 }
-string CPaymentCode::makeV1()
-{
-    return make(1);
-}
-
-string CPaymentCode::makeV2()
-{
-    return make(2);
-}
-
-string CPaymentCode::make (int version)
-{
-    std::vector<unsigned char> payload (PAYLOAD_LEN);
-    std::vector<unsigned char> payment_code (PAYMENT_CODE_LEN);
-
-    payload[0] = (unsigned char)(version);
-    payload[1] = 0;
-    utils::arraycopy ( pubkey, 0, payload, PUBLIC_KEY_Y_OFFSET, pubkey.size() );
-    utils::arraycopy ( chaincode, 0, payload, CHAIN_OFFSET, chaincode.size() );
-    payment_code[0] = 0x47;
-    utils::arraycopy ( payload, 0, payment_code, 1, payload.size() );
-
-    return EncodeBase58Check ( payment_code );
-}
-
 
 std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char> a, std::vector<unsigned char> b )
 {
@@ -193,20 +163,28 @@ std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char>
     }
 }
 
+CExtPubKey const & CPaymentCode::getChildPubKey0() const {
+    if(!childPubKey0) {
+        CExtPubKey pktmp;
+        pktmp.pubkey = pubKey;
+        pktmp.chaincode = chainCode;
 
-bool CPaymentCode::createMasterPubKeyFromPaymentCode (std::string const & payment_code_str, CExtPubKey &masterPubKey )
-{
-    CPaymentCode pcode ( payment_code_str );
-    return CPaymentCode::createMasterPubKeyFromBytes ( pcode.getPubKey(), pcode.getChainCode(), masterPubKey);
+        childPubKey0.emplace();
+        pktmp.Derive(*childPubKey0, 0);
+        childPubKey0->nChild = 0;
+        childPubKey0->nDepth = 3;
+    }
+    return *childPubKey0;
 }
 
-bool CPaymentCode::createMasterPubKeyFromBytes ( std::vector<unsigned char> const &pub, std::vector<unsigned char> const &chaincode, CExtPubKey &masterPubKey )
-{
-    masterPubKey.nDepth = 3;
-    memset ( masterPubKey.vchFingerprint, 0, sizeof ( masterPubKey.vchFingerprint ) );
-    memcpy ( masterPubKey.chaincode.begin(), chaincode.data(), PUBLIC_KEY_X_LEN );
-    masterPubKey.pubkey.Set ( pub.begin(), pub.end() );
-    return true;
+bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs) {
+    if(lhs.isValid() != rhs.isValid())
+        return false;
+    if(!lhs.isValid() && !rhs.isValid())
+        return true;
+    if(lhs.getPubKey() != rhs.getPubKey())
+        return false;
+    return lhs.getChainCode() == rhs.getChainCode();
 }
 
 }

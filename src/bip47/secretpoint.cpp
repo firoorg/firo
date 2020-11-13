@@ -7,29 +7,20 @@
 
 namespace bip47 {
 
-CSecretPoint::CSecretPoint(std::vector<unsigned char> const & dataPrv, std::vector<unsigned char> const & dataPub)
-:a(dataPrv.data())
-{
-    pubKey.Set(dataPub.begin(), dataPub.end());
-}
-
-bool CSecretPoint::isShared(CSecretPoint const & secret) const
-{
-    return equals(secret);
-}
+CSecretPoint::CSecretPoint(CKey const & privkey, CPubKey const & pubkey)
+:a(privkey.begin()), pubkey(pubkey)
+{}
 
 std::vector<unsigned char> CSecretPoint::getEcdhSecret() const {
-    secp_primitives::GroupElement B = utils::GeFromPubkey(pubKey);
+    secp_primitives::GroupElement B = utils::GeFromPubkey(pubkey);
     std::vector<unsigned char> result = (B * a).getvch();
     result.erase(result.end() - 2, result.end());
     return result;
 }
 
-bool CSecretPoint::equals(CSecretPoint const & v_secret) const
+bool CSecretPoint::operator==(CSecretPoint const & other) const
 {
-    std::vector<unsigned char> const v1 = getEcdhSecret()
-        , v2 = v_secret.getEcdhSecret();
-    return v1 == v2;
+    return getEcdhSecret() == other.getEcdhSecret();
 }
 
 }

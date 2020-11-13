@@ -13,21 +13,21 @@ using namespace std;
 namespace bip47 {
 namespace utils {
 
-void arraycopy(const std::vector<unsigned char> &source_arr, int sourcePos, unsigned char* dest_arr, int destPos, int len){
+void arraycopy(const std::vector<unsigned char> &source_arr, size_t sourcePos, unsigned char* dest_arr, size_t destPos, size_t len){
     if(source_arr.size() < sourcePos + len)
     {
         throw std::runtime_error("arraycopy error, source_arr has invalid size");
     }
     memcpy(dest_arr + destPos,source_arr.data() + sourcePos , len);
 }
-void arraycopy(const unsigned char *source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+void arraycopy(const unsigned char *source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
     }
     memcpy(dest_arr.data() + destPos, source_arr + sourcePos , len);
 }
-void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::vector<unsigned char> &dest_arr, int destPos, int len){
+void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len){
     if(dest_arr.size() < destPos + len)
     {
         throw std::runtime_error("arraycopy error, dest_arr has invalid size");
@@ -38,7 +38,7 @@ void arraycopy(const std::vector<unsigned char> &source_arr,int sourcePos,std::v
     }
     memcpy(dest_arr.data() + destPos, source_arr.data() + sourcePos , len);
 }
-void copyOfRange(const std::vector<unsigned char> &original, int from, int to,std::vector<unsigned char> &result) {
+void copyOfRange(const std::vector<unsigned char> &original, size_t from, size_t to,std::vector<unsigned char> &result) {
     int newLength = to - from;
     if (newLength < 0)
         throw std::runtime_error(from + " > " + to);
@@ -69,7 +69,7 @@ bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned cha
 }
 
 bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
-    for(int i = 0; i < tx.vout.size(); i++) {
+    for(size_t i = 0; i < tx.vout.size(); i++) {
         if (tx.vout[i].scriptPubKey[0] == OP_RETURN) {
             txout = tx.vout[i];
             return true;
@@ -144,8 +144,8 @@ bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privK
 
 
     vector<unsigned char> outpoint(tx.vin[0].prevout.hash.begin(), tx.vin[0].prevout.hash.end());
-    
-    CSecretPoint secretPoint(privKeyBytes, pubKeyBytes);
+    CKey key; key.Set(privKeyBytes.begin(), privKeyBytes.end(), false);
+    CSecretPoint secretPoint(key, CPubKey(pubKeyBytes));
     
     LogPrintf("Generating Secret Point for Decode with \n privekey: %s\n pubkey: %s\n", HexStr(privKeyBytes), HexStr(pubKeyBytes));
     
@@ -155,8 +155,9 @@ bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privK
 
     vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
     vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
-    CPaymentCode pcode(payload.data(), payload.size());
-    paymentCode = pcode;
+//bip47
+//    CPaymentCode pcode(payload.data(), payload.size());
+//    paymentCode = pcode;
     return true;
 }
 
@@ -220,21 +221,21 @@ bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes)
 
 CPaymentAddress getPaymentAddress(CPaymentCode const & pcode, int idx, CExtKey const & extkey) {
     vector<unsigned char> ppkeybytes(extkey.key.begin(), extkey.key.end());
-    
+
     CPaymentAddress paddr(pcode, idx, ppkeybytes);
     return paddr;
-    
+
 }
 
 CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode const & pcode_from, int idx)
 {
     CPaymentAddress pm_address;
-    //loook for bip47 account that has payment address as in the chanel 
+    //loook for bip47 account that has payment address as in the chanel
     CExtKey accEkey = v_bip47Account->keyPrivAt(idx);
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_from, 0, accEkey);
-    
+
     return pm_address;
 }
 
@@ -245,9 +246,9 @@ CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode
     if(accEkey.key.IsValid()){ //Keep Empty
     }
     pm_address = getPaymentAddress(pcode_to, idx, accEkey);
-    
+
     return pm_address;
-    
+
 }
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)
@@ -275,6 +276,17 @@ GroupElement GeFromPubkey(CPubKey const & pubKey) {
     serializedGe.push_back(*pubKey.begin() == 0x02 ? 0 : 1);
     serializedGe.push_back(0x0);
     result.deserialize(&serializedGe[0]);
+    return result;
+}
+
+CPubKey PubkeyFromGe(GroupElement const & ge) {
+    vector<unsigned char> pubkey_vch = ge.getvch();
+    pubkey_vch.pop_back();
+    unsigned char header_char = pubkey_vch[pubkey_vch.size()-1] == 0 ? 0x02 : 0x03;
+    pubkey_vch.pop_back();
+    pubkey_vch.insert(pubkey_vch.begin(), header_char);
+    CPubKey result;
+    result.Set(pubkey_vch.begin(), pubkey_vch.end());
     return result;
 }
 
