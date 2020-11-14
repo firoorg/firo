@@ -6816,6 +6816,63 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
+CAmount CWallet::EstimateJoinSplitFee(CAmount required, const CCoinControl *coinControl) {
+    CAmount fee;
+
+    std::vector<CLelantusEntry> spendCoins;
+    std::vector<CSigmaEntry> sigmaSpendCoins;
+
+    for (fee = payTxFee.GetFeePerK();;) {
+        spendCoins.clear();
+        sigmaSpendCoins.clear();
+        auto &consensusParams = Params().GetConsensus();
+        CAmount changeToMint = 0;
+
+        std::vector<sigma::CoinDenomination> denomChanges;
+        try {
+            std::list<CSigmaEntry> coins = this->GetAvailableCoins(coinControl);
+            CAmount availableBalance(0);
+            for (auto coin : coins) {
+                availableBalance += coin.get_denomination_value();
+            }
+            if (availableBalance > 0) {
+                CAmount inputFromSigma;
+                if (required > availableBalance)
+                    inputFromSigma = availableBalance;
+                else
+                    inputFromSigma = required;
+
+                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                                       consensusParams.nMaxLelantusInputPerTransaction,
+                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+                required -= inputFromSigma;
+            }
+        } catch (std::runtime_error) {
+        }
+
+        if (required > 0) {
+            if (!this->GetCoinsToJoinSplit(required, spendCoins, changeToMint,
+                                            consensusParams.nMaxLelantusInputPerTransaction,
+                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
+                throw InsufficientFunds();
+            }
+        }
+
+        // 9560 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
+        // 179 other parts of tx, assuming 1 utxo and 1 jmint
+        unsigned size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+
+        if (fee >= feeNeeded) {
+            break;
+        }
+
+        fee = feeNeeded;
+    }
+
+    return fee;
+}
+
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
     EnsureMintWalletAvailable();
 
