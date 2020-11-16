@@ -269,6 +269,8 @@ public:
 
     std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
+    CAmount GetJMintCredit(const CTxOut& txout) const;
+
 private:
     CWallet *wallet;
 

@@ -1401,6 +1401,10 @@ std::vector<CSigmaEntry> WalletModel::GetUnsafeCoins(const CCoinControl* coinCon
     return unsafeCoins;
 }
 
+CAmount WalletModel::GetJMintCredit(const CTxOut& txout) const {
+    return wallet->GetCredit(txout, ISMINE_SPENDABLE);
+}
+
 bool WalletModel::isWalletEnabled()
 {
    return !GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET);
