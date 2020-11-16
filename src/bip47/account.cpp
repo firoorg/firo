@@ -44,7 +44,7 @@ bool CAccount::isValid() const
     }
     
 
-    CExtPubKey pubkey = paymentCode.getChildPubKey0();
+    CExtPubKey pubkey = paymentCode.getNthPubkey(0);
 
     if(pubkey.nDepth != key.nDepth) 
     {

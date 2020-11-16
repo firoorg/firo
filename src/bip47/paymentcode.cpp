@@ -44,14 +44,7 @@ bool CPaymentCode::isValid() const {
 
 CBitcoinAddress CPaymentCode::notificationAddress() const
 {
-    return CBitcoinAddress(getChildPubKey0().pubkey.GetID());
-}
-
-CExtPubKey CPaymentCode::getNthPubkey(int idx) const
-{
-    CExtPubKey result;
-    getChildPubKey0().Derive(result, idx);
-    return result;
+    return CBitcoinAddress(getNthPubkey(0).pubkey.GetID());
 }
 
 CBitcoinAddress CPaymentCode::getNthAddress(int idx) const
@@ -163,18 +156,22 @@ std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char>
     }
 }
 
-CExtPubKey const & CPaymentCode::getChildPubKey0() const {
-    if(!childPubKey0) {
-        CExtPubKey pktmp;
-        pktmp.pubkey = pubKey;
-        pktmp.chaincode = chainCode;
+CExtPubKey CPaymentCode::getNthPubkey(size_t idx) const
+{
+    CExtPubKey result;
+    getChildPubKeyBase().Derive(result, idx);
+    result.nChild = idx;
+    result.nDepth = 4;
+    return result;
+}
 
-        childPubKey0.emplace();
-        pktmp.Derive(*childPubKey0, 0);
-        childPubKey0->nChild = 0;
-        childPubKey0->nDepth = 3;
+CExtPubKey const & CPaymentCode::getChildPubKeyBase() const {
+    if(!childPubKeyBase) {
+        childPubKeyBase.emplace();
+        childPubKeyBase->pubkey = pubKey;
+        childPubKeyBase->chaincode = chainCode;
     }
-    return *childPubKey0;
+    return *childPubKeyBase;
 }
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs) {

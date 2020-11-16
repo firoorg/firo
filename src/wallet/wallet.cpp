@@ -1299,7 +1299,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
                         if(generateNewBip47IncomingAddress(toaddr, pchannel))
                         {
 
-                            saveCPaymentChannelData(pchannel->getMyPCode().toString());
+                            saveCPaymentChannelData(pchannel->getTheirPcode().toString());
                         }
                     }
                 }
@@ -2374,14 +2374,14 @@ void CWallet::saveCPaymentChannelData(string pchannelId)
 
 bool CWallet::addToCPaymentChannel(bip47::CPaymentChannel paymentChannel)
 {
-    if (m_Bip47channels.count(paymentChannel.getTheirPCode().toString()) > 0)
+    if (m_Bip47channels.count(paymentChannel.getMyPcode().toString()) > 0)
     {
-        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator it = m_Bip47channels.find(paymentChannel.getTheirPCode().toString());
+        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator it = m_Bip47channels.find(paymentChannel.getMyPcode().toString());
         //search for the chanel with the same my payment code
         bool found = false;
         for(size_t i = 0; i < it->second.size(); i++) 
         {
-            if (it->second[i].getMyPCode() == paymentChannel.getMyPCode())
+            if (it->second[i].getTheirPcode() == paymentChannel.getTheirPcode())
             {
                 it->second[i].setLabel(paymentChannel.getLabel());
                 found = true;
@@ -2394,7 +2394,7 @@ bool CWallet::addToCPaymentChannel(bip47::CPaymentChannel paymentChannel)
         return false;
     }
     std::vector<bip47::CPaymentChannel> channels{paymentChannel};
-    m_Bip47channels.insert(make_pair(paymentChannel.getTheirPCode().toString(), channels));
+    m_Bip47channels.insert(make_pair(paymentChannel.getMyPcode().toString(), channels));
     return true;
 
 }
@@ -2429,8 +2429,8 @@ bool CWallet::generateNewBip47IncomingAddress(string address, bip47::CPaymentCha
             return false;
         }
         int nextIndex = pchannel->getIdxRecv() + 1;
-        bip47::CAccount acc = getBIP47Account(pchannel->getMyPCode().toString());
-        CKey nkey = bip47::utils::getReceiveAddress(&acc, this, pchannel->getTheirPCode(), nextIndex).getReceiveECKey();
+        bip47::CAccount acc = getBIP47Account(pchannel->getTheirPcode().toString());
+        CKey nkey = bip47::utils::getReceiveAddress(&acc, this, pchannel->getMyPcode(), nextIndex).getReceiveECKey();
         CPubKey npkey = nkey.GetPubKey();
         importKey(nkey);
         CBitcoinAddress newaddr(npkey.GetID());
@@ -2454,7 +2454,7 @@ bip47::CPaymentChannel* CWallet::getPaymentChannelFromPaymentCode(std::string co
         } else {
             std::vector<bip47::CPaymentChannel>& channels = it->second;
             for (size_t i = 0; i < channels.size(); i++) {
-                if (channels[i].getMyPCode() == myPaymentCode) {
+                if (channels[i].getTheirPcode() == myPaymentCode) {
                     return &channels[i];
                 }
             }
@@ -2513,7 +2513,7 @@ void CWallet::processNotificationTransaction(CTransaction const & tx)
 
 std::string CWallet::getCurrentOutgoingAddress(bip47::CPaymentChannel paymentChannel)
 {
-    return paymentChannel.getTheirPCode().getNthAddress(paymentChannel.getIdxSend()).ToString();
+    return paymentChannel.getMyPcode().getNthAddress(paymentChannel.getIdxSend()).ToString();
 }
 
 bool CWallet::importKey(CKey imKey, bool fRescan)
@@ -2585,12 +2585,12 @@ void CWallet::deriveBip47Keys()
             for(size_t j = 0; j < incomingAddresses.size(); j++)
             {
                 const bip47::CAddress& bip47Address = incomingAddresses[j];
-                bip47::CAccount acc = getBIP47Account(channel.getMyPCode().toString());
-                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, this, channel.getTheirPCode(), bip47Address.getIndex());
+                bip47::CAccount acc = getBIP47Account(channel.getTheirPcode().toString());
+                bip47::CPaymentAddress paddr = bip47::utils::getReceiveAddress(&acc, this, channel.getMyPcode(), bip47Address.getIndex());
                 CKey newgenKey = paddr.getReceiveECKey();
                 importKey(newgenKey);
-                CBitcoinAddress btcAddr =  channel.getTheirPCode().getNthAddress(bip47Address.getIndex());
-                SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + channel.getTheirPCode().toString() + "-" + std::to_string(bip47Address.getIndex()), "receive");
+                CBitcoinAddress btcAddr =  channel.getMyPcode().getNthAddress(bip47Address.getIndex());
+                SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + channel.getMyPcode().toString() + "-" + std::to_string(bip47Address.getIndex()), "receive");
             }
         }  
     }    

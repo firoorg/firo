@@ -7,23 +7,53 @@
 
 namespace bip47 {
 
-int CPaymentChannel::LOOKAHEAD = 10;
-CPaymentChannel::CPaymentChannel()
-: idxSend(0), idxRecv(0), state(State::created)
-{}
-
-CPaymentChannel::CPaymentChannel(CPaymentCode const & myPcode, CPaymentCode const & theirPcode)
-: myPcode(myPcode), theirPcode(theirPcode), idxSend(0), idxRecv(0), state(State::created)
-{}
-
-CPaymentCode const & CPaymentChannel::getMyPCode() const
-{
-    return myPcode;
+namespace{
+int LOOKAHEAD = 10;
 }
 
-CPaymentCode const & CPaymentChannel::getTheirPCode() const
+CPaymentChannel::CPaymentChannel()
+: idxSend(0), idxRecv(0), state(State::created), iamPayer(false)
+{}
+
+CPaymentChannel::CPaymentChannel(CPaymentCode const & payerPcode, CPaymentCode const & payeePcode)
+: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false)
+{}
+
+
+CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CKey const & myMasterKey, bool iamPayer)
+: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false), myMasterKey(myMasterKey)
+{}
+
+std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t number) const
+{
+    static GroupElement const G(GroupElement().set_base_g());
+    std::vector<CBitcoinAddress> result;
+    for(size_t i = 0; i < number; ++i) {
+        CPubKey const theirPubkey = theirPcode.getNthPubkey(i).pubkey;
+        CSecretPoint sp(myMasterKey, theirPubkey);
+        std::vector<unsigned char> spBytes = sp.getEcdhSecret();
+
+        std::vector<unsigned char> spHash(32);
+        CSHA256().Write(spBytes.data(), spBytes.size()).Finalize(spHash.data());
+
+        secp_primitives::GroupElement B = utils::GeFromPubkey(theirPubkey);
+        secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(spHash.data());
+        CPubKey pubKeyN = utils::PubkeyFromGe(Bprime);
+
+        result.emplace_back(pubKeyN.GetID());
+    }
+
+    return result;
+}
+
+CPaymentCode const & CPaymentChannel::getTheirPcode() const
 {
     return theirPcode;
+}
+
+CPaymentCode const & CPaymentChannel::getMyPcode() const
+{
+    return payeePcode;
 }
 
 std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const
@@ -40,31 +70,22 @@ void CPaymentChannel::generateKeys(CWallet *bip47Wallet)
 {
     for(int i = 0; i < LOOKAHEAD; i++)
     {
-        CAccount acc = bip47Wallet->getBIP47Account(myPcode.toString());
+        CAccount acc = bip47Wallet->getBIP47Account(theirPcode.toString());
         int nextIndex = idxRecv + 1 + i;
-        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, myPcode, nextIndex);
+        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, theirPcode, nextIndex);
         CKey newgenKey = paddr.getReceiveECKey();
         bip47Wallet->importKey(newgenKey);
         CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
-        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + myPcode.toString() + "-" + std::to_string(nextIndex), "receive");
+        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + theirPcode.toString() + "-" + std::to_string(nextIndex), "receive");
         incomingAddresses.push_back(CAddress(btcAddr.ToString(), nextIndex));
     }
     
     idxRecv = idxRecv + LOOKAHEAD;
 }
 
-CAddress const * CPaymentChannel::getIncomingAddress(string address) const
-{
-    for (CAddress const & bip47Address: incomingAddresses) {
-        if (bip47Address.getAddress().compare(address)==0) {
-            return &bip47Address;
-        }
-    }
-    return nullptr;
-}
-
 void CPaymentChannel::addTransaction(uint256 hash)
-{   if (hash.IsNull()) return;
+{
+    if (hash.IsNull()) return;
     if (std::find(transactions.begin(), transactions.end(), hash) != transactions.end()) return;
     transactions.push_back(hash);
 }

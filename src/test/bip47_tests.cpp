@@ -197,35 +197,34 @@ BOOST_AUTO_TEST_CASE(shared_secrets)
     CKey privkey_a; privkey_a.Set(alice::ecdhparams[0].begin(), alice::ecdhparams[0].end(), false);
     CPubKey pubkey_b(bob::ecdhparams[1].begin(), bob::ecdhparams[1].end());
     bip47::CSecretPoint const s_ab(privkey_a, pubkey_b);
-    BOOST_CHECK(s_ab == s_ba);
+    BOOST_CHECK(s_ab.isShared(s_ba));
 }
 
 BOOST_AUTO_TEST_CASE(sending_addresses)
 {
     ChangeBase58Prefixes _(Params());
+
     {using namespace alice;
-//        bip47::CSecretPoint sp(ParseHex(alice::ecdhparams[0]), ParseHex(bob::ecdhparams[1]));
-//        auto vvv = sp.getEcdhSecret();
-//
-//        std::vector<unsigned char> s(32);
-//        CSHA256().Write(vvv.data(), vvv.size()).Finalize(s.data());
-//
-//        auto vv1 = ParseHex(bob::ecdhparams[1]);
-//        CPubKey bobs;
-//        bobs.Set(vv1.begin(), vv1.end());
-//        secp_primitives::GroupElement B = utils::GeFromPubkey(bobs);
-//        GroupElement G;
-//        G.set_base_g();
-//
-//        secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(s.data());
-//
-//        CPubKey pubKey0 = utils::PubkeyFromGe(Bprime);
-//
-//        CBitcoinAddress notificationAddress(pubKey0.GetID());
-//        std::cerr << notificationAddress.ToString() << std::endl;
+        CKey privkey_alice; privkey_alice.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CPaymentCode const paymentCode_bob(bob::paymentcode);
+        CPaymentChannel paymentChannel(paymentCode_bob, paymentCode_bob, privkey_alice, true);
+
+        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(10)) {
+            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        }
     }
 
-}
+    {using namespace bob;
+        CKey privkey_bob; privkey_bob.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CPaymentCode const paymentCode_alice(alice::paymentcode);
+        CPaymentChannel paymentChannel(paymentCode_alice, paymentCode_alice, privkey_bob, true);
 
+        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(5)) {
+            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        }
+    }
+}
 
 BOOST_AUTO_TEST_SUITE_END()

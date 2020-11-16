@@ -21,23 +21,24 @@ public:
     };
 public:
     CPaymentChannel();
-    CPaymentChannel(CPaymentCode const & myPcode, CPaymentCode const & theirPcode);
+    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode);
+    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CKey const & myMasterKey, bool iamPayer);
 
-    CPaymentCode const & getMyPCode() const;
-    CPaymentCode const & getTheirPCode() const;
+    std::vector<CBitcoinAddress> generateTheirAddresses(size_t number) const;
+
+    CPaymentCode const & getTheirPcode() const;
+    CPaymentCode const & getMyPcode() const;
 
     int getIdxRecv() const;
     int getIdxSend() const;
 
     std::string const & getLabel() const;
     void setLabel(std::string const & l);
-    
+
     std::vector<CAddress> getIncomingAddresses() const;
     std::vector<string> getOutgoingAddresses() const;
-    
-    
+
     void generateKeys(CWallet* bip47Wallet);
-    CAddress const * getIncomingAddress(string address) const;
     void addNewIncomingAddress(string newAddress, int nextIndex);
     bool isNotificationTransactionSent() const;
     void incrementOutgoingIndex();
@@ -49,8 +50,8 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(myPcode);
         READWRITE(theirPcode);
+        READWRITE(payeePcode);
         READWRITE(label);
         READWRITE(idxRecv);
         READWRITE(idxSend);
@@ -60,12 +61,11 @@ public:
         uint8_t tmpState = state;
         READWRITE(tmpState);
         state = State(tmpState);
+        READWRITE(iamPayer);
     }
 
 private:
-    static int LOOKAHEAD;
-    CPaymentCode myPcode;
-    CPaymentCode theirPcode;
+    CPaymentCode theirPcode, payeePcode;
     std::string label;
     std::vector<CAddress> incomingAddresses;
     std::vector<std::string> outgoingAddresses;
@@ -73,6 +73,9 @@ private:
     size_t idxSend;
     size_t idxRecv;
     State state;
+    bool iamPayer;
+
+    CKey myMasterKey;
 };
 
 }

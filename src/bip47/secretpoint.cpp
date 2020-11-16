@@ -18,7 +18,7 @@ std::vector<unsigned char> CSecretPoint::getEcdhSecret() const {
     return result;
 }
 
-bool CSecretPoint::operator==(CSecretPoint const & other) const
+bool CSecretPoint::isShared(CSecretPoint const & other) const
 {
     return getEcdhSecret() == other.getEcdhSecret();
 }

@@ -20,8 +20,7 @@ public:
     CBitcoinAddress notificationAddress() const;
     CBitcoinAddress getNthAddress(int idx) const;
 
-    CExtPubKey getNthPubkey(int idx) const;
-    CExtPubKey const & getChildPubKey0() const;
+    CExtPubKey getNthPubkey(size_t idx) const;
 
     CPubKey const & getPubKey() const;
     ChainCode const & getChainCode() const;
@@ -48,15 +47,13 @@ private:
     bool valid;
     CPubKey pubKey;
     ChainCode  chainCode;
+    CExtPubKey const & getChildPubKeyBase() const;
    
     bool parse(std::string const & paymentCode);
-    string makeV1();
-    string makeV2();
-    string make(int version);
 
     static std::vector<unsigned char> vector_xor(std::vector<unsigned char> a, std::vector<unsigned char> b);
 
-    mutable boost::optional<CExtPubKey> childPubKey0;
+    mutable boost::optional<CExtPubKey> childPubKeyBase;
 };
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);

@@ -13,7 +13,7 @@ public:
 
     std::vector<unsigned char> getEcdhSecret() const;
 
-    bool operator==(CSecretPoint const & other) const;
+    bool isShared(CSecretPoint const & other) const;
 private:
     secp_primitives::Scalar a;
     CPubKey pubkey;

@@ -4437,7 +4437,7 @@ UniValue validatepcode(const JSONRPCRequest& request)
             ret.push_back(Pair("OutGoingAddress", outaddress));
             ret.push_back(Pair("OutGoingAddress Size", int64_t(pchannel->getOutgoingAddresses().size())));
             if (pchannel->getIncomingAddresses().size() == 0) {
-                bip47::CAccount acc = pwallet->getBIP47Account(pchannel->getMyPCode().toString()); //bip47
+                bip47::CAccount acc = pwallet->getBIP47Account(pchannel->getTheirPcode().toString()); //bip47
                 ret.push_back(Pair("IncomingAddress", paymentCode.getNthAddress(0).ToString()));
             } else {
                 LogPrintf("current Incoming Address size = %d\n", pchannel->getIncomingAddresses().size());
@@ -4466,8 +4466,8 @@ UniValue listPaymentChannelsRPC(const std::vector<bip47::CPaymentChannel>& chann
     for (size_t i = 0; i < channels.size(); i++) {
         UniValue uniChannelItem(UniValue::VOBJ);
         const bip47::CPaymentChannel& paymentChannelItem = channels[i];
-        uniChannelItem.push_back(Pair("theirPCode", paymentChannelItem.getTheirPCode().toString()));
-        uniChannelItem.push_back(Pair("myPCode", paymentChannelItem.getMyPCode().toString()));
+        uniChannelItem.push_back(Pair("theirPCode", paymentChannelItem.getMyPcode().toString()));
+        uniChannelItem.push_back(Pair("myPCode", paymentChannelItem.getTheirPcode().toString()));
         uniChannelItem.push_back(Pair("label", paymentChannelItem.getLabel()));
         uniChannelItem.push_back(Pair("status", paymentChannelItem.isNotificationTransactionSent()));
         uniChannelItem.push_back(Pair("receiveIndex", paymentChannelItem.getIdxRecv()));
