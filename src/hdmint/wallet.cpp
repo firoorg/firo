@@ -1002,7 +1002,7 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
  * @param sigma reference to full mint object
  * @return success
  */
-bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma)
+bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma, bool forEstimation)
 {
     sigma::CoinDenomination denom;
     IntegerToDenomination(dMint.GetAmount(), denom);
@@ -1013,16 +1013,20 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CS
     CKeyID seedId = dMint.GetSeedId();
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    GenerateMint(walletdb, denom, coin, dMintDummy, mintPoolEntry, true);
+    if(!forEstimation)
+        GenerateMint(walletdb, denom, coin, dMintDummy, mintPoolEntry, true);
 
     //Fill in the sigmamint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash() && !forEstimation)
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
-    sigma.value = bnValue;
+    if(forEstimation)
+        sigma.value = dMint.GetPubcoinValue();
+    else
+        sigma.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash() && !forEstimation)
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
     sigma.set_denomination(denom);
@@ -1036,7 +1040,7 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CS
     return true;
 }
 
-bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& lelantusEntry)
+bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& lelantusEntry, bool forEstimation)
 {
     //Generate the coin
     lelantus::PrivateCoin coin(lelantus::Params::get_default(), dMint.GetAmount());
@@ -1045,16 +1049,20 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CL
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
     uint160 dummySeedId;
-    GenerateLelantusMint(walletdb, coin, dMintDummy, dummySeedId, mintPoolEntry, true);
+    if(!forEstimation)
+        GenerateLelantusMint(walletdb, coin, dMintDummy, dummySeedId, mintPoolEntry, true);
 
     //Fill in the lelantus object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash() && !forEstimation)
         return error("%s: failed to correctly generate lelantus mint, pubcoin hash mismatch", __func__);
-    lelantusEntry.value = bnValue;
+    if(forEstimation)
+        lelantusEntry.value = dMint.GetPubcoinValue();
+    else
+        lelantusEntry.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash() && !forEstimation)
         return error("%s: failed to correctly generate lelantus mint, serial hash mismatch", __func__);
 
     lelantusEntry.amount = dMint.GetAmount();

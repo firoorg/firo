@@ -926,9 +926,9 @@ public:
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
+    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
-    std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false) const;
+    std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
@@ -947,7 +947,8 @@ public:
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsLimit = SIZE_MAX,
         const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL) const;
+        const CCoinControl *coinControl = NULL,
+        bool forEstimation = false) const;
 
     bool GetCoinsToJoinSplit(
             CAmount required,
@@ -955,7 +956,8 @@ public:
             CAmount& changeToMint,
             const size_t coinsToSpendLimit = SIZE_MAX,
             const CAmount amountToSpendLimit = MAX_MONEY,
-            const CCoinControl *coinControl = NULL) const;
+            const CCoinControl *coinControl = NULL,
+            bool forEstimation = false) const;
 
     /**
      * Insert additional inputs into the transaction by
@@ -1040,9 +1042,11 @@ public:
 
     void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
-    bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
+    CAmount EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
 
-    bool GetMint(const uint256& hashSerial, CLelantusEntry& mint) const;
+    bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin, bool forEstimation = false) const;
+
+    bool GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation = false) const;
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount);
