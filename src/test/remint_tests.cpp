@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    // Mint 1 XZC zerocoin and remint it on wrong fork
+    // Mint 1 FIRO zerocoin and remint it on wrong fork
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, "1"), stringError + " - Create Mint failed");
     CreateAndProcessBlock(scriptPubKey);
     CBlockIndex *forkBlockIndex = chainActive.Tip();
@@ -157,8 +157,8 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     for (int i=0; i<5; i++)
         CreateAndProcessBlock(scriptPubKey);
 
-    // spend coin for 100 xzc
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "100", false), stringError + " - 100 xzc spend failed");
+    // spend coin for 100 firo
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "100", false), stringError + " - 100 firo spend failed");
     CreateAndProcessBlock(scriptPubKey);
     BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, "Incorrect used coin serial state after zerocoin spend");
     CBigNum zcSpentSerial = *zerocoinState->usedCoinSerials.begin();
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     // Temporarily remove spent coin from the list of spent serials
     zerocoinState->usedCoinSerials.erase(zcSpentSerial);
 
-    // Try remint for 100 xzc. Again should pass
+    // Try remint for 100 firo. Again should pass
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)100), stringError + " - Remint failed");
 
     // Restore state and verify that it fails to get into the block because it was spent as zerocoin

@@ -88,7 +88,7 @@
     </message>
 </context>
 <context>
-    <name>ZcoinGUI</name>
+    <name>FiroGUI</name>
     <message>
         <source>&amp;Transactions</source>
         <translation>Transazioni</translation>
@@ -202,6 +202,6 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>firo-core</name>
     </context>
 </TS>

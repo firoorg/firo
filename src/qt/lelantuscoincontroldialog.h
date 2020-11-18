@@ -1,9 +1,9 @@
-// Copyright (c) 2020 The Zcoin Core developers
+// Copyright (c) 2020 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H
-#define ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H
+#ifndef FIRO_QT_LELANTUSCOINCONTROLDIALOG_H
+#define FIRO_QT_LELANTUSCOINCONTROLDIALOG_H
 
 #include "../amount.h"
 #include "../script/standard.h"
@@ -111,4 +111,4 @@ private Q_SLOTS:
     void updateLabelLocked();
 };
 
-#endif // ZCOIN_QT_LELANTUSCOINCONTROLDIALOG_H
+#endif // FIRO_QT_LELANTUSCOINCONTROLDIALOG_H

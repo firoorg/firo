@@ -48,6 +48,6 @@ static const int ELYSIUM_VERSION = // lgtm [cpp/unused-static-variable]
 const std::string ElysiumVersion();
 
 //! Returns formatted Bitcoin Core version, e.g. "0.10", "0.9.3"
-const std::string ZcoinCoreVersion();
+const std::string FiroCoreVersion();
 
 #endif // ELYSIUM_VERSION_H

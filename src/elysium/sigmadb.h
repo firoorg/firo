@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_SIGMADB_H
-#define ZCOIN_ELYSIUM_SIGMADB_H
+#ifndef FIRO_ELYSIUM_SIGMADB_H
+#define FIRO_ELYSIUM_SIGMADB_H
 
 #include "convert.h"
 #include "persistence.h"
@@ -118,4 +118,4 @@ extern SigmaDatabase *sigmaDb;
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_SIGMADB_H
+#endif // FIRO_ELYSIUM_SIGMADB_H

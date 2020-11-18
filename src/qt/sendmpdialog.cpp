@@ -171,7 +171,7 @@ void SendMPDialog::updateFrom()
         if (CheckFee(currentSetFromAddress, 16)) {
             ui->feeWarningLabel->setVisible(false);
         } else {
-            ui->feeWarningLabel->setText("WARNING: The sending address is low on XZC for transaction fees. Please topup the XZC balance for the sending address to send Elysium transactions.");
+            ui->feeWarningLabel->setText("WARNING: The sending address is low on FIRO for transaction fees. Please topup the FIRO balance for the sending address to send Elysium transactions.");
             ui->feeWarningLabel->setVisible(true);
         }
     }

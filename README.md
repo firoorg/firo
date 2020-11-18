@@ -1,26 +1,26 @@
 Firo
 ===============
 
-[![Financial Contributors on Open Collective](https://opencollective.com/firo/all/badge.svg?label=financial+contributors)](https://opencollective.com/firo) [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/firoorg/firo/releases)
-[![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/firoorg/firo/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/firoorg/firo/releases)
-[![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
-[![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/zcoinofficial/zcoin)](https://github.com/firoorg/firo/graphs/code-frequency)
-[![GitHub last-commit](https://img.shields.io/github/last-commit/zcoinofficial/zcoin)](https://github.com/firoorg/firo/commits/master)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/context:cpp)
+[![Financial Contributors on Open Collective](https://opencollective.com/firo/all/badge.svg?label=financial+contributors)](https://opencollective.com/firo) [![latest-release](https://img.shields.io/github/release/firoorg/firo)](https://github.com/firoorg/firo/releases)
+[![GitHub last-release](https://img.shields.io/github/release-date/firoorg/firo)](https://github.com/firoorg/firo/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/firoorg/firo/total)](https://github.com/firoorg/firo/releases)
+[![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
+[![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
+[![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/context:cpp)
 
 What is Firo?
 --------------
 
-[Firo](https://Firo.org) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://zcoin.io/what-is-sigma-and-why-is-it-replacing-zerocoin-in-zcoin/) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
+[Firo](https://firo.org) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://firo.org/what-is-sigma-and-why-is-it-replacing-zerocoin-in-firo/) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
 Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
-![A comparison chart of Zcoin’s solutions with other leading privacy technologies can be found below](https://zcoin.io/wp-content/uploads/2019/04/zcoin_table_coloured5-01.png) 
-read more https://zcoin.io/zcoins-privacy-technology-compares-competition/
+![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/wp-content/uploads/2019/04/firo_table_coloured5-01.png) 
+read more https://firo.org/firos-privacy-technology-compares-competition/
 
 Running with Docker
 ===================
@@ -28,48 +28,48 @@ Running with Docker
 If you are already familiar with Docker, then running Firo with Docker might be the the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
-Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Firo via this method.
+Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `firo-cli` utility) to interact with Firo via this method.
 
 Pull our latest official Docker image:
 
 ```sh
-docker pull zcoinofficial/zcoind
+docker pull firoorg/firod
 ```
 
-Start Zcoin daemon:
+Start Firo daemon:
 
 ```sh
-docker run --detach --name zcoind zcoinofficial/zcoind
+docker run --detach --name firod firoorg/firod
 ```
 
 View current block count (this might take a while since the daemon needs to find other nodes and download blocks first):
 
 ```sh
-docker exec zcoind zcoin-cli getblockcount
+docker exec firod firo-cli getblockcount
 ```
 
 View connected nodes:
 
 ```sh
-docker exec zcoind zcoin-cli getpeerinfo
+docker exec firod firo-cli getpeerinfo
 ```
 
 Stop daemon:
 
 ```sh
-docker stop zcoind
+docker stop firod
 ```
 
 Backup wallet:
 
 ```sh
-docker cp zcoind:/home/zcoind/.zcoin/wallet.dat .
+docker cp firod:/home/firod/.firo/wallet.dat .
 ```
 
 Start daemon again:
 
 ```sh
-docker start zcoind
+docker start firod
 ```
 
 Linux Build Instructions and Notes
@@ -103,7 +103,7 @@ Build
 
         git clone https://github.com/firoorg/firo
 
-2.  Build Zcoin-core:
+2.  Build Firo-core:
 
     Configure and build the headless Firo binaries as well as the GUI (if Qt is found).
 

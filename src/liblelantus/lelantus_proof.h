@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LIBLELANTUS_LELANTUSPROOF_H
-#define ZCOIN_LIBLELANTUS_LELANTUSPROOF_H
+#ifndef FIRO_LIBLELANTUS_LELANTUSPROOF_H
+#define FIRO_LIBLELANTUS_LELANTUSPROOF_H
 
 #include "schnorr_proof.h"
 #include "range_proof.h"
@@ -33,4 +33,4 @@ public:
 };
 }//namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_LELANTUSPROOF_H
+#endif //FIRO_LIBLELANTUS_LELANTUSPROOF_H

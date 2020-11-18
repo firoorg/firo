@@ -16,14 +16,14 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Zcoin"
-            VALUE "FileDescription",    "zcoin-tx (CLI Zcoin transaction editor utility)"
+            VALUE "CompanyName",        "Firo"
+            VALUE "FileDescription",    "firo-tx (CLI Firo transaction editor utility)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
-            VALUE "InternalName",       "zcoin-tx"
+            VALUE "InternalName",       "firo-tx"
             VALUE "LegalCopyright",     COPYRIGHT_STR
             VALUE "LegalTrademarks1",   "Distributed under the MIT software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php."
-            VALUE "OriginalFilename",   "zcoin-tx.exe"
-            VALUE "ProductName",        "zcoin-tx"
+            VALUE "OriginalFilename",   "firo-tx.exe"
+            VALUE "ProductName",        "firo-tx"
             VALUE "ProductVersion",     VER_PRODUCTVERSION_STR
         END
     END

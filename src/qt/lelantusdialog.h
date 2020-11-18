@@ -1,5 +1,5 @@
-#ifndef ZCOIN_QT_LELANTUSDIALOG_H
-#define ZCOIN_QT_LELANTUSDIALOG_H
+#ifndef FIRO_QT_LELANTUSDIALOG_H
+#define FIRO_QT_LELANTUSDIALOG_H
 
 #include "../script/standard.h"
 #include "../wallet/coincontrol.h"
@@ -102,4 +102,4 @@ private:
     CoinControlStorage coinControlStorage;
 };
 
-#endif // ZCOIN_QT_LELANTUSDIALOG_H
+#endif // FIRO_QT_LELANTUSDIALOG_H

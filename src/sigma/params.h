@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMA_PARAMS_H
-#define ZCOIN_SIGMA_PARAMS_H
+#ifndef FIRO_SIGMA_PARAMS_H
+#define FIRO_SIGMA_PARAMS_H
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include <serialize.h>
@@ -31,4 +31,4 @@ private:
 
 }//namespace sigma
 
-#endif //ZCOIN_SIGMA_PARAMS_H
+#endif //FIRO_SIGMA_PARAMS_H

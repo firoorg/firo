@@ -228,7 +228,7 @@ struct Params {
     // The block number after which lelantus is accepted.
     int nLelantusStartBlock;
 
-    // The block number when Bip39 was implemented in Zcoin
+    // The block number when Bip39 was implemented in Firo
     int nMnemonicBlock;
 
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.

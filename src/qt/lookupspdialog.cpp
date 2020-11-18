@@ -112,7 +112,7 @@ void LookupSPDialog::searchSP()
     catch(const boost::bad_lexical_cast &e) { }
     if (searchParamType == 1 && 0 >= searchPropertyId) searchParamType = 0; // we got a number but it's <=0
 
-    // next if not positive numerical, lets see if the string is a valid Zcoin address for issuer search
+    // next if not positive numerical, lets see if the string is a valid Firo address for issuer search
     if (searchParamType == 0)
     {
         CBitcoinAddress address;

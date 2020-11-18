@@ -139,7 +139,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         sub.idx = parts.size();
         sub.debit = -txAmount;
         sub.credit = txAmount;
-        sub.address = QCoreApplication::translate("zcoin-core", "Zerocoin->Sigma remint").toStdString();
+        sub.address = QCoreApplication::translate("firo-core", "Zerocoin->Sigma remint").toStdString();
         parts.append(sub);
     }
     else if (nNet > 0 || wtx.IsCoinBase())

@@ -75,10 +75,10 @@ for arg in sys.argv[1:]:
         opts.add(arg)
 
 #Set env vars
-if "ZCOIND" not in os.environ:
-    os.environ["ZCOIND"] = BUILDDIR + '/src/zcoind' + EXEEXT
-if "ZCOINCLI" not in os.environ:
-    os.environ["ZCOINCLI"] = BUILDDIR + '/src/zcoin-cli' + EXEEXT
+if "firod" not in os.environ:
+    os.environ["firod"] = BUILDDIR + '/src/firod' + EXEEXT
+if "FIROCLI" not in os.environ:
+    os.environ["FIROCLI"] = BUILDDIR + '/src/firo-cli' + EXEEXT
 
 if EXEEXT == ".exe" and "-win" not in opts:
     # https://github.com/bitcoin/bitcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
@@ -173,7 +173,7 @@ testScripts = [
     'p2p-leaktests.py',
     'notifications.py',
 
-    # Zcoin-specific tests
+    # Firo-specific tests
     'wallet_dumpnonhd.py',
     'wallet_dumpsigma.py',
     'wallet_dumpzerocoin.py',

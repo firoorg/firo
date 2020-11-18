@@ -16,14 +16,14 @@
 
 #include <boost/test/unit_test.hpp>
 
-static const std::string strSecret1     (bitcoin_address_to_zcoin("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj"));
-static const std::string strSecret2     (bitcoin_address_to_zcoin("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3"));
-static const std::string strSecret1C    (bitcoin_address_to_zcoin("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw"));
-static const std::string strSecret2C    (bitcoin_address_to_zcoin("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g"));
-static const CBitcoinAddress addr1 (bitcoin_address_to_zcoin("1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ"));
-static const CBitcoinAddress addr2 (bitcoin_address_to_zcoin("1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ"));
-static const CBitcoinAddress addr1C(bitcoin_address_to_zcoin("1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs"));
-static const CBitcoinAddress addr2C(bitcoin_address_to_zcoin("1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs"));
+static const std::string strSecret1     (bitcoin_address_to_firo("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj"));
+static const std::string strSecret2     (bitcoin_address_to_firo("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3"));
+static const std::string strSecret1C    (bitcoin_address_to_firo("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw"));
+static const std::string strSecret2C    (bitcoin_address_to_firo("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g"));
+static const CBitcoinAddress addr1 (bitcoin_address_to_firo("1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ"));
+static const CBitcoinAddress addr2 (bitcoin_address_to_firo("1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ"));
+static const CBitcoinAddress addr1C(bitcoin_address_to_firo("1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs"));
+static const CBitcoinAddress addr2C(bitcoin_address_to_firo("1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs"));
 
 
 static const std::string strAddressBad("1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF");

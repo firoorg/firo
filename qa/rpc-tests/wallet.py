@@ -273,15 +273,15 @@ class WalletTest (BitcoinTestFramework):
         otp = self.get_otp(temp_address)
         assert_raises_jsonrpc(-4, f'Private key for address {temp_address} is not known', self.nodes[0].dumpprivkey, temp_address, otp)
 
-        # This will raise an exception for attempting to get the private key of an Invalid Zcoin address
+        # This will raise an exception for attempting to get the private key of an Invalid Firo address
         otp = self.get_otp("invalid")
-        assert_raises_jsonrpc(-5, "Invalid Zcoin address", self.nodes[0].dumpprivkey, "invalid", otp)
+        assert_raises_jsonrpc(-5, "Invalid Firo address", self.nodes[0].dumpprivkey, "invalid", otp)
 
-        # # This will raise an exception for attempting to set a label for an Invalid Zcoin address
-        # assert_raises_jsonrpc(-5, "Invalid Zcoin address", self.nodes[0].setlabel, "invalid address", "label")
+        # # This will raise an exception for attempting to set a label for an Invalid Firo address
+        # assert_raises_jsonrpc(-5, "Invalid Firo address", self.nodes[0].setlabel, "invalid address", "label")
 
         # This will raise an exception for importing an invalid address
-        assert_raises_jsonrpc(-5, "Invalid Zcoin address or script", self.nodes[0].importaddress, "invalid")
+        assert_raises_jsonrpc(-5, "Invalid Firo address or script", self.nodes[0].importaddress, "invalid")
 
         # This will raise an exception for attempting to import a pubkey that isn't in hex
         assert_raises_jsonrpc(-5, "Pubkey must be a hex string", self.nodes[0].importpubkey, "not hex")
