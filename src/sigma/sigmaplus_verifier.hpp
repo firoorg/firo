@@ -1,5 +1,9 @@
+
 #include <math.h>
 namespace sigma{
+template<class Exponent, class GroupElement>
+Exponent* SigmaPlusVerifier<Exponent, GroupElement>::pp;
+
 template<class Exponent, class GroupElement>
 SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
         const GroupElement& g,
@@ -65,28 +69,22 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
 
     std::size_t N = commits.size();
     std::vector<Exponent> f_i_;
-    f_i_.reserve(N);
+    f_i_.resize(fPadding ? N-1 : N);
 
-    // if fPadding is true last index is special
-    for (std::size_t i = 0; i < (fPadding ? N-1 : N); ++i) {
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
-        for(int j = 0; j < m; ++j){
-            f_i *= f[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
+    pp = f_i_.data();
+    Scalar f_i(uint64_t(1));
+    compute_fis(f_i, m, f);
 
     if (fPadding) {
         /*
          * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
          * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
-         * 
+         *
          * Math (in TeX notation):
-         * 
-         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} = 
+         *
+         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
          *   \sum_{j=0}^{m-1}
-         *     \left[ 
+         *     \left[
          *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
          *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
          *       x^j
@@ -364,6 +362,26 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
     if(((proof.B_ * x + proof.r1Proof_.A_) * c + proof.r1Proof_.C_ * x + proof.r1Proof_.D_) != right)
         return false;
     return true;
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Scalar& f_i, int j, const std::vector<Exponent>& f) const {
+    j--;
+    if (j == -1)
+    {
+        *pp++ += f_i;
+        return;
+    }
+
+    Scalar t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+
+        compute_fis(t, j, f);
+    }
 }
 
 } // namespace sigma
