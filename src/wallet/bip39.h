@@ -21,8 +21,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ZCOIN_BIP39_H
-#define ZCOIN_BIP39_H
+#ifndef FIRO_BIP39_H
+#define FIRO_BIP39_H
 
 #include "support/allocators/secure.h"
 

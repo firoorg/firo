@@ -50,7 +50,7 @@ class ElysiumSendMintTest(ElysiumTestFramework):
         assert_equal("100", self.nodes[0].elysium_getbalance(addr, nonSigmaProperty)['balance'])
 
         # sigma
-        # mint without xzc and token
+        # mint without firo and token
         addr = self.nodes[0].getnewaddress()
         assert_raises_message(
             JSONRPCException,
@@ -58,7 +58,7 @@ class ElysiumSendMintTest(ElysiumTestFramework):
             self.nodes[0].elysium_sendmint, addr, sigmaProperty, {"0": 1}
         )
 
-        # mint without xzc then fail
+        # mint without firo then fail
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].elysium_send(self.addrs[0], addr, sigmaProperty, "100")
         self.nodes[0].generate(10)

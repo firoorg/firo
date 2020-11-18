@@ -1,6 +1,6 @@
 \section{Using libzerocoin}
 
-The \libzerocoin library is designed to integrate with a Bitcoin/Zcoin style client, and performs the base cryptographic operations necessary to integrate Zerocoin with the client. These operations include generation/verification of coins, as well as generation/verification of spend signatures. Roughly speaking, the use of Zerocoin proceeds according to the following steps:
+The \libzerocoin library is designed to integrate with a Bitcoin/Firo style client, and performs the base cryptographic operations necessary to integrate Zerocoin with the client. These operations include generation/verification of coins, as well as generation/verification of spend signatures. Roughly speaking, the use of Zerocoin proceeds according to the following steps:
 
 \begin{enumerate}
 \item {\bf Parameter setup.} All Zerocoin clients in a deployment must share a single parameter $N$ where $N$ is a 2048-3072 bit modulus such that $N = p*q$ where $p$ and $q$ are large safe prime numbers (i.e., $p = 2p'+1$, $q = 2q'+1$ for primes $p', q'$). Once $N$ has been generated, the underlying values $p, q, p', q'$ can and should be destroyed.

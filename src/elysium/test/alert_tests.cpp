@@ -27,7 +27,7 @@ BOOST_FIXTURE_TEST_SUITE(elysium_alert_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(alert_positive_authorization)
 {
     // Confirm authorized sources for mainnet
-    BOOST_CHECK(CheckAlertAuthorization("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd"));  // Poramin Insom   <poramin@zcoin.io>
+    BOOST_CHECK(CheckAlertAuthorization("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd"));  // Poramin Insom   <poramin@firo.io>
 }
 
 BOOST_AUTO_TEST_CASE(alert_unauthorized_source)

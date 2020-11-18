@@ -67,7 +67,7 @@ void LookupTXDialog::searchTX()
         std::string strText = "The transaction hash entered is ";
         switch(populateResult) {
             case MP_TX_NOT_FOUND:
-                strText += "not a valid Zcoin or Elysium transaction.  Please check the transaction hash "
+                strText += "not a valid Firo or Elysium transaction.  Please check the transaction hash "
                            "entered and try again.";
             break;
             case MP_TX_UNCONFIRMED:
@@ -76,13 +76,13 @@ void LookupTXDialog::searchTX()
                            "transactions in the transactions tab.";
             break;
             case MP_TX_IS_NOT_ELYSIUM_PROTOCOL:
-                strText += "a Zcoin transaction only.\n\nTip: You can use the debug console "
-                           "'gettransaction' command to lookup specific Zcoin transactions.";
+                strText += "a Firo transaction only.\n\nTip: You can use the debug console "
+                           "'gettransaction' command to lookup specific Firo transactions.";
             break;
 
             default:
                 strText += "of an unknown type.  If you are seeing this message please raise a bug report "
-                           "with the transaction hash at github.com/zcoinofficial/zcoin/issues.";
+                           "with the transaction hash at github.com/firoorg/firo/issues.";
             break;
         }
         QString strQText = QString::fromStdString(strText);

@@ -239,7 +239,7 @@ public:
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
 //        return (nValue < GetDustThreshold(minRelayTxFee));
-        //zcoin: disable dust
+        //firo: disable dust
         return false;
     }
 

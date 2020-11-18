@@ -69,7 +69,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     lelantusView(0),
     blankLelantusView(0),
     zc2SigmaPage(0),
-    zcoinTransactionsView(0),
+    firoTransactionsView(0),
     platformStyle(_platformStyle)
 {
     overviewPage = new OverviewPage(platformStyle);
@@ -131,13 +131,13 @@ WalletView::~WalletView()
 
 void WalletView::setupTransactionPage()
 {
-    // Create Zcoin transactions list
-    zcoinTransactionList = new TransactionView(platformStyle);
+    // Create Firo transactions list
+    firoTransactionList = new TransactionView(platformStyle);
 
-    connect(zcoinTransactionList, SIGNAL(doubleClicked(QModelIndex)), zcoinTransactionList, SLOT(showDetails()));
-    connect(zcoinTransactionList, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+    connect(firoTransactionList, SIGNAL(doubleClicked(QModelIndex)), firoTransactionList, SLOT(showDetails()));
+    connect(firoTransactionList, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 
-    // Create export panel for Zcoin transactions
+    // Create export panel for Firo transactions
     auto exportButton = new QPushButton(tr("&Export"));
 
     exportButton->setToolTip(tr("Export the data in the current tab to a file"));
@@ -146,22 +146,22 @@ void WalletView::setupTransactionPage()
         exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
     }
 
-    connect(exportButton, SIGNAL(clicked()), zcoinTransactionList, SLOT(exportClicked()));
+    connect(exportButton, SIGNAL(clicked()), firoTransactionList, SLOT(exportClicked()));
 
     auto exportLayout = new QHBoxLayout();
     exportLayout->addStretch();
     exportLayout->addWidget(exportButton);
 
     // Compose transaction list and export panel together
-    auto zcoinLayout = new QVBoxLayout();
-    zcoinLayout->addWidget(zcoinTransactionList);
-    zcoinLayout->addLayout(exportLayout);
+    auto firoLayout = new QVBoxLayout();
+    firoLayout->addWidget(firoTransactionList);
+    firoLayout->addLayout(exportLayout);
     // TODO: fix this
     //connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
     connect(overviewPage, SIGNAL(outOfSyncWarningClicked()), this, SLOT(requestedSyncWarningInfo()));
 
-    zcoinTransactionsView = new QWidget();
-    zcoinTransactionsView->setLayout(zcoinLayout);
+    firoTransactionsView = new QWidget();
+    firoTransactionsView->setLayout(firoLayout);
 
 #ifdef ENABLE_ELYSIUM
     // Create tabs for transaction categories
@@ -169,7 +169,7 @@ void WalletView::setupTransactionPage()
         elysiumTransactionsView = new TXHistoryDialog();
 
         transactionTabs = new QTabWidget();
-        transactionTabs->addTab(zcoinTransactionsView, tr("Zcoin"));
+        transactionTabs->addTab(firoTransactionsView, tr("Firo"));
         transactionTabs->addTab(elysiumTransactionsView, tr("Elysium"));
     }
 #endif
@@ -182,16 +182,16 @@ void WalletView::setupTransactionPage()
         pageLayout->addWidget(transactionTabs);
     } else
 #endif
-        pageLayout->addWidget(zcoinTransactionsView);
+        pageLayout->addWidget(firoTransactionsView);
 
     transactionsPage->setLayout(pageLayout);
 }
 
 void WalletView::setupSendCoinPage()
 {
-    sendZcoinView = new SendCoinsDialog(platformStyle);
+    sendFiroView = new SendCoinsDialog(platformStyle);
 
-    connect(sendZcoinView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+    connect(sendFiroView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 
 #ifdef ENABLE_ELYSIUM
     // Create tab for coin type
@@ -199,7 +199,7 @@ void WalletView::setupSendCoinPage()
         sendElysiumView = new SendMPDialog(platformStyle);
 
         sendCoinsTabs = new QTabWidget();
-        sendCoinsTabs->addTab(sendZcoinView, tr("Zcoin"));
+        sendCoinsTabs->addTab(sendFiroView, tr("Firo"));
         sendCoinsTabs->addTab(sendElysiumView, tr("Elysium"));
     }
 #endif
@@ -212,7 +212,7 @@ void WalletView::setupSendCoinPage()
         pageLayout->addWidget(sendCoinsTabs);
     } else
 #endif
-        pageLayout->addWidget(sendZcoinView);
+        pageLayout->addWidget(sendFiroView);
 
     sendCoinsPage->setLayout(pageLayout);
 }
@@ -306,7 +306,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     this->clientModel = _clientModel;
 
     overviewPage->setClientModel(clientModel);
-    sendZcoinView->setClientModel(clientModel);
+    sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setClientModel(clientModel);
@@ -333,7 +333,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     this->walletModel = _walletModel;
 
     // Put transaction list in tabs
-    zcoinTransactionList->setModel(_walletModel);
+    firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
     // TODO: fix this
@@ -347,7 +347,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
-    sendZcoinView->setModel(_walletModel);
+    sendFiroView->setModel(_walletModel);
     zc2SigmaPage->setWalletModel(_walletModel);
     automintNotification->setModel(_walletModel);
 #ifdef ENABLE_ELYSIUM
@@ -478,7 +478,7 @@ void WalletView::focusElysiumTransaction(const uint256& txid)
 void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 {
     gotoBitcoinHistoryTab();
-    zcoinTransactionList->focusTransaction(idx);
+    firoTransactionList->focusTransaction(idx);
 }
 
 void WalletView::gotoMasternodePage()
@@ -527,7 +527,7 @@ void WalletView::gotoSendCoinsPage(QString addr)
     setCurrentWidget(sendCoinsPage);
 
     if (!addr.isEmpty()){
-        sendZcoinView->setAddress(addr);
+        sendFiroView->setAddress(addr);
     }
 }
 
@@ -563,7 +563,7 @@ bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
     }
 #endif
 
-    return sendZcoinView->handlePaymentRequest(recipient);
+    return sendFiroView->handlePaymentRequest(recipient);
 }
 
 void WalletView::showOutOfSyncWarning(bool fShow)

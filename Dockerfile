@@ -1,4 +1,4 @@
-# This is a Dockerfile for zcoind.
+# This is a Dockerfile for firod.
 FROM debian:stretch
 
 # Install required system packages
@@ -39,18 +39,18 @@ RUN curl -L https://github.com/zeromq/libzmq/releases/download/v4.3.1/zeromq-4.3
     cd / && rm -rf /tmp/zeromq-4.3.1/
 
 # Create user to run daemon
-RUN useradd -m -U zcoind
+RUN useradd -m -U firod
 
-# Build Zcoin
-COPY . /tmp/zcoin/
+# Build Firo
+COPY . /tmp/firo/
 
-RUN cd /tmp/zcoin && \
+RUN cd /tmp/firo && \
     ./autogen.sh && \
     ./configure --without-gui --prefix=/usr && \
     make -j$(nproc) && \
     make check && \
     make install && \
-    cd / && rm -rf /tmp/zcoin
+    cd / && rm -rf /tmp/firo
 
 # Remove unused packages
 RUN apt-get remove -y \
@@ -65,11 +65,11 @@ RUN apt-get remove -y \
     libzmq3-dev \
     make
 
-# Start Zcoin Daemon
-USER zcoind
+# Start Firo Daemon
+USER firod
 
-RUN mkdir /home/zcoind/.zcoin
-VOLUME [ "/home/zcoind/.zcoin" ]
+RUN mkdir /home/firod/.firo
+VOLUME [ "/home/firod/.firo" ]
 
 # Main network ports
 EXPOSE 8168
@@ -83,4 +83,4 @@ EXPOSE 18888
 EXPOSE 18444
 EXPOSE 28888
 
-ENTRYPOINT [ "/usr/bin/zcoind" ]
+ENTRYPOINT [ "/usr/bin/firod" ]

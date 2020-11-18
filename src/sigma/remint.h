@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMA_REMINT_H
-#define ZCOIN_SIGMA_REMINT_H
+#ifndef FIRO_SIGMA_REMINT_H
+#define FIRO_SIGMA_REMINT_H
 
 #include "amount.h"
 #include "primitives/transaction.h"

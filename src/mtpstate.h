@@ -1,5 +1,5 @@
-#ifndef __ZCOIN_MTPSTATE_H
-#define __ZCOIN_MTPSTATE_H
+#ifndef __FIRO_MTPSTATE_H
+#define __FIRO_MTPSTATE_H
 
 #include "chainparams.h"
 #include "chain.h"

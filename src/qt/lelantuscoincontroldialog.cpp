@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The ZCoin Core developers
+// Copyright (c) 2020 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -694,7 +694,7 @@ void LelantusCoinControlDialog::updateView()
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
 
-                // if listMode or change => show Zcoin address. In tree mode, address is not shown again for direct wallet address outputs
+                // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
             }

@@ -129,7 +129,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // Fail if not using HD wallet (no keypaths)
     if (hdChain.masterKeyID.IsNull())
@@ -139,7 +139,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
     CKey key;                      //master key seed (256bit)
     CExtKey masterKey;             //hd master key
     CExtKey purposeKey;            //key at m/44'
-    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
     CExtKey accountKey;            //key at m/44'/<1/136>'/0'
     CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -195,7 +195,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
 
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // use HD key derivation if HD was enabled during wallet creation
     // TODO: change code to foloow bitcoin structure more closely
@@ -204,7 +204,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
         CKey key;                      //master key seed (256bit)
         CExtKey masterKey;             //hd master key
         CExtKey purposeKey;            //key at m/44'
-        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
         CExtKey accountKey;            //key at m/44'/<1/136>'/0'
         CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -2168,7 +2168,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
         if (fRecoverMnemonic) {
             pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             if (pindex == NULL)
@@ -3024,7 +3024,7 @@ bool CWallet::GetCoinsToSpend(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN firos.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3157,7 +3157,7 @@ bool CWallet::GetCoinsToJoinSplit(
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
         throw WalletError(
-                _("The required amount exceeds 21 MLN XZC"));
+                _("The required amount exceeds 21 MLN FIRO"));
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3511,7 +3511,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
-//[zcoin]
+//[firo]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
@@ -4459,7 +4459,7 @@ bool CWallet::CreateZerocoinMintModel(
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         int64_t amount = denominationPair.second;
@@ -4468,7 +4468,7 @@ bool CWallet::CreateZerocoinMintModel(
 
         if(amount < 0){
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         for(int64_t i=0; i<amount; i++){
@@ -5690,10 +5690,10 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -5963,10 +5963,10 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -8471,7 +8471,7 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
             false, /* fOverrideMempoolLimit */
             nAbsurdFee,
             true,
-            false /* markZcoinSpendTransactionSerial */
+            false /* markFiroSpendTransactionSerial */
         );
         if (!res) {
             LogPrintf(

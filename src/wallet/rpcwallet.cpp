@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2016-2019 The Zcoin Core developers
+// Copyright (c) 2016-2019 The Firo Core developers
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -177,13 +177,13 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "getnewaddress ( \"account\" )\n"
-            "\nReturns a new Zcoin address for receiving payments.\n"
+            "\nReturns a new Firo address for receiving payments.\n"
             "If 'account' is specified (DEPRECATED), it is added to the address book \n"
             "so payments received with the address will be credited to 'account'.\n"
             "\nArguments:\n"
             "1. \"account\"        (string, optional) DEPRECATED. The account name for the address to be linked to. If not provided, the default account \"\" is used. It can also be set to the empty string \"\" to represent the default account. The account does not need to exist, it will be created if there is no account by the given name.\n"
             "\nResult:\n"
-            "\"zcoinaddress\"    (string) The new Zcoin address\n"
+            "\"firoaddress\"    (string) The new Firo address\n"
             "\nExamples:\n"
             + HelpExampleCli("getnewaddress", "")
             + HelpExampleRpc("getnewaddress", "")
@@ -233,11 +233,11 @@ UniValue getaccountaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
             "getaccountaddress \"account\"\n"
-            "\nDEPRECATED. Returns the current Zcoin address for receiving payments to this account.\n"
+            "\nDEPRECATED. Returns the current Firo address for receiving payments to this account.\n"
             "\nArguments:\n"
             "1. \"account\"       (string, required) The account name for the address. It can also be set to the empty string \"\" to represent the default account. The account does not need to exist, it will be created and a new address created  if there is no account by the given name.\n"
             "\nResult:\n"
-            "\"zcoinaddress\"   (string) The account Zcoin address\n"
+            "\"firoaddress\"   (string) The account Firo address\n"
             "\nExamples:\n"
             + HelpExampleCli("getaccountaddress", "")
             + HelpExampleCli("getaccountaddress", "\"\"")
@@ -267,7 +267,7 @@ UniValue getrawchangeaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
             "getrawchangeaddress\n"
-            "\nReturns a new Zcoin address, for receiving change.\n"
+            "\nReturns a new Firo address, for receiving change.\n"
             "This is for use with raw transactions, NOT normal use.\n"
             "\nResult:\n"
             "\"address\"    (string) The address\n"
@@ -304,10 +304,10 @@ UniValue setaccount(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
-            "setaccount \"zcoinaddress\" \"account\"\n"
+            "setaccount \"firoaddress\" \"account\"\n"
             "\nDEPRECATED. Sets the account associated with the given address.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The Zcoin address to be associated with an account.\n"
+            "1. \"firoaddress\"  (string, required) The Firo address to be associated with an account.\n"
             "2. \"account\"         (string, required) The account to assign the address to.\n"
             "\nExamples:\n"
             + HelpExampleCli("setaccount", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" \"tabby\"")
@@ -318,7 +318,7 @@ UniValue setaccount(const JSONRPCRequest& request)
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
 
     string strAccount;
     if (request.params.size() > 1)
@@ -351,10 +351,10 @@ UniValue getaccount(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw runtime_error(
-            "getaccount \"zcoinaddress\"\n"
+            "getaccount \"firoaddress\"\n"
             "\nDEPRECATED. Returns the account associated with the given address.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The Zcoin address for account lookup.\n"
+            "1. \"firoaddress\"  (string, required) The Firo address for account lookup.\n"
             "\nResult:\n"
             "\"accountname\"        (string) the account address\n"
             "\nExamples:\n"
@@ -366,7 +366,7 @@ UniValue getaccount(const JSONRPCRequest& request)
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
 
     string strAccount;
     map<CTxDestination, CAddressBookData>::iterator mi = pwallet->mapAddressBook.find(address.Get());
@@ -408,7 +408,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
             "1. \"account\"        (string, required) The account name.\n"
             "\nResult:\n"
             "[                     (json array of string)\n"
-            "  \"zcoinaddress\"  (string) a Zcoin address associated with the given account\n"
+            "  \"firoaddress\"  (string) a Firo address associated with the given account\n"
             "  ,...\n"
             "]\n"
             "\nExamples:\n"
@@ -446,7 +446,7 @@ static void SendMoney(CWallet * const pwallet, const CTxDestination &address, CA
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 
-    // Parse Zcoin address
+    // Parse Firo address
     CScript scriptPubKey = GetScriptForDestination(address);
 
     // Create and send the transaction
@@ -478,11 +478,11 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw runtime_error(
-            "sendtoaddress \"zcoinaddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "sendtoaddress \"firoaddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "\nSend an amount to a given address.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The Zcoin address to send to.\n"
+            "1. \"firoaddress\"  (string, required) The Firo address to send to.\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -504,7 +504,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
 
     // Amount
     CAmount nAmount = AmountFromValue(request.params[1]);
@@ -546,7 +546,7 @@ UniValue listaddressgroupings(const JSONRPCRequest& request)
             "[\n"
             "  [\n"
             "    [\n"
-            "      \"zcoinaddress\",     (string) The Zcoin address\n"
+            "      \"firoaddress\",     (string) The Firo address\n"
             "      amount,                 (numeric) The amount in " + CURRENCY_UNIT + "\n"
             "      \"account\"             (string, optional) DEPRECATED. The account\n"
             "    ]\n"
@@ -633,11 +633,11 @@ UniValue signmessage(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
-            "signmessage \"zcoinaddress\" \"message\"\n"
+            "signmessage \"firoaddress\" \"message\"\n"
             "\nSign a message with the private key of an address"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The Zcoin address to use for the private key.\n"
+            "1. \"firoaddress\"  (string, required) The Firo address to use for the private key.\n"
             "2. \"message\"         (string, required) The message to create a signature of.\n"
             "\nResult:\n"
             "\"signature\"          (string) The signature of the message encoded in base 64\n"
@@ -692,10 +692,10 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
-            "getreceivedbyaddress \"zcoinaddress\" ( minconf )\n"
-            "\nReturns the total amount received by the given zcoinaddress in transactions with at least minconf confirmations.\n"
+            "getreceivedbyaddress \"firoaddress\" ( minconf )\n"
+            "\nReturns the total amount received by the given firoaddress in transactions with at least minconf confirmations.\n"
             "\nArguments:\n"
-            "1. \"zcoinaddress\"  (string, required) The Zcoin address for transactions.\n"
+            "1. \"firoaddress\"  (string, required) The Firo address for transactions.\n"
             "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
             "\nResult:\n"
             "amount   (numeric) The total amount in " + CURRENCY_UNIT + " received at this address.\n"
@@ -712,10 +712,10 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    // Zcoin address
+    // Firo address
     CBitcoinAddress address = CBitcoinAddress(request.params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
     CScript scriptPubKey = GetScriptForDestination(address.Get());
     if (!IsMine(*pwallet, scriptPubKey)) {
         return ValueFromAmount(0);
@@ -977,7 +977,7 @@ UniValue sendfrom(const JSONRPCRequest& request)
             "                       Specifying an account does not influence coin selection, but it does associate the newly created\n"
             "                       transaction with the account, so the account's balance computation and transaction history can reflect\n"
             "                       the spend.\n"
-            "2. \"toaddress\"         (string, required) The Zcoin address to send funds to.\n"
+            "2. \"toaddress\"         (string, required) The Firo address to send funds to.\n"
             "3. amount                (numeric or string, required) The amount in " + CURRENCY_UNIT + " (transaction fee is added on top).\n"
             "4. minconf               (numeric, optional, default=1) Only use funds with at least this many confirmations.\n"
             "5. \"comment\"           (string, optional) A comment used to store what the transaction is for. \n"
@@ -1001,7 +1001,7 @@ UniValue sendfrom(const JSONRPCRequest& request)
     string strAccount = AccountFromValue(request.params[0]);
     CBitcoinAddress address(request.params[1].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
     CAmount nAmount = AmountFromValue(request.params[2]);
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
@@ -1045,7 +1045,7 @@ UniValue sendmany(const JSONRPCRequest& request)
             "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\":amount   (numeric or string) The Firo address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "      ,...\n"
             "    }\n"
             "3. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
@@ -1102,7 +1102,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     {
         CBitcoinAddress address(name_);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+name_);
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Firo address: ")+name_);
 
         if (setAddress.count(address))
             throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
@@ -1163,20 +1163,20 @@ UniValue addmultisigaddress(const JSONRPCRequest& request)
     {
         string msg = "addmultisigaddress nrequired [\"key\",...] ( \"account\" )\n"
             "\nAdd a nrequired-to-sign multisignature address to the wallet.\n"
-            "Each key is a Zcoin address or hex-encoded public key.\n"
+            "Each key is a Firo address or hex-encoded public key.\n"
             "If 'account' is specified (DEPRECATED), assign address to that account.\n"
 
             "\nArguments:\n"
             "1. nrequired        (numeric, required) The number of required signatures out of the n keys or addresses.\n"
-            "2. \"keys\"         (string, required) A json array of Zcoin addresses or hex-encoded public keys\n"
+            "2. \"keys\"         (string, required) A json array of Firo addresses or hex-encoded public keys\n"
             "     [\n"
-            "       \"address\"  (string) Zcoin address or hex-encoded public key\n"
+            "       \"address\"  (string) Firo address or hex-encoded public key\n"
             "       ...,\n"
             "     ]\n"
             "3. \"account\"      (string, optional) DEPRECATED. An account to assign the addresses to.\n"
 
             "\nResult:\n"
-            "\"address\"         (string) A Zcoin address associated with the keys.\n"
+            "\"address\"         (string) A Firo address associated with the keys.\n"
 
             "\nExamples:\n"
             "\nAdd a multisig address from 2 addresses\n"
@@ -1282,7 +1282,7 @@ UniValue addwitnessaddress(const JSONRPCRequest& request)
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
 
     Witnessifier w(pwallet);
     CTxDestination dest = address.Get();
@@ -1662,7 +1662,7 @@ UniValue listtransactions(const JSONRPCRequest& request)
             "  {\n"
             "    \"account\":\"accountname\",       (string) DEPRECATED. The account name associated with the transaction. \n"
             "                                                It will be \"\" for the default account.\n"
-            "    \"address\":\"zcoinaddress\",    (string) The Zcoin address of the transaction. Not present for \n"
+            "    \"address\":\"firoaddress\",    (string) The Firo address of the transaction. Not present for \n"
             "                                                move transactions (category = move).\n"
             "    \"category\":\"send|receive|move\", (string) The transaction category. 'move' is a local (off blockchain)\n"
             "                                                transaction between accounts, and not associated with an address,\n"
@@ -1872,7 +1872,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
             "{\n"
             "  \"transactions\": [\n"
             "    \"account\":\"accountname\",       (string) DEPRECATED. The account name associated with the transaction. Will be \"\" for the default account.\n"
-            "    \"address\":\"zcoinaddress\",    (string) The Zcoin address of the transaction. Not present for move transactions (category = move).\n"
+            "    \"address\":\"firoaddress\",    (string) The Firo address of the transaction. Not present for move transactions (category = move).\n"
             "    \"category\":\"send|receive\",     (string) The transaction category. 'send' has negative amounts, 'receive' has positive amounts.\n"
             "    \"amount\": x.xxx,          (numeric) The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the 'move' category for moves \n"
             "                                          outbound. It is positive for the 'receive' category, and for the 'move' category for inbound funds.\n"
@@ -1991,7 +1991,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
             "  \"details\" : [\n"
             "    {\n"
             "      \"account\" : \"accountname\",  (string) DEPRECATED. The account name involved in the transaction, can be \"\" for the default account.\n"
-            "      \"address\" : \"zcoinaddress\",   (string) The Zcoin address involved in the transaction\n"
+            "      \"address\" : \"firoaddress\",   (string) The Firo address involved in the transaction\n"
             "      \"category\" : \"send|receive\",    (string) The category, either 'send' or 'receive'\n"
             "      \"amount\" : x.xxx,                 (numeric) The amount in " + CURRENCY_UNIT + "\n"
             "      \"label\" : \"label\",              (string) A comment for the address/transaction, if any\n"
@@ -2185,7 +2185,7 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         throw runtime_error(
             "walletpassphrase \"passphrase\" timeout\n"
             "\nStores the wallet decryption key in memory for 'timeout' seconds.\n"
-            "This is needed prior to performing transactions related to private keys such as sending zcoins\n"
+            "This is needed prior to performing transactions related to private keys such as sending firos\n"
             "\nArguments:\n"
             "1. \"passphrase\"     (string, required) The wallet passphrase\n"
             "2. timeout            (numeric, required) The time to keep the decryption key in seconds.\n"
@@ -2353,7 +2353,7 @@ UniValue encryptwallet(const JSONRPCRequest& request)
             "\nNow set the passphrase to use the wallet, such as for signing or sending bitcoin\n"
             + HelpExampleCli("walletpassphrase", "\"my pass phrase\"") +
             "\nNow we can so something like sign\n"
-            + HelpExampleCli("signmessage", "\"zcoinaddress\" \"test message\"") +
+            + HelpExampleCli("signmessage", "\"firoaddress\" \"test message\"") +
             "\nNow lock the wallet again by removing the passphrase\n"
             + HelpExampleCli("walletlock", "") +
             "\nAs a json rpc call\n"
@@ -2389,7 +2389,7 @@ UniValue encryptwallet(const JSONRPCRequest& request)
     // unencrypted private keys. So:
     StartShutdown();
 
-    return "wallet encrypted; Zcoin server stopping, restart to run with encrypted wallet.";
+    return "wallet encrypted; Firo server stopping, restart to run with encrypted wallet.";
 }
 
 UniValue lockunspent(const JSONRPCRequest& request)
@@ -2550,8 +2550,8 @@ UniValue settxfee(const JSONRPCRequest& request)
             "\nResult\n"
             "true|false        (boolean) Returns true if successful\n"
             "\nExamples:\n"
-            + HelpExampleCli("settxfee", "0.00000001 XZC")
-            + HelpExampleRpc("settxfee", "0.00000001 XZC")
+            + HelpExampleCli("settxfee", "0.00000001 FIRO")
+            + HelpExampleRpc("settxfee", "0.00000001 FIRO")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -2658,9 +2658,9 @@ UniValue listunspent(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. minconf          (numeric, optional, default=1) The minimum confirmations to filter\n"
             "2. maxconf          (numeric, optional, default=9999999) The maximum confirmations to filter\n"
-            "3. \"addresses\"    (string) A json array of Zcoin addresses to filter\n"
+            "3. \"addresses\"    (string) A json array of Firo addresses to filter\n"
             "    [\n"
-            "      \"address\"   (string) Zcoin address\n"
+            "      \"address\"   (string) Firo address\n"
             "      ,...\n"
             "    ]\n"
             "4. include_unsafe (bool, optional, default=true) Include outputs that are not safe to spend\n"
@@ -2672,7 +2672,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             "  {\n"
             "    \"txid\" : \"txid\",          (string) the transaction id \n"
             "    \"vout\" : n,               (numeric) the vout value\n"
-            "    \"address\" : \"address\",    (string) the Zcoin address\n"
+            "    \"address\" : \"address\",    (string) the Firo address\n"
             "    \"account\" : \"account\",    (string) DEPRECATED. The associated account, or \"\" for the default account\n"
             "    \"scriptPubKey\" : \"key\",   (string) the script key\n"
             "    \"amount\" : x.xxx,         (numeric) the transaction output amount in " + CURRENCY_UNIT + "\n"
@@ -2710,7 +2710,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             const UniValue& input = inputs[idx];
             CBitcoinAddress address(input.get_str());
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+input.get_str());
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Firo address: ")+input.get_str());
             if (setAddress.count(address))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+input.get_str());
            setAddress.insert(address);
@@ -2794,7 +2794,7 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
                             "1. \"hexstring\"           (string, required) The hex string of the raw transaction\n"
                             "2. options                 (object, optional)\n"
                             "   {\n"
-                            "     \"changeAddress\"          (string, optional, default pool address) The Zcoin address to receive the change\n"
+                            "     \"changeAddress\"          (string, optional, default pool address) The Firo address to receive the change\n"
                             "     \"changePosition\"         (numeric, optional, default random) The index of the change output\n"
                             "     \"includeWatching\"        (boolean, optional, default false) Also select inputs which are watch only\n"
                             "     \"lockUnspents\"           (boolean, optional, default false) Lock selected unspent outputs\n"
@@ -2863,7 +2863,7 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
             CBitcoinAddress address(options["changeAddress"].get_str());
 
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "changeAddress must be a valid Zcoin address");
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "changeAddress must be a valid Firo address");
 
             changeAddress = address.Get();
         }
@@ -2986,12 +2986,12 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
     }
 
     if(reindexRequired)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Mintpool issue corrected. Please shutdown zcoin and restart with -reindex flag.");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Mintpool issue corrected. Please shutdown firo and restart with -reindex flag.");
 
     return true;
 }
 
-//[zcoin]: zerocoin section
+//[firo]: zerocoin section
 // zerocoin section
 
 UniValue listunspentmintzerocoins(const JSONRPCRequest& request) {
@@ -3438,7 +3438,7 @@ UniValue mintmanyzerocoin(const JSONRPCRequest& request)
                 "\nArguments:\n"
                 "1. \"denomination\"             (integer, required) zerocoin denomination\n"
                 "2. \"numberOfMints\"            (integer, required) amount of mints for chosen denomination\n"
-                "\nExamples:\nThe first example mints denomination 1, one time, for a total XZC valuation of 1.\nThe next example mints denomination 25, ten times, and denomination 50, five times, for a total XZC valuation of 500.\n"
+                "\nExamples:\nThe first example mints denomination 1, one time, for a total FIRO valuation of 1.\nThe next example mints denomination 25, ten times, and denomination 50, five times, for a total FIRO valuation of 500.\n"
                     + HelpExampleCli("mintmanyzerocoin", "1 1")
                     + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
@@ -3552,11 +3552,11 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n"
+                "spendzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n"
                 + HelpRequiringPassphrase(pwallet) +
 				"\nArguments:\n"
 				"1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
-				"2. \"zcoinaddress\"  (string, optional) The Zcoin address to send to third party.\n"
+				"2. \"firoaddress\"  (string, optional) The Firo address to send to third party.\n"
 				"\nExamples:\n"
 				            + HelpExampleCli("spendzerocoin", "10 \"a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U\"")
         );
@@ -3583,7 +3583,7 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
         nAmount = AmountFromValue(request.params[0]);
     } else {
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "spendzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
     }
 
     CBitcoinAddress address;
@@ -3593,7 +3593,7 @@ UniValue spendzerocoin(const JSONRPCRequest& request) {
     	thirdPartyaddress = request.params[1].get_str();
     	address = CBitcoinAddress(request.params[1].get_str());
 		 if (!address.IsValid())
-			 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+			 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
     }
 
     EnsureWalletIsUnlocked(pwallet);
@@ -3688,7 +3688,7 @@ UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
                 break;
             default:
                 throw runtime_error(
-                    "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "spendmanyzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
         for(int64_t j=0; j<amount; j++){
             denominations.push_back(std::make_pair(value * COIN, denomination));
@@ -3699,7 +3699,7 @@ UniValue spendmanyzerocoin(const JSONRPCRequest& request) {
     if (!(addressStr == "")){
         CBitcoinAddress address(addressStr);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
         thirdPartyAddress = addressStr;
     }
 
@@ -3743,14 +3743,14 @@ UniValue spendmany(const JSONRPCRequest& request) {
                 "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
                 "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
                 "    {\n"
-                "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      \"address\":amount   (numeric or string) The Firo address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                 "      ,...\n"
                 "    }\n"
                 "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
                 "4. \"comment\"             (string, optional) A comment\n"
                 "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
                 "                           The fee will be equally deducted from the amount of each selected address.\n"
-                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           Those recipients will receive less firos than you enter in their corresponding amount field.\n"
                 "                           If no addresses are specified here, the sender pays the fee.\n"
                 "    [\n"
                 "      \"address\"            (string) Subtract fee from this address\n"
@@ -3806,7 +3806,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
     for (const auto& strAddr : keys) {
         CBitcoinAddress address(strAddr);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address: " + strAddr);
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address: " + strAddr);
 
         if (!setAddress.insert(address).second)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
@@ -3856,12 +3856,12 @@ UniValue joinsplit(const JSONRPCRequest& request) {
                 "\nArguments:\n"
                 "1. \"amounts\"             (string, optional) A json object with addresses and amounts\n"
                 "    {\n"
-                "      \"address\":amount   (numeric or string) The Zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      \"address\":amount   (numeric or string) The Firo address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                 "      ,...\n"
                 "    }\n"
                 "2. subtractfeefromamount   (string, optional) A json array with addresses.\n"
                 "                           The fee will be equally deducted from the amount of each selected address.\n"
-                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           Those recipients will receive less firos than you enter in their corresponding amount field.\n"
                 "                           If no addresses are specified here, the sender pays the fee.\n"
                 "    [\n"
                 "      \"address\"            (string) Subtract fee from this address\n"
@@ -3929,7 +3929,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     for (const auto& strAddr : keys) {
         CBitcoinAddress address(strAddr);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address: " + strAddr);
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address: " + strAddr);
 
         if (!setAddress.insert(address).second)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
@@ -4906,11 +4906,11 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
 
 
 
-extern UniValue dumpprivkey_zcoin(const JSONRPCRequest& request); // in rpcdump.cpp
+extern UniValue dumpprivkey_firo(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
 extern UniValue importpubkey(const JSONRPCRequest& request);
-extern UniValue dumpwallet_zcoin(const JSONRPCRequest& request);
+extern UniValue dumpwallet_firo(const JSONRPCRequest& request);
 extern UniValue importwallet(const JSONRPCRequest& request);
 extern UniValue importprunedfunds(const JSONRPCRequest& request);
 extern UniValue removeprunedfunds(const JSONRPCRequest& request);
@@ -5253,8 +5253,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "addwitnessaddress",        &addwitnessaddress,        true,   {"address"} },
     { "wallet",             "backupwallet",             &backupwallet,             true,   {"destination"} },
     { "wallet",             "bumpfee",                  &bumpfee,                  true,   {"txid", "options"} },
-    { "wallet",             "dumpprivkey",              &dumpprivkey_zcoin,        true,   {"address"}  },
-    { "wallet",             "dumpwallet",               &dumpwallet_zcoin,         true,   {"filename"} },
+    { "wallet",             "dumpprivkey",              &dumpprivkey_firo,        true,   {"address"}  },
+    { "wallet",             "dumpwallet",               &dumpwallet_firo,         true,   {"filename"} },
     { "wallet",             "encryptwallet",            &encryptwallet,            true,   {"passphrase"} },
     { "wallet",             "getaccountaddress",        &getaccountaddress,        true,   {"account"} },
     { "wallet",             "getaccount",               &getaccount,               true,   {"address"} },

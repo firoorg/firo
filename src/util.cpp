@@ -111,8 +111,8 @@ bool fMasternodeMode = false;
 bool fLiteMode = false;
 int nWalletBackups = 10;
 
-const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
+const char * const BITCOIN_CONF_FILENAME = "firo.conf";
+const char * const BITCOIN_PID_FILENAME = "firod.pid";
 
 CCriticalSection cs_args;
 map<string, string> mapArgs;
@@ -499,13 +499,13 @@ void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\zcoin
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\zcoin
-    // Mac: ~/Library/Application Support/zcoin
-    // Unix: ~/.zcoin
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\firo
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\firo
+    // Mac: ~/Library/Application Support/firo
+    // Unix: ~/.firo
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "zcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "firo";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -515,10 +515,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/zcoin";
+    return pathRet / "Library/Application Support/firo";
 #else
     // Unix
-    return pathRet / ".zcoin";
+    return pathRet / ".firo";
 #endif
 #endif
 }
@@ -606,7 +606,7 @@ void ReadConfigFile(const std::string& confPath)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile(confPath));
     if (!streamConfig.good())
-        return; // No zcoin.conf file is OK
+        return; // No firo.conf file is OK
 
     {
         LOCK(cs_args);
@@ -963,7 +963,7 @@ std::string CopyrightHolders(const std::string& strPrefix)
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
         strCopyrightHolders
                 += '\n' + strPrefix + "The Bitcoin Core developers"
-                +  '\n' + strPrefix + "The Zcoin Core developers";
+                +  '\n' + strPrefix + "The Firo Core developers";
     }
     return strCopyrightHolders;
 }
