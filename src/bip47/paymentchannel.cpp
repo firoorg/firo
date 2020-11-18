@@ -20,8 +20,8 @@ CPaymentChannel::CPaymentChannel(CPaymentCode const & payerPcode, CPaymentCode c
 {}
 
 
-CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CKey const & myMasterKey, bool iamPayer)
-: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false), myMasterKey(myMasterKey)
+CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CExtKey const & myChannelKey, bool iamPayer)
+: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false), myChannelKey(myChannelKey)
 {}
 
 std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t number) const
@@ -30,7 +30,7 @@ std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t numb
     std::vector<CBitcoinAddress> result;
     for(size_t i = 0; i < number; ++i) {
         CPubKey const theirPubkey = theirPcode.getNthPubkey(i).pubkey;
-        CSecretPoint sp(myMasterKey, theirPubkey);
+        CSecretPoint sp(myChannelKey.key, theirPubkey);
         std::vector<unsigned char> spBytes = sp.getEcdhSecret();
 
         std::vector<unsigned char> spHash(32);
@@ -54,6 +54,33 @@ CPaymentCode const & CPaymentChannel::getTheirPcode() const
 CPaymentCode const & CPaymentChannel::getMyPcode() const
 {
     return payeePcode;
+}
+
+std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const
+{
+    using vector = std::vector<unsigned char>;
+    using iterator = vector::iterator;
+
+    vector maskData(CHMAC_SHA512::OUTPUT_SIZE);
+
+    CPubKey const theirPubkey = theirPcode.getNthPubkey(0).pubkey;
+    vector const secretPointData = CSecretPoint(outpointSecret, theirPubkey).getEcdhSecret();
+
+    CDataStream ds(SER_NETWORK, 0);
+    ds << outpoint;
+
+    CHMAC_SHA512((const unsigned char*)(ds.vch.data()), ds.vch.size())
+            .Write(secretPointData.data(), secretPointData.size())
+            .Finalize(maskData.data());
+
+    vector payload = CPaymentCode(myChannelKey.key.GetPubKey(), myChannelKey.chaincode).getPayload();
+
+    iterator plIter = payload.begin()+3;
+    for(iterator iter = maskData.begin(); iter != maskData.end(); ++iter) {
+        *plIter++ ^= *iter;
+    }
+
+    return payload;
 }
 
 std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const

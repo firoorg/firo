@@ -16,6 +16,7 @@ public:
     CPaymentCode(CPubKey const & pubKey, ChainCode const & chainCode);
 
     std::vector<unsigned char> getPayload() const;
+    std::vector<unsigned char> getMaskedPayload(COutPoint const & outPoint);
 
     CBitcoinAddress notificationAddress() const;
     CBitcoinAddress getNthAddress(int idx) const;
@@ -25,10 +26,7 @@ public:
     CPubKey const & getPubKey() const;
     ChainCode const & getChainCode() const;
 
-    string toString() const;
-
-    static std::vector<unsigned char> getMask(std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint);
-    static std::vector<unsigned char> blind(std::vector<unsigned char> payload, std::vector<unsigned char> mask);
+    std::string toString() const;
 
     bool isValid() const;
 

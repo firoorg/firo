@@ -630,9 +630,8 @@ WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTra
 
             uint256 secretPBytes(secretPoint.getEcdhSecret());
 
-            vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
-
-            vector<unsigned char> op_return = bip47::CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
+//bip47            vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
+            vector<unsigned char> op_return; // = bip47::CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
 
             CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
             CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};

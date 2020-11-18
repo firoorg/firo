@@ -1,11 +1,14 @@
 #ifndef ZCOIN_BIP47CHANNEL_H
 #define ZCOIN_BIP47CHANNEL_H
-#include "bip47/address.h"
-#include "bip47/paymentcode.h"
+
 #include <string>
+
 #include "serialize.h"
 #include "streams.h"
 #include "uint256.h"
+
+#include "bip47/address.h"
+#include "bip47/paymentcode.h"
 
 class CWallet;
 
@@ -22,12 +25,14 @@ public:
 public:
     CPaymentChannel();
     CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode);
-    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CKey const & myMasterKey, bool iamPayer);
+    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CExtKey const & myChannelKey, bool iamPayer);
 
     std::vector<CBitcoinAddress> generateTheirAddresses(size_t number) const;
 
     CPaymentCode const & getTheirPcode() const;
     CPaymentCode const & getMyPcode() const;
+
+    std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
 
     int getIdxRecv() const;
     int getIdxSend() const;
@@ -75,7 +80,7 @@ private:
     State state;
     bool iamPayer;
 
-    CKey myMasterKey;
+    CExtKey myChannelKey;
 };
 
 }

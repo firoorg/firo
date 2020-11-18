@@ -1930,9 +1930,8 @@ std::string CWallet::makeNotificationTransaction(std::string paymentCode, int ac
         uint256 secretPBytes(secretPoint.getEcdhSecret());
 
 
-        vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
-
-        vector<unsigned char> op_return = bip47::CPaymentCode::blind(m_bip47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
+//bip47        vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
+        vector<unsigned char> op_return;// = bip47::CPaymentCode::blind(m_bip47Accounts[accountIndex].getPaymentCode().getPayload(), mask);
 
         CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
         CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};

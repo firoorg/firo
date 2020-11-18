@@ -13,40 +13,6 @@ using namespace std;
 namespace bip47 {
 namespace utils {
 
-void arraycopy(const std::vector<unsigned char> &source_arr, size_t sourcePos, unsigned char* dest_arr, size_t destPos, size_t len){
-    if(source_arr.size() < sourcePos + len)
-    {
-        throw std::runtime_error("arraycopy error, source_arr has invalid size");
-    }
-    memcpy(dest_arr + destPos,source_arr.data() + sourcePos , len);
-}
-void arraycopy(const unsigned char *source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len){
-    if(dest_arr.size() < destPos + len)
-    {
-        throw std::runtime_error("arraycopy error, dest_arr has invalid size");
-    }
-    memcpy(dest_arr.data() + destPos, source_arr + sourcePos , len);
-}
-void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len){
-    if(dest_arr.size() < destPos + len)
-    {
-        throw std::runtime_error("arraycopy error, dest_arr has invalid size");
-    }
-    if(source_arr.size() < sourcePos + len)
-    {
-        throw std::runtime_error("arraycopy error, source_arr has invalid size");
-    }
-    memcpy(dest_arr.data() + destPos, source_arr.data() + sourcePos , len);
-}
-void copyOfRange(const std::vector<unsigned char> &original, size_t from, size_t to,std::vector<unsigned char> &result) {
-    int newLength = to - from;
-    if (newLength < 0)
-        throw std::runtime_error(from + " > " + to);
-    result = std::vector<unsigned char>(newLength);
-    int len = original.size() - from;
-    if(len > newLength) len = newLength;
-    arraycopy(original, from, result, 0, len);
-}
 bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result)
 {
     try{
@@ -153,8 +119,8 @@ bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privK
     uint256 secretPBytes(secretPoint.getEcdhSecret());
     LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
 
-    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
-    vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
+//    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
+//    vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
 //bip47
 //    CPaymentCode pcode(payload.data(), payload.size());
 //    paymentCode = pcode;

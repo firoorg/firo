@@ -17,6 +17,7 @@ public:
 private:
     secp_primitives::Scalar a;
     CPubKey pubkey;
+    mutable std::vector<unsigned char> ecdhSecret;
 };
 
 }

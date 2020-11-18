@@ -12,10 +12,12 @@ CSecretPoint::CSecretPoint(CKey const & privkey, CPubKey const & pubkey)
 {}
 
 std::vector<unsigned char> CSecretPoint::getEcdhSecret() const {
-    secp_primitives::GroupElement B = utils::GeFromPubkey(pubkey);
-    std::vector<unsigned char> result = (B * a).getvch();
-    result.erase(result.end() - 2, result.end());
-    return result;
+    if(ecdhSecret.empty()) {
+        secp_primitives::GroupElement B = utils::GeFromPubkey(pubkey);
+        ecdhSecret = (B * a).getvch();
+        ecdhSecret.erase(ecdhSecret.end() - 2, ecdhSecret.end());
+    }
+    return ecdhSecret;
 }
 
 bool CSecretPoint::isShared(CSecretPoint const & other) const

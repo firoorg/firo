@@ -105,6 +105,10 @@ std::vector<std::string> sendingaddresses = {
     };
 }
 
+namespace alice {
+std::string maskedpayload = "010002063e4eb95e62791b06c50e1a3a942e1ecaaa9afbbeb324d16ae6821e091611fa96c0cf048f607fe51a0327f5e2528979311c78cb2de0d682c61e1180fc3d543b00000000000000000000000000";
+}
+
 
 struct ChangeBase58Prefixes: public CChainParams
 {
@@ -205,7 +209,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
-        CKey privkey_alice; privkey_alice.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CExtKey privkey_alice; privkey_alice.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
         CPaymentCode const paymentCode_bob(bob::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_bob, paymentCode_bob, privkey_alice, true);
 
@@ -216,7 +220,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
     }
 
     {using namespace bob;
-        CKey privkey_bob; privkey_bob.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CExtKey privkey_bob; privkey_bob.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
         CPaymentCode const paymentCode_alice(alice::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_alice, paymentCode_alice, privkey_bob, true);
 
@@ -224,6 +228,32 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(5)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(masked_paymentcode)
+{
+    ChangeBase58Prefixes _(Params());
+
+    {using namespace alice;
+        CPaymentCode const paymentCode_bob(bob::paymentcode);
+
+        CExtKey key;
+        key.SetMaster(bip32seed.data(), bip32seed.size());
+        CExtKey key_alice = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+
+        CPaymentChannel paymentChannel(paymentCode_bob, paymentCode_bob, key_alice, true);
+
+        std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
+        CDataStream ds(outPointSer, SER_NETWORK, 0);
+        COutPoint outpoint;
+        ds >> outpoint;
+
+        CBitcoinSecret vchSecret;
+        vchSecret.SetString("Kx983SRhAZpAhj7Aac1wUXMJ6XZeyJKqCxJJ49dxEbYCT4a1ozRD");
+        CKey outpoinSecret = vchSecret.GetKey();
+
+        BOOST_CHECK_EQUAL(HexStr(paymentChannel.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
     }
 }
 

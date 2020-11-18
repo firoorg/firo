@@ -92,34 +92,6 @@ std::string CPaymentCode::toString() const
     return EncodeBase58Check(pc);
 }
 
-std::vector<unsigned char> CPaymentCode::getMask ( std::vector<unsigned char> sPoint, std::vector<unsigned char> oPoint )
-{
-    std::vector<unsigned char> mac_data ( PUBLIC_KEY_X_LEN + CHAIN_CODE_LEN );
-    CHMAC_SHA512 (sPoint.data(), sPoint.size() ).Write ( oPoint.data(), oPoint.size()).Finalize (mac_data.data());
-    return mac_data;
-}
-
-std::vector<unsigned char> CPaymentCode::blind ( std::vector<unsigned char> payload, std::vector<unsigned char> mask )
-{
-    std::vector<unsigned char> ret ( PAYLOAD_LEN );
-    std::vector<unsigned char> pubkey ( PUBLIC_KEY_X_LEN );
-    std::vector<unsigned char> chaincode ( CHAIN_CODE_LEN );
-    std::vector<unsigned char> buf0 ( PUBLIC_KEY_X_LEN );
-    std::vector<unsigned char> buf1 ( PUBLIC_KEY_X_LEN );
-    utils::arraycopy ( payload, 0, ret, 0, PAYLOAD_LEN );
-    utils::arraycopy ( payload, PUBLIC_KEY_X_OFFSET, pubkey, 0, PUBLIC_KEY_X_LEN );
-    utils::arraycopy ( payload, CHAIN_OFFSET, chaincode, 0, PUBLIC_KEY_X_LEN );
-    utils::arraycopy ( mask, 0, buf0, 0, PUBLIC_KEY_X_LEN );
-    utils::arraycopy ( mask, PUBLIC_KEY_X_LEN, buf1, 0, PUBLIC_KEY_X_LEN );
-    std::vector<unsigned char> temp1;
-    std::vector<unsigned char> temp2;
-    temp1 = vector_xor ( pubkey, buf0 );
-    temp2 = vector_xor ( chaincode, buf1 );
-    utils::arraycopy ( temp1, 0, ret, PUBLIC_KEY_X_OFFSET, PUBLIC_KEY_X_LEN );
-    utils::arraycopy ( temp2, 0, ret, CHAIN_OFFSET, PUBLIC_KEY_X_LEN );
-    return ret;
-}
-
 bool CPaymentCode::parse(std::string const & paymentCode)
 {
     std::vector<unsigned char> pcBytes;
@@ -140,21 +112,6 @@ bool CPaymentCode::parse(std::string const & paymentCode)
     return true;
 }
 
-std::vector<unsigned char> CPaymentCode::vector_xor ( std::vector<unsigned char> a, std::vector<unsigned char> b )
-{
-    if ( a.size() != b.size() ) {
-        LogPrintf ( "vector_xor a and b should have same size" );
-        return std::vector<unsigned char> (0);
-    } else {
-        std::vector<unsigned char> ret ( a.size() );
-
-        for ( size_t i = 0; i < a.size(); ++i ) {
-            ret[i] = ( unsigned char ) ( b[i] ^ a[i] );
-        }
-
-        return ret;
-    }
-}
 
 CExtPubKey CPaymentCode::getNthPubkey(size_t idx) const
 {

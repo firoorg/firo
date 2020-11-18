@@ -23,11 +23,6 @@ class CPaymentAddress;
 class CAccount;
 
 namespace utils {
-void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,unsigned char* dest_arr, size_t destPos, size_t len);
-void arraycopy(const unsigned char *source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len);
-void arraycopy(const std::vector<unsigned char> &source_arr,size_t sourcePos,std::vector<unsigned char> &dest_arr, size_t destPos, size_t len);
-void copyOfRange(const std::vector<unsigned char> &original, size_t from, size_t to,std::vector<unsigned char> &result);
-
 bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result);
 bool isValidNotificationTransactionOpReturn(CTxOut txout);
 bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
