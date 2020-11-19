@@ -256,6 +256,17 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", false));
                 }
             }
+            else if(wtx.tx->vout[s.vout].scriptPubKey.IsLelantusMint()){
+                category = "mint";
+                addrStr = "MINT";
+                COutPoint outPoint(wtx.GetHash(), s.vout);
+                IsTxOutSpendable(wtx, outPoint, entry);
+                if(!pwalletMain->IsSpent(wtx.tx->GetHash(), s.vout)){
+                    entry.push_back(Pair("available", true));
+                }else{
+                    entry.push_back(Pair("available", false));
+                }
+            }
             else if((wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
