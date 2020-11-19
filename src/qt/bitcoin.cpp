@@ -54,6 +54,7 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QSslConfiguration>
+#include <QCheckBox>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -215,6 +216,12 @@ public:
     void createWindow(const NetworkStyle *networkStyle);
     /// Create splash screen
     void createSplashScreen(const NetworkStyle *networkStyle);
+    // migrate settings to firo. Returns true if there was migration
+    bool migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName, const QString &oldApplicationName, const QString &newApplicationName);
+    // set data directory in settings file
+    bool setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
+    // migrate directories to firo if needed
+    void migrateToFiro();
 
     /// Request core initialization
     void requestInitialize();
@@ -534,6 +541,97 @@ WId BitcoinApplication::getMainWinId() const
     return window->winId();
 }
 
+bool BitcoinApplication::migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName,
+                                            const QString &oldApplicationName, const QString &newApplicationName)
+{
+    QSettings newSettings(newOrganizationName, newApplicationName);
+    if (!newSettings.allKeys().empty())
+        // no migration is needed
+        return false;
+
+    QSettings oldSettings(oldOrganizationName, oldApplicationName);
+    QList<QString> keys = oldSettings.allKeys();
+    if (!keys.empty()) {
+        Q_FOREACH(const QString &key, keys) {
+            newSettings.setValue(key, oldSettings.value(key));
+        }
+        newSettings.sync();
+
+        return true;
+    }
+
+    return false;
+}
+
+bool BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
+{
+    QSettings settings(organization, application);
+    if (!settings.value("strDataDir").isNull()) {
+        boost::filesystem::path zcoinDataDir = GetDefaultDataDirForCoinName("zcoin");
+        boost::filesystem::path settingsDataDir = GUIUtil::qstringToBoostPath(settings.value("strDataDir", GUIUtil::boostPathToQString(zcoinDataDir)).toString());
+
+        if (settingsDataDir == zcoinDataDir) {
+            settings.setValue("strDataDir", dataDir);
+            settings.sync();
+        }
+    }
+}
+
+void BitcoinApplication::migrateToFiro()
+{
+    migrateSettings("Zcoin", "Firo", "Zcoin-Qt", "Firo-Qt");
+    migrateSettings("Zcoin", "Firo", "Zcoin-Qt-testnet", "Firo-Qt-testnet");
+
+    QSettings settings;
+    if (IsArgSet("-datadir"))
+        return;
+
+    boost::filesystem::path dataDir = GetDefaultDataDir();
+    dataDir = GUIUtil::qstringToBoostPath(settings.value("strDataDir", GUIUtil::boostPathToQString(GetDefaultDataDir())).toString());
+    boost::filesystem::path zcoinDefaultDataDir = GetDefaultDataDirForCoinName("zcoin");
+    boost::filesystem::path firoDefaultDataDir = GetDefaultDataDirForCoinName("firo");
+
+    if (dataDir != zcoinDefaultDataDir)
+        return;
+
+    boost::filesystem::path dontMigrateFilePath = dataDir / ".dontmigratetofiro";
+    if (boost::filesystem::exists(dontMigrateFilePath) && !GetBoolArg("-migratetofiro", false))
+        return;
+
+    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox("Do not ask me again");
+    QMessageBox messageBox;
+    messageBox.setText(QString().sprintf(
+        "Migrate directory structure from zcoin to firo? "
+        "Directory %s will be renamed to %s and file zcoin.conf in it will be renamed to firo.conf",
+        zcoinDefaultDataDir.c_str(), firoDefaultDataDir.c_str()));
+
+    messageBox.setIcon(QMessageBox::Icon::Question);
+    messageBox.addButton(QMessageBox::Yes);
+    messageBox.addButton(QMessageBox::No);
+    messageBox.setDefaultButton(QMessageBox::Yes);
+    messageBox.setCheckBox(doNotAskMeAgainCheckbox);
+
+    bool doNotShowAgain = false;
+
+    QObject::connect(doNotAskMeAgainCheckbox, &QCheckBox::stateChanged, [&doNotShowAgain] (int state) {
+        doNotShowAgain = static_cast<Qt::CheckState>(state) == Qt::CheckState::Checked;
+    });
+
+    if (messageBox.exec() == QMessageBox::Yes) {
+        if (RenameDirectoriesFromZcoinToFiro()) {
+            // Update path in settings if not set to non-default value
+            setDataDirInSettings("Firo", "Firo-Qt", GUIUtil::boostPathToQString(firoDefaultDataDir));
+            setDataDirInSettings("Firo", "Firo-Qt-testnet", GUIUtil::boostPathToQString(firoDefaultDataDir));
+        }
+    }
+    else if (doNotShowAgain) {
+        // create file to block migration in the future
+        FILE *f = fopen(dontMigrateFilePath.c_str(), "w");
+        if (f)
+            fclose(f);
+    }
+}
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -614,6 +712,8 @@ int main(int argc, char *argv[])
     // User language is set up: pick a data directory
     if (!Intro::pickDataDirectory())
         return EXIT_SUCCESS;
+
+    app.migrateToFiro();
 
     /// 6. Determine availability of data directory and parse firo.conf
     /// - Do not call GetDataDir(true) before this step finishes

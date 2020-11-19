@@ -104,6 +104,11 @@ bool AppInit(int argc, char* argv[])
 
     try
     {
+        if (GetBoolArg("-migratetofiro", false) && !IsArgSet("-datadir")) {
+            // rename directory and config file, do it before it gets accessed
+            RenameDirectoriesFromZcoinToFiro();
+        }
+
         if (!boost::filesystem::is_directory(GetDataDir(false)))
         {
             fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", GetArg("-datadir", "").c_str());
