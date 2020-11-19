@@ -13,14 +13,14 @@ Firo
 What is Firo?
 --------------
 
-[Firo](https://firo.org) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://firo.org/what-is-sigma-and-why-is-it-replacing-zerocoin-in-firo/) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
+[Firo](https://firo.org) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://firo.org/2019/03/20/what-is-sigma.html) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
 Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
-![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/wp-content/uploads/2019/04/firo_table_coloured5-01.png) 
-read more https://firo.org/firos-privacy-technology-compares-competition/
+![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/guide/assets/privacy-technology-comparison/comparison-table-coloured.png) 
+read more https://firo.org/guide/privacy-technology-comparison.html
 
 Running with Docker
 ===================
