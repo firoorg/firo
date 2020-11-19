@@ -341,6 +341,27 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
         pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins);
         GetMainSignals().WalletTransaction(transaction);
 
+        for (CLelantusEntry& spendCoin: spendCoins) {
+            lelantus::PublicCoin pubCoin(spendCoin.value);
+
+            COutPoint outPoint;
+            lelantus::GetOutPoint(outPoint, pubCoin);
+
+            uint256 hashBlock;
+            CTransactionRef tx;
+            GetTransaction(outPoint.hash, tx, Params().GetConsensus(), hashBlock, true);
+
+            GetMainSignals().WalletTransaction(*tx);
+        }
+
+        for (CHDMint& mintCoin: mintCoins) {
+            uint256 hashBlock;
+            CTransactionRef tx;
+            GetTransaction(mintCoin.GetTxHash(), tx, Params().GetConsensus(), hashBlock, true);
+
+            GetMainSignals().WalletTransaction(*tx);
+        }
+
         return transaction.GetHash().GetHex();
     }
     catch (const InsufficientFunds& e) {
