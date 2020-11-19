@@ -27,9 +27,12 @@ public:
     bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
     bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
 
+    void compute_fis(const Scalar& f_i, int j, const std::vector<Exponent>& f) const;
+
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
+    static Exponent* pp;
     int n;
     int m;
 };
