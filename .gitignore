@@ -101,6 +101,9 @@ build
 .settings
 *.xcodeproj
 
+# CLion
+cmake-build-debug
+
 #lcov
 *.gcno
 *.gcda
