@@ -496,7 +496,7 @@ void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
 #endif
 }
 
-static boost::filesystem::path GetDefaultDataDirForCoinName(const std::string &coinName)
+boost::filesystem::path GetDefaultDataDirForCoinName(const std::string &coinName)
 {
     namespace fs = boost::filesystem;
     // Windows < Vista: C:\Documents and Settings\Username\Application Data\firo
@@ -650,6 +650,43 @@ void ReadConfigFile(const std::string& confPath)
     }
     // If datadir is changed in .conf file:
     ClearDatadirCache();
+}
+
+bool RenameDirectoriesFromZcoinToFiro()
+{
+    namespace fs = boost::filesystem;
+
+    fs::path zcoinPath = GetDefaultDataDirForCoinName("zcoin");
+    fs::path firoPath = GetDefaultDataDirForCoinName("firo");
+
+    // rename is possible only if zcoin directory exists and firo doesn't
+    if (fs::exists(firoPath) || !fs::is_directory(zcoinPath))
+        return false;
+
+    fs::path zcoinConfFileName = zcoinPath / "zcoin.conf";
+    fs::path firoConfFileName = zcoinPath / "firo.conf";
+    if (fs::exists(firoConfFileName))
+        return false;
+
+    try {
+        if (fs::is_regular_file(zcoinConfFileName))
+            fs::rename(zcoinConfFileName, firoConfFileName);
+
+        try {
+            fs::rename(zcoinPath, firoPath);
+        }
+        catch (const fs::filesystem_error &) {
+            // rename config file back
+            fs::rename(firoConfFileName, zcoinConfFileName);
+            throw;
+        }
+    }
+    catch (const fs::filesystem_error &) {
+        return false;
+    }
+
+    ClearDatadirCache();
+    return true;
 }
 
 #ifndef WIN32
