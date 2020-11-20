@@ -328,6 +328,9 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
 
+    // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
+    payTxFee = CFeeRate(data["feePerKb"].get_int64());
+
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
     CScript scriptPubKey = GetScriptForDestination(address.Get());
     CRecipient recipient = {scriptPubKey, amount, fSubtractFeeFromAmount};
@@ -335,12 +338,12 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
 
     std::vector<CAmount> amounts = {amount};
 
-    CAmount fee = 0;
-    std::vector<CAmount> newMints;
-    std::vector<CLelantusEntry> spendCoins;
-    std::vector<CHDMint> mintCoins;
-
     try {
+        CAmount fee = 0;
+        std::vector<CAmount> newMints;
+        std::vector<CLelantusEntry> spendCoins;
+        std::vector<CHDMint> mintCoins;
+
         CWalletTx transaction = pwalletMain->CreateLelantusJoinSplitTransaction(
             recipients,
             fee, // clobbered
