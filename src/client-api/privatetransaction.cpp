@@ -302,6 +302,18 @@ UniValue sendSigma(Type type, const UniValue& data, const UniValue& auth, bool f
     }
 }
 
+UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    CAmount nAmount = data["amount"].get_int64();
+    bool fSubtractFeeFromAmount = data["subtractFeeFromAmount"].get_bool();
+
+    CCoinControl coinControl;
+    bool fHasCoinControl = GetCoinControl(data, coinControl);
+
+    // payTxFee is a global variable that will be used in EstimateJoinSplitFee.
+    payTxFee = CFeeRate(data["feePerKb"].get_int64());
+    return pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, fHasCoinControl ? &coinControl : nullptr);
+}
+
 UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (type != Create) {
         throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
@@ -432,6 +444,7 @@ static const CAPICommand commands[] =
     { "privatetransaction",  "sendSigma",          &sendSigma,               true,      true,            false  },
     { "privatetransaction",  "listSigmaMints",     &listSigmaMints,          true,      true,            false  },
     { "privatetransaction",  "sigmaTxFee",         &sigmaTxFee,              true,      false,           false  },
+    { "privatetransaction",  "lelantusTxFee",      &lelantusTxFee,           true,      false,           false  },
     { "privatetransaction",  "sendLelantus",       &sendLelantus,            true,      true,            false  },
     { "privatetransaction",  "autoMintLelantus",   &autoMintLelantus,        true,      true,            false  }
 };
