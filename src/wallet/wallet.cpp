@@ -1983,9 +1983,10 @@ bool CWallet::isNotificationTransaction(const CTransaction& tx) const
     if (!IsMine(tx)) {
         return false;
     }
-    if (!tx.IsPaymentCode()) {
-        return false;
-    }
+//bip47
+//    if (!tx.IsPaymentCode()) {
+//        return false;
+//    }
 
     CBitcoinAddress addr = getAddressOfReceived(tx);
     for(size_t i = 0; i < m_bip47Accounts.size(); i++) {

@@ -2,9 +2,6 @@
 .project
 .cproject
 .vscode
-src.kdev4
-
-dist/
 
 *.tar.gz
 
@@ -13,12 +10,10 @@ src/zcoin
 src/zcoind
 src/zcoin-cli
 src/zcoin-tx
-src/testbip47
 src/test/test_bitcoin_fuzzy
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
-
 
 # autoreconf
 Makefile.in
@@ -118,7 +113,6 @@ test/config.ini
 test/cache/*
 src/test/buildenv.py
 src/test/test_bitcoin
-src/test/test_bitcoin_fuzzy
 qa/pull-tester/tests_config.py
 qa/cache/*
 

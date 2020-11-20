@@ -203,15 +203,6 @@ bool CTransaction::IsZerocoinRemint() const
     return false;
 }
 
-bool CTransaction::IsPaymentCode() const
-{
-    for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsPaymentCode())
-            return true;
-    }
-    return false;
-}
-
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 {
     // In order to avoid disincentivizing cleaning up the UTXO set we don't count

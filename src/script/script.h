@@ -661,9 +661,6 @@ public:
 
     bool IsZerocoinRemint() const;
 
-    //@todo payment code?
-    bool IsPaymentCode() const;
-
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 
