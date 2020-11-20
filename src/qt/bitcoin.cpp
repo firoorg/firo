@@ -600,10 +600,13 @@ void BitcoinApplication::migrateToFiro()
 
     QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox("Do not ask me again");
     QMessageBox messageBox;
-    messageBox.setText(QString().sprintf(
+    QString messageText;
+    QTextStream(&messageText) <<
         "Migrate directory structure from zcoin to firo? "
-        "Directory %s will be renamed to %s and file zcoin.conf in it will be renamed to firo.conf",
-        zcoinDefaultDataDir.c_str(), firoDefaultDataDir.c_str()));
+        "Directory " << GUIUtil::boostPathToQString(zcoinDefaultDataDir) <<
+          " will be renamed to " << GUIUtil::boostPathToQString(firoDefaultDataDir) <<
+          " and file zcoin.conf in it will be renamed to firo.conf";
+    messageBox.setText(messageText);
 
     messageBox.setIcon(QMessageBox::Icon::Question);
     messageBox.addButton(QMessageBox::Yes);
@@ -626,9 +629,7 @@ void BitcoinApplication::migrateToFiro()
     }
     else if (doNotShowAgain) {
         // create file to block migration in the future
-        FILE *f = fopen(dontMigrateFilePath.c_str(), "w");
-        if (f)
-            fclose(f);
+        boost::filesystem::ofstream(dontMigrateFilePath).flush();
     }
 }
 
