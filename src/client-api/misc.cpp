@@ -159,6 +159,14 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
 
+    // This is the number of blocks we would like our transaction to be confirmed within.
+    int nBlocksToConfirm = 2;
+    // This will be set by estimateSmartFee to the number of blocks actually estimated to be required for confirmation,
+    // which may be different than the above.
+    int estimateFoundAtBlock = nBlocksToConfirm;
+    CFeeRate smartFee = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlock);
+    obj.push_back(Pair("smartFeePerKb", smartFee.GetFeePerK()));
+
     obj.push_back(Pair("isLelantusAllowed", lelantus::IsLelantusAllowed()));
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
