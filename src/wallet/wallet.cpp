@@ -4838,7 +4838,6 @@ bool CWallet::CreateZerocoinMintModel(
             // of currency inputs totaling the assigned value of one zerocoin.
 
             libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
-
             //Validate
             bool validCoin = pubCoin.validate();
 
