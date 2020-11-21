@@ -133,10 +133,8 @@ void ClearDatadirCache();
 boost::filesystem::path GetPersistentDataDir(bool fNetSpecific = true);
 boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename);
 boost::filesystem::path GetConfigFile(const std::string& confPath);
-#ifndef WIN32
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
-#endif
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
