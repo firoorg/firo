@@ -287,6 +287,10 @@ BITCOIN_CORE_H = \
   wallet/bip39_english.h \
   definition.h \
   warnings.h \
+  zmq/zmqabstractnotifier.h \
+  zmq/zmqconfig.h\
+  zmq/zmqnotificationinterface.h \
+  zmq/zmqpublishnotifier.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
