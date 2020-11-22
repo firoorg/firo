@@ -3273,7 +3273,7 @@ UniValue mintlelantus(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "mint amount\n"
+                "mintlelantus amount\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nArguments:\n"
                 "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be not less than 0.05\n"
@@ -3861,9 +3861,9 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 3)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw std::runtime_error(
-                "joinsplit \"fromaccount\" {\"address\":amount,...} ([\"address\",...] )\n"
+                "joinsplit {\"address\":amount,...} ([\"address\",...] )\n"
                 "\nSpend lelantus and mint in one transaction, you need at least provide one of 1-st or 3-rd arguments."
                 + HelpRequiringPassphrase(pwallet) + "\n"
                 "\nArguments:\n"
@@ -3905,12 +3905,23 @@ UniValue joinsplit(const JSONRPCRequest& request) {
 
 
     UniValue sendTo = request.params[0].get_obj();
-    UniValue mintAmounts = request.params[2].get_obj();
+    UniValue mintAmounts;
+    if(request.params.size() >= 3) {
+        try {
+                mintAmounts = request.params[2].get_obj();
+        } catch (std::runtime_error const &) {
+            //may be empty
+        }
+    }
 
     std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
     if (request.params.size() > 2) {
-        subtractFeeFromAmount = request.params[1].get_array();
+        try {
+            subtractFeeFromAmount = request.params[1].get_array();
+        }  catch (std::runtime_error const &) {
+            //may be empty
+        }
         for (int i = subtractFeeFromAmount.size(); i--;) {
             subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
         }
@@ -3923,7 +3934,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     CAmount totalAmount = 0;
 
     auto keys = sendTo.getKeys();
-    auto mints = mintAmounts.getValues();
+    std::vector<UniValue> mints = mintAmounts.empty() ? std::vector<UniValue>() : mintAmounts.getValues();
 
     if(keys.empty() && mints.empty())
         throw JSONRPCError(RPC_TYPE_ERROR, "You have to provide at least public addressed or amount to mint");
