@@ -710,6 +710,20 @@ bool elysium::IsLelantusEnabled(PropertyId property)
     return IsEnabledFlag(info.lelantusStatus);
 }
 
+bool elysium::IsLelantusStatusUpdatable(PropertyId property)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return info.lelantusStatus == elysium::LelantusStatus::SoftDisabled ||
+        info.lelantusStatus == elysium::LelantusStatus::SoftEnabled;
+}
+
 std::string std::to_string(SigmaStatus status)
 {
     switch (status) {

@@ -272,6 +272,7 @@ int64_t GetDenominationValue(PropertyId property, SigmaDenomination denomination
 
 bool IsLelantusStatusValid(LelantusStatus status);
 bool IsLelantusEnabled(PropertyId property);
+bool IsLelantusStatusUpdatable(PropertyId property);
 
 CMPCrowd* getCrowd(const std::string& address);
 

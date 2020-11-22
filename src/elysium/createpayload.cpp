@@ -755,5 +755,22 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
     return payload;
 }
 
+std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, LelantusStatus status)
+{
+    std::vector<unsigned char> payload;
+    uint16_t messageType = ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS;
+    uint16_t messageVer = 0;
+    elysium::swapByteOrder16(messageType);
+    elysium::swapByteOrder16(messageVer);
+    elysium::swapByteOrder32(propertyId);
+
+    PUSH_BACK_BYTES(payload, messageVer);
+    PUSH_BACK_BYTES(payload, messageType);
+    PUSH_BACK_BYTES(payload, propertyId);
+    PUSH_BACK_BYTES(payload, status);
+
+    return payload;
+}
+
 #undef PUSH_BACK_BYTES
 #undef PUSH_BACK_BYTES_PTR

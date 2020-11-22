@@ -105,6 +105,7 @@ testScripts = [
     'elysium_create_denomination.py',
     'elysium_property_creation_fee.py',
     'elysium_recoverlelantusmint.py',
+    'elysium_lelantusstatus.py',
     'elysium_sendlelantusmint.py',
     'elysium_sendlelantusspend.py',
     'elysium_sendmint.py',
