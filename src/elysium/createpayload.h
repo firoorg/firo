@@ -56,5 +56,6 @@ std::vector<unsigned char> CreatePayload_CreateLelantusMint(uint32_t propertyId,
 std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(uint32_t propertyId, uint64_t amount,
                                                                  lelantus::JoinSplit const &joinSplit,
                                                                  boost::optional<JoinSplitMint> const &mint);
+std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, LelantusStatus status);
 
 #endif // ZCOIN_ELYSIUM_CREATEPAYLOAD_H

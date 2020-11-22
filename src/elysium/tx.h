@@ -59,6 +59,7 @@ enum TransactionType {
     ELYSIUM_TYPE_SIMPLE_MINT                 = 1026,
     ELYSIUM_TYPE_LELANTUS_MINT               = 1027,
     ELYSIUM_TYPE_LELANTUS_JOINSPLIT          = 1028,
+    ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS      = 1029,
     ELYSIUM_MESSAGE_TYPE_DEACTIVATION        = 65533,
     ELYSIUM_MESSAGE_TYPE_ACTIVATION          = 65534,
     ELYSIUM_MESSAGE_TYPE_ALERT               = 65535
@@ -196,6 +197,7 @@ private:
     bool interpret_SimpleSpend();
     bool interpret_LelantusMint();
     bool interpret_LelantusJoinSplit();
+    bool interpret_ChangeLelantusStatus();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -313,6 +315,7 @@ public:
     uint64_t getLelantusMintValue() const { return lelantusMintValue; }
     MintEntryId getLelantusMintId() const { return lelantusId.get(); }
     std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
+    LelantusStatus getLelantusStatus() const { return lelantusStatus; }
 
     lelantus::JoinSplit getLelantusJoinSplit() const { return lelantusJoinSplit.get(); };
     uint64_t getLelantusSpendAmount() const { return lelantusSpendAmount; }

@@ -2015,6 +2015,66 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
     }
 }
 
+
+UniValue elysium_sendchangelelantusstatus(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3)
+        throw runtime_error(
+            "elysium_sendchangelelantusstatus \"fromaddress\" propertyid status\n"
+
+            "\nChange lelantus status on record of the given tokens.\n"
+
+            "\nArguments:\n"
+            "1. fromaddress          (string, required) the address associated with the tokens\n"
+            "2. propertyid           (number, required) the identifier of the tokens\n"
+            "2. status               (number, required) the status that need to change to (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+
+            "\nResult:\n"
+            "\"hash\"                  (string) the hex-encoded transaction hash\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendchangelelantusstatus", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
+            + HelpExampleRpc("elysium_sendchangelelantusstatus", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
+        );
+
+    // obtain parameters & info
+    auto fromAddress = ParseAddress(request.params[0]);
+    auto propertyId = ParsePropertyId(request.params[1]);
+    auto status = static_cast<LelantusStatus>(request.params[2].get_int());
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireTokenIssuer(fromAddress, propertyId);
+
+    if (!IsFeatureActivated(FEATURE_LELANTUS, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+
+    if (!elysium::IsLelantusStatusUpdatable(propertyId)) {
+        throw JSONRPCError(RPC_INVALID_REQUEST, "The property is not allowed to update lelantus status");
+    }
+
+    // create a payload for the transaction
+    std::vector<unsigned char> payload = CreatePayload_ChangeLelantusStatus(propertyId, status);
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            return txid.GetHex();
+        }
+    }
+}
+
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -2047,6 +2107,7 @@ static const CRPCCommand commands[] =
     { "elysium (transaction creation)",  "elysium_sendspend",                 &elysium_sendspend,                  false },
     { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false },
     { "elysium (transaction creation)",  "elysium_sendlelantusspend",         &elysium_sendlelantusspend,          false },
+    { "elysium (transaction creation)",  "elysium_sendchangelelantusstatus",  &elysium_sendchangelelantusstatus,   false },
 
     /* depreciated: */
     { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },

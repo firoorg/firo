@@ -71,6 +71,9 @@ std::string elysium::strTransactionType(uint16_t txType)
         case ELYSIUM_MESSAGE_TYPE_ALERT: return "ALERT";
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION: return "Feature Deactivation";
         case ELYSIUM_MESSAGE_TYPE_ACTIVATION: return "Feature Activation";
+        case ELYSIUM_TYPE_LELANTUS_MINT: return "Lelantus Mint";
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: return "Lelantus JoinSplit";
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS: return "Change Lelantus Status";
 
         default: return "* unknown type *";
     }
@@ -196,6 +199,9 @@ bool CMPTransaction::interpret_Transaction()
 
         case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
             return interpret_LelantusJoinSplit();
+
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS:
+            return interpret_ChangeLelantusStatus();
 
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
@@ -1064,6 +1070,23 @@ bool CMPTransaction::interpret_LelantusJoinSplit()
     if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           value: %s\n", FormatMP(property, lelantusSpendAmount));
+    }
+
+    return true;
+}
+
+/** Tx 1029 */
+bool CMPTransaction::interpret_ChangeLelantusStatus()
+{
+    if (raw.size() < 9) {
+        return false;
+    }
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder32(property);
+    memcpy(&lelantusStatus, &raw[8], 1);
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
     return true;

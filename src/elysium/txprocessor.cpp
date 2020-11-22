@@ -39,6 +39,10 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
         case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
             result = ProcessLelantusJoinSplit(tx);
             break;
+
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS:
+            result = ProcessChangeLelantusStatus(tx);
+            break;
         }
     }
 
@@ -393,6 +397,63 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, spendAmount, BALANCE));
+
+    return 0;
+}
+
+int TxProcessor::ProcessChangeLelantusStatus(const CMPTransaction& tx)
+{
+    auto block = tx.getBlock();
+    auto type = tx.getType();
+    auto version = tx.getVersion();
+    auto property = tx.getProperty();
+    auto status = tx.getLelantusStatus();
+    auto sender = tx.getSender();
+
+    uint256 blockHash;
+    {
+        LOCK(cs_main);
+
+        CBlockIndex* pindex = chainActive[block];
+        if (pindex == NULL) {
+            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
+            return (PKT_ERROR_TOKENS -20);
+        }
+        blockHash = pindex->GetBlockHash();
+    }
+
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+            __func__,
+            type,
+            version,
+            property,
+            block);
+        return PKT_ERROR_LELANTUS - 22;
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return (PKT_ERROR_TOKENS -24);
+    }
+
+    if (!IsLelantusStatusUpdatable(property)) {
+        PrintToLog("%s(): rejected: lelantus status of property %d is unupdatable\n", __func__, property);
+        return (PKT_ERROR_TOKENS -43);
+    }
+
+    CMPSPInfo::Entry sp;
+    assert(_my_sps->getSP(property, sp));
+
+    if (sender != sp.issuer) {
+        PrintToLog("%s(): rejected: sender %s is not issuer of property %d [issuer=%s]\n", __func__, sender, property, sp.issuer);
+        return (PKT_ERROR_TOKENS -43);
+    }
+
+    sp.lelantusStatus = status;
+    sp.update_block = blockHash;
+
+    assert(_my_sps->updateSP(property, sp));
 
     return 0;
 }
