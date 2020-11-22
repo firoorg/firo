@@ -656,14 +656,14 @@ BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint_invalid_schnorrproof_size)
 
 BOOST_AUTO_TEST_CASE(payload_create_lelantus_spend_without_change)
 {
-    std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
-    std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
-    LelantusAmount amount;
-    std::vector<lelantus::PrivateCoin> coinOuts;
-    std::map<uint32_t, uint256> groupBlockHashs;
-    uint256 metaData;
+    // std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
+    // std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
+    // LelantusAmount amount;
+    // std::vector<lelantus::PrivateCoin> coinOuts;
+    // std::map<uint32_t, uint256> groupBlockHashs;
+    // uint256 metaData;
 
-    auto js = ::CreateJoinSplit(coins, anonss, 100, coinOuts, groupBlockHashs, metaData);
+    // auto js = ::CreateJoinSplit(coins, anonss, 100, coinOuts, groupBlockHashs, metaData);
     // lelantus::
 
     // Simple mint [type 1027, version 0]
@@ -680,7 +680,12 @@ BOOST_AUTO_TEST_CASE(payload_create_lelantus_spend_without_change)
 
 BOOST_AUTO_TEST_CASE(payload_create_change_lelantus_status)
 {
-    // TODO: test
+    // Change property lelantus status [type 1029, version 0]
+    std::vector<unsigned char> vch = CreatePayload_ChangeLelantusStatus(
+        static_cast<uint32_t>(13), // property: SP #13
+        LelantusStatus::SoftDisabled); // 0x00
+
+    BOOST_CHECK_EQUAL(HexStr(vch), "000004050000000d00");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
