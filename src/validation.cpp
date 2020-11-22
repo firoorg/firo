@@ -2245,9 +2245,11 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             }
             for (unsigned int j = tx.vin.size(); j-- > 0;) {
                 const COutPoint &out = tx.vin[j].prevout;
-                int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
-                if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
-                fClean = fClean && res != DISCONNECT_UNCLEAN;
+                if (Params().ApplyUndoForTxout(pindex->nHeight, tx.GetHash(), j)) {
+                    int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+                    if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
+                    fClean = fClean && res != DISCONNECT_UNCLEAN;
+                }
             }
             // At this point, all of txundo.vprevout should have been moved out.
         }
@@ -2293,6 +2295,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     */
 
     evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
+
+    if(Params().SkipUndoForBlock(pindex->nHeight)) {
+        fClean = true;
+    }
 
     if (pfClean)
         *pfClean = fClean;
