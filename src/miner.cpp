@@ -902,10 +902,13 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             txBlackList.erase(mi);
         }
 
-        // ProRegTx referencing external collateral can't be in same block with the collateral itself
         if (tx.nVersion >= 3 && tx.nType == TRANSACTION_PROVIDER_REGISTER) {
             CProRegTx proTx;
-            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() && mempool.get(proTx.collateralOutpoint.hash))
+            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() &&
+                    // ProRegTx referencing external collateral can't be in same block with the collateral itself
+                    (mempool.get(proTx.collateralOutpoint.hash) ||
+                    // ProRegTx cannot be in the same block as transaction spending external collateral
+                        mempool.isSpent(proTx.collateralOutpoint)))
                 mempool.CalculateDescendants(mi, txBlackList);
         }
     }
