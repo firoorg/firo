@@ -27,14 +27,18 @@ public:
     bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
     bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
 
-    void compute_fis(const Scalar& f_i, int j, const std::vector<Exponent>& f) const;
+    void compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f) const;
+    void compute_batch_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, const Exponent& y, Exponent& e) const;
+
 
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
-    static Exponent* pp;
     int n;
     int m;
+    mutable Exponent* ptr;
+    mutable Exponent* start_ptr;
+    mutable Exponent* end_ptr;
 };
 
 } // namespace sigma

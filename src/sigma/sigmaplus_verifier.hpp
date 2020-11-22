@@ -1,8 +1,6 @@
 
 #include <math.h>
 namespace sigma{
-template<class Exponent, class GroupElement>
-Exponent* SigmaPlusVerifier<Exponent, GroupElement>::pp;
 
 template<class Exponent, class GroupElement>
 SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
@@ -69,9 +67,10 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
 
     std::size_t N = commits.size();
     std::vector<Exponent> f_i_;
-    f_i_.resize(fPadding ? N-1 : N);
+    f_i_.resize(N);
 
-    pp = f_i_.data();
+    ptr = f_i_.data();
+    end_ptr = ptr + N;
     Scalar f_i(uint64_t(1));
     compute_fis(f_i, m, f);
 
@@ -104,10 +103,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             Exponent fi_sum(uint64_t(0));
             for (int i = I[j] + 1; i < n; i++)
                 fi_sum += f[j*n + i];
-            pow += fi_sum * xj * f_part_product[m - j - 1];
+            f_i_[N - 1] += fi_sum * xj * f_part_product[m - j - 1];
             xj *= challenge_x;
         }
-        f_i_.emplace_back(pow);
     }
 
     secp_primitives::MultiExponent mult(commits, f_i_);
@@ -189,17 +187,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         Scalar e;
         size_t size = setSizes[t];
         size_t start = N - size;
-        for (size_t i = 0; i < size - 1; ++i)
-        {
-            Scalar f_i(uint64_t(1));
-            for (std::size_t j = 0; j < m; ++j)
-            {
-                f_i *= f_[t][j*n + I_[i][j]];
-            }
 
-            f_i_t[start + i] += f_i * y[t];
-            e += f_i;
-        }
+        ptr = f_i_t.data() + start;
+        start_ptr = ptr;
+        end_ptr = ptr + size - 1;
+        Scalar f_i(uint64_t(1));
+        compute_batch_fis(f_i, m, f_[t], y[t], e);
 
         if(fPadding[t]) {
             /*
@@ -365,11 +358,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
 }
 
 template<class Exponent, class GroupElement>
-void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Scalar& f_i, int j, const std::vector<Exponent>& f) const {
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f) const {
     j--;
     if (j == -1)
     {
-        *pp++ += f_i;
+        if(ptr < end_ptr)
+            *ptr++ += f_i;
         return;
     }
 
@@ -381,6 +375,29 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Scalar& f_i, i
         t *= f_i;
 
         compute_fis(t, j, f);
+    }
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, const Exponent& y, Exponent& e) const {
+    j--;
+    if (j == -1)
+    {
+        if(ptr >= start_ptr && ptr < end_ptr){
+            *ptr++ += f_i * y;
+            e += f_i;
+        }
+        return;
+    }
+
+    Exponent t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+
+        compute_batch_fis(t, j, f, y, e);
     }
 }
 
