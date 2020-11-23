@@ -75,8 +75,8 @@ for arg in sys.argv[1:]:
         opts.add(arg)
 
 #Set env vars
-if "firod" not in os.environ:
-    os.environ["firod"] = BUILDDIR + '/src/firod' + EXEEXT
+if "FIROD" not in os.environ:
+    os.environ["FIROD"] = BUILDDIR + '/src/firod' + EXEEXT
 if "FIROCLI" not in os.environ:
     os.environ["FIROCLI"] = BUILDDIR + '/src/firo-cli' + EXEEXT
 
