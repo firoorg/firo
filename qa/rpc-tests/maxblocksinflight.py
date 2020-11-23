@@ -73,7 +73,7 @@ class TestManager(NodeConnCB):
 class MaxBlocksInFlightTest(BitcoinTestFramework):
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("firod", "firod"),
+                          default=os.getenv("FIROD", "firod"),
                           help="Binary to test max block requests behavior")
 
     def __init__(self):
