@@ -103,9 +103,10 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             Exponent fi_sum(uint64_t(0));
             for (int i = I[j] + 1; i < n; i++)
                 fi_sum += f[j*n + i];
-            f_i_[N - 1] += fi_sum * xj * f_part_product[m - j - 1];
+            pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= challenge_x;
         }
+        f_i_[N - 1] = pow;
     }
 
     secp_primitives::MultiExponent mult(commits, f_i_);

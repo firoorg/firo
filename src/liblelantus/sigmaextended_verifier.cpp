@@ -84,9 +84,10 @@ bool  SigmaExtendedVerifier::verify(
         Scalar fi_sum(uint64_t(0));
         for (uint64_t i = I[j] + 1; i < n; i++)
             fi_sum += f_[j*n + i];
-        f_i_[N - 1] += fi_sum * xj.pow * f_part_product[m - j - 1];
+        pow += fi_sum * xj.pow * f_part_product[m - j - 1];
         xj.go_next();
     }
+    f_i_[N - 1] = pow;
 
     secp_primitives::MultiExponent mult(commits, f_i_);
     GroupElement t1 = mult.get_multiple();
