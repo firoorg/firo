@@ -1,5 +1,7 @@
+
 #include <math.h>
 namespace sigma{
+
 template<class Exponent, class GroupElement>
 SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
         const GroupElement& g,
@@ -65,28 +67,20 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
 
     std::size_t N = commits.size();
     std::vector<Exponent> f_i_;
-    f_i_.reserve(N);
+    f_i_.resize(N);
 
-    // if fPadding is true last index is special
-    for (std::size_t i = 0; i < (fPadding ? N-1 : N); ++i) {
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
-        for(int j = 0; j < m; ++j){
-            f_i *= f[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
+    compute_fis(m, f, f_i_);
 
     if (fPadding) {
         /*
          * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
          * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
-         * 
+         *
          * Math (in TeX notation):
-         * 
-         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} = 
+         *
+         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
          *   \sum_{j=0}^{m-1}
-         *     \left[ 
+         *     \left[
          *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
          *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
          *       x^j
@@ -109,7 +103,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
             pow += fi_sum * xj * f_part_product[m - j - 1];
             xj *= challenge_x;
         }
-        f_i_.emplace_back(pow);
+        f_i_[N - 1] = pow;
     }
 
     secp_primitives::MultiExponent mult(commits, f_i_);
@@ -191,17 +185,10 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         Scalar e;
         size_t size = setSizes[t];
         size_t start = N - size;
-        for (size_t i = 0; i < size - 1; ++i)
-        {
-            Scalar f_i(uint64_t(1));
-            for (std::size_t j = 0; j < m; ++j)
-            {
-                f_i *= f_[t][j*n + I_[i][j]];
-            }
 
-            f_i_t[start + i] += f_i * y[t];
-            e += f_i;
-        }
+        Scalar f_i(uint64_t(1));
+        vector<Scalar>::iterator ptr = f_i_t.begin() + start;
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
 
         if(fPadding[t]) {
             /*
@@ -364,6 +351,64 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
     if(((proof.B_ * x + proof.r1Proof_.A_) * c + proof.r1Proof_.C_ * x + proof.r1Proof_.D_) != right)
         return false;
     return true;
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(int j, const std::vector<Exponent>& f, std::vector<Exponent>& f_i_) const {
+    Exponent f_i(uint64_t(1));
+    typename vector<Exponent>::iterator ptr = f_i_.begin();
+    compute_fis(f_i, m, f, ptr, f_i_.end());
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, typename vector<Exponent>::iterator& ptr, typename vector<Exponent>::iterator end_ptr) const {
+    j--;
+    if (j == -1)
+    {
+        if(ptr < end_ptr)
+            *ptr++ += f_i;
+        return;
+    }
+
+    Scalar t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+
+        compute_fis(t, j, f, ptr, end_ptr);
+    }
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(
+        const Exponent& f_i,
+        int j,
+        const std::vector<Exponent>& f,
+        const Exponent& y,
+        Exponent& e,
+        typename vector<Exponent>::iterator& ptr,
+        typename vector<Exponent>::iterator start_ptr,
+        typename vector<Exponent>::iterator end_ptr)const {
+    j--;
+    if (j == -1)
+    {
+        if(ptr >= start_ptr && ptr < end_ptr){
+            *ptr++ += f_i * y;
+            e += f_i;
+        }
+        return;
+    }
+
+    Exponent t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+        compute_batch_fis(t, j, f, y, e, ptr, start_ptr, end_ptr);
+    }
 }
 
 } // namespace sigma

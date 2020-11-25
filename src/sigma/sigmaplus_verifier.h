@@ -27,6 +27,19 @@ public:
     bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
     bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
 
+    void compute_fis(int j, const std::vector<Exponent>& f, std::vector<Exponent>& f_i_) const;
+    void compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, typename vector<Exponent>::iterator& ptr, typename vector<Exponent>::iterator end_ptr) const;
+    void compute_batch_fis(
+            const Exponent& f_i,
+            int j,
+            const std::vector<Exponent>& f,
+            const Exponent& y,
+            Exponent& e,
+            typename vector<Exponent>::iterator& ptr,
+            typename vector<Exponent>::iterator start_ptr,
+            typename vector<Exponent>::iterator end_ptr) const;
+
+
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
