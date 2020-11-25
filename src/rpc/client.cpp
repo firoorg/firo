@@ -176,6 +176,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listspendzerocoins", 1 },
     { "listsigmaspends", 0 },
     { "listsigmaspends", 1 },
+    { "listlelantusjoinsplits", 0 },
+    { "listlelantusjoinsplits", 1 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getanonymityset", 0},

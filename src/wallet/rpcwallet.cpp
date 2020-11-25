@@ -4703,29 +4703,29 @@ UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
         entry.push_back(Pair("confirmations", confirmations));
         entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
 
-        UniValue joinsplits(UniValue::VARR);
-        BOOST_FOREACH(const CTxIn &txin, pwtx->tx->vin) {
-            std::unique_ptr<lelantus::JoinSplit> joinsplit;
-            try {
-            lelantus::ParseLelantusJoinSplit(txin);
-            } catch (std::invalid_argument&) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "Unable to parse Lelantus JoinSplit.");
-            }
-
-            UniValue joinsplitEntry(UniValue::VOBJ);
-            if(joinsplit->getCoinSerialNumbers().size() != joinsplit->getCoinGroupIds().size()) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus JoinSplit is invalid.");
-            }
-
-            for(size_t i = 0; i < joinsplit->getCoinSerialNumbers().size(); i++) {
-                joinsplitEntry.push_back(Pair("spendid", int64_t(joinsplit->getCoinGroupIds()[i])));
-                joinsplitEntry.push_back(Pair("serial", joinsplit->getCoinSerialNumbers()[i].GetHex()));
-            }
-
-            joinsplits.push_back(joinsplitEntry);
+        UniValue spends(UniValue::VARR);
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(pwtx->tx->vin[0]);
+        } catch (std::invalid_argument&) {
+            continue;
         }
 
-        entry.push_back(Pair("joinsplits", joinsplits));
+        std::vector<Scalar> spentSerials = joinsplit->getCoinSerialNumbers();
+        std::vector<uint32_t> ids = joinsplit->getCoinGroupIds();
+
+        if(spentSerials.size() != ids.size()) {
+            continue;
+        }
+
+        for(size_t i = 0; i < spentSerials.size(); i++) {
+            UniValue spendEntry(UniValue::VOBJ);
+            spendEntry.push_back(Pair("spendid", int64_t(ids[i])));
+            spendEntry.push_back(Pair("serial", spentSerials[i].GetHex()));
+            spends.push_back(spendEntry);
+        }
+
+        entry.push_back(Pair("spent_coins", spends));
         ret.push_back(entry);
 
         if (count > 0 && (int)ret.size() >= count)
