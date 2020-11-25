@@ -69,10 +69,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
     std::vector<Exponent> f_i_;
     f_i_.resize(N);
 
-    ptr = f_i_.data();
-    end_ptr = ptr + N;
-    Scalar f_i(uint64_t(1));
-    compute_fis(f_i, m, f);
+    compute_fis(m, f, f_i_);
 
     if (fPadding) {
         /*
@@ -189,11 +186,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         size_t size = setSizes[t];
         size_t start = N - size;
 
-        ptr = f_i_t.data() + start;
-        start_ptr = ptr;
-        end_ptr = ptr + size - 1;
         Scalar f_i(uint64_t(1));
-        compute_batch_fis(f_i, m, f_[t], y[t], e);
+        vector<Scalar>::iterator ptr = f_i_t.begin() + start;
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
 
         if(fPadding[t]) {
             /*
@@ -359,7 +354,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
 }
 
 template<class Exponent, class GroupElement>
-void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f) const {
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(int j, const std::vector<Exponent>& f, std::vector<Exponent>& f_i_) const {
+    Exponent f_i(uint64_t(1));
+    typename vector<Exponent>::iterator ptr = f_i_.begin();
+    compute_fis(f_i, m, f, ptr, f_i_.end());
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, typename vector<Exponent>::iterator& ptr, typename vector<Exponent>::iterator end_ptr) const {
     j--;
     if (j == -1)
     {
@@ -375,12 +377,20 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i,
         t = f[j * n + i];
         t *= f_i;
 
-        compute_fis(t, j, f);
+        compute_fis(t, j, f, ptr, end_ptr);
     }
 }
 
 template<class Exponent, class GroupElement>
-void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, const Exponent& y, Exponent& e) const {
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(
+        const Exponent& f_i,
+        int j,
+        const std::vector<Exponent>& f,
+        const Exponent& y,
+        Exponent& e,
+        typename vector<Exponent>::iterator& ptr,
+        typename vector<Exponent>::iterator start_ptr,
+        typename vector<Exponent>::iterator end_ptr)const {
     j--;
     if (j == -1)
     {
@@ -397,8 +407,7 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(const Exponent
     {
         t = f[j * n + i];
         t *= f_i;
-
-        compute_batch_fis(t, j, f, y, e);
+        compute_batch_fis(t, j, f, y, e, ptr, start_ptr, end_ptr);
     }
 }
 

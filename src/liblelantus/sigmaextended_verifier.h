@@ -44,17 +44,28 @@ private:
             const Scalar& x,
             const std::vector<Scalar>& f_) const;
 
-    void compute_fis(const Scalar& f_i, int j, const std::vector<Scalar>& f) const;
-    void compute_batch_fis(const Scalar& f_i, int j, const std::vector<Scalar>& f, const Scalar& y, Scalar& e) const;
+    void compute_fis(int j, const std::vector<Scalar>& f, std::vector<Scalar>& f_i_) const;
+    void compute_fis(
+            const Scalar& f_i,
+            int j,
+            const std::vector<Scalar>& f,
+            vector<Scalar>::iterator& ptr,
+            vector<Scalar>::iterator end_ptr) const;
+    void compute_batch_fis(
+            const Scalar& f_i,
+            int j,
+            const std::vector<Scalar>& f,
+            const Scalar& y,
+            Scalar& e,
+            vector<Scalar>::iterator& ptr,
+            vector<Scalar>::iterator start_ptr,
+            vector<Scalar>::iterator end_ptr) const;
 
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
     uint64_t n;
     uint64_t m;
-    mutable Scalar* ptr;
-    mutable Scalar* start_ptr;
-    mutable Scalar* end_ptr;
 };
 
 } // namespace lelantus

@@ -50,11 +50,7 @@ bool  SigmaExtendedVerifier::verify(
     std::vector<Scalar> f_i_;
     f_i_.resize(N);
 
-    ptr = f_i_.data();
-    start_ptr = ptr;
-    end_ptr = ptr + N;
-    Scalar f_i(uint64_t(1));
-    compute_fis(f_i, m, f_);
+    compute_fis(m, f_, f_i_);
 
     /*
          * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
@@ -161,12 +157,9 @@ bool SigmaExtendedVerifier::batchverify(
         right += (LelantusPrimitives::double_commit(g_, Scalar(uint64_t(0)), h_[1], proofs[t].zV_, h_[0], proofs[t].zR_)) * y[t];
         Scalar e;
 
-        ptr = f_i_t.data();
-        start_ptr = ptr;
-        end_ptr = ptr + N - 1;
         Scalar f_i(uint64_t(1));
-        compute_batch_fis(f_i, m, f_[t], y[t], e);
-
+        vector<Scalar>::iterator ptr = f_i_t.begin();
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
         * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
@@ -284,11 +277,9 @@ bool SigmaExtendedVerifier::batchverify(
         size_t size = setSizes[t];
         size_t start = N - size;
 
-        ptr = f_i_t.data() + start;
-        start_ptr = ptr;
-        end_ptr = ptr + size - 1;
         Scalar f_i(uint64_t(1));
-        compute_batch_fis(f_i, m, f_[t], y[t], e);
+        vector<Scalar>::iterator ptr = f_i_t.begin() + start;
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
 
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
@@ -442,7 +433,18 @@ bool SigmaExtendedVerifier::abcd_checks(
     return true;
 }
 
-void SigmaExtendedVerifier::compute_fis(const Scalar& f_i, int j, const std::vector<Scalar>& f) const {
+void SigmaExtendedVerifier::compute_fis(int j, const std::vector<Scalar>& f, std::vector<Scalar>& f_i_) const {
+    Scalar f_i(uint64_t(1));
+    vector<Scalar>::iterator ptr = f_i_.begin();
+    compute_fis(f_i, m, f, ptr, f_i_.end());
+}
+
+void SigmaExtendedVerifier::compute_fis(
+        const Scalar& f_i,
+        int j,
+        const std::vector<Scalar>& f,
+        vector<Scalar>::iterator& ptr,
+        vector<Scalar>::iterator end_ptr) const {
     j--;
     if (j == -1)
     {
@@ -458,11 +460,19 @@ void SigmaExtendedVerifier::compute_fis(const Scalar& f_i, int j, const std::vec
         t = f[j * n + i];
         t *= f_i;
 
-        compute_fis(t, j, f);
+        compute_fis(t, j, f, ptr, end_ptr);
     }
 }
 
-void SigmaExtendedVerifier::compute_batch_fis(const Scalar& f_i, int j, const std::vector<Scalar>& f, const Scalar& y, Scalar& e) const {
+void SigmaExtendedVerifier::compute_batch_fis(
+        const Scalar& f_i,
+        int j,
+        const std::vector<Scalar>& f,
+        const Scalar& y,
+        Scalar& e,
+        vector<Scalar>::iterator& ptr,
+        vector<Scalar>::iterator start_ptr,
+        vector<Scalar>::iterator end_ptr) const {
     j--;
     if (j == -1)
     {
@@ -480,7 +490,7 @@ void SigmaExtendedVerifier::compute_batch_fis(const Scalar& f_i, int j, const st
         t = f[j * n + i];
         t *= f_i;
 
-        compute_batch_fis(t, j, f, y, e);
+        compute_batch_fis(t, j, f, y, e, ptr, start_ptr, end_ptr);
     }
 }
 
