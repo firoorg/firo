@@ -317,7 +317,7 @@ RES_ICONS = \
   qt/res/icons/firo.png \
   qt/res/icons/zerocoin.png \
   qt/res/icons/sigma.png \
-  qt/res/icons/znodes.png \
+  qt/res/icons/masternodes.png \
   qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
   qt/res/icons/clock1.png \
