@@ -279,7 +279,7 @@ bool SigmaExtendedVerifier::batchverify(
 
         Scalar f_i(uint64_t(1));
         vector<Scalar>::iterator ptr = f_i_t.begin() + start;
-        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + size - 1);
 
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating

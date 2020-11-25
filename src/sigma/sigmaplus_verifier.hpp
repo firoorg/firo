@@ -188,7 +188,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
 
         Scalar f_i(uint64_t(1));
         vector<Scalar>::iterator ptr = f_i_t.begin() + start;
-        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + size - 1);
 
         if(fPadding[t]) {
             /*

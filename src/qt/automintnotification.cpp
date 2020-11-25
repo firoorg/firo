@@ -7,6 +7,7 @@
 
 AutomintNotification::AutomintNotification(QWidget *parent) :
     QDialog(parent),
+    lelantusModel(nullptr),
     ui(new Ui::AutomintNotification)
 {
     ui->setupUi(this);
