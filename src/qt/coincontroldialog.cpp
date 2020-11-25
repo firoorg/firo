@@ -486,7 +486,11 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        nAmount += out.tx->tx->vout[out.i].nValue;
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
+        } else {
+            nAmount += out.tx->tx->vout[out.i].nValue;
+        }
 
         // Priority
         dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
