@@ -3197,12 +3197,6 @@ bool CWallet::GetCoinsToJoinSplit(
                 spend_val += coinIt->amount;
             }
             coinControlUsed = true;
-
-            if (spend_val > amountToSpendLimit) {
-                throw std::invalid_argument(
-                        _("Selected amount exceed value spend limit"));
-            }
-
             coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
         }
     }

@@ -522,6 +522,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
                 CClientUIInterface::MSG_ERROR);
 
             return TransactionCreationFailed;
+        } catch (std::invalid_argument const &e) {
+            Q_EMIT message(
+                    tr("Send Coins"),
+                    QString::fromStdString(e.what()),
+                    CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
         }
 
         // reject absurdly high fee. (This can never happen because the
