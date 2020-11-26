@@ -536,7 +536,6 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 
     GroupElement bnValue;
     uint256 hashSerial;
-    bool serialInBlockchain = false;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()) {
         LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);

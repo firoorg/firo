@@ -225,7 +225,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
             f_i_t[N - 1] += pow * y[t];
             e += pow;
         } else {
-            Scalar f_i(uint64_t(1));
+            f_i = (uint64_t(1));
             for (std::size_t j = 0; j < m; ++j)
             {
                 f_i *= f_[t][j*n + I_[size - 1][j]];

@@ -904,7 +904,6 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
     mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
     if (iter != mintedPubCoins.end()) {
         mintMetaInfo[iter->second.coinGroupId] -= 1;
-        CMintedCoinInfo tmpMintInfo(iter->second);
         mintedPubCoins.erase(iter);
         CheckSurgeCondition();
         for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); hashPair++)
@@ -929,7 +928,6 @@ void CLelantusState::Containers::RemoveSpend(Scalar const & serial) {
     auto iter = usedCoinSerials.find(serial);
     if (iter != usedCoinSerials.end()) {
         spendMetaInfo[iter->second] -= 1;
-        int id = iter->second;
         usedCoinSerials.erase(iter);
         CheckSurgeCondition();
     }
