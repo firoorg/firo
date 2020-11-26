@@ -686,7 +686,7 @@ void WalletView::showAutomintNotification()
         return;
     }
 
-    automintNotification->setWindowFlags(automintNotification->windowFlags() | Qt::FramelessWindowHint);
+    automintNotification->setWindowFlags(automintNotification->windowFlags() | Qt::Popup | Qt::FramelessWindowHint);
 
     QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
     auto pos = QStyle::alignedRect(
@@ -695,8 +695,8 @@ void WalletView::showAutomintNotification()
         automintNotification->size(),
         rect).topLeft();
 
-    pos.setX(pos.x() - 8);
-    pos.setY(pos.y() + automintNotification->style()->pixelMetric(QStyle::PM_TitleBarHeight));
+    pos.setX(pos.x());
+    pos.setY(pos.y());
     automintNotification->move(pos);
 
     automintNotification->show();
@@ -713,8 +713,8 @@ void WalletView::repositionAutomintNotification()
             automintNotification->size(),
             rect).topLeft();
 
-        pos.setX(pos.x() - 8);
-        pos.setY(pos.y() + automintNotification->style()->pixelMetric(QStyle::PM_TitleBarHeight));
+        pos.setX(pos.x());
+        pos.setY(pos.y());
         automintNotification->move(pos);
     }
 }
