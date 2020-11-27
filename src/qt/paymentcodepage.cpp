@@ -40,10 +40,7 @@ PaymentcodePage::PaymentcodePage(const PlatformStyle *platformStyle, QWidget *pa
     ui->setupUi(this);
     contextMenu = new QMenu();
     
-    if(!pwalletMain->pcodeEnabled)
-        return;
     loadPaymentCode();
-    
 }
 
 PaymentcodePage::~PaymentcodePage()
@@ -53,52 +50,49 @@ PaymentcodePage::~PaymentcodePage()
 
 void PaymentcodePage::loadPaymentCode()
 {
-    QString paymentCodeStr = QString::fromStdString(pwalletMain->getPaymentCode(0));
-    ui->paymentcodeLabel->setText(paymentCodeStr);
-    QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pwalletMain->getNotificationAddress(0));
-    ui->paymentcodeLabel->setToolTip(notificationAddress);
-    
-    
-
-
-#ifdef USE_QRCODE
-    ui->paymentcodeQRCode->setText("");
-    if(!paymentCodeStr.isEmpty())
-    {
-        // limit URI length
-        if (paymentCodeStr.length() > MAX_URI_LENGTH)
-        {
-            ui->paymentcodeQRCode->setText(tr("Resulting URI too long, try to reduce the text for label / message."));
-        } else {
-            QRcode *code = QRcode_encodeString(paymentCodeStr.toUtf8().constData(), 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-            if (!code)
-            {
-                ui->paymentcodeQRCode->setText(tr("Error encoding URI into QR Code."));
-                return;
-            }
-            QImage qrImage = QImage(code->width + 8, code->width + 8, QImage::Format_RGB32);
-            qrImage.fill(0xffffff);
-            unsigned char *p = code->data;
-            for (int y = 0; y < code->width; y++)
-            {
-                for (int x = 0; x < code->width; x++)
-                {
-                    qrImage.setPixel(x + 4, y + 4, ((*p & 1) ? 0x0 : 0xffffff));
-                    p++;
-                }
-            }
-            QRcode_free(code);
-
-            QImage qrAddrImage = QImage(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE, QImage::Format_RGB32);
-            qrAddrImage.fill(0xffffff);
-            QPainter painter(&qrAddrImage);
-            painter.drawImage(0, 0, qrImage.scaled(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE));
-            painter.end();
-
-            ui->paymentcodeQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));
-        }
-    }
-#endif    
+//bip47    QString paymentCodeStr = QString::fromStdString(pwalletMain->getPaymentCode(0));
+//    ui->paymentcodeLabel->setText(paymentCodeStr);
+//    QString notificationAddress = QString::fromStdString(std::string("Notification Address is ") + pwalletMain->getNotificationAddress(0));
+//    ui->paymentcodeLabel->setToolTip(notificationAddress);
+//
+//#ifdef USE_QRCODE
+//    ui->paymentcodeQRCode->setText("");
+//    if(!paymentCodeStr.isEmpty())
+//    {
+//        // limit URI length
+//        if (paymentCodeStr.length() > MAX_URI_LENGTH)
+//        {
+//            ui->paymentcodeQRCode->setText(tr("Resulting URI too long, try to reduce the text for label / message."));
+//        } else {
+//            QRcode *code = QRcode_encodeString(paymentCodeStr.toUtf8().constData(), 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+//            if (!code)
+//            {
+//                ui->paymentcodeQRCode->setText(tr("Error encoding URI into QR Code."));
+//                return;
+//            }
+//            QImage qrImage = QImage(code->width + 8, code->width + 8, QImage::Format_RGB32);
+//            qrImage.fill(0xffffff);
+//            unsigned char *p = code->data;
+//            for (int y = 0; y < code->width; y++)
+//            {
+//                for (int x = 0; x < code->width; x++)
+//                {
+//                    qrImage.setPixel(x + 4, y + 4, ((*p & 1) ? 0x0 : 0xffffff));
+//                    p++;
+//                }
+//            }
+//            QRcode_free(code);
+//
+//            QImage qrAddrImage = QImage(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE, QImage::Format_RGB32);
+//            qrAddrImage.fill(0xffffff);
+//            QPainter painter(&qrAddrImage);
+//            painter.drawImage(0, 0, qrImage.scaled(PCODE_QR_IMAGE_SIZE, PCODE_QR_IMAGE_SIZE));
+//            painter.end();
+//
+//            ui->paymentcodeQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));
+//        }
+//    }
+//#endif
 }
 
 void PaymentcodePage::on_copyPaymentcodeButton_clicked() {

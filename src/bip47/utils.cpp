@@ -2,7 +2,6 @@
 #include "bip47/paymentcode.h"
 #include "secretpoint.h"
 #include "primitives/transaction.h"
-#include "bip47/paymentaddress.h"
 #include <vector>
 #include "uint256.h"
 #include "wallet/wallet.h"
@@ -183,38 +182,6 @@ bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes)
 
     LogPrintf("Script did not match expected form: \n");
     return false;
-}
-
-CPaymentAddress getPaymentAddress(CPaymentCode const & pcode, int idx, CExtKey const & extkey) {
-    vector<unsigned char> ppkeybytes(extkey.key.begin(), extkey.key.end());
-
-    CPaymentAddress paddr(pcode, idx, ppkeybytes);
-    return paddr;
-
-}
-
-CPaymentAddress getReceiveAddress(CAccount *v_bip47Account, CWallet* pbip47Wallet, CPaymentCode const & pcode_from, int idx)
-{
-    CPaymentAddress pm_address;
-    //loook for bip47 account that has payment address as in the chanel
-    CExtKey accEkey = v_bip47Account->keyPrivAt(idx);
-    if(accEkey.key.IsValid()){ //Keep Empty
-    }
-    pm_address = getPaymentAddress(pcode_from, 0, accEkey);
-
-    return pm_address;
-}
-
-CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx)
-{
-    CPaymentAddress pm_address;
-    CExtKey accEkey = pbip47Wallet->getBIP47Account(0).keyPrivAt(0);
-    if(accEkey.key.IsValid()){ //Keep Empty
-    }
-    pm_address = getPaymentAddress(pcode_to, idx, accEkey);
-
-    return pm_address;
-
 }
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)

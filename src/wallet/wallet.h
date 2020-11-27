@@ -29,9 +29,6 @@
 
 #include "primitives/zerocoin.h"
 
-#include "bip47/paymentcode.h"
-#include "bip47/account.h"
-
 
 #include <algorithm>
 #include <atomic>
@@ -299,7 +296,7 @@ public:
 class CWalletTx : public CMerkleTx
 {
 private:
-    const CWallet* pwallet; // lgtm [cpp/class-many-fields]
+    const CWallet* pwallet;
 
 public:
     mapValue_t mapValue;
@@ -635,12 +632,10 @@ private:
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
-class CWallet : public CCryptoKeyStore, public CValidationInterface // lgtm [cpp/class-many-fields]
+class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
 private:
     static std::atomic<bool> fFlushThreadRunning;
-    bool bip47Loaded;
-    CBlockIndex* pindexRescanForBip47;
 
     /**
      * Select a set of coins such that nValueRet >= nTargetValue and at least
@@ -774,8 +769,6 @@ public:
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
-        bip47Loaded = false;
-        pindexRescanForBip47 = nullptr;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -789,7 +782,6 @@ public:
     std::map<uint256, int> mapRequestCount;
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
-    std::map<string, string> paymentCodeBook;
 
     CPubKey vchDefaultKey;
 
@@ -837,10 +829,8 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateBip47NewKey(uint32_t nChange=0); // Bip47
     CPubKey GenerateNewKey(uint32_t nChange=0, bool fWriteChain=true);
     void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret);
-
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey) override;
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)
@@ -1100,8 +1090,6 @@ public:
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 
     bool DelAddressBook(const CTxDestination& address);
-    void SetPaymentCodeBookLabel(string, string);
-    string GetPaymentCodeLabel(string);
 
     bool UpdatedTransaction(const uint256 &hashTx) override;
 
@@ -1178,8 +1166,6 @@ public:
 
     /** Watch-only address added */
     boost::signals2::signal<void (bool fHaveWatchOnly)> NotifyWatchonlyChanged;
-    
-    boost::signals2::signal<void ()> NotifyPaymentCodeTx;
 
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
@@ -1209,7 +1195,6 @@ public:
     static bool ParameterInteraction();
 
     bool BackupWallet(const std::string& strDest);
-    bool BackupBip47Wallet(const std::string& strDest);
 
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly, bool& upgradeChain, bool genNewKeyPool = true);
@@ -1232,101 +1217,6 @@ public:
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
-
-private:
-    CExtKey masterKey;
-    
-public:
-    std::vector<bip47::CAccount> m_bip47Accounts;
-    std::vector<CKey> m_Bip47PendingKeys;
-    int m_Bip47PendingPStarIndex;
-    bool pcodeEnabled;
-    //map other wallet => map(my wallet pcode => chanel)
-    std::map<string, std::vector<bip47::CPaymentChannel>> mutable m_Bip47channels;
-    void loadBip47Wallet(CExtKey const & masterExtKey);
-    bool IsBIP47Loaded() const;
-    void LoadBip47Wallet();
-    void deriveBip47Keys();
-    std::string makeNotificationTransaction(std::string paymentCode, int accountIndex=0);
-    bip47::CPaymentChannel* findPaymentChannelForIncomingAddress(const CTransaction& tx);
-
-    bool IsNotificationScript(const CScript& scriptPubkey) const;
-    bool isNotificationTransaction(const CTransaction& tx) const;
-    bool isNotificationTransactionSent(string pcodestr) const;
-    bip47::CPaymentCode getPaymentCodeInNotificationTransaction(const CTransaction& tx, int& accIndex);
-    CBitcoinAddress getAddressOfReceived(CTransaction tx) const;
-    CBitcoinAddress getAddressOfSent(CTransaction tx) const;
-    bool ReadMasterKey(CExtKey& masterKey);
-    
-    bool savePaymentCode(bip47::CPaymentCode from_pcode, int accIndex, uint256 txHash=uint256());
-
-    size_t getPaymentCodeCount() const;
-    bool IsMyPaymentCode(std::string const & strPaymentCode) const;
-
-
-    bip47::CAccount const & getBIP47Account(size_t i) const;
-    bip47::CAccount getBIP47Account(std::string const & paymentCode) const;
-    int getBIP47AccountIndex(std::string const & paymentCode) const;
-    
-    std::string getNotificationAddress(int i) const;
-
-    std::string getPaymentCode(size_t i) const;
-    
-    void deriveBip47Accounts(CExtKey const & masterKey);
-    std::string generateNewPCode(CExtKey const & masterKey);
-    std::string generateNewPCode();
-
-    void saveCPaymentChannelData(string pchannelId);
-    bool addToCPaymentChannel(bip47::CPaymentChannel paymentChannel);
-    
-    //! Adds a notification data tuple to the store, and saves it to disk
-    bool AddPCodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);
-    //! Erases a notification data tuple in the store and on disk
-    bool ErasePCodeNotificationData(const std::string &rpcodestr, const std::string &key);
-    bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
-    
-    bool generateNewBip47IncomingAddress(string address, bip47::CPaymentChannel* channel);
-    bip47::CPaymentChannel* getPaymentChannelFromPaymentCode(std::string const & pcodestr, std::string const & myPaymentCode="") const;
-    bool setBip47ChannelLabel(std::string const & pcodestr, std::string const & label);
-    
-    void processNotificationTransaction(CTransaction const & tx);
-    
-    std::string getCurrentOutgoingAddress(bip47::CPaymentChannel paymentChannel);
-    
-    bool importKey(CKey imKey, bool fRescan = false);
-    bool importBip47PendingKeys();
-    CBitcoinAddress getAddressOfKey(CPubKey const & pkey);
-
-    bool HaveKey(const CKeyID &address) const
-    {
-        {
-            LOCK(cs_KeyStore);
-            
-            bool ret = CCryptoKeyStore::HaveKey(address);
-            if (ret) {
-                return true;
-            }
-            if (this->mapAddressBook.count(address) > 0) 
-            {
-                map<CTxDestination, CAddressBookData>::const_iterator mi = this->mapAddressBook.find(address);
-                std::string label = mi->second.name;
-                vector<string> result;
-                stringstream ss (label);
-                string item;
-
-                while (getline (ss, item, '-')) {
-                    result.push_back (item);
-                }
-                if (result.size() == 3)
-                {
-                    if (result[0].find("BIP47PAYMENT") != std::string::npos)
-                        return true;
-                }
-            }    
-        }
-        return false;
-    }
-
 };
 
 /** A key allocated from the key pool. */

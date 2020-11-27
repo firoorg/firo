@@ -42,7 +42,7 @@ bool CPaymentCode::isValid() const {
     return valid;
 }
 
-CBitcoinAddress CPaymentCode::notificationAddress() const
+CBitcoinAddress CPaymentCode::getNotificationAddress() const
 {
     return CBitcoinAddress(getNthPubkey(0).pubkey.GetID());
 }

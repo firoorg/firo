@@ -284,8 +284,6 @@ void WalletModel::updateWatchOnlyFlag(bool fHaveWatchonly)
 
 bool WalletModel::tryEnablePaymentCode()
 {
-    if(wallet->pcodeEnabled)
-        return true;
     if(wallet->IsLocked())
     {
         QMessageBox::information(0, tr("Unlock Wallet"), tr("Please enter your passphrase to unlock Reusable Address transactions."));
@@ -315,7 +313,8 @@ bool WalletModel::validatePaymentCode(const QString &pCode)
 
 bool WalletModel::isNotificationTransactionSent(const QString &pCode) const
 {
-    return wallet->isNotificationTransactionSent(pCode.toStdString());
+    return false;
+//bip47    return wallet->isNotificationTransactionSent(pCode.toStdString());
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
@@ -501,245 +500,244 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
 
 WalletModel::SendCoinsReturn WalletModel::preparePCodeTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
 {
-    CAmount total = 0;
-    bool fSubtractFeeFromAmount = false;
-    bool isNotificationTx = true;
-    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
-    std::vector<CRecipient> vecSend;
-
-    if(recipients.empty())
-    {
-        return OK;
-    }
-
-    QSet<QString> setAddress; // Used to detect duplicates
-    int nAddresses = 0;
-
-
-
-    bip47::CAccount toCAccount;
-
-    // Pre-check input data for validity
-    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
-    {
-        if (rcp.fSubtractFeeFromAmount)
-            fSubtractFeeFromAmount = true;
-
-        // User-entered Zcoin address / amount:
-        if(!validatePaymentCode(rcp.address))
-        {
-            return InvalidAddress;
-        }
-        if(rcp.amount <= 0)
-        {
-            return InvalidAmount;
-        }
-
-        // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code];
-        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
-
-        // If channel already sent notifcation transaction. lgtm [cpp/commented-out-code]
-        if (channel->isNotificationTransactionSent()) {
-            LogPrintf("Payment Notification Transaction Already Sent\n");
-            isNotificationTx = false;
-            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
-
-            setAddress.insert(rcp.address);
-            ++nAddresses;
-            CBitcoinAddress pcAddress(addressTo);
-
-            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
-
-
-            total += rcp.amount;
-        }
-        else
-        {
-            LogPrintf("Payment Notification Transaction Still Not Sent\n");
-            isNotificationTx = true;
-
-            toCAccount.SetPaymentCodeString(rcp.address.toStdString());
-
-            CBitcoinAddress ntAddress = toCAccount.getNotificationAddress();
-
-
-
-            setAddress.insert(rcp.address);
-            ++nAddresses;
-
-            CScript scriptPubKey = GetScriptForDestination(ntAddress.Get());
-            CRecipient recipient = {scriptPubKey, CENT / 2, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
-
-
-            total +=  CENT / 2;
-        }
-
-
-
-
-    }
-    if(setAddress.size() != nAddresses)
-    {
-        return DuplicateAddress;
-    }
-
-    CAmount nBalance = getBalance(coinControl);
-
-    if(total > nBalance)
-    {
-        return AmountExceedsBalance;
-    }
-
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
-
-        transaction.newPossibleKeyChange(wallet);
-
-        CAmount nFeeRequired = 0;
-        int nChangePosRet = -1;
-        std::string strFailReason;
-
-        CWalletTx *newTx = transaction.getTransaction();
-        
-        CReserveKey *keyChange = transaction.getPossibleKeyChange();
-        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
-
-        // Notification Transaction setup here.
-        if(isNotificationTx) {
-            CPubKey designatedPubKey;
-
-            CKey privKey;
-
-            vector<unsigned char> pubKeyBytes;
-            
-            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes)) {
-                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
-            } else {
-                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
-            }
-            
-            wallet->GetKey(designatedPubKey.GetID(), privKey);
-            CPubKey pubkey = toCAccount.getNotificationKey().pubkey;
-
-            bip47::CSecretPoint secretPoint(privKey, pubkey);
-            
-            vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
-
-            uint256 secretPBytes(secretPoint.getEcdhSecret());
-
-//bip47            vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
-            vector<unsigned char> op_return; // = bip47::CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
-
-            CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
-            CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
-            vecSend.push_back(pcodeBlind);
-
-            fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
-            
-            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
-            {
-                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
-            }
-            else
-            {
-
-                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
-                if(!privKey.VerifyPubKey(designatedPubKey)) {
-                    throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig designatedPubKey cannot be verified \n");
-                }
-
-            }
-        }
-
-
-        transaction.setTransactionFee(nFeeRequired);
-        if (fSubtractFeeFromAmount && fCreated)
-            transaction.reassignAmounts(nChangePosRet);
-
-        if(!fCreated)
-        {
-            if(!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance)
-            {
-                return SendCoinsReturn(AmountWithFeeExceedsBalance);
-            }
-            if(strFailReason.compare("Insufficient funds.") == 0)
-            {
-               strFailReason = "You don't have enough of a confirmed balance to send the next transaction, please wait a few confirmations, then attempt to send the transaction again";
-            }
-            Q_EMIT message(tr("Send Coins"), QString::fromStdString(strFailReason),
-                           CClientUIInterface::MSG_ERROR);
-            return TransactionCreationFailed;
-        }
-
-        // reject absurdly high fee. (This can never happen because the
-        // wallet caps the fee at maxTxFee. This merely serves as a
-        // belt-and-suspenders check)
-        if (nFeeRequired > maxTxFee)
-            return AbsurdFee;
-    }
+//bip47    CAmount total = 0;
+//    bool fSubtractFeeFromAmount = false;
+//    bool isNotificationTx = true;
+//    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+//    std::vector<CRecipient> vecSend;
+//
+//    if(recipients.empty())
+//    {
+//        return OK;
+//    }
+//
+//    QSet<QString> setAddress; // Used to detect duplicates
+//    int nAddresses = 0;
+//
+//
+//
+//    bip47::CAccount toCAccount;
+//
+//    // Pre-check input data for validity
+//    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
+//    {
+//        if (rcp.fSubtractFeeFromAmount)
+//            fSubtractFeeFromAmount = true;
+//
+//        // User-entered Zcoin address / amount:
+//        if(!validatePaymentCode(rcp.address))
+//        {
+//            return InvalidAddress;
+//        }
+//        if(rcp.amount <= 0)
+//        {
+//            return InvalidAmount;
+//        }
+//
+//        // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code];
+//        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+//
+//        // If channel already sent notifcation transaction. lgtm [cpp/commented-out-code]
+//        if (channel->isNotificationTransactionSent()) {
+//            LogPrintf("Payment Notification Transaction Already Sent\n");
+//            isNotificationTx = false;
+//            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
+//
+//            setAddress.insert(rcp.address);
+//            ++nAddresses;
+//            CBitcoinAddress pcAddress(addressTo);
+//
+//            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
+//            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+//            vecSend.push_back(recipient);
+//
+//
+//            total += rcp.amount;
+//        }
+//        else
+//        {
+//            LogPrintf("Payment Notification Transaction Still Not Sent\n");
+//            isNotificationTx = true;
+//
+//            toCAccount.SetPaymentCodeString(rcp.address.toStdString());
+//
+//            CBitcoinAddress ntAddress = toCAccount.getNotificationAddress();
+//
+//
+//
+//            setAddress.insert(rcp.address);
+//            ++nAddresses;
+//
+//            CScript scriptPubKey = GetScriptForDestination(ntAddress.Get());
+//            CRecipient recipient = {scriptPubKey, CENT / 2, rcp.fSubtractFeeFromAmount};
+//            vecSend.push_back(recipient);
+//
+//
+//            total +=  CENT / 2;
+//        }
+//
+//
+//
+//
+//    }
+//    if(setAddress.size() != nAddresses)
+//    {
+//        return DuplicateAddress;
+//    }
+//
+//    CAmount nBalance = getBalance(coinControl);
+//
+//    if(total > nBalance)
+//    {
+//        return AmountExceedsBalance;
+//    }
+//
+//    {
+//        LOCK2(cs_main, wallet->cs_wallet);
+//
+//        transaction.newPossibleKeyChange(wallet);
+//
+//        CAmount nFeeRequired = 0;
+//        int nChangePosRet = -1;
+//        std::string strFailReason;
+//
+//        CWalletTx *newTx = transaction.getTransaction();
+//
+//        CReserveKey *keyChange = transaction.getPossibleKeyChange();
+//        bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
+//
+//        // Notification Transaction setup here.
+//        if(isNotificationTx) {
+//            CPubKey designatedPubKey;
+//
+//            CKey privKey;
+//
+//            vector<unsigned char> pubKeyBytes;
+//
+//            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes)) {
+//                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
+//            } else {
+//                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
+//            }
+//
+//            wallet->GetKey(designatedPubKey.GetID(), privKey);
+//            CPubKey pubkey = toCAccount.getNotificationKey().pubkey;
+//
+//            bip47::CSecretPoint secretPoint(privKey, pubkey);
+//
+//            vector<unsigned char> outpoint(newTx->tx->vin[0].prevout.hash.begin(), newTx->tx->vin[0].prevout.hash.end());
+//
+//            uint256 secretPBytes(secretPoint.getEcdhSecret());
+//
+////bip47            vector<unsigned char> mask = bip47::CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
+//            vector<unsigned char> op_return; // = bip47::CPaymentCode::blind(pwalletMain->getBIP47Account(0).getPaymentCode().getPayload(), mask);
+//
+//            CScript op_returnScriptPubKey = CScript() << OP_RETURN << op_return;
+//            CRecipient pcodeBlind = {op_returnScriptPubKey, 0, false};
+//            vecSend.push_back(pcodeBlind);
+//
+//            fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl);
+//
+//            if (!bip47::utils::getScriptSigPubkey(newTx->tx->vin[0], pubKeyBytes))
+//            {
+//                throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig GetPubkey error\n");
+//            }
+//            else
+//            {
+//
+//                designatedPubKey.Set(pubKeyBytes.begin(), pubKeyBytes.end());
+//                if(!privKey.VerifyPubKey(designatedPubKey)) {
+//                    throw std::runtime_error("Bip47Utiles PaymentCode ScriptSig designatedPubKey cannot be verified \n");
+//                }
+//
+//            }
+//        }
+//
+//
+//        transaction.setTransactionFee(nFeeRequired);
+//        if (fSubtractFeeFromAmount && fCreated)
+//            transaction.reassignAmounts(nChangePosRet);
+//
+//        if(!fCreated)
+//        {
+//            if(!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance)
+//            {
+//                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+//            }
+//            if(strFailReason.compare("Insufficient funds.") == 0)
+//            {
+//               strFailReason = "You don't have enough of a confirmed balance to send the next transaction, please wait a few confirmations, then attempt to send the transaction again";
+//            }
+//            Q_EMIT message(tr("Send Coins"), QString::fromStdString(strFailReason),
+//                           CClientUIInterface::MSG_ERROR);
+//            return TransactionCreationFailed;
+//        }
+//
+//        // reject absurdly high fee. (This can never happen because the
+//        // wallet caps the fee at maxTxFee. This merely serves as a
+//        // belt-and-suspenders check)
+//        if (nFeeRequired > maxTxFee)
+//            return AbsurdFee;
+//    }
 
     return SendCoinsReturn(OK);
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendPCodeCoins(WalletModelTransaction &transaction, bool &needMainTx)
 {
-    
-    needMainTx = false;
-    QByteArray transaction_array; /* store serialized transaction */
-
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
-        CWalletTx *newTx = transaction.getTransaction();
-
-        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
-        {
-            if (!rcp.message.isEmpty())
-                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
-        }
-
-        CReserveKey *keyChange = transaction.getPossibleKeyChange();
-        CValidationState state;
-        if(!wallet->CommitTransaction(*newTx, *keyChange, g_connman.get(), state))
-            return TransactionCommitFailed;
-
-        const CTransaction* t = (newTx->tx.get());
-        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-        ssTx << *t;
-        transaction_array.append(&(ssTx[0]), ssTx.size());
-    }
-
-    // Add addresses / update labels that we've sent to to the address book,
-    // and emit coinsSent signal for each recipient
-    Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
-    {
-        std::string pcodestr = rcp.address.toStdString();
-        std::string strLabel = rcp.label.toStdString();
-        bip47::CPaymentChannel pchannel(pcodestr, strLabel);
-
-        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
-        wallet->addToCPaymentChannel(pchannel);
-        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
-        channel->setLabel(strLabel);
-        if(!channel->isNotificationTransactionSent())
-        {
-            needMainTx = true;
-        }
-        else 
-        {
-            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
-            channel->addAddressToOutgoingAddresses(pcoutaddress);
-            channel->incrementOutgoingIndex();
-            
-        }
-        wallet->saveCPaymentChannelData(pcodestr);
-        paymentCodeTableModel->refreshModel();
-
-        Q_EMIT coinsSent(wallet, rcp, transaction_array);
-    }
-    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+//bip47    needMainTx = false;
+//    QByteArray transaction_array; /* store serialized transaction */
+//
+//    {
+//        LOCK2(cs_main, wallet->cs_wallet);
+//        CWalletTx *newTx = transaction.getTransaction();
+//
+//        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+//        {
+//            if (!rcp.message.isEmpty())
+//                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+//        }
+//
+//        CReserveKey *keyChange = transaction.getPossibleKeyChange();
+//        CValidationState state;
+//        if(!wallet->CommitTransaction(*newTx, *keyChange, g_connman.get(), state))
+//            return TransactionCommitFailed;
+//
+//        const CTransaction* t = (newTx->tx.get());
+//        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+//        ssTx << *t;
+//        transaction_array.append(&(ssTx[0]), ssTx.size());
+//    }
+//
+//    // Add addresses / update labels that we've sent to to the address book,
+//    // and emit coinsSent signal for each recipient
+//    Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+//    {
+//        std::string pcodestr = rcp.address.toStdString();
+//        std::string strLabel = rcp.label.toStdString();
+//        bip47::CPaymentChannel pchannel(pcodestr, strLabel);
+//
+//        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
+//        wallet->addToCPaymentChannel(pchannel);
+//        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+//        channel->setLabel(strLabel);
+//        if(!channel->isNotificationTransactionSent())
+//        {
+//            needMainTx = true;
+//        }
+//        else
+//        {
+//            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
+//            channel->addAddressToOutgoingAddresses(pcoutaddress);
+//            channel->incrementOutgoingIndex();
+//
+//        }
+//        wallet->saveCPaymentChannelData(pcodestr);
+//        paymentCodeTableModel->refreshModel();
+//
+//        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+//    }
+//    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
 
     return SendCoinsReturn(OK);
 }
@@ -842,11 +840,6 @@ bool WalletModel::backupWallet(const QString &filename)
     return wallet->BackupWallet(filename.toLocal8Bit().data());
 }
 
-bool WalletModel::backupBip47Wallet(const QString &filename)
-{
-    return wallet->BackupBip47Wallet(filename.toLocal8Bit().data());
-}
-
 // Handlers for core signals
 static void NotifyKeyStoreStatusChanged(WalletModel *walletmodel, CCryptoKeyStore *wallet)
 {
@@ -922,7 +915,7 @@ void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
-    wallet->NotifyPaymentCodeTx.connect(boost::bind(&NotifyPaymentCodeTx, this));
+//bip47    wallet->NotifyPaymentCodeTx.connect(boost::bind(&NotifyPaymentCodeTx, this));
     wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
@@ -934,7 +927,7 @@ void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
-    wallet->NotifyPaymentCodeTx.disconnect(boost::bind(&NotifyPaymentCodeTx, this));
+//bip47 wallet->NotifyPaymentCodeTx.disconnect(boost::bind(&NotifyPaymentCodeTx, this));
     wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
@@ -1142,8 +1135,7 @@ void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests
 void WalletModel::loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions)
 {
     LOCK(wallet->cs_wallet);
-    wallet->loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
-    
+//bip47    wallet->loadPCodeNotificationTransactions(vPCodeNotificationTransactions);
 }
 
 bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest)
@@ -1170,10 +1162,10 @@ bool WalletModel::savePCodeNotificationTransaction(const std::string &rpcodestr,
     std::string key = "pnts" + ss.str(); // "pnts" prefix = "paymentcode Notification transaction sent" in destdata
 
     LOCK(wallet->cs_wallet);
-    if (sNotificationSent.empty())
-        return wallet->ErasePCodeNotificationData(rpcodestr, key);
-    else
-        return wallet->AddPCodeNotificationData(rpcodestr, key, sNotificationSent);
+//bip47    if (sNotificationSent.empty())
+//        return wallet->ErasePCodeNotificationData(rpcodestr, key);
+//    else
+//        return wallet->AddPCodeNotificationData(rpcodestr, key, sNotificationSent);
     return true;
 }
 
@@ -1316,24 +1308,24 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendPCodeTransaction(
         
         
         // Get Or Create Payment Channel from payment code lgtm [cpp/commented-out-code] ;
-        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
-        
-        // If channel already sent notifcation transaction.
-        if (channel->isNotificationTransactionSent())
-        {
-            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
-            addresses.insert(rcp.address);
-            CBitcoinAddress pcAddress(addressTo);
-            
-            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
-            sendRecipients.push_back(recipient);
-            
-        }
-        else
-        {
-            return preparePCodeTransaction(transaction, coinControl);
-        }
+//bip47        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(rcp.address.toStdString());
+//
+//        // If channel already sent notifcation transaction.
+//        if (channel->isNotificationTransactionSent())
+//        {
+//            std::string addressTo = wallet->getCurrentOutgoingAddress(*channel);
+//            addresses.insert(rcp.address);
+//            CBitcoinAddress pcAddress(addressTo);
+//
+//            CScript scriptPubKey = GetScriptForDestination(pcAddress.Get());
+//            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+//            sendRecipients.push_back(recipient);
+//
+//        }
+//        else
+//        {
+//            return preparePCodeTransaction(transaction, coinControl);
+//        }
     }
 
     if (addresses.size() != recipients.size()) {
@@ -1462,30 +1454,30 @@ WalletModel::SendCoinsReturn WalletModel::sendSigmaPCode(WalletModelTransaction 
 
     // Add addresses / update labels that we've sent to to the address book,
     // and emit coinsSent signal for each recipient
-    for (const auto& rcp : transaction.getRecipients()) {
-        // Don't touch the address book when we have a payment request
-        std::string pcodestr = rcp.address.toStdString();
-        std::string strLabel = rcp.label.toStdString();
-        bip47::CPaymentChannel pchannel(pcodestr, strLabel);
-
-        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
-        wallet->addToCPaymentChannel(pchannel);
-        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
-        channel->setLabel(strLabel);
-        if(!channel->isNotificationTransactionSent())
-        {
-        }
-        else 
-        {
-            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
-            channel->addAddressToOutgoingAddresses(pcoutaddress);
-            channel->incrementOutgoingIndex();
-            
-        }
-        wallet->saveCPaymentChannelData(pcodestr);
-        paymentCodeTableModel->refreshModel();
-        Q_EMIT coinsSent(wallet, rcp, transaction_array);
-    }
+//bip47    for (const auto& rcp : transaction.getRecipients()) {
+//        // Don't touch the address book when we have a payment request
+//        std::string pcodestr = rcp.address.toStdString();
+//        std::string strLabel = rcp.label.toStdString();
+//        bip47::CPaymentChannel pchannel(pcodestr, strLabel);
+//
+//        // Add to payment channel return true or false lgtm [cpp/commented-out-code] ;
+//        wallet->addToCPaymentChannel(pchannel);
+//        bip47::CPaymentChannel* channel = wallet->getPaymentChannelFromPaymentCode(pcodestr);
+//        channel->setLabel(strLabel);
+//        if(!channel->isNotificationTransactionSent())
+//        {
+//        }
+//        else
+//        {
+//            std::string pcoutaddress = wallet->getCurrentOutgoingAddress(*channel);
+//            channel->addAddressToOutgoingAddresses(pcoutaddress);
+//            channel->incrementOutgoingIndex();
+//
+//        }
+//        wallet->saveCPaymentChannelData(pcodestr);
+//        paymentCodeTableModel->refreshModel();
+//        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+//    }
     checkBalanceChanged();
 
     return SendCoinsReturn(OK);

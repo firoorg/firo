@@ -394,51 +394,51 @@ void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
     CAmount txFee = currentTransaction.getTransactionFee();
 
     // Format confirmation message
-    QStringList formatted;
-    bool is_notification_tx = false;
-    QString pcodeqstr;
-    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
-    {
-        
-        bool is_pcode = model->validatePaymentCode(rcp.address);
-        is_notification_tx = !model->isNotificationTransactionSent(rcp.address);
-        // generate bold amount string
-        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
-        amount.append("</b>");
-        // generate monospace address string
-        QString address = "<span style='font-family: monospace;'>" + rcp.address;
-        address.append("</span>");
-
-        QString recipientElement;
-        
-        if(is_pcode && is_notification_tx)
-        {
-            pcodeqstr = rcp.address;
-            recipientElement = tr("%1 <br /> %2").arg("Your notification transaction will be broadcast first, followed by your main transaction.", "You can see and track your outbound transactions in the history list.");
-        }
-        else if (!rcp.paymentRequest.IsInitialized()) // normal payment
-        {
-            if(rcp.label.length() > 0) // label with address
-            {
-                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                recipientElement.append(QString(" (%1)").arg(address));
-            }
-            else // just address
-            {
-                recipientElement = tr("%1 to %2").arg(amount, address);
-            }
-        }
-        else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
-        {
-            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
-        }
-        else // unauthenticated payment request
-        {
-            recipientElement = tr("%1 to %2").arg(amount, address);
-        }
-
-        formatted.append(recipientElement);
-    }
+//bip47    QStringList formatted;
+//    bool is_notification_tx = false;
+//    QString pcodeqstr;
+//    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
+//    {
+//
+//        bool is_pcode = model->validatePaymentCode(rcp.address);
+//        is_notification_tx = !model->isNotificationTransactionSent(rcp.address);
+//        // generate bold amount string
+//        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+//        amount.append("</b>");
+//        // generate monospace address string
+//        QString address = "<span style='font-family: monospace;'>" + rcp.address;
+//        address.append("</span>");
+//
+//        QString recipientElement;
+//
+//        if(is_pcode && is_notification_tx)
+//        {
+//            pcodeqstr = rcp.address;
+//            recipientElement = tr("%1 <br /> %2").arg("Your notification transaction will be broadcast first, followed by your main transaction.", "You can see and track your outbound transactions in the history list.");
+//        }
+//        else if (!rcp.paymentRequest.IsInitialized()) // normal payment
+//        {
+//            if(rcp.label.length() > 0) // label with address
+//            {
+//                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+//                recipientElement.append(QString(" (%1)").arg(address));
+//            }
+//            else // just address
+//            {
+//                recipientElement = tr("%1 to %2").arg(amount, address);
+//            }
+//        }
+//        else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+//        {
+//            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+//        }
+//        else // unauthenticated payment request
+//        {
+//            recipientElement = tr("%1 to %2").arg(amount, address);
+//        }
+//
+//        formatted.append(recipientElement);
+//    }
 
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
@@ -471,20 +471,20 @@ void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
 
     QMessageBox::StandardButton retval;
     
-    if(is_notification_tx)
-    {
-        SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
-        formatted.join("<br />"), SEND_CONFIRM_DELAY, this);
-        confirmationDialog.exec();
-        retval = (QMessageBox::StandardButton)confirmationDialog.result();
-    }
-    else
-    {
-        SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
-        questionString.arg(formatted.join("<br />")), isSecondTx ? 5 : SEND_CONFIRM_DELAY, this);
-        confirmationDialog.exec();
-        retval = (QMessageBox::StandardButton)confirmationDialog.result();
-    }
+//bip47    if(is_notification_tx)
+//    {
+//        SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
+//        formatted.join("<br />"), SEND_CONFIRM_DELAY, this);
+//        confirmationDialog.exec();
+//        retval = (QMessageBox::StandardButton)confirmationDialog.result();
+//    }
+//    else
+//    {
+//        SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
+//        questionString.arg(formatted.join("<br />")), isSecondTx ? 5 : SEND_CONFIRM_DELAY, this);
+//        confirmationDialog.exec();
+//        retval = (QMessageBox::StandardButton)confirmationDialog.result();
+//    }
     
 
     if(retval != QMessageBox::Yes)
@@ -505,7 +505,7 @@ void SendCoinsDialog::processPaymentCodeTransactions(bool isSecondTx)
         if(needMainTx && !isSecondTx)
         {
             LogPrintf("Process PaymentCode Main Transaction\n");
-            model->getRecentPCodeTransactionsTableModel()->addNewRequest(pcodeqstr, totalAmount);
+//bip47            model->getRecentPCodeTransactionsTableModel()->addNewRequest(pcodeqstr, totalAmount);
             processPaymentCodeTransactions(needMainTx);
         }
         accept();

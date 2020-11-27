@@ -132,13 +132,6 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         pwalletMain->zwallet->GetTracker().Init();
         pwalletMain->zwallet->LoadMintPoolFromDB();
         pwalletMain->zwallet->SyncWithChain();
-
-        CExtKey masterKey;
-        pwalletMain->pcodeEnabled = false;
-        if(pwalletMain->ReadMasterKey(masterKey)) {
-            pwalletMain->loadBip47Wallet(masterKey);
-            pwalletMain->pcodeEnabled = true;
-        }
 }
 
 TestingSetup::~TestingSetup()

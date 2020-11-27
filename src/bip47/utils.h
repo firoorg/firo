@@ -19,7 +19,6 @@ class CTransaction;
 namespace bip47 {
 
 class CPaymentCode;
-class CPaymentAddress;
 class CAccount;
 
 namespace utils {
@@ -29,9 +28,6 @@ bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
 bool getPaymentCodeInNotificationTransaction(std::vector<unsigned char> const & privKeyBytes, CTransaction const & tx, CPaymentCode &paymentCode);
 bool getOpCodeData(CTxOut const & txout, vector<unsigned char>& op_data);
 bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes);
-CPaymentAddress getPaymentAddress(CPaymentCode const & pcode, int idx, CExtKey const & extkey);
-CPaymentAddress getReceiveAddress(CAccount* v_bip47Account, CWallet* pbip47Wallet, CPaymentCode const & pcode_from, int idx);
-CPaymentAddress getSendAddress(CWallet* pbip47Wallet, CPaymentCode const & pcode_to, int idx);
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
 

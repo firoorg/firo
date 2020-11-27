@@ -630,16 +630,16 @@ public:
         cachedPaymentCodeTable.clear();
         {
             LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, wallet->m_Bip47channels)
-            {
-                const string& address = item.first;
-                PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Sending;
-                std::string strName = item.second[0].getLabel();
-                cachedPaymentCodeTable.append(PaymentCodeTableEntry(addressType,
-                                  QString::fromStdString(strName),
-                                  QString::fromStdString(address)));
-                LogPrintf("Appended address %s\n", address);
-            }
+//bip47            BOOST_FOREACH(const PAIRTYPE(string, std::vector<bip47::CPaymentChannel>)& item, wallet->m_Bip47channels)
+//            {
+//                const string& address = item.first;
+//                PaymentCodeTableEntry::Type addressType = PaymentCodeTableEntry::Sending;
+//                std::string strName = item.second[0].getLabel();
+//                cachedPaymentCodeTable.append(PaymentCodeTableEntry(addressType,
+//                                  QString::fromStdString(strName),
+//                                  QString::fromStdString(address)));
+//                LogPrintf("Appended address %s\n", address);
+//            }
             
         }
         // qLowerBound() and qUpperBound() require our cachedPaymentCodeTable list to be sorted in asc order
@@ -727,23 +727,23 @@ public:
 
     void refreshMyRAPTable()
     {
-        LogPrintf("refreshMyRAPTable %d\n", wallet->m_bip47Accounts.size());
-        cachedRAPTable.clear();
-        {
-            LOCK(wallet->cs_wallet);
-            BOOST_FOREACH(const bip47::CAccount& item, wallet->m_bip47Accounts)
-            {
-                const string& pcode = item.getStringPaymentCode();
-                std::string label = wallet->GetPaymentCodeLabel(pcode);
-                cachedRAPTable.append(MyRAPEntry(QString::fromStdString(label),
-                                  QString::fromStdString(pcode)));
-            }
-            
-        }
-        // qLowerBound() and qUpperBound() require our cachedPaymentCodeTable list to be sorted in asc order
-        // Even though the map is already sorted this re-sorting step is needed because the originating map
-        // is sorted by binary address, not by base58() address.
-        qSort(cachedRAPTable.begin(), cachedRAPTable.end(), MyRAPTableEntryLessThan());
+//bip47        LogPrintf("refreshMyRAPTable %d\n", wallet->m_bip47Accounts.size());
+//        cachedRAPTable.clear();
+//        {
+//            LOCK(wallet->cs_wallet);
+//            BOOST_FOREACH(const bip47::CAccount& item, wallet->m_bip47Accounts)
+//            {
+//                const string& pcode = item.getStringPaymentCode();
+//                std::string label = wallet->GetPaymentCodeLabel(pcode);
+//                cachedRAPTable.append(MyRAPEntry(QString::fromStdString(label),
+//                                  QString::fromStdString(pcode)));
+//            }
+//
+//        }
+//        // qLowerBound() and qUpperBound() require our cachedPaymentCodeTable list to be sorted in asc order
+//        // Even though the map is already sorted this re-sorting step is needed because the originating map
+//        // is sorted by binary address, not by base58() address.
+//        qSort(cachedRAPTable.begin(), cachedRAPTable.end(), MyRAPTableEntryLessThan());
     }
 
     void updateEntry(const QString &address, const QString &label, int status)
@@ -876,55 +876,55 @@ QVariant PaymentCodeTableModel::data(const QModelIndex &index, int role) const
 }
 
 bool PaymentCodeTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
-{   LogPrintf("PaymentCodeTableModel::setData\n");
+{
     if(!index.isValid())
         return false;
-    PaymentCodeTableEntry *rec = static_cast<PaymentCodeTableEntry*>(index.internalPointer());
-    std::string strPurpose = (rec->type == PaymentCodeTableEntry::Sending ? "send" : "receive");
-    editStatus = OK;
-
-    if(role == Qt::EditRole)
-    {
-        LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
-        std::string curAddress = rec->address.toStdString();
-        if(index.column() == Label)
-        {
-            // Do nothing, if old label == new label
-            if(rec->label == value.toString())
-            {
-                editStatus = NO_CHANGES;
-                return false;
-            }
-            wallet->setBip47ChannelLabel(curAddress, value.toString().toStdString());
-        } else if(index.column() == Address) {
-            std::string newAddress = value.toString().toStdString();
-            // Refuse to set invalid address, set error status and return false
-            if(!bip47::CPaymentCode(newAddress).isValid())
-            {
-                editStatus = INVALID_PAYMENTCODE;
-                return false;
-            }
-            // Do nothing, if old address == new address
-            else if(newAddress == curAddress)
-            {
-                editStatus = NO_CHANGES;
-                return false;
-            }
-            // Check for duplicate addresses to prevent accidental deletion of addresses, if you try
-            // to paste an existing address over another address (with a different label)
-            else if(wallet->m_Bip47channels.count(newAddress))
-            {
-                editStatus = DUPLICATE_PAYMENTCODE;
-                return false;
-            }
-            // Double-check that we're not overwriting a receiving address
-            else if(rec->type == PaymentCodeTableEntry::Sending)
-            {
-                wallet->setBip47ChannelLabel(curAddress, value.toString().toStdString());
-            }
-        }
-        return true;
-    }
+//bip47    PaymentCodeTableEntry *rec = static_cast<PaymentCodeTableEntry*>(index.internalPointer());
+//    std::string strPurpose = (rec->type == PaymentCodeTableEntry::Sending ? "send" : "receive");
+//    editStatus = OK;
+//
+//    if(role == Qt::EditRole)
+//    {
+//        LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
+//        std::string curAddress = rec->address.toStdString();
+//        if(index.column() == Label)
+//        {
+//            // Do nothing, if old label == new label
+//            if(rec->label == value.toString())
+//            {
+//                editStatus = NO_CHANGES;
+//                return false;
+//            }
+//            wallet->setBip47ChannelLabel(curAddress, value.toString().toStdString());
+//        } else if(index.column() == Address) {
+//            std::string newAddress = value.toString().toStdString();
+//            // Refuse to set invalid address, set error status and return false
+//            if(!bip47::CPaymentCode(newAddress).isValid())
+//            {
+//                editStatus = INVALID_PAYMENTCODE;
+//                return false;
+//            }
+//            // Do nothing, if old address == new address
+//            else if(newAddress == curAddress)
+//            {
+//                editStatus = NO_CHANGES;
+//                return false;
+//            }
+//            // Check for duplicate addresses to prevent accidental deletion of addresses, if you try
+//            // to paste an existing address over another address (with a different label)
+//            else if(wallet->m_Bip47channels.count(newAddress))
+//            {
+//                editStatus = DUPLICATE_PAYMENTCODE;
+//                return false;
+//            }
+//            // Double-check that we're not overwriting a receiving address
+//            else if(rec->type == PaymentCodeTableEntry::Sending)
+//            {
+//                wallet->setBip47ChannelLabel(curAddress, value.toString().toStdString());
+//            }
+//        }
+//        return true;
+//    }
     return false;
 }
 
@@ -995,11 +995,11 @@ QString PaymentCodeTableModel::addRow(const QString &type, const QString &label,
         // Check for duplicate addresses
         {
             LOCK(wallet->cs_wallet);
-            if(wallet->m_Bip47channels.count(strAddress))
-            {
-                editStatus = DUPLICATE_PAYMENTCODE;
-                return QString();
-            }
+//bip47            if(wallet->m_Bip47channels.count(strAddress))
+//            {
+//                editStatus = DUPLICATE_PAYMENTCODE;
+//                return QString();
+//            }
         }
     }
     else
@@ -1010,7 +1010,7 @@ QString PaymentCodeTableModel::addRow(const QString &type, const QString &label,
     // Add entry
     {
         LOCK(wallet->cs_wallet);
-        wallet->setBip47ChannelLabel(strAddress, strLabel);
+//bip47        wallet->setBip47ChannelLabel(strAddress, strLabel);
     }
     return QString::fromStdString(strAddress);
 }
@@ -1027,11 +1027,11 @@ QString PaymentCodeTableModel::labelForAddress(const QString &address) const
 {
     {
         LOCK(wallet->cs_wallet);
-        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
-        if (mi != wallet->m_Bip47channels.end())
-        {
-            return QString::fromStdString(mi->second[0].getLabel());
-        }
+//bip47        std::map<string, std::vector<bip47::CPaymentChannel>>::iterator mi = wallet->m_Bip47channels.find(address.toStdString());
+//        if (mi != wallet->m_Bip47channels.end())
+//        {
+//            return QString::fromStdString(mi->second[0].getLabel());
+//        }
     }
     return QString();
 }
@@ -1135,42 +1135,42 @@ QVariant MyRAPTableModel::data(const QModelIndex &index, int role) const
 
 bool MyRAPTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-    qWarning() << "MyRAPTableModel setData";
-    if(!index.isValid())
-        return false;
-    MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
-    editStatus = OK;
-
-    if(role == Qt::EditRole)
-    {
-        LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
-        std::string curAddress = rec->address.toStdString();
-        if(index.column() == Label)
-        {
-            // Do nothing, if old label == new label
-            if(rec->label == value.toString())
-            {
-                editStatus = NO_CHANGES;
-                return false;
-            }
-            wallet->SetPaymentCodeBookLabel(curAddress, value.toString().toStdString());
-        } else if(index.column() == Address) {
-            std::string newAddress = value.toString().toStdString();
-            // Refuse to set invalid address, set error status and return false
-            if(!bip47::CPaymentCode(newAddress).isValid())
-            {
-                editStatus = INVALID_PAYMENTCODE;
-                return false;
-            }
-            // Do nothing, if old address == new address
-            else if(newAddress == curAddress)
-            {
-                editStatus = NO_CHANGES;
-                return false;
-            }
-        }
-        return true;
-    }
+//bip47    qWarning() << "MyRAPTableModel setData";
+//    if(!index.isValid())
+//        return false;
+//    MyRAPEntry *rec = static_cast<MyRAPEntry*>(index.internalPointer());
+//    editStatus = OK;
+//
+//    if(role == Qt::EditRole)
+//    {
+//        LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
+//        std::string curAddress = rec->address.toStdString();
+//        if(index.column() == Label)
+//        {
+//            // Do nothing, if old label == new label
+//            if(rec->label == value.toString())
+//            {
+//                editStatus = NO_CHANGES;
+//                return false;
+//            }
+//            wallet->SetPaymentCodeBookLabel(curAddress, value.toString().toStdString());
+//        } else if(index.column() == Address) {
+//            std::string newAddress = value.toString().toStdString();
+//            // Refuse to set invalid address, set error status and return false
+//            if(!bip47::CPaymentCode(newAddress).isValid())
+//            {
+//                editStatus = INVALID_PAYMENTCODE;
+//                return false;
+//            }
+//            // Do nothing, if old address == new address
+//            else if(newAddress == curAddress)
+//            {
+//                editStatus = NO_CHANGES;
+//                return false;
+//            }
+//        }
+//        return true;
+//    }
     return false;
 }
 
@@ -1251,11 +1251,11 @@ bool MyRAPTableModel::removeRows(int row, int count, const QModelIndex &parent)
  */
 QString MyRAPTableModel::labelForAddress(const QString &address) const
 {
-    qWarning() << "MyRAPTableModel remove for address";
-    {
-        LOCK(wallet->cs_wallet);
-        return QString::fromStdString(wallet->GetPaymentCodeLabel(address.toStdString()));
-    }
+//bip47    qWarning() << "MyRAPTableModel remove for address";
+//    {
+//        LOCK(wallet->cs_wallet);
+//        return QString::fromStdString(wallet->GetPaymentCodeLabel(address.toStdString()));
+//    }
     return QString();
 }
 

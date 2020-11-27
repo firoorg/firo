@@ -592,22 +592,6 @@ void WalletView::backupWallet()
         Q_EMIT message(tr("Backup Successful"), tr("The wallet data was successfully saved to %1.").arg(filename),
             CClientUIInterface::MSG_INFORMATION);
     }
-    
-    filename = GUIUtil::getSaveFileName(this,
-        tr("Backup Bip47 Wallet"), QString(),
-        tr("Bip47 Data (*.bip47)"), NULL);
-
-    if (filename.isEmpty())
-        return;
-
-    if (!walletModel->backupBip47Wallet(filename)) {
-        Q_EMIT message(tr("Backup Failed"), tr("There was an error trying to save the bip47 data to %1.").arg(filename),
-            CClientUIInterface::MSG_ERROR);
-        }
-    else {
-        Q_EMIT message(tr("Backup Successful"), tr("The bip47 data was successfully saved to %1.").arg(filename),
-            CClientUIInterface::MSG_INFORMATION);
-    }
 }
 
 void WalletView::changePassphrase()

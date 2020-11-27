@@ -289,7 +289,6 @@ BITCOIN_CORE_H = \
   bip47/address.h \
   bip47/paymentchannel.h \
   bip47/utils.h \
-  bip47/paymentaddress.h \
   bip47/paymentcode.h \
   bip47/secretpoint.h \
   zerocoin.h \
@@ -498,7 +497,6 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/address.cpp \
   bip47/paymentchannel.cpp \
   bip47/utils.cpp \
-  bip47/paymentaddress.cpp \
   bip47/paymentcode.cpp \
   bip47/secretpoint.cpp \
   $(BITCOIN_CORE_H)

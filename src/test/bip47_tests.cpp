@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-// An implementation of bip47 tests here: https://gist.github.com/SamouraiDev/6aad669604c5930864bd
+// An implementation of bip47 tests provided here: https://gist.github.com/SamouraiDev/6aad669604c5930864bd
 
 #include <boost/test/unit_test.hpp>
 
@@ -11,9 +11,10 @@
 
 #include "key.h"
 #include "utilstrencodings.h"
-#include "bip47/paymentaddress.h"
 #include "bip47/utils.h"
 #include "bip47/secretpoint.h"
+#include "bip47/account.h"
+#include "wallet/wallet.h"
 
 using namespace bip47;
 using vchar = std::vector<unsigned char>;
@@ -175,12 +176,12 @@ BOOST_AUTO_TEST_CASE(notification_addresses)
 
     {using namespace alice;
         bip47::CPaymentCode paymentCode(paymentcode);
-        BOOST_CHECK_EQUAL(paymentCode.notificationAddress().ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(paymentCode.getNotificationAddress().ToString(), notificationaddress);
     }
 
     {using namespace bob;
         bip47::CPaymentCode paymentCode(paymentcode);
-        BOOST_CHECK_EQUAL(paymentCode.notificationAddress().ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(paymentCode.getNotificationAddress().ToString(), notificationaddress);
     }
 }
 
@@ -256,5 +257,17 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
         BOOST_CHECK_EQUAL(HexStr(paymentChannel.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
     }
 }
+
+BOOST_AUTO_TEST_CASE(wallet_account)
+{
+    ChangeBase58Prefixes _(Params());
+    
+    {using namespace alice;
+        bip47::CWallet wallet(bip32seed);
+        BOOST_CHECK_EQUAL(wallet.getAccount(0).getMyPcode().toString(), paymentcode);
+        BOOST_CHECK_EQUAL(wallet.getAccount(0).getMyNotificationAddress().ToString(), notificationaddress);
+    }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

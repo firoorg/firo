@@ -1,15 +1,11 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/utils.h"
 #include "bip47/address.h"
-#include "bip47/paymentaddress.h"
 #include "bip47/utils.h"
+#include "bip47/secretpoint.h"
 #include "wallet/wallet.h"
 
 namespace bip47 {
-
-namespace{
-int LOOKAHEAD = 10;
-}
 
 CPaymentChannel::CPaymentChannel()
 : idxSend(0), idxRecv(0), state(State::created), iamPayer(false)
@@ -91,23 +87,6 @@ std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const
 int CPaymentChannel::getIdxRecv() const
 {
     return idxRecv;
-}
-
-void CPaymentChannel::generateKeys(CWallet *bip47Wallet)
-{
-    for(int i = 0; i < LOOKAHEAD; i++)
-    {
-        CAccount acc = bip47Wallet->getBIP47Account(theirPcode.toString());
-        int nextIndex = idxRecv + 1 + i;
-        CPaymentAddress paddr = utils::getReceiveAddress(&acc, bip47Wallet, theirPcode, nextIndex);
-        CKey newgenKey = paddr.getReceiveECKey();
-        bip47Wallet->importKey(newgenKey);
-        CBitcoinAddress btcAddr = bip47Wallet->getAddressOfKey(newgenKey.GetPubKey());
-        bip47Wallet->SetAddressBook(btcAddr.Get(), "BIP47PAYMENT-" + theirPcode.toString() + "-" + std::to_string(nextIndex), "receive");
-        incomingAddresses.push_back(CAddress(btcAddr.ToString(), nextIndex));
-    }
-    
-    idxRecv = idxRecv + LOOKAHEAD;
 }
 
 void CPaymentChannel::addTransaction(uint256 hash)
