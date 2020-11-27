@@ -64,8 +64,8 @@ public:
 
     void setMasternodeList(const CDeterministicMNList& mnList);
     CDeterministicMNList getMasternodeList() const;
-    void refreshMasternodeList();    
-    
+    void refreshMasternodeList();
+
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
 
@@ -92,7 +92,7 @@ public:
     // caches for the best header
     mutable std::atomic<int> cachedBestHeaderHeight;
     mutable std::atomic<int64_t> cachedBestHeaderTime;
-    
+
     // Try to avoid Elysium queuing too many messages
     bool tryLockElysiumStateChanged();
     bool tryLockElysiumBalanceChanged();

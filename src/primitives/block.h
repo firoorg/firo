@@ -22,6 +22,11 @@ class CSigmaTxInfo;
 
 } // namespace sigma.
 
+namespace lelantus {
+class CLelantusTxInfo;
+
+} // namespace lelantus
+
 unsigned char GetNfactor(int64_t nTimestamp);
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
@@ -224,6 +229,8 @@ public:
 
     // memory only, zerocoin tx info after V3-sigma.
     mutable std::shared_ptr<sigma::CSigmaTxInfo> sigmaTxInfo;
+
+    mutable std::shared_ptr<lelantus::CLelantusTxInfo> lelantusTxInfo;
 
     CBlock()
     {

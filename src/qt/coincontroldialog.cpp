@@ -43,11 +43,12 @@ bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     return QTreeWidgetItem::operator<(other);
 }
 
-CoinControlDialog::CoinControlDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
+CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::CoinControlDialog),
     model(0),
-    platformStyle(_platformStyle)
+    platformStyle(_platformStyle),
+    anonymousMode(anonymousMode)
 {
     ui->setupUi(this);
 
@@ -166,7 +167,7 @@ void CoinControlDialog::setModel(WalletModel *_model)
     {
         updateView();
         updateLabelLocked();
-        CoinControlDialog::updateLabels(_model, this);
+        CoinControlDialog::updateLabels(_model, this, anonymousMode);
     }
 }
 
@@ -196,7 +197,7 @@ void CoinControlDialog::buttonSelectAllClicked()
     ui->treeWidget->setEnabled(true);
     if (state == Qt::Unchecked)
         coinControl->UnSelectAll(); // just to be sure
-    CoinControlDialog::updateLabels(model, this);
+    CoinControlDialog::updateLabels(model, this, anonymousMode);
 }
 
 // context menu
@@ -389,7 +390,7 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 
         // selection changed -> update labels
         if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
-            CoinControlDialog::updateLabels(model, this);
+            CoinControlDialog::updateLabels(model, this, anonymousMode);
     }
 
     // TODO: Remove this temporary qt5 fix after Qt5.3 and Qt5.4 are no longer used.
@@ -416,7 +417,7 @@ void CoinControlDialog::updateLabelLocked()
     else ui->labelLocked->setVisible(false);
 }
 
-void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
+void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool anonymousMode)
 {
     if (!model)
         return;
@@ -457,6 +458,20 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     model->getOutputs(vCoinControl, vOutputs);
 
     BOOST_FOREACH(const COutput& out, vOutputs) {
+        // filter out outputs that don't match with mode
+        {
+            auto const &script = out.tx->tx->vout[out.i].scriptPubKey;
+            auto isMint = script.IsZerocoinMint()
+                        || script.IsSigmaMint()
+                        || script.IsZerocoinRemint()
+                        || script.IsLelantusMint()
+                        || script.IsLelantusJMint();
+
+            if (isMint != anonymousMode) {
+                continue;
+            }
+        }
+
         // unselect already spent, very unlikely scenario, this could happen
         // when selected are spent elsewhere, like rpc or another computer
         uint256 txhash = out.tx->GetHash();
@@ -471,7 +486,11 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         nQuantity++;
 
         // Amount
-        nAmount += out.tx->tx->vout[out.i].nValue;
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
+        } else {
+            nAmount += out.tx->tx->vout[out.i].nValue;
+        }
 
         // Priority
         dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
@@ -648,7 +667,7 @@ void CoinControlDialog::updateView()
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
     std::map<QString, std::vector<COutput> > mapCoins;
-    model->listCoins(mapCoins);
+    model->listCoins(mapCoins, anonymousMode ? CoinType::ONLY_MINTS : CoinType::ALL_COINS);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
         CCoinControlWidgetItem *itemWalletAddress = new CCoinControlWidgetItem();
@@ -676,7 +695,14 @@ void CoinControlDialog::updateView()
         CAmount nSum = 0;
         int nChildren = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
-            nSum += out.tx->tx->vout[out.i].nValue;
+            CAmount amount;
+            if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+                amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
+            } else {
+                amount = out.tx->tx->vout[out.i].nValue;
+            }
+
+            nSum += amount;
             nChildren++;
 
             CCoinControlWidgetItem *itemOutput;
@@ -713,8 +739,8 @@ void CoinControlDialog::updateView()
             }
 
             // amount
-            itemOutput->setText(COLUMN_AMOUNT, BitcoinUnits::format(nDisplayUnit, out.tx->tx->vout[out.i].nValue));
-            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.tx->tx->vout[out.i].nValue)); // padding so that sorting works correctly
+            itemOutput->setText(COLUMN_AMOUNT, BitcoinUnits::format(nDisplayUnit, amount));
+            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)amount)); // padding so that sorting works correctly
 
             // date
             itemOutput->setText(COLUMN_DATE, GUIUtil::dateTimeStr(out.tx->GetTxTime()));

@@ -35,7 +35,7 @@ struct TestingSetup: public BasicTestingSetup {
     boost::filesystem::path pathTemp;
     boost::thread_group threadGroup;
     CConnman* connman;
-    
+
     TestingSetup(const std::string& chainName = CBaseChainParams::MAIN, std::string suf = "");
     ~TestingSetup();
 };
@@ -92,7 +92,7 @@ struct TestMemPoolEntryHelper
     TestMemPoolEntryHelper() :
         nFee(0), nTime(0), dPriority(0.0), nHeight(1),
         spendsCoinbase(false), sigOpCost(4) { }
-    
+
     CTxMemPoolEntry FromTx(const CMutableTransaction &tx, CTxMemPool *pool = NULL);
     CTxMemPoolEntry FromTx(const CTransaction &tx, CTxMemPool *pool = NULL);
 

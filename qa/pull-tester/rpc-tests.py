@@ -101,6 +101,7 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'lelantus_mint.py',
     'elysium_create_denomination.py',
     'elysium_property_creation_fee.py',
     'elysium_sendmint.py',

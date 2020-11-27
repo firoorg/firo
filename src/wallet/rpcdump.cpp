@@ -117,6 +117,7 @@ UniValue importprivkey(const JSONRPCRequest& request)
                                              "To import your dump file, create a non-mnemonic wallet by setting \"usemnemonic=0\" in your zcoin.conf file, after backing up and removing your existing wallet.");
     }
 
+
     string strSecret = request.params[0].get_str();
     string strLabel = "";
     if (request.params.size() > 1)

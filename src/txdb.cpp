@@ -392,6 +392,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->sigmaMintedPubCoins   = diskindex.sigmaMintedPubCoins;
                 pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
 
+                pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
+                pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
+
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
                     return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
@@ -541,7 +544,7 @@ void handleRemint(CTxIn const & input, uint256 const & txHash, int height, int t
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
-        AddressIndexPtr & addressIndex, bool isV3)
+        AddressIndexPtr & addressIndex, CTransaction const & tx)
 {
     if(!addressIndex)
         return;
@@ -550,7 +553,14 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
     for(Iterator iter = begin; iter != end; ++iter)
         spendAmount += iter->nValue;
 
-    addressIndex->push_back(make_pair(CAddressIndexKey(isV3 ? AddressType::sigmaSpend : AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+    AddressType addrType = AddressType::lelantusJSplit;
+    if(tx.IsZerocoinSpend()) {
+        addrType = AddressType::zerocoinSpend;
+    } else if(tx.IsSigmaSpend()){
+        addrType = AddressType::sigmaSpend;
+    }
+
+    addressIndex->push_back(make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
 }
 
 void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
@@ -564,6 +574,13 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsSigmaMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsLelantusMint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsLelantusJMint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::lelantusJMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
@@ -588,7 +605,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
         for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
@@ -606,8 +623,8 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
         handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
@@ -643,7 +660,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
     size_t no = 0;
 
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
         for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
@@ -662,8 +679,8 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();

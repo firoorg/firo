@@ -133,7 +133,7 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     this->walletModel = model;
 
     if (model && model->getOptionsModel()) {
-        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
+        connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
             this, SLOT(updateMintableBalance()));
         connect(model, SIGNAL(updateMintable()), this, SLOT(updateMintableBalance()));
         updateMintableBalance();
@@ -520,6 +520,7 @@ void SigmaDialog::updateAvailableToMintBalance(const CAmount& balance)
 void SigmaDialog::updateMintableBalance()
 {
     updateAvailableToMintBalance(this->walletModel->getBalance(NULL, true));
+    walletModel->checkSigmaAmount(true);
 }
 
 // Coin Control: copy label "Quantity" to clipboard

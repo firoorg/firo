@@ -9,9 +9,12 @@
 #include "../config/bitcoin-config.h"
 #endif
 
+#include "automintdialog.h"
+#include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
 #include "sigmadialog.h"
+#include "lelantusdialog.h"
 
 #ifdef ENABLE_ELYSIUM
 #include "elyassetsdialog.h"
@@ -75,6 +78,8 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
+    bool eventFilter(QObject *watched, QEvent *event);
+
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
@@ -82,6 +87,7 @@ private:
     void setupToolboxPage();
 #endif
     void setupSigmaPage();
+    void setupLelantusPage();
 
 private:
     ClientModel *clientModel;
@@ -109,6 +115,9 @@ private:
     ZerocoinPage *zerocoinPage;
     SigmaDialog *sigmaView;
     BlankSigmaDialog *blankSigmaView;
+    LelantusDialog *lelantusView;
+    BlankSigmaDialog *blankLelantusView;
+    QWidget *lelantusPage;
     QWidget *sigmaPage;
     Zc2SigmaPage *zc2SigmaPage;
     TransactionView *zcoinTransactionList;
@@ -117,6 +126,8 @@ private:
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
+
+    AutomintNotification *automintNotification;
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
@@ -149,6 +160,8 @@ public Q_SLOTS:
     void gotoSigmaPage();
     /** Switch to ZC to Sigma page */
     void gotoZc2SigmaPage();
+    /** Switch to lelantus page */
+    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -182,6 +195,22 @@ public Q_SLOTS:
 
     /** User has requested more information about the out of sync state */
     void requestedSyncWarningInfo();
+
+    /** Show automint notification */
+    void showAutomintNotification();
+
+    /** Re-position automint notification */
+    void repositionAutomintNotification();
+
+    /** Check mintable amount to close automint notification */
+    void checkMintableAmount(
+        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
+
+    /** Close automint notification */
+    void closeAutomintNotification();
+
+    /** Ask user to do auto mint */
+    void askMintAll(AutoMintMode mode);
 
 Q_SIGNALS:
     /** Signal that we want to show the main window */

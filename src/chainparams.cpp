@@ -371,6 +371,7 @@ public:
         consensus.nStartSigmaBlacklist = 293790;
         consensus.nRestartSigmaWithBlacklistCheck = 296900;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
+        consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -379,6 +380,11 @@ public:
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxLelantusInputPerBlock = ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueLelantusSpendPerBlock = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
         // Dandelion related values.
@@ -600,6 +606,8 @@ public:
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
 
+        consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
+
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -608,6 +616,11 @@ public:
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxLelantusInputPerBlock = ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueLelantusSpendPerBlock = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         // Dandelion related values.
@@ -784,6 +797,7 @@ public:
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 450;
+        consensus.nLelantusStartBlock = 1000;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
         consensus.nZerocoinV2MintGracefulPeriod = 5;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
@@ -792,6 +806,11 @@ public:
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxLelantusInputPerBlock = ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueLelantusSpendPerBlock = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
         // Dandelion related values.
@@ -842,4 +861,4 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
- 
+

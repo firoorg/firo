@@ -33,6 +33,7 @@
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "zerocoin.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "sigma/remint.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -149,13 +150,16 @@ void BlockAssembler::resetBlock()
 
     nSigmaSpendAmount = 0;
     nSigmaSpendInputs = 0;
+
+    nLelantusSpendAmount = 0;
+    nLelantusSpendInputs = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    
+
     int64_t nTimeStart = GetTimeMicros();
 
     // fMTP is always true currently
@@ -236,6 +240,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+
     coinbaseTx.vout[0].nValue = nFees + nBlockSubsidy;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
@@ -281,7 +286,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
-    
+
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
     LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
@@ -436,6 +441,22 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
             return false;
     }
 
+    // Check transaction against lelantus limits
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
+        auto &params = chainparams.GetConsensus();
+
+        if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+            return false;
+
+        if (spendNumber + nLelantusSpendInputs > params.nMaxLelantusInputPerBlock)
+            return false;
+
+        if (spendAmount + nLelantusSpendAmount > params.nMaxValueLelantusSpendPerBlock)
+            return false;
+    }
+
     return true;
 }
 
@@ -448,11 +469,26 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 
         if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
             return;
-        
+
         if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
             return;
     }
-    
+
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
+        auto &params = chainparams.GetConsensus();
+
+        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+            return;
+
+        if ((nLelantusSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
+            return;
+
+        if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
+            return;
+    }
+
     pblock->vtx.emplace_back(iter->GetSharedTx());
     pblocktemplate->vTxFees.push_back(iter->GetFee());
     pblocktemplate->vTxSigOpsCost.push_back(iter->GetSigOpCost());
@@ -1050,7 +1086,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     }
 
                     boost::this_thread::interruption_point();
-                    
+
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {

@@ -38,6 +38,7 @@
 #include "evo/specialtx.h"
 #include "llmq/quorums_commitment.h"
 #include "evo/providertx.h"
+#include "lelantus.h"
 
 using namespace std;
 
@@ -78,7 +79,8 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 }
 
 namespace {
-    void fillStdFields(UniValue & out, CTxIn const & txin) {
+    void fillStdFields(UniValue & out, CTxIn const & txin)
+    {
         UniValue o(UniValue::VOBJ);
         o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
         o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
@@ -103,7 +105,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()){
+        } else if (txin.IsSigmaSpend()) {
             std::unique_ptr<sigma::CoinSpend> spend;
             uint32_t pubcoinId;
             try {
@@ -118,7 +120,17 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
             in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
             in.push_back(Pair("valueSat", spend->getIntDenomination()));
-        } else if (txin.IsZerocoinRemint()){
+        } else if (txin.IsLelantusJoinSplit()) {
+            in.push_back("joinsplit");
+            fillStdFields(in, txin);
+            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(txin);
+            in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
+            UniValue serials(UniValue::VARR);
+            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+                serials.push_back(serial.GetHex());
+            }
+            in.push_back(Pair("serials", serials));
+        } else if (txin.IsZerocoinRemint()) {
             std::shared_ptr<sigma::CoinRemintToV3>  remint;
             try {
                 CDataStream serData(std::vector<unsigned char>(txin.scriptSig.begin()+1, txin.scriptSig.end()), SER_NETWORK, PROTOCOL_VERSION);
@@ -167,7 +179,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        if (txout.scriptPubKey.IsLelantusJMint()) {
+            out.push_back(Pair("value", 0));
+        } else {
+            out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);

@@ -20,7 +20,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
 
-        self.nodes[0].generate(500)
+        self.nodes[0].generate(400)
         self.sync_all()
 
         start_bal = self.nodes[0].getbalance()
@@ -32,7 +32,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         denoms1 = [(10, 9), (2, 100), (9, 1)]
         spend_size1 = 99
         spend1 = ['100']
-        remint1 = ['0.1', '0.1', '0.5', '0.1', '0.05', '0.1'] 
+        remint1 = ['0.1', '0.1', '0.5', '0.1', '0.05', '0.1']
 
 
         # Before mint new coins were: {'1': 99, '0.1': 4, '0.05': 1, '100': 1, '0.5': 1}
@@ -42,7 +42,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         denoms2 = [(100, 1)]
         spend_size2 = 100
         spend2 = ['100', '0.1']
-        remint2 = ['0.05'] 
+        remint2 = ['0.05']
 
 
         # Before mint new coins were: {'1': 199, '0.1': 3, '0.05': 2, '0.5': 1}
@@ -82,7 +82,7 @@ def activate_sigma_spend(denoms, spendsize, exp_spends, exp_remints, zcoind):
         count, size = denom
         for i in range(count):
             zcoind.nodes[0].mint(size)
-            zcoind.nodes[0].generate(6)
+    zcoind.nodes[0].generate(6)
 
     myaddr = zcoind.nodes[0].listreceivedbyaddress(0, True)[0]['address']
     args = {myaddr: spendsize}

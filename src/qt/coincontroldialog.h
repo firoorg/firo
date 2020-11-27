@@ -44,13 +44,13 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit CoinControlDialog(bool anonymousMode, const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~CoinControlDialog();
 
     void setModel(WalletModel *model);
 
     // static because also called from sendcoinsdialog
-    static void updateLabels(WalletModel*, QDialog*);
+    static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
 
     static QList<CAmount> payAmounts;
     static CCoinControl *coinControl;
@@ -69,6 +69,8 @@ private:
     QAction *unlockAction;
 
     const PlatformStyle *platformStyle;
+
+    bool anonymousMode;
 
     void sortView(int, Qt::SortOrder);
     void updateView();

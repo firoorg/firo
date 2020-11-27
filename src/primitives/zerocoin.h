@@ -17,24 +17,33 @@
 #include "zerocoin_params.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
-struct CMintMeta
+struct MintMeta
 {
     int nHeight;
     int nId;
     GroupElement const & GetPubCoinValue() const;
     void SetPubCoinValue(GroupElement const & other);
-    uint256 GetPubCoinValueHash() const;
+    uint256 GetPubCoinValueHash() const ;
     uint256 hashSerial;
     uint8_t nVersion;
-    sigma::CoinDenomination denom;
     uint256 txid;
     bool isUsed;
     bool isArchived;
-    bool isDeterministic;
     bool isSeedCorrect;
-private:
+protected:
     GroupElement pubCoinValue;
     mutable boost::optional<uint256> pubCoinValueHash;
+};
+
+struct CMintMeta : MintMeta
+{
+    bool isDeterministic;
+    sigma::CoinDenomination denom;
+};
+
+struct CLelantusMintMeta : MintMeta
+{
+    uint64_t amount;
 };
 
 class CZerocoinEntry
@@ -235,6 +244,27 @@ private:
     }
 };
 
+struct CLelantusEntry {
+    //public
+    GroupElement value;
+
+    //private
+    Scalar randomness;
+    Scalar serialNumber;
+
+    // Signature over partial transaction
+    // to make sure the outputs are not changed by attacker.
+    std::vector<unsigned char> ecdsaSecretKey;
+
+    bool IsUsed;
+    int nHeight;
+    int id;
+
+    // Starting from Version 3 == sigma, this number is coin value * COIN,
+    // I.E. it is set to 100.000.000 for 1 zcoin.
+    int64_t amount;
+};
+
 
 class CZerocoinSpendEntry
 {
@@ -327,6 +357,39 @@ private:
     // Starting from Version 3 == sigma, this number is coin value * COIN,
     // I.E. it is set to 100.000.000 for 1 zcoin.
     int64_t denomination;
+};
+
+class CLelantusSpendEntry
+{
+public:
+    Scalar coinSerial;
+    uint256 hashTx;
+    GroupElement pubCoin;
+    int id;
+    int64_t amount;
+
+    CLelantusSpendEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        coinSerial = Scalar(uint64_t(0));
+        pubCoin = GroupElement();
+        id = 0;
+        amount = 0;
+    }
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(coinSerial);
+        READWRITE(hashTx);
+        READWRITE(pubCoin);
+        READWRITE(id);
+        READWRITE(amount);
+    }
 };
 
 namespace primitives {

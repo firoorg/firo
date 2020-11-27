@@ -3,6 +3,7 @@
 
 #include <secp256k1/include/Scalar.h>
 #include "sigma/coin.h"
+#include "liblelantus/coin.h"
 
 #include <unordered_map>
 
@@ -55,5 +56,24 @@ using mint_info_container = std::unordered_map<sigma::PublicCoin, CMintedCoinInf
 using spend_info_container = std::unordered_map<Scalar, CSpendCoinInfo, sigma::CScalarHash>;
 
 } // namespace sigma
+
+namespace lelantus {
+
+// Custom hash for the public coin.
+struct CPublicCoinHash {
+    std::size_t operator()(const lelantus::PublicCoin& coin) const noexcept;
+};
+
+struct CMintedCoinInfo {
+    int coinGroupId;
+    int nHeight;
+
+    static CMintedCoinInfo make(int coinGroupId, int nHeight);
+};
+
+using mint_info_container = std::unordered_map<lelantus::PublicCoin, CMintedCoinInfo, lelantus::CPublicCoinHash>;
+
+} // namespace lelantus
+
 
 #endif // COIN_CONTAINERS_H

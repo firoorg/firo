@@ -14,6 +14,7 @@
 #include "sigma/coin.h"
 #include "sigma/remint.h"
 #include "primitives/zerocoin.h"
+#include "batchproof_container.h"
 
 #include "blacklists.h"
 
@@ -30,7 +31,7 @@ namespace sigma {
 
 static CSigmaState sigmaState;
 
-static bool CheckSigmaSpendSerial(
+bool CheckSigmaSpendSerial(
         CValidationState &state,
         CSigmaTxInfo *sigmaTxInfo,
         const Scalar &serial,
@@ -298,7 +299,15 @@ bool CheckSigmaSpendTransaction(
                 return state.DoS(1, error("Incorrect sigma spend transaction version"));
         }
 
-        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding);
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        // if we are collecting proofs, skip verification and collect proofs
+        passVerify = spend->Verify(anonymity_set, newMetaData, fPadding, batchProofContainer->fCollectProofs);
+
+        // add proofs into container
+        if(batchProofContainer->fCollectProofs) {
+            batchProofContainer->add(spend.get(), fPadding, coinGroupId, anonymity_set.size(), nHeight >= params.nStartSigmaBlacklist);
+        }
+
         if (passVerify) {
             Scalar serial = spend->getCoinSerialNumber();
             // do not check for duplicates in case we've seen exact copy of this tx in this block before
@@ -432,6 +441,11 @@ bool CheckSigmaTransaction(
         realHeight = chainActive.Height();
     }
 
+    // accept sigma tx into 5 more blocks, to allow mempool cleared
+    if (!isVerifyDB && realHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
+        return state.DoS(100, false,
+                         REJECT_INVALID,
+                         "Sigma already is not available, start using Lelantus.");
     bool const allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
     if (!isVerifyDB && !isCheckWallet) {
@@ -1072,6 +1086,47 @@ int CSigmaState::GetCoinSetForSpend(
         }
     }
     return numberOfCoins;
+}
+
+void CSigmaState::GetAnonymitySet(
+        sigma::CoinDenomination denomination,
+        int coinGroupID,
+        bool fStartSigmaBlacklist,
+        std::vector<GroupElement>& coins_out) {
+
+    coins_out.clear();
+
+    pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
+
+    if (coinGroups.count(denomAndId) == 0)
+        return;
+
+    SigmaCoinGroupInfo coinGroup = coinGroups[denomAndId];
+    auto params = ::Params().GetConsensus();
+    int maxHeight = fStartSigmaBlacklist ? (chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1)) : (params.nStartSigmaBlacklist - 1);
+
+    for (CBlockIndex *block = coinGroup.lastBlock;
+            ;
+            block = block->pprev) {
+        if (block->sigmaMintedPubCoins.count(denomAndId) > 0 &&
+                block->sigmaMintedPubCoins[denomAndId].size() > 0) {
+            if (block->nHeight <= maxHeight) {
+                BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
+                        block->sigmaMintedPubCoins[denomAndId]) {
+                    if (fStartSigmaBlacklist && chainActive.Height() >= params.nStartSigmaBlacklist) {
+                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
+                    coins_out.push_back(pubCoinValue.getValue());
+                }
+            }
+        }
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
 }
 
 std::pair<int, int> CSigmaState::GetMintedCoinHeightAndId(

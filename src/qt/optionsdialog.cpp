@@ -186,6 +186,10 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->reindexSigma, OptionsModel::ReindexSigma);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
 
+    /* Lelantus */
+    mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
+    mapper->addMapping(ui->lelantusPage, OptionsModel::LelantusPage);
+
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);

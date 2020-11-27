@@ -41,6 +41,7 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
+#include "batchproof_container.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -254,12 +255,14 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
+    BatchProofContainer::get_instance()->finalize();
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
     GenerateBitcoins(false, 0, Params());
-    
+
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
@@ -778,7 +781,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }    
+    }
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
@@ -814,6 +817,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     // Need this to restore Sigma spend state
     if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         pwalletMain->zwallet->GetTracker().ListMints();
+        pwalletMain->zwallet->GetTracker().ListLelantusMints();
     }
 #endif
     fDumpMempoolLater = !fRequestShutdown;
@@ -1760,9 +1764,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 if (!fReindex) {
                     CBlockIndex *tip = chainActive.Tip();
-                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
+                    if (tip && tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock) {
                         const uint256* phash = tip->phashBlock;
-                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
+                        if (pblocktree->GetBlockIndexVersion(*phash) < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;
@@ -2105,7 +2109,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
-
+    
     // ********************************************************* Step 13: Znode - obsoleted
 
     // ********************************************************* Step 14: finished

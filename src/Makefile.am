@@ -113,6 +113,7 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
+LIBLELANTUS=liblelantus.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -143,7 +144,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_ZMQ) \
-  $(LIBZCOIN_SIGMA)
+  $(LIBZCOIN_SIGMA) \
+  $(LIBLELANTUS)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -260,6 +262,7 @@ BITCOIN_CORE_H = \
   util.h \
   utilmoneystr.h \
   utiltime.h \
+  batchproof_container.h \
   validation.h \
   validationinterface.h \
   versionbits.h \
@@ -270,6 +273,7 @@ BITCOIN_CORE_H = \
   wallet/rpcwallet.h \
   wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
+  wallet/lelantusjoinsplitbuilder.h \
   wallet/wallet.h \
   wallet/walletexcept.h \
   wallet/walletdb.h \
@@ -287,6 +291,7 @@ BITCOIN_CORE_H = \
   hdmint/wallet.h \
   zerocoin.h \
   sigma.h \
+  lelantus.h \
   blacklists.h \
   coin_containers.h \
   zerocoin_params.h \
@@ -442,17 +447,19 @@ libbitcoin_server_a_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   ui_interface.cpp \
+  batchproof_container.cpp \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
   sigma.cpp \
+  lelantus.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
@@ -472,6 +479,7 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
   sigma.cpp \
+  lelantus.cpp \
   wallet/crypter.cpp \
   wallet/bip39.cpp \
   wallet/mnemoniccontainer.cpp \
@@ -480,6 +488,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpcwallet.cpp \
   wallet/sigmaspendbuilder.cpp \
   wallet/txbuilder.cpp \
+  wallet/lelantusjoinsplitbuilder.cpp \
   wallet/walletexcept.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
@@ -575,7 +584,7 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between zcoind, and zcoin-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   amount.cpp \
@@ -658,6 +667,47 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
+liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+liblelantus_a_SOURCES = \
+  liblelantus/challenge_generator.h \
+  liblelantus/challenge_generator.cpp \
+  liblelantus/lelantus_primitives.h \
+  liblelantus/lelantus_primitives.cpp \
+  liblelantus/lelantus_proof.h \
+  liblelantus/lelantus_prover.h \
+  liblelantus/lelantus_prover.cpp \
+  liblelantus/lelantus_verifier.h \
+  liblelantus/lelantus_verifier.cpp \
+  liblelantus/sigmaextended_proof.h \
+  liblelantus/sigmaextended_prover.h \
+  liblelantus/sigmaextended_prover.cpp \
+  liblelantus/sigmaextended_verifier.h \
+  liblelantus/sigmaextended_verifier.cpp \
+  liblelantus/schnorr_proof.h \
+  liblelantus/schnorr_prover.h \
+  liblelantus/schnorr_prover.cpp \
+  liblelantus/schnorr_verifier.h \
+  liblelantus/schnorr_verifier.cpp \
+  liblelantus/innerproduct_proof.h \
+  liblelantus/innerproduct_proof_verifier.h \
+  liblelantus/innerproduct_proof_verifier.cpp \
+  liblelantus/innerproduct_proof_generator.h \
+  liblelantus/innerproduct_proof_generator.cpp \
+  liblelantus/range_proof.h \
+  liblelantus/range_prover.h \
+  liblelantus/range_prover.cpp \
+  liblelantus/range_verifier.h \
+  liblelantus/range_verifier.cpp \
+  liblelantus/coin.h \
+  liblelantus/coin.cpp \
+  liblelantus/joinsplit.h \
+  liblelantus/joinsplit.cpp \
+  liblelantus/spend_metadata.h \
+  liblelantus/spend_metadata.cpp \
+  liblelantus/params.h \
+  liblelantus/params.cpp
+
 libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
 libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
 libsigma_a_SOURCES = \
@@ -724,6 +774,7 @@ zcoind_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
   $(LIBZCOIN_SIGMA) \
+  $(LIBLELANTUS) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
@@ -863,7 +914,7 @@ endif
 
 osx_debug: $(bin_PROGRAMS)
 	for i in $(bin_PROGRAMS); do mkdir -p $$i.dSYM/Contents/Resources/DWARF && $(DSYMUTIL_FLAT) -o $$i.dSYM/Contents/Resources/DWARF/$$(basename $$i) $$i &> /dev/null ; done
-  
+
 %.pb.cc %.pb.h: %.proto
 	@test -f $(PROTOC)
 	$(AM_V_GEN) $(PROTOC) --cpp_out=$(@D) --proto_path=$(<D) $<

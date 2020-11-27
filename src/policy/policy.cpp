@@ -17,7 +17,7 @@
     /**
      * Check transaction inputs to mitigate two
      * potential denial-of-service attacks:
-     * 
+     *
      * 1. scriptSigs with extra data stuffed into them,
      *    not consumed by scriptPubKey (or P2SH script)
      * 2. P2SH scripts with a crazy number of expensive
@@ -82,7 +82,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
         // future-proofing. That's also enough to spend a 20-of-20
         // CHECKMULTISIG scriptPubKey, though such a scriptPubKey is not
         // considered standard.
-        if (txin.scriptSig.size() > 1650 && !txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.IsZerocoinRemint()) {
+        if (txin.scriptSig.size() > 1650 && !txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.scriptSig.IsLelantusJoinSplit() && !txin.IsZerocoinRemint()) {
             reason = "scriptsig-size";
             return false;
         }
@@ -91,7 +91,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
             return false;
         }
 
-        if (!txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.IsZerocoinRemint()) {
+        if (!txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.scriptSig.IsLelantusJoinSplit() && !txin.IsZerocoinRemint()) {
             if (!txin.scriptSig.IsPushOnly()) {
                 reason = "scriptsig-not-pushonly";
                 return false;
@@ -133,9 +133,9 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit())
         return true; // Coinbases don't use vin normally
-        
+
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         const CTxOut& prev = mapInputs.AccessCoin(tx.vin[i].prevout).out;
@@ -167,7 +167,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit())
         return true; // Coinbases are skipped
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)

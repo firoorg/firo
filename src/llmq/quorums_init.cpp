@@ -93,7 +93,7 @@ void StartLLMQSystem()
 
 void StopLLMQSystem()
 {
-    /*  
+    /*
     if (quorumInstantSendManager) {
         quorumInstantSendManager->Stop();
     }

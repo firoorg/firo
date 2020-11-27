@@ -75,13 +75,27 @@ RAW_TEST_FILES =
 GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
 
 # test_bitcoin binary #
-BITCOIN_TESTS =\
+BITCOIN_TESTS = \
+  hdmint/test/hdmint_tests.cpp \
+  hdmint/test/lelantus_tests.cpp \
+  liblelantus/test/challenge_generator_tests.cpp \
+  liblelantus/test/coin_tests.cpp \
+  liblelantus/test/inner_product_test.cpp \
+  liblelantus/test/joinsplit_tests.cpp \
+  liblelantus/test/lelantus_primitives_tests.cpp \
+  liblelantus/test/lelantus_test.cpp \
+  liblelantus/test/lelantus_test_fixture.cpp \
+  liblelantus/test/lelantus_test_fixture.h \
+  liblelantus/test/range_proof_test.cpp \
+  liblelantus/test/schnorr_test.cpp \
+  liblelantus/test/serialize_test.cpp \
+  liblelantus/test/sigma_extended_test.cpp \
+  sigma/test/coin_spend_tests.cpp \
   sigma/test/coin_tests.cpp \
+  sigma/test/primitives_tests.cpp \
   sigma/test/protocol_tests.cpp \
   sigma/test/r1_test.cpp \
   sigma/test/serialize_test.cpp \
-  sigma/test/primitives_tests.cpp \
-  sigma/test/coin_spend_tests.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
@@ -89,17 +103,10 @@ BITCOIN_TESTS =\
   test/zerocoin_tests2_v3.cpp \
   test/zerocoin_tests3_v3.cpp \
   test/remint_tests.cpp \
-  test/mtp_trans_tests.cpp \
-  test/mtp_halving_tests.cpp \
-  test/mtp_malformed_tests.cpp \
-  test/mtp_tests.cpp \
-  test/arith_uint256_tests.cpp \
-  test/scriptnum10.h \
-  test/fixtures.h \
-  test/fixtures.cpp \
   test/addrman_tests.cpp \
-  test/amount_tests.cpp \
   test/allocator_tests.cpp \
+  test/amount_tests.cpp \
+  test/arith_uint256_tests.cpp \
   test/base32_tests.cpp \
   test/base58_tests.cpp \
   test/base64_tests.cpp \
@@ -113,21 +120,27 @@ BITCOIN_TESTS =\
   test/crypto_tests.cpp \
   test/cuckoocache_tests.cpp \
   test/DoS_tests.cpp \
+  test/fixtures.cpp \
+  test/fixtures.h \
   test/getarg_tests.cpp \
   test/hash_tests.cpp \
-  test/hdmint_tests.cpp \
   test/key_tests.cpp \
-  test/limitedmap_tests.cpp \
   test/dbwrapper_tests.cpp \
-  test/txdb_tests.cpp \
+  # test/lelantus_tests.cpp \
+  # test/lelantus_state_tests.cpp \
+  test/limitedmap_tests.cpp \
   test/main_tests.cpp \
   test/mbstring_tests.cpp \
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \
   test/miner_tests.cpp \
+  test/mtp_halving_tests.cpp \
+  test/mtp_malformed_tests.cpp \
+  test/mtp_tests.cpp \
+  test/mtp_trans_tests.cpp \
   test/multisig_tests.cpp \
-  test/net_tests.cpp \
   test/netbase_tests.cpp \
+  test/net_tests.cpp \
   test/pmt_tests.cpp \
   test/prevector_tests.cpp \
   test/raii_event_tests.cpp \
@@ -136,17 +149,18 @@ BITCOIN_TESTS =\
   test/rpc_tests.cpp \
   test/sanity_tests.cpp \
   test/scheduler_tests.cpp \
+  test/scriptnum10.h \
+  test/scriptnum_tests.cpp \
   test/script_P2SH_tests.cpp \
   test/script_tests.cpp \
-  test/scriptnum_tests.cpp \
   test/serialize_tests.cpp \
   test/sighash_tests.cpp \
-  test/sigma_state_tests.cpp \
-  test/sigma_mintspend_test.cpp \
-  test/sigma_transition_test.cpp \
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
+  test/sigma_mintspend_test.cpp \
   test/sigma_partialspend_mempool_tests.cpp \
+  test/sigma_state_tests.cpp \
+  test/sigma_transition_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \
@@ -157,6 +171,7 @@ BITCOIN_TESTS =\
   test/testutil.h \
   test/timedata_tests.cpp \
   test/transaction_tests.cpp \
+  test/txdb_tests.cpp \
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
@@ -174,6 +189,7 @@ BITCOIN_TESTS += \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
+  wallet/test/lelantus_tests.cpp \
   wallet/test/sigma_tests.cpp \
   wallet/test/mnemonic_tests.cpp \
   wallet/test/txbuilder_tests.cpp
@@ -221,7 +237,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/core/libtor-app.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS) $(LIBBLSSIG_INCLUDES)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) $(LIBLELANTUS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
   $(BACKTRACE_LIB) $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
@@ -248,6 +264,7 @@ test_test_bitcoin_fuzzy_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_L
 test_test_bitcoin_fuzzy_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_SERVER) \
+  $(LIBLELANTUS) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \
