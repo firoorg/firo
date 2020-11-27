@@ -9,7 +9,7 @@ from test_framework.util import *
 #Locking wallet disable mint/spend functionality
 
 #1. Generate some blocks
-#2. Mint zcoins
+#2. Mint firos
 #4. Encrypt wallet
 #5. Try to remint
 #6. Unlock wallet
@@ -36,19 +36,19 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        zcoin_denoms = [1, 10, 25, 50, 100]
+        firo_denoms = [1, 10, 25, 50, 100]
 
         # try to mint without decrypt
-        for denom in zcoin_denoms:
+        for denom in firo_denoms:
             self.nodes[0].mintzerocoin(denom)
             self.nodes[0].mintzerocoin(denom)
 
         self.nodes[0].generate(300)
 
-        zcoin_mints = self.nodes[0].listunspentmintzerocoins()
+        firo_mints = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mints) == 10, 'Should be 10 zcoin mints after zcoin mint, but was: {}' \
-            .format(len(zcoin_mints))
+        assert len(firo_mints) == 10, 'Should be 10 firo mints after firo mint, but was: {}' \
+            .format(len(firo_mints))
 
 
         # encrypt wallet
@@ -59,14 +59,14 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         self.nodes[0] = start_nodes(1, self.options.tmpdir)[0]
 
         # try to remint without unlocking
-        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
+        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, firo_denoms[0])
 
         # unlock for 10 secs
         self.nodes[0].walletpassphrase(encr_key, 10)
         time.sleep(5)
         
         # remint should work
-        self.nodes[0].remintzerocointosigma(zcoin_denoms[0])
+        self.nodes[0].remintzerocointosigma(firo_denoms[0])
 
         self.nodes[0].generate(10)
 
@@ -77,12 +77,12 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         # lock wallet
         self.nodes[0].walletlock()
         # try to remint without unlocking
-        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
+        assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, firo_denoms[0])
 
         # unlock for 20 secs
         self.nodes[0].walletpassphrase(encr_key, 20)
 
-        for denom in zcoin_denoms[1:]:
+        for denom in firo_denoms[1:]:
             try:
                 self.nodes[0].remintzerocointosigma(denom)
             except JSONRPCException as e:
@@ -93,7 +93,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         sigma_mint = self.nodes[0].listunspentsigmamints()
 
-        assert len(sigma_mint) == len(zcoin_denoms)+1, \
+        assert len(sigma_mint) == len(firo_denoms)+1, \
             'Looks like sigma mints unspendable after remint on encrypted wallet.'
 
         # check that we are able to mint/spend
@@ -102,7 +102,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         sigma_mint = self.nodes[0].listunspentsigmamints()
 
-        assert len(sigma_mint) == len(zcoin_denoms) + 2, \
+        assert len(sigma_mint) == len(firo_denoms) + 2, \
             'Looks like we cant mint on encrypted wallet'
 
         args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 10}
@@ -111,7 +111,7 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         sigma_mint = self.nodes[0].listunspentsigmamints()
 
-        assert len(sigma_mint) > len(zcoin_denoms) + 2, \
+        assert len(sigma_mint) > len(firo_denoms) + 2, \
             'Looks like we cant spend on encrypted wallet.'
 
         # Check that we can generate blocks after

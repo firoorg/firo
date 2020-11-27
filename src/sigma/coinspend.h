@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMA_COINSPEND_H
-#define ZCOIN_SIGMA_COINSPEND_H
+#ifndef FIRO_SIGMA_COINSPEND_H
+#define FIRO_SIGMA_COINSPEND_H
 
 #include "coin.h"
 #include "sigmaplus_proof.h"
@@ -94,4 +94,4 @@ private:
 
 } //namespace sigma
 
-#endif // ZCOIN_SIGMA_COINSPEND_H
+#endif // FIRO_SIGMA_COINSPEND_H

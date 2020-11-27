@@ -29,7 +29,7 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Let's create your Zcoin wallet!
+      <string>Let's create your Firo wallet!
 
 Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
 
@@ -45,7 +45,7 @@ Warning:
 
 If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
 
-Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in zcoin.conf.
+Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
       </string>
      </property>
      <property name="wordWrap">

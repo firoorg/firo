@@ -122,7 +122,7 @@ void MetaDExDialog::setClientModel(ClientModel *model)
 
 void MetaDExDialog::setWalletModel(WalletModel *model)
 {
-    // use wallet model to get visibility into XZC balance changes for fees
+    // use wallet model to get visibility into FIRO balance changes for fees
     this->walletModel = model;
     if (model != NULL) {
        connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(UpdateBalances()));

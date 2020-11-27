@@ -1,5 +1,5 @@
-#ifndef ZCOIN_RECOVER_H
-#define ZCOIN_RECOVER_H
+#ifndef FIRO_RECOVER_H
+#define FIRO_RECOVER_H
 
 #include <QDialog>
 #include <QThread>
@@ -34,4 +34,4 @@ private:
     QThread *thread;
 };
 
-#endif //ZCOIN_RECOVER_H
+#endif //FIRO_RECOVER_H

@@ -82,7 +82,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 
     const uint256& txid = tx.GetHash();
 
-    // DEx XZC payment needs special handling since it's not actually an Elysium message - handle and return
+    // DEx FIRO payment needs special handling since it's not actually an Elysium message - handle and return
     if (parseRC > 0) {
         if (confirmations <= 0) {
             // only confirmed DEx payments are currently supported

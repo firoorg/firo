@@ -48,7 +48,7 @@ private:
     //! amount of ELYSIUM for sale specified when the offer was placed
     int64_t offer_amount_original;
     uint32_t property;
-    //! amount desired, in XZC
+    //! amount desired, in FIRO
     int64_t XZC_desired_original;
     int64_t min_fee;
     uint8_t blocktimelimit;

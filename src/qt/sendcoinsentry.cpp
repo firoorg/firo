@@ -37,9 +37,9 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->addAsLabel->setPlaceholderText(tr("Enter a label for this address to add it to your address book"));
 #endif
 
-    // normal Zcoin address field
+    // normal Firo address field
     GUIUtil::setupAddressWidget(ui->payTo, this);
-    // just a label for displaying Zcoin address(es)
+    // just a label for displaying Firo address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
 
     // Connect signals

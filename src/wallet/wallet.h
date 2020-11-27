@@ -96,7 +96,7 @@ extern const char * DEFAULT_WALLET_DAT;
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 const uint32_t BIP44_INDEX = 0x2C;
 const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
-const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+const uint32_t BIP44_FIRO_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_MINT_INDEX = 0x2;
 #ifdef ENABLE_ELYSIUM
 const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
@@ -823,7 +823,7 @@ public:
     bool HasMasternode();
 
     // znode
-    /// Get 1000 XZC output and keys which can be used for the Znode
+    /// Get 1000 FIRO output and keys which can be used for the Znode
     bool GetZnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
     /// Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);
@@ -935,11 +935,11 @@ public:
     bool DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const;
 
 
-    /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
+    /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 firo, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
      * \param[in] required Required amount to spend.
      * \param[out] coinsToSpend_out Coins which user needs to spend.
      * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
-     * \returns true, if it was possible to spend exactly required(rounded up to 0.1 zcoin) amount using coins we have.
+     * \returns true, if it was possible to spend exactly required(rounded up to 0.1 firo) amount using coins we have.
      */
     bool GetCoinsToSpend(
         CAmount required,

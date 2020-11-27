@@ -211,7 +211,7 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
 
-    // Zcoin - MTP
+    // Firo - MTP
     int32_t nVersionMTP = 0x1000;
     uint256 mtpHashValue;
     // Reserved fields
@@ -334,7 +334,7 @@ public:
         block.nBits          = nBits;
         block.nNonce         = nNonce;
 
-        // Zcoin - MTP
+        // Firo - MTP
         if(block.IsMTP()){
 			block.nVersionMTP = nVersionMTP;
             block.mtpHashValue = mtpHashValue;
@@ -467,7 +467,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        // Zcoin - MTP
+        // Firo - MTP
         if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
