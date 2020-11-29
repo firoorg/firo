@@ -28,19 +28,19 @@ class RemintSigmaTest(BitcoinTestFramework):
         self.nodes[0].generate(101)
         self.sync_all()
 
-        zcoin_denoms = [1, 10, 25, 50, 100]
-        for denom in zcoin_denoms:
+        firo_denoms = [1, 10, 25, 50, 100]
+        for denom in firo_denoms:
             self.nodes[0].mintzerocoin(denom)
             self.nodes[0].mintzerocoin(denom)
 
         self.nodes[0].generate(300)
 
-        zcoin_mint = self.nodes[0].listunspentmintzerocoins()
+        firo_mint = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mint) == 10, 'Should be 10 zcoin mints after zcoin mint, but was: {}' \
-                .format(len(zcoin_mint))
+        assert len(firo_mint) == 10, 'Should be 10 firo mints after firo mint, but was: {}' \
+                .format(len(firo_mint))
         
-        for denom in zcoin_denoms:
+        for denom in firo_denoms:
             try:
                 self.nodes[0].remintzerocointosigma(denom)
                 self.nodes[0].remintzerocointosigma(denom)
@@ -63,9 +63,9 @@ class RemintSigmaTest(BitcoinTestFramework):
                             '\n Actual: {}, \n expected {}'.format(sigma_mint, expected_mints)
 
         # fee size to extract when spend all coins
-        total_amount_to_spend = -1* len(zcoin_denoms)*0.05*2
+        total_amount_to_spend = -1* len(firo_denoms)*0.05*2
         
-        for denom in zcoin_denoms:
+        for denom in firo_denoms:
             total_amount_to_spend +=denom*2
 
         val = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': total_amount_to_spend}

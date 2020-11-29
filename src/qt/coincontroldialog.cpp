@@ -486,7 +486,11 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        nAmount += out.tx->tx->vout[out.i].nValue;
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
+        } else {
+            nAmount += out.tx->tx->vout[out.i].nValue;
+        }
 
         // Priority
         dPriorityInputs += (double)out.tx->tx->vout[out.i].nValue * (out.nDepth+1);
@@ -714,7 +718,7 @@ void CoinControlDialog::updateView()
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
 
-                // if listMode or change => show Zcoin address. In tree mode, address is not shown again for direct wallet address outputs
+                // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
             }

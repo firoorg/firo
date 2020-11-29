@@ -32,7 +32,7 @@
     <name>BanTableModel</name>
     </context>
 <context>
-    <name>ZcoinGUI</name>
+    <name>FiroGUI</name>
     </context>
 <context>
     <name>CoinControlDialog</name>
@@ -162,6 +162,6 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>firo-core</name>
     </context>
 </TS>

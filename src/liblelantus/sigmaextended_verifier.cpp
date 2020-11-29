@@ -48,17 +48,9 @@ bool  SigmaExtendedVerifier::verify(
 
     int N = commits.size();
     std::vector<Scalar> f_i_;
-    f_i_.reserve(N);
-    for (int i = 0; i < N - 1; ++i)
-    {
-        std::vector<uint64_t> I = LelantusPrimitives::convert_to_nal(i, n, m);
-        Scalar f_i(uint64_t(1));
-        for (std::size_t j = 0; j < m; ++j)
-        {
-            f_i *= f_[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
+    f_i_.resize(N);
+
+    compute_fis(m, f_, f_i_);
 
     /*
          * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
@@ -91,7 +83,7 @@ bool  SigmaExtendedVerifier::verify(
         pow += fi_sum * xj.pow * f_part_product[m - j - 1];
         xj.go_next();
     }
-    f_i_.emplace_back(pow);
+    f_i_[N - 1] = pow;
 
     secp_primitives::MultiExponent mult(commits, f_i_);
     GroupElement t1 = mult.get_multiple();
@@ -164,18 +156,10 @@ bool SigmaExtendedVerifier::batchverify(
     {
         right += (LelantusPrimitives::double_commit(g_, Scalar(uint64_t(0)), h_[1], proofs[t].zV_, h_[0], proofs[t].zR_)) * y[t];
         Scalar e;
-        for (int i = 0; i < N - 1; ++i)
-        {
-            Scalar f_i(uint64_t(1));
-            for (std::size_t j = 0; j < m; ++j)
-            {
-                f_i *= f_[t][j*n + I_[i][j]];
-            }
 
-            f_i_t[i] += f_i * y[t];
-            e += f_i;
-        }
-
+        Scalar f_i(uint64_t(1));
+        vector<Scalar>::iterator ptr = f_i_t.begin();
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
         * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
@@ -292,17 +276,10 @@ bool SigmaExtendedVerifier::batchverify(
         Scalar e;
         size_t size = setSizes[t];
         size_t start = N - size;
-        for (size_t i = 0; i < size - 1; ++i)
-        {
-            Scalar f_i(uint64_t(1));
-            for (std::size_t j = 0; j < m; ++j)
-            {
-                f_i *= f_[t][j*n + I_[i][j]];
-            }
 
-            f_i_t[start + i] += f_i * y[t];
-            e += f_i;
-        }
+        Scalar f_i(uint64_t(1));
+        vector<Scalar>::iterator ptr = f_i_t.begin() + start;
+        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + size - 1);
 
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
@@ -454,6 +431,67 @@ bool SigmaExtendedVerifier::abcd_checks(
     if(((proof.B_ * x + proof.A_) * c + proof.C_ * x + proof.D_) != right)
         return false;
     return true;
+}
+
+void SigmaExtendedVerifier::compute_fis(int j, const std::vector<Scalar>& f, std::vector<Scalar>& f_i_) const {
+    Scalar f_i(uint64_t(1));
+    vector<Scalar>::iterator ptr = f_i_.begin();
+    compute_fis(f_i, m, f, ptr, f_i_.end());
+}
+
+void SigmaExtendedVerifier::compute_fis(
+        const Scalar& f_i,
+        int j,
+        const std::vector<Scalar>& f,
+        vector<Scalar>::iterator& ptr,
+        vector<Scalar>::iterator end_ptr) const {
+    j--;
+    if (j == -1)
+    {
+        if(ptr < end_ptr)
+            *ptr++ += f_i;
+        return;
+    }
+
+    Scalar t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+
+        compute_fis(t, j, f, ptr, end_ptr);
+    }
+}
+
+void SigmaExtendedVerifier::compute_batch_fis(
+        const Scalar& f_i,
+        int j,
+        const std::vector<Scalar>& f,
+        const Scalar& y,
+        Scalar& e,
+        vector<Scalar>::iterator& ptr,
+        vector<Scalar>::iterator start_ptr,
+        vector<Scalar>::iterator end_ptr) const {
+    j--;
+    if (j == -1)
+    {
+        if(ptr >= start_ptr && ptr < end_ptr){
+            *ptr++ += f_i * y;
+            e += f_i;
+        }
+        return;
+    }
+
+    Scalar t;
+
+    for (int i = 0; i < n; i++)
+    {
+        t = f[j * n + i];
+        t *= f_i;
+
+        compute_batch_fis(t, j, f, y, e, ptr, start_ptr, end_ptr);
+    }
 }
 
 } //namespace lelantus

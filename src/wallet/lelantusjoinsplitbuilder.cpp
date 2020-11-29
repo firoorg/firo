@@ -230,6 +230,11 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
         changeToMint += (input - currentVout - fee - changeToMint);
 
+        if(changeToMint > consensusParams.nMaxValueLelantusMint) {
+            throw std::invalid_argument(
+                    _("Value of change exceeds the limit"));
+        }
+
         // get outputs
         mintCoins.clear();
         std::vector<CTxOut> outputMints;

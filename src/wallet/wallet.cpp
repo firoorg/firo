@@ -135,7 +135,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // Fail if not using HD wallet (no keypaths)
     if (hdChain.masterKeyID.IsNull())
@@ -145,7 +145,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
     CKey key;                      //master key seed (256bit)
     CExtKey masterKey;             //hd master key
     CExtKey purposeKey;            //key at m/44'
-    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
     CExtKey accountKey;            //key at m/44'/<1/136>'/0'
     CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -202,7 +202,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
 
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // use HD key derivation if HD was enabled during wallet creation
     // TODO: change code to foloow bitcoin structure more closely
@@ -211,7 +211,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
         CKey key;                      //master key seed (256bit)
         CExtKey masterKey;             //hd master key
         CExtKey purposeKey;            //key at m/44'
-        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
         CExtKey accountKey;            //key at m/44'/<1/136>'/0'
         CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -2117,9 +2117,9 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
 
 }
 
-void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
-                           list <COutputEntry> &listSent, CAmount &nFee, string &strSentAccount,
-                           const isminefilter &filter) const {
+void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
+                           list<COutputEntry>& listSent, CAmount& nFee, string& strSentAccount, const isminefilter& filter) const
+{
     nFee = 0;
     listReceived.clear();
     listSent.clear();
@@ -2138,17 +2138,20 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
     }
 
     // Sent/received.
-    for (unsigned int i = 0; i < tx->vout.size(); ++i) {
-        const CTxOut &txout = tx->vout[i];
+    for (unsigned int i = 0; i < tx->vout.size(); ++i)
+    {
+        const CTxOut& txout = tx->vout[i];
         isminetype fIsMine = pwallet->IsMine(txout);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
-        if (nDebit > 0) {
+        if (nDebit > 0)
+        {
             // Don't report 'change' txouts
             if (IsChange(static_cast<uint32_t>(i)))
                 continue;
-        } else if (!(fIsMine & filter))
+        }
+        else if (!(fIsMine & filter))
             continue;
 
         // In either case, we need to get the destination address
@@ -2157,9 +2160,11 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint())
         {
             address = CNoDestination();
-        } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
+        }
+        else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable())
+        {
             LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
-                      this->GetHash().ToString());
+                     this->GetHash().ToString());
             address = CNoDestination();
         }
 
@@ -2241,7 +2246,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
         if (fRecoverMnemonic) {
             pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             if (pindex == NULL)
@@ -2287,7 +2292,6 @@ void CWallet::ReacceptWalletTransactions()
     // If transactions aren't being broadcasted, don't let them into local mempool either
     if (!fBroadcastTransactions)
         return;
-
     LOCK2(cs_main, cs_wallet);
     std::map<int64_t, CWalletTx*> mapSorted;
 
@@ -2310,7 +2314,7 @@ void CWallet::ReacceptWalletTransactions()
     {
         CWalletTx& wtx = *(item.second);
 
-        //LOCK(mempool.cs);
+        LOCK(mempool.cs);
         CValidationState state;
         // the app was closed and re-opened, do NOT check their
         // serial numbers, and DO NOT try to mark their serial numbers
@@ -3102,7 +3106,7 @@ bool CWallet::GetCoinsToSpend(
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN firos.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3235,7 +3239,7 @@ bool CWallet::GetCoinsToJoinSplit(
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
         throw WalletError(
-                _("The required amount exceeds 21 MLN XZC"));
+                _("The required amount exceeds 21 MLN FIRO"));
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3275,12 +3279,6 @@ bool CWallet::GetCoinsToJoinSplit(
                 spend_val += coinIt->amount;
             }
             coinControlUsed = true;
-
-            if (spend_val > amountToSpendLimit) {
-                throw std::invalid_argument(
-                        _("Selected amount exceed value spend limit"));
-            }
-
             coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
         }
     }
@@ -3614,7 +3612,7 @@ bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
     return false;
 }
 
-//[zcoin]
+//[firo]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
@@ -3646,7 +3644,6 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                 LogPrintf("nDepth=%s\n", nDepth);
                 continue;
             }
-
             LogPrintf("pcoin->tx->vout.size()=%s\n", pcoin->tx->vout.size());
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
@@ -4148,7 +4145,6 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
             nFeeRet = 0;
             if(nFeePay > 0) nFeeRet = nFeePay;
             double dPriority = 0;
-
             // Start with no fee and loop until there is enough fee
             while (true)
             {
@@ -4159,13 +4155,8 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 bool fFirst = true;
 
                 CAmount nValueToSelect = nValue;
-
-                // if fee is added to nValueToSelect, change output is charged twice the fee (line ~3768). Need to look into why this is here
-                // if (nSubtractFeeFromAmount == 0){
-                //     LogPrintf("nSubtractFeeFromAmount is 0\n");
-                //     nValueToSelect += nFeeRet;
-                // }
-
+                if (nSubtractFeeFromAmount == 0)
+                    nValueToSelect += nFeeRet;
                 // vouts to the payees
                 for (const auto& recipient : vecSend)
                 {
@@ -4574,7 +4565,7 @@ bool CWallet::CreateZerocoinMintModel(
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         int64_t amount = denominationPair.second;
@@ -4583,7 +4574,7 @@ bool CWallet::CreateZerocoinMintModel(
 
         if(amount < 0){
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         for(int64_t i=0; i<amount; i++){
@@ -5806,10 +5797,10 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -5991,7 +5982,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
             coinSerial = spend.getCoinSerialNumber();
             txHash = wtxNew.GetHash();
-            LogPrintf("txHash:%s\n", txHash.ToString());
+            LogPrintf("txHash:\n%s", txHash.ToString());
             zcSelectedValue = coinToUse.value;
             zcSelectedIsUsed = coinToUse.IsUsed;
 
@@ -6080,10 +6071,10 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -6136,7 +6127,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         && minIdPubcoin.randomness != 0
                         && minIdPubcoin.serialNumber != 0
                         && (tempCoinsToUse.find(minIdPubcoin.value)==tempCoinsToUse.end())) {
-
                         int id;
                         coinHeight = zerocoinState->GetMintedCoinHeightAndId(minIdPubcoin.value, minIdPubcoin.denomination, id);
                         if (coinHeight > 0
@@ -6167,7 +6157,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 libzerocoin::Accumulator accumulator(zcParams, accumulatorValue, denomination);
                 // 2. Get pubcoin from the private coin
                 libzerocoin::PublicCoin pubCoinSelected(zcParams, coinToUse.value, denomination);
-                // Now make sure the coin is valid.
+                 // Now make sure the coin is valid.
                 if (!pubCoinSelected.validate()) {
                     // If this returns false, don't accept the coin for any purpose!
                     // Any ZEROCOIN_MINT with an invalid coin should NOT be
@@ -6175,8 +6165,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                     strFailReason = _("the selected mint coin is an invalid coin");
                     return false;
                 }
-
-                // 4. Get witness for the accumulator and selected coin
+                 // 4. Get witness for the accumulator and selected coin
                 libzerocoin::AccumulatorWitness witness =
                         zerocoinState->GetWitnessForSpend(&chainActive,
                                                           chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
@@ -6191,13 +6180,11 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 newTxIn.scriptSig = CScript();
                 newTxIn.prevout.SetNull();
                 txNew.vin.push_back(newTxIn);
-
                 bool useVersion2 = IsZerocoinTxV2(denomination, Params().GetConsensus(), coinId);
 
                 // Construct the CoinSpend object. This acts like a signature on the
                 // transaction.
                 libzerocoin::PrivateCoin privateCoin(zcParams, denomination);
-
                 int txVersion = ZEROCOIN_TX_VERSION_1;
                 if (useVersion2) {
                     // Use version 2 if possible, for older mints stay with 1.5
@@ -6213,7 +6200,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         txVersion = ZEROCOIN_TX_VERSION_1_5;
                     }
                 }
-
                 LogPrintf("CreateZerocoinSpendTransaction: tx version=%d, tx metadata hash=%s\n", txVersion, txNew.GetHash().ToString());
 
                 // Set all values in the private coin object
@@ -6222,6 +6208,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 privateCoin.setRandomness(coinToUse.randomness);
                 privateCoin.setSerialNumber(coinToUse.serialNumber);
                 privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+
 
                 LogPrintf("creating tempStorage object..\n");
                 // Push created TxIn values into a tempStorage object (used in the next loop)
@@ -6696,7 +6683,6 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew,
 
 /**
  * @brief CWallet::SpendZerocoin
- * @param thirdPartyaddress
  * @param nValue
  * @param denomination
  * @param wtxNew
@@ -6790,6 +6776,7 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
         LogPrintf("SpendZerocoin() : %s", strError);
         return strError;
     }
+
     if (!CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtxNew, reservekey, coinSerials, txHash, zcSelectedValues, strError, forceUsed)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
@@ -7457,6 +7444,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 {
     {
         LOCK(cs_wallet);
+
         if (IsLocked())
             return false;
 
@@ -8635,7 +8623,7 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
             false, /* fOverrideMempoolLimit */
             nAbsurdFee,
             true,
-            false /* markZcoinSpendTransactionSerial */
+            false /* markFiroSpendTransactionSerial */
         );
         if (!res) {
             LogPrintf(

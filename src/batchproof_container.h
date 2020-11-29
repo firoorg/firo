@@ -1,5 +1,5 @@
-#ifndef ZCOIN_BATCHPROOF_CONTAINER_H
-#define ZCOIN_BATCHPROOF_CONTAINER_H
+#ifndef FIRO_BATCHPROOF_CONTAINER_H
+#define FIRO_BATCHPROOF_CONTAINER_H
 
 #include <memory>
 #include "chain.h"
@@ -81,4 +81,4 @@ private:
     std::map<std::pair<uint32_t, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
 };
 
-#endif //ZCOIN_BATCHPROOF_CONTAINER_H
+#endif //FIRO_BATCHPROOF_CONTAINER_H

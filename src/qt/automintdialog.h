@@ -1,5 +1,5 @@
-#ifndef ZCOIN_QT_AUTOMINT_H
-#define ZCOIN_QT_AUTOMINT_H
+#ifndef FIRO_QT_AUTOMINT_H
+#define FIRO_QT_AUTOMINT_H
 
 #include "walletmodel.h"
 
@@ -51,4 +51,4 @@ private:
     void ensureLelantusModel();
 };
 
-#endif // ZCOIN_QT_AUTOMINT_H
+#endif // FIRO_QT_AUTOMINT_H
