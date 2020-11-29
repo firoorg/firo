@@ -3215,7 +3215,7 @@ UniValue mint(const JSONRPCRequest& request)
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
     }
 
     CAmount nAmount = AmountFromValue(request.params[0]);
@@ -3771,7 +3771,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
         );
 
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
     }
 
     EnsureSigmaWalletIsAvailable();
