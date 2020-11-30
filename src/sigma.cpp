@@ -61,7 +61,7 @@ bool IsSigmaAllowed()
 
 bool IsSigmaAllowed(int height)
 {
-	return height >= ::Params().GetConsensus().nSigmaStartBlock;
+	return height >= ::Params().GetConsensus().nSigmaStartBlock && height < ::Params().GetConsensus().nLelantusStartBlock;
 }
 
 bool IsRemintWindow(int height) {
