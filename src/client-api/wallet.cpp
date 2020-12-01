@@ -256,7 +256,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", false));
                 }
             }
-            else if(wtx.tx->vout[s.vout].scriptPubKey.IsLelantusMint()){
+            else if(wtx.tx->vout[s.vout].scriptPubKey.IsLelantusMint() || wtx.tx->vout[s.vout].scriptPubKey.IsLelantusJMint()){
                 category = "mint";
                 addrStr = "MINT";
                 COutPoint outPoint(wtx.GetHash(), s.vout);
@@ -267,7 +267,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", false));
                 }
             }
-            else if((wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend())){
+            else if((wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusJoinSplit())){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendOut";                
             }
