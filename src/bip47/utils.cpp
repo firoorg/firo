@@ -12,27 +12,6 @@ using namespace std;
 namespace bip47 {
 namespace utils {
 
-bool doublehash(const std::vector<unsigned char> &input,std::vector<unsigned char> &result)
-{
-    try{
-        SHA256_CTX shaCtx;
-        SHA256_Init(&shaCtx);
-        SHA256_Update(&shaCtx, input.data(), input.size());
-        uint256 hash1;
-        SHA256_Final((unsigned char*)&hash1, &shaCtx);
-        uint256 hash2;
-        SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
-        result = std::vector<unsigned char>(hash2.begin(),hash2.end());
-        return true;
-    }
-    catch(std::exception &e)
-    {
-        printf("bool util::doublehash is failed ...\n");
-        return false;
-    }
-    
-}
-
 bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
     for(size_t i = 0; i < tx.vout.size(); i++) {
         if (tx.vout[i].scriptPubKey[0] == OP_RETURN) {

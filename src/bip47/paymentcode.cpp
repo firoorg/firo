@@ -1,5 +1,6 @@
 
 #include "bip47/paymentcode.h"
+#include "bip47/utils.h"
 #include "util.h"
 
 namespace bip47 {

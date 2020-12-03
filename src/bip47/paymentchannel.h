@@ -24,8 +24,7 @@ public:
     };
 public:
     CPaymentChannel();
-    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode);
-    CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CExtKey const & myChannelKey, bool iamPayer);
+    CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey);
 
     std::vector<CBitcoinAddress> generateTheirAddresses(size_t number) const;
 
@@ -66,7 +65,6 @@ public:
         uint8_t tmpState = state;
         READWRITE(tmpState);
         state = State(tmpState);
-        READWRITE(iamPayer);
     }
 
 private:
@@ -78,7 +76,6 @@ private:
     size_t idxSend;
     size_t idxRecv;
     State state;
-    bool iamPayer;
 
     CExtKey myChannelKey;
 };

@@ -8,16 +8,11 @@
 namespace bip47 {
 
 CPaymentChannel::CPaymentChannel()
-: idxSend(0), idxRecv(0), state(State::created), iamPayer(false)
+: idxSend(0), idxRecv(0), state(State::created)
 {}
 
-CPaymentChannel::CPaymentChannel(CPaymentCode const & payerPcode, CPaymentCode const & payeePcode)
-: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false)
-{}
-
-
-CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CPaymentCode const & payeePcode, CExtKey const & myChannelKey, bool iamPayer)
-: theirPcode(theirPcode), payeePcode(payeePcode), idxSend(0), idxRecv(0), state(State::created), iamPayer(false), myChannelKey(myChannelKey)
+CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey)
+: theirPcode(theirPcode), idxSend(0), idxRecv(0), state(State::created), myChannelKey(myChannelKey)
 {}
 
 std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t number) const

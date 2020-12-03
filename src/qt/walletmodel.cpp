@@ -31,7 +31,6 @@
 #include "bip47/paymentcode.h"
 #include "bip47/account.h"
 #include "bip47/secretpoint.h"
-#include "bip47/utils.h"
 
 #include <stdint.h>
 
