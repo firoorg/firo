@@ -11,12 +11,6 @@
 namespace bip47 {
 
 class CWallet;
-    
-/**
- * A new account is created for each MY payment code.
- * Account masterkey is derived using the "masterkey_path/accountNum" path.
- * An account contains all THEIR payment codes sent to the account payment code.
- */    
 
 class CAccountBase
 {
@@ -34,6 +28,11 @@ typedef std::shared_ptr<CAccountBase> CAccountPtr;
 
 /******************************************************************************/
 
+/**
+ * A sender account is created when the wallet pays to a 'their' payment code.
+ * It has just one payment channel which handles payments to their account. 
+ */
+
 class CAccountSender : public CAccountBase
 {
 public:
@@ -49,6 +48,11 @@ private:
 
 /******************************************************************************/
 
+/**
+ * A receiver account is created every time we publish a payment code.
+ * Every time a notification tx is received, a new payment channel for this tx's
+ * payment code is created.
+ */
 class CAccountReceiver  : public CAccountBase
 {
 public:
