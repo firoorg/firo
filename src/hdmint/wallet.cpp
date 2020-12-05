@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Zcoin Core Developers
+// Copyright (c) 2019 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -373,7 +373,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 }
 
                 uint64_t amount  = 0;
-
                 bool fFoundMint = false;
                 for (const CTxOut& out : tx->vout) {
                     if (!out.scriptPubKey.IsLelantusMint() && !out.scriptPubKey.IsLelantusJMint())
@@ -537,13 +536,12 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 
     GroupElement bnValue;
     uint256 hashSerial;
-    bool serialInBlockchain = false;
     // Can regenerate if unlocked (cheaper)
     if(!pwalletMain->IsLocked()) {
         LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
         CreateMintSeed(walletdb, mintSeed, mintCount, seedId);
-        lelantus::PrivateCoin coin(params, amount); // create commitment with reduced h1^amount
+        lelantus::PrivateCoin coin(params, amount);
         if(!SeedToLelantusMint(mintSeed, coin))
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
@@ -573,10 +571,14 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     }
 
     LogPrintf("%s: Creating mint object.. \n", __func__);
+    int height, id;
+    std::tie(height, id) = lelantus::CLelantusState::GetState()->GetMintedCoinHeightAndId(bnValue);
+
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
+    dMint.SetId(id);
 
     // Check if this is also already spent
     int nHeightTx;
@@ -594,6 +596,13 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 
         wtx.nTimeReceived = pindex->nTime;
         pwalletMain->AddToWallet(wtx, false);
+    } else {
+        lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
+        // this is for some edge cases, when mint is used but the serial is not at map
+        Scalar s;
+        if (lelantusState->IsUsedCoinSerialHash(s, hashSerial)) {
+            dMint.SetUsed(true);
+        }
     }
 
     LogPrintf("%s: Adding mint to tracker.. \n", __func__);
@@ -606,7 +615,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 /**
  * Convert a 512-bit mint seed into a mint.
  *
- * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * See https://github.com/firoorg/firo/pull/392 for specification on mint generation.
  *
  * @param mintSeed uint512 object of seed for mint
  * @param commit reference to public coin. Is set in this function
@@ -645,7 +654,7 @@ bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, si
 /**
  * Convert a 512-bit mint seed into a mint.
  *
- * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * See https://github.com/firoorg/firo/pull/392 for specification on mint generation.
  *
  * @param mintSeed uint512 object of seed for mint
  * @param coin reference to private coin. Is set in this function
@@ -687,7 +696,7 @@ bool CHDMintWallet::SeedToLelantusMint(const uint512& mintSeed, lelantus::Privat
 /**
  * Get seed ID for the key used in mint generation.
  *
- * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * See https://github.com/firoorg/firo/pull/392 for specification on mint generation.
  * Looks to the mintpool first - if mint doesn't exist, generates new mints in the mintpool.
  *
  * @param nCount count in the HD Chain of the mint to use.
@@ -713,7 +722,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
 /**
  * Create the mint seed for the count passed.
  *
- * See https://github.com/zcoinofficial/zcoin/pull/392 for specification on mint generation.
+ * See https://github.com/firoorg/firo/pull/392 for specification on mint generation.
  * We check if the key for the count passed exists. if so retrieve it's seed ID. if not, generate a new key.
  * If seedId is passed, use that seedId and ignore key generation section.
  * Following that, get the key, and use it to generate the mint seed according to the specification.
@@ -992,7 +1001,7 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
  * @param sigma reference to full mint object
  * @return success
  */
-bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma)
+bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma, bool forEstimation)
 {
     sigma::CoinDenomination denom;
     IntegerToDenomination(dMint.GetAmount(), denom);
@@ -1003,16 +1012,20 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CS
     CKeyID seedId = dMint.GetSeedId();
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    GenerateMint(walletdb, denom, coin, dMintDummy, mintPoolEntry, true);
+    if(!forEstimation)
+        GenerateMint(walletdb, denom, coin, dMintDummy, mintPoolEntry, true);
 
     //Fill in the sigmamint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash() && !forEstimation)
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
-    sigma.value = bnValue;
+    if(forEstimation)
+        sigma.value = dMint.GetPubcoinValue();
+    else
+        sigma.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash() && !forEstimation)
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
     sigma.set_denomination(denom);
@@ -1026,7 +1039,7 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CS
     return true;
 }
 
-bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& lelantusEntry)
+bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& lelantusEntry, bool forEstimation)
 {
     //Generate the coin
     lelantus::PrivateCoin coin(lelantus::Params::get_default(), dMint.GetAmount());
@@ -1035,16 +1048,20 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CL
     int32_t nCount = dMint.GetCount();
     MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
     uint160 dummySeedId;
-    GenerateLelantusMint(walletdb, coin, dMintDummy, dummySeedId, mintPoolEntry, true);
+    if(!forEstimation)
+        GenerateLelantusMint(walletdb, coin, dMintDummy, dummySeedId, mintPoolEntry, true);
 
     //Fill in the lelantus object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash() && !forEstimation)
         return error("%s: failed to correctly generate lelantus mint, pubcoin hash mismatch", __func__);
-    lelantusEntry.value = bnValue;
+    if(forEstimation)
+        lelantusEntry.value = dMint.GetPubcoinValue();
+    else
+        lelantusEntry.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash() && !forEstimation)
         return error("%s: failed to correctly generate lelantus mint, serial hash mismatch", __func__);
 
     lelantusEntry.amount = dMint.GetAmount();
@@ -1088,6 +1105,7 @@ bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int&
     txidSpend.SetNull();
     CLelantusMintMeta mMeta;
     Scalar bnSerial;
+
     if (!lelantus::CLelantusState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 

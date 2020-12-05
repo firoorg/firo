@@ -1008,7 +1008,7 @@ UniValue elysium_getproperty(const JSONRPCRequest& request)
             "  \"data\" : \"information\",          (string) additional information or a description\n"
             "  \"url\" : \"uri\",                   (string) an URI, for example pointing to a website\n"
             "  \"divisible\" : true|false,        (boolean) whether the tokens are divisible\n"
-            "  \"issuer\" : \"address\",            (string) the Zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",            (string) the Firo address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",         (string) the hex-encoded creation transaction hash\n"
             "  \"fixedissuance\" : true|false,    (boolean) whether the token supply is fixed\n"
             "  \"managedissuance\" : true|false,  (boolean) whether the token supply is managed\n"
@@ -1153,7 +1153,7 @@ UniValue elysium_getcrowdsale(const JSONRPCRequest& request)
             "  \"propertyid\" : n,                     (number) the identifier of the crowdsale\n"
             "  \"name\" : \"name\",                      (string) the name of the tokens issued via the crowdsale\n"
             "  \"active\" : true|false,                (boolean) whether the crowdsale is still active\n"
-            "  \"issuer\" : \"address\",                 (string) the Zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",                 (string) the Firo address of the issuer on record\n"
             "  \"propertyiddesired\" : n,              (number) the identifier of the tokens eligible to participate in the crowdsale\n"
             "  \"tokensperunit\" : \"n.nnnnnnnn\",       (string) the amount of tokens granted per unit invested in the crowdsale\n"
             "  \"earlybonus\" : n,                     (number) an early bird bonus for participants in percent per week\n"
@@ -1294,7 +1294,7 @@ UniValue elysium_getactivecrowdsales(const JSONRPCRequest& request)
             "  {\n"
             "    \"propertyid\" : n,                 (number) the identifier of the crowdsale\n"
             "    \"name\" : \"name\",                  (string) the name of the tokens issued via the crowdsale\n"
-            "    \"issuer\" : \"address\",             (string) the Zcoin address of the issuer on record\n"
+            "    \"issuer\" : \"address\",             (string) the Firo address of the issuer on record\n"
             "    \"propertyiddesired\" : n,          (number) the identifier of the tokens eligible to participate in the crowdsale\n"
             "    \"tokensperunit\" : \"n.nnnnnnnn\",   (string) the amount of tokens granted per unit invested in the crowdsale\n"
             "    \"earlybonus\" : n,                 (number) an early bird bonus for participants in percent per week\n"
@@ -1363,7 +1363,7 @@ UniValue elysium_getgrants(const JSONRPCRequest& request)
             "{\n"
             "  \"propertyid\" : n,               (number) the identifier of the managed tokens\n"
             "  \"name\" : \"name\",                (string) the name of the tokens\n"
-            "  \"issuer\" : \"address\",           (string) the Zcoin address of the issuer on record\n"
+            "  \"issuer\" : \"address\",           (string) the Firo address of the issuer on record\n"
             "  \"creationtxid\" : \"hash\",        (string) the hex-encoded creation transaction hash\n"
             "  \"totaltokens\" : \"n.nnnnnnnn\",   (string) the total number of tokens in existence\n"
             "  \"issuances\": [                  (array of JSON objects) a list of the granted and revoked tokens\n"
@@ -1445,7 +1445,7 @@ UniValue elysium_getorderbook(const JSONRPCRequest& request)
             "\nResult:\n"
             "[                                              (array of JSON objects)\n"
             "  {\n"
-            "    \"address\" : \"address\",                         (string) the Zcoin address of the trader\n"
+            "    \"address\" : \"address\",                         (string) the Firo address of the trader\n"
             "    \"txid\" : \"hash\",                               (string) the hex-encoded hash of the transaction of the order\n"
             "    \"ecosystem\" : \"main\"|\"test\",                   (string) the ecosytem in which the order was made (if \"cancel-ecosystem\")\n"
             "    \"propertyidforsale\" : n,                       (number) the identifier of the tokens put up for sale\n"
@@ -1516,10 +1516,10 @@ UniValue elysium_gettradehistoryforaddress(const JSONRPCRequest& request)
             "[                                              (array of JSON objects)\n"
             "  {\n"
             "    \"txid\" : \"hash\",                               (string) the hex-encoded hash of the transaction of the order\n"
-            "    \"sendingaddress\" : \"address\",                  (string) the Zcoin address of the trader\n"
+            "    \"sendingaddress\" : \"address\",                  (string) the Firo address of the trader\n"
             "    \"ismine\" : true|false,                         (boolean) whether the order involes an address in the wallet\n"
             "    \"confirmations\" : nnnnnnnnnn,                  (number) the number of transaction confirmations\n"
-            "    \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in firos\n"
             "    \"blocktime\" : nnnnnnnnnn,                      (number) the timestamp of the block that contains the transaction\n"
             "    \"valid\" : true|false,                          (boolean) whether the transaction is valid\n"
             "    \"version\" : n,                                 (number) the transaction version\n"
@@ -1538,7 +1538,7 @@ UniValue elysium_gettradehistoryforaddress(const JSONRPCRequest& request)
             "      {\n"
             "        \"txid\" : \"hash\",                               (string) the hash of the transaction that was matched against\n"
             "        \"block\" : nnnnnn,                              (number) the index of the block that contains this transaction\n"
-            "        \"address\" : \"address\",                         (string) the Zcoin address of the other trader\n"
+            "        \"address\" : \"address\",                         (string) the Firo address of the other trader\n"
             "        \"amountsold\" : \"n.nnnnnnnn\",                   (string) the number of tokens sold in this trade\n"
             "        \"amountreceived\" : \"n.nnnnnnnn\"                (string) the number of tokens traded in exchange\n"
             "      },\n"
@@ -1603,11 +1603,11 @@ UniValue elysium_gettradehistoryforpair(const JSONRPCRequest& request)
             "    \"unitprice\" : \"n.nnnnnnnnnnn...\" ,     (string) the unit price used to execute this trade (received/sold)\n"
             "    \"inverseprice\" : \"n.nnnnnnnnnnn...\",   (string) the inverse unit price (sold/received)\n"
             "    \"sellertxid\" : \"hash\",                 (string) the hash of the transaction of the seller\n"
-            "    \"address\" : \"address\",                 (string) the Zcoin address of the seller\n"
+            "    \"address\" : \"address\",                 (string) the Firo address of the seller\n"
             "    \"amountsold\" : \"n.nnnnnnnn\",           (string) the number of tokens sold in this trade\n"
             "    \"amountreceived\" : \"n.nnnnnnnn\",       (string) the number of tokens traded in exchange\n"
             "    \"matchingtxid\" : \"hash\",               (string) the hash of the transaction that was matched against\n"
-            "    \"matchingaddress\" : \"address\"          (string) the Zcoin address of the other party of this trade\n"
+            "    \"matchingaddress\" : \"address\"          (string) the Firo address of the other party of this trade\n"
             "  },\n"
             "  ...\n"
             "]\n"
@@ -1646,20 +1646,20 @@ UniValue elysium_getactivedexsells(const JSONRPCRequest& request)
             "  {\n"
             "    \"txid\" : \"hash\",                    (string) the hash of the transaction of this offer\n"
             "    \"propertyid\" : n,                   (number) the identifier of the tokens for sale\n"
-            "    \"seller\" : \"address\",               (string) the Zcoin address of the seller\n"
+            "    \"seller\" : \"address\",               (string) the Firo address of the seller\n"
             "    \"amountavailable\" : \"n.nnnnnnnn\",   (string) the number of tokens still listed for sale and currently available\n"
-            "    \"zcoindesired\" : \"n.nnnnnnnn\",    (string) the number of zcoins desired in exchange\n"
-            "    \"unitprice\" : \"n.nnnnnnnn\" ,        (string) the unit price (XZC/token)\n"
+            "    \"firodesired\" : \"n.nnnnnnnn\",    (string) the number of firos desired in exchange\n"
+            "    \"unitprice\" : \"n.nnnnnnnn\" ,        (string) the unit price (FIRO/token)\n"
             "    \"timelimit\" : nn,                   (number) the time limit in blocks a buyer has to pay following a successful accept\n"
             "    \"minimumfee\" : \"n.nnnnnnnn\",        (string) the minimum mining fee a buyer has to pay to accept this offer\n"
             "    \"amountaccepted\" : \"n.nnnnnnnn\",    (string) the number of tokens currently reserved for pending \"accept\" orders\n"
             "    \"accepts\": [                        (array of JSON objects) a list of pending \"accept\" orders\n"
             "      {\n"
-            "        \"buyer\" : \"address\",                (string) the Zcoin address of the buyer\n"
+            "        \"buyer\" : \"address\",                (string) the Firo address of the buyer\n"
             "        \"block\" : nnnnnn,                   (number) the index of the block that contains the \"accept\" order\n"
             "        \"blocksleft\" : nn,                  (number) the number of blocks left to pay\n"
             "        \"amount\" : \"n.nnnnnnnn\"             (string) the amount of tokens accepted and reserved\n"
-            "        \"amounttopay\" : \"n.nnnnnnnn\"        (string) the amount in zcoins needed finalize the trade\n"
+            "        \"amounttopay\" : \"n.nnnnnnnn\"        (string) the amount in firos needed finalize the trade\n"
             "      },\n"
             "      ...\n"
             "    ]\n"
@@ -1704,7 +1704,7 @@ UniValue elysium_getactivedexsells(const JSONRPCRequest& request)
         // TODO: no math, and especially no rounding here (!)
         // TODO: no math, and especially no rounding here (!)
 
-        // calculate unit price and updated amount of zcoin desired
+        // calculate unit price and updated amount of firo desired
         double unitPriceFloat = 0.0;
         if ((sellOfferAmount > 0) && (sellBitcoinDesired > 0)) {
             unitPriceFloat = (double) sellBitcoinDesired / (double) sellOfferAmount; // divide by zero protection
@@ -1717,7 +1717,7 @@ UniValue elysium_getactivedexsells(const JSONRPCRequest& request)
         responseObj.push_back(Pair("propertyid", (uint64_t) propertyId));
         responseObj.push_back(Pair("seller", seller));
         responseObj.push_back(Pair("amountavailable", FormatDivisibleMP(amountAvailable)));
-        responseObj.push_back(Pair("zcoindesired", FormatDivisibleMP(bitcoinDesired)));
+        responseObj.push_back(Pair("firodesired", FormatDivisibleMP(bitcoinDesired)));
         responseObj.push_back(Pair("unitprice", FormatDivisibleMP(unitPrice)));
         responseObj.push_back(Pair("timelimit", timeLimit));
         responseObj.push_back(Pair("minimumfee", FormatDivisibleMP(minFee)));
@@ -1819,11 +1819,11 @@ UniValue elysium_gettransaction(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"txid\" : \"hash\",                  (string) the hex-encoded hash of the transaction\n"
-            "  \"sendingaddress\" : \"address\",     (string) the Zcoin address of the sender\n"
-            "  \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
+            "  \"sendingaddress\" : \"address\",     (string) the Firo address of the sender\n"
+            "  \"referenceaddress\" : \"address\",   (string) a Firo address used as reference (if any)\n"
             "  \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,     (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in firos\n"
             "  \"blocktime\" : nnnnnnnnnn,         (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,             (boolean) whether the transaction is valid\n"
             "  \"invalidreason\" : \"reason\",     (string) if a transaction is invalid, the reason \n"
@@ -1862,11 +1862,11 @@ UniValue elysium_listtransactions(const JSONRPCRequest& request)
             "[                                 (array of JSON objects)\n"
             "  {\n"
             "    \"txid\" : \"hash\",                  (string) the hex-encoded hash of the transaction\n"
-            "    \"sendingaddress\" : \"address\",     (string) the Zcoin address of the sender\n"
-            "    \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
+            "    \"sendingaddress\" : \"address\",     (string) the Firo address of the sender\n"
+            "    \"referenceaddress\" : \"address\",   (string) a Firo address used as reference (if any)\n"
             "    \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
             "    \"confirmations\" : nnnnnnnnnn,     (number) the number of transaction confirmations\n"
-            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in firos\n"
             "    \"blocktime\" : nnnnnnnnnn,         (number) the timestamp of the block that contains the transaction\n"
             "    \"valid\" : true|false,             (boolean) whether the transaction is valid\n"
             "    \"version\" : n,                    (number) the transaction version\n"
@@ -2139,10 +2139,10 @@ UniValue elysium_listpendingtransactions(const JSONRPCRequest& request)
             "[                                 (array of JSON objects)\n"
             "  {\n"
             "    \"txid\" : \"hash\",                  (string) the hex-encoded hash of the transaction\n"
-            "    \"sendingaddress\" : \"address\",     (string) the Zcoin address of the sender\n"
-            "    \"referenceaddress\" : \"address\",   (string) a Zcoin address used as reference (if any)\n"
+            "    \"sendingaddress\" : \"address\",     (string) the Firo address of the sender\n"
+            "    \"referenceaddress\" : \"address\",   (string) a Firo address used as reference (if any)\n"
             "    \"ismine\" : true|false,            (boolean) whether the transaction involes an address in the wallet\n"
-            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in zcoins\n"
+            "    \"fee\" : \"n.nnnnnnnn\",             (string) the transaction fee in firos\n"
             "    \"version\" : n,                    (number) the transaction version\n"
             "    \"type_int\" : n,                   (number) the transaction type as number\n"
             "    \"type\" : \"type\",                  (string) the transaction type as string\n"
@@ -2184,7 +2184,7 @@ UniValue elysium_getinfo(const JSONRPCRequest& request)
             "{\n"
             "  \"elysiumversion_int\" : xxxxxxx,      (number) client version as integer\n"
             "  \"elysiumversion\" : \"x.x.x.x-xxx\",    (string) client version\n"
-            "  \"zcoincoreversion\" : \"x.x.x\",        (string) Zcoin Core version\n"
+            "  \"firocoreversion\" : \"x.x.x\",        (string) Firo Core version\n"
             "  \"block\" : nnnnnn,                      (number) index of the last processed block\n"
             "  \"blocktime\" : nnnnnnnnnn,              (number) timestamp of the last processed block\n"
             "  \"blocktransactions\" : nnnn,            (number) Elysium transactions found in the last processed block\n"
@@ -2206,10 +2206,10 @@ UniValue elysium_getinfo(const JSONRPCRequest& request)
 
     UniValue infoResponse(UniValue::VOBJ);
 
-    // provide the Elysium and Zcoin version
+    // provide the Elysium and Firo version
     infoResponse.push_back(Pair("elysiumversion_int", ELYSIUM_VERSION));
     infoResponse.push_back(Pair("elysiumversion", ElysiumVersion()));
-    infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
+    infoResponse.push_back(Pair("firocoreversion", FiroCoreVersion()));
 
     // provide the current block details
     int block = GetHeight();
@@ -2332,10 +2332,10 @@ UniValue elysium_getsto(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"txid\" : \"hash\",                (string) the hex-encoded hash of the transaction\n"
-            "  \"sendingaddress\" : \"address\",   (string) the Zcoin address of the sender\n"
+            "  \"sendingaddress\" : \"address\",   (string) the Firo address of the sender\n"
             "  \"ismine\" : true|false,          (boolean) whether the transaction involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,   (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",           (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",           (string) the transaction fee in firos\n"
             "  \"blocktime\" : nnnnnnnnnn,       (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,           (boolean) whether the transaction is valid\n"
             "  \"version\" : n,                  (number) the transaction version\n"
@@ -2347,7 +2347,7 @@ UniValue elysium_getsto(const JSONRPCRequest& request)
             "  \"totalstofee\" : \"n.nnnnnnnn\",   (string) the fee paid by the sender, nominated in ELYSIUM or TELYSIUM\n"
             "  \"recipients\": [                 (array of JSON objects) a list of recipients\n"
             "    {\n"
-            "      \"address\" : \"address\",          (string) the Zcoin address of the recipient\n"
+            "      \"address\" : \"address\",          (string) the Firo address of the recipient\n"
             "      \"amount\" : \"n.nnnnnnnn\"         (string) the number of tokens sent to this recipient\n"
             "    },\n"
             "    ...\n"
@@ -2380,10 +2380,10 @@ UniValue elysium_gettrade(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"txid\" : \"hash\",                               (string) the hex-encoded hash of the transaction of the order\n"
-            "  \"sendingaddress\" : \"address\",                  (string) the Zcoin address of the trader\n"
+            "  \"sendingaddress\" : \"address\",                  (string) the Firo address of the trader\n"
             "  \"ismine\" : true|false,                         (boolean) whether the order involes an address in the wallet\n"
             "  \"confirmations\" : nnnnnnnnnn,                  (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in zcoins\n"
+            "  \"fee\" : \"n.nnnnnnnn\",                          (string) the transaction fee in firos\n"
             "  \"blocktime\" : nnnnnnnnnn,                      (number) the timestamp of the block that contains the transaction\n"
             "  \"valid\" : true|false,                          (boolean) whether the transaction is valid\n"
             "  \"version\" : n,                                 (number) the transaction version\n"
@@ -2402,7 +2402,7 @@ UniValue elysium_gettrade(const JSONRPCRequest& request)
             "    {\n"
             "      \"txid\" : \"hash\",                               (string) the hash of the transaction that was matched against\n"
             "      \"block\" : nnnnnn,                              (number) the index of the block that contains this transaction\n"
-            "      \"address\" : \"address\",                         (string) the Zcoin address of the other trader\n"
+            "      \"address\" : \"address\",                         (string) the Firo address of the other trader\n"
             "      \"amountsold\" : \"n.nnnnnnnn\",                   (string) the number of tokens sold in this trade\n"
             "      \"amountreceived\" : \"n.nnnnnnnn\"                (string) the number of tokens traded in exchange\n"
             "    },\n"

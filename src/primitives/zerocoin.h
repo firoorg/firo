@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Zcoin Core Developers
+// Copyright (c) 2019 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -178,7 +178,7 @@ private:
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 zcoin.
+    // I.E. it is set to 100.000.000 for 1 firo.
     int64_t denomination;
 
 public:
@@ -261,7 +261,7 @@ struct CLelantusEntry {
     int id;
 
     // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 zcoin.
+    // I.E. it is set to 100.000.000 for 1 firo.
     int64_t amount;
 };
 
@@ -355,7 +355,7 @@ private:
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 zcoin.
+    // I.E. it is set to 100.000.000 for 1 firo.
     int64_t denomination;
 };
 

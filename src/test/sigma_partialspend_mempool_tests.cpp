@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
-    // Fees are expected to be less than 0.2 zcoin.
+    // Fees are expected to be less than 0.2 firo.
     std::vector<CRecipient> recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount1 , false},
         {GetScriptForDestination(randomAddr2.Get()), denomAmount1 - 4 * denomAmount01, false},

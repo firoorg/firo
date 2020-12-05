@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H
-#define ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H
+#ifndef FIRO_LELANTUS_CHALLENGE_GENERATOR_H
+#define FIRO_LELANTUS_CHALLENGE_GENERATOR_H
 
 #include "../../crypto/sha256.h"
 #include <secp256k1/include/Scalar.h>
@@ -27,4 +27,4 @@ private:
 
 }// namespace lelantus
 
-#endif //ZCOIN_LELANTUS_CHALLENGE_GENERATOR_H
+#endif //FIRO_LELANTUS_CHALLENGE_GENERATOR_H

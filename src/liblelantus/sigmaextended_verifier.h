@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
-#define ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
+#ifndef FIRO_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
+#define FIRO_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
 
 #include "lelantus_primitives.h"
 
@@ -43,6 +43,24 @@ private:
             const SigmaExtendedProof& proof,
             const Scalar& x,
             const std::vector<Scalar>& f_) const;
+
+    void compute_fis(int j, const std::vector<Scalar>& f, std::vector<Scalar>& f_i_) const;
+    void compute_fis(
+            const Scalar& f_i,
+            int j,
+            const std::vector<Scalar>& f,
+            vector<Scalar>::iterator& ptr,
+            vector<Scalar>::iterator end_ptr) const;
+    void compute_batch_fis(
+            const Scalar& f_i,
+            int j,
+            const std::vector<Scalar>& f,
+            const Scalar& y,
+            Scalar& e,
+            vector<Scalar>::iterator& ptr,
+            vector<Scalar>::iterator start_ptr,
+            vector<Scalar>::iterator end_ptr) const;
+
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
@@ -52,4 +70,4 @@ private:
 
 } // namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H
+#endif //FIRO_LIBLELANTUS_SIGMAEXTENDED_VERIFIER_H

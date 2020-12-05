@@ -1,9 +1,9 @@
-// Copyright (c) 2019 The Zcoin Core Developers
+// Copyright (c) 2019 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_HDMINT_H
-#define ZCOIN_HDMINT_H
+#ifndef FIRO_HDMINT_H
+#define FIRO_HDMINT_H
 
 #include "primitives/zerocoin.h"
 #include "sigma.h"
@@ -71,5 +71,5 @@ public:
     };
 };
 
-#endif //ZCOIN_HDMINT_H
+#endif //FIRO_HDMINT_H
 

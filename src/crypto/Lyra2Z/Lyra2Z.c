@@ -1,5 +1,5 @@
 /*-
- * Copyright 2009 Colin Percival, 2011 ArtForz, 2013 Neisklar, 2017 Zcoin Developers
+ * Copyright 2009 Colin Percival, 2011 ArtForz, 2013 Neisklar, 2017 Firo Developers
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

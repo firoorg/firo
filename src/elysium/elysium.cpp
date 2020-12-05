@@ -157,7 +157,7 @@ std::string elysium::strMPProperty(uint32_t propertyId)
         str = strprintf("Test token: %d : 0x%08X", 0x7FFFFFFF & propertyId, propertyId);
     } else {
         switch (propertyId) {
-            case ELYSIUM_PROPERTY_XZC: str = "XZC";
+            case ELYSIUM_PROPERTY_XZC: str = "FIRO";
                 break;
             case ELYSIUM_PROPERTY_ELYSIUM: str = "ELYSIUM";
                 break;

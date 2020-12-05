@@ -17,13 +17,13 @@ function clean_up {
    done
 }
 
-WORKINGDIR="/tmp/zcoin"
+WORKINGDIR="/tmp/firo"
 TMPFILE="hashes.tmp"
 
 SIGNATUREFILENAME="SHA256SUMS.asc"
 RCSUBDIR="test"
 BASEDIR="https://bitcoin.org/bin/"
-VERSIONPREFIX="zcoin-core-"
+VERSIONPREFIX="firo-core-"
 RCVERSIONSTRING="rc"
 
 if [ ! -d "$WORKINGDIR" ]; then

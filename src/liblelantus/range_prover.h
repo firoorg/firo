@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LIBLELANTUS_RANGE_PROVER_H
-#define ZCOIN_LIBLELANTUS_RANGE_PROVER_H
+#ifndef FIRO_LIBLELANTUS_RANGE_PROVER_H
+#define FIRO_LIBLELANTUS_RANGE_PROVER_H
 
 #include "innerproduct_proof_generator.h"
 
@@ -33,4 +33,4 @@ private:
 
 }//namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_RANGE_PROVER_H
+#endif //FIRO_LIBLELANTUS_RANGE_PROVER_H

@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
-#define ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
+#ifndef FIRO_LIBLELANTUS_LELANTUSVERIFIER_H
+#define FIRO_LIBLELANTUS_LELANTUSVERIFIER_H
 
 #include "schnorr_verifier.h"
 #include "sigmaextended_verifier.h"
@@ -62,4 +62,4 @@ private:
 };
 }// namespace lelantus
 
-#endif //ZCOIN_LIBLELANTUS_LELANTUSVERIFIER_H
+#endif //FIRO_LIBLELANTUS_LELANTUSVERIFIER_H

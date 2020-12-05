@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMA_SIGMAPLUS_PROVER_H
-#define ZCOIN_SIGMA_SIGMAPLUS_PROVER_H
+#ifndef FIRO_SIGMA_SIGMAPLUS_PROVER_H
+#define FIRO_SIGMA_SIGMAPLUS_PROVER_H
 
 #include "r1_proof_generator.h"
 #include "sigmaplus_proof.h"
@@ -31,4 +31,4 @@ private:
 
 #include "sigmaplus_prover.hpp"
 
-#endif // ZCOIN_SIGMA_SIGMAPLUS_PROVER_H
+#endif // FIRO_SIGMA_SIGMAPLUS_PROVER_H

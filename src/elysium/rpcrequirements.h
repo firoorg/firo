@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_RPCREQUIREMENTS_H
-#define ZCOIN_ELYSIUM_RPCREQUIREMENTS_H
+#ifndef FIRO_ELYSIUM_RPCREQUIREMENTS_H
+#define FIRO_ELYSIUM_RPCREQUIREMENTS_H
 
 #include "property.h"
 #include "sigmaprimitives.h"
@@ -39,4 +39,4 @@ void RequireSigmaSpendV1Feature();
 // Checks for MetaDEx orders for cancel operations
 
 
-#endif // ZCOIN_ELYSIUM_RPCREQUIREMENTS_H
+#endif // FIRO_ELYSIUM_RPCREQUIREMENTS_H

@@ -96,7 +96,7 @@ bool Recover::askRecover(bool& newWallet)
     {
         newWallet = true;
         Recover recover;
-        recover.setWindowIcon(QIcon(":icons/zcoin"));
+        recover.setWindowIcon(QIcon(":icons/firo"));
         while(true)
         {
             if(!recover.exec())

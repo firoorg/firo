@@ -1,5 +1,5 @@
-#ifndef ZCOIN_QT_LELANTUSMODEL_H
-#define ZCOIN_QT_LELANTUSMODEL_H
+#ifndef FIRO_QT_LELANTUSMODEL_H
+#define FIRO_QT_LELANTUSMODEL_H
 
 #include "automintdialog.h"
 #include "automintmodel.h"
@@ -53,4 +53,4 @@ private:
     CWallet *wallet;
 };
 
-#endif // ZCOIN_QT_LELANTUSMODEL_H
+#endif // FIRO_QT_LELANTUSMODEL_H

@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        docker { image 'zcoinofficial/zcoin-builder:latest' }
+        docker { image 'firoorg/firo-builder:latest' }
     }
     environment {
         CCACHE_DIR = '/tmp/.ccache'
@@ -13,7 +13,7 @@ pipeline {
                 sh './configure'
                 sh 'make dist'
                 sh 'mkdir -p dist'
-                sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
+                sh 'tar -C dist --strip-components=1 -xzf firo-*.tar.gz'
                 dir('dist') {
                     sh './configure --enable-elysium --enable-tests'
                     sh 'make -j6'
