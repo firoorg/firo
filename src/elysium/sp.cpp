@@ -73,16 +73,16 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_elysium.category = "N/A";
     implied_elysium.subcategory = "N/A";
     implied_elysium.name = "Exodus";
-    implied_elysium.url = "https://www.zcoin.io";
-    implied_elysium.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
+    implied_elysium.url = "https://www.firo.org";
+    implied_elysium.data = "Exodus serve as the binding between Firo, smart properties and contracts created on the Exodus Layer.";
     implied_telysium.issuer = GetSystemAddress().ToString();
     implied_telysium.prop_type = ELYSIUM_PROPERTY_TYPE_DIVISIBLE;
     implied_telysium.num_tokens = 700000;
     implied_telysium.category = "N/A";
     implied_telysium.subcategory = "N/A";
     implied_telysium.name = "Test Exodus";
-    implied_telysium.url = "https://www.zcoin.io";
-    implied_telysium.data = "Test Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
+    implied_telysium.url = "https://www.firo.org";
+    implied_telysium.data = "Test Exodus serve as the binding between Firo, smart properties and contracts created on the Exodus Layer.";
 
     init();
 }
@@ -841,7 +841,7 @@ void elysium::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8
     // Weeks in seconds
     arith_uint256 weeks_sec_ = ConvertTo256(604800);
 
-    // Precision for all non-zcoin values (bonus percentages, for example)
+    // Precision for all non-firo values (bonus percentages, for example)
     arith_uint256 precision_ = ConvertTo256(1000000000000LL);
 
     // Precision for all percentages (10/100 = 10%)
@@ -870,7 +870,7 @@ void elysium::calculateFundraiser(bool inflateAmount, int64_t amtTransfer, uint8
     issuerPercentage_ *= precision_;
     issuerPercentage_ /= percentage_precision;
 
-    // Precision for zcoin amounts (satoshi)
+    // Precision for firo amounts (satoshi)
     arith_uint256 satoshi_precision_ = ConvertTo256(100000000L);
 
     // Total tokens including remainders

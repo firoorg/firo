@@ -1,5 +1,5 @@
-#ifndef ZCOIN_LIBLELANTUS_TEST_FIXTURE_H
-#define ZCOIN_LIBLELANTUS_TEST_FIXTURE_H
+#ifndef FIRO_LIBLELANTUS_TEST_FIXTURE_H
+#define FIRO_LIBLELANTUS_TEST_FIXTURE_H
 
 #include "../../test/test_bitcoin.h"
 
@@ -57,4 +57,4 @@ public:
 
 } // namespace lelantus
 
-#endif // ZCOIN_LIBLELANTUS_TEST_FIXTURE_H
+#endif // FIRO_LIBLELANTUS_TEST_FIXTURE_H

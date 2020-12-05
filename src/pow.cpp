@@ -125,7 +125,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-// Zcoin - MTP
+// Firo - MTP
 bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
     if (!block.IsMTP())
 	    return true;

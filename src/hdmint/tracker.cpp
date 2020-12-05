@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Zcoin Core Developers
+// Copyright (c) 2019 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -846,9 +846,11 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelant
     std::set<uint256> setMempool = GetMempoolTxids();
     for (auto& mint : mints) {
         uint256 reducedHash;
-        uint64_t amount = mint.second.first;
-        auto pubcoin = mint.first.getValue() + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
-        reducedHash = primitives::GetPubCoinValueHash(pubcoin);
+        if(!walletdb.ReadPubcoinHashes(primitives::GetPubCoinValueHash(mint.first.getValue()), reducedHash)) {
+            uint64_t amount = mint.second.first;
+            auto pubcoin = mint.first.getValue() + lelantus::Params::get_default()->get_h1() * Scalar(amount).negate();
+            reducedHash = primitives::GetPubCoinValueHash(pubcoin);
+        }
         CLelantusMintMeta meta;
         // Check reducedHash in db
         if(walletdb.ReadMintPoolPair(reducedHash, hashSeedMasterEntry, seedId, nCount)) {

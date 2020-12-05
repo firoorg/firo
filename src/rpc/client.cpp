@@ -153,7 +153,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "echojson", 7, "arg7" },
     { "echojson", 8, "arg8" },
     { "echojson", 9, "arg9" },
-        //[zcoin]
+        //[firo]
     { "setmininput", 0 },
     { "mint", 0 },
     { "mintzerocoin", 0 },
@@ -176,6 +176,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listspendzerocoins", 1 },
     { "listsigmaspends", 0 },
     { "listsigmaspends", 1 },
+    { "listlelantusjoinsplits", 0 },
+    { "listlelantusjoinsplits", 1 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getanonymityset", 0},

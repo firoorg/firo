@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_SP_H
-#define ZCOIN_ELYSIUM_SP_H
+#ifndef FIRO_ELYSIUM_SP_H
+#define FIRO_ELYSIUM_SP_H
 
 #include "log.h"
 #include "persistence.h"
@@ -330,4 +330,4 @@ string to_string(LelantusStatus status);
 
 } // namespace std
 
-#endif // ZCOIN_ELYSIUM_SP_H
+#endif // FIRO_ELYSIUM_SP_H

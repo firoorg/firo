@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_CREATEPAYLOAD_H
-#define ZCOIN_ELYSIUM_CREATEPAYLOAD_H
+#ifndef FIRO_ELYSIUM_CREATEPAYLOAD_H
+#define FIRO_ELYSIUM_CREATEPAYLOAD_H
 
 #include "../lelantus.h"
 
@@ -58,4 +58,4 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(uint32_t proper
                                                                  boost::optional<JoinSplitMint> const &mint);
 std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, LelantusStatus status);
 
-#endif // ZCOIN_ELYSIUM_CREATEPAYLOAD_H
+#endif // FIRO_ELYSIUM_CREATEPAYLOAD_H

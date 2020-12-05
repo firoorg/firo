@@ -9,6 +9,8 @@
 #include "lelantusmodel.h"
 #include "optionsmodel.h"
 
+#include <boost/bind/bind.hpp>
+
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
     QObject(parent), wallet(_wallet), timer(0)
@@ -151,19 +153,19 @@ static void IncomingFundNotifyBlockTip(
 void IncomingFundNotifier::subscribeToCoreSignals()
 {
     wallet->NotifyTransactionChanged.connect(boost::bind(
-        NotifyTransactionChanged, this, _1, _2, _3));
+        NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
 
     uiInterface.NotifyBlockTip.connect(
-        boost::bind(IncomingFundNotifyBlockTip, this, _1, _2));
+        boost::bind(IncomingFundNotifyBlockTip, this, boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void IncomingFundNotifier::unsubscribeFromCoreSignals()
 {
     wallet->NotifyTransactionChanged.disconnect(boost::bind(
-        NotifyTransactionChanged, this, _1, _2, _3));
+        NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
 
     uiInterface.NotifyBlockTip.disconnect(
-        boost::bind(IncomingFundNotifyBlockTip, this, _1, _2));
+        boost::bind(IncomingFundNotifyBlockTip, this, boost::placeholders::_1, boost::placeholders::_2));
 }
 
 AutoMintModel::AutoMintModel(

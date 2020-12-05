@@ -57,7 +57,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
  */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
                    std::vector<unsigned char> extraNonce) {
-    //btzc: zcoin timestamp
+    //btzc: firo timestamp
     const char *pszTimestamp = "Times 2014/10/31 Maine Judge Says Nurse Must Follow Ebola Quarantine for Now";
     const CScript genesisOutputScript = CScript();
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward,
@@ -286,7 +286,7 @@ public:
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
        `  * a large 32-bit integer with any alignment.
          */
-        //btzc: update zcoin pchMessage
+        //btzc: update firo pchMessage
         pchMessageStart[0] = 0xe3;
         pchMessageStart[1] = 0xd9;
         pchMessageStart[2] = 0xfe;
@@ -294,7 +294,7 @@ public:
         nDefaultPort = 8168;
         nPruneAfterHeight = 100000;
         /**
-         * btzc: zcoin init genesis block
+         * btzc: firo init genesis block
          * nBits = 0x1e0ffff0
          * nTime = 1414776286
          * nNonce = 142392
@@ -312,15 +312,15 @@ public:
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
         assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
-        vSeeds.push_back(CDNSSeedData("amsterdam.zcoin.io", "amsterdam.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("australia.zcoin.io", "australia.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("chicago.zcoin.io", "chicago.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("london.zcoin.io", "london.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("frankfurt.zcoin.io", "frankfurt.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("newjersey.zcoin.io", "newjersey.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("sanfrancisco.zcoin.io", "sanfrancisco.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("tokyo.zcoin.io", "tokyo.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("amsterdam.firo.org", "amsterdam.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("australia.firo.org", "australia.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("chicago.firo.org", "chicago.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("london.firo.org", "london.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("frankfurt.firo.org", "frankfurt.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("newjersey.firo.org", "newjersey.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("sanfrancisco.firo.org", "sanfrancisco.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("tokyo.firo.org", "tokyo.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("singapore.firo.org", "singapore.firo.org", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
@@ -559,10 +559,10 @@ public:
                 uint256S("0xf70dba2d976778b985de7b5503ede884988d78fbb998d6969e4f676b40b9a741"));
         vFixedSeeds.clear();
         vSeeds.clear();
-        // zcoin test seeds
+        // firo test seeds
 
-        vSeeds.push_back(CDNSSeedData("EVO1", "evo1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("EVO2", "evo2.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("EVO1", "evo1.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("EVO2", "evo2.firo.org", false));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);

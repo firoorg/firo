@@ -324,7 +324,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 XZC</string>
+                  <string notr="true">0.00 FIRO</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -404,7 +404,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 XZC</string>
+                  <string notr="true">0.00 FIRO</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -455,7 +455,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 XZC</string>
+                  <string notr="true">0.00 FIRO</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -484,7 +484,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 XZC</string>
+                  <string notr="true">0.00 FIRO</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -622,7 +622,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -680,7 +680,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -729,7 +729,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -755,7 +755,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -838,7 +838,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -865,7 +865,7 @@
        <item row="2" column="2">
         <widget class="QLabel" name="globalLatestGroupCoinsAmount">
          <property name="text">
-          <string>0.00000000 XZC</string>
+          <string>0.00000000 FIRO</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -988,7 +988,7 @@
         <item>
          <widget class="QLabel" name="anonymizeUnit">
           <property name="text">
-           <string>XZC</string>
+           <string>FIRO</string>
           </property>
          </widget>
         </item>
@@ -1011,7 +1011,7 @@
         <item>
          <widget class="QLabel" name="availableAmounToAnonymize">
           <property name="text">
-           <string>Available amount to anonymize 9999.99999999 XZC</string>
+           <string>Available amount to anonymize 9999.99999999 FIRO</string>
           </property>
          </widget>
         </item>
@@ -1271,7 +1271,7 @@
                  <item>
                   <widget class="QCheckBox" name="checkBoxMinimumFee">
                    <property name="toolTip">
-                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</string>
+                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Firo transactions than the network can process.</string>
                    </property>
                    <property name="text">
                     <string/>
@@ -1284,7 +1284,7 @@
                     <bool>true</bool>
                    </property>
                    <property name="toolTip">
-                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</string>
+                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Firo transactions than the network can process.</string>
                    </property>
                    <property name="text">
                     <string>(read the tooltip)</string>

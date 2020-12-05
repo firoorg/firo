@@ -19,13 +19,13 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Zcoin"
-            VALUE "FileDescription",    PACKAGE_NAME " (GUI node for Zcoin)"
+            VALUE "CompanyName",        "Firo"
+            VALUE "FileDescription",    PACKAGE_NAME " (GUI node for Firo)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
-            VALUE "InternalName",       "zcoin-qt"
+            VALUE "InternalName",       "firo-qt"
             VALUE "LegalCopyright",     COPYRIGHT_STR
             VALUE "LegalTrademarks1",   "Distributed under the MIT software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php."
-            VALUE "OriginalFilename",   "zcoin-qt.exe"
+            VALUE "OriginalFilename",   "firo-qt.exe"
             VALUE "ProductName",        PACKAGE_NAME
             VALUE "ProductVersion",     VER_PRODUCTVERSION_STR
         END

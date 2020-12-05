@@ -47,7 +47,7 @@
        <item>
         <widget class="QLabel" name="label_3">
          <property name="text">
-          <string>XZC</string>
+          <string>FIRO</string>
          </property>
         </widget>
        </item>
@@ -89,7 +89,7 @@
          <item row="4" column="1">
           <widget class="QLabel" name="label_13">
            <property name="text">
-            <string>XZC : Amount</string>
+            <string>FIRO : Amount</string>
            </property>
            <property name="margin">
             <number>0</number>
@@ -122,7 +122,7 @@
          <item row="3" column="1">
           <widget class="QLabel" name="label_12">
            <property name="text">
-            <string>XZC : Amount</string>
+            <string>FIRO : Amount</string>
            </property>
            <property name="margin">
             <number>0</number>
@@ -148,7 +148,7 @@
          <item row="2" column="1">
           <widget class="QLabel" name="label_11">
            <property name="text">
-            <string>XZC : Amount</string>
+            <string>FIRO : Amount</string>
            </property>
            <property name="margin">
             <number>0</number>
@@ -171,7 +171,7 @@
          <item row="1" column="1">
           <widget class="QLabel" name="label_10">
            <property name="text">
-            <string>XZC : Amount</string>
+            <string>FIRO : Amount</string>
            </property>
            <property name="margin">
             <number>0</number>
@@ -217,7 +217,7 @@
             </size>
            </property>
            <property name="text">
-            <string>XZC</string>
+            <string>FIRO</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -233,7 +233,7 @@
             </size>
            </property>
            <property name="text">
-            <string>XZC : Amount</string>
+            <string>FIRO : Amount</string>
            </property>
            <property name="margin">
             <number>0</number>

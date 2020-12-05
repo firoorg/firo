@@ -23,11 +23,11 @@ class HTTPBasicsTest (BitcoinTestFramework):
 
     def setup_chain(self):
         super().setup_chain()
-        #Append rpcauth to zcoin.conf before initialization
+        #Append rpcauth to firo.conf before initialization
         rpcauth = "rpcauth=rt:e930a0a14788a334ae2c545e39508250$6d052cf1883539e3a3b2c1b4d3823e8fa7298161dbe15037e05725eb70186f9a"
         rpcauth2 = "rpcauth=rt2:a04ee00b7ed091e693efcb4e58cb2d$caa5c015cccc868b5c9b988c79b79d44501263b4554401d01dc6cd09ddbc0906"
-        print(os.path.join(self.options.tmpdir+"/node0", "zcoin.conf"))
-        with open(os.path.join(self.options.tmpdir+"/node0", "zcoin.conf"), 'a', encoding='utf8') as f:
+        print(os.path.join(self.options.tmpdir+"/node0", "firo.conf"))
+        with open(os.path.join(self.options.tmpdir+"/node0", "firo.conf"), 'a', encoding='utf8') as f:
             f.write(rpcauth+"\n")
             f.write(rpcauth2+"\n")
 

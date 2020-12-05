@@ -353,7 +353,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             total += subtotal;
         }
         else
-        {   // User-entered Zcoin address / amount:
+        {   // User-entered Firo address / amount:
             if(!validateAddress(rcp.address))
             {
                 return InvalidAddress;
@@ -468,7 +468,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
         }
         else
         {
-            // User-entered Zcoin address / amount:
+            // User-entered Firo address / amount:
             if(!validateAddress(rcp.address))
             {
                 return InvalidAddress;
@@ -520,6 +520,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
                 tr("Send Coins"),
                 QString::fromStdString(e.what()),
                 CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        } catch (std::invalid_argument const &e) {
+            Q_EMIT message(
+                    tr("Send Coins"),
+                    QString::fromStdString(e.what()),
+                    CClientUIInterface::MSG_ERROR);
 
             return TransactionCreationFailed;
         }
@@ -644,7 +651,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
                 rcp.paymentRequest.SerializeToString(&value);
                 newTx->vOrderForm.push_back(make_pair(key, value));
             }
-            else if (!rcp.message.isEmpty()) // Message from normal zcoin:URI (zcoin:123...?message=example)
+            else if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
                 newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
         }
 
@@ -714,7 +721,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransactio
                 rcp.paymentRequest.SerializeToString(&value);
                 newTx->vOrderForm.push_back(make_pair(key, value));
             }
-            else if (!rcp.message.isEmpty()) // Message from normal zcoin:URI (zcoin:123...?message=example)
+            else if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
                 newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
         }
 
@@ -769,6 +776,8 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
     std::vector<CHDMint> &mints)
 {
     auto reservekey = reservekeys.begin();
+    CWalletDB db(wallet->strWalletFile);
+
     for (size_t i = 0; i != transactions.size(); i++) {
 
         auto tx = transactions[i].getTransaction();
@@ -781,11 +790,10 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
         auto &mintTmp = mints[i];
         mintTmp.SetTxHash(tx->GetHash());
         {
-            CWalletDB db(wallet->strWalletFile);
             wallet->zwallet->GetTracker().AddLelantus(db, mintTmp, true);
         }
     }
-
+    wallet->zwallet->UpdateCountDB(db);
     return SendCoinsReturn(OK);
 }
 
@@ -1308,7 +1316,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
                 rcp.paymentRequest.SerializeToString(&value);
                 newTx->vOrderForm.push_back(std::make_pair(key, value));
             } else if (!rcp.message.isEmpty()) {
-                // Message from normal zcoin:URI (zcoin:123...?message=example)
+                // Message from normal firo:URI (firo:123...?message=example)
                 newTx->vOrderForm.push_back(std::make_pair("Message", rcp.message.toStdString()));
             }
         }
@@ -1398,6 +1406,10 @@ std::vector<CSigmaEntry> WalletModel::GetUnsafeCoins(const CCoinControl* coinCon
         }
     }
     return unsafeCoins;
+}
+
+CAmount WalletModel::GetJMintCredit(const CTxOut& txout) const {
+    return wallet->GetCredit(txout, ISMINE_SPENDABLE);
 }
 
 bool WalletModel::isWalletEnabled()

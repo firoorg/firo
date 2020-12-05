@@ -1,9 +1,9 @@
-// Copyright (c) 2019 The Zcoin Core Developers
+// Copyright (c) 2019 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_MINTPOOL_H
-#define ZCOIN_MINTPOOL_H
+#ifndef FIRO_MINTPOOL_H
+#define FIRO_MINTPOOL_H
 
 #include <map>
 #include <list>
@@ -33,4 +33,4 @@ public:
     bool Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result);
 };
 
-#endif // ZCOIN_MINTPOOL_H
+#endif // FIRO_MINTPOOL_H

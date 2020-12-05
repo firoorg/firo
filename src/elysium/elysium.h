@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_ELYSIUM_H
-#define ZCOIN_ELYSIUM_ELYSIUM_H
+#ifndef FIRO_ELYSIUM_ELYSIUM_H
+#define FIRO_ELYSIUM_ELYSIUM_H
 
 class CBlockIndex;
 class CCoinsView;
@@ -340,4 +340,4 @@ void PrintFreezeState();
 
 }
 
-#endif // ZCOIN_ELYSIUM_ELYSIUM_H
+#endif // FIRO_ELYSIUM_ELYSIUM_H

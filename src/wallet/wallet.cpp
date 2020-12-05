@@ -129,7 +129,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
 
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // Fail if not using HD wallet (no keypaths)
     if (hdChain.masterKeyID.IsNull())
@@ -139,7 +139,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
     CKey key;                      //master key seed (256bit)
     CExtKey masterKey;             //hd master key
     CExtKey purposeKey;            //key at m/44'
-    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+    CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
     CExtKey accountKey;            //key at m/44'/<1/136>'/0'
     CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
     CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -195,7 +195,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
     , testNet = GetOptBoolArg("-testnet");
 
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // use HD key derivation if HD was enabled during wallet creation
     // TODO: change code to foloow bitcoin structure more closely
@@ -204,7 +204,7 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
         CKey key;                      //master key seed (256bit)
         CExtKey masterKey;             //hd master key
         CExtKey purposeKey;            //key at m/44'
-        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Firo Coin Type respectively, according to SLIP-0044)
         CExtKey accountKey;            //key at m/44'/<1/136>'/0'
         CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
         CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
@@ -2168,7 +2168,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
 
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Zcoin
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
         if (fRecoverMnemonic) {
             pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             if (pindex == NULL)
@@ -2800,7 +2800,7 @@ CAmount CWallet::SelectSpendCoinsForAmount(
     return required - val;
 }
 
-std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl, bool includeUnsafe) const {
+std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl, bool includeUnsafe, bool forEstimation) const {
     EnsureMintWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
@@ -2810,7 +2810,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     list<CMintMeta> listMints(vecMints.begin(), vecMints.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
-        GetMint(mint.hashSerial, entry);
+        GetMint(mint.hashSerial, entry, forEstimation);
         coins.push_back(entry);
     }
 
@@ -2878,7 +2878,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     return coins;
 }
 
-std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl *coinControl, bool includeUnsafe) const {
+std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl *coinControl, bool includeUnsafe, bool forEstimation) const {
     EnsureMintWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
@@ -2887,7 +2887,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
     std::vector<CLelantusMintMeta> vecMints = zwallet->GetTracker().ListLelantusMints(true, true, false);
     for (const CLelantusMintMeta& mint : vecMints) {
         CLelantusEntry entry;
-        GetMint(mint.hashSerial, entry);
+        GetMint(mint.hashSerial, entry, forEstimation);
         if(entry.amount != 0) // ignore 0 mints which where created to increase privacy
             coins.push_back(entry);
     }
@@ -3018,12 +3018,13 @@ bool CWallet::GetCoinsToSpend(
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
-        const CCoinControl *coinControl) const
+        const CCoinControl *coinControl,
+        bool forEstimation) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN zcoins.\n");
+        throw std::invalid_argument("Request to spend more than 21 MLN firos.\n");
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3047,7 +3048,7 @@ bool CWallet::GetCoinsToSpend(
             _("Required amount exceed value spend limit"));
     }
 
-    std::list<CSigmaEntry> coins = GetAvailableCoins(coinControl);
+    std::list<CSigmaEntry> coins = GetAvailableCoins(coinControl, false, forEstimation);
 
     CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
 
@@ -3149,13 +3150,14 @@ bool CWallet::GetCoinsToJoinSplit(
         CAmount& changeToMint,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
-        const CCoinControl *coinControl) const
+        const CCoinControl *coinControl,
+        bool forEstimation) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
         throw WalletError(
-                _("The required amount exceeds 21 MLN XZC"));
+                _("The required amount exceeds 21 MLN FIRO"));
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
@@ -3168,7 +3170,7 @@ bool CWallet::GetCoinsToJoinSplit(
                 _("The required amount exceeds spend limit"));
     }
 
-    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl);
+    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl, false, forEstimation);
 
     CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
 
@@ -3195,12 +3197,6 @@ bool CWallet::GetCoinsToJoinSplit(
                 spend_val += coinIt->amount;
             }
             coinControlUsed = true;
-
-            if (spend_val > amountToSpendLimit) {
-                throw std::invalid_argument(
-                        _("Selected amount exceed value spend limit"));
-            }
-
             coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
         }
     }
@@ -3406,7 +3402,7 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
                     (!IsLockedCoin((*it).first, i) || nCoinType == CoinType::ONLY_1000) &&
-                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
+                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || (pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint() && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
@@ -3509,7 +3505,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
-//[zcoin]
+//[firo]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
@@ -4457,7 +4453,7 @@ bool CWallet::CreateZerocoinMintModel(
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         int64_t amount = denominationPair.second;
@@ -4466,7 +4462,7 @@ bool CWallet::CreateZerocoinMintModel(
 
         if(amount < 0){
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"firoaddress\")\n");
         }
 
         for(int64_t i=0; i<amount; i++){
@@ -5688,10 +5684,10 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -5961,10 +5957,10 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }else{
                  CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
-                    strFailReason = _("Invalid Zcoin address");
+                    strFailReason = _("Invalid Firo address");
                     return false;
                 }
-                // Parse Zcoin address
+                // Parse Firo address
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
@@ -6853,6 +6849,69 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
+CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
+    CAmount fee;
+
+    std::vector<CLelantusEntry> spendCoins;
+    std::vector<CSigmaEntry> sigmaSpendCoins;
+
+    for (fee = payTxFee.GetFeePerK();;) {
+        CAmount currentRequired = required;
+
+        if (!subtractFeeFromAmount)
+            currentRequired += fee;
+
+
+        spendCoins.clear();
+        sigmaSpendCoins.clear();
+        auto &consensusParams = Params().GetConsensus();
+        CAmount changeToMint = 0;
+
+        std::vector<sigma::CoinDenomination> denomChanges;
+        try {
+            std::list<CSigmaEntry> coins = this->GetAvailableCoins(coinControl, false, true);
+            CAmount availableBalance(0);
+            for (auto coin : coins) {
+                availableBalance += coin.get_denomination_value();
+            }
+            if (availableBalance > 0) {
+                CAmount inputFromSigma;
+                if (currentRequired > availableBalance)
+                    inputFromSigma = availableBalance;
+                else
+                    inputFromSigma = currentRequired;
+
+                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                                       consensusParams.nMaxLelantusInputPerTransaction,
+                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true);
+                currentRequired -= inputFromSigma;
+            }
+        } catch (std::runtime_error) {
+        }
+
+        if (currentRequired > 0) {
+            if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint,
+                                            consensusParams.nMaxLelantusInputPerTransaction,
+                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true)) {
+                throw InsufficientFunds();
+            }
+        }
+
+        // 9560 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
+        // 179 other parts of tx, assuming 1 utxo and 1 jmint
+        unsigned size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+
+        if (fee >= feeNeeded) {
+            break;
+        }
+
+        fee = feeNeeded;
+    }
+
+    return fee;
+}
+
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
     EnsureMintWalletAvailable();
 
@@ -6939,11 +6998,11 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
 }
 
 
-bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
+bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin, bool forEstimation) const
 {
     EnsureMintWalletAvailable();
 
-    if (IsLocked()) {
+    if (IsLocked() && !forEstimation) {
         return false;
     }
 
@@ -6956,7 +7015,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
         CHDMint dMint;
         if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), false, dMint))
             return error("%s: failed to read deterministic mint", __func__);
-        if (!zwallet->RegenerateMint(walletdb, dMint, zerocoin))
+        if (!zwallet->RegenerateMint(walletdb, dMint, zerocoin, forEstimation))
             return error("%s: failed to generate mint", __func__);
 
          return true;
@@ -6967,11 +7026,11 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
      return true;
 }
 
-bool CWallet::GetMint(const uint256& hashSerial, CLelantusEntry& mint) const
+bool CWallet::GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation) const
 {
     EnsureMintWalletAvailable();
 
-    if (IsLocked()) {
+    if (IsLocked() && !forEstimation) {
         return false;
     }
 
@@ -6984,9 +7043,8 @@ bool CWallet::GetMint(const uint256& hashSerial, CLelantusEntry& mint) const
     CHDMint dMint;
     if (!walletdb.ReadHDMint(meta.GetPubCoinValueHash(), true, dMint))
         return error("%s: failed to read deterministic Lelantus mint", __func__);
-    if (!zwallet->RegenerateMint(walletdb, dMint, mint))
+    if (!zwallet->RegenerateMint(walletdb, dMint, mint, forEstimation))
         return error("%s: failed to generate Lelantus mint", __func__);
-
     return true;
 
 }
@@ -8407,7 +8465,7 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
             false, /* fOverrideMempoolLimit */
             nAbsurdFee,
             true,
-            false /* markZcoinSpendTransactionSerial */
+            false /* markFiroSpendTransactionSerial */
         );
         if (!res) {
             LogPrintf(

@@ -46,13 +46,13 @@ void masternode_list_help()
             "  json           - Print info in JSON format (can be additionally filtered, partial match)\n"
             "  lastpaidblock  - Print the last block height a node was paid on the network\n"
             "  lastpaidtime   - Print the last time a node was paid on the network\n"
-            "  owneraddress   - Print the znode owner Zcoin address\n"
-            "  payee          - Print the znode payout Zcoin address (can be additionally filtered,\n"
+            "  owneraddress   - Print the znode owner Firo address\n"
+            "  payee          - Print the znode payout Firo address (can be additionally filtered,\n"
             "                   partial match)\n"
             "  pubKeyOperator - Print the znode operator public key\n"
             "  status         - Print znode status: ENABLED / POSE_BANNED\n"
             "                   (can be additionally filtered, partial match)\n"
-            "  votingaddress  - Print the znode voting Zcoin address\n"
+            "  votingaddress  - Print the znode voting Firo address\n"
         );
 }
 
@@ -530,10 +530,10 @@ UniValue masternodelist(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafe argNames
   //  --------------------- ------------------------  -----------------------  ------ ----------
-    { "zcoin",               "znode",                 &masternode,             true,  {} },
-    { "zcoin",               "znodelist",             &masternodelist,         true,  {} },
-    { "zcoin",               "evoznode",              &masternode,             true,  {} },
-    { "zcoin",               "evoznodelist",          &masternodelist,         true,  {} },
+    { "firo",               "znode",                 &masternode,             true,  {} },
+    { "firo",               "znodelist",             &masternodelist,         true,  {} },
+    { "firo",               "evoznode",              &masternode,             true,  {} },
+    { "firo",               "evoznodelist",          &masternodelist,         true,  {} },
 };
 
 void RegisterMasternodeRPCCommands(CRPCTable &t)

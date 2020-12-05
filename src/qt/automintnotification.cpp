@@ -7,6 +7,7 @@
 
 AutomintNotification::AutomintNotification(QWidget *parent) :
     QDialog(parent),
+    lelantusModel(nullptr),
     ui(new Ui::AutomintNotification)
 {
     ui->setupUi(this);
@@ -18,14 +19,6 @@ AutomintNotification::AutomintNotification(QWidget *parent) :
 
 AutomintNotification::~AutomintNotification()
 {
-    if (lelantusModel) {
-        auto automintModel = lelantusModel->getAutoMintModel();
-        if (automintModel) {
-            disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
-                automintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
-        }
-    }
-
     delete ui;
 }
 

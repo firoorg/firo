@@ -954,7 +954,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return false;
 
         /*
-            Zcoin Related Inventory Messages
+            Firo Related Inventory Messages
 
         --
 
@@ -1419,7 +1419,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (sscanf(cleanSubVer.c_str(), "/Satoshi:%2d.%2d.%2d.%2d/",
                     &parsedVersion[0], &parsedVersion[1], &parsedVersion[2], &parsedVersion[3]) == 4) {
                 int peerClientVersion = parsedVersion[0]*1000000 + parsedVersion[1]*10000 + parsedVersion[2]*100 + parsedVersion[3];
-                if (peerClientVersion < MIN_ZCOIN_CLIENT_VERSION) {
+                if (peerClientVersion < MIN_FIRO_CLIENT_VERSION) {
                     connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network"));
                     pfrom->fDisconnect = 1;
                     LOCK(cs_main);
@@ -2032,7 +2032,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
                 true, /* isCheckWalletTransaction */
-                false /* markZcoinSpendTransactionSerial */
+                false /* markFiroSpendTransactionSerial */
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
@@ -2094,7 +2094,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             false, /* fOverrideMempoolLimit */
                             0, /* nAbsurdFee */
                             true, /* isCheckWalletTransaction */
-                            false /* markZcoinSpendTransactionSerial */
+                            false /* markFiroSpendTransactionSerial */
                         );
 
                         connman.RelayTransaction(orphanTx);
@@ -2144,7 +2144,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
                 true, /* isCheckWalletTransaction */
-                false /* markZcoinSpendTransactionSerial */
+                false /* markFiroSpendTransactionSerial */
             );
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
                 CNode::removeDandelionEmbargo(tx.GetHash());
@@ -2258,7 +2258,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     false, /* fOverrideMempoolLimit */
                     0, /* nAbsurdFee */
                     false, /* isCheckWalletTransaction */
-                    false /* markZcoinSpendTransactionSerial */
+                    false /* markFiroSpendTransactionSerial */
                     );
                 if (ret) {
                     LogPrint("mempool",

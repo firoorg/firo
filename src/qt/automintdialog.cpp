@@ -6,6 +6,7 @@
 #include "lelantusmodel.h"
 #include "ui_automintdialog.h"
 
+#include <QMessageBox>
 #include <QPushButton>
 #include <QDebug>
 
@@ -55,8 +56,8 @@ void AutoMintDialog::accept()
         repaint();
 
         if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
-            QDialog::accept();
-            lelantusModel->sendAckMintAll(AutoMintAck::FailToUnlock);
+            QMessageBox::critical(this, tr("Wallet unlock failed"),
+                                  tr("The passphrase was incorrect."));
             return;
         }
     }

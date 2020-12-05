@@ -32,11 +32,11 @@ from the root of the repository.
 Note: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
       
       
-Build Zcoin Core
+Build Firo Core
 ------------------------
-1.  Build Zcoin-core:
+1.  Build Firo-core:
 
-    Configure and build the headless Zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless Firo binaries as well as the GUI (if Qt is found).
     
     In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
     
@@ -58,26 +58,26 @@ Build Zcoin Core
 Running
 -------
 
-Zcoin Core is now available at `./src/zcoind`
+Firo Core is now available at `./src/firod`
 
 Before running, it's recommended you create an RPC configuration file.
 
-    echo -e "rpcuser=bitcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
+    echo -e "rpcuser=bitcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/firo/firo.conf"
 
-    chmod 600 "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
+    chmod 600 "/Users/${USER}/Library/Application Support/firo/firo.conf"
 
-The first time you run zcoind, it will start downloading the blockchain. This process could take several hours.
+The first time you run firod, it will start downloading the blockchain. This process could take several hours.
 
 You can monitor the download process by looking at the debug.log file:
 
-    tail -f $HOME/Library/Application\ Support/zcoin/debug.log
+    tail -f $HOME/Library/Application\ Support/firo/debug.log
 
 Other commands:
 -------
 
-    ./src/zcoind -daemon # Starts the Zcoin daemon.
-    ./src/zcoin-cli --help # Outputs a list of command-line options.
-    ./src/zcoin-cli help # Outputs a list of RPC commands when the daemon is running.
+    ./src/firod -daemon # Starts the Firo daemon.
+    ./src/firo-cli --help # Outputs a list of command-line options.
+    ./src/firo-cli help # Outputs a list of RPC commands when the daemon is running.
 
 Using Qt Creator as IDE
 ------------------------
