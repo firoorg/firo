@@ -23,8 +23,8 @@ AutoMintDialog::AutoMintDialog(AutoMintMode mode, QWidget *parent) :
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Cancel");
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
 }
 
 AutoMintDialog::~AutoMintDialog()
@@ -118,7 +118,7 @@ void AutoMintDialog::setModel(WalletModel *model)
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         ui->lockCheckBox->setVisible(false);
-        ui->lockWarningLabel->setText(QString("Do you want to anonymize all transparent funds?"));
+        ui->lockWarningLabel->setText(QString(tr("Do you want to anonymize all transparent funds?")));
 
         requiredPassphase = false;
     }

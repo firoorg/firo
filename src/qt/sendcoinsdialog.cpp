@@ -720,16 +720,16 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 
     QColor bgColor;
     if (fAnonymousMode) {
-        ui->switchFundButton->setText(QString("Use Transparent Balance"));
-        ui->label->setText(QString("Private Balance"));
+        ui->switchFundButton->setText(QString(tr("Use Transparent Balance")));
+        ui->label->setText(QString(tr("Private Balance")));
 
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
         bgColor = darkerColor;
     } else {
-        ui->switchFundButton->setText(QString("Use Private Balance"));
-        ui->label->setText(QString("Transparent Balance"));
+        ui->switchFundButton->setText(QString(tr("Use Private Balance")));
+        ui->label->setText(QString(tr("Transparent Balance")));
 
         ui->checkBoxCoinControlChange->setEnabled(true);
         if (ui->checkBoxCoinControlChange->isChecked()) {

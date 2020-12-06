@@ -11,8 +11,8 @@ AutomintNotification::AutomintNotification(QWidget *parent) :
     ui(new Ui::AutomintNotification)
 {
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Anonymize");
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText("Dismiss");
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Dismiss"));
 
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
 }

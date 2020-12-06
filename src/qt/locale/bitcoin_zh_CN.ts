@@ -1029,6 +1029,14 @@
         <translation>如果禁用未确认的零钱，则零钱至少需要1个确认才能使用。同时账户余额计算会受到影响。</translation>
     </message>
     <message>
+        <source>Enable &amp;auto-anonymize features</source>
+        <translation>启用自动匿名化功能</translation>
+    </message>
+    <message>
+        <source>Enable &amp;lelantus manual-anonymize page</source>
+        <translation>启用 Lelantus 手动匿名化界面</translation>
+    </message>
+    <message>
         <source>&amp;Spend unconfirmed change</source>
         <translation>使用未经确认的零钱(&amp;S)</translation>
     </message>
@@ -1174,6 +1182,211 @@
     </message>
 </context>
 <context>
+    <name>AutomintNotification</name>
+    <message>
+        <source>Do you want to anonymize all transparent funds?</source>
+        <translation>你想把所有的公开资金匿名化吗？</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Dismiss</source>
+        <translation>解雇</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintDialog</name>
+    <message>
+        <source>Anonymize Funds</source>
+        <translation>资金匿名化</translation>
+    </message>
+    <message>
+        <source>Do you want to anonymize all transparent funds?</source>
+        <translation>你想把所有的公开资金匿名化吗？</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Unlock your wallet to anonymize all transparent funds.</source>
+        <translation>解锁钱包，将所有公开资金匿名化</translation>
+    </message>
+    <message>
+        <source>Lock wallet immediately after anonymizing</source>
+        <translation>匿名化后立即锁上你的钱包</translation>
+    </message>
+    <message>
+        <source>Enter passphrase</source>
+        <translation>输入密码</translation>
+    </message>
+</context>
+<context>
+    <name>LelantusDialog</name>
+    <message>
+        <source>Coin Control Features</source>
+        <translation>交易源地址控制功能</translation>
+    </message>
+    <message>
+        <source>Inputs...</source>
+        <translation>输入...</translation>
+    </message>
+    <message>
+        <source>automatically selected</source>
+        <translation>自动选择</translation>
+    </message>
+    <message>
+        <source>Insufficient funds!</source>
+        <translation>存款不足！</translation>
+    </message>
+    <message>
+        <source>Quantity:</source>
+        <translation>总量：</translation>
+    </message>
+    <message>
+        <source>Bytes:</source>
+        <translation>字节：</translation>
+    </message>
+    <message>
+        <source>Amount:</source>
+        <translation>金额：</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>费用：</translation>
+    </message>
+    <message>
+        <source>After Fee:</source>
+        <translation>加上交易费用后:</translation>
+    </message>
+    <message>
+        <source>Change:</source>
+        <translation>变更 : </translation>
+    </message>
+        <message>
+        <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
+        <translation>如果激活该选项，但是零钱地址用光或者非法，将会新生成零钱地址，转入零钱。</translation>
+    </message>
+    <message>
+        <source>Custom change address</source>
+        <translation>自定义零钱地址</translation>
+    </message>
+    <message>
+        <source>Transaction Fee:</source>
+        <translation>交易费用:</translation>
+    </message>
+    <message>
+        <source>Choose...</source>
+        <translation>选择... </translation>
+    </message>
+    <message>
+        <source>collapse fee-settings</source>
+        <translation>收起  费用设置 </translation>
+    </message>
+    <message>
+        <source>per kilobyte</source>
+        <translation>每kb</translation>
+    </message>
+    <message>
+        <source>If the custom fee is set to 1000 satoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 satoshis in fee, while "total at least" pays 1000 satoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>如果自定义交易费设置为 1000聪而交易大小只有250字节，则“每千字节" 模式只支付250聪交易费， 而"最少"模式则支付1000聪。 大于1000字节的交易按每千字节付费。</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>隐藏</translation>
+    </message>
+    <message>
+        <source>total at least</source>
+        <translation>最小额 </translation>
+    </message>
+    <message>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for firo transactions than the network can process.</source>
+        <translation>交易量小时只支付最小交易费是可以的。但是请注意，当交易量大到超出网络可处理时您的交易可能永远无法确认。</translation>
+    </message>
+    <message>
+        <source>(read the tooltip)</source>
+        <translation>(请注意提示信息)</translation>
+    </message>
+    <message>
+        <source>Recommended:</source>
+        <translation>推荐：</translation>
+    </message>
+    <message>
+        <source>Custom:</source>
+        <translation>自定义：</translation>
+    </message>
+        <message>
+        <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
+        <translation>(智能交易费用 尚未初始化。 需要再下载一些数据块...)</translation>
+    </message>
+    <message>
+        <source>normal</source>
+        <translation>一般</translation>
+    </message>
+    <message>
+        <source>fast</source>
+        <translation>快速</translation>
+    </message>
+    <message>
+        <source>Pay only the required fee of %1</source>
+        <translation>只支付必要费用 %1</translation>
+    </message>
+        <message numerus="yes">
+        <source>Estimated to begin confirmation within %n block(s).</source>
+        <translation><numerusform>预计 %n 个数据块后被确认。</numerusform></translation>
+    </message>
+        <message numerus="yes">
+        <source>%n block(s)</source>
+        <translation><numerusform>%n 个区块</numerusform></translation>
+    </message>
+    <message>
+        <source>Global Lelantus Pool:</source>
+        <translation>整个 Lelantus 池</translation>
+    </message>
+    <message>
+        <source>Total:</source>
+        <translation>总数：</translation>
+    </message>
+    <message>
+        <source>Latest group:</source>
+        <translation>最新一组：</translation>
+    </message>
+    <message>
+        <source>Unspent:</source>
+        <translation>未花费的：</translation>
+    </message>
+    <message>
+        <source>Your Anonymized Coins:</source>
+        <translation>你的匿名币：</translation>
+    </message>
+    <message>
+        <source>Spendable:</source>
+        <translation>可花费：</translation>
+    </message>
+    <message>
+        <source>Unconfirmed:</source>
+        <translation>未确认：</translation>
+    </message>
+    <message>
+        <source>Amount to anonymize:</source>
+        <translation>要匿名化的金额：</translation>
+    </message>
+    <message numerus="yes">
+        <source>Available amount to anonymize %1</source>
+        <translation><numerusform>可匿名化的金额 %1</numerusform></translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+</context>
+<context>
     <name>OverviewPage</name>
     <message>
         <source>Form</source>
@@ -1182,6 +1395,22 @@
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
         <translation>现在显示的消息可能是过期的。在连接上比特币网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+    </message>
+    <message>
+        <source>Private Balances</source>
+        <translation>匿名的余额</translation>
+    </message>
+    <message>
+        <source>Transparent Balances</source>
+        <translation>公开的余额</translation>
+    </message>
+    <message>
+        <source>Anonymizable:</source>
+        <translation>可匿名化的 :</translation>
+    </message>
+    <message>
+        <source>Anonymize All</source>
+        <translation>全部匿名化</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -2194,6 +2423,22 @@
         <source>(no label)</source>
         <translation>(无标签)</translation>
     </message>
+    <message>
+        <source>Use Transparent Balance</source>
+        <translation>使用公开的余额</translation>
+    </message>
+    <message>
+        <source>Transparent Balance</source>
+        <translation>公开的余额</translation>
+    </message>
+    <message>
+        <source>Use Private Balance</source>
+        <translation>使用匿名的余额 </translation>
+    </message>
+    <message>
+        <source>Private Balance</source>
+        <translation>匿名的余额</translation>
+    </message>
 </context>
 <context>
     <name>SendCoinsEntry</name>
@@ -2692,6 +2937,22 @@
     <message>
         <source>Sent to</source>
         <translation>付款</translation>
+    </message>
+    <message>
+        <source>Spend to</source>
+        <translation>支出</translation>
+    </message>
+    <message>
+        <source>Spend to yourself</source>
+        <translation>支出给自己</translation>
+    </message>
+    <message>
+        <source>Anonymized</source>
+        <translation>匿名的</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
     </message>
     <message>
         <source>Payment to yourself</source>
