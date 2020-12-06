@@ -145,7 +145,7 @@ bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
                 
                 case CSporkAction::sporkDisable:
                 case CSporkAction::sporkLimit:
-                    if (action.nEnableAtHeight == 0 || (action.nEnableAtHeight != 0 && pindex->nHeight > action.nEnableAtHeight))
+                    if (action.nEnableAtHeight == 0 || (action.nEnableAtHeight != 0 && pindex->nHeight < action.nEnableAtHeight))
                         pindex->activeDisablingSporks[action.feature] = std::pair<int, int64_t>(action.nEnableAtHeight, action.parameter);
                     break;
                 }
