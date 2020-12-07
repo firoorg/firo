@@ -40,7 +40,7 @@ public:
 
     void PopulateLelantusTxInfo(
         CBlock &block,
-        std::vector<std::pair<secp_primitives::GroupElement, uint64_t>> const &mints,
+        std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> const &mints,
         std::vector<std::pair<Scalar, int>> const &serials) {
         block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
         block.lelantusTxInfo->mints.insert(block.lelantusTxInfo->mints.end(), mints.begin(), mints.end());
@@ -58,9 +58,9 @@ public:
             std::vector<CAmount> amounts(mintsInBlock, 1);
             auto mints = GenerateMints(amounts);
 
-            std::vector<std::pair<GroupElement, uint64_t>> coins;
+            std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> coins;
             for (auto const &m : mints) {
-                coins.emplace_back(m.getPublicCoin().getValue(), m.getV());
+                coins.emplace_back(std::make_pair(m.getPublicCoin(), std::make_pair(m.getV(), uint256())));
             }
 
             auto index = GenerateBlock({});
@@ -117,13 +117,13 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
 
     auto blockIdx1 = GenerateBlock({txs[0]});
     auto block1 = GetCBlock(blockIdx1);
-    PopulateLelantusTxInfo(block1, {{mints[0].GetPubcoinValue(), mints[0].GetAmount()}}, {});
+    PopulateLelantusTxInfo(block1, {{mints[0].GetPubcoinValue(), std::make_pair(mints[0].GetAmount(), uint256())}}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
 
     auto blockIdx2 = GenerateBlock({txs[1]});
     auto block2 = GetCBlock(blockIdx2);
-    PopulateLelantusTxInfo(block2, {{mints[1].GetPubcoinValue(), mints[1].GetAmount()}}, {});
+    PopulateLelantusTxInfo(block2, {{mints[1].GetPubcoinValue(),  std::make_pair(mints[1].GetAmount(), uint256())}}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(serial_adding)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {{mints[0].GetPubcoinValue(), mints[0].GetAmount()}}, {});
+    PopulateLelantusTxInfo(block, {{mints[0].GetPubcoinValue(),  std::make_pair(mints[0].GetAmount(), uint256())}}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(mempool)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateLelantusTxInfo(block, {{mint.GetPubcoinValue(), mint.GetAmount()}}, {});
+    PopulateLelantusTxInfo(block, {{mint.GetPubcoinValue(),  std::make_pair(mint.GetAmount(), uint256())}}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     auto index2 = GenerateBlock({});
     auto block2 = GetCBlock(index2);
-    PopulateLelantusTxInfo(block2, {{mint1, 1}, {mint2, 1}}, {});
+    PopulateLelantusTxInfo(block2, {{mint1, {1, uint256()}}, {mint2, {1, uint256()}}}, {});
 
     lelantusState->AddMintsToStateAndBlockIndex(index2, &block2);
     lelantusState->AddBlock(index2);
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     auto index4 = GenerateBlock({});
     auto block4 = GetCBlock(index4);
-    PopulateLelantusTxInfo(block4, {{mint3, 1}}, {{serial3, 1}});
+    PopulateLelantusTxInfo(block4, {{mint3, {1, uint256()}}}, {{serial3, 1}});
     lelantusState->AddMintsToStateAndBlockIndex(index4, &block4);
     index4->lelantusSpentSerials = block4.lelantusTxInfo->spentSerials;
 
@@ -350,8 +350,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         PopulateLelantusTxInfo(
             block,
             {
-                {mints[i].GetPubcoinValue(), 1},
-                {mints[i + 1].GetPubcoinValue(), 1}
+                {mints[i].GetPubcoinValue(), {1, uint256()}},
+                {mints[i + 1].GetPubcoinValue(), {1, uint256()}}
             }, {});
 
         indexes.push_back(index);

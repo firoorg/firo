@@ -1,6 +1,8 @@
 #include "../../test/fixtures.h"
 #include "../../validation.h"
 #include "../../lelantus.h"
+#include "../walletexcept.h"
+#include <exception>
 
 #include "../wallet.h"
 
@@ -238,6 +240,51 @@ BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(spend)
+{
+    fRequireStandard = true; // to verify mainnet can accept lelantus mint
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(910);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<CHDMint> mints;
+    auto result = pwalletMain->MintAndStoreLelantus(10 * COIN, wtxAndFee, mints);
+    BOOST_CHECK_EQUAL("", result);
+    CMutableTransaction mutableTx(*(wtxAndFee[0].first.tx));
+    GenerateBlock({mutableTx}, &script);
+    GenerateBlocks(5);
+    BOOST_CHECK_EQUAL(1, wtxAndFee.size());
+    wtxAndFee.clear();
+    mints.clear();
+
+    CWalletTx tx;
+    std::vector<CRecipient> recipients;
+    auto pub = pwalletMain->GenerateNewKey();
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(pub.GetID()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->JoinSplitLelantus(recipients, {0}, tx),
+        InsufficientFunds,
+        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
+
+    result = pwalletMain->MintAndStoreLelantus(10 * COIN, wtxAndFee, mints);
+    BOOST_CHECK_EQUAL("", result);
+    mutableTx = (*(wtxAndFee[0].first.tx));
+    GenerateBlock({mutableTx}, &script);
+    GenerateBlocks(6);
+    BOOST_CHECK_EQUAL(1, wtxAndFee.size());
+    wtxAndFee.clear();
+    mints.clear();
+
+    BOOST_CHECK_NO_THROW(pwalletMain->JoinSplitLelantus(recipients, {0}, tx));
+
+    lelantus::CLelantusState::GetState()->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

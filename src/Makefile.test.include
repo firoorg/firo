@@ -126,8 +126,8 @@ BITCOIN_TESTS = \
   test/hash_tests.cpp \
   test/key_tests.cpp \
   test/dbwrapper_tests.cpp \
-  # test/lelantus_tests.cpp \
-  # test/lelantus_state_tests.cpp \
+  test/lelantus_tests.cpp \
+  test/lelantus_state_tests.cpp \
   test/limitedmap_tests.cpp \
   test/main_tests.cpp \
   test/mbstring_tests.cpp \
