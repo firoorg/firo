@@ -735,7 +735,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     UniValue publicObj(UniValue::VOBJ);
     UniValue privateObj(UniValue::VOBJ);
 
-    CAmount publicConfirmed = pwalletMain->GetBalance();
+    CAmount publicConfirmed = pwalletMain->GetBalance(true);
     CAmount publicUnconfirmed = pwalletMain->GetUnconfirmedBalance();
     CAmount publicLocked = getLockUnspentAmount();
     CAmount publicImmature = pwalletMain->GetImmatureBalance();
