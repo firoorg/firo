@@ -1193,7 +1193,7 @@
     </message>
     <message>
         <source>Dismiss</source>
-        <translation>解雇</translation>
+        <translation>忽略</translation>
     </message>
 </context>
 <context>
