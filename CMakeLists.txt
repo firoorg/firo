@@ -3,10 +3,10 @@ set(CMAKE_CPP_COMPILER /usr/bin/llvm-g++)
 set(CMAKE_CXX_STANDARD 14)
 cmake_minimum_required(VERSION 2.8)
 
-project(zcoind CXX)
+project(firod CXX)
 set(ENABLE_CLIENTAPI True)
 include_directories(src src/univalue/include src/client-api src/zmq src/zmqserver src/wallet src/qt)
-add_executable(zcoind src/bitcoind.cpp
+add_executable(firod src/bitcoind.cpp
     src/amount.h
     src/chain.h
     src/protocol.h
@@ -866,5 +866,5 @@ add_executable(zcoind src/bitcoind.cpp
 find_package(Boost 1.45.0 COMPONENTS)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
-    target_link_libraries(zcoind ${Boost_LIBRARIES})
+    target_link_libraries(firod ${Boost_LIBRARIES})
 endif()
