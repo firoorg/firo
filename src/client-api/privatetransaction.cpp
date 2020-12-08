@@ -421,7 +421,9 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
 
     UniValue retval(UniValue::VARR);
     for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
-        retval.push_back(wtxAndFee.first.GetHash().GetHex());
+        CWalletTx tx = wtxAndFee.first;
+        GetMainSignals().WalletTransaction(tx);
+        retval.push_back(tx.GetHash().GetHex());
     }
     GetMainSignals().UpdatedBalance();
     return retval;

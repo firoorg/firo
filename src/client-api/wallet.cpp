@@ -17,6 +17,7 @@
 #include "univalue.h"
 #include "wallet/bip39.h"
 #include "validation.h"
+#include "consensus/consensus.h"
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 
@@ -153,16 +154,26 @@ CAmount getLockUnspentAmount()
     return total;
 }
 
-void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry){
-    if (pwalletMain->IsSpent(outPoint.hash, outPoint.n) ||
-        (wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) ||
-        wtx.GetDepthInMainChain() <= 0)
-        entry.push_back(Pair("spendable", false));
+void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry) {
+    // 0 indicates that the transaction may be spent immediately; -1 that it may not be spent at all; and any other
+    // value that it may be spent AFTER the given block height. The lock status of a transaction does not affect this
+    // value.
+    int nSpendableAt;
 
-    else{
-        entry.push_back(Pair("spendable", true));
-        entry.push_back(Pair("locked", pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n)));
+    if (wtx.isAbandoned()) {
+        nSpendableAt = -1;
+    } else if (pwalletMain->IsSpent(outPoint.hash, outPoint.n)) {
+        nSpendableAt = -1;
+    } else if (wtx.IsCoinBase() && wtx.GetDepthInMainChain() > 0) { // block 0 coinbase and orphans are unspendable
+        nSpendableAt = mapBlockIndex[wtx.hashBlock]->nHeight + COINBASE_MATURITY;
+    } else {
+        nSpendableAt = 0;
     }
+
+    bool fLocked = pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n);
+
+    entry.push_back(Pair("locked", fLocked));
+    entry.push_back(Pair("spendableAt", nSpendableAt));
 }
 
 UniValue getBlockHeight(const string strHash)
