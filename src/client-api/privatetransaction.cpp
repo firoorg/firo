@@ -353,7 +353,10 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             fHasCoinControl ? &coinControl : nullptr
         );
 
-        pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins);
+        if (!pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins)) {
+            throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction was invalid and was not accepted into the mempool.");
+        }
+
         GetMainSignals().WalletTransaction(transaction);
 
         for (CLelantusEntry& spendCoin: spendCoins) {
@@ -366,6 +369,10 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             CTransactionRef tx;
             GetTransaction(outPoint.hash, tx, Params().GetConsensus(), hashBlock, true);
 
+            if (!tx) {
+                throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction could not be found in the mempool.");
+            }
+
             GetMainSignals().WalletTransaction(*tx);
         }
 
@@ -373,6 +380,10 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             uint256 hashBlock;
             CTransactionRef tx;
             GetTransaction(mintCoin.GetTxHash(), tx, Params().GetConsensus(), hashBlock, true);
+
+            if (!tx) {
+                throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction could not be found in the mempool.");
+            }
 
             GetMainSignals().WalletTransaction(*tx);
         }
