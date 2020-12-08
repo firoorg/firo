@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(evospork_general)
     // wait until the spork expires
     GenerateBlocks(1100 - chainActive.Height());
     prevHeight = chainActive.Height();
-    CreateAndProcessBlock(lelantusMints, coinbaseKey);
+    CheckAndProcessBlock(lelantusMints, coinbaseKey);
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
 }
 

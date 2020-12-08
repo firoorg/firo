@@ -2717,11 +2717,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!fJustCheck)
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
-    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
-        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
-        !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
-        return false;
-
     // evo spork handling
     // back up spork state if fJustCheck is true
     auto sporkSetBackup = pindex->activeDisablingSporks;
@@ -2740,6 +2735,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return false;
         }
     }
+
+    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
+        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
+        !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
+        return false;
 
     if (fJustCheck) {
         // roll back spork set if needed
