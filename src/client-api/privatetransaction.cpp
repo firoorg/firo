@@ -376,18 +376,6 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             GetMainSignals().WalletTransaction(*tx);
         }
 
-        for (CHDMint& mintCoin: mintCoins) {
-            uint256 hashBlock;
-            CTransactionRef tx;
-            GetTransaction(mintCoin.GetTxHash(), tx, Params().GetConsensus(), hashBlock, true);
-
-            if (!tx) {
-                throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction could not be found in the mempool.");
-            }
-
-            GetMainSignals().WalletTransaction(*tx);
-        }
-
         return transaction.GetHash().GetHex();
     }
     catch (const InsufficientFunds& e) {
